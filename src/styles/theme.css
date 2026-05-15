@@ -1,0 +1,40 @@
+:root {
+  --bg: #0e0a06;
+  --bg-deep: #050302;
+  --panel: linear-gradient(180deg, #2c2620 0%, #1a1612 100%);
+  --panel-flat: #1c1814;
+  --panel-border: #5d4628;
+  --panel-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(244, 205, 94, 0.08),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --text: #e8d8b6;
+  --text-dim: #a89372;
+  --text-faint: #5d4a33;
+  --accent: #e8742e;
+  --accent-glow: rgba(232, 116, 46, 0.5);
+  --accent-secondary: #f4cd5e;
+  --accent-secondary-glow: rgba(244, 205, 94, 0.45);
+  --led-on: #ff3a20;
+  --led-off: #2a0a05;
+  --key-white: linear-gradient(180deg, #ece1bc 0%, #c8b890 100%);
+  --key-white-active: linear-gradient(180deg, #f4b56a 0%, #d4602a 100%);
+  --key-black: linear-gradient(180deg, #1a0e08 0%, #050302 100%);
+  --key-black-active: linear-gradient(180deg, #d4502a 0%, #8a2810 100%);
+  --knob-bg: radial-gradient(circle at 35% 30%, #3a342c 0%, #1a1410 70%, #050302 100%);
+  --knob-ring: rgba(244, 205, 94, 0.12);
+  --wood: linear-gradient(180deg, #4a2d18 0%, #6b3e1f 30%, #3a2010 70%, #2a1808 100%);
+  --wood-grain:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 3px,
+      rgba(255, 200, 120, 0.05) 3px,
+      rgba(255, 200, 120, 0.05) 5px,
+      transparent 5px,
+      transparent 9px
+    );
+  --serif: 'Georgia', 'Times New Roman', serif;
+}

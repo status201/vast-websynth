@@ -1,0 +1,416 @@
+import { LadderFilterNode } from './ladder-filter/node';
+import { Voice } from './voice';
+import { LFO } from './lfo';
+import { Distortion } from './effects/distortion';
+import { Wah } from './effects/wah';
+import { Phaser } from './effects/phaser';
+import { Delay } from './effects/delay';
+import { Reverb } from './effects/reverb';
+import { ParamBus, registerDefaults } from '../state/params';
+import { Clock } from './transport/clock';
+import { Arpeggiator } from './transport/arpeggiator';
+import { StepSequencer } from './transport/sequencer';
+import { DrumMachine } from './transport/drum-machine';
+import { Arrangement } from './transport/arrangement';
+import { Performance } from './transport/performance';
+import { PatternStore } from '../state/patterns';
+
+const VOICE_COUNT = 8;
+const PITCH_BEND_RANGE_CENTS = 200;
+
+export class Engine {
+  readonly ctx: AudioContext;
+  readonly voices: Voice[] = [];
+  readonly voiceBus: GainNode;
+  readonly master: GainNode;
+  readonly analyser: AnalyserNode;
+
+  readonly distortion: Distortion;
+  readonly wah: Wah;
+  readonly phaser: Phaser;
+  readonly delay: Delay;
+  readonly reverb: Reverb;
+
+  readonly preMaster!: GainNode;
+  readonly drumBus!: GainNode;
+
+  readonly patterns: PatternStore;
+  readonly clock: Clock;
+  readonly djFilter: BiquadFilterNode;
+  arp!: Arpeggiator;
+  seq!: StepSequencer;
+  drums!: DrumMachine;
+  arrangement!: Arrangement;
+  perf!: Performance;
+
+  readonly lfo: LFO;
+  private readonly pitchBend: ConstantSourceNode;
+  private readonly drift: ConstantSourceNode;
+  private readonly noise: AudioBufferSourceNode;
+  private polyMode = true;
+  private heldNotes = new Map<number, Voice[]>();
+
+  private driftAmount = 0;
+  private driftTimer: number | null = null;
+  private unisonCount = 1;
+  private unisonDetune = 12;
+  private glideMode = 1; // 0 off · 1 always · 2 legato
+  /** When true, bus.noteOn/Off do not directly play notes — arp/seq do. */
+  passthroughSuppressed = false;
+
+  constructor(private readonly bus: ParamBus) {
+    registerDefaults(bus);
+    this.ctx = new AudioContext({ latencyHint: 'interactive' });
+
+    this.voiceBus = this.ctx.createGain();
+    this.voiceBus.gain.value = 1;
+
+    this.distortion = new Distortion(this.ctx);
+    this.wah = new Wah(this.ctx);
+    this.phaser = new Phaser(this.ctx);
+    this.delay = new Delay(this.ctx);
+    this.reverb = new Reverb(this.ctx);
+
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.8;
+
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.2;
+
+    // Sum bus where synth FX chain and drum bus meet before master volume.
+    // Tapping the analyser here (pre-master) keeps the scope amplitude
+    // independent of the master-volume knob.
+    this.preMaster = this.ctx.createGain();
+    this.preMaster.gain.value = 1;
+
+    this.drumBus = this.ctx.createGain();
+    this.drumBus.gain.value = 1;
+
+    // Synth FX chain
+    this.voiceBus.connect(this.distortion.input);
+    this.distortion.output.connect(this.wah.input);
+    this.wah.output.connect(this.phaser.input);
+    this.phaser.output.connect(this.delay.input);
+    this.delay.output.connect(this.reverb.input);
+    this.reverb.output.connect(this.preMaster);
+
+    // Drum bus joins at preMaster (bypasses synth FX)
+    this.drumBus.connect(this.preMaster);
+
+    // DJ performance filter — transparent by default, swept live.
+    this.djFilter = this.ctx.createBiquadFilter();
+    this.djFilter.type = 'lowpass';
+    this.djFilter.frequency.value = 20000;
+    this.djFilter.Q.value = 0.7;
+
+    this.preMaster.connect(this.djFilter);
+    this.djFilter.connect(this.analyser);
+    this.analyser.connect(this.master);
+    this.master.connect(this.ctx.destination);
+
+    this.lfo = new LFO(this.ctx);
+
+    this.pitchBend = this.ctx.createConstantSource();
+    this.pitchBend.offset.value = 0;
+    this.pitchBend.start();
+
+    // Analogue oscillator drift — slow random detune summed into all oscs.
+    this.drift = this.ctx.createConstantSource();
+    this.drift.offset.value = 0;
+    this.drift.start();
+
+    this.noise = this.createNoiseSource();
+
+    this.patterns = new PatternStore();
+    this.clock = new Clock(this.ctx);
+  }
+
+  async init(): Promise<void> {
+    await LadderFilterNode.loadModule(this.ctx);
+
+    for (let i = 0; i < VOICE_COUNT; i++) {
+      const v = await Voice.create(this.ctx);
+      v.out.connect(this.voiceBus);
+      this.noise.connect(v.noiseGain);
+
+      // LFO routing
+      this.lfo.toPitch.connect(v.osc1.detuneParam);
+      this.lfo.toPitch.connect(v.osc2.detuneParam);
+      this.lfo.toPitch.connect(v.sub.detuneParam);
+      this.lfo.toCutoff.connect(v.filter.cutoffNote);
+      this.lfo.toAmp.connect(v.tremolo.gain);
+
+      // Pitch bend
+      this.pitchBend.connect(v.osc1.detuneParam);
+      this.pitchBend.connect(v.osc2.detuneParam);
+      this.pitchBend.connect(v.sub.detuneParam);
+
+      // Analogue drift
+      this.drift.connect(v.osc1.detuneParam);
+      this.drift.connect(v.osc2.detuneParam);
+      this.drift.connect(v.sub.detuneParam);
+
+      this.voices.push(v);
+    }
+
+    // Arrangement first so its clock tick runs before the machines read
+    // the play banks for the same tick.
+    this.arrangement = new Arrangement(this.patterns, this.clock);
+    this.perf = new Performance(this.ctx, this.clock, this.bus, this.djFilter);
+
+    // Transport modules — created after voices so they can call engine.playNote
+    this.arp = new Arpeggiator(this, this.bus, this.clock);
+    this.seq = new StepSequencer(this, this.clock, this.patterns, this.arrangement, this.perf);
+    this.drums = new DrumMachine(this, this.clock, this.patterns, this.arrangement, this.perf);
+
+    this.driftTimer = window.setInterval(this.driftStep, 110);
+
+    this.subscribeParams();
+    this.bus.onNote((on, note, vel) => {
+      if (this.passthroughSuppressed) return;
+      if (on) this.playNote(note, vel);
+      else this.releaseNote(note);
+    });
+
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+  }
+
+  // ---------- Note handling ----------
+
+  /** Play a note at the given audio time (defaults to now). */
+  playNote(note: number, velocity = 0.8, when?: number): void {
+    const t = when ?? this.ctx.currentTime;
+    const count = Math.max(1, Math.min(this.unisonCount, this.voices.length));
+    // Legato = glide only when another note is already sounding.
+    const anySounding = this.heldNotes.size > 0;
+    const glide = this.glideMode === 1 ? true : this.glideMode === 2 ? anySounding : false;
+
+    if (!this.polyMode) {
+      const used: Voice[] = [];
+      for (let i = 0; i < count; i++) {
+        const v = this.voices[i]!;
+        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
+        used.push(v);
+      }
+      this.heldNotes.set(note, used);
+      return;
+    }
+
+    const existing = this.heldNotes.get(note);
+    if (existing && existing.some((v) => v.state !== 'idle')) {
+      for (let i = 0; i < existing.length; i++) {
+        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide });
+      }
+      return;
+    }
+    const used: Voice[] = [];
+    for (let i = 0; i < count; i++) {
+      const v = this.pickVoice();
+      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
+      used.push(v);
+    }
+    this.heldNotes.set(note, used);
+  }
+
+  /** Release a note at the given audio time (defaults to now). */
+  releaseNote(note: number, when?: number): void {
+    const t = when ?? this.ctx.currentTime;
+    const vs = this.heldNotes.get(note);
+    if (vs) {
+      for (const v of vs) v.noteOff(t);
+      this.heldNotes.delete(note);
+    }
+  }
+
+  panic(): void {
+    const t = this.ctx.currentTime;
+    for (const v of this.voices) v.kill(t);
+    this.heldNotes.clear();
+  }
+
+  /** Symmetric detune spread in cents for unison copy i of n. */
+  private unisonOffset(i: number, n: number): number {
+    if (n <= 1) return 0;
+    return (i / (n - 1) - 0.5) * 2 * this.unisonDetune;
+  }
+
+  private driftStep = (): void => {
+    const range = this.driftAmount * 12; // ±12 cents at full
+    const target = range <= 0 ? 0 : (Math.random() * 2 - 1) * range;
+    this.drift.offset.setTargetAtTime(target, this.ctx.currentTime, 0.12);
+  };
+
+  private pickVoice(): Voice {
+    // Prefer idle voices, then oldest releasing, then oldest playing
+    let idle: Voice | null = null;
+    let oldestReleasing: Voice | null = null;
+    let oldestPlaying: Voice | null = null;
+    for (const v of this.voices) {
+      if (v.state === 'idle') { idle = v; break; }
+      if (v.state === 'releasing') {
+        if (!oldestReleasing || v.noteOffAt < oldestReleasing.noteOffAt) oldestReleasing = v;
+      } else {
+        if (!oldestPlaying || v.noteOnAt < oldestPlaying.noteOnAt) oldestPlaying = v;
+      }
+    }
+    if (idle) return idle;
+    if (oldestReleasing) return oldestReleasing;
+    return oldestPlaying ?? this.voices[0]!;
+  }
+
+  // ---------- Param subscriptions ----------
+
+  private subscribeParams(): void {
+    const bus = this.bus;
+    const all = (fn: (v: Voice, value: number) => void) =>
+      (value: number) => { for (const v of this.voices) fn(v, value); };
+
+    // Voicing
+    bus.subscribe('voicing.mode', (v) => {
+      const wasPoly = this.polyMode;
+      this.polyMode = v >= 0.5;
+      if (wasPoly !== this.polyMode) this.panic();
+    });
+
+    // OSC 1
+    bus.subscribe('osc1.wave', all((v, x) => v.osc1.setWave(x)));
+    bus.subscribe('osc1.octave', all((v, x) => v.osc1.setOctave(x)));
+    bus.subscribe('osc1.detune', all((v, x) => v.osc1.setDetuneCents(x)));
+    bus.subscribe('osc1.level', all((v, x) => v.osc1.setLevel(x)));
+
+    // OSC 2
+    bus.subscribe('osc2.wave', all((v, x) => v.osc2.setWave(x)));
+    bus.subscribe('osc2.octave', all((v, x) => v.osc2.setOctave(x)));
+    bus.subscribe('osc2.detune', all((v, x) => v.osc2.setDetuneCents(x)));
+    bus.subscribe('osc2.level', all((v, x) => v.osc2.setLevel(x)));
+
+    // Sub oscillator
+    bus.subscribe('sub.wave', all((v, x) => v.setSubWave(x)));
+    bus.subscribe('sub.octave', all((v, x) => v.setSubOctave(x)));
+    bus.subscribe('sub.level', all((v, x) => v.setSubLevel(x)));
+
+    // Unison
+    bus.subscribe('unison.voices', (x) => { this.unisonCount = Math.max(1, Math.round(x)); });
+    bus.subscribe('unison.detune', (x) => { this.unisonDetune = x; });
+
+    // Analogue drift / glide mode
+    bus.subscribe('analog.drift', (x) => { this.driftAmount = x; });
+    bus.subscribe('glide.mode', (x) => { this.glideMode = Math.round(x); });
+
+    // Mixer
+    bus.subscribe('mixer.noise', all((v, x) => v.setNoiseLevel(x)));
+    bus.subscribe('mixer.glide', all((v, x) => v.setGlide(x)));
+
+    // Filter
+    bus.subscribe('filter.cutoff', all((v, x) => v.setFilterCutoff(x)));
+    bus.subscribe('filter.resonance', all((v, x) => v.setFilterResonance(x)));
+    bus.subscribe('filter.drive', all((v, x) => v.setFilterDrive(x)));
+    bus.subscribe('filter.envAmount', all((v, x) => v.setFilterEnvAmount(x)));
+
+    // Amp envelope
+    bus.subscribe('env.amp.attack', all((v, x) => v.ampEnv.setAttack(x)));
+    bus.subscribe('env.amp.decay', all((v, x) => v.ampEnv.setDecay(x)));
+    bus.subscribe('env.amp.sustain', all((v, x) => v.ampEnv.setSustain(x)));
+    bus.subscribe('env.amp.release', all((v, x) => v.ampEnv.setRelease(x)));
+
+    // Filter envelope
+    bus.subscribe('env.fil.attack', all((v, x) => v.filEnv.setAttack(x)));
+    bus.subscribe('env.fil.decay', all((v, x) => v.filEnv.setDecay(x)));
+    bus.subscribe('env.fil.sustain', all((v, x) => v.filEnv.setSustain(x)));
+    bus.subscribe('env.fil.release', all((v, x) => v.filEnv.setRelease(x)));
+
+    // LFO (amount = base knob + mod wheel, clamped to [0, 1])
+    const updateLfoAmount = () => {
+      const base = bus.get('lfo.amount');
+      const mw = bus.get('master.modWheel');
+      this.lfo.setAmount(Math.min(1, base + mw));
+    };
+    bus.subscribe('lfo.rate', (x) => this.lfo.setRate(x));
+    bus.subscribe('lfo.amount', () => updateLfoAmount());
+    bus.subscribe('lfo.wave', (x) => this.lfo.setWave(x));
+    bus.subscribe('lfo.dest', (x) => this.lfo.setDest(x));
+
+    // FX: Distortion
+    bus.subscribe('fx.dist.on', (x) => this.distortion.setBypass(x < 0.5));
+    bus.subscribe('fx.dist.drive', (x) => this.distortion.setDrive(x));
+    bus.subscribe('fx.dist.tone', (x) => this.distortion.setTone(x));
+    bus.subscribe('fx.dist.mix', (x) => this.distortion.setMix(x));
+
+    // FX: Wah
+    bus.subscribe('fx.wah.on', (x) => this.wah.setBypass(x < 0.5));
+    bus.subscribe('fx.wah.rate', (x) => this.wah.setRate(x));
+    bus.subscribe('fx.wah.depth', (x) => this.wah.setDepth(x));
+    bus.subscribe('fx.wah.q', (x) => this.wah.setQ(x));
+
+    // FX: Phaser
+    bus.subscribe('fx.phaser.on', (x) => this.phaser.setBypass(x < 0.5));
+    bus.subscribe('fx.phaser.rate', (x) => this.phaser.setRate(x));
+    bus.subscribe('fx.phaser.depth', (x) => this.phaser.setDepth(x));
+    bus.subscribe('fx.phaser.feedback', (x) => this.phaser.setFeedback(x));
+
+    // FX: Delay
+    bus.subscribe('fx.delay.on', (x) => this.delay.setBypass(x < 0.5));
+    bus.subscribe('fx.delay.time', (x) => this.delay.setTime(x));
+    bus.subscribe('fx.delay.feedback', (x) => this.delay.setFeedback(x));
+    bus.subscribe('fx.delay.mix', (x) => this.delay.setMix(x));
+
+    // FX: Reverb
+    bus.subscribe('fx.reverb.on', (x) => this.reverb.setBypass(x < 0.5));
+    bus.subscribe('fx.reverb.size', (x) => this.reverb.setSize(x));
+    bus.subscribe('fx.reverb.damp', (x) => this.reverb.setDamp(x));
+    bus.subscribe('fx.reverb.mix', (x) => this.reverb.setMix(x));
+
+    // DJ filter (manual sweep; Drop overrides it while held)
+    bus.subscribe('fx.djfilter', (x) => this.perf.setDjFilter(x));
+
+    // Master
+    bus.subscribe('master.volume', (x) => {
+      this.master.gain.setTargetAtTime(x * x, this.ctx.currentTime, 0.01);
+    });
+    bus.subscribe('master.pitchBend', (x) => {
+      this.pitchBend.offset.setTargetAtTime(x * PITCH_BEND_RANGE_CENTS, this.ctx.currentTime, 0.005);
+    });
+    bus.subscribe('master.modWheel', () => updateLfoAmount());
+
+    // ----- Transport -----
+    bus.subscribe('transport.bpm', (b) => this.clock.setBpm(b));
+
+    // ----- Arpeggiator -----
+    bus.subscribe('arp.on', (v) => this.arp.setEnabled(v >= 0.5));
+    bus.subscribe('arp.pattern', (v) => this.arp.setPattern(v));
+    bus.subscribe('arp.rate', (v) => this.arp.setRate(v));
+    bus.subscribe('arp.octaves', (v) => this.arp.setOctaves(v));
+    bus.subscribe('arp.gate', (v) => this.arp.setGate(v));
+
+    // ----- Sequencer -----
+    bus.subscribe('seq.on', (v) => this.seq.setEnabled(v >= 0.5));
+
+    // ----- Drums -----
+    bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
+    bus.subscribe('drum.master', (v) => {
+      this.drumBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+    });
+    for (let i = 0; i < 8; i++) {
+      const track = i;
+      bus.subscribe(`drum.t${i}.vol`, (v) => this.drums.setTrackVolume(track, v));
+      bus.subscribe(`drum.t${i}.tune`, (v) => this.drums.setTrackTune(track, v));
+      bus.subscribe(`drum.t${i}.decay`, (v) => this.drums.setTrackDecay(track, v));
+      bus.subscribe(`drum.t${i}.mute`, (v) => this.drums.setTrackMute(track, v >= 0.5));
+    }
+  }
+
+  // ---------- Noise source ----------
+
+  private createNoiseSource(): AudioBufferSourceNode {
+    const sr = this.ctx.sampleRate;
+    const buf = this.ctx.createBuffer(1, sr * 2, sr);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.start();
+    return src;
+  }
+}

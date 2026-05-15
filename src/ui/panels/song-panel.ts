@@ -1,0 +1,228 @@
+import type { ParamBus } from '../../state/params';
+import type { Engine } from '../../audio/engine';
+import type { ChainLane } from '../../audio/transport/arrangement';
+import { Knob } from '../components/knob';
+import { Dropdown } from '../components/dropdown';
+import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT } from '../../state/patterns';
+import { Song, DEMO_SONGS } from '../../state/song';
+
+function el(tag: string, cls?: string, text?: string): HTMLElement {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function momentary(label: string, on: () => void, off: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'switch dj-btn';
+  b.textContent = label;
+  const start = (e: Event) => { e.preventDefault(); if (!b.classList.contains('on')) { b.classList.add('on'); on(); } };
+  const end = () => { if (b.classList.contains('on')) { b.classList.remove('on'); off(); } };
+  b.addEventListener('pointerdown', start);
+  b.addEventListener('pointerup', end);
+  b.addEventListener('pointerleave', end);
+  b.addEventListener('pointercancel', end);
+  return b;
+}
+
+export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
+  const root = el('div', 'pattern-panel song-panel');
+
+  // ---- Chain lanes ----
+  const chains = el('div', 'song-chains');
+  chains.appendChild(buildChainLane(
+    'Sequencer', engine.arrangement.seq,
+    (s, en) => engine.arrangement.setSeqChain(s, en),
+    () => engine.arrangement.seqChainPos, engine));
+  chains.appendChild(buildChainLane(
+    'Drums', engine.arrangement.drum,
+    (s, en) => engine.arrangement.setDrumChain(s, en),
+    () => engine.arrangement.drumChainPos, engine));
+  root.appendChild(chains);
+
+  // ---- Live DJ FX ----
+  const fx = el('div', 'dj-fx');
+  fx.appendChild(el('div', 'song-section-label', 'Live FX'));
+
+  fx.appendChild(momentary('Fill', () => engine.perf.setFill(true), () => engine.perf.setFill(false)));
+
+  const stutterWrap = el('div', 'dj-stutter');
+  stutterWrap.appendChild(momentary('Stutter',
+    () => engine.perf.setStutter(true), () => engine.perf.setStutter(false)));
+  const sizes = el('div', 'segmented dj-stutter-size');
+  ([['1', 1], ['1/8', 2], ['1/4', 4]] as Array<[string, number]>).forEach(([lbl, n], i) => {
+    const sb = document.createElement('button');
+    sb.type = 'button';
+    sb.textContent = lbl;
+    if (i === 1) sb.classList.add('active');
+    sb.addEventListener('click', () => {
+      engine.perf.setStutterSize(n);
+      for (const c of Array.from(sizes.children)) c.classList.remove('active');
+      sb.classList.add('active');
+    });
+    sizes.appendChild(sb);
+  });
+  stutterWrap.appendChild(sizes);
+  fx.appendChild(stutterWrap);
+
+  fx.appendChild(momentary('Drop', () => engine.perf.setDrop(true), () => engine.perf.setDrop(false)));
+  fx.appendChild(momentary('Tape Stop',
+    () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false)));
+  fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
+  root.appendChild(fx);
+
+  // ---- Song I/O ----
+  const io = el('div', 'song-io');
+  io.appendChild(el('div', 'song-section-label', 'Song'));
+
+  const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
+  const refreshList = () => dropdown.setOptions(Song.list());
+
+  const loadBtn = el('button', 'switch', 'Load') as HTMLButtonElement;
+  loadBtn.addEventListener('click', () => {
+    const f = Song.loadSlot(dropdown.value);
+    if (f) Song.apply(f, bus, engine.patterns, engine.arrangement);
+  });
+
+  const saveBtn = el('button', 'switch', 'Save') as HTMLButtonElement;
+  saveBtn.addEventListener('click', () => {
+    const name = prompt('Song name:', dropdown.value || 'My Song');
+    if (!name) return;
+    const file = Song.capture(bus, engine.patterns, engine.arrangement, name);
+    Song.saveSlot(name, file);
+    Song.download(file);
+    refreshList();
+    dropdown.setValue(name);
+  });
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.style.display = 'none';
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files?.[0];
+    if (!f) return;
+    const song = await Song.readFile(f);
+    if (!song) { alert('Not a valid WebSynth song file.'); return; }
+    Song.apply(song, bus, engine.patterns, engine.arrangement);
+    Song.saveSlot(song.name, song);
+    refreshList();
+    dropdown.setValue(song.name);
+    fileInput.value = '';
+  });
+  const importBtn = el('button', 'switch', 'Import') as HTMLButtonElement;
+  importBtn.addEventListener('click', () => fileInput.click());
+
+  const newBtn = el('button', 'switch', 'New') as HTMLButtonElement;
+  newBtn.addEventListener('click', () => {
+    if (!confirm('Clear all banks and chains?')) return;
+    engine.patterns.restore({ seqBanks: emptySeqBanks(), drumBanks: emptyDrumBanks() });
+    engine.arrangement.setSeqChain([0], false);
+    engine.arrangement.setDrumChain([0], false);
+  });
+
+  io.appendChild(el('span', 'song-io-label', 'Slot:'));
+  io.appendChild(dropdown.el);
+  io.appendChild(loadBtn);
+  io.appendChild(saveBtn);
+  io.appendChild(importBtn);
+  io.appendChild(newBtn);
+  io.appendChild(fileInput);
+
+  io.appendChild(el('span', 'song-io-label', 'Demos:'));
+  for (const name of Object.keys(DEMO_SONGS)) {
+    const d = el('button', 'switch demo-btn', name) as HTMLButtonElement;
+    d.addEventListener('click', () => {
+      Song.apply(DEMO_SONGS[name]!, bus, engine.patterns, engine.arrangement);
+      refreshList();
+      dropdown.setValue(name);
+    });
+    io.appendChild(d);
+  }
+  root.appendChild(io);
+
+  return root;
+}
+
+function buildChainLane(
+  title: string,
+  lane: ChainLane,
+  setChain: (steps: number[], enabled: boolean) => void,
+  getPos: () => number,
+  engine: Engine,
+): HTMLElement {
+  const root = el('div', 'chain-lane');
+
+  const head = el('div', 'chain-head');
+  head.appendChild(el('div', 'chain-title', title));
+
+  const enableBtn = document.createElement('button');
+  enableBtn.type = 'button';
+  enableBtn.className = 'switch chain-enable';
+  enableBtn.innerHTML = '<span class="switch-led"></span><span class="switch-label">Chain</span>';
+  enableBtn.addEventListener('click', () => setChain([...lane.steps], !lane.enabled));
+  head.appendChild(enableBtn);
+  root.appendChild(head);
+
+  const chips = el('div', 'chain-chips');
+  root.appendChild(chips);
+
+  let sel = -1;
+
+  const controls = el('div', 'chain-controls');
+  const addRow = el('div', 'chain-add');
+  BANK_LABELS.forEach((label, i) => {
+    const a = el('button', 'bank-btn add', '') as HTMLButtonElement;
+    a.innerHTML = `<span class="bank-letter">${label}</span>`;
+    a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
+    addRow.appendChild(a);
+  });
+  controls.appendChild(addRow);
+
+  const mk = (label: string, fn: () => void) => {
+    const b = el('button', 'switch chain-ctl', label) as HTMLButtonElement;
+    b.addEventListener('click', fn);
+    return b;
+  };
+  controls.appendChild(mk('◀', () => {
+    if (sel > 0) { const s = [...lane.steps]; [s[sel - 1], s[sel]] = [s[sel]!, s[sel - 1]!]; sel--; setChain(s, lane.enabled); }
+  }));
+  controls.appendChild(mk('▶', () => {
+    if (sel >= 0 && sel < lane.steps.length - 1) { const s = [...lane.steps]; [s[sel + 1], s[sel]] = [s[sel]!, s[sel + 1]!]; sel++; setChain(s, lane.enabled); }
+  }));
+  controls.appendChild(mk('✕', () => {
+    if (sel >= 0) { const s = [...lane.steps]; s.splice(sel, 1); sel = -1; setChain(s, lane.enabled); }
+  }));
+  controls.appendChild(mk('Clear', () => { sel = -1; setChain([0], lane.enabled); }));
+  root.appendChild(controls);
+
+  const render = () => {
+    enableBtn.classList.toggle('on', lane.enabled);
+    if (sel >= lane.steps.length) sel = -1;
+    chips.innerHTML = '';
+    const pos = getPos();
+    lane.steps.forEach((b, idx) => {
+      const c = el('button', 'chain-chip', BANK_LABELS[b] ?? '?') as HTMLButtonElement;
+      if (idx === sel) c.classList.add('sel');
+      if (lane.enabled && idx === pos) c.classList.add('playing');
+      c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; render(); });
+      chips.appendChild(c);
+    });
+  };
+
+  engine.arrangement.onChange(render);
+  render();
+  return root;
+}
+
+function emptySeqBanks() {
+  return Array.from({ length: 4 }, () =>
+    Array.from({ length: SEQ_LENGTH }, (_, i) => ({ on: false, note: 60 + (i % 8), velocity: 0.8, gate: 0.5 })));
+}
+function emptyDrumBanks() {
+  return Array.from({ length: 4 }, () =>
+    Array.from({ length: DRUM_TRACK_COUNT }, () =>
+      Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 }))));
+}
