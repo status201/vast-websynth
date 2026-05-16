@@ -11,8 +11,11 @@ import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
 import { DrumMachine } from './transport/drum-machine';
+import { SamplerMachine } from './transport/sampler-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
+import { RecorderNode } from './recorder/node';
+import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore } from '../state/patterns';
 
 const VOICE_COUNT = 8;
@@ -33,6 +36,7 @@ export class Engine {
 
   readonly preMaster!: GainNode;
   readonly drumBus!: GainNode;
+  readonly samplerBus!: GainNode;
 
   readonly patterns: PatternStore;
   readonly clock: Clock;
@@ -40,8 +44,11 @@ export class Engine {
   arp!: Arpeggiator;
   seq!: StepSequencer;
   drums!: DrumMachine;
+  sampler!: SamplerMachine;
   arrangement!: Arrangement;
   perf!: Performance;
+  recorder!: RecorderController;
+  private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
   private readonly pitchBend: ConstantSourceNode;
@@ -87,6 +94,9 @@ export class Engine {
     this.drumBus = this.ctx.createGain();
     this.drumBus.gain.value = 1;
 
+    this.samplerBus = this.ctx.createGain();
+    this.samplerBus.gain.value = 1;
+
     // Synth FX chain
     this.voiceBus.connect(this.distortion.input);
     this.distortion.output.connect(this.wah.input);
@@ -95,8 +105,9 @@ export class Engine {
     this.delay.output.connect(this.reverb.input);
     this.reverb.output.connect(this.preMaster);
 
-    // Drum bus joins at preMaster (bypasses synth FX)
+    // Drum + sampler buses join at preMaster (bypass synth FX)
     this.drumBus.connect(this.preMaster);
+    this.samplerBus.connect(this.preMaster);
 
     // DJ performance filter — transparent by default, swept live.
     this.djFilter = this.ctx.createBiquadFilter();
@@ -128,6 +139,7 @@ export class Engine {
 
   async init(): Promise<void> {
     await LadderFilterNode.loadModule(this.ctx);
+    await RecorderNode.loadModule(this.ctx);
 
     for (let i = 0; i < VOICE_COUNT; i++) {
       const v = await Voice.create(this.ctx);
@@ -163,6 +175,13 @@ export class Engine {
     this.arp = new Arpeggiator(this, this.bus, this.clock);
     this.seq = new StepSequencer(this, this.clock, this.patterns, this.arrangement, this.perf);
     this.drums = new DrumMachine(this, this.clock, this.patterns, this.arrangement, this.perf);
+    this.sampler = new SamplerMachine(this, this.clock, this.patterns, this.arrangement, this.perf);
+
+    // Audio capture: tap master (post master-volume). The recorder node has
+    // zero outputs so it is a pure sink and never doubles into destination.
+    this.recorderNode = await RecorderNode.create(this.ctx);
+    this.master.connect(this.recorderNode.input);
+    this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
 
     this.driftTimer = window.setInterval(this.driftStep, 110);
 
@@ -172,8 +191,17 @@ export class Engine {
       if (on) this.playNote(note, vel);
       else this.releaseNote(note);
     });
+  }
 
-    if (this.ctx.state === 'suspended') await this.ctx.resume();
+  /**
+   * Resume the AudioContext. Browsers create it suspended until a user
+   * gesture, so `init()` can run (and the UI can mount) before this is
+   * called — this must be invoked from within the start-button gesture.
+   */
+  async resume(): Promise<void> {
+    if (this.ctx.state === 'suspended') {
+      try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
+    }
   }
 
   // ---------- Note handling ----------
@@ -404,6 +432,16 @@ export class Engine {
       bus.subscribe(`drum.t${i}.tune`, (v) => this.drums.setTrackTune(track, v));
       bus.subscribe(`drum.t${i}.decay`, (v) => this.drums.setTrackDecay(track, v));
       bus.subscribe(`drum.t${i}.mute`, (v) => this.drums.setTrackMute(track, v >= 0.5));
+    }
+
+    // ----- Sampler -----
+    bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
+    bus.subscribe('sampler.master', (v) => {
+      this.samplerBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+    });
+    for (let i = 0; i < 8; i++) {
+      const slot = i;
+      bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
     }
   }
 

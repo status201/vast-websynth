@@ -1,10 +1,11 @@
 import type { ParamBus } from '../../state/params';
 import type { Engine } from '../../audio/engine';
 import type { ChainLane } from '../../audio/transport/arrangement';
+import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
 import { createAiPromptButton } from '../components/ai-prompt';
-import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT } from '../../state/patterns';
+import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
@@ -41,6 +42,10 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     'Drums', engine.arrangement.drum,
     (s, en) => engine.arrangement.setDrumChain(s, en),
     () => engine.arrangement.drumChainPos, engine));
+  chains.appendChild(buildChainLane(
+    'Sampler', engine.arrangement.sampler,
+    (s, en) => engine.arrangement.setSamplerChain(s, en),
+    () => engine.arrangement.samplerChainPos, engine));
   root.appendChild(chains);
 
   // ---- Live DJ FX ----
@@ -125,9 +130,16 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const newBtn = el('button', 'switch', 'New') as HTMLButtonElement;
   newBtn.addEventListener('click', () => {
     if (!confirm('Clear all banks and chains?')) return;
-    engine.patterns.restore({ seqBanks: emptySeqBanks(), drumBanks: emptyDrumBanks() });
+    engine.patterns.restore({
+      seqBanks: emptySeqBanks(),
+      drumBanks: emptyDrumBanks(),
+      samplerBanks: emptySamplerBanks(),
+      sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
+    });
+    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
     engine.arrangement.setSeqChain([0], false);
     engine.arrangement.setDrumChain([0], false);
+    engine.arrangement.setSamplerChain([0], false);
   });
 
   io.appendChild(el('span', 'song-io-label', 'Slot:'));
@@ -152,7 +164,50 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   io.appendChild(createAiPromptButton(bus));
   root.appendChild(io);
 
+  // ---- Audio export (WAV / MP3) ----
+  const aio = el('div', 'song-io');
+  aio.appendChild(el('div', 'song-section-label', 'Audio'));
+
+  let fmt: ExportFormat = 'wav';
+  const fmtSel = el('div', 'segmented');
+  ([['WAV', 'wav'], ['MP3', 'mp3']] as Array<[string, ExportFormat]>).forEach(([lbl, f], i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = lbl;
+    if (i === 0) b.classList.add('active');
+    b.addEventListener('click', () => {
+      fmt = f;
+      for (const c of Array.from(fmtSel.children)) c.classList.remove('active');
+      b.classList.add('active');
+    });
+    fmtSel.appendChild(b);
+  });
+
+  const expSongBtn = el('button', 'switch', 'Export Song') as HTMLButtonElement;
+  expSongBtn.title = 'Render one full pass of the arrangement, then download';
+  expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
+
+  const recBtn = el('button', 'switch', 'Record') as HTMLButtonElement;
+  recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
+  recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
+  engine.recorder.onState((rec) => {
+    recBtn.classList.toggle('on', rec);
+    recBtn.textContent = rec ? 'Stop' : 'Record';
+  });
+
+  aio.appendChild(el('span', 'song-io-label', 'Format:'));
+  aio.appendChild(fmtSel);
+  aio.appendChild(expSongBtn);
+  aio.appendChild(recBtn);
+  root.appendChild(aio);
+
   return root;
+}
+
+function emptySamplerBanks() {
+  return Array.from({ length: 4 }, () =>
+    Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
+      Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 }))));
 }
 
 function buildChainLane(

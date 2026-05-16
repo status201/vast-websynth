@@ -234,7 +234,22 @@ export function registerDefaults(bus: ParamBus): void {
 
     // Per-track drum params (8 tracks)
     ...drumTrackParams(),
+
+    // ----- Sampler -----
+    { id: 'sampler.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'sampler.master', min: 0, max: 1, default: 0.85, format: fmtPct },
+
+    // Per-slot sampler params (8 slots)
+    ...samplerTrackParams(),
   ]);
+}
+
+function samplerTrackParams(): ParamDef[] {
+  const out: ParamDef[] = [];
+  for (let i = 0; i < 8; i++) {
+    out.push({ id: `sampler.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
+  }
+  return out;
 }
 
 function drumTrackParams(): ParamDef[] {

@@ -20,11 +20,20 @@ export interface DrumCell {
   velocity: number; // 0..1
 }
 
+/** Sampler step — same shape as DrumCell; one-shot trigger of a loaded file. */
+export interface SamplerStep {
+  on: boolean;
+  velocity: number; // 0..1
+}
+
 export const SEQ_LENGTH = 16;
 
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
 export type DrumTrack = typeof DRUM_TRACKS[number];
 export const DRUM_TRACK_COUNT = DRUM_TRACKS.length;
+
+export const SAMPLER_SLOT_COUNT = 8;
+export const SAMPLER_SLOT_LABELS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
 export const BANK_COUNT = 4;
 export const BANK_LABELS = ['A', 'B', 'C', 'D'];
@@ -34,6 +43,10 @@ export interface PatternSnapshot {
   drumBanks: DrumCell[][][];
   seqEditBank: number;
   drumEditBank: number;
+  /** Optional so v1 song files (no sampler fields) still restore cleanly. */
+  samplerBanks?: SamplerStep[][][];
+  samplerEditBank?: number;
+  sampleNames?: (string | null)[];
 }
 
 function clampBank(i: number): number {
@@ -55,22 +68,38 @@ function makeDrumBank(): DrumCell[][] {
   );
 }
 
+function makeSamplerBank(): SamplerStep[][] {
+  return Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
+    Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 } as SamplerStep))
+  );
+}
+
 export class PatternStore {
   /** seqBanks[bank][step] */
   readonly seqBanks: SeqStep[][];
   /** drumBanks[bank][track][step] */
   readonly drumBanks: DrumCell[][][];
+  /** samplerBanks[bank][slot][step] */
+  readonly samplerBanks: SamplerStep[][][];
+
+  /** Filename per sampler slot (null = empty). Decoded audio lives in the
+   *  audio layer (SamplerMachine), not here — only the name persists. */
+  readonly sampleNames: (string | null)[] = Array(SAMPLER_SLOT_COUNT).fill(null);
 
   private _seqEdit = 0;
   private _drumEdit = 0;
+  private _samplerEdit = 0;
 
   private readonly seqListeners = new Set<(index: number, step: SeqStep) => void>();
   private readonly drumListeners = new Set<(track: number, step: number, cell: DrumCell) => void>();
+  private readonly samplerListeners = new Set<(slot: number, step: number, cell: SamplerStep) => void>();
+  private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
 
   constructor() {
     this.seqBanks = Array.from({ length: BANK_COUNT }, makeSeqBank);
     this.drumBanks = Array.from({ length: BANK_COUNT }, makeDrumBank);
+    this.samplerBanks = Array.from({ length: BANK_COUNT }, makeSamplerBank);
 
     // Seed a friendly default groove into drum bank A only
     // (basic 4-on-the-floor + offbeat hats + snare on 5/13).
@@ -84,14 +113,17 @@ export class PatternStore {
 
   get seqEditBank(): number { return this._seqEdit; }
   get drumEditBank(): number { return this._drumEdit; }
+  get samplerEditBank(): number { return this._samplerEdit; }
 
   /** Back-compat accessors: the bank currently being edited in the UI. */
   get seq(): SeqStep[] { return this.seqBanks[this._seqEdit]!; }
   get drum(): DrumCell[][] { return this.drumBanks[this._drumEdit]!; }
+  get sampler(): SamplerStep[][] { return this.samplerBanks[this._samplerEdit]!; }
 
   /** Direct bank access (used by the transport for the *playing* bank). */
   seqBank(i: number): SeqStep[] { return this.seqBanks[clampBank(i)]!; }
   drumBank(i: number): DrumCell[][] { return this.drumBanks[clampBank(i)]!; }
+  samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBank(i)]!; }
 
   setSeqEditBank(i: number): void {
     const n = clampBank(i);
@@ -109,6 +141,14 @@ export class PatternStore {
     for (const l of this.editBankListeners) l();
   }
 
+  setSamplerEditBank(i: number): void {
+    const n = clampBank(i);
+    if (n === this._samplerEdit) return;
+    this._samplerEdit = n;
+    this.emitAllSampler();
+    for (const l of this.editBankListeners) l();
+  }
+
   // ---- Mutations (operate on the edit bank) ----
 
   setSeqStep(index: number, patch: Partial<SeqStep>): void {
@@ -123,6 +163,19 @@ export class PatternStore {
     if (!cell) return;
     Object.assign(cell, patch);
     for (const l of this.drumListeners) l(track, step, cell);
+  }
+
+  setSamplerCell(slot: number, step: number, patch: Partial<SamplerStep>): void {
+    const cell = this.samplerBanks[this._samplerEdit]?.[slot]?.[step];
+    if (!cell) return;
+    Object.assign(cell, patch);
+    for (const l of this.samplerListeners) l(slot, step, cell);
+  }
+
+  setSampleName(slot: number, name: string | null): void {
+    if (slot < 0 || slot >= SAMPLER_SLOT_COUNT) return;
+    this.sampleNames[slot] = name;
+    for (const l of this.sampleMetaListeners) l(slot, name);
   }
 
   copySeqBank(from: number, to: number): void {
@@ -143,6 +196,16 @@ export class PatternStore {
     if (b === this._drumEdit) this.emitAllDrum();
   }
 
+  copySamplerBank(from: number, to: number): void {
+    const a = clampBank(from), b = clampBank(to);
+    if (a === b) return;
+    const src = this.samplerBanks[a]!, dst = this.samplerBanks[b]!;
+    for (let t = 0; t < dst.length; t++) {
+      for (let s = 0; s < dst[t]!.length; s++) Object.assign(dst[t]![s]!, src[t]![s]!);
+    }
+    if (b === this._samplerEdit) this.emitAllSampler();
+  }
+
   // ---- Subscriptions ----
 
   onSeqChange(fn: (index: number, step: SeqStep) => void): () => void {
@@ -153,6 +216,16 @@ export class PatternStore {
   onDrumChange(fn: (track: number, step: number, cell: DrumCell) => void): () => void {
     this.drumListeners.add(fn);
     return () => { this.drumListeners.delete(fn); };
+  }
+
+  onSamplerChange(fn: (slot: number, step: number, cell: SamplerStep) => void): () => void {
+    this.samplerListeners.add(fn);
+    return () => { this.samplerListeners.delete(fn); };
+  }
+
+  onSampleMetaChange(fn: (slot: number, name: string | null) => void): () => void {
+    this.sampleMetaListeners.add(fn);
+    return () => { this.sampleMetaListeners.delete(fn); };
   }
 
   onEditBankChange(fn: () => void): () => void {
@@ -176,6 +249,15 @@ export class PatternStore {
     }
   }
 
+  private emitAllSampler(): void {
+    const bank = this.samplerBanks[this._samplerEdit]!;
+    for (let t = 0; t < bank.length; t++) {
+      for (let s = 0; s < bank[t]!.length; s++) {
+        for (const l of this.samplerListeners) l(t, s, bank[t]![s]!);
+      }
+    }
+  }
+
   // ---- Serialisation (used by Song save/load) ----
 
   snapshot(): PatternSnapshot {
@@ -184,6 +266,9 @@ export class PatternStore {
       drumBanks: this.drumBanks.map((bk) => bk.map((row) => row.map((c) => ({ ...c })))),
       seqEditBank: this._seqEdit,
       drumEditBank: this._drumEdit,
+      samplerBanks: this.samplerBanks.map((bk) => bk.map((row) => row.map((c) => ({ ...c })))),
+      samplerEditBank: this._samplerEdit,
+      sampleNames: [...this.sampleNames],
     };
   }
 
@@ -214,11 +299,36 @@ export class PatternStore {
         }
       }
     }
+    if (snap.samplerBanks) {
+      for (let b = 0; b < BANK_COUNT; b++) {
+        const incoming = snap.samplerBanks[b];
+        const bank = this.samplerBanks[b]!;
+        if (!incoming) continue;
+        for (let t = 0; t < bank.length; t++) {
+          const row = incoming[t];
+          if (!row) continue;
+          for (let s = 0; s < bank[t]!.length; s++) {
+            const cell = row[s];
+            if (cell) Object.assign(bank[t]![s]!, cell);
+          }
+        }
+      }
+    }
+    if (snap.sampleNames) {
+      for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
+        this.sampleNames[i] = snap.sampleNames[i] ?? null;
+      }
+    }
     if (typeof snap.seqEditBank === 'number') this._seqEdit = clampBank(snap.seqEditBank);
     if (typeof snap.drumEditBank === 'number') this._drumEdit = clampBank(snap.drumEditBank);
+    if (typeof snap.samplerEditBank === 'number') this._samplerEdit = clampBank(snap.samplerEditBank);
     // Repaint whatever bank is now selected for editing.
     this.emitAllSeq();
     this.emitAllDrum();
+    this.emitAllSampler();
+    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
+      for (const l of this.sampleMetaListeners) l(i, this.sampleNames[i] ?? null);
+    }
     for (const l of this.editBankListeners) l();
   }
 }

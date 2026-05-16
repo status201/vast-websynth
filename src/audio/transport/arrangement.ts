@@ -26,12 +26,15 @@ function clampBank(i: number): number {
 export class Arrangement {
   readonly seq: ChainLane = { enabled: false, steps: [0] };
   readonly drum: ChainLane = { enabled: false, steps: [0] };
+  readonly sampler: ChainLane = { enabled: false, steps: [0] };
 
   seqPlayBank = 0;
   drumPlayBank = 0;
+  samplerPlayBank = 0;
 
   private seqPos = 0;
   private drumPos = 0;
+  private samplerPos = 0;
   private expectFirstBar = true;
   private readonly changeListeners = new Set<() => void>();
 
@@ -39,6 +42,7 @@ export class Arrangement {
     clock.onStart(() => {
       this.seqPos = 0;
       this.drumPos = 0;
+      this.samplerPos = 0;
       this.expectFirstBar = true;
       this.recompute();
       this.notify();
@@ -50,12 +54,16 @@ export class Arrangement {
         this.expectFirstBar = false;
         this.seqPos = 0;
         this.drumPos = 0;
+        this.samplerPos = 0;
       } else {
         if (this.seq.enabled && this.seq.steps.length) {
           this.seqPos = (this.seqPos + 1) % this.seq.steps.length;
         }
         if (this.drum.enabled && this.drum.steps.length) {
           this.drumPos = (this.drumPos + 1) % this.drum.steps.length;
+        }
+        if (this.sampler.enabled && this.sampler.steps.length) {
+          this.samplerPos = (this.samplerPos + 1) % this.sampler.steps.length;
         }
       }
       this.recompute();
@@ -67,6 +75,7 @@ export class Arrangement {
 
   get seqChainPos(): number { return this.seqPos; }
   get drumChainPos(): number { return this.drumPos; }
+  get samplerChainPos(): number { return this.samplerPos; }
 
   setSeqChain(steps: number[], enabled: boolean): void {
     this.seq.steps = steps.length ? steps.map(clampBank) : [0];
@@ -80,6 +89,14 @@ export class Arrangement {
     this.drum.steps = steps.length ? steps.map(clampBank) : [0];
     this.drum.enabled = enabled;
     this.drumPos = 0;
+    this.recompute();
+    this.notify();
+  }
+
+  setSamplerChain(steps: number[], enabled: boolean): void {
+    this.sampler.steps = steps.length ? steps.map(clampBank) : [0];
+    this.sampler.enabled = enabled;
+    this.samplerPos = 0;
     this.recompute();
     this.notify();
   }
@@ -100,5 +117,8 @@ export class Arrangement {
     this.drumPlayBank = this.drum.enabled && this.drum.steps.length
       ? clampBank(this.drum.steps[this.drumPos % this.drum.steps.length] ?? 0)
       : this.patterns.drumEditBank;
+    this.samplerPlayBank = this.sampler.enabled && this.sampler.steps.length
+      ? clampBank(this.sampler.steps[this.samplerPos % this.sampler.steps.length] ?? 0)
+      : this.patterns.samplerEditBank;
   }
 }

@@ -140,6 +140,20 @@ export class Keyboard {
   highlight(note: number, on: boolean): void {
     this.setKeyActive(note, on);
   }
+
+  /**
+   * Sequencer-playback highlight — a distinct class from the user-pressed
+   * `.active` so the two never clobber each other's state. No-ops for notes
+   * outside the visible range.
+   */
+  seqHighlight(note: number, on: boolean): void {
+    const el = this.keys.get(note);
+    if (el) el.classList.toggle('seq', on);
+  }
+
+  clearSeqHighlights(): void {
+    for (const el of this.keys.values()) el.classList.remove('seq');
+  }
 }
 
 export function noteName(midi: number): string {

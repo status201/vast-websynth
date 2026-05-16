@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
 
 describe('PatternStore', () => {
   it('seeds a default groove into drum bank A only', () => {
@@ -77,6 +77,71 @@ describe('PatternStore', () => {
     expect(ps.drumBanks[2]![0]![0]!.on).toBe(true);
     ps.drumBanks[2]![0]![0]!.on = false;
     expect(ps.drumBanks[0]![0]![0]!.on).toBe(true);
+  });
+
+  it('sampler banks default empty across all banks', () => {
+    const ps = new PatternStore();
+    for (let b = 0; b < BANK_COUNT; b++) {
+      expect(ps.samplerBank(b).length).toBe(SAMPLER_SLOT_COUNT);
+      expect(ps.samplerBank(b).every((sl) => sl.every((c) => !c.on))).toBe(true);
+    }
+    expect(ps.sampleNames.every((n) => n === null)).toBe(true);
+  });
+
+  it('setSamplerCell mutates the edit bank and notifies', () => {
+    const ps = new PatternStore();
+    let got: [number, number, boolean] | null = null;
+    ps.onSamplerChange((sl, s, c) => { got = [sl, s, c.on]; });
+    ps.setSamplerCell(2, 6, { on: true, velocity: 0.4 });
+    expect(ps.sampler[2]![6]!.on).toBe(true);
+    expect(ps.sampler[2]![6]!.velocity).toBe(0.4);
+    expect(got).toEqual([2, 6, true]);
+  });
+
+  it('setSamplerEditBank re-emits every cell and fires edit-bank listeners', () => {
+    const ps = new PatternStore();
+    let cells = 0;
+    let bankChanges = 0;
+    ps.onSamplerChange(() => cells++);
+    ps.onEditBankChange(() => bankChanges++);
+    ps.setSamplerEditBank(1);
+    expect(cells).toBe(SAMPLER_SLOT_COUNT * SEQ_LENGTH);
+    expect(bankChanges).toBe(1);
+    ps.setSamplerEditBank(1); // unchanged → no-op
+    expect(bankChanges).toBe(1);
+  });
+
+  it('setSampleName stores per slot and notifies', () => {
+    const ps = new PatternStore();
+    const calls: Array<[number, string | null]> = [];
+    ps.onSampleMetaChange((slot, name) => calls.push([slot, name]));
+    ps.setSampleName(3, 'clap.wav');
+    expect(ps.sampleNames[3]).toBe('clap.wav');
+    ps.setSampleName(3, null);
+    expect(ps.sampleNames[3]).toBeNull();
+    expect(calls).toEqual([[3, 'clap.wav'], [3, null]]);
+  });
+
+  it('copySamplerBank deep-copies cells', () => {
+    const ps = new PatternStore();
+    ps.setSamplerCell(0, 0, { on: true });
+    ps.copySamplerBank(0, 2);
+    expect(ps.samplerBanks[2]![0]![0]!.on).toBe(true);
+    ps.samplerBanks[2]![0]![0]!.on = false;
+    expect(ps.samplerBanks[0]![0]![0]!.on).toBe(true);
+  });
+
+  it('sampler state round-trips through snapshot/restore', () => {
+    const ps = new PatternStore();
+    ps.setSamplerCell(4, 9, { on: true, velocity: 0.7 });
+    ps.setSampleName(4, 'hat.mp3');
+    const snap = ps.snapshot();
+
+    const ps2 = new PatternStore();
+    ps2.restore(snap);
+    expect(ps2.samplerBanks[0]![4]![9]!.on).toBe(true);
+    expect(ps2.samplerBanks[0]![4]![9]!.velocity).toBe(0.7);
+    expect(ps2.sampleNames[4]).toBe('hat.mp3');
   });
 
   it('round-trips through snapshot/restore', () => {

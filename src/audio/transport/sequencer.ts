@@ -6,6 +6,8 @@ import type { PatternStore } from '../../state/patterns';
 import { SEQ_LENGTH } from '../../state/patterns';
 
 export type StepListener = (step: number) => void;
+/** (midi note, audio time it sounds, audio time it releases). */
+export type SeqNoteListener = (note: number, when: number, releaseAt: number) => void;
 
 /**
  * Monophonic 16-step note sequencer. Triggers the synth engine on each
@@ -16,6 +18,7 @@ export class StepSequencer {
   private lastPlayedNote = -1;
   private lastReleaseAt = 0;
   private readonly stepListeners = new Set<StepListener>();
+  private readonly noteListeners = new Set<SeqNoteListener>();
 
   constructor(
     private readonly engine: Engine,
@@ -40,6 +43,12 @@ export class StepSequencer {
     return () => { this.stepListeners.delete(fn); };
   }
 
+  /** Fires when a step triggers a note, with its scheduled audio times. */
+  onNote(fn: SeqNoteListener): () => void {
+    this.noteListeners.add(fn);
+    return () => { this.noteListeners.delete(fn); };
+  }
+
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
     const idx = this.perf.mapStep(step) % SEQ_LENGTH;
@@ -56,5 +65,6 @@ export class StepSequencer {
     this.engine.releaseNote(s.note, when + gateLen);
     this.lastPlayedNote = s.note;
     this.lastReleaseAt = when + gateLen;
+    for (const l of this.noteListeners) l(s.note, when, when + gateLen);
   }
 }

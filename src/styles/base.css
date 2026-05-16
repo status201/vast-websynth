@@ -39,20 +39,16 @@ button {
   flex-direction: column;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
+/* Start screen — a modal layover the synth, reusing .about-backdrop/.about. */
+.start-card {
+  text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: rgba(10, 10, 12, 0.92);
-  z-index: 1000;
-  transition: opacity 200ms ease;
 }
 
-.overlay.hidden {
-  opacity: 0;
-  pointer-events: none;
+.start-card .start-btn {
+  margin-top: 24px;
 }
 
 .start-btn {

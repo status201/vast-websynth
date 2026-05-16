@@ -14,11 +14,15 @@ function fakeArr() {
   return {
     seq: { enabled: false, steps: [0] as number[] },
     drum: { enabled: false, steps: [0] as number[] },
+    sampler: { enabled: false, steps: [0] as number[] },
     setSeqChain(steps: number[], enabled: boolean) {
       this.seq = { enabled, steps: [...steps] };
     },
     setDrumChain(steps: number[], enabled: boolean) {
       this.drum = { enabled, steps: [...steps] };
+    },
+    setSamplerChain(steps: number[], enabled: boolean) {
+      this.sampler = { enabled, steps: [...steps] };
     },
   };
 }
@@ -116,6 +120,55 @@ describe('Song', () => {
     expect(file.params['transport.bpm']).toBe(142);
     expect(file.seqChain).toEqual({ enabled: true, steps: [1, 2] });
     expect(file.seqBanks.length).toBe(4);
+  });
+
+  describe('sampler (v2)', () => {
+    it('capture() writes version 2 with sampler banks/chain/names', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setSamplerCell(0, 3, { on: true });
+      patterns.setSampleName(1, 'kick.wav');
+      const arr = fakeArr();
+      arr.setSamplerChain([2, 3], true);
+
+      const file = Song.capture(bus, patterns, arr as never, 'S');
+      expect(file.version).toBe(2);
+      expect(file.samplerChain).toEqual({ enabled: true, steps: [2, 3] });
+      expect(file.samplerBanks!.length).toBe(4);
+      expect(file.samplerBanks![0]![0]![3]!.on).toBe(true);
+      expect(file.sampleNames![1]).toBe('kick.wav');
+    });
+
+    it('v2 round-trips through toJSON/fromJSON', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setSampleName(0, 'snare.mp3');
+      const arr = fakeArr();
+      arr.setSamplerChain([1], true);
+      const file = Song.capture(bus, patterns, arr as never, 'RT');
+      expect(Song.fromJSON(Song.toJSON(file))).toEqual(file);
+    });
+
+    it('v1 song (no sampler fields) still applies — empty banks, chain off', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setSamplerCell(0, 5, { on: true }); // pre-existing edit state
+      patterns.setSampleName(0, 'leftover.wav');
+      const arr = fakeArr();
+      const v1 = demo(); // Knight Rider is version 1, no sampler fields
+      expect(v1.version).toBe(1);
+
+      Song.apply(v1, bus, patterns, arr as never);
+
+      expect(arr.sampler).toEqual({ enabled: false, steps: [0] });
+      // restore() with absent sampler fields leaves banks/names untouched,
+      // so applying a v1 song never corrupts sampler state.
+      expect(patterns.samplerBanks[0]![0]![5]!.on).toBe(true);
+      expect(patterns.sampleNames[0]).toBe('leftover.wav');
+    });
   });
 
   describe('"I Feel Love" demo', () => {

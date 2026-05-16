@@ -15,6 +15,7 @@ import { Presets } from '../state/preset';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
+import { buildSamplerPanel } from './panels/sampler-panel';
 import { buildSongPanel } from './panels/song-panel';
 
 export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus): void {
@@ -25,10 +26,6 @@ export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus): void
   root.appendChild(buildFx(bus));
   root.appendChild(buildPatternRow(engine, bus));
   root.appendChild(buildBottom(engine, bus));
-
-  // Keep the overlay child if it still exists (it was on root before)
-  const overlay = document.getElementById('overlay');
-  if (overlay && !root.contains(overlay)) root.appendChild(overlay);
 }
 
 function panel(title: string, build: (body: HTMLElement) => void): HTMLElement {
@@ -152,6 +149,7 @@ function buildPatternRow(engine: Engine, bus: ParamBus): HTMLElement {
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
+    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
     { id: 'song', label: 'Song', content: buildSongPanel(bus, engine) },
   ], 'drums');
   tabs.el.classList.add('pattern-row');
@@ -341,6 +339,24 @@ function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
 
   // Expose for shortcuts module
   (window as any).__synthKeyboard = keyboard;
+
+  // Light up the on-screen keys in time with the sequencer. The clock
+  // schedules ~100 ms ahead, so defer each highlight to its audible moment.
+  const seqTimers = new Set<number>();
+  const at = (t: number, fn: () => void) => {
+    const ms = Math.max(0, (t - engine.ctx.currentTime) * 1000);
+    const id = window.setTimeout(() => { seqTimers.delete(id); fn(); }, ms);
+    seqTimers.add(id);
+  };
+  engine.seq.onNote((note, when, releaseAt) => {
+    at(when, () => keyboard.seqHighlight(note, true));
+    at(releaseAt, () => keyboard.seqHighlight(note, false));
+  });
+  engine.clock.onStop(() => {
+    for (const id of seqTimers) clearTimeout(id);
+    seqTimers.clear();
+    keyboard.clearSeqHighlights();
+  });
 
   return bottom;
 }

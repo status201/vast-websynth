@@ -4,7 +4,7 @@
  * slots (mirrors the Presets pattern in `preset.ts`).
  */
 import type { ParamBus } from './params';
-import type { PatternStore, SeqStep, DrumCell } from './patterns';
+import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 
@@ -18,13 +18,18 @@ export interface ChainData {
 
 export interface SongFile {
   format: 'websynth-song';
-  version: 1;
+  version: 1 | 2;
   name: string;
   params: Record<string, number>;
   seqBanks: SeqStep[][];
   drumBanks: DrumCell[][][];
   seqChain: ChainData;
   drumChain: ChainData;
+  // ---- v2: sampler (optional so v1 files still load) ----
+  samplerBanks?: SamplerStep[][][];
+  samplerChain?: ChainData;
+  /** Filenames only — decoded audio is not embedded; user reloads files. */
+  sampleNames?: (string | null)[];
 }
 
 export const Song = {
@@ -32,21 +37,30 @@ export const Song = {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 1,
+      version: 2,
       name,
       params: bus.snapshot(),
       seqBanks: snap.seqBanks,
       drumBanks: snap.drumBanks,
       seqChain: { enabled: arr.seq.enabled, steps: [...arr.seq.steps] },
       drumChain: { enabled: arr.drum.enabled, steps: [...arr.drum.steps] },
+      samplerBanks: snap.samplerBanks,
+      samplerChain: { enabled: arr.sampler.enabled, steps: [...arr.sampler.steps] },
+      sampleNames: [...patterns.sampleNames],
     };
   },
 
   apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement): void {
     bus.restore(file.params);
-    patterns.restore({ seqBanks: file.seqBanks, drumBanks: file.drumBanks });
+    patterns.restore({
+      seqBanks: file.seqBanks,
+      drumBanks: file.drumBanks,
+      samplerBanks: file.samplerBanks,
+      sampleNames: file.sampleNames,
+    });
     arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);
+    arr.setSamplerChain(file.samplerChain?.steps ?? [0], file.samplerChain?.enabled ?? false);
   },
 
   toJSON(file: SongFile): string {

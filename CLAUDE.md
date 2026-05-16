@@ -5,7 +5,10 @@ Guidance for working in this repo. See `README.md` for the user-facing overview.
 ## What this is
 
 A Web Audio synthesizer in vanilla TypeScript. No framework, no runtime
-dependencies. Build tooling is Vite + `tsc` only.
+dependencies. Build tooling is Vite + `tsc` only. The one exception is the
+MIT-licensed `lamejs` MP3 encoder, *vendored* (not an npm dependency) under
+`src/vendor/lamejs/` for the audio-export feature — typed via a hand-written
+`lame.min.d.ts`.
 
 ## Commands
 
@@ -49,7 +52,17 @@ voices → voiceBus → distortion → wah → phaser → delay → reverb ─�
 ```
 
 The analyser taps **pre-master** so the scope is independent of the volume
-knob. The drum bus joins at `preMaster`, bypassing the synth FX chain.
+knob. The drum bus **and** the sampler bus join at `preMaster`, bypassing the
+synth FX chain.
+
+**Audio export** — a zero-output `recorder` AudioWorklet
+(`public/worklets/recorder.js`, wrapped by `audio/recorder/node.ts`) is tapped
+off `master` (post master-volume) as a pure sink. `RecorderController`
+(`audio/recorder/recorder-controller.ts`) drives capture: `exportSong()` plays
+one full pass of the longest enabled arrangement chain then auto-stops;
+`toggleManual()` is a free-form record toggle. Encoding is **pure** and
+AudioContext-free (`audio/recorder/encode.ts` — `encodeWav` is dependency-free;
+`encodeMp3` uses the vendored lamejs) so it is unit-testable under jsdom.
 
 Non-scalar state (step grids) lives in **`PatternStore`** (`state/patterns.ts`),
 not in `ParamBus`, because the shapes are arrays of objects. It has its own
@@ -72,9 +85,18 @@ listener mechanism.
   `fillActive` makes the drum machine play a roll; Filter Drop / manual DJ
   Filter drive `engine.djFilter` (a BiquadFilter inserted `preMaster →
   djFilter → analyser`); Tape Stop ramps `Clock` BPM + pitch-bend via rAF.
+- **Sampler** — `PatternStore` also holds 4 **sampler** banks (8 slots × 16
+  steps, `SamplerStep`). `SamplerMachine` (`audio/transport/sampler-machine.ts`)
+  mirrors `DrumMachine` but each slot plays a user-loaded `AudioBuffer`
+  one-shot; the `Arrangement` has a third `sampler` chain lane. Decoded buffers
+  live in `SamplerMachine`; only filenames (`patterns.sampleNames`) persist —
+  after a song import the user re-loads the files (`.needs-reload` label hint).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
-  + all banks + both chains). JSON file export/import **and** localStorage
-  slots under `websynth.song.*`. `DEMO_SONGS` (Knight Rider, Zombie Nation).
+  + all banks + all three chains). `SongFile` is now `version: 1 | 2`; v2 adds
+  optional `samplerBanks`/`samplerChain`/`sampleNames`. `fromJSON` is unchanged
+  and accepts both; v1 files (incl. `DEMO_SONGS`) load with empty sampler
+  state. JSON file export/import **and** localStorage slots under
+  `websynth.song.*`. `DEMO_SONGS` (Knight Rider, Zombie Nation, I Feel Love).
 
 ## Conventions & gotchas
 
