@@ -39,6 +39,15 @@
   z-index: 1;
 }
 
+/* Each top-level section is its own stacking context at z-index 1, so a
+   later sibling paints over an earlier one's overflowing dropdown menu
+   regardless of the menu's own z-index. Raise whichever section currently
+   holds an open dropdown above its siblings (menu is position:fixed, so it
+   also escapes any `overflow` clipper). */
+.app > *:has(.dropdown.open) {
+  z-index: 100;
+}
+
 /* Header */
 .header {
   display: flex;
@@ -183,12 +192,13 @@
   flex-wrap: wrap;
 }
 
-/* FX row */
+/* FX section (slim collapse bar + the FX grid) */
+.fx-section { margin: 0 22px; }
+
 .fx-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
-  margin: 0 22px;
 }
 
 .fx-panel {
@@ -233,6 +243,10 @@
 .pattern-row {
   margin: 0 22px;
   min-height: 240px;
+}
+
+.pattern-row.collapsed {
+  min-height: 0;
 }
 
 /* Bottom: wheels + scope, then keyboard */

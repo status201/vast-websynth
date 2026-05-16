@@ -74,6 +74,8 @@ export class Dropdown {
   destroy(): void {
     document.removeEventListener('click', this.onDocClick);
     document.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('scroll', this.onReposition, true);
+    window.removeEventListener('resize', this.onReposition);
   }
 
   private renderToggle(): void {
@@ -92,6 +94,33 @@ export class Dropdown {
     if (this.open === o) return;
     this.open = o;
     this.el.classList.toggle('open', o);
+    if (o) {
+      this.position();
+      window.addEventListener('scroll', this.onReposition, true);
+      window.addEventListener('resize', this.onReposition);
+    } else {
+      window.removeEventListener('scroll', this.onReposition, true);
+      window.removeEventListener('resize', this.onReposition);
+    }
+  }
+
+  private onReposition = (): void => {
+    if (this.open) this.position();
+  };
+
+  /**
+   * The menu is `position: fixed` so it escapes every stacking context and
+   * `overflow` ancestor (panels, tab scrollers). Anchor it to the toggle's
+   * viewport rect, flipping above when it would overflow the bottom edge.
+   */
+  private position(): void {
+    const r = this.toggle.getBoundingClientRect();
+    const s = this.menu.style;
+    s.minWidth = `${r.width}px`;
+    s.left = `${r.left}px`;
+    const mh = this.menu.offsetHeight; // measurable: `.open` already set display:block
+    const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
+    s.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
   }
 
   private onDocClick = (e: Event): void => {

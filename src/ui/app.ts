@@ -4,6 +4,9 @@ import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from 
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
+import { WAVE_ICONS } from './components/wave-icons';
+import { ParamDropdown } from './components/param-dropdown';
+import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
@@ -151,7 +154,7 @@ function buildPatternRow(engine: Engine, bus: ParamBus): HTMLElement {
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
     { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
     { id: 'song', label: 'Song', content: buildSongPanel(bus, engine) },
-  ], 'drums');
+  ], 'drums', { collapsibleStoreKey: 'websynth.ui.collapsed.pattern' });
   tabs.el.classList.add('pattern-row');
   return tabs.el;
 }
@@ -161,7 +164,7 @@ function buildMain(bus: ParamBus): HTMLElement {
   main.className = 'main';
 
   main.appendChild(panel('OSC 1', (b) => {
-    b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS).el);
+    b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
       new Knob({ bus, paramId: 'osc1.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
@@ -170,7 +173,7 @@ function buildMain(bus: ParamBus): HTMLElement {
   }));
 
   main.appendChild(panel('OSC 2', (b) => {
-    b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS).el);
+    b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
       new Knob({ bus, paramId: 'osc2.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
@@ -179,7 +182,7 @@ function buildMain(bus: ParamBus): HTMLElement {
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
-    b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS).el);
+    b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
       new Knob({ bus, paramId: 'sub.octave', label: 'S.OCT' }).el,
       new Knob({ bus, paramId: 'sub.level', label: 'S.LVL' }).el,
@@ -229,18 +232,30 @@ function buildMain(bus: ParamBus): HTMLElement {
   }));
 
   main.appendChild(panel('LFO', (b) => {
-    b.appendChild(new Segmented(bus, 'lfo.wave', WAVE_LABELS).el);
+    b.appendChild(new Segmented(bus, 'lfo.wave', WAVE_LABELS, WAVE_ICONS).el);
     b.appendChild(row([
       new Knob({ bus, paramId: 'lfo.rate', label: 'RATE' }).el,
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
     ]));
-    b.appendChild(new Segmented(bus, 'lfo.dest', LFO_DEST_LABELS).el);
+    b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
   }));
 
   return main;
 }
 
 function buildFx(bus: ParamBus): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'fx-section';
+
+  const bar = document.createElement('div');
+  bar.className = 'fx-section-bar';
+  const title = document.createElement('div');
+  title.className = 'fx-section-title';
+  title.textContent = 'FX';
+  bar.appendChild(title);
+  bar.appendChild(createCollapseToggle(section, 'websynth.ui.collapsed.fx').el);
+  section.appendChild(bar);
+
   const fx = document.createElement('div');
   fx.className = 'fx-row';
 
@@ -274,7 +289,8 @@ function buildFx(bus: ParamBus): HTMLElement {
     { id: 'fx.reverb.mix', label: 'MIX' },
   ]));
 
-  return fx;
+  section.appendChild(fx);
+  return section;
 }
 
 function fxPanel(title: string, bus: ParamBus, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {

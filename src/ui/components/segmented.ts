@@ -5,14 +5,22 @@ export class Segmented {
   private buttons: HTMLButtonElement[] = [];
   private unsub: () => void = () => {};
 
-  constructor(bus: ParamBus, paramId: string, labels: string[]) {
+  constructor(bus: ParamBus, paramId: string, labels: string[], icons?: string[]) {
     this.el = document.createElement('div');
-    this.el.className = 'segmented';
+    this.el.className = icons ? 'segmented icons' : 'segmented';
 
     labels.forEach((label, idx) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = label;
+      const glyph = icons?.[idx];
+      if (glyph) {
+        b.innerHTML = glyph;
+        b.classList.add('icon');
+        b.title = label;
+        b.setAttribute('aria-label', label);
+      } else {
+        b.textContent = label;
+      }
       b.addEventListener('click', () => bus.set(paramId, idx));
       this.el.appendChild(b);
       this.buttons.push(b);

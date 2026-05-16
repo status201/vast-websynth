@@ -1,7 +1,14 @@
+import { createCollapseToggle } from './collapse-toggle';
+
 export interface Tab {
   id: string;
   label: string;
   content: HTMLElement;
+}
+
+export interface TabOptions {
+  /** If set, adds a fold chevron to the tab bar; state persists under this key. */
+  collapsibleStoreKey?: string;
 }
 
 export class TabContainer {
@@ -10,8 +17,9 @@ export class TabContainer {
   private readonly body: HTMLElement;
   private active = '';
   private buttons = new Map<string, HTMLButtonElement>();
+  private expand?: () => void;
 
-  constructor(tabs: Tab[], initialId?: string) {
+  constructor(tabs: Tab[], initialId?: string, opts?: TabOptions) {
     this.el = document.createElement('div');
     this.el.className = 'tabs';
 
@@ -28,7 +36,11 @@ export class TabContainer {
       b.type = 'button';
       b.className = 'tab';
       b.textContent = t.label;
-      b.addEventListener('click', () => this.activate(t.id));
+      // Clicking a tab while collapsed expands first, then activates it.
+      b.addEventListener('click', () => {
+        this.expand?.();
+        this.activate(t.id);
+      });
       this.tabBar.appendChild(b);
       this.buttons.set(t.id, b);
 
@@ -39,6 +51,12 @@ export class TabContainer {
       shell.dataset.tabId = t.id;
       shell.appendChild(t.content);
       this.body.appendChild(shell);
+    }
+
+    if (opts?.collapsibleStoreKey) {
+      const c = createCollapseToggle(this.el, opts.collapsibleStoreKey);
+      this.expand = c.expand;
+      this.tabBar.appendChild(c.el);
     }
 
     this.activate(initialId ?? tabs[0]?.id ?? '');
