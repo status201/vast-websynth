@@ -37,4 +37,10 @@
       transparent 9px
     );
   --serif: 'Georgia', 'Times New Roman', serif;
+
+  /* Responsive sizing tokens — overridden per-breakpoint on `.app`
+     (layout.css). Inherit down to knobs / section margins / wood cheeks. */
+  --knob-size: 44px;   /* dial diameter; knob box derives from this */
+  --side-margin: 22px; /* section inset clearing the wood cheeks */
+  --cheek-w: 16px;     /* wood-grain side cheek width */
 }

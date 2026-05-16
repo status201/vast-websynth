@@ -9,6 +9,8 @@ export interface Tab {
 export interface TabOptions {
   /** If set, adds a fold chevron to the tab bar; state persists under this key. */
   collapsibleStoreKey?: string;
+  /** Initial collapsed state when no stored preference exists (see CollapseToggleOptions). */
+  collapsedByDefault?: () => boolean;
 }
 
 export class TabContainer {
@@ -54,7 +56,13 @@ export class TabContainer {
     }
 
     if (opts?.collapsibleStoreKey) {
-      const c = createCollapseToggle(this.el, opts.collapsibleStoreKey);
+      // The whole tab bar toggles collapse, EXCEPT clicks on a tab button:
+      // those keep their own expand-and-activate behaviour and never collapse.
+      const c = createCollapseToggle(this.el, opts.collapsibleStoreKey, {
+        defaultCollapsed: opts.collapsedByDefault,
+        trigger: this.tabBar,
+        ignoreSelector: '.tab',
+      });
       this.expand = c.expand;
       this.tabBar.appendChild(c.el);
     }

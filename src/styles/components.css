@@ -4,8 +4,10 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 52px;
-  min-height: 74px;
+  /* All knob geometry derives from --knob-size (default 44px in theme.css)
+     so a single per-breakpoint override on .app shrinks every knob. */
+  width: calc(var(--knob-size) + 8px);
+  min-height: calc(var(--knob-size) + 30px);
   touch-action: none;
 }
 
@@ -20,8 +22,8 @@
 
 .knob-dial {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: var(--knob-size);
+  height: var(--knob-size);
   border-radius: 50%;
   background: var(--knob-bg);
   box-shadow:
@@ -35,19 +37,20 @@
 .knob-indicator {
   position: absolute;
   left: 50%;
-  top: 3px;
+  top: calc(var(--knob-size) * 0.068);
   width: 3px;
-  height: 11px;
+  height: calc(var(--knob-size) * 0.25);
   background: var(--accent-secondary);
   border-radius: 2px;
-  transform-origin: 50% 19px;
+  /* pivot = dial centre, measured from the indicator's own top */
+  transform-origin: 50% calc(var(--knob-size) * 0.432);
   transform: translateX(-50%) rotate(0deg);
   box-shadow: 0 0 6px var(--accent-secondary-glow);
 }
 
 .knob-arc {
   position: absolute;
-  inset: -5px;
+  inset: calc(var(--knob-size) * -0.1136);
   pointer-events: none;
 }
 
@@ -535,6 +538,7 @@
      share the same x (left keeps the tab strip's original inset) */
   padding: 0 10px 0 6px;
   flex-shrink: 0;
+  cursor: pointer; /* whole bar toggles collapse (tab buttons excepted) */
 }
 
 .tab {
@@ -606,6 +610,7 @@
   border: 1px solid var(--panel-border);
   border-radius: 6px;
   box-shadow: var(--panel-shadow);
+  cursor: pointer; /* whole bar toggles collapse */
 }
 .fx-section-title {
   font-size: 11px;

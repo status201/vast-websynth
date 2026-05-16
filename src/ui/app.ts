@@ -21,6 +21,18 @@ import { buildDrumPanel } from './panels/drum-panel';
 import { buildSamplerPanel } from './panels/sampler-panel';
 import { buildSongPanel } from './panels/song-panel';
 
+/**
+ * True on viewports where the faceplate no longer fits one screen (≤1280px).
+ * FX + pattern tabs auto-collapse here so the keyboard is reachable without
+ * scrolling; an explicit user toggle is remembered and overrides this.
+ * Evaluated once at mount (no resize re-mount in this app).
+ */
+const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matches;
+
+/** True on phone-sized viewports — keyboard drops to 2 octaves so the keys
+ *  stay large enough to play. */
+const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
+
 export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus): void {
   root.innerHTML = '';
 
@@ -154,7 +166,10 @@ function buildPatternRow(engine: Engine, bus: ParamBus): HTMLElement {
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
     { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
     { id: 'song', label: 'Song', content: buildSongPanel(bus, engine) },
-  ], 'drums', { collapsibleStoreKey: 'websynth.ui.collapsed.pattern' });
+  ], 'arp', {
+    collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
+    collapsedByDefault: isCompact,
+  });
   tabs.el.classList.add('pattern-row');
   return tabs.el;
 }
@@ -253,7 +268,12 @@ function buildFx(bus: ParamBus): HTMLElement {
   title.className = 'fx-section-title';
   title.textContent = 'FX';
   bar.appendChild(title);
-  bar.appendChild(createCollapseToggle(section, 'websynth.ui.collapsed.fx').el);
+  bar.appendChild(
+    createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
+      defaultCollapsed: isCompact,
+      trigger: bar, // whole FX bar toggles, not just the chevron
+    }).el,
+  );
   section.appendChild(bar);
 
   const fx = document.createElement('div');
@@ -349,7 +369,14 @@ function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
 
   const kbWrap = document.createElement('div');
   kbWrap.className = 'keyboard-wrap';
-  const keyboard = new Keyboard({ bus, startOctave: 3, octaves: 3 });
+  // Phones get 2 octaves (centred higher) so individual keys stay tappable;
+  // wider screens keep the full 3-octave C3–C6 range.
+  const phone = isPhone();
+  const keyboard = new Keyboard({
+    bus,
+    startOctave: phone ? 4 : 3,
+    octaves: phone ? 2 : 3,
+  });
   kbWrap.appendChild(keyboard.el);
   bottom.appendChild(kbWrap);
 

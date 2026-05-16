@@ -8,13 +8,34 @@
 export interface CollapseToggle {
   readonly el: HTMLButtonElement;
   expand(): void;
+  toggle(): void;
 }
 
-function readStored(key: string): boolean {
+export interface CollapseToggleOptions {
+  /**
+   * Initial collapsed state used only when the user has no stored preference
+   * yet (e.g. auto-collapse on small screens). An explicit prior choice — set
+   * by clicking the chevron or expanding via a tab — always wins and is never
+   * overwritten by this default.
+   */
+  defaultCollapsed?: () => boolean;
+  /**
+   * Extra element whose clicks also toggle collapse, so the whole bar is a
+   * hit target (not just the small chevron). Clicks whose target matches
+   * `ignoreSelector` are left alone — used for the tab strip so clicking a
+   * tab keeps its own expand-and-activate behaviour and never collapses.
+   */
+  trigger?: HTMLElement;
+  ignoreSelector?: string;
+}
+
+/** Raw stored choice, or null when the user has never toggled this panel. */
+function readStored(key: string): boolean | null {
   try {
-    return localStorage.getItem(key) === '1';
+    const v = localStorage.getItem(key);
+    return v === null ? null : v === '1';
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -26,7 +47,11 @@ function writeStored(key: string, collapsed: boolean): void {
   }
 }
 
-export function createCollapseToggle(target: HTMLElement, storeKey: string): CollapseToggle {
+export function createCollapseToggle(
+  target: HTMLElement,
+  storeKey: string,
+  opts?: CollapseToggleOptions,
+): CollapseToggle {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'collapse-toggle';
@@ -43,17 +68,29 @@ export function createCollapseToggle(target: HTMLElement, storeKey: string): Col
     writeStored(storeKey, collapsed);
   };
 
-  apply(readStored(storeKey));
+  const stored = readStored(storeKey);
+  apply(stored ?? opts?.defaultCollapsed?.() ?? false);
+
+  const toggle = (): void => set(!target.classList.contains('collapsed'));
 
   el.addEventListener('click', (e) => {
     e.stopPropagation();
-    set(!target.classList.contains('collapsed'));
+    toggle();
   });
+
+  if (opts?.trigger) {
+    const ignore = opts.ignoreSelector;
+    opts.trigger.addEventListener('click', (e) => {
+      if (ignore && (e.target as Element | null)?.closest(ignore)) return;
+      toggle();
+    });
+  }
 
   return {
     el,
     expand(): void {
       if (target.classList.contains('collapsed')) set(false);
     },
+    toggle,
   };
 }
