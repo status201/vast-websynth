@@ -1,5 +1,6 @@
 // "About" button + modal: version, copyright, and keyboard shortcuts.
 // Static info only — no engine/bus dependency.
+import { createButton } from './button';
 
 declare const __APP_VERSION__: string;
 
@@ -12,10 +13,8 @@ const SHORTCUTS: Array<[string, string]> = [
 ];
 
 export function createAboutButton(): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'switch';
-  btn.textContent = 'About';
+  // `open` is a hoisted function declaration, so wiring it here is safe.
+  const btn = createButton({ label: 'About', onClick: open });
 
   let backdrop: HTMLElement | null = null;
   let closeTimer: number | undefined;
@@ -47,7 +46,6 @@ export function createAboutButton(): HTMLButtonElement {
     window.addEventListener('keydown', onKey, true);
   }
 
-  btn.addEventListener('click', open);
   return btn;
 }
 
@@ -97,11 +95,11 @@ function buildModal(close: () => void): HTMLElement {
     keys.appendChild(a);
   }
 
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'switch about-close';
-  closeBtn.textContent = 'Close';
-  closeBtn.addEventListener('click', close);
+  const closeBtn = createButton({
+    label: 'Close',
+    className: 'switch about-close',
+    onClick: close,
+  });
 
   card.appendChild(title);
   card.appendChild(tag);

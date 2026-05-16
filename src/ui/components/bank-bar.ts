@@ -7,6 +7,10 @@ export interface BankBarOpts {
   onEditChange(fn: () => void): () => void;
   getPlay(): number;
   onPlayChange(fn: () => void): () => void;
+  /** True when bank `i` holds at least one active step/note. */
+  hasContent(i: number): boolean;
+  /** Subscribe to pattern mutations so the filled indicator stays live. */
+  onContentChange(fn: () => void): () => void;
 }
 
 /**
@@ -56,6 +60,7 @@ export class BankBar {
     this.render();
     opts.onEditChange(() => this.render());
     opts.onPlayChange(() => this.render());
+    opts.onContentChange(() => this.render());
   }
 
   private setArmed(on: boolean): void {
@@ -70,6 +75,7 @@ export class BankBar {
     this.btns.forEach((b, i) => {
       b.classList.toggle('active', i === edit);
       b.classList.toggle('playing', i === play);
+      b.classList.toggle('filled', this.opts.hasContent(i));
     });
   }
 }

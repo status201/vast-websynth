@@ -22,6 +22,8 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onEditChange: (fn) => engine.patterns.onEditBankChange(fn),
     getPlay: () => engine.arrangement.seqPlayBank,
     onPlayChange: (fn) => engine.arrangement.onChange(fn),
+    hasContent: (i) => engine.patterns.seqBanks[i]!.some((s) => s.on),
+    onContentChange: (fn) => engine.patterns.onSeqChange(fn),
   }).el);
   const selectedLabel = document.createElement('div');
   selectedLabel.className = 'seq-selected-label';

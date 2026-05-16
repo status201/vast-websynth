@@ -149,7 +149,7 @@
 
 .segmented button {
   padding: 5px 9px;
-  font-size: 9px;
+  font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-faint);
@@ -757,6 +757,33 @@
   padding: 24px 26px;
 }
 
+/* Wider variant for the AI-prompt modal (schema + example JSON). */
+.ai-modal {
+  width: min(720px, 94vw);
+}
+
+.ai-prompt-text {
+  width: 100%;
+  height: 320px;
+  resize: vertical;
+  margin-top: 12px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  background: #0a0805;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.ai-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
 .about-title {
   font-family: var(--serif);
   font-size: 24px;
@@ -882,6 +909,13 @@
   height: 5px;
   border-radius: 50%;
   background: var(--led-off);
+}
+
+/* Bank holds at least one step/note. Declared before .playing so the
+   transport's lit (red) dot still wins the cascade. */
+.bank-btn.filled .bank-dot {
+  background: var(--accent-secondary);
+  box-shadow: 0 0 4px var(--accent-secondary-glow);
 }
 
 .bank-btn.active {

@@ -13,11 +13,16 @@ dependencies. Build tooling is Vite + `tsc` only.
 npm run dev        # dev server (vite --host)
 npm run typecheck  # tsc --noEmit — run this to verify changes
 npm run build      # tsc --noEmit && vite build
+npm test           # vitest run — pure-logic + component unit tests
 ```
 
-There is no test suite and no linter. `npm run typecheck` is the only
-automated check; TS is in `strict` mode with `noUncheckedIndexedAccess`,
-so expect `arr[i]!` assertions throughout — match that style.
+`npm run typecheck` is still the primary check (TS is in `strict` mode with
+`noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
+that style). There is also a small Vitest suite under `tests/` covering the
+pure-logic units (`ParamBus`, `PatternStore`, `Song`) and the DOM components
+(`createButton`, `Dropdown`); it runs in jsdom. Tests live **outside `src/`**
+so they stay invisible to `tsc` — `typecheck`/`build` behaviour is unchanged.
+There is no linter.
 
 ## Architecture
 

@@ -9,6 +9,7 @@ import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
 import { Dropdown } from './components/dropdown';
+import { createButton, setButtonLabel } from './components/button';
 import { createAboutButton } from './components/about';
 import { Presets } from '../state/preset';
 import { buildArpPanel } from './panels/arp-panel';
@@ -68,8 +69,6 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   brand.appendChild(brandTag);
   el.appendChild(brand);
 
-  el.appendChild(createAboutButton());
-
   const presetGroup = document.createElement('div');
   presetGroup.className = 'header-group';
 
@@ -79,15 +78,15 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
     if (p) Presets.apply(bus, p);
   });
 
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'switch';
-  saveBtn.textContent = 'Save';
-  saveBtn.addEventListener('click', () => {
-    const name = prompt('Preset name:', dropdown.value);
-    if (!name) return;
-    Presets.save(name, Presets.capture(bus));
-    dropdown.setOptions(Presets.list());
-    dropdown.setValue(name);
+  const saveBtn = createButton({
+    label: 'Save',
+    onClick: () => {
+      const name = prompt('Preset name:', dropdown.value);
+      if (!name) return;
+      Presets.save(name, Presets.capture(bus));
+      dropdown.setOptions(Presets.list());
+      dropdown.setValue(name);
+    },
   });
 
   const presetLabel = document.createElement('span');
@@ -95,6 +94,7 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
+  presetGroup.appendChild(createAboutButton());
   el.appendChild(presetGroup);
 
   const spacer = document.createElement('div');
@@ -105,22 +105,24 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   const transport = document.createElement('div');
   transport.className = 'header-group transport-group';
 
-  const playBtn = document.createElement('button');
-  playBtn.type = 'button';
-  playBtn.className = 'switch play-btn';
-  const playLed = document.createElement('span');
-  playLed.className = 'switch-led';
-  const playLabel = document.createElement('span');
-  playLabel.className = 'switch-label';
-  playLabel.textContent = 'Play';
-  playBtn.appendChild(playLed);
-  playBtn.appendChild(playLabel);
-  playBtn.addEventListener('click', () => {
-    engine.clock.toggle();
+  const playBtn = createButton({
+    label: 'Play',
+    className: 'switch play-btn',
+    led: true,
+    onClick: () => {
+      engine.clock.toggle();
+      syncPlay();
+    },
+  });
+  // Reflect the clock state so Panic/Esc (which stop the transport
+  // directly) and the Space-bar shortcut all keep the button in sync.
+  const syncPlay = () => {
     const playing = engine.clock.playing;
     playBtn.classList.toggle('on', playing);
-    playLabel.textContent = playing ? 'Stop' : 'Play';
-  });
+    setButtonLabel(playBtn, playing ? 'Stop' : 'Play');
+  };
+  engine.clock.onStart(syncPlay);
+  engine.clock.onStop(syncPlay);
   // Exposed so the Space-bar shortcut keeps the button visuals in sync.
   (window as any).__transportToggle = () => playBtn.click();
   transport.appendChild(playBtn);
@@ -134,10 +136,7 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
   right.appendChild(voicing.el);
 
-  const panicBtn = document.createElement('button');
-  panicBtn.className = 'switch';
-  panicBtn.textContent = 'Panic';
-  panicBtn.addEventListener('click', () => engine.panic());
+  const panicBtn = createButton({ label: 'Panic', onClick: () => engine.panic() });
   right.appendChild(panicBtn);
 
   const masterKnob = new Knob({ bus, paramId: 'master.volume', label: 'VOL' });

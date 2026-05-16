@@ -50,6 +50,10 @@
   border: 1px solid var(--panel-border);
   border-radius: 6px;
   box-shadow: var(--panel-shadow);
+  /* Lift the whole header stacking context above .main so the preset
+     dropdown popover is not trapped: `.app > *` (above) gives every .app
+     child position:relative; z-index:1, and .main paints later in the DOM. */
+  z-index: 10;
 }
 
 .header-title {

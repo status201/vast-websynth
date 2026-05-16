@@ -191,11 +191,21 @@ const KR_DRUM_B = drumFrom({
   2: [0, 2, 4, 6, 8, 10, 12, 14], 3: [7],
 });
 
-// --- Zombie Nation / Kernkraft 400: bouncy octave-popping saw lead ---
-const ZN_A = seqFromNotes(
-  [69, 81, 69, 69, 76, 69, 74, 69, 69, 81, 69, 69, 76, 74, 72, 71], 0.55, 0.95);
-const ZN_B = seqFromNotes(
-  [69, 81, 69, 69, 76, 69, 74, 69, 71, 72, 74, 76, 77, 76, 74, 72], 0.55, 0.95);
+// --- Zombie Nation / Kernkraft 400: the 4-bar A-minor hook. 8th-note grid
+// (note on even steps), played as four distinct bars via the seq chain.
+// MIDI: A4=69 C5=72 D5=74 E5=76 F5=77
+// Bar 1: rest A  C  D  E  A  rest
+// Bar 2: rest A  C  D  E  F  E   C
+// Bar 3: D  rest rest C rest E  A
+// Bar 4: (silent — melody drops out, drums carry the bar)
+const ZN_1 = seqFromNotes(
+  [null, null, 69, null, 72, null, 74, null, 76, null, 69, null, null, null, null, null], 0.9, 0.95);
+const ZN_2 = seqFromNotes(
+  [null, null, 69, null, 72, null, 74, null, 76, null, 77, null, 76, null, 72, null], 0.9, 0.95);
+const ZN_3 = seqFromNotes(
+  [74, null, null, null, null, null, 72, null, null, null, 76, null, 69, null, null, null], 0.9, 0.95);
+const ZN_4 = seqFromNotes(
+  [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], 0.95, 0.95);
 const ZN_DRUM_A = drumFrom({
   0: [0, 4, 8, 12],                       // four-on-the-floor
   7: [4, 12],                             // clap on the backbeat
@@ -205,6 +215,21 @@ const ZN_DRUM_A = drumFrom({
 const ZN_DRUM_B = drumFrom({
   0: [0, 4, 8, 12], 7: [4, 12],
   2: [0, 2, 4, 6, 8, 10, 12, 14], 3: [2, 6, 10, 14], 1: [15],
+});
+
+// --- I Feel Love: hypnotic mono octave-pulse bass through a resonant ladder ---
+const IFL_A = seqFromNotes(
+  [45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45], 0.5, 0.9);
+const IFL_B = seqFromNotes(
+  [45, 45, 57, 45, 48, 48, 60, 48, 52, 52, 64, 52, 50, 50, 62, 50], 0.5, 0.9);
+const IFL_DRUM_A = drumFrom({
+  0: [0, 4, 8, 12],                       // four-on-the-floor kick
+  2: [0, 2, 4, 6, 8, 10, 12, 14],         // driving closed hats
+  7: [4, 12],                             // clap backbeat
+});
+const IFL_DRUM_B = drumFrom({
+  0: [0, 4, 8, 12], 2: [0, 2, 4, 6, 8, 10, 12, 14],
+  3: [2, 6, 10, 14], 7: [4, 12], 1: [15], // + open-hat offbeats & pickup
 });
 
 export const DEMO_SONGS: Record<string, SongFile> = {
@@ -239,20 +264,55 @@ export const DEMO_SONGS: Record<string, SongFile> = {
     params: {
       ...baseParams(),
       'voicing.mode': 0,            // mono lead
-      'osc1.wave': 2, 'osc1.octave': 0, 'osc1.level': 0.8,
-      'osc2.wave': 2, 'osc2.octave': 0, 'osc2.detune': 9, 'osc2.level': 0.6,
-      'unison.voices': 3, 'unison.detune': 16,
-      'mixer.glide': 0, 'glide.mode': 0,
-      'filter.cutoff': 104, 'filter.resonance': 0.8, 'filter.drive': 1.3, 'filter.envAmount': 14,
-      'env.amp.attack': 0.004, 'env.amp.decay': 0.25, 'env.amp.sustain': 0.7, 'env.amp.release': 0.18,
+      // Dirty: saw + detuned square, fat unison beating, a little noise,
+      // a driven resonant ladder and a distortion stage on top.
+      'osc1.wave': 2, 'osc1.octave': 0, 'osc1.level': 0.85,
+      'osc2.wave': 3, 'osc2.octave': 0, 'osc2.detune': 12, 'osc2.level': 0.65,
+      'unison.voices': 3, 'unison.detune': 24,
+      'mixer.noise': 0.06, 'mixer.glide': 0, 'glide.mode': 0,
+      'filter.cutoff': 98, 'filter.resonance': 1.6, 'filter.drive': 2.8, 'filter.envAmount': 16,
+      'env.amp.attack': 0.004, 'env.amp.decay': 0.25, 'env.amp.sustain': 0.65, 'env.amp.release': 0.14,
       'env.fil.attack': 0.004, 'env.fil.decay': 0.3, 'env.fil.sustain': 0.4, 'env.fil.release': 0.2,
+      'fx.dist.on': 1, 'fx.dist.drive': 0.55, 'fx.dist.tone': 3000, 'fx.dist.mix': 0.85,
       'fx.delay.on': 1, 'fx.delay.time': 0.21, 'fx.delay.feedback': 0.3, 'fx.delay.mix': 0.22,
-      'fx.reverb.on': 1, 'fx.reverb.size': 0.45, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.16,
-      'analog.drift': 0.1,
+      'fx.reverb.on': 1, 'fx.reverb.size': 0.45, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.12,
+      'analog.drift': 0.2,
       'transport.bpm': 130,
     },
-    seqBanks: pad4Seq(ZN_A, ZN_B),
+    seqBanks: [ZN_1, ZN_2, ZN_3, ZN_4],
     drumBanks: pad4Drum(ZN_DRUM_A, ZN_DRUM_B),
+    seqChain: { enabled: true, steps: [0, 1, 2, 3] },   // four distinct bars
+    drumChain: { enabled: true, steps: [0, 0, 0, 1] },  // fill on bar 4
+  },
+
+  'I Feel Love': {
+    format: 'websynth-song',
+    version: 1,
+    name: 'I Feel Love',
+    params: {
+      ...baseParams(),
+      'voicing.mode': 0,            // mono
+      'glide.mode': 0, 'mixer.glide': 0,            // staccato 16ths
+      'osc1.wave': 2, 'osc1.octave': -1, 'osc1.level': 0.85,
+      'osc2.wave': 3, 'osc2.octave': -1, 'osc2.detune': -7, 'osc2.level': 0.35,
+      'sub.wave': 0, 'sub.octave': -1, 'sub.level': 0.4,
+      'filter.cutoff': 60, 'filter.resonance': 1.5, 'filter.drive': 1.8,
+      'filter.envAmount': 30,
+      'env.amp.attack': 0.002, 'env.amp.decay': 0.16, 'env.amp.sustain': 0.5,
+      'env.amp.release': 0.08,
+      'env.fil.attack': 0.001, 'env.fil.decay': 0.18, 'env.fil.sustain': 0.15,
+      'env.fil.release': 0.1,
+      'lfo.rate': 0.5, 'lfo.amount': 0.25, 'lfo.wave': 0, 'lfo.dest': 1,
+      'fx.delay.on': 1, 'fx.delay.time': 0.3, 'fx.delay.feedback': 0.32,
+      'fx.delay.mix': 0.18,
+      'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5,
+      'fx.reverb.mix': 0.14,
+      'analog.drift': 0.08,
+      'transport.bpm': 125,
+      'drum.master': 0.9,
+    },
+    seqBanks: pad4Seq(IFL_A, IFL_B),
+    drumBanks: pad4Drum(IFL_DRUM_A, IFL_DRUM_B),
     seqChain: { enabled: true, steps: [0, 0, 0, 1] },   // A A A B
     drumChain: { enabled: true, steps: [0, 1] },
   },

@@ -3,6 +3,7 @@ import type { Engine } from '../../audio/engine';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
+import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
 
@@ -115,6 +116,12 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const importBtn = el('button', 'switch', 'Import') as HTMLButtonElement;
   importBtn.addEventListener('click', () => fileInput.click());
 
+  const exportBtn = el('button', 'switch', 'Export') as HTMLButtonElement;
+  exportBtn.addEventListener('click', () => {
+    const name = dropdown.value || 'My Song';
+    Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name));
+  });
+
   const newBtn = el('button', 'switch', 'New') as HTMLButtonElement;
   newBtn.addEventListener('click', () => {
     if (!confirm('Clear all banks and chains?')) return;
@@ -128,6 +135,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   io.appendChild(loadBtn);
   io.appendChild(saveBtn);
   io.appendChild(importBtn);
+  io.appendChild(exportBtn);
   io.appendChild(newBtn);
   io.appendChild(fileInput);
 
@@ -141,6 +149,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     });
     io.appendChild(d);
   }
+  io.appendChild(createAiPromptButton(bus));
   root.appendChild(io);
 
   return root;

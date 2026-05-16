@@ -21,6 +21,7 @@ export class Clock {
   private timer: number | null = null;
   private readonly listeners = new Set<TickListener>();
   private readonly startListeners = new Set<() => void>();
+  private readonly stopListeners = new Set<() => void>();
 
   constructor(private readonly ctx: AudioContext) {}
 
@@ -47,6 +48,7 @@ export class Clock {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    for (const l of this.stopListeners) l();
   }
 
   toggle(): void {
@@ -64,6 +66,12 @@ export class Clock {
   onStart(listener: () => void): () => void {
     this.startListeners.add(listener);
     return () => { this.startListeners.delete(listener); };
+  }
+
+  /** Fired when the transport stops (including via Engine.panic()). */
+  onStop(listener: () => void): () => void {
+    this.stopListeners.add(listener);
+    return () => { this.stopListeners.delete(listener); };
   }
 
   private tick = (): void => {

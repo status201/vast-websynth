@@ -223,10 +223,17 @@ export class Engine {
     }
   }
 
-  panic(): void {
+  /** Force-silence every voice and forget held notes (no transport change). */
+  private killAllVoices(): void {
     const t = this.ctx.currentTime;
     for (const v of this.voices) v.kill(t);
     this.heldNotes.clear();
+  }
+
+  /** Stop the transport AND silence everything (Panic button / Esc). */
+  panic(): void {
+    this.clock.stop();
+    this.killAllVoices();
   }
 
   /** Symmetric detune spread in cents for unison copy i of n. */
@@ -270,7 +277,7 @@ export class Engine {
     bus.subscribe('voicing.mode', (v) => {
       const wasPoly = this.polyMode;
       this.polyMode = v >= 0.5;
-      if (wasPoly !== this.polyMode) this.panic();
+      if (wasPoly !== this.polyMode) this.killAllVoices();
     });
 
     // OSC 1

@@ -32,6 +32,7 @@ npm run dev      # vite dev server, --host (open the printed URL)
 npm run build    # tsc typecheck + vite production build to dist/
 npm run preview  # serve the production build
 npm run typecheck
+npm test         # vitest run — unit tests (jsdom)
 ```
 
 Audio starts behind a **"Tap to start"** overlay — browsers require a user

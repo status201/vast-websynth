@@ -23,6 +23,8 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onEditChange: (fn) => engine.patterns.onEditBankChange(fn),
     getPlay: () => engine.arrangement.drumPlayBank,
     onPlayChange: (fn) => engine.arrangement.onChange(fn),
+    hasContent: (i) => engine.patterns.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
+    onContentChange: (fn) => engine.patterns.onDrumChange(fn),
   }).el);
   root.appendChild(header);
 
