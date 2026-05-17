@@ -4,6 +4,8 @@ import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { StepButton } from '../components/step-button';
 import { BankBar } from '../components/bank-bar';
+import { openRecordSoundModal } from '../components/record-sound-modal';
+import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH } from '../../state/patterns';
 
 export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
@@ -25,6 +27,14 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     hasContent: (i) => engine.patterns.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onSamplerChange(fn),
   }).el);
+
+  const recBtn = document.createElement('button');
+  recBtn.className = 'switch sampler-rec';
+  recBtn.textContent = 'Record a sound';
+  recBtn.title = 'Record a sound from your microphone';
+  recBtn.addEventListener('click', () => openRecordSoundModal(engine));
+  header.appendChild(recBtn);
+
   root.appendChild(header);
 
   // ---- Slot rows ----
@@ -34,6 +44,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
   const stepBtns: StepButton[][] = [];
   const labels: HTMLButtonElement[] = [];
+  const editBtns: HTMLButtonElement[] = [];
 
   const refreshLabel = (slot: number): void => {
     const lbl = labels[slot];
@@ -45,6 +56,8 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     lbl.title = name
       ? (loaded ? 'Click to audition' : 'Reload this audio file (not saved in songs)')
       : 'Load a WAV/MP3 file';
+    const editBtn = editBtns[slot];
+    if (editBtn) editBtn.style.display = loaded ? '' : 'none';
   };
 
   for (let t = 0; t < SAMPLER_SLOT_COUNT; t++) {
@@ -84,6 +97,19 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     label.addEventListener('click', () => engine.sampler.triggerSlot(slot, 0.9));
     labels[slot] = label;
     ctrls.appendChild(label);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'switch sampler-edit';
+    editBtn.textContent = '✎';
+    editBtn.title = 'Edit this sample';
+    editBtn.style.display = 'none';
+    editBtn.addEventListener('click', () => {
+      const buf = engine.sampler.buffers[slot];
+      if (!buf) return;
+      openRecordSoundModal(engine, { slot, source: audioBufferToCaptured(buf) });
+    });
+    editBtns[slot] = editBtn;
+    ctrls.appendChild(editBtn);
 
     const mute = new Switch(bus, `sampler.t${slot}.mute`, 'mute');
     mute.el.classList.add('drum-mute');

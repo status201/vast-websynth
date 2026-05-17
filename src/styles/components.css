@@ -1188,3 +1188,138 @@
 }
 
 .demo-btn { color: var(--accent-secondary); }
+
+/* ===== Record-a-sound modal ===== */
+.sampler-rec {
+  padding: 5px 10px !important;
+  min-height: 24px !important;
+  font-size: 9px !important;
+  color: var(--accent-secondary);
+  flex-shrink: 0;
+}
+.sampler-rec:hover { color: var(--accent); }
+
+.rec-modal { width: min(680px, 94vw); }
+
+.rec-text {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.rec-hint,
+.rec-cutoff {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.03em;
+}
+
+.rec-wave-wrap {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  margin-top: 16px;
+  touch-action: none;
+}
+
+.rec-wave {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+  border: 1px solid #2a1c10;
+  border-radius: 4px;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
+}
+
+.rec-handle {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 12px;
+  margin-left: -6px;
+  cursor: ew-resize;
+  background: rgba(244, 205, 94, 0.18);
+  border-left: 2px solid var(--accent-secondary);
+  border-right: 2px solid var(--accent-secondary);
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+  touch-action: none;
+}
+
+.rec-cutoff {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rec-cutoff span { white-space: nowrap; }
+.rec-cutoff input[type='range'] { flex: 1; min-width: 0; }
+
+.rec-fx-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.rec-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-top: 14px;
+}
+
+.rec-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+/* Per-row Edit button — only shown when the slot has a loaded buffer. */
+.sampler-edit {
+  padding: 4px 7px !important;
+  min-height: 24px !important;
+  font-size: 11px !important;
+  line-height: 1;
+  color: var(--accent-secondary);
+  flex-shrink: 0;
+}
+.sampler-edit:hover { color: var(--accent); }
+
+.rec-status {
+  margin-top: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+.rec-autoplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+.rec-autoplay input { accent-color: var(--accent); }
+
+@keyframes rec-flash {
+  0% { box-shadow: 0 0 0 0 var(--accent-glow); border-color: var(--accent); }
+  100% { box-shadow: 0 0 12px 2px var(--accent-glow); border-color: var(--accent); }
+}
+.switch.rec-applied {
+  color: var(--accent);
+  border-color: var(--accent);
+  animation: rec-flash 0.3s ease-out alternate 2;
+}
