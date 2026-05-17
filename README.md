@@ -17,9 +17,10 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
 - **Transport**: clock, arpeggiator, 16-step note sequencer, 8-track drum machine
 - **Pattern banks**: the sequencer and drum machine each have 4 banks (A/B/C/D), independently copyable and chainable
+- **Multi-track sampler**: 8 slots × 16 steps with 4 banks; load a WAV/MP3, or **record from your microphone and edit in-app** — crop, low/hi-pass, octave up/down, reverse, normalize, fade in/out, boost — then save WAV/MP3 or drop it straight into a slot; any loaded slot can be re-opened (✎) to edit again
 - **Song chains**: build an arrangement (e.g. `A A B A C A A D`) per machine — separate seq and drum lanes
 - **Live DJ FX**: momentary Fill, Stutter/beat-repeat (1 / 1/8 / 1/4), Filter Drop, Tape Stop, and a manual bipolar DJ Filter sweep (LP ← → HP)
-- **Songs**: save/load complete songs (all settings + every bank + chains) as portable `.json` files and browser slots; built-in demos **Knight Rider** and **Zombie Nation**
+- **Songs**: save/load complete songs (all settings + every bank + chains) as portable `.json` files and browser slots; built-in demos **Knight Rider**, **Zombie Nation**, and **I Feel Love**
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
 - Oscilloscope / spectrum display, pitch-bend and mod wheels
@@ -60,11 +61,13 @@ src/
     ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
     effects/         distortion, wah, phaser, delay, reverb
     drums/           drum synthesis
-    transport/       clock, arpeggiator, sequencer, drum-machine,
+    transport/       clock, arpeggiator, sequencer, drum-machine, sampler,
                      arrangement (chain lanes), performance (live DJ FX)
+    recorder/        mic capture, pure sample DSP, WAV/MP3 encode,
+                     AudioWorklet sink (song export + record-a-sound)
   state/
     params.ts        ParamBus + all parameter definitions
-    patterns.ts      PatternStore (4 seq + 4 drum banks)
+    patterns.ts      PatternStore (seq / drum / sampler banks)
     preset.ts        factory bank + localStorage persistence
     song.ts          full-song save/load + demo songs
   ui/                hand-built DOM components and panels

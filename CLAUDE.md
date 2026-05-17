@@ -22,8 +22,9 @@ npm test           # vitest run — pure-logic + component unit tests
 `npm run typecheck` is still the primary check (TS is in `strict` mode with
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
 that style). There is also a small Vitest suite under `tests/` covering the
-pure-logic units (`ParamBus`, `PatternStore`, `Song`) and the DOM components
-(`createButton`, `Dropdown`); it runs in jsdom. Tests live **outside `src/`**
+pure-logic units (`ParamBus`, `PatternStore`, `Song`, audio `encode`, sample
+`buffer-dsp`) and the DOM components (`createButton`, `Dropdown`); it runs in
+jsdom. Tests live **outside `src/`**
 so they stay invisible to `tsc` — `typecheck`/`build` behaviour is unchanged.
 There is no linter.
 
@@ -64,6 +65,19 @@ one full pass of the longest enabled arrangement chain then auto-stops;
 AudioContext-free (`audio/recorder/encode.ts` — `encodeWav` is dependency-free;
 `encodeMp3` uses the vendored lamejs) so it is unit-testable under jsdom.
 
+**Sample recorder/editor** — the Sampler's "Record a sound" modal
+(`ui/components/record-sound-modal.ts`, built on the reusable `Modal`,
+`ui/components/modal.ts`) records the mic via `audio/recorder/mic-capture.ts`
+(getUserMedia → a *fresh* `RecorderNode` + a muted-gain tap to `destination`
+so the 0-output sink stays pulled), edits in `CapturedAudio` space, then saves
+(reusing `encode.ts`) or fills a slot. Pure DSP
+(`audio/recorder/buffer-dsp.ts` — crop/reverse/normalize/gain/fade/
+`computePeaks`/`peakDb`) is AudioContext-free and unit-tested like
+`encode.ts`; filter + octave go through an `OfflineAudioContext`
+(`audio/recorder/offline-render.ts`); `audio/recorder/audio-buffer.ts` is the
+**only** `CapturedAudio`↔`AudioBuffer` bridge (keeps `buffer-dsp` testable).
+A loaded slot exposes an ✎ button that reopens its buffer in the same editor.
+
 Non-scalar state (step grids) lives in **`PatternStore`** (`state/patterns.ts`),
 not in `ParamBus`, because the shapes are arrays of objects. It has its own
 listener mechanism.
@@ -91,6 +105,8 @@ listener mechanism.
   one-shot; the `Arrangement` has a third `sampler` chain lane. Decoded buffers
   live in `SamplerMachine`; only filenames (`patterns.sampleNames`) persist —
   after a song import the user re-loads the files (`.needs-reload` label hint).
+  Slots are filled by **Load** (WAV/MP3 file) or the record-sound modal
+  (mic-record or re-edit a loaded buffer; see *Sample recorder/editor*).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
   + all banks + all three chains). `SongFile` is now `version: 1 | 2`; v2 adds
   optional `samplerBanks`/`samplerChain`/`sampleNames`. `fromJSON` is unchanged
@@ -115,6 +131,14 @@ listener mechanism.
   presets are seeded by `ensureFactoryPresets()` on boot.
 - Audio cannot start without a user gesture — everything is wired inside the
   "Tap to start" handler in `main.ts`.
+- Dialogs use the shared **`Modal`** (`ui/components/modal.ts`), extracted
+  from the previously-duplicated about/start-modal pattern (`.about-backdrop`/
+  `.about` CSS, Escape captured to beat the panic handler, backdrop-click +
+  fade close). `about.ts` and the start modal were intentionally left as-is.
+- Mic capture needs a **secure context**. `npm run dev` (`vite --host`)
+  serves the LAN over plain HTTP, so recording from a phone/other device is
+  blocked by the browser — the modal shows a clear message; it works from
+  `http://localhost`.
 - UI is hand-built DOM (`document.createElement`), no virtual DOM. Components
   in `ui/components/`, larger sections in `ui/panels/`. The on-screen keyboard
   is exposed as `window.__synthKeyboard` and the transport toggle as

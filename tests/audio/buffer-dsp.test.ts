@@ -143,4 +143,11 @@ describe('computePeaks', () => {
     expect(p.length).toBe(10);
     expect(Array.from(p)).toEqual(new Array(10).fill(0));
   });
+
+  it('preserves over-unity peaks so the editor can flag clipping', () => {
+    const a = cap([2, -2, 0.5, -0.5]);
+    const p = computePeaks(a, 2);
+    expect(p[0]!).toBeLessThan(-1); // first column min < -1
+    expect(p[1]!).toBeGreaterThan(1); // first column max > 1
+  });
 });
