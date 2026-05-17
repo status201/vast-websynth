@@ -1,7 +1,19 @@
 # WebSynth — VAST G1-J5
 
-A browser-based polyphonic subtractive synthesizer built on the Web Audio API.
+A browser-based polyphonic subtractive synthesizer — with a step-sequenced
+drum machine and multi-track sampler — built on the Web Audio API.
 Vanilla TypeScript + Vite, zero runtime dependencies.
+
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/og-card.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="640">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://vast.status201.com/">▶ Launch VAST G1-J5 in your browser →</a></strong><br>
+  Free. No install, no signup — open it and play.
+</p>
 
 ## Features
 
@@ -15,12 +27,12 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones
 - **LFO** routable to cutoff, pitch, amp, or pulse width
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
-- **Transport**: clock, arpeggiator, 16-step note sequencer, 8-track drum machine
-- **Pattern banks**: the sequencer and drum machine each have 4 banks (A/B/C/D), independently copyable and chainable
-- **Multi-track sampler**: 8 slots × 16 steps with 4 banks; load a WAV/MP3, or **record from your microphone and edit in-app** — crop, low/hi-pass, octave up/down, reverse, normalize, fade in/out, boost — then save WAV/MP3 or drop it straight into a slot; any loaded slot can be re-opened (✎) to edit again
-- **Song chains**: build an arrangement (e.g. `A A B A C A A D`) per machine — separate seq and drum lanes
+- **Transport**: clock, arpeggiator, 16-step note sequencer, 8-track drum machine, and 8-slot multi-track sampler
+- **Pattern banks**: the sequencer, drum machine, and sampler each have 4 banks (A/B/C/D), independently copyable and chainable
+- **Sampler sounds**: each of the 8 slots plays a one-shot sample. Load a WAV/MP3, or **record from your microphone and edit in-app** — crop, low/hi-pass, octave up/down, reverse, normalize, fade in/out, boost — then save WAV/MP3 or drop it straight into a slot; any loaded slot can be re-opened (✎) to edit again
+- **Song chains**: build an arrangement (e.g. `A A B A C A A D`) per machine — independent seq, drum, and sampler lanes
 - **Live DJ FX**: momentary Fill, Stutter/beat-repeat (1 / 1/8 / 1/4), Filter Drop, Tape Stop, and a manual bipolar DJ Filter sweep (LP ← → HP)
-- **Songs**: save/load complete songs (all settings + every bank + chains) as portable `.json` files and browser slots; built-in demos **Knight Rider**, **Zombie Nation**, and **I Feel Love**
+- **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable `.json` files and browser slots — sampler *audio* isn't embedded, so its files are re-loaded after import; built-in demos **Knight Rider**, **Zombie Nation**, and **I Feel Love**
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
 - Oscilloscope / spectrum display, pitch-bend and mod wheels

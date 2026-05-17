@@ -75,8 +75,16 @@ function buildModal(close: () => void): HTMLElement {
   version.innerHTML = `Version <strong>${__APP_VERSION__}</strong>`;
   const copyright = document.createElement('div');
   copyright.innerHTML = `&copy; ${new Date().getFullYear()} <strong>Gijs Oliemans</strong>`;
+  const source = document.createElement('div');
+  const link = document.createElement('a');
+  link.href = 'https://github.com/status201/vast-websynth';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'github.com/status201/vast-websynth';
+  source.appendChild(link);
   meta.appendChild(version);
   meta.appendChild(copyright);
+  meta.appendChild(source);
 
   const sec = document.createElement('div');
   sec.className = 'about-sec';

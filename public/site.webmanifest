@@ -1,0 +1,22 @@
+{
+  "name": "VAST G1-J5 — Browser Synthesizer",
+  "short_name": "VAST G1-J5",
+  "description": "A free in-browser polyphonic synthesizer with a Moog-style ladder filter, sequencer, drum machine, and mic sampler. Built on the Web Audio API.",
+  "categories": ["music", "entertainment", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050302",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

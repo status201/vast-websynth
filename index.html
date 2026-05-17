@@ -4,7 +4,92 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#1a1a1a" />
-    <title>VAST G1-J5</title>
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="canonical" href="https://vast.status201.com/" />
+
+    <title>VAST G1-J5 — Free Browser Synthesizer, Sequencer &amp; Drum Machine</title>
+    <meta
+      name="description"
+      content="VAST G1-J5 is a free in-browser polyphonic synthesizer: dual oscillators, a Moog-style 4-pole ladder filter, ADSR + LFO, a 16-step sequencer, drum machine, and mic sampler. No install, no signup — built on the Web Audio API."
+    />
+    <meta
+      name="keywords"
+      content="web synthesizer, online synth, browser synthesizer, Web Audio API, polyphonic synthesizer, subtractive synthesis, ladder filter, step sequencer, drum machine, sampler, arpeggiator, MIDI synth, free synth online, VAST G1-J5, music maker"
+    />
+    <meta name="author" content="Gijs Oliemans" />
+    <meta name="application-name" content="VAST G1-J5" />
+    <meta name="apple-mobile-web-app-title" content="VAST G1-J5" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+
+    <!-- Open Graph / Twitter (link previews on Discord, Slack, X, etc.).
+         Absolute URLs are required by Facebook / LinkedIn / WhatsApp. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VAST G1-J5" />
+    <meta property="og:url" content="https://vast.status201.com/" />
+    <meta property="og:title" content="VAST G1-J5 — Free Browser Synthesizer" />
+    <meta
+      property="og:description"
+      content="A polyphonic Web Audio synth with a Moog-style ladder filter, sequencer, drum machine, and mic sampler. Runs in the browser — nothing to install."
+    />
+    <meta property="og:image" content="https://vast.status201.com/og-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="2400" />
+    <meta property="og:image:height" content="1260" />
+    <meta
+      property="og:image:alt"
+      content="VAST G1-J5 — synthesizer knob logo, wordmark, and oscilloscope readout"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VAST G1-J5 — Free Browser Synthesizer" />
+    <meta
+      name="twitter:description"
+      content="A polyphonic Web Audio synth with ladder filter, sequencer, drum machine, and mic sampler. Runs in the browser."
+    />
+    <meta name="twitter:image" content="https://vast.status201.com/og-card.png" />
+    <meta name="twitter:image:alt" content="VAST G1-J5 synthesizer card" />
+
+    <!-- Structured data for search engines and AI crawlers (schema.org). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "VAST G1-J5",
+        "alternateName": "WebSynth",
+        "url": "https://vast.status201.com/",
+        "image": "https://vast.status201.com/og-card.png",
+        "description": "A free browser-based polyphonic subtractive synthesizer with a Moog-style 4-pole ladder filter, dual oscillators, sub oscillator, unison, two ADSR envelopes, LFO, an FX chain (distortion, wah, phaser, delay, reverb), a 16-step note sequencer, an 8-track drum machine, an 8-slot mic/file sampler, song-chain arrangement, live DJ FX, and WAV/MP3 export. Built on the Web Audio API in vanilla TypeScript.",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "Music Synthesizer",
+        "operatingSystem": "Any (modern web browser with Web Audio API)",
+        "browserRequirements": "Requires a browser with the Web Audio API and JavaScript enabled.",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Gijs Oliemans"
+        },
+        "featureList": [
+          "8-voice polyphony with mono/poly and glide",
+          "Dual oscillators plus noise and a sub oscillator",
+          "Unison voice-stacking with detune spread",
+          "Moog-style 4-pole ladder filter (AudioWorklet)",
+          "Two ADSR envelopes and a routable LFO",
+          "FX chain: distortion, wah, phaser, delay, reverb",
+          "Arpeggiator, 16-step sequencer, drum machine",
+          "8-slot sampler with in-app mic recording and editing",
+          "Song-chain arrangement and live DJ FX",
+          "WAV/MP3 export and shareable JSON song files",
+          "On-screen keyboard, computer keyboard, and Web MIDI"
+        ]
+      }
+    </script>
+
     <link rel="stylesheet" href="/src/styles/base.css" />
     <link rel="stylesheet" href="/src/styles/theme.css" />
     <link rel="stylesheet" href="/src/styles/components.css" />
@@ -12,6 +97,35 @@
   </head>
   <body>
     <div id="app" class="app"></div>
+
+    <!-- Crawlable fallback: the synth UI is built by JavaScript, so this gives
+         search engines and AI crawlers (which often don't run JS) real content. -->
+    <noscript>
+      <main style="max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem; color: #e8d8b6; font-family: Georgia, serif; line-height: 1.6;">
+        <h1>VAST G1-J5 — Free Browser Synthesizer</h1>
+        <p>
+          VAST G1-J5 is a free, in-browser polyphonic subtractive synthesizer
+          built on the Web Audio API — no install and no signup. It runs
+          entirely in your browser and requires JavaScript to be enabled.
+        </p>
+        <h2>What it does</h2>
+        <ul>
+          <li>8-voice polyphonic synth: dual oscillators, sub oscillator, noise, and unison.</li>
+          <li>Moog-style 4-pole ladder filter with resonance and drive.</li>
+          <li>Two ADSR envelopes and an LFO routable to cutoff, pitch, amp, or pulse width.</li>
+          <li>FX chain: distortion, wah, phaser, delay, and reverb.</li>
+          <li>Arpeggiator, 16-step note sequencer, 8-track drum machine, and an 8-slot sampler.</li>
+          <li>Record and edit samples from your microphone, build song-chain arrangements, and apply live DJ FX.</li>
+          <li>Export to WAV/MP3 and save/load songs as portable JSON files. Play with the on-screen keyboard, your computer keyboard, or Web MIDI.</li>
+        </ul>
+        <p>
+          VAST G1-J5 is free and open source — the full source code is on
+          <a href="https://github.com/status201/vast-websynth" style="color: #f4cd5e;">GitHub</a>.
+        </p>
+        <p>Please enable JavaScript to use the synthesizer.</p>
+      </main>
+    </noscript>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

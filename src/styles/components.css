@@ -935,6 +935,16 @@
   font-weight: 700;
 }
 
+.about-meta a {
+  color: var(--accent-secondary);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.4);
+}
+
+.about-meta a:hover {
+  color: var(--text);
+}
+
 .about-sec {
   margin-top: 20px;
   font-size: 10px;
