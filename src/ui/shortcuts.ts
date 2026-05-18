@@ -99,6 +99,15 @@ export function installShortcuts(engine: Engine, bus: ParamBus): void {
     release(note);
   });
 
+  window.addEventListener('contextmenu', (e: MouseEvent) => {
+    // Android/iOS long-press on a button (Stutter etc.) otherwise opens the
+    // native menu, which steals focus and cancels the press-and-hold. Keep
+    // the menu only inside editable fields so touch copy/paste still works.
+    const t = e.target as HTMLElement | null;
+    if (t && t.closest('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault();
+  });
+
   window.addEventListener('blur', () => {
     // Release everything when window loses focus
     if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }

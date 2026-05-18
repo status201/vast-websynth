@@ -1168,7 +1168,14 @@
   padding-top: 12px;
 }
 
-.dj-btn { min-height: 36px; padding: 8px 14px; }
+.dj-btn {
+  min-height: 36px;
+  padding: 8px 14px;
+  /* A hold is a hold, not a pan: stops the browser treating a long-press as a
+     scroll/gesture (which fires a mid-hold pointerleave and drops the FX). */
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
 
 .dj-btn.on {
   background: linear-gradient(180deg, #e8742e 0%, #8a3010 100%);
