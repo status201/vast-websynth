@@ -23,7 +23,7 @@ export function createButton(opts: ButtonOptions): HTMLButtonElement {
 
   if (opts.led) {
     const led = document.createElement('span');
-    led.className = styles.led!;
+    led.className = `${styles.led!} switch-led`;
     const label = document.createElement('span');
     label.className = `${styles.label!} switch-label`;
     label.textContent = opts.label;

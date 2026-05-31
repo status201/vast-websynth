@@ -139,6 +139,23 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   };
   engine.clock.onStart(syncPlay);
   engine.clock.onStop(syncPlay);
+
+  // --- Play-button LED blink ---
+  let blinkVisible = true;
+
+  const setBlink = (v: boolean) => {
+    blinkVisible = v;
+    playBtn.classList.toggle('blink', !v);
+  };
+
+  engine.clock.onTick((step) => {
+    const nb = (step & 3) < 2;
+    if (nb !== blinkVisible) setBlink(nb);
+  });
+
+  engine.clock.onStart(() => setBlink(true));
+  engine.clock.onStop(() => setBlink(true));
+
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
   transport.appendChild(new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' }).el);

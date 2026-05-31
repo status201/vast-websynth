@@ -148,6 +148,11 @@
   color: var(--accent-secondary);
 }
 
+.playBtn:global(.blink) :global(.switch-led) {
+  opacity: 0.15;
+  box-shadow: none;
+}
+
 /* ===== Main panel grid ===== */
 
 .main {
