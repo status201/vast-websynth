@@ -12,6 +12,7 @@ import {
   DRUM_TRACK_COUNT,
 } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
+import switchStyles from '../styles/switch.module.css';
 import { createButton, setButtonLabel } from './button';
 import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
@@ -108,7 +109,7 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   });
   const closeBtn = createButton({
     label: 'Close',
-    className: Modal.closeBtnClass,
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
     onClick: close,
   });
 

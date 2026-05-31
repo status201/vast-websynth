@@ -8,6 +8,7 @@ import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
+import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
 import { Song, DEMO_SONGS } from '../../state/song';
@@ -61,7 +62,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const stutterWrap = el('div', styles.stutter!);
   stutterWrap.appendChild(momentary('Stutter',
     () => engine.perf.setStutter(true), () => engine.perf.setStutter(false)));
-  const sizes = el('div', `${styles.stutterSize!}`);
+  const sizes = el('div', `${styles.stutterSize!} ${segmentedStyles.root!}`);
   ([['1', 1], ['1/8', 2], ['1/4', 4]] as Array<[string, number]>).forEach(([lbl, n], i) => {
     const sb = document.createElement('button');
     sb.type = 'button';
@@ -173,7 +174,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   aio.appendChild(el('div', styles.sectionLabel!, 'Audio'));
 
   let fmt: ExportFormat = 'wav';
-  const fmtSel = el('div', 'segmented');
+  const fmtSel = el('div', segmentedStyles.root!);
   ([['WAV', 'wav'], ['MP3', 'mp3']] as Array<[string, ExportFormat]>).forEach(([lbl, f], i) => {
     const b = document.createElement('button');
     b.type = 'button';
