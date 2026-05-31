@@ -1,12 +1,14 @@
+import styles from '../styles/switch.module.css';
+
 /**
- * Shared button factory. Every button in the app is a `.switch`-styled
+ * Shared button factory. Every button in the app is a switch-styled
  * `<button>`; some (the transport Play button) carry an LED dot + a label
  * span so the `.on` state can glow. One helper keeps that markup in one
  * place instead of being hand-rolled at each call site.
  */
 export interface ButtonOptions {
   label: string;
-  /** CSS class(es). Defaults to the shared `switch` style. */
+  /** CSS class(es). Defaults to the shared switch style. */
   className?: string;
   type?: 'button' | 'submit';
   onClick?: (ev: MouseEvent) => void;
@@ -17,13 +19,13 @@ export interface ButtonOptions {
 export function createButton(opts: ButtonOptions): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = opts.type ?? 'button';
-  btn.className = opts.className ?? 'switch';
+  btn.className = opts.className ?? styles.root!;
 
   if (opts.led) {
     const led = document.createElement('span');
-    led.className = 'switch-led';
+    led.className = styles.led!;
     const label = document.createElement('span');
-    label.className = 'switch-label';
+    label.className = `${styles.label!} switch-label`;
     label.textContent = opts.label;
     btn.appendChild(led);
     btn.appendChild(label);
@@ -35,9 +37,9 @@ export function createButton(opts: ButtonOptions): HTMLButtonElement {
   return btn;
 }
 
-/** Update a button's text, honouring the `.switch-label` span if present. */
+/** Update a button's text, honouring the label span if present. */
 export function setButtonLabel(btn: HTMLButtonElement, text: string): void {
-  const label = btn.querySelector<HTMLElement>('.switch-label');
+  const label = btn.querySelector<HTMLElement>(`.${styles.label!}`);
   if (label) label.textContent = text;
   else btn.textContent = text;
 }

@@ -1,3 +1,4 @@
+import styles from '../styles/tabs.module.css';
 import { createCollapseToggle } from './collapse-toggle';
 
 export interface Tab {
@@ -23,20 +24,20 @@ export class TabContainer {
 
   constructor(tabs: Tab[], initialId?: string, opts?: TabOptions) {
     this.el = document.createElement('div');
-    this.el.className = 'tabs';
+    this.el.className = styles.root!;
 
     this.tabBar = document.createElement('div');
-    this.tabBar.className = 'tabs-bar';
+    this.tabBar.className = styles.bar!;
     this.el.appendChild(this.tabBar);
 
     this.body = document.createElement('div');
-    this.body.className = 'tabs-body';
+    this.body.className = styles.body!;
     this.el.appendChild(this.body);
 
     for (const t of tabs) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'tab';
+      b.className = styles.tab!;
       b.textContent = t.label;
       // Clicking a tab while collapsed expands first, then activates it.
       b.addEventListener('click', () => {
@@ -49,7 +50,7 @@ export class TabContainer {
       // Wrap content in a shell so visibility toggling doesn't fight the
       // child's own `display` rules.
       const shell = document.createElement('div');
-      shell.className = 'tab-content';
+      shell.className = styles.content!;
       shell.dataset.tabId = t.id;
       shell.appendChild(t.content);
       this.body.appendChild(shell);
@@ -61,7 +62,7 @@ export class TabContainer {
       const c = createCollapseToggle(this.el, opts.collapsibleStoreKey, {
         defaultCollapsed: opts.collapsedByDefault,
         trigger: this.tabBar,
-        ignoreSelector: '.tab',
+        ignoreSelector: `.${styles.tab!}`,
       });
       this.expand = c.expand;
       this.tabBar.appendChild(c.el);

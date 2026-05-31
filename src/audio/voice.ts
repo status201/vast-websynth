@@ -1,6 +1,7 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
+import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
@@ -144,15 +145,15 @@ export class Voice {
   }
 
   setNoiseLevel(v: number): void {
-    this.noiseGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+    rampTo(this.noiseGain.gain, v, this.ctx, RAMP_MEDIUM);
   }
 
   setFilterCutoff(note: number): void {
-    this.filter.cutoffNote.setTargetAtTime(note, this.ctx.currentTime, 0.005);
+    rampTo(this.filter.cutoffNote, note, this.ctx, RAMP_FAST);
   }
 
   setFilterResonance(r: number): void {
-    this.filter.resonance.setTargetAtTime(r, this.ctx.currentTime, 0.005);
+    rampTo(this.filter.resonance, r, this.ctx, RAMP_FAST);
   }
 
   setFilterDrive(d: number): void {
@@ -160,7 +161,7 @@ export class Voice {
   }
 
   setFilterEnvAmount(semi: number): void {
-    this.filEnvScale.gain.setTargetAtTime(semi, this.ctx.currentTime, 0.01);
+    rampTo(this.filEnvScale.gain, semi, this.ctx, RAMP_MEDIUM);
   }
 }
 

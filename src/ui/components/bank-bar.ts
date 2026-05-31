@@ -1,3 +1,5 @@
+import styles from '../styles/bank-bar.module.css';
+import switchStyles from '../styles/switch.module.css';
 import { BANK_LABELS } from '../../state/patterns';
 
 export interface BankBarOpts {
@@ -26,15 +28,15 @@ export class BankBar {
 
   constructor(private readonly opts: BankBarOpts) {
     this.el = document.createElement('div');
-    this.el.className = 'bank-bar';
+    this.el.className = styles.root!;
 
     const seg = document.createElement('div');
-    seg.className = 'bank-seg';
+    seg.className = styles.seg!;
     BANK_LABELS.forEach((label, i) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'bank-btn';
-      b.innerHTML = `<span class="bank-letter">${label}</span><span class="bank-dot"></span>`;
+      b.className = styles.btn!;
+      b.innerHTML = `<span class="${styles.letter!}">${label}</span><span class="${styles.dot!}"></span>`;
       b.addEventListener('click', () => {
         if (this.copyArmed) {
           this.opts.copy(this.opts.getEdit(), i);
@@ -51,7 +53,7 @@ export class BankBar {
 
     this.copyBtn = document.createElement('button');
     this.copyBtn.type = 'button';
-    this.copyBtn.className = 'switch bank-copy';
+    this.copyBtn.className = `${switchStyles.root!} ${styles.copy!}`;
     this.copyBtn.textContent = 'Copy';
     this.copyBtn.title = 'Copy this bank into another (click Copy, then a slot)';
     this.copyBtn.addEventListener('click', () => this.setArmed(!this.copyArmed));

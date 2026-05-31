@@ -1,3 +1,5 @@
+import type { TickSubscriber, TickListener } from './tick-source';
+
 /**
  * Look-ahead transport clock. Subscribers receive a callback with the
  * (stepIndex, audioContextTime) pair for each upcoming 16th-note tick,
@@ -8,12 +10,12 @@
  * setInterval timer wakes us up every 25 ms to enqueue work; the actual
  * triggering uses absolute AudioContext time via setValueAtTime etc.
  */
-export type TickListener = (step: number, when: number) => void;
+export type { TickListener };
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 
-export class Clock {
+export class Clock implements TickSubscriber {
   private bpm = 120;
   private _playing = false;
   private nextStepTime = 0;

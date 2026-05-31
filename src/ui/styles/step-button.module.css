@@ -1,0 +1,68 @@
+.root {
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #1a1410, #0a0805);
+  border: 1px solid var(--panel-border);
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--serif);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  box-shadow:
+    inset 0 1px 0 rgba(244, 205, 94, 0.05),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: background 80ms ease, transform 60ms ease, border-color 80ms ease;
+}
+
+.root:active { transform: translateY(1px); }
+
+.on {
+  background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
+  color: #f4e4c2;
+  border-color: #d4602a;
+  box-shadow:
+    0 0 8px rgba(232, 116, 46, 0.5),
+    inset 0 1px 0 rgba(255, 220, 180, 0.3),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.red.on {
+  background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
+  border-color: #d4302a;
+  box-shadow:
+    0 0 8px rgba(255, 58, 32, 0.5),
+    inset 0 1px 0 rgba(255, 180, 160, 0.3),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.yellow.on {
+  background: linear-gradient(180deg, #e8b542 0%, #8a6010 100%);
+  border-color: #e8b542;
+  color: #1a1410;
+  box-shadow:
+    0 0 8px rgba(244, 205, 94, 0.5),
+    inset 0 1px 0 rgba(255, 240, 180, 0.4),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.playing {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: -2px;
+  box-shadow:
+    0 0 12px var(--accent-secondary-glow),
+    inset 0 1px 0 rgba(244, 205, 94, 0.2);
+}
+
+.selected {
+  border-color: var(--accent-secondary);
+}
+
+.drum-cell {
+  height: 22px;
+  font-size: 8px;
+}

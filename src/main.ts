@@ -4,6 +4,8 @@ import { mountApp } from './ui/app';
 import { installShortcuts } from './ui/shortcuts';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
+import { UiBridge } from './ui/ui-bridge';
+import { Modal } from './ui/components/modal';
 
 async function boot() {
   // Build the synth and mount the full UI immediately. The AudioContext is
@@ -13,8 +15,9 @@ async function boot() {
   const engine = new Engine(bus);
   await engine.init();
 
-  mountApp(document.getElementById('app')!, engine, bus);
-  installShortcuts(engine, bus);
+  const bridge = new UiBridge();
+  mountApp(document.getElementById('app')!, engine, bus, bridge);
+  installShortcuts(engine, bus, bridge);
   initMIDI(engine, bus);
 
   Presets.ensureFactoryPresets();
@@ -27,19 +30,19 @@ async function boot() {
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */
 function showStartModal(engine: Engine): void {
   const backdrop = document.createElement('div');
-  backdrop.className = 'about-backdrop start-backdrop';
+  backdrop.className = `${Modal.backdropClass} start-backdrop`;
 
   const card = document.createElement('div');
-  card.className = 'about start-card';
+  card.className = `${Modal.cardClass} start-card`;
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'Start VAST G1-J5');
 
   const title = document.createElement('div');
-  title.className = 'about-title';
+  title.className = Modal.titleClass;
   title.textContent = 'VAST G1-J5';
 
   const tag = document.createElement('div');
-  tag.className = 'about-tag';
+  tag.className = Modal.tagClass;
   tag.textContent = 'Vast Audio Synthesis Technology';
 
   const startBtn = document.createElement('button');

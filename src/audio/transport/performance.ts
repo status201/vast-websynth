@@ -1,5 +1,5 @@
-import type { Clock } from './clock';
 import type { ParamBus } from '../../state/params';
+import type { TickSubscriber } from './tick-source';
 
 /**
  * Live performance / DJ effects. Owned by the Engine; the sequencer and
@@ -27,7 +27,7 @@ export class Performance {
 
   constructor(
     private readonly ctx: AudioContext,
-    private readonly clock: Clock,
+    private readonly clock: TickSubscriber,
     private readonly bus: ParamBus,
     private readonly djFilter: BiquadFilterNode,
   ) {}

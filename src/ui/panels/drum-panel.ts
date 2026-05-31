@@ -6,14 +6,14 @@ import { StepButton } from '../components/step-button';
 import { BankBar } from '../components/bank-bar';
 import { DRUM_TRACK_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import layout from '../styles/layout.module.css';
+import styles from '../styles/drum.module.css';
 
 export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
-  root.className = 'pattern-panel drum-panel';
-
-  // ---- Header ----
+  root.className = `${layout.patternPanel!} drum-panel`;
   const header = document.createElement('div');
-  header.className = 'pattern-panel-header';
+  header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
   header.appendChild(new BankBar({
@@ -30,39 +30,35 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
   // ---- Track rows ----
   const grid = document.createElement('div');
-  grid.className = 'drum-grid';
-  root.appendChild(grid);
-
+  grid.className = styles.grid!;
   const stepBtns: StepButton[][] = [];
-
   for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
     const row = document.createElement('div');
-    row.className = 'drum-row';
-
+    row.className = styles.row!;
     const ctrls = document.createElement('div');
-    ctrls.className = 'drum-row-ctrls';
+    ctrls.className = styles.rowCtrls!;
 
     const label = document.createElement('button');
-    label.className = 'drum-track-label';
+    label.className = styles.trackLabel!;
     label.textContent = DRUM_TRACK_LABELS[t] ?? `T${t}`;
     label.title = 'Click to audition';
     label.addEventListener('click', () => engine.drums.triggerTrack(t, 0.9));
     ctrls.appendChild(label);
 
     const mute = new Switch(bus, `drum.t${t}.mute`, 'mute');
-    mute.el.classList.add('drum-mute');
+    mute.el.classList.add(styles.mute!);
     ctrls.appendChild(mute.el);
 
     row.appendChild(ctrls);
 
     const cells = document.createElement('div');
-    cells.className = 'drum-cells';
+    cells.className = styles.cells!;
     const trackBtns: StepButton[] = [];
     for (let s = 0; s < SEQ_LENGTH; s++) {
       const cell = engine.patterns.drum[t]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.setOn(cell.on);
-      sb.el.classList.add('drum-cell');
+      sb.el.classList.add(StepButton.drumCellClass);
       sb.el.addEventListener('click', () => {
         engine.patterns.setDrumCell(t, s, { on: !engine.patterns.drum[t]![s]!.on });
       });
@@ -73,6 +69,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     row.appendChild(cells);
     grid.appendChild(row);
   }
+  root.appendChild(grid);
 
   // Highlight playback position
   engine.drums.onStep((idx) => {
@@ -81,7 +78,16 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     }
   });
 
-  // External pattern changes
+  // Full bank repaint (bank switch / song restore)
+  engine.patterns.onDrumBankChange((bank) => {
+    for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
+      for (let s = 0; s < SEQ_LENGTH; s++) {
+        stepBtns[t]?.[s]?.setOn(bank[t]![s]!.on);
+      }
+    }
+  });
+
+  // Live step edit updates
   engine.patterns.onDrumChange((track, step, cell) => {
     stepBtns[track]?.[step]?.setOn(cell.on);
   });

@@ -2,7 +2,7 @@
 // exactly describes the song-JSON format (schema generated live from
 // ParamBus so it can never drift from registerDefaults) plus the built-in
 // "I Feel Love" demo as a worked, downloadable example. Reuses the
-// about.ts modal lifecycle and the .about-backdrop / .about styling.
+// Modal lifecycle and the modal.module.css styling.
 import type { ParamBus } from '../../state/params';
 import { DRUM_TRACK_LABELS } from '../../state/params';
 import {
@@ -13,6 +13,9 @@ import {
 } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
 import { createButton, setButtonLabel } from './button';
+import { Modal } from './modal';
+import modalStyles from '../styles/modal.module.css';
+import songStyles from '../styles/song-panel.module.css';
 
 const EXAMPLE_NAME = 'I Feel Love';
 
@@ -20,7 +23,7 @@ export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
     label: '✨ AI Prompt',
-    className: 'switch demo-btn',
+    className: songStyles.demo,
     onClick: open,
   });
 
@@ -59,22 +62,22 @@ export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
 
 function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   const backdrop = document.createElement('div');
-  backdrop.className = 'about-backdrop hidden';
+  backdrop.className = `${Modal.backdropClass} hidden`;
   backdrop.addEventListener('pointerdown', (e) => {
     if (e.target === backdrop) close();
   });
 
   const card = document.createElement('div');
-  card.className = 'about ai-modal';
+  card.className = Modal.cardWideClass;
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'Generate a song with AI');
 
   const title = document.createElement('div');
-  title.className = 'about-title';
+  title.className = Modal.titleClass;
   title.textContent = 'Generate a song with AI';
 
   const tag = document.createElement('div');
-  tag.className = 'about-tag';
+  tag.className = Modal.tagClass;
   tag.textContent =
     'Copy the prompt into any AI agent, then import the JSON it returns ' +
     'via Song → Import.';
@@ -83,13 +86,13 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   const example = Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!);
 
   const ta = document.createElement('textarea');
-  ta.className = 'ai-prompt-text';
+  ta.className = modalStyles.aiText!;
   ta.readOnly = true;
   ta.value = prompt;
   ta.addEventListener('focus', () => ta.select());
 
   const actions = document.createElement('div');
-  actions.className = 'ai-actions';
+  actions.className = modalStyles.aiActions!;
 
   const copyPrompt = createButton({
     label: 'Copy Prompt',
@@ -105,7 +108,7 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   });
   const closeBtn = createButton({
     label: 'Close',
-    className: 'switch about-close',
+    className: Modal.closeBtnClass,
     onClick: close,
   });
 

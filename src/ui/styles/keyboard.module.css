@@ -1,0 +1,86 @@
+.root {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  background: linear-gradient(180deg, #0a0604 0%, #1a0e08 100%);
+  padding: 6px;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(244, 205, 94, 0.06);
+}
+
+.key {
+  position: relative;
+  flex: 1;
+  margin: 0 1px;
+  border-radius: 0 0 4px 4px;
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+  font-size: 8px;
+  color: rgba(60, 40, 20, 0.6);
+  user-select: none;
+  font-family: var(--serif);
+  font-weight: 600;
+}
+
+.white {
+  background: var(--key-white);
+  box-shadow:
+    inset 0 -3px 6px rgba(80, 50, 20, 0.4),
+    inset 1px 0 0 rgba(255, 240, 200, 0.4),
+    0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.white:global(.active) {
+  background: var(--key-white-active);
+  box-shadow:
+    inset 0 -2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 220, 180, 0.4);
+}
+
+.black {
+  position: absolute;
+  top: 0;
+  width: 3%;
+  height: 60%;
+  background: var(--key-black);
+  color: rgba(232, 216, 182, 0.4);
+  z-index: 2;
+  border-radius: 0 0 3px 3px;
+  box-shadow:
+    inset 0 -3px 6px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(244, 205, 94, 0.05),
+    0 3px 0 rgba(0, 0, 0, 0.7);
+}
+
+.black:global(.active) {
+  background: var(--key-black-active);
+  box-shadow:
+    inset 0 -2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 180, 130, 0.3),
+    0 0 8px rgba(232, 80, 32, 0.5);
+}
+
+.white:global(.seq) {
+  background: var(--key-white-active);
+  box-shadow:
+    inset 0 -2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 6px rgba(244, 205, 94, 0.6),
+    0 0 12px rgba(244, 205, 94, 0.45);
+}
+
+.black:global(.seq) {
+  background: var(--key-black-active);
+  box-shadow:
+    inset 0 -2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(244, 205, 94, 0.45),
+    0 0 12px rgba(244, 205, 94, 0.6);
+}

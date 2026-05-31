@@ -1,3 +1,5 @@
+import { assertIndex } from '../utils/array';
+
 /**
  * Non-scalar state — step grids for the sequencer and drum machine.
  * Lives outside ParamBus because the shapes are arrays of objects.
@@ -93,6 +95,9 @@ export class PatternStore {
   private readonly seqListeners = new Set<(index: number, step: SeqStep) => void>();
   private readonly drumListeners = new Set<(track: number, step: number, cell: DrumCell) => void>();
   private readonly samplerListeners = new Set<(slot: number, step: number, cell: SamplerStep) => void>();
+  private readonly seqBankListeners = new Set<(bank: readonly SeqStep[]) => void>();
+  private readonly drumBankListeners = new Set<(bank: readonly (readonly DrumCell[])[]) => void>();
+  private readonly samplerBankListeners = new Set<(bank: readonly (readonly SamplerStep[])[]) => void>();
   private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
 
@@ -129,7 +134,7 @@ export class PatternStore {
     const n = clampBank(i);
     if (n === this._seqEdit) return;
     this._seqEdit = n;
-    this.emitAllSeq();
+    this.emitBankSeq();
     for (const l of this.editBankListeners) l();
   }
 
@@ -137,7 +142,7 @@ export class PatternStore {
     const n = clampBank(i);
     if (n === this._drumEdit) return;
     this._drumEdit = n;
-    this.emitAllDrum();
+    this.emitBankDrum();
     for (const l of this.editBankListeners) l();
   }
 
@@ -145,7 +150,7 @@ export class PatternStore {
     const n = clampBank(i);
     if (n === this._samplerEdit) return;
     this._samplerEdit = n;
-    this.emitAllSampler();
+    this.emitBankSampler();
     for (const l of this.editBankListeners) l();
   }
 
@@ -181,29 +186,36 @@ export class PatternStore {
   copySeqBank(from: number, to: number): void {
     const a = clampBank(from), b = clampBank(to);
     if (a === b) return;
-    const src = this.seqBanks[a]!, dst = this.seqBanks[b]!;
-    for (let i = 0; i < dst.length; i++) Object.assign(dst[i]!, src[i]!);
-    if (b === this._seqEdit) this.emitAllSeq();
+    const src = assertIndex(this.seqBanks, a, 'seqBanks');
+    const dst = assertIndex(this.seqBanks, b, 'seqBanks');
+    for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'seqSteps'), assertIndex(src, i, 'seqSteps'));
+    if (b === this._seqEdit) this.emitBankSeq();
   }
 
   copyDrumBank(from: number, to: number): void {
     const a = clampBank(from), b = clampBank(to);
     if (a === b) return;
-    const src = this.drumBanks[a]!, dst = this.drumBanks[b]!;
+    const src = assertIndex(this.drumBanks, a, 'drumBanks');
+    const dst = assertIndex(this.drumBanks, b, 'drumBanks');
     for (let t = 0; t < dst.length; t++) {
-      for (let s = 0; s < dst[t]!.length; s++) Object.assign(dst[t]![s]!, src[t]![s]!);
+      const srcRow = assertIndex(src, t, 'drumTracks');
+      const dstRow = assertIndex(dst, t, 'drumTracks');
+      for (let s = 0; s < dstRow.length; s++) Object.assign(assertIndex(dstRow, s, 'drumCells'), assertIndex(srcRow, s, 'drumCells'));
     }
-    if (b === this._drumEdit) this.emitAllDrum();
+    if (b === this._drumEdit) this.emitBankDrum();
   }
 
   copySamplerBank(from: number, to: number): void {
     const a = clampBank(from), b = clampBank(to);
     if (a === b) return;
-    const src = this.samplerBanks[a]!, dst = this.samplerBanks[b]!;
+    const src = assertIndex(this.samplerBanks, a, 'samplerBanks');
+    const dst = assertIndex(this.samplerBanks, b, 'samplerBanks');
     for (let t = 0; t < dst.length; t++) {
-      for (let s = 0; s < dst[t]!.length; s++) Object.assign(dst[t]![s]!, src[t]![s]!);
+      const srcRow = assertIndex(src, t, 'samplerTracks');
+      const dstRow = assertIndex(dst, t, 'samplerTracks');
+      for (let s = 0; s < dstRow.length; s++) Object.assign(assertIndex(dstRow, s, 'samplerCells'), assertIndex(srcRow, s, 'samplerCells'));
     }
-    if (b === this._samplerEdit) this.emitAllSampler();
+    if (b === this._samplerEdit) this.emitBankSampler();
   }
 
   // ---- Subscriptions ----
@@ -233,27 +245,60 @@ export class PatternStore {
     return () => { this.editBankListeners.delete(fn); };
   }
 
+  /** Fires once when the active edit bank changes (not per-cell). */
+  onSeqBankChange(fn: (bank: readonly SeqStep[]) => void): () => void {
+    this.seqBankListeners.add(fn);
+    return () => { this.seqBankListeners.delete(fn); };
+  }
+
+  onDrumBankChange(fn: (bank: readonly (readonly DrumCell[])[]) => void): () => void {
+    this.drumBankListeners.add(fn);
+    return () => { this.drumBankListeners.delete(fn); };
+  }
+
+  onSamplerBankChange(fn: (bank: readonly (readonly SamplerStep[])[]) => void): () => void {
+    this.samplerBankListeners.add(fn);
+    return () => { this.samplerBankListeners.delete(fn); };
+  }
+
+  private emitBankSeq(): void {
+    const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
+    for (const l of this.seqBankListeners) l(bank);
+  }
+
+  private emitBankDrum(): void {
+    const bank = assertIndex(this.drumBanks, this._drumEdit, 'drumBanks');
+    for (const l of this.drumBankListeners) l(bank);
+  }
+
+  private emitBankSampler(): void {
+    const bank = assertIndex(this.samplerBanks, this._samplerEdit, 'samplerBanks');
+    for (const l of this.samplerBankListeners) l(bank);
+  }
+
   private emitAllSeq(): void {
-    const bank = this.seqBanks[this._seqEdit]!;
+    const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
     for (let i = 0; i < bank.length; i++) {
-      for (const l of this.seqListeners) l(i, bank[i]!);
+      for (const l of this.seqListeners) l(i, assertIndex(bank, i, 'seqSteps'));
     }
   }
 
   private emitAllDrum(): void {
-    const bank = this.drumBanks[this._drumEdit]!;
+    const bank = assertIndex(this.drumBanks, this._drumEdit, 'drumBanks');
     for (let t = 0; t < bank.length; t++) {
-      for (let s = 0; s < bank[t]!.length; s++) {
-        for (const l of this.drumListeners) l(t, s, bank[t]![s]!);
+      const row = assertIndex(bank, t, 'drumTracks');
+      for (let s = 0; s < row.length; s++) {
+        for (const l of this.drumListeners) l(t, s, assertIndex(row, s, 'drumCells'));
       }
     }
   }
 
   private emitAllSampler(): void {
-    const bank = this.samplerBanks[this._samplerEdit]!;
+    const bank = assertIndex(this.samplerBanks, this._samplerEdit, 'samplerBanks');
     for (let t = 0; t < bank.length; t++) {
-      for (let s = 0; s < bank[t]!.length; s++) {
-        for (const l of this.samplerListeners) l(t, s, bank[t]![s]!);
+      const row = assertIndex(bank, t, 'samplerTracks');
+      for (let s = 0; s < row.length; s++) {
+        for (const l of this.samplerListeners) l(t, s, assertIndex(row, s, 'samplerCells'));
       }
     }
   }
@@ -276,25 +321,26 @@ export class PatternStore {
     if (snap.seqBanks) {
       for (let b = 0; b < BANK_COUNT; b++) {
         const incoming = snap.seqBanks[b];
-        const bank = this.seqBanks[b]!;
         if (!incoming) continue;
+        const bank = assertIndex(this.seqBanks, b, 'seqBanks');
         for (let i = 0; i < bank.length; i++) {
           const step = incoming[i];
-          if (step) Object.assign(bank[i]!, step);
+          if (step) Object.assign(assertIndex(bank, i, 'seqSteps'), step);
         }
       }
     }
     if (snap.drumBanks) {
       for (let b = 0; b < BANK_COUNT; b++) {
         const incoming = snap.drumBanks[b];
-        const bank = this.drumBanks[b]!;
         if (!incoming) continue;
+        const bank = assertIndex(this.drumBanks, b, 'drumBanks');
         for (let t = 0; t < bank.length; t++) {
           const row = incoming[t];
           if (!row) continue;
-          for (let s = 0; s < bank[t]!.length; s++) {
+          const rowDst = assertIndex(bank, t, 'drumTracks');
+          for (let s = 0; s < rowDst.length; s++) {
             const cell = row[s];
-            if (cell) Object.assign(bank[t]![s]!, cell);
+            if (cell) Object.assign(assertIndex(rowDst, s, 'drumCells'), cell);
           }
         }
       }
@@ -302,14 +348,15 @@ export class PatternStore {
     if (snap.samplerBanks) {
       for (let b = 0; b < BANK_COUNT; b++) {
         const incoming = snap.samplerBanks[b];
-        const bank = this.samplerBanks[b]!;
         if (!incoming) continue;
+        const bank = assertIndex(this.samplerBanks, b, 'samplerBanks');
         for (let t = 0; t < bank.length; t++) {
           const row = incoming[t];
           if (!row) continue;
-          for (let s = 0; s < bank[t]!.length; s++) {
+          const rowDst = assertIndex(bank, t, 'samplerTracks');
+          for (let s = 0; s < rowDst.length; s++) {
             const cell = row[s];
-            if (cell) Object.assign(bank[t]![s]!, cell);
+            if (cell) Object.assign(assertIndex(rowDst, s, 'samplerCells'), cell);
           }
         }
       }
@@ -323,9 +370,9 @@ export class PatternStore {
     if (typeof snap.drumEditBank === 'number') this._drumEdit = clampBank(snap.drumEditBank);
     if (typeof snap.samplerEditBank === 'number') this._samplerEdit = clampBank(snap.samplerEditBank);
     // Repaint whatever bank is now selected for editing.
-    this.emitAllSeq();
-    this.emitAllDrum();
-    this.emitAllSampler();
+    this.emitBankSeq();
+    this.emitBankDrum();
+    this.emitBankSampler();
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       for (const l of this.sampleMetaListeners) l(i, this.sampleNames[i] ?? null);
     }

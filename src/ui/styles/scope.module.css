@@ -1,0 +1,12 @@
+.root {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+  border: 1px solid #2a1c10;
+  border-radius: 3px;
+  display: block;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(244, 205, 94, 0.05);
+}

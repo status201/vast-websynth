@@ -4,6 +4,7 @@
  * only: it composes the reusable `Modal`, the `MicSession` capture, the pure
  * `buffer-dsp` ops, the `offline-render` effects, and the `encode` pipeline.
  */
+import recStyles from '../styles/record-sound.module.css';
 import type { Engine } from '../../audio/engine';
 import { Modal } from './modal';
 import { createButton, setButtonLabel } from './button';
@@ -104,7 +105,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
   const editing = opts.source != null;
   const modal = new Modal({
     title: editing ? 'Edit sample' : 'Record a sound',
-    cardClass: 'rec-modal',
+    cardClass: recStyles.modal!,
     onClose: cleanup,
   });
   const body = modal.body;
@@ -113,13 +114,13 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
   function showIdle(message?: string): void {
     body.innerHTML = '';
     const text = document.createElement('div');
-    text.className = 'rec-text';
+    text.className = recStyles.text!;
     text.textContent =
       message ?? 'Tap/click Record to record directly using your device’s microphone.';
     body.appendChild(text);
 
     const actions = document.createElement('div');
-    actions.className = 'rec-actions';
+    actions.className = recStyles.actions!;
     const recBtn = createButton({ label: 'Record', led: true });
     let recording = false;
     recBtn.addEventListener('click', async () => {
@@ -144,7 +145,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
       session.start();
       recording = true;
       recBtn.disabled = false;
-      recBtn.classList.add('on');
+      recBtn.classList.add('on'); // global state class
       setButtonLabel(recBtn, 'Stop');
     });
     const closeBtn = createButton({ label: 'Close', onClick: () => modal.close() });
@@ -178,23 +179,23 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     // Waveform + crop handles
     const wrap = document.createElement('div');
-    wrap.className = 'rec-wave-wrap';
+    wrap.className = recStyles.waveWrap!;
     const canvas = document.createElement('canvas');
-    canvas.className = 'rec-wave';
+    canvas.className = recStyles.wave!;
     const hL = document.createElement('div');
-    hL.className = 'rec-handle left';
+    hL.className = `${recStyles.handle!} left`;
     const hR = document.createElement('div');
-    hR.className = 'rec-handle right';
+    hR.className = `${recStyles.handle!} right`;
     wrap.append(canvas, hL, hR);
     body.appendChild(wrap);
 
     const hint = document.createElement('div');
-    hint.className = 'rec-hint';
+    hint.className = recStyles.hint!;
     hint.textContent = 'Drag the side handles to crop. Effects apply to the selection.';
     body.appendChild(hint);
 
     const status = document.createElement('div');
-    status.className = 'rec-status';
+    status.className = recStyles.status!;
     body.appendChild(status);
 
     const sampleLen = (): number =>
@@ -325,7 +326,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     // Cutoff slider (log-mapped) for the filters
     const cutoffRow = document.createElement('div');
-    cutoffRow.className = 'rec-cutoff';
+    cutoffRow.className = recStyles.cutoff!;
     const cutoffLabel = document.createElement('span');
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -347,7 +348,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     // Auto-play toggle (default on)
     const autoRow = document.createElement('label');
-    autoRow.className = 'rec-autoplay';
+    autoRow.className = recStyles.autoplay!;
     const autoPlay = document.createElement('input');
     autoPlay.type = 'checkbox';
     autoPlay.checked = true;
@@ -358,7 +359,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     // Effects
     const fxRow = document.createElement('div');
-    fxRow.className = 'rec-fx-row';
+    fxRow.className = recStyles.fxRow!;
     body.appendChild(fxRow);
 
     const allButtons: HTMLButtonElement[] = [];
@@ -373,8 +374,8 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
       lastAction = action;
       redraw();
       if (btn) {
-        btn.classList.add('rec-applied');
-        window.setTimeout(() => btn.classList.remove('rec-applied'), 600);
+        btn.classList.add(recStyles.applied!);
+        window.setTimeout(() => btn.classList.remove(recStyles.applied!), 600);
       }
       if (autoPlay.checked) playSelection();
     };
@@ -416,7 +417,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     apply('Boost', (src) => gain(src, BOOST_FACTOR));
 
     const editRow = document.createElement('div');
-    editRow.className = 'rec-fx-row';
+    editRow.className = recStyles.fxRow!;
     const undoBtn = createButton({
       label: 'Undo',
       onClick: () => {
@@ -448,7 +449,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     // Done actions: slot picker + save/load/close
     const actions = document.createElement('div');
-    actions.className = 'rec-actions';
+    actions.className = recStyles.actions!;
 
     const slotOptions = Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
       const name = engine.patterns.sampleNames[i] ?? null;
@@ -500,7 +501,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     const closeBtn = createButton({ label: 'Close', onClick: () => modal.close() });
 
     const pickWrap = document.createElement('div');
-    pickWrap.className = 'rec-slot';
+    pickWrap.className = recStyles.slot!;
     const pickLabel = document.createElement('span');
     pickLabel.textContent = 'Slot:';
     pickWrap.append(pickLabel, picker.el);

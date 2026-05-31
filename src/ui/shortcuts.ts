@@ -1,5 +1,6 @@
 import type { Engine } from '../audio/engine';
 import type { ParamBus } from '../state/params';
+import type { UiBridge } from './ui-bridge';
 
 // Lower row, C..C (one octave + tonic)
 const LOWER: Record<string, number> = {
@@ -14,7 +15,7 @@ const UPPER: Record<string, number> = {
   i: 24,
 };
 
-export function installShortcuts(engine: Engine, bus: ParamBus): void {
+export function installShortcuts(engine: Engine, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
   const held = new Set<string>();
   let fillHeld = false;
@@ -27,14 +28,12 @@ export function installShortcuts(engine: Engine, bus: ParamBus): void {
   }
 
   function press(note: number) {
-    const kb = (window as any).__synthKeyboard;
-    if (kb && typeof kb.press === 'function') kb.press(note);
-    else bus.noteOn(note);
+    bridge.pressKey(note);
+    bus.noteOn(note);
   }
   function release(note: number) {
-    const kb = (window as any).__synthKeyboard;
-    if (kb && typeof kb.release === 'function') kb.release(note);
-    else bus.noteOff(note);
+    bridge.releaseKey(note);
+    bus.noteOff(note);
   }
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -62,9 +61,7 @@ export function installShortcuts(engine: Engine, bus: ParamBus): void {
     // Transport play/stop
     if (k === ' ' || k === 'Spacebar') {
       e.preventDefault();
-      const toggle = (window as any).__transportToggle;
-      if (typeof toggle === 'function') toggle();
-      else engine.clock.toggle();
+      bridge.toggleTransport();
       return;
     }
 

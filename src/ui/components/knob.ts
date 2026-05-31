@@ -1,3 +1,4 @@
+import styles from '../styles/knob.module.css';
 import type { ParamBus, ParamDef } from '../../state/params';
 
 export interface KnobOptions {
@@ -30,32 +31,32 @@ export class Knob {
     this.def = def;
 
     this.el = document.createElement('div');
-    this.el.className = 'knob';
+    this.el.className = styles.root!;
     if (opts.size) this.el.style.setProperty('--knob-size', `${opts.size}px`);
 
     const label = document.createElement('div');
-    label.className = 'knob-label';
+    label.className = styles.label!;
     label.textContent = opts.label ?? this.deriveLabel(opts.paramId);
     this.el.appendChild(label);
 
     const dial = document.createElement('div');
-    dial.className = 'knob-dial';
+    dial.className = styles.dial!;
 
     this.indicator = document.createElement('div');
-    this.indicator.className = 'knob-indicator';
+    this.indicator.className = styles.indicator!;
     dial.appendChild(this.indicator);
 
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('class', 'knob-arc');
+    svg.setAttribute('class', styles.arc!);
     svg.setAttribute('viewBox', '0 0 56 56');
     const trackCircle = document.createElementNS(svgNS, 'circle');
-    trackCircle.setAttribute('class', 'track');
+    trackCircle.setAttribute('class', styles.track!);
     trackCircle.setAttribute('cx', '28');
     trackCircle.setAttribute('cy', '28');
     trackCircle.setAttribute('r', '26');
     const valueCircle = document.createElementNS(svgNS, 'circle');
-    valueCircle.setAttribute('class', 'value');
+    valueCircle.setAttribute('class', styles.value!);
     valueCircle.setAttribute('cx', '28');
     valueCircle.setAttribute('cy', '28');
     valueCircle.setAttribute('r', '26');
@@ -75,7 +76,7 @@ export class Knob {
     this.el.appendChild(dial);
 
     this.valueLabel = document.createElement('div');
-    this.valueLabel.className = 'knob-value';
+    this.valueLabel.className = styles.num!;
     this.el.appendChild(this.valueLabel);
 
     dial.addEventListener('pointerdown', this.onPointerDown);

@@ -1,11 +1,12 @@
+import styles from '../styles/modal.module.css';
+
 /**
  * Reusable modal dialog — the backdrop / card / title / Escape /
  * backdrop-click / fade lifecycle that was hand-rolled in `about.ts` and the
  * start modal. Single-use: construct, `open()`, `close()` (a fresh instance
  * per appearance, which is how the record-sound modal is used).
  *
- * Reuses the existing `.about-backdrop` / `.about` / `.about-title` styles so
- * no baseline CSS is required; pass `cardClass` for a width/layout variant.
+ * Pass `cardClass` for a width/layout variant.
  */
 export interface ModalOptions {
   title: string;
@@ -25,26 +26,40 @@ export class Modal {
   private opened = false;
   private closed = false;
 
+  /** Expose class names so about.ts etc. can build consistent markup. */
+  static get backdropClass(): string { return styles.backdrop!; }
+  static get cardClass(): string { return styles.card!; }
+  static get cardWideClass(): string { return styles.cardWide!; }
+  static get titleClass(): string { return styles.title!; }
+  static get bodyClass(): string { return styles.body!; }
+  static get tagClass(): string { return styles.tag!; }
+  static get metaClass(): string { return styles.meta!; }
+  static get secClass(): string { return styles.sec!; }
+  static get keysClass(): string { return styles.keys!; }
+  static get keyClass(): string { return styles.key!; }
+  static get actClass(): string { return styles.act!; }
+  static get closeBtnClass(): string { return styles.closeBtn!; }
+
   constructor(opts: ModalOptions) {
     this.onCloseCb = opts.onClose;
 
     this.backdrop = document.createElement('div');
-    this.backdrop.className = 'about-backdrop hidden';
+    this.backdrop.className = `${styles.backdrop!} hidden`;
     this.backdrop.addEventListener('pointerdown', (e) => {
       if (e.target === this.backdrop) this.close();
     });
 
     const card = document.createElement('div');
-    card.className = opts.cardClass ? `about ${opts.cardClass}` : 'about';
+    card.className = opts.cardClass ? `${styles.card!} ${opts.cardClass}` : styles.card!;
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-label', opts.title);
 
     const title = document.createElement('div');
-    title.className = 'about-title';
+    title.className = styles.title!;
     title.textContent = opts.title;
 
     this.body = document.createElement('div');
-    this.body.className = 'modal-body';
+    this.body.className = styles.body!;
 
     card.appendChild(title);
     card.appendChild(this.body);

@@ -1,3 +1,4 @@
+import styles from '../styles/segmented.module.css';
 import type { ParamBus } from '../../state/params';
 
 export class Segmented {
@@ -7,7 +8,7 @@ export class Segmented {
 
   constructor(bus: ParamBus, paramId: string, labels: string[], icons?: string[]) {
     this.el = document.createElement('div');
-    this.el.className = icons ? 'segmented icons' : 'segmented';
+    this.el.className = icons ? `${styles.root!} ${styles.icons!}` : styles.root!;
 
     labels.forEach((label, idx) => {
       const b = document.createElement('button');

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dropdown } from '../../src/ui/components/dropdown';
+import styles from '../../src/ui/styles/dropdown.module.css';
 
 describe('Dropdown', () => {
   let dd: Dropdown | undefined;
@@ -14,16 +15,16 @@ describe('Dropdown', () => {
   });
 
   const toggleOf = (d: Dropdown) =>
-    d.el.querySelector<HTMLButtonElement>('.dropdown-toggle')!;
+    d.el.querySelector<HTMLButtonElement>(`.${styles.toggle!}`)!;
 
   it('renders a toggle and one option per entry, marking the active one', () => {
     dd = new Dropdown(['A', 'B', 'C'], 'B');
     document.body.appendChild(dd.el);
-    expect(dd.el.classList.contains('dropdown')).toBe(true);
-    expect(dd.el.querySelectorAll('.dropdown-option').length).toBe(3);
+    expect(dd.el.classList.contains(styles.root!)).toBe(true);
+    expect(dd.el.querySelectorAll(`.${styles.option!}`).length).toBe(3);
     expect(dd.value).toBe('B');
-    expect(dd.el.querySelector('.dropdown-label')?.textContent).toBe('B');
-    expect(dd.el.querySelector('.dropdown-option.active')?.textContent).toBe('B');
+    expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('B');
+    expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
   });
 
   it('toggles the open class when the toggle is clicked', () => {
@@ -42,7 +43,7 @@ describe('Dropdown', () => {
     dd.onChange(cb);
     toggleOf(dd).click();
     const optB = [
-      ...dd.el.querySelectorAll<HTMLButtonElement>('.dropdown-option'),
+      ...dd.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`),
     ].find((b) => b.textContent === 'B')!;
     optB.click();
     expect(dd.value).toBe('B');
@@ -53,8 +54,8 @@ describe('Dropdown', () => {
   it('setValue updates the toggle label and active classes', () => {
     dd = new Dropdown(['A', 'B'], 'A');
     dd.setValue('B');
-    expect(dd.el.querySelector('.dropdown-label')?.textContent).toBe('B');
-    expect(dd.el.querySelector('.dropdown-option.active')?.textContent).toBe('B');
+    expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('B');
+    expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
   });
 
   it('closes on outside click and on Escape', () => {

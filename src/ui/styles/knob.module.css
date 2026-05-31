@@ -1,0 +1,79 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: calc(var(--knob-size) + 8px);
+  min-height: calc(var(--knob-size) + 30px);
+  touch-action: none;
+}
+
+.label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.dial {
+  position: relative;
+  width: var(--knob-size);
+  height: var(--knob-size);
+  border-radius: 50%;
+  background: var(--knob-bg);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px rgba(244, 205, 94, 0.12),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 0, 0, 0.5);
+  cursor: ns-resize;
+}
+
+.indicator {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--knob-size) * 0.068);
+  width: 3px;
+  height: calc(var(--knob-size) * 0.25);
+  background: var(--accent-secondary);
+  border-radius: 2px;
+  transform-origin: 50% calc(var(--knob-size) * 0.432);
+  transform: translateX(-50%) rotate(0deg);
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+.arc {
+  position: absolute;
+  inset: calc(var(--knob-size) * -0.1136);
+  pointer-events: none;
+}
+
+.arc circle {
+  fill: none;
+  stroke-width: 2;
+}
+
+.track {
+  stroke: var(--knob-ring);
+}
+
+.value {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  transition: stroke-dashoffset 30ms linear;
+}
+
+.num {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  min-height: 11px;
+  letter-spacing: 0.04em;
+}
+
+.root:global(.dragging) .num {
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}

@@ -1,3 +1,5 @@
+import styles from '../styles/scope.module.css';
+
 export type ScopeMode = 'wave' | 'spectrum';
 
 export class Scope {
@@ -11,7 +13,7 @@ export class Scope {
 
   constructor(private readonly analyser: AnalyserNode) {
     this.el = document.createElement('canvas');
-    this.el.className = 'scope';
+    this.el.className = styles.root!;
     this.waveData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     this.freqData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
     this.start();

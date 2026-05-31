@@ -1,0 +1,330 @@
+/* ===== Shared panel classes ===== */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.panelTitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent-secondary);
+  text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.panelRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.patternPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+}
+
+.patternPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== Header ===== */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  margin: 0 var(--side-margin);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+  padding-right: 8px;
+  border-right: 1px solid rgba(244, 205, 94, 0.18);
+  margin-right: 4px;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandName {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  text-shadow:
+    0 0 6px var(--accent-secondary-glow),
+    0 1px 0 rgba(0, 0, 0, 0.85),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  text-transform: uppercase;
+}
+
+.brandModel {
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-shadow: 0 0 4px var(--accent-glow);
+  padding: 3px 8px;
+  border: 1px solid rgba(232, 116, 46, 0.55);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  line-height: 1;
+}
+
+.brandTagline {
+  font-family: var(--serif);
+  font-size: 8.5px;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.headerSpacer { flex: 1; }
+
+.headerGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.transportGroup .playBtn {
+  min-width: 64px;
+  justify-content: center;
+}
+
+.playBtn:global(.on) :global(.switch-label) {
+  color: var(--accent-secondary);
+}
+
+/* ===== Main panel grid ===== */
+
+.main {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 var(--side-margin);
+}
+
+.mixerTall { grid-row: span 2; }
+
+/* ===== FX section ===== */
+
+.fxSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 22px;
+}
+
+.fxSectionBar {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  cursor: pointer;
+}
+
+.fxSectionTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.fxSection:global(.collapsed) .fxRow { display: none; }
+
+.fxRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fxPanel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fxHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-bottom: 4px;
+}
+
+.fxTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.fxKnobs {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* ===== Pattern row ===== */
+
+.patternRow {
+  margin: 0 var(--side-margin);
+  min-height: 240px;
+}
+
+.patternRow:global(.collapsed) {
+  min-height: 0;
+}
+
+/* ===== Bottom section ===== */
+
+.bottom {
+  display: grid;
+  grid-template-rows: 130px minmax(160px, 1fr);
+  gap: 10px;
+  margin: 0 var(--side-margin);
+  min-height: 0;
+}
+
+.bottomTop {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.wheels {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 8px 22px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+}
+
+.scopeWrap {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  padding: 8px;
+  position: relative;
+  min-height: 0;
+  display: flex;
+}
+
+.scopeToggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+  font-size: 10px !important;
+}
+
+.keyboardWrap {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  padding: 8px;
+  min-height: 150px;
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 1280px) {
+  .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mixerTall { grid-row: span 2; }
+  .patternRow { min-height: 200px; }
+}
+
+@media (max-width: 992px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 8px 10px;
+    min-height: 0;
+  }
+  .headerSpacer { display: none; }
+  .main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .mixerTall { grid-row: auto; }
+  .fxRow { grid-template-columns: repeat(2, 1fr); }
+  .keyboardWrap { min-height: 160px; }
+}

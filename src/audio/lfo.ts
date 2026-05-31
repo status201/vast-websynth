@@ -1,3 +1,5 @@
+import { rampTo, RAMP_MEDIUM } from './param-utils';
+
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
 export const enum LfoDest {
@@ -44,7 +46,7 @@ export class LFO {
   }
 
   setRate(hz: number): void {
-    this.osc.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.01);
+    rampTo(this.osc.frequency, hz, this.ctx, RAMP_MEDIUM);
   }
 
   setWave(idx: number): void {
@@ -65,10 +67,10 @@ export class LFO {
   private update(): void {
     const t = this.ctx.currentTime;
     // Pitch: ±1200 cents (one octave) at full depth
-    this.toPitch.gain.setTargetAtTime(this.dest === LfoDest.Pitch ? this.amount * 1200 : 0, t, 0.01);
+    rampTo(this.toPitch.gain, this.dest === LfoDest.Pitch ? this.amount * 1200 : 0, this.ctx, RAMP_MEDIUM);
     // Cutoff: ±24 semitones (two octaves) at full depth
-    this.toCutoff.gain.setTargetAtTime(this.dest === LfoDest.Cutoff ? this.amount * 24 : 0, t, 0.01);
+    rampTo(this.toCutoff.gain, this.dest === LfoDest.Cutoff ? this.amount * 24 : 0, this.ctx, RAMP_MEDIUM);
     // Amp: ±50% modulation at full depth (added to tremolo VCA's base 1.0)
-    this.toAmp.gain.setTargetAtTime(this.dest === LfoDest.Amp ? this.amount * 0.5 : 0, t, 0.01);
+    rampTo(this.toAmp.gain, this.dest === LfoDest.Amp ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
   }
 }

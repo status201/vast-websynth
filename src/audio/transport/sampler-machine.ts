@@ -1,9 +1,8 @@
-import type { Engine } from '../engine';
-import type { Clock } from './clock';
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { SAMPLER_SLOT_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import type { TickSubscriber } from './tick-source';
 
 export type SamplerStepListener = (step: number) => void;
 
@@ -22,17 +21,17 @@ export class SamplerMachine {
   private readonly stepListeners = new Set<SamplerStepListener>();
 
   constructor(
-    private readonly engine: Engine,
-    clock: Clock,
+    private readonly ctx: AudioContext,
+    clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,
+    private readonly samplerBus: GainNode,
   ) {
-    const ctx = engine.ctx;
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
-      const g = ctx.createGain();
+      const g = this.ctx.createGain();
       g.gain.value = 1;
-      g.connect(engine.samplerBus);
+      g.connect(this.samplerBus);
       this.slotGains.push(g);
     }
 
@@ -56,20 +55,19 @@ export class SamplerMachine {
 
   /** Manual trigger (for UI auditioning). */
   triggerSlot(slot: number, velocity = 0.9): void {
-    this.play(slot, this.engine.ctx.currentTime, velocity);
+    this.play(slot, this.ctx.currentTime, velocity);
   }
 
   private play(slot: number, when: number, velocity: number): void {
     const buf = this.buffers[slot];
     const out = this.slotGains[slot];
     if (!buf || !out) return;
-    const ctx = this.engine.ctx;
-    const src = ctx.createBufferSource();
+    const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    const g = ctx.createGain();
+    const g = this.ctx.createGain();
     g.gain.value = Math.max(0, Math.min(1, velocity));
     src.connect(g).connect(out);
-    src.start(Math.max(when, ctx.currentTime));
+    src.start(Math.max(when, this.ctx.currentTime));
     src.onended = () => { src.disconnect(); g.disconnect(); };
   }
 

@@ -1,0 +1,106 @@
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 12px;
+  background: linear-gradient(180deg, #1a1410, #0a0805);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--serif);
+  min-height: 32px;
+  min-width: 120px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.7),
+    0 1px 0 rgba(244, 205, 94, 0.04);
+}
+
+.label {
+  flex: 1;
+  text-align: left;
+  color: var(--accent-secondary);
+  text-shadow: 0 0 4px var(--accent-secondary-glow);
+}
+
+.caret {
+  font-size: 8px;
+  color: var(--text-dim);
+  transition: transform 120ms ease;
+}
+
+.root:global(.open) .caret {
+  transform: rotate(180deg);
+}
+
+.menu {
+  display: none;
+  position: fixed;
+  min-width: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(244, 205, 94, 0.05),
+    inset 0 1px 0 rgba(244, 205, 94, 0.08);
+}
+
+.root:global(.open) .menu {
+  display: block;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--serif);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.option:hover {
+  background: linear-gradient(180deg, #3a2a18, #1f1610);
+  color: var(--accent-secondary);
+}
+
+.option:global(.active) {
+  background: linear-gradient(180deg, #4a3525, #2a1c10);
+  color: var(--accent-secondary);
+  text-shadow: 0 0 4px var(--accent-secondary-glow);
+  box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
+}
+
+.compact { display: block; width: 100%; }
+.compact .toggle {
+  width: 100%;
+  justify-content: space-between;
+  font-size: 9px;
+  padding: 6px 8px;
+}
+.compact .label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.compact .option { font-size: 9px; }

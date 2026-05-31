@@ -1,0 +1,40 @@
+.root {
+  flex: 1;
+  height: 100%;
+  background: linear-gradient(180deg, #0a0805, #1a1410);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  position: relative;
+  touch-action: none;
+  cursor: ns-resize;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.8),
+    inset 0 -1px 0 rgba(244, 205, 94, 0.04);
+}
+
+.thumb {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 22px;
+  background: linear-gradient(180deg, #6a553c 0%, #2a1c10 50%, #6a553c 100%);
+  border-radius: 3px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(244, 205, 94, 0.2);
+  pointer-events: none;
+  border: 1px solid #1a0e08;
+}
+
+.label {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}

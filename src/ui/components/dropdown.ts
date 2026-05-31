@@ -1,3 +1,5 @@
+import styles from '../styles/dropdown.module.css';
+
 /**
  * Vintage-styled dropdown. Native `<select>` can't have its open menu
  * cross-browser-styled, so this is a button + absolute-positioned popover.
@@ -13,11 +15,11 @@ export class Dropdown {
 
   constructor(options: string[], initial?: string) {
     this.el = document.createElement('div');
-    this.el.className = 'dropdown';
+    this.el.className = `${styles.root!} dropdown`;
 
     this.toggle = document.createElement('button');
     this.toggle.type = 'button';
-    this.toggle.className = 'dropdown-toggle';
+    this.toggle.className = styles.toggle!;
     this.toggle.addEventListener('click', (e) => {
       e.stopPropagation();
       this.setOpen(!this.open);
@@ -25,7 +27,7 @@ export class Dropdown {
     this.el.appendChild(this.toggle);
 
     this.menu = document.createElement('div');
-    this.menu.className = 'dropdown-menu';
+    this.menu.className = styles.menu!;
     this.el.appendChild(this.menu);
 
     this.setOptions(options);
@@ -41,7 +43,7 @@ export class Dropdown {
     for (const opt of options) {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'dropdown-option';
+      item.className = styles.option!;
       item.textContent = opt;
       if (opt === this._value) item.classList.add('active');
       item.addEventListener('click', (e) => {
@@ -81,10 +83,10 @@ export class Dropdown {
   private renderToggle(): void {
     this.toggle.innerHTML = '';
     const label = document.createElement('span');
-    label.className = 'dropdown-label';
+    label.className = styles.label!;
     label.textContent = this._value;
     const caret = document.createElement('span');
-    caret.className = 'dropdown-caret';
+    caret.className = styles.caret!;
     caret.textContent = '▾';
     this.toggle.appendChild(label);
     this.toggle.appendChild(caret);

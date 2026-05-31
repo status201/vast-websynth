@@ -1,6 +1,8 @@
 // "About" button + modal: version, copyright, and keyboard shortcuts.
 // Static info only — no engine/bus dependency.
+import { Modal } from './modal';
 import { createButton } from './button';
+import switchStyles from '../styles/switch.module.css';
 
 declare const __APP_VERSION__: string;
 
@@ -51,26 +53,26 @@ export function createAboutButton(): HTMLButtonElement {
 
 function buildModal(close: () => void): HTMLElement {
   const backdrop = document.createElement('div');
-  backdrop.className = 'about-backdrop hidden';
+  backdrop.className = `${Modal.backdropClass} hidden`;
   backdrop.addEventListener('pointerdown', (e) => {
     if (e.target === backdrop) close();
   });
 
   const card = document.createElement('div');
-  card.className = 'about';
+  card.className = Modal.cardClass;
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'About VAST G1-J5');
 
   const title = document.createElement('div');
-  title.className = 'about-title';
+  title.className = Modal.titleClass;
   title.textContent = 'VAST G1-J5';
 
   const tag = document.createElement('div');
-  tag.className = 'about-tag';
+  tag.className = Modal.tagClass;
   tag.textContent = 'Vast Audio Synthesis Technology';
 
   const meta = document.createElement('div');
-  meta.className = 'about-meta';
+  meta.className = Modal.metaClass;
   const version = document.createElement('div');
   version.innerHTML = `Version <strong>${__APP_VERSION__}</strong>`;
   const copyright = document.createElement('div');
@@ -87,17 +89,17 @@ function buildModal(close: () => void): HTMLElement {
   meta.appendChild(source);
 
   const sec = document.createElement('div');
-  sec.className = 'about-sec';
+  sec.className = Modal.secClass;
   sec.textContent = 'Keyboard Shortcuts';
 
   const keys = document.createElement('div');
-  keys.className = 'about-keys';
+  keys.className = Modal.keysClass;
   for (const [combo, action] of SHORTCUTS) {
     const k = document.createElement('div');
-    k.className = 'about-key';
+    k.className = Modal.keyClass;
     k.textContent = combo;
     const a = document.createElement('div');
-    a.className = 'about-act';
+    a.className = Modal.actClass;
     a.textContent = action;
     keys.appendChild(k);
     keys.appendChild(a);
@@ -105,7 +107,7 @@ function buildModal(close: () => void): HTMLElement {
 
   const closeBtn = createButton({
     label: 'Close',
-    className: 'switch about-close',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
     onClick: close,
   });
 

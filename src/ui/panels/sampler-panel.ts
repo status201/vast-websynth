@@ -7,14 +7,17 @@ import { BankBar } from '../components/bank-bar';
 import { openRecordSoundModal } from '../components/record-sound-modal';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH } from '../../state/patterns';
+import layout from '../styles/layout.module.css';
+import drumStyles from '../styles/drum.module.css';
+import samplerStyles from '../styles/sampler.module.css';
 
 export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
-  root.className = 'pattern-panel drum-panel sampler-panel';
+  root.className = layout.patternPanel!;
 
   // ---- Header ----
   const header = document.createElement('div');
-  header.className = 'pattern-panel-header';
+  header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
   header.appendChild(new BankBar({
@@ -29,7 +32,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   }).el);
 
   const recBtn = document.createElement('button');
-  recBtn.className = 'switch sampler-rec';
+  recBtn.className = `${samplerStyles.rec!}`;
   recBtn.textContent = 'Record a sound';
   recBtn.title = 'Record a sound from your microphone';
   recBtn.addEventListener('click', () => openRecordSoundModal(engine));
@@ -39,7 +42,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
   // ---- Slot rows ----
   const grid = document.createElement('div');
-  grid.className = 'drum-grid';
+  grid.className = drumStyles.grid!;
   root.appendChild(grid);
 
   const stepBtns: StepButton[][] = [];
@@ -63,10 +66,11 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   for (let t = 0; t < SAMPLER_SLOT_COUNT; t++) {
     const slot = t;
     const row = document.createElement('div');
-    row.className = 'drum-row';
+    row.className = drumStyles.row!;
 
     const ctrls = document.createElement('div');
-    ctrls.className = 'drum-row-ctrls';
+    ctrls.className = drumStyles.rowCtrls!;
+    ctrls.style.width = '210px';
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -86,20 +90,20 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     });
 
     const loadBtn = document.createElement('button');
-    loadBtn.className = 'switch sampler-load';
+    loadBtn.className = samplerStyles.load!;
     loadBtn.textContent = 'Load';
     loadBtn.title = 'Load a WAV/MP3 file into this slot';
     loadBtn.addEventListener('click', () => fileInput.click());
     ctrls.appendChild(loadBtn);
 
     const label = document.createElement('button');
-    label.className = 'drum-track-label sampler-name';
+    label.className = samplerStyles.name!;
     label.addEventListener('click', () => engine.sampler.triggerSlot(slot, 0.9));
     labels[slot] = label;
     ctrls.appendChild(label);
 
     const editBtn = document.createElement('button');
-    editBtn.className = 'switch sampler-edit';
+    editBtn.className = samplerStyles.edit!;
     editBtn.textContent = '✎';
     editBtn.title = 'Edit this sample';
     editBtn.style.display = 'none';
@@ -112,20 +116,20 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     ctrls.appendChild(editBtn);
 
     const mute = new Switch(bus, `sampler.t${slot}.mute`, 'mute');
-    mute.el.classList.add('drum-mute');
+    mute.el.classList.add(drumStyles.mute!);
     ctrls.appendChild(mute.el);
 
     ctrls.appendChild(fileInput);
     row.appendChild(ctrls);
 
     const cells = document.createElement('div');
-    cells.className = 'drum-cells';
+    cells.className = drumStyles.cells!;
     const trackBtns: StepButton[] = [];
     for (let s = 0; s < SEQ_LENGTH; s++) {
       const cell = engine.patterns.sampler[slot]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.setOn(cell.on);
-      sb.el.classList.add('drum-cell');
+      sb.el.classList.add(StepButton.drumCellClass);
       sb.el.addEventListener('click', () => {
         engine.patterns.setSamplerCell(slot, s, { on: !engine.patterns.sampler[slot]![s]!.on });
       });
@@ -146,7 +150,16 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     }
   });
 
-  // External pattern changes (preset/song load, bank switch)
+  // Full bank repaint (bank switch / song restore)
+  engine.patterns.onSamplerBankChange((bank) => {
+    for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
+      for (let i = 0; i < SEQ_LENGTH; i++) {
+        stepBtns[s]?.[i]?.setOn(bank[s]![i]!.on);
+      }
+    }
+  });
+
+  // Live step edit updates
   engine.patterns.onSamplerChange((slot, step, cell) => {
     stepBtns[slot]?.[step]?.setOn(cell.on);
   });

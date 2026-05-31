@@ -1,0 +1,139 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 3, 0.82);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  transition: opacity 180ms ease;
+}
+
+.backdrop:global(.hidden) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card {
+  width: min(440px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  padding: 24px 26px;
+}
+
+.cardWide {
+  width: min(720px, 94vw);
+}
+
+.title {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--accent-secondary);
+  text-transform: uppercase;
+  text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
+}
+
+.body {
+  /* empty slot — caller fills */
+}
+
+.tag {
+  font-family: var(--serif);
+  font-size: 9.5px;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.meta {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  line-height: 1.8;
+}
+
+.meta strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.meta a {
+  color: var(--accent-secondary);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.4);
+}
+
+.meta a:hover {
+  color: var(--text);
+}
+
+.sec {
+  margin-top: 20px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent-secondary);
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-bottom: 6px;
+}
+
+.keys {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  align-items: baseline;
+}
+
+.key {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.act {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+}
+
+.closeBtn {
+  margin-top: 22px;
+  width: 100%;
+  justify-content: center;
+}
+
+.aiText {
+  width: 100%;
+  height: 320px;
+  resize: vertical;
+  margin-top: 12px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  background: #0a0805;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.aiActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}

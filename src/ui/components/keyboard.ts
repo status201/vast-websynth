@@ -1,3 +1,4 @@
+import styles from '../styles/keyboard.module.css';
 import type { ParamBus } from '../../state/params';
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];          // C D E F G A B
@@ -29,7 +30,7 @@ export class Keyboard {
     const octaves = opts.octaves ?? 3;
 
     this.el = document.createElement('div');
-    this.el.className = 'keyboard';
+    this.el.className = styles.root!;
 
     const totalWhites = octaves * 7;
 
@@ -39,7 +40,7 @@ export class Keyboard {
       const wIdxInOct = i % 7;
       const midi = (oct + 1) * 12 + (WHITE_OFFSETS[wIdxInOct] ?? 0);
       const key = document.createElement('div');
-      key.className = 'key white';
+      key.className = `${styles.key!} ${styles.white!}`;
       key.dataset.note = String(midi);
       key.textContent = wIdxInOct === 0 ? `C${oct}` : '';
       this.keys.set(midi, key);
@@ -58,7 +59,7 @@ export class Keyboard {
         const oct = startOct + o;
         const midi = (oct + 1) * 12 + semi;
         const key = document.createElement('div');
-        key.className = 'key black';
+        key.className = `${styles.key!} ${styles.black!}`;
         key.dataset.note = String(midi);
         key.style.pointerEvents = 'auto';
         // Position: place over the right edge of white key at column (o*7 + whiteIdx)
@@ -95,7 +96,7 @@ export class Keyboard {
   private noteAt(x: number, y: number): number | null {
     const el = document.elementFromPoint(x, y) as HTMLElement | null;
     if (!el) return null;
-    if (!el.classList.contains('key')) return null;
+    if (!el.classList.contains(styles.key!)) return null;
     const raw = el.dataset.note;
     return raw ? Number(raw) : null;
   }

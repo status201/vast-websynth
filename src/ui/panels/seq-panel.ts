@@ -1,3 +1,6 @@
+import switchStyles from '../styles/switch.module.css';
+import layout from '../styles/layout.module.css';
+import styles from '../styles/seq.module.css';
 import type { ParamBus } from '../../state/params';
 import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
@@ -9,11 +12,11 @@ import { SEQ_LENGTH } from '../../state/patterns';
 
 export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
-  root.className = 'pattern-panel seq-panel';
+  root.className = `${layout.patternPanel!} seq-panel`;
 
   // ---- Header ----
   const header = document.createElement('div');
-  header.className = 'pattern-panel-header';
+  header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
   header.appendChild(new BankBar({
     getEdit: () => engine.patterns.seqEditBank,
@@ -26,13 +29,13 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onContentChange: (fn) => engine.patterns.onSeqChange(fn),
   }).el);
   const selectedLabel = document.createElement('div');
-  selectedLabel.className = 'seq-selected-label';
+  selectedLabel.className = styles.selectedLabel!;
   header.appendChild(selectedLabel);
   root.appendChild(header);
 
   // ---- Step row ----
   const stepRow = document.createElement('div');
-  stepRow.className = 'step-row';
+  stepRow.className = styles.stepRow!;
   const steps: StepButton[] = [];
   let selected = 0;
 
@@ -52,8 +55,8 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
       const cur = engine.patterns.seq[i];
       engine.patterns.setSeqStep(i, { on: !cur?.on });
       renderSelected();
-      stepRow.querySelectorAll('.step').forEach((el, idx) => {
-        el.classList.toggle('selected', idx === selected);
+      stepRow.querySelectorAll(`.${StepButton.rootClass}`).forEach((el, idx) => {
+        el.classList.toggle(StepButton.selectedClass, idx === selected);
       });
     });
     steps.push(sb);
@@ -66,7 +69,19 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     steps.forEach((s, i) => s.setPlaying(i === idx));
   });
 
-  // Reflect external changes to the pattern (preset load, etc.)
+  // Full bank repaint (bank switch / song restore)
+  engine.patterns.onSeqBankChange((bank) => {
+    for (let i = 0; i < SEQ_LENGTH; i++) {
+      const s = bank[i]!;
+      const sb = steps[i];
+      if (!sb) continue;
+      sb.setOn(s.on);
+      sb.setLabel(noteName(s.note));
+    }
+    renderSelected();
+  });
+
+  // Live step edit updates
   engine.patterns.onSeqChange((idx, step) => {
     const sb = steps[idx];
     if (!sb) return;
@@ -77,24 +92,24 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
   // ---- Edit row ----
   const edit = document.createElement('div');
-  edit.className = 'seq-edit';
+  edit.className = styles.edit!;
 
   const noteCtrl = document.createElement('div');
-  noteCtrl.className = 'seq-note-ctrl';
+  noteCtrl.className = styles.noteCtrl!;
   const noteLabel = document.createElement('div');
-  noteLabel.className = 'seq-note-label';
+  noteLabel.className = styles.noteLabel!;
   noteLabel.textContent = 'Note';
   noteCtrl.appendChild(noteLabel);
   const downBtn = document.createElement('button');
-  downBtn.className = 'switch';
+  downBtn.className = switchStyles.root!;
   downBtn.textContent = '−';
   downBtn.addEventListener('click', () => bumpNote(-1));
   noteCtrl.appendChild(downBtn);
   const noteDisplay = document.createElement('div');
-  noteDisplay.className = 'seq-note-display';
+  noteDisplay.className = styles.noteDisplay!;
   noteCtrl.appendChild(noteDisplay);
   const upBtn = document.createElement('button');
-  upBtn.className = 'switch';
+  upBtn.className = switchStyles.root!;
   upBtn.textContent = '+';
   upBtn.addEventListener('click', () => bumpNote(1));
   noteCtrl.appendChild(upBtn);
@@ -132,7 +147,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   refresh();
 
   // Initial selected highlight
-  stepRow.querySelector('.step')?.classList.add('selected');
+  stepRow.querySelector(`.${StepButton.rootClass}`)?.classList.add(StepButton.selectedClass);
 
   // Avoid unused-variable warning on Knob (kept import for potential future use)
   void Knob;
@@ -142,21 +157,21 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
 function makeSlider(label: string, min: number, max: number, get: () => number, set: (v: number) => void): { el: HTMLElement; refresh(): void } {
   const root = document.createElement('div');
-  root.className = 'seq-slider';
+  root.className = styles.slider!;
   const l = document.createElement('div');
-  l.className = 'seq-slider-label';
+  l.className = styles.sliderLabel!;
   l.textContent = label;
   root.appendChild(l);
 
   const track = document.createElement('div');
-  track.className = 'seq-slider-track';
+  track.className = styles.sliderTrack!;
   const fill = document.createElement('div');
-  fill.className = 'seq-slider-fill';
+  fill.className = styles.sliderFill!;
   track.appendChild(fill);
   root.appendChild(track);
 
   const valLabel = document.createElement('div');
-  valLabel.className = 'seq-slider-value';
+  valLabel.className = styles.sliderValue!;
   root.appendChild(valLabel);
 
   const refresh = () => {

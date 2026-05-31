@@ -1,3 +1,4 @@
+import styles from '../styles/switch.module.css';
 import type { ParamBus } from '../../state/params';
 
 export class Switch {
@@ -6,13 +7,13 @@ export class Switch {
 
   constructor(bus: ParamBus, paramId: string, label: string) {
     this.el = document.createElement('button');
-    this.el.className = 'switch';
+    this.el.className = styles.root!;
     this.el.type = 'button';
     const led = document.createElement('span');
-    led.className = 'switch-led';
+    led.className = styles.led!;
     this.el.appendChild(led);
     const text = document.createElement('span');
-    text.className = 'switch-label';
+    text.className = `${styles.label!} switch-label`;
     text.textContent = label;
     this.el.appendChild(text);
 

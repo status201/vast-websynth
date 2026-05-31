@@ -1,9 +1,9 @@
-import type { Engine } from '../engine';
-import type { Clock } from './clock';
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { SEQ_LENGTH } from '../../state/patterns';
+import type { SynthOutput } from './note-output';
+import type { TickSubscriber } from './tick-source';
 
 export type StepListener = (step: number) => void;
 /** (midi note, audio time it sounds, audio time it releases). */
@@ -21,8 +21,8 @@ export class StepSequencer {
   private readonly noteListeners = new Set<SeqNoteListener>();
 
   constructor(
-    private readonly engine: Engine,
-    private readonly clock: Clock,
+    private readonly output: SynthOutput,
+    private readonly clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,
@@ -33,7 +33,7 @@ export class StepSequencer {
   setEnabled(on: boolean): void {
     this.enabled = on;
     if (!on && this.lastPlayedNote >= 0) {
-      this.engine.releaseNote(this.lastPlayedNote);
+      this.output.releaseNote(this.lastPlayedNote);
       this.lastPlayedNote = -1;
     }
   }
@@ -57,12 +57,12 @@ export class StepSequencer {
     if (!s || !s.on) return;
 
     // Release previous note before the next attack
-    if (this.lastPlayedNote >= 0) this.engine.releaseNote(this.lastPlayedNote, when);
+    if (this.lastPlayedNote >= 0) this.output.releaseNote(this.lastPlayedNote, when);
 
     const stepDur = this.clock.sixteenthDuration();
     const gateLen = stepDur * s.gate;
-    this.engine.playNote(s.note, s.velocity, when);
-    this.engine.releaseNote(s.note, when + gateLen);
+    this.output.playNote(s.note, s.velocity, when);
+    this.output.releaseNote(s.note, when + gateLen);
     this.lastPlayedNote = s.note;
     this.lastReleaseAt = when + gateLen;
     for (const l of this.noteListeners) l(s.note, when, when + gateLen);

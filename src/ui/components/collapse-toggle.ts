@@ -1,3 +1,5 @@
+import tabStyles from '../styles/tabs.module.css';
+
 /**
  * Reusable fold/unfold chevron. Toggles a `.collapsed` class on `target`
  * (CSS does the actual hiding + caret rotation) and persists the state to
@@ -54,7 +56,7 @@ export function createCollapseToggle(
 ): CollapseToggle {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'collapse-toggle';
+  el.className = tabStyles.collapse!;
   el.textContent = '▾'; // ▾ — matches dropdown caret glyph
   el.setAttribute('aria-label', 'Collapse panel');
 

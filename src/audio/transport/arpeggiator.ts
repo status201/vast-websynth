@@ -1,6 +1,6 @@
-import type { Engine } from '../engine';
 import type { ParamBus } from '../../state/params';
-import type { Clock } from './clock';
+import type { SynthOutput } from './note-output';
+import type { TickSubscriber } from './tick-source';
 
 export const ARP_PATTERNS = ['up', 'down', 'up-down', 'random', 'as-played'];
 export const ARP_RATES = ['1/4', '1/8', '1/16', '1/32'];
@@ -24,10 +24,12 @@ export class Arpeggiator {
 
   private lastTriggered: { note: number; when: number; release: number } | null = null;
 
+  passthroughSuppressed = false;
+
   constructor(
-    private readonly engine: Engine,
+    private readonly output: SynthOutput,
     private readonly bus: ParamBus,
-    private readonly clock: Clock,
+    private readonly clock: TickSubscriber,
   ) {
     bus.onNote((on, note) => {
       if (!this.enabled) return;
@@ -55,7 +57,7 @@ export class Arpeggiator {
     this.enabled = on;
     // While arp is on, the engine ignores direct key presses;
     // arp will drive playback itself.
-    this.engine.passthroughSuppressed = on;
+    this.passthroughSuppressed = on;
     if (!on) {
       this.heldOrder = [];
       this.heldSet.clear();
@@ -125,13 +127,13 @@ export class Arpeggiator {
     }
 
     // Release the previous arp note before triggering the next
-    if (this.lastTriggered) this.engine.releaseNote(this.lastTriggered.note, when);
+    if (this.lastTriggered) this.output.releaseNote(this.lastTriggered.note, when);
 
     const stepDur = this.clock.sixteenthDuration() * (division >= 1 ? division : 1);
     const gateLen = stepDur * this.gate;
-    this.engine.playNote(note, 0.85, when);
+    this.output.playNote(note, 0.85, when);
     const release = when + gateLen;
-    this.engine.releaseNote(note, release);
+    this.output.releaseNote(note, release);
     this.lastTriggered = { note, when, release };
   }
 }

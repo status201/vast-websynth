@@ -6,6 +6,10 @@ import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../state/patterns';
+import switchStyles from '../styles/switch.module.css';
+import bankStyles from '../styles/bank-bar.module.css';
+import styles from '../styles/song-panel.module.css';
+import layout from '../styles/layout.module.css';
 import { Song, DEMO_SONGS } from '../../state/song';
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
@@ -18,7 +22,7 @@ function el(tag: string, cls?: string, text?: string): HTMLElement {
 function momentary(label: string, on: () => void, off: () => void): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'switch dj-btn';
+  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
   b.textContent = label;
   const start = (e: Event) => { e.preventDefault(); if (!b.classList.contains('on')) { b.classList.add('on'); on(); } };
   const end = () => { if (b.classList.contains('on')) { b.classList.remove('on'); off(); } };
@@ -30,10 +34,10 @@ function momentary(label: string, on: () => void, off: () => void): HTMLButtonEl
 }
 
 export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
-  const root = el('div', 'pattern-panel song-panel');
+  const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // ---- Chain lanes ----
-  const chains = el('div', 'song-chains');
+  const chains = el('div', styles.chains!);
   chains.appendChild(buildChainLane(
     'Sequencer', engine.arrangement.seq,
     (s, en) => engine.arrangement.setSeqChain(s, en),
@@ -49,15 +53,15 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   root.appendChild(chains);
 
   // ---- Live DJ FX ----
-  const fx = el('div', 'dj-fx');
-  fx.appendChild(el('div', 'song-section-label', 'Live FX'));
+  const fx = el('div', styles.djFx!);
+  fx.appendChild(el('div', styles.sectionLabel!, 'Live FX'));
 
   fx.appendChild(momentary('Fill', () => engine.perf.setFill(true), () => engine.perf.setFill(false)));
 
-  const stutterWrap = el('div', 'dj-stutter');
+  const stutterWrap = el('div', styles.stutter!);
   stutterWrap.appendChild(momentary('Stutter',
     () => engine.perf.setStutter(true), () => engine.perf.setStutter(false)));
-  const sizes = el('div', 'segmented dj-stutter-size');
+  const sizes = el('div', `${styles.stutterSize!}`);
   ([['1', 1], ['1/8', 2], ['1/4', 4]] as Array<[string, number]>).forEach(([lbl, n], i) => {
     const sb = document.createElement('button');
     sb.type = 'button';
@@ -80,19 +84,19 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   root.appendChild(fx);
 
   // ---- Song I/O ----
-  const io = el('div', 'song-io');
-  io.appendChild(el('div', 'song-section-label', 'Song'));
+  const io = el('div', styles.io!);
+  io.appendChild(el('div', styles.sectionLabel!, 'Song'));
 
   const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
   const refreshList = () => dropdown.setOptions(Song.list());
 
-  const loadBtn = el('button', 'switch', 'Load') as HTMLButtonElement;
+  const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) Song.apply(f, bus, engine.patterns, engine.arrangement);
   });
 
-  const saveBtn = el('button', 'switch', 'Save') as HTMLButtonElement;
+  const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
   saveBtn.addEventListener('click', () => {
     const name = prompt('Song name:', dropdown.value || 'My Song');
     if (!name) return;
@@ -118,16 +122,16 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     dropdown.setValue(song.name);
     fileInput.value = '';
   });
-  const importBtn = el('button', 'switch', 'Import') as HTMLButtonElement;
+  const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
   importBtn.addEventListener('click', () => fileInput.click());
 
-  const exportBtn = el('button', 'switch', 'Export') as HTMLButtonElement;
+  const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
   exportBtn.addEventListener('click', () => {
     const name = dropdown.value || 'My Song';
     Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name));
   });
 
-  const newBtn = el('button', 'switch', 'New') as HTMLButtonElement;
+  const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
   newBtn.addEventListener('click', () => {
     if (!confirm('Clear all banks and chains?')) return;
     engine.patterns.restore({
@@ -142,7 +146,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     engine.arrangement.setSamplerChain([0], false);
   });
 
-  io.appendChild(el('span', 'song-io-label', 'Slot:'));
+  io.appendChild(el('span', styles.ioLabel!, 'Slot:'));
   io.appendChild(dropdown.el);
   io.appendChild(loadBtn);
   io.appendChild(saveBtn);
@@ -151,9 +155,9 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   io.appendChild(newBtn);
   io.appendChild(fileInput);
 
-  io.appendChild(el('span', 'song-io-label', 'Demos:'));
+  io.appendChild(el('span', styles.ioLabel!, 'Demos:'));
   for (const name of Object.keys(DEMO_SONGS)) {
-    const d = el('button', 'switch demo-btn', name) as HTMLButtonElement;
+    const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.addEventListener('click', () => {
       Song.apply(DEMO_SONGS[name]!, bus, engine.patterns, engine.arrangement);
       refreshList();
@@ -165,8 +169,8 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   root.appendChild(io);
 
   // ---- Audio export (WAV / MP3) ----
-  const aio = el('div', 'song-io');
-  aio.appendChild(el('div', 'song-section-label', 'Audio'));
+  const aio = el('div', styles.io!);
+  aio.appendChild(el('div', styles.sectionLabel!, 'Audio'));
 
   let fmt: ExportFormat = 'wav';
   const fmtSel = el('div', 'segmented');
@@ -183,11 +187,11 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     fmtSel.appendChild(b);
   });
 
-  const expSongBtn = el('button', 'switch', 'Export Song') as HTMLButtonElement;
+  const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export Song') as HTMLButtonElement;
   expSongBtn.title = 'Render one full pass of the arrangement, then download';
   expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
 
-  const recBtn = el('button', 'switch', 'Record') as HTMLButtonElement;
+  const recBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Record') as HTMLButtonElement;
   recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
   recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
   engine.recorder.onState((rec) => {
@@ -195,7 +199,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     recBtn.textContent = rec ? 'Stop' : 'Record';
   });
 
-  aio.appendChild(el('span', 'song-io-label', 'Format:'));
+  aio.appendChild(el('span', styles.ioLabel!, 'Format:'));
   aio.appendChild(fmtSel);
   aio.appendChild(expSongBtn);
   aio.appendChild(recBtn);
@@ -217,36 +221,36 @@ function buildChainLane(
   getPos: () => number,
   engine: Engine,
 ): HTMLElement {
-  const root = el('div', 'chain-lane');
+  const root = el('div', styles.lane!);
 
-  const head = el('div', 'chain-head');
-  head.appendChild(el('div', 'chain-title', title));
+  const head = el('div', styles.head!);
+  head.appendChild(el('div', styles.title!, title));
 
   const enableBtn = document.createElement('button');
   enableBtn.type = 'button';
-  enableBtn.className = 'switch chain-enable';
-  enableBtn.innerHTML = '<span class="switch-led"></span><span class="switch-label">Chain</span>';
+  enableBtn.className = `${switchStyles.root!} ${styles.ctl!}`;
+  enableBtn.innerHTML = `<span class="${switchStyles.led!}"></span><span class="${switchStyles.label!}">Chain</span>`;
   enableBtn.addEventListener('click', () => setChain([...lane.steps], !lane.enabled));
   head.appendChild(enableBtn);
   root.appendChild(head);
 
-  const chips = el('div', 'chain-chips');
+  const chips = el('div', styles.chips!);
   root.appendChild(chips);
 
   let sel = -1;
 
-  const controls = el('div', 'chain-controls');
-  const addRow = el('div', 'chain-add');
+  const controls = el('div', styles.controls!);
+  const addRow = el('div', styles.addRow!);
   BANK_LABELS.forEach((label, i) => {
-    const a = el('button', 'bank-btn add', '') as HTMLButtonElement;
-    a.innerHTML = `<span class="bank-letter">${label}</span>`;
+    const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '') as HTMLButtonElement;
+    a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
     a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
     addRow.appendChild(a);
   });
   controls.appendChild(addRow);
 
   const mk = (label: string, fn: () => void) => {
-    const b = el('button', 'switch chain-ctl', label) as HTMLButtonElement;
+    const b = el('button', `${switchStyles.root!} ${styles.ctl!}`, label) as HTMLButtonElement;
     b.addEventListener('click', fn);
     return b;
   };
@@ -268,7 +272,7 @@ function buildChainLane(
     chips.innerHTML = '';
     const pos = getPos();
     lane.steps.forEach((b, idx) => {
-      const c = el('button', 'chain-chip', BANK_LABELS[b] ?? '?') as HTMLButtonElement;
+      const c = el('button', styles.chip!, BANK_LABELS[b] ?? '?') as HTMLButtonElement;
       if (idx === sel) c.classList.add('sel');
       if (lane.enabled && idx === pos) c.classList.add('playing');
       c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; render(); });

@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createButton, setButtonLabel } from '../../src/ui/components/button';
+import styles from '../../src/ui/styles/switch.module.css';
 
 describe('createButton', () => {
   it('defaults to a switch-styled button of type button', () => {
     const b = createButton({ label: 'Hi' });
     expect(b.tagName).toBe('BUTTON');
     expect(b.type).toBe('button');
-    expect(b.className).toBe('switch');
+    expect(b.className).toBe(styles.root!);
     expect(b.textContent).toBe('Hi');
   });
 
@@ -22,8 +23,8 @@ describe('createButton', () => {
 
   it('builds an LED + label structure when led:true', () => {
     const b = createButton({ label: 'Play', led: true });
-    expect(b.querySelector('.switch-led')).not.toBeNull();
-    expect(b.querySelector('.switch-label')?.textContent).toBe('Play');
+    expect(b.querySelector(`.${styles.led!}`)).not.toBeNull();
+    expect(b.querySelector(`.${styles.label!}`)?.textContent).toBe('Play');
   });
 
   it('wires the onClick handler', () => {
@@ -38,7 +39,7 @@ describe('setButtonLabel', () => {
   it('updates the .switch-label span for an LED button', () => {
     const b = createButton({ label: 'Play', led: true });
     setButtonLabel(b, 'Stop');
-    expect(b.querySelector('.switch-label')?.textContent).toBe('Stop');
+    expect(b.querySelector(`.${styles.label!}`)?.textContent).toBe('Stop');
   });
 
   it('updates textContent for a plain button', () => {

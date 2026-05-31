@@ -1,6 +1,6 @@
-import type { Clock } from './clock';
 import type { PatternStore } from '../../state/patterns';
 import { SEQ_LENGTH, BANK_COUNT } from '../../state/patterns';
+import type { TickSubscriber } from './tick-source';
 
 /**
  * Song arrangement: two independent chain lanes (sequencer and drums).
@@ -38,7 +38,7 @@ export class Arrangement {
   private expectFirstBar = true;
   private readonly changeListeners = new Set<() => void>();
 
-  constructor(private readonly patterns: PatternStore, clock: Clock) {
+  constructor(private readonly patterns: PatternStore, clock: TickSubscriber) {
     clock.onStart(() => {
       this.seqPos = 0;
       this.drumPos = 0;

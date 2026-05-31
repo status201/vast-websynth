@@ -1,5 +1,6 @@
 import type { Engine } from '../audio/engine';
 import type { ParamBus } from '../state/params';
+import type { UiBridge } from './ui-bridge';
 import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
@@ -13,7 +14,9 @@ import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
+import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
+import styles from './styles/layout.module.css';
 import { Presets } from '../state/preset';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
@@ -33,56 +36,56 @@ const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matche
  *  stay large enough to play. */
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
-export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus): void {
+export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge): void {
   root.innerHTML = '';
 
-  root.appendChild(buildHeader(engine, bus));
+  root.appendChild(buildHeader(engine, bus, bridge));
   root.appendChild(buildMain(bus));
   root.appendChild(buildFx(bus));
   root.appendChild(buildPatternRow(engine, bus));
-  root.appendChild(buildBottom(engine, bus));
+  root.appendChild(buildBottom(engine, bus, bridge));
 }
 
 function panel(title: string, build: (body: HTMLElement) => void): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'panel';
+  el.className = styles.panel!;
   const t = document.createElement('div');
-  t.className = 'panel-title';
+  t.className = styles.panelTitle!;
   t.textContent = title;
   el.appendChild(t);
   const body = document.createElement('div');
-  body.className = 'panel-body';
+  body.className = styles.panelBody!;
   build(body);
   el.appendChild(body);
   return el;
 }
 
-function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
+function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'header';
+  el.className = styles.header!;
 
   // Brand block: VAST G1-J5 / Vast Audio Synthesis Technology
   const brand = document.createElement('div');
-  brand.className = 'brand';
+  brand.className = styles.brand!;
   const brandRow = document.createElement('div');
-  brandRow.className = 'brand-row';
+  brandRow.className = styles.brandRow!;
   const brandName = document.createElement('span');
-  brandName.className = 'brand-name';
+  brandName.className = styles.brandName!;
   brandName.textContent = 'VAST';
   const brandModel = document.createElement('span');
-  brandModel.className = 'brand-model';
+  brandModel.className = styles.brandModel!;
   brandModel.textContent = 'G1-J5';
   brandRow.appendChild(brandName);
   brandRow.appendChild(brandModel);
   const brandTag = document.createElement('div');
-  brandTag.className = 'brand-tagline';
+  brandTag.className = styles.brandTagline!;
   brandTag.textContent = 'Vast Audio Synthesis Technology';
   brand.appendChild(brandRow);
   brand.appendChild(brandTag);
   el.appendChild(brand);
 
   const presetGroup = document.createElement('div');
-  presetGroup.className = 'header-group';
+  presetGroup.className = styles.headerGroup!;
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
   dropdown.onChange((name) => {
@@ -110,16 +113,16 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   el.appendChild(presetGroup);
 
   const spacer = document.createElement('div');
-  spacer.className = 'header-spacer';
+  spacer.className = styles.headerSpacer!;
   el.appendChild(spacer);
 
   // Transport group
   const transport = document.createElement('div');
-  transport.className = 'header-group transport-group';
+  transport.className = `${styles.headerGroup!} ${styles.transportGroup!}`;
 
   const playBtn = createButton({
     label: 'Play',
-    className: 'switch play-btn',
+    className: `${switchStyles.root!} ${styles.playBtn!}`,
     led: true,
     onClick: () => {
       engine.clock.toggle();
@@ -130,20 +133,20 @@ function buildHeader(engine: Engine, bus: ParamBus): HTMLElement {
   // directly) and the Space-bar shortcut all keep the button in sync.
   const syncPlay = () => {
     const playing = engine.clock.playing;
-    playBtn.classList.toggle('on', playing);
+    playBtn.classList.toggle('on', playing); // keeps `on` global state class for :global(.on) selectors in CSS
+
     setButtonLabel(playBtn, playing ? 'Stop' : 'Play');
   };
   engine.clock.onStart(syncPlay);
   engine.clock.onStop(syncPlay);
-  // Exposed so the Space-bar shortcut keeps the button visuals in sync.
-  (window as any).__transportToggle = () => playBtn.click();
+  bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
   transport.appendChild(new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' }).el);
 
   el.appendChild(transport);
 
   const right = document.createElement('div');
-  right.className = 'header-group';
+  right.className = styles.headerGroup!;
 
   const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
   right.appendChild(voicing.el);
@@ -170,13 +173,13 @@ function buildPatternRow(engine: Engine, bus: ParamBus): HTMLElement {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
     collapsedByDefault: isCompact,
   });
-  tabs.el.classList.add('pattern-row');
+  tabs.el.classList.add(styles.patternRow!);
   return tabs.el;
 }
 
 function buildMain(bus: ParamBus): HTMLElement {
   const main = document.createElement('div');
-  main.className = 'main';
+  main.className = styles.main!;
 
   main.appendChild(panel('OSC 1', (b) => {
     b.appendChild(new Segmented(bus, 'osc1.wave', WAVE_LABELS, WAVE_ICONS).el);
@@ -260,12 +263,12 @@ function buildMain(bus: ParamBus): HTMLElement {
 
 function buildFx(bus: ParamBus): HTMLElement {
   const section = document.createElement('div');
-  section.className = 'fx-section';
+  section.className = styles.fxSection!;
 
   const bar = document.createElement('div');
-  bar.className = 'fx-section-bar';
+  bar.className = styles.fxSectionBar!;
   const title = document.createElement('div');
-  title.className = 'fx-section-title';
+  title.className = styles.fxSectionTitle!;
   title.textContent = 'FX';
   bar.appendChild(title);
   bar.appendChild(
@@ -277,7 +280,7 @@ function buildFx(bus: ParamBus): HTMLElement {
   section.appendChild(bar);
 
   const fx = document.createElement('div');
-  fx.className = 'fx-row';
+  fx.className = styles.fxRow!;
 
   fx.appendChild(fxPanel('Distortion', bus, 'fx.dist.on', [
     { id: 'fx.dist.drive', label: 'DRIVE' },
@@ -315,19 +318,19 @@ function buildFx(bus: ParamBus): HTMLElement {
 
 function fxPanel(title: string, bus: ParamBus, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'fx-panel';
+  el.className = styles.fxPanel!;
 
   const header = document.createElement('div');
-  header.className = 'fx-header';
+  header.className = styles.fxHeader!;
   const t = document.createElement('div');
-  t.className = 'fx-title';
+  t.className = styles.fxTitle!;
   t.textContent = title;
   header.appendChild(t);
   header.appendChild(new Switch(bus, onParam, 'on').el);
   el.appendChild(header);
 
   const knobsEl = document.createElement('div');
-  knobsEl.className = 'fx-knobs';
+  knobsEl.className = styles.fxKnobs!;
   for (const k of knobs) {
     knobsEl.appendChild(new Knob({ bus, paramId: k.id, label: k.label }).el);
   }
@@ -336,25 +339,25 @@ function fxPanel(title: string, bus: ParamBus, onParam: string, knobs: Array<{ i
   return el;
 }
 
-function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
+function buildBottom(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLElement {
   const bottom = document.createElement('div');
-  bottom.className = 'bottom';
+  bottom.className = styles.bottom!;
 
   const top = document.createElement('div');
-  top.className = 'bottom-top';
+  top.className = styles.bottomTop!;
 
   const wheels = document.createElement('div');
-  wheels.className = 'wheels';
+  wheels.className = styles.wheels!;
   wheels.appendChild(new Strip({ bus, paramId: 'master.pitchBend', label: 'PITCH', springBack: true }).el);
   wheels.appendChild(new Strip({ bus, paramId: 'master.modWheel', label: 'MOD' }).el);
   top.appendChild(wheels);
 
   const scopeWrap = document.createElement('div');
-  scopeWrap.className = 'scope-wrap';
+  scopeWrap.className = styles.scopeWrap!;
   const scope = new Scope(engine.analyser);
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
-  toggle.className = 'switch scope-toggle';
+  toggle.className = `${switchStyles.root!} ${styles.scopeToggle!}`;
   toggle.textContent = 'Wave';
   let isWave = true;
   toggle.addEventListener('click', () => {
@@ -368,7 +371,7 @@ function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
   bottom.appendChild(top);
 
   const kbWrap = document.createElement('div');
-  kbWrap.className = 'keyboard-wrap';
+  kbWrap.className = styles.keyboardWrap!;
   // Phones get 2 octaves (centred higher) so individual keys stay tappable;
   // wider screens keep the full 3-octave C3–C6 range.
   const phone = isPhone();
@@ -380,8 +383,8 @@ function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
   kbWrap.appendChild(keyboard.el);
   bottom.appendChild(kbWrap);
 
-  // Expose for shortcuts module
-  (window as any).__synthKeyboard = keyboard;
+  bridge.pressKey = (n) => keyboard.press(n);
+  bridge.releaseKey = (n) => keyboard.release(n);
 
   // Light up the on-screen keys in time with the sequencer. The clock
   // schedules ~100 ms ahead, so defer each highlight to its audible moment.
@@ -406,7 +409,7 @@ function buildBottom(engine: Engine, bus: ParamBus): HTMLElement {
 
 function row(children: HTMLElement[]): HTMLElement {
   const r = document.createElement('div');
-  r.className = 'panel-row';
+  r.className = styles.panelRow!;
   for (const c of children) r.appendChild(c);
   return r;
 }

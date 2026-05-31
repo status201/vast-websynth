@@ -1,3 +1,5 @@
+import { rampTo, RAMP_MEDIUM } from '../param-utils';
+
 /**
  * Common interface for all effects. Each effect owns a fixed signal graph
  * with `input` and `output` AudioNodes — wire them into the chain once at
@@ -55,8 +57,8 @@ export class BypassWrapper {
   private update(): void {
     const wet = this.bypassed ? 0 : this.mix;
     const dry = this.bypassed ? 1 : 1 - this.mix;
-    const t = this.dry.context.currentTime;
-    this.dry.gain.setTargetAtTime(dry, t, 0.01);
-    this.wet.gain.setTargetAtTime(wet, t, 0.01);
+    const ctx = this.dry.context as AudioContext;
+    rampTo(this.dry.gain, dry, ctx, RAMP_MEDIUM);
+    rampTo(this.wet.gain, wet, ctx, RAMP_MEDIUM);
   }
 }

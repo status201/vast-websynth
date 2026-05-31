@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, type SeqStep } from '../../src/state/patterns';
 
 describe('PatternStore', () => {
   it('seeds a default groove into drum bank A only', () => {
@@ -46,17 +46,33 @@ describe('PatternStore', () => {
     expect(ps.seqEditBank).toBe(BANK_COUNT - 1);
   });
 
-  it('setSeqEditBank re-emits every step and fires edit-bank listeners', () => {
+  it('setSeqEditBank fires batch bank listener once (not per-step)', () => {
     const ps = new PatternStore();
-    let steps = 0;
-    let bankChanges = 0;
-    ps.onSeqChange(() => steps++);
-    ps.onEditBankChange(() => bankChanges++);
+    let bankCalls = 0;
+    let perStepCalls = 0;
+    ps.onSeqBankChange(() => bankCalls++);
+    ps.onSeqChange(() => perStepCalls++);
     ps.setSeqEditBank(1);
-    expect(steps).toBe(SEQ_LENGTH);
-    expect(bankChanges).toBe(1);
+    expect(bankCalls).toBe(1);
+    expect(perStepCalls).toBe(0);
     ps.setSeqEditBank(1); // no-op when unchanged
-    expect(bankChanges).toBe(1);
+    expect(bankCalls).toBe(1);
+  });
+
+  it('onSeqBankChange receives the full bank array from the switched bank', () => {
+    const ps = new PatternStore();
+    let received: SeqStep[] | null = null;
+    ps.onSeqBankChange((bank) => { received = [...bank]; });
+    ps.setSeqEditBank(1);
+    ps.setSeqStep(3, { on: true, note: 72 });
+    ps.setSeqEditBank(0);
+    // received should now be bank 0 (fresh, step 3 untouched)
+    expect(received?.length).toBe(SEQ_LENGTH);
+    expect(received![3]!.on).toBe(false);
+    // Switch back to bank 1, should see the mutation
+    ps.setSeqEditBank(1);
+    expect(received![3]!.on).toBe(true);
+    expect(received![3]!.note).toBe(72);
   });
 
   it('copySeqBank deep-copies and skips same-bank copies', () => {
@@ -98,17 +114,27 @@ describe('PatternStore', () => {
     expect(got).toEqual([2, 6, true]);
   });
 
-  it('setSamplerEditBank re-emits every cell and fires edit-bank listeners', () => {
+  it('setSamplerEditBank fires batch bank listener once (not per-cell)', () => {
     const ps = new PatternStore();
-    let cells = 0;
-    let bankChanges = 0;
-    ps.onSamplerChange(() => cells++);
-    ps.onEditBankChange(() => bankChanges++);
+    let bankCalls = 0;
+    let perCellCalls = 0;
+    ps.onSamplerBankChange(() => bankCalls++);
+    ps.onSamplerChange(() => perCellCalls++);
     ps.setSamplerEditBank(1);
-    expect(cells).toBe(SAMPLER_SLOT_COUNT * SEQ_LENGTH);
-    expect(bankChanges).toBe(1);
+    expect(bankCalls).toBe(1);
+    expect(perCellCalls).toBe(0);
     ps.setSamplerEditBank(1); // unchanged → no-op
-    expect(bankChanges).toBe(1);
+    expect(bankCalls).toBe(1);
+  });
+
+  it('onDrumBankChange fires once on edit-bank switch', () => {
+    const ps = new PatternStore();
+    let bankCalls = 0;
+    ps.onDrumBankChange(() => bankCalls++);
+    ps.setDrumEditBank(2);
+    expect(bankCalls).toBe(1);
+    ps.setDrumEditBank(2); // no-op
+    expect(bankCalls).toBe(1);
   });
 
   it('setSampleName stores per slot and notifies', () => {

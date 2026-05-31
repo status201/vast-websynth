@@ -7,6 +7,9 @@ import { Phaser } from './effects/phaser';
 import { Delay } from './effects/delay';
 import { Reverb } from './effects/reverb';
 import { ParamBus, registerDefaults } from '../state/params';
+import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
+import { assertIndex } from '../utils/array';
+import type { SynthOutput } from './transport/note-output';
 import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
@@ -64,6 +67,8 @@ export class Engine {
   private glideMode = 1; // 0 off · 1 always · 2 legato
   /** When true, bus.noteOn/Off do not directly play notes — arp/seq do. */
   passthroughSuppressed = false;
+  /** True when the arpeggiator is suppressing direct note input. */
+  get arpPassthroughSuppressed(): boolean { return this.arp?.passthroughSuppressed ?? false; }
 
   constructor(private readonly bus: ParamBus) {
     registerDefaults(bus);
@@ -172,10 +177,14 @@ export class Engine {
     this.perf = new Performance(this.ctx, this.clock, this.bus, this.djFilter);
 
     // Transport modules — created after voices so they can call engine.playNote
-    this.arp = new Arpeggiator(this, this.bus, this.clock);
-    this.seq = new StepSequencer(this, this.clock, this.patterns, this.arrangement, this.perf);
-    this.drums = new DrumMachine(this, this.clock, this.patterns, this.arrangement, this.perf);
-    this.sampler = new SamplerMachine(this, this.clock, this.patterns, this.arrangement, this.perf);
+    const synthOutput: SynthOutput = {
+      playNote: (n, v, w) => this.playNote(n, v, w),
+      releaseNote: (n, w) => this.releaseNote(n, w),
+    };
+    this.arp = new Arpeggiator(synthOutput, this.bus, this.clock);
+    this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf);
+    this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus);
+    this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
 
     // Audio capture: tap master (post master-volume). The recorder node has
     // zero outputs so it is a pure sink and never doubles into destination.
@@ -187,7 +196,7 @@ export class Engine {
 
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => {
-      if (this.passthroughSuppressed) return;
+      if (this.arpPassthroughSuppressed) return;
       if (on) this.playNote(note, vel);
       else this.releaseNote(note);
     });
@@ -291,7 +300,7 @@ export class Engine {
     }
     if (idle) return idle;
     if (oldestReleasing) return oldestReleasing;
-    return oldestPlaying ?? this.voices[0]!;
+    return oldestPlaying ?? assertIndex(this.voices, 0, 'voices');
   }
 
   // ---------- Param subscriptions ----------
@@ -401,10 +410,10 @@ export class Engine {
 
     // Master
     bus.subscribe('master.volume', (x) => {
-      this.master.gain.setTargetAtTime(x * x, this.ctx.currentTime, 0.01);
+      rampTo(this.master.gain, x * x, this.ctx, RAMP_MEDIUM);
     });
     bus.subscribe('master.pitchBend', (x) => {
-      this.pitchBend.offset.setTargetAtTime(x * PITCH_BEND_RANGE_CENTS, this.ctx.currentTime, 0.005);
+      rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, this.ctx, RAMP_FAST);
     });
     bus.subscribe('master.modWheel', () => updateLfoAmount());
 
@@ -424,7 +433,7 @@ export class Engine {
     // ----- Drums -----
     bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
     bus.subscribe('drum.master', (v) => {
-      this.drumBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+      rampTo(this.drumBus.gain, v, this.ctx, RAMP_MEDIUM);
     });
     for (let i = 0; i < 8; i++) {
       const track = i;
@@ -437,7 +446,7 @@ export class Engine {
     // ----- Sampler -----
     bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
     bus.subscribe('sampler.master', (v) => {
-      this.samplerBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.01);
+      rampTo(this.samplerBus.gain, v, this.ctx, RAMP_MEDIUM);
     });
     for (let i = 0; i < 8; i++) {
       const slot = i;

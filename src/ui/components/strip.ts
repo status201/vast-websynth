@@ -1,3 +1,4 @@
+import styles from '../styles/strip.module.css';
 import type { ParamBus } from '../../state/params';
 
 export interface StripOptions {
@@ -17,14 +18,14 @@ export class Strip {
 
   constructor(private readonly opts: StripOptions) {
     this.el = document.createElement('div');
-    this.el.className = 'strip';
+    this.el.className = styles.root!;
 
     this.thumb = document.createElement('div');
-    this.thumb.className = 'strip-thumb';
+    this.thumb.className = styles.thumb!;
     this.el.appendChild(this.thumb);
 
     const label = document.createElement('div');
-    label.className = 'strip-label';
+    label.className = styles.label!;
     label.textContent = opts.label;
     this.el.appendChild(label);
 

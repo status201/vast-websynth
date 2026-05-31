@@ -1,3 +1,4 @@
+import styles from '../styles/dropdown.module.css';
 import type { ParamBus } from '../../state/params';
 import { Dropdown } from './dropdown';
 
@@ -14,7 +15,7 @@ export class ParamDropdown {
 
   constructor(bus: ParamBus, paramId: string, labels: string[]) {
     this.dd = new Dropdown(labels);
-    this.dd.el.classList.add('dropdown-compact');
+    this.dd.el.classList.add(styles.compact!);
     this.el = this.dd.el;
 
     this.dd.onChange((v) => {

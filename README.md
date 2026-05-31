@@ -84,6 +84,7 @@ src/
     song.ts          full-song save/load + demo songs
   ui/                hand-built DOM components and panels
                      (incl. song-panel: chains, DJ FX, song I/O)
-  styles/            CSS (base, theme, components, layout)
+  styles/            Global CSS: base.css (reset), theme.css (custom properties), layout.css (.app grid + responsive)
+  ui/styles/         CSS Modules (*.module.css — component/panel-scoped, imported by components)
 public/worklets/     ladder-filter.js (runs on the audio thread)
 ```

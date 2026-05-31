@@ -1,10 +1,10 @@
-import type { Engine } from '../engine';
-import type { Clock } from './clock';
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import { Kick, Snare, HiHat, Tom, Clap, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
+import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import type { TickSubscriber } from './tick-source';
 
 export type DrumStepListener = (step: number) => void;
 
@@ -17,31 +17,31 @@ export class DrumMachine {
   private readonly stepListeners = new Set<DrumStepListener>();
 
   constructor(
-    private readonly engine: Engine,
-    private readonly clock: Clock,
+    private readonly ctx: AudioContext,
+    private readonly clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,
+    private readonly drumBus: GainNode,
   ) {
-    const ctx = engine.ctx;
-    const noise = makeNoiseBuffer(ctx, 2);
+    const noise = makeNoiseBuffer(this.ctx, 2);
 
     // Track order must match DRUM_TRACKS in patterns.ts
     this.tracks = [
-      new Kick(ctx),
-      new Snare(ctx, noise),
-      new HiHat(ctx, noise, false), // closed
-      new HiHat(ctx, noise, true),  // open
-      new Tom(ctx, 110),             // low
-      new Tom(ctx, 165),             // mid
-      new Tom(ctx, 240),             // high
-      new Clap(ctx, noise),
+      new Kick(this.ctx),
+      new Snare(this.ctx, noise),
+      new HiHat(this.ctx, noise, false), // closed
+      new HiHat(this.ctx, noise, true),  // open
+      new Tom(this.ctx, 110),             // low
+      new Tom(this.ctx, 165),             // mid
+      new Tom(this.ctx, 240),             // high
+      new Clap(this.ctx, noise),
     ];
 
     for (const t of this.tracks) {
-      const g = ctx.createGain();
+      const g = this.ctx.createGain();
       g.gain.value = 0.85;
-      t.output.connect(g).connect(engine.drumBus);
+      t.output.connect(g).connect(this.drumBus);
       this.trackGains.push(g);
     }
 
@@ -57,7 +57,7 @@ export class DrumMachine {
 
   setTrackVolume(track: number, v: number): void {
     const g = this.trackGains[track];
-    if (g) g.gain.setTargetAtTime(v, this.engine.ctx.currentTime, 0.01);
+    if (g) rampTo(g.gain, v, this.ctx, RAMP_MEDIUM);
   }
 
   setTrackMute(track: number, muted: boolean): void {
@@ -74,7 +74,7 @@ export class DrumMachine {
 
   /** Manual trigger (for UI auditioning). */
   triggerTrack(track: number, velocity = 0.9): void {
-    this.tracks[track]?.trigger(this.engine.ctx.currentTime, velocity);
+    this.tracks[track]?.trigger(this.ctx.currentTime, velocity);
   }
 
   private onTick(step: number, when: number): void {
