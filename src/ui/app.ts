@@ -349,6 +349,7 @@ function buildBottom(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   const wheels = document.createElement('div');
   wheels.className = styles.wheels!;
   wheels.appendChild(new Strip({ bus, paramId: 'master.pitchBend', label: 'PITCH', springBack: true }).el);
+  wheels.appendChild(new Strip({ bus, paramId: 'keyboard.transpose', label: 'OCT' }).el);
   wheels.appendChild(new Strip({ bus, paramId: 'master.modWheel', label: 'MOD' }).el);
   top.appendChild(wheels);
 

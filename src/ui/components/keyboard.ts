@@ -23,6 +23,8 @@ export class Keyboard {
   private readonly keys: Map<number, HTMLElement> = new Map(); // midi → element
   private readonly activeByPointer: Map<number, number> = new Map();
   private readonly bus: ParamBus;
+  private _transpose = 0;
+  private readonly labelKeys: HTMLElement[] = [];
 
   constructor(private readonly opts: KeyboardOptions) {
     this.bus = opts.bus;
@@ -42,7 +44,10 @@ export class Keyboard {
       const key = document.createElement('div');
       key.className = `${styles.key!} ${styles.white!}`;
       key.dataset.note = String(midi);
-      key.textContent = wIdxInOct === 0 ? `C${oct}` : '';
+      if (wIdxInOct === 0) {
+        key.textContent = `C${oct}`;
+        this.labelKeys.push(key);
+      }
       this.keys.set(midi, key);
       this.el.appendChild(key);
     }
@@ -78,19 +83,36 @@ export class Keyboard {
     this.el.addEventListener('pointercancel', this.onPointerUp);
     this.el.addEventListener('pointerleave', this.onPointerUp);
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    opts.bus.subscribe('keyboard.transpose', (v) => {
+      this._transpose = Math.round(v);
+      this.updateLabels();
+    });
+  }
+
+  private tr(note: number): number {
+    return note + this._transpose * 12;
+  }
+
+  private updateLabels(): void {
+    for (const key of this.labelKeys) {
+      const midi = Number(key.dataset.note);
+      const oct = Math.floor(midi / 12) - 1 + this._transpose;
+      key.textContent = `C${oct}`;
+    }
   }
 
   /** Programmatically press a key (for QWERTY / MIDI). */
   press(note: number): void {
     const k = this.keys.get(note);
     if (k) k.classList.add('active');
-    this.bus.noteOn(note);
+    this.bus.noteOn(this.tr(note));
   }
 
   release(note: number): void {
     const k = this.keys.get(note);
     if (k) k.classList.remove('active');
-    this.bus.noteOff(note);
+    this.bus.noteOff(this.tr(note));
   }
 
   private noteAt(x: number, y: number): number | null {
@@ -114,7 +136,7 @@ export class Keyboard {
     if (note === null) return;
     this.activeByPointer.set(e.pointerId, note);
     this.setKeyActive(note, true);
-    this.bus.noteOn(note);
+    this.bus.noteOn(this.tr(note));
   };
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -123,17 +145,17 @@ export class Keyboard {
     const current = this.activeByPointer.get(e.pointerId)!;
     if (note === null || note === current) return;
     this.setKeyActive(current, false);
-    this.bus.noteOff(current);
+    this.bus.noteOff(this.tr(current));
     this.activeByPointer.set(e.pointerId, note);
     this.setKeyActive(note, true);
-    this.bus.noteOn(note);
+    this.bus.noteOn(this.tr(note));
   };
 
   private onPointerUp = (e: PointerEvent): void => {
     const note = this.activeByPointer.get(e.pointerId);
     if (note === undefined) return;
     this.setKeyActive(note, false);
-    this.bus.noteOff(note);
+    this.bus.noteOff(this.tr(note));
     this.activeByPointer.delete(e.pointerId);
   };
 
@@ -148,7 +170,7 @@ export class Keyboard {
    * outside the visible range.
    */
   seqHighlight(note: number, on: boolean): void {
-    const el = this.keys.get(note);
+    const el = this.keys.get(note - this._transpose * 12);
     if (el) el.classList.toggle('seq', on);
   }
 

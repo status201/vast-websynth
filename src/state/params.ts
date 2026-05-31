@@ -214,6 +214,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtDb },
     { id: 'master.pitchBend', min: -1, max: 1, default: 0, format: fmtSemi },
     { id: 'master.modWheel', min: 0, max: 1, default: 0, format: fmtPct },
+    { id: 'keyboard.transpose', min: -2, max: 2, default: 0, step: 1, taper: 'discrete', format: (v) => v >= 0 ? `+${v}` : `${v}` },
 
     // ----- Transport -----
     { id: 'transport.bpm', min: 40, max: 240, default: 120, step: 1, format: (v) => `${v.toFixed(0)} bpm` },

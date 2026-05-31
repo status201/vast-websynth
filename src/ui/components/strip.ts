@@ -15,6 +15,8 @@ export class Strip {
   private unsub: () => void = () => {};
   private dragging = false;
   private height = 0;
+  private lastValue = 0;
+  private readonly ro: ResizeObserver;
 
   constructor(private readonly opts: StripOptions) {
     this.el = document.createElement('div');
@@ -34,7 +36,16 @@ export class Strip {
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
 
-    this.unsub = opts.bus.subscribe(opts.paramId, (v) => this.render(v));
+    this.unsub = opts.bus.subscribe(opts.paramId, (v) => {
+      this.lastValue = v;
+      this.render(v);
+    });
+
+    // Re-render once laid out (initial subscribe fires before DOM sizing)
+    this.ro = new ResizeObserver(() => {
+      if (this.el.clientHeight > 0) this.render(this.lastValue);
+    });
+    this.ro.observe(this.el);
   }
 
   private render(value: number): void {
@@ -74,11 +85,13 @@ export class Strip {
     const norm = 1 - rel / (rect.height - 22);
     const def = this.opts.bus.def(this.opts.paramId);
     if (!def) return;
-    const v = def.min + norm * (def.max - def.min);
+    let v = def.min + norm * (def.max - def.min);
+    if (def.step) v = Math.round((v - def.min) / def.step) * def.step + def.min;
     this.opts.bus.set(this.opts.paramId, v);
   }
 
   destroy(): void {
+    this.ro.disconnect();
     this.unsub();
   }
 }
