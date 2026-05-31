@@ -246,7 +246,21 @@ const IFL_DRUM_B = drumFrom({
   3: [2, 6, 10, 14], 7: [4, 12], 1: [15], // + open-hat offbeats & pickup
 });
 
-export const DEMO_SONGS: Record<string, SongFile> = {
+// Drop-in demos: any *.json SongFile in ./demos is auto-registered at build
+// time via Vite's static glob (no runtime fetch). Keyed by the file's `name`,
+// ordered by filename, and spread *before* the hand-authored built-ins below
+// so dropped-in songs lead the demo button row.
+const DROPPED = import.meta.glob<SongFile>('./demos/*.json', {
+  eager: true,
+  import: 'default',
+});
+const droppedDemos: Record<string, SongFile> = {};
+for (const path of Object.keys(DROPPED).sort()) {
+  const song = DROPPED[path]!;
+  droppedDemos[song.name] = song;
+}
+
+const BUILTIN_DEMOS: Record<string, SongFile> = {
   'Knight Rider': {
     format: 'websynth-song',
     version: 1,
@@ -330,4 +344,10 @@ export const DEMO_SONGS: Record<string, SongFile> = {
     seqChain: { enabled: true, steps: [0, 0, 0, 1] },   // A A A B
     drumChain: { enabled: true, steps: [0, 1] },
   },
+};
+
+// Drop-ins first (so "Apex Twin" precedes "Knight Rider"), then built-ins.
+export const DEMO_SONGS: Record<string, SongFile> = {
+  ...droppedDemos,
+  ...BUILTIN_DEMOS,
 };

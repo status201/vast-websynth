@@ -196,4 +196,28 @@ describe('Song', () => {
       expect(arr.seq.enabled).toBe(true);
     });
   });
+
+  describe('"Apex Twin" drop-in demo', () => {
+    it('is auto-registered ahead of the built-ins and round-trips', () => {
+      const apex = DEMO_SONGS['Apex Twin'];
+      expect(apex).toBeDefined();
+      // Drop-in demos are spread before the hand-authored built-ins.
+      expect(Object.keys(DEMO_SONGS)[0]).toBe('Apex Twin');
+      expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(apex);
+    });
+
+    it('applies its params + 8-step chains', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const arr = fakeArr();
+
+      Song.apply(DEMO_SONGS['Apex Twin']!, bus, patterns, arr as never);
+
+      expect(bus.get('transport.bpm')).toBe(128);
+      expect(patterns.seqBanks[0]![0]!.note).toBe(45);
+      expect(arr.seq.steps).toEqual([0, 0, 1, 0, 0, 2, 0, 3]);
+      expect(arr.drum.steps).toEqual([0, 0, 1, 1, 2, 0, 1, 3]);
+    });
+  });
 });
