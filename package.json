@@ -16,8 +16,5 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.13",
     "vitest": "^4.1.6"
-  },
-  "dependencies": {
-    "@rolldown/binding-linux-x64-gnu": "^1.0.3"
   }
 }
