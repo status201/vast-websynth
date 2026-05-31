@@ -26,6 +26,16 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     hasContent: (i) => engine.patterns.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onDrumChange(fn),
   }).el);
+  header.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
+    { id: 'fx.drum.phaser.rate', label: 'RATE' },
+    { id: 'fx.drum.phaser.depth', label: 'DEPTH' },
+    { id: 'fx.drum.phaser.feedback', label: 'FB' },
+  ]));
+  header.appendChild(fxGroup(bus, 'DELAY', 'fx.drum.delay', [
+    { id: 'fx.drum.delay.time', label: 'TIME' },
+    { id: 'fx.drum.delay.feedback', label: 'FB' },
+    { id: 'fx.drum.delay.mix', label: 'MIX' },
+  ]));
   root.appendChild(header);
 
   // ---- Track rows ----
@@ -95,4 +105,26 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   });
 
   return root;
+}
+
+function fxGroup(bus: ParamBus, title: string, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
+  const group = document.createElement('div');
+  group.style.cssText = 'display:flex;align-items:center;gap:4px';
+
+  const divider = document.createElement('div');
+  divider.style.cssText = 'width:1px;height:28px;background:rgba(244,205,94,0.15);margin:0 4px';
+  group.appendChild(divider);
+
+  const label = document.createElement('span');
+  label.textContent = title;
+  label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--accent-secondary);font-weight:600';
+  group.appendChild(label);
+
+  group.appendChild(new Switch(bus, `${onParam}.on`, 'on').el);
+
+  for (const k of knobs) {
+    group.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: 22 }).el);
+  }
+
+  return group;
 }

@@ -37,6 +37,14 @@ export class Engine {
   readonly delay: Delay;
   readonly reverb: Reverb;
 
+  readonly drumPhaser: Phaser;
+  readonly drumDelay: Delay;
+
+  readonly samplerDist: Distortion;
+  readonly samplerPhaser: Phaser;
+  readonly samplerDelay: Delay;
+  readonly samplerReverb: Reverb;
+
   readonly preMaster!: GainNode;
   readonly drumBus!: GainNode;
   readonly samplerBus!: GainNode;
@@ -83,6 +91,14 @@ export class Engine {
     this.delay = new Delay(this.ctx);
     this.reverb = new Reverb(this.ctx);
 
+    this.drumPhaser = new Phaser(this.ctx);
+    this.drumDelay = new Delay(this.ctx);
+
+    this.samplerDist = new Distortion(this.ctx);
+    this.samplerPhaser = new Phaser(this.ctx);
+    this.samplerDelay = new Delay(this.ctx);
+    this.samplerReverb = new Reverb(this.ctx);
+
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
 
@@ -110,9 +126,17 @@ export class Engine {
     this.delay.output.connect(this.reverb.input);
     this.reverb.output.connect(this.preMaster);
 
-    // Drum + sampler buses join at preMaster (bypass synth FX)
-    this.drumBus.connect(this.preMaster);
-    this.samplerBus.connect(this.preMaster);
+    // Drum FX chain: phaser → delay
+    this.drumBus.connect(this.drumPhaser.input);
+    this.drumPhaser.output.connect(this.drumDelay.input);
+    this.drumDelay.output.connect(this.preMaster);
+
+    // Sampler FX chain: distortion → phaser → delay → reverb
+    this.samplerBus.connect(this.samplerDist.input);
+    this.samplerDist.output.connect(this.samplerPhaser.input);
+    this.samplerPhaser.output.connect(this.samplerDelay.input);
+    this.samplerDelay.output.connect(this.samplerReverb.input);
+    this.samplerReverb.output.connect(this.preMaster);
 
     // DJ performance filter — transparent by default, swept live.
     this.djFilter = this.ctx.createBiquadFilter();
@@ -404,6 +428,42 @@ export class Engine {
     bus.subscribe('fx.reverb.size', (x) => this.reverb.setSize(x));
     bus.subscribe('fx.reverb.damp', (x) => this.reverb.setDamp(x));
     bus.subscribe('fx.reverb.mix', (x) => this.reverb.setMix(x));
+
+    // Drum FX: Phaser
+    bus.subscribe('fx.drum.phaser.on', (x) => this.drumPhaser.setBypass(x < 0.5));
+    bus.subscribe('fx.drum.phaser.rate', (x) => this.drumPhaser.setRate(x));
+    bus.subscribe('fx.drum.phaser.depth', (x) => this.drumPhaser.setDepth(x));
+    bus.subscribe('fx.drum.phaser.feedback', (x) => this.drumPhaser.setFeedback(x));
+
+    // Drum FX: Delay
+    bus.subscribe('fx.drum.delay.on', (x) => this.drumDelay.setBypass(x < 0.5));
+    bus.subscribe('fx.drum.delay.time', (x) => this.drumDelay.setTime(x));
+    bus.subscribe('fx.drum.delay.feedback', (x) => this.drumDelay.setFeedback(x));
+    bus.subscribe('fx.drum.delay.mix', (x) => this.drumDelay.setMix(x));
+
+    // Sampler FX: Distortion
+    bus.subscribe('fx.sampler.dist.on', (x) => this.samplerDist.setBypass(x < 0.5));
+    bus.subscribe('fx.sampler.dist.drive', (x) => this.samplerDist.setDrive(x));
+    bus.subscribe('fx.sampler.dist.tone', (x) => this.samplerDist.setTone(x));
+    bus.subscribe('fx.sampler.dist.mix', (x) => this.samplerDist.setMix(x));
+
+    // Sampler FX: Phaser
+    bus.subscribe('fx.sampler.phaser.on', (x) => this.samplerPhaser.setBypass(x < 0.5));
+    bus.subscribe('fx.sampler.phaser.rate', (x) => this.samplerPhaser.setRate(x));
+    bus.subscribe('fx.sampler.phaser.depth', (x) => this.samplerPhaser.setDepth(x));
+    bus.subscribe('fx.sampler.phaser.feedback', (x) => this.samplerPhaser.setFeedback(x));
+
+    // Sampler FX: Delay
+    bus.subscribe('fx.sampler.delay.on', (x) => this.samplerDelay.setBypass(x < 0.5));
+    bus.subscribe('fx.sampler.delay.time', (x) => this.samplerDelay.setTime(x));
+    bus.subscribe('fx.sampler.delay.feedback', (x) => this.samplerDelay.setFeedback(x));
+    bus.subscribe('fx.sampler.delay.mix', (x) => this.samplerDelay.setMix(x));
+
+    // Sampler FX: Reverb
+    bus.subscribe('fx.sampler.reverb.on', (x) => this.samplerReverb.setBypass(x < 0.5));
+    bus.subscribe('fx.sampler.reverb.size', (x) => this.samplerReverb.setSize(x));
+    bus.subscribe('fx.sampler.reverb.damp', (x) => this.samplerReverb.setDamp(x));
+    bus.subscribe('fx.sampler.reverb.mix', (x) => this.samplerReverb.setMix(x));
 
     // DJ filter (manual sweep; Drop overrides it while held)
     bus.subscribe('fx.djfilter', (x) => this.perf.setDjFilter(x));

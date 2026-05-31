@@ -37,6 +37,26 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   recBtn.title = 'Record a sound from your microphone';
   recBtn.addEventListener('click', () => openRecordSoundModal(engine));
   header.appendChild(recBtn);
+  header.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [
+    { id: 'fx.sampler.dist.drive', label: 'DRIVE' },
+    { id: 'fx.sampler.dist.tone', label: 'TONE' },
+    { id: 'fx.sampler.dist.mix', label: 'MIX' },
+  ]));
+  header.appendChild(fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
+    { id: 'fx.sampler.phaser.rate', label: 'RATE' },
+    { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
+    { id: 'fx.sampler.phaser.feedback', label: 'FB' },
+  ]));
+  header.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
+    { id: 'fx.sampler.delay.time', label: 'TIME' },
+    { id: 'fx.sampler.delay.feedback', label: 'FB' },
+    { id: 'fx.sampler.delay.mix', label: 'MIX' },
+  ]));
+  header.appendChild(fxGroup(bus, 'REVERB', 'fx.sampler.reverb', [
+    { id: 'fx.sampler.reverb.size', label: 'SIZE' },
+    { id: 'fx.sampler.reverb.damp', label: 'DAMP' },
+    { id: 'fx.sampler.reverb.mix', label: 'MIX' },
+  ]));
 
   root.appendChild(header);
 
@@ -170,4 +190,26 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   engine.patterns.onSampleMetaChange((slot) => refreshLabel(slot));
 
   return root;
+}
+
+function fxGroup(bus: ParamBus, title: string, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
+  const group = document.createElement('div');
+  group.style.cssText = 'display:flex;align-items:center;gap:4px';
+
+  const divider = document.createElement('div');
+  divider.style.cssText = 'width:1px;height:28px;background:rgba(244,205,94,0.15);margin:0 4px';
+  group.appendChild(divider);
+
+  const label = document.createElement('span');
+  label.textContent = title;
+  label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--accent-secondary);font-weight:600';
+  group.appendChild(label);
+
+  group.appendChild(new Switch(bus, `${onParam}.on`, 'on').el);
+
+  for (const k of knobs) {
+    group.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: 22 }).el);
+  }
+
+  return group;
 }
