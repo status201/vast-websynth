@@ -143,15 +143,17 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     refreshLabel(slot);
   }
 
-  // Highlight playback position
+  // Highlight playback position — only when viewing the bank that's playing
   engine.sampler.onStep((idx) => {
+    const match = engine.patterns.samplerEditBank === engine.arrangement.samplerPlayBank;
     for (const row of stepBtns) {
-      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(i === idx);
+      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(match && i === idx);
     }
   });
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSamplerBankChange((bank) => {
+    stepBtns.forEach((row) => row.forEach((s) => s.setPlaying(false)));
     for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
       for (let i = 0; i < SEQ_LENGTH; i++) {
         stepBtns[s]?.[i]?.setOn(bank[s]![i]!.on);

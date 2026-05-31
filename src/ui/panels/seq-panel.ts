@@ -64,13 +64,15 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   }
   root.appendChild(stepRow);
 
-  // Highlight playback position
+  // Highlight playback position — only when viewing the bank that's playing
   engine.seq.onStep((idx) => {
-    steps.forEach((s, i) => s.setPlaying(i === idx));
+    const match = engine.patterns.seqEditBank === engine.arrangement.seqPlayBank;
+    steps.forEach((s, i) => s.setPlaying(match && i === idx));
   });
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSeqBankChange((bank) => {
+    steps.forEach((s) => s.setPlaying(false));
     for (let i = 0; i < SEQ_LENGTH; i++) {
       const s = bank[i]!;
       const sb = steps[i];

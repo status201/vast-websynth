@@ -71,15 +71,17 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   }
   root.appendChild(grid);
 
-  // Highlight playback position
+  // Highlight playback position — only when viewing the bank that's playing
   engine.drums.onStep((idx) => {
+    const match = engine.patterns.drumEditBank === engine.arrangement.drumPlayBank;
     for (const row of stepBtns) {
-      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(i === idx);
+      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(match && i === idx);
     }
   });
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onDrumBankChange((bank) => {
+    stepBtns.forEach((row) => row.forEach((s) => s.setPlaying(false)));
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       for (let s = 0; s < SEQ_LENGTH; s++) {
         stepBtns[t]?.[s]?.setOn(bank[t]![s]!.on);
