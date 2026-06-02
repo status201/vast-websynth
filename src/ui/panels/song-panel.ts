@@ -89,15 +89,18 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   io.appendChild(el('div', styles.sectionLabel!, 'Song'));
 
   const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
+  dropdown.el.dataset.testid = 'song-slot-select';
   const refreshList = () => dropdown.setOptions(Song.list());
 
   const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
+  loadBtn.dataset.testid = 'song-load';
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) Song.apply(f, bus, engine.patterns, engine.arrangement);
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
+  saveBtn.dataset.testid = 'song-save';
   saveBtn.addEventListener('click', () => {
     const name = prompt('Song name:', dropdown.value || 'My Song');
     if (!name) return;
@@ -112,6 +115,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   fileInput.type = 'file';
   fileInput.accept = '.json,application/json';
   fileInput.style.display = 'none';
+  fileInput.dataset.testid = 'song-import-file';
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
@@ -124,15 +128,18 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
     fileInput.value = '';
   });
   const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
+  importBtn.dataset.testid = 'song-import';
   importBtn.addEventListener('click', () => fileInput.click());
 
   const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
+  exportBtn.dataset.testid = 'song-export';
   exportBtn.addEventListener('click', () => {
     const name = dropdown.value || 'My Song';
     Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name));
   });
 
   const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
+  newBtn.dataset.testid = 'song-new';
   newBtn.addEventListener('click', () => {
     if (!confirm('Clear all banks and chains?')) return;
     engine.patterns.restore({
@@ -189,10 +196,12 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   });
 
   const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export Song') as HTMLButtonElement;
+  expSongBtn.dataset.testid = 'song-export-audio';
   expSongBtn.title = 'Render one full pass of the arrangement, then download';
   expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
 
   const recBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Record') as HTMLButtonElement;
+  recBtn.dataset.testid = 'song-record';
   recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
   recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
   engine.recorder.onState((rec) => {
@@ -267,18 +276,37 @@ function buildChainLane(
   controls.appendChild(mk('Clear', () => { sel = -1; setChain([0], lane.enabled); }));
   root.appendChild(controls);
 
-  const render = () => {
+  // Split rendering: the chip DOM is rebuilt only when the step list actually
+  // changes; the playhead/selection classes update in place every tick. This
+  // avoids tearing down and re-creating buttons (and re-attaching listeners)
+  // on every bar advance during playback.
+  let chipEls: HTMLButtonElement[] = [];
+  let lastKey = '';
+
+  const renderPlayState = () => {
     enableBtn.classList.toggle('on', lane.enabled);
     if (sel >= lane.steps.length) sel = -1;
-    chips.innerHTML = '';
     const pos = getPos();
-    lane.steps.forEach((b, idx) => {
-      const c = el('button', styles.chip!, BANK_LABELS[b] ?? '?') as HTMLButtonElement;
-      if (idx === sel) c.classList.add('sel');
-      if (lane.enabled && idx === pos) c.classList.add('playing');
-      c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; render(); });
-      chips.appendChild(c);
+    chipEls.forEach((c, idx) => {
+      c.classList.toggle('sel', idx === sel);
+      c.classList.toggle('playing', lane.enabled && idx === pos);
     });
+  };
+
+  const renderStructure = () => {
+    chips.innerHTML = '';
+    chipEls = lane.steps.map((b, idx) => {
+      const c = el('button', styles.chip!, BANK_LABELS[b] ?? '?') as HTMLButtonElement;
+      c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; renderPlayState(); });
+      chips.appendChild(c);
+      return c;
+    });
+  };
+
+  const render = () => {
+    const key = lane.steps.join(',');
+    if (key !== lastKey) { lastKey = key; renderStructure(); }
+    renderPlayState();
   };
 
   engine.arrangement.onChange(render);

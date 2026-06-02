@@ -24,12 +24,14 @@ export class StepButton {
   }
 
   setOn(on: boolean): void {
+    if (this._on === on) return;
     this._on = on;
     this.el.classList.toggle(styles.on!, on);
   }
 
   /** Highlight the currently-playing step. */
   setPlaying(p: boolean): void {
+    if (this._playing === p) return;
     this._playing = p;
     this.el.classList.toggle(styles.playing!, p);
   }

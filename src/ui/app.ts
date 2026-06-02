@@ -88,6 +88,7 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   presetGroup.className = styles.headerGroup!;
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
+  dropdown.el.dataset.testid = 'preset-select';
   dropdown.onChange((name) => {
     const p = Presets.load(name);
     if (p) Presets.apply(bus, p);
@@ -95,6 +96,7 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
 
   const saveBtn = createButton({
     label: 'Save',
+    testId: 'preset-save',
     onClick: () => {
       const name = prompt('Preset name:', dropdown.value);
       if (!name) return;
@@ -124,6 +126,7 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
     label: 'Play',
     className: `${switchStyles.root!} ${styles.playBtn!}`,
     led: true,
+    testId: 'transport-play',
     onClick: () => {
       engine.clock.toggle();
       syncPlay();
@@ -168,7 +171,7 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
   right.appendChild(voicing.el);
 
-  const panicBtn = createButton({ label: 'Panic', onClick: () => engine.panic() });
+  const panicBtn = createButton({ label: 'Panic', testId: 'panic', onClick: () => engine.panic() });
   right.appendChild(panicBtn);
 
   const masterKnob = new Knob({ bus, paramId: 'master.volume', label: 'VOL' });

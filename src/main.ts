@@ -20,6 +20,17 @@ async function boot() {
   installShortcuts(engine, bus, bridge);
   initMIDI(engine, bus);
 
+  // Dev-only debug bridge for E2E tests (Playwright drives the dev server, so
+  // import.meta.env.DEV is true there). Lets specs read/drive state directly —
+  // e.g. window.__synth.bus.get('filter.cutoff'). Absent in production builds.
+  if (import.meta.env.DEV) {
+    (window as unknown as { __synth?: unknown }).__synth = {
+      engine,
+      bus,
+      patterns: engine.patterns,
+    };
+  }
+
   Presets.ensureFactoryPresets();
   const basic = Presets.factory()['basic'];
   if (basic) Presets.apply(bus, basic);

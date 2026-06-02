@@ -21,6 +21,7 @@ export class Strip {
   constructor(private readonly opts: StripOptions) {
     this.el = document.createElement('div');
     this.el.className = styles.root!;
+    this.el.dataset.testid = `strip-${opts.paramId}`;
 
     this.thumb = document.createElement('div');
     this.thumb.className = styles.thumb!;

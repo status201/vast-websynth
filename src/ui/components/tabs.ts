@@ -38,6 +38,7 @@ export class TabContainer {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = styles.tab!;
+      b.dataset.testid = `tab-${t.id}`;
       b.textContent = t.label;
       // Clicking a tab while collapsed expands first, then activates it.
       b.addEventListener('click', () => {
@@ -52,6 +53,7 @@ export class TabContainer {
       const shell = document.createElement('div');
       shell.className = styles.content!;
       shell.dataset.tabId = t.id;
+      shell.dataset.testid = `panel-${t.id}`;
       shell.appendChild(t.content);
       this.body.appendChild(shell);
     }

@@ -9,10 +9,12 @@ export class Segmented {
   constructor(bus: ParamBus, paramId: string, labels: string[], icons?: string[]) {
     this.el = document.createElement('div');
     this.el.className = icons ? `${styles.root!} ${styles.icons!}` : styles.root!;
+    this.el.dataset.testid = `seg-${paramId}`;
 
     labels.forEach((label, idx) => {
       const b = document.createElement('button');
       b.type = 'button';
+      b.dataset.testid = `seg-${paramId}-${idx}`;
       const glyph = icons?.[idx];
       if (glyph) {
         b.innerHTML = glyph;

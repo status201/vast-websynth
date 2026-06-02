@@ -32,6 +32,7 @@ export class Knob {
 
     this.el = document.createElement('div');
     this.el.className = styles.root!;
+    this.el.dataset.testid = `knob-${opts.paramId}`;
     if (opts.size) this.el.style.setProperty('--knob-size', `${opts.size}px`);
 
     const label = document.createElement('div');

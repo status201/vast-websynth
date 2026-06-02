@@ -3,6 +3,7 @@ import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { StepButton } from '../components/step-button';
+import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { DRUM_TRACK_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
@@ -50,6 +51,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
     const label = document.createElement('button');
     label.className = styles.trackLabel!;
+    label.dataset.testid = `drum-track-${t}`;
     label.textContent = DRUM_TRACK_LABELS[t] ?? `T${t}`;
     label.title = 'Click to audition';
     label.addEventListener('click', () => engine.drums.triggerTrack(t, 0.9));
@@ -67,6 +69,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     for (let s = 0; s < SEQ_LENGTH; s++) {
       const cell = engine.patterns.drum[t]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
+      sb.el.dataset.testid = `drum-step-${t}-${s}`;
       sb.setOn(cell.on);
       sb.el.classList.add(StepButton.drumCellClass);
       sb.el.addEventListener('click', () => {
@@ -82,16 +85,15 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   root.appendChild(grid);
 
   // Highlight playback position — only when viewing the bank that's playing
+  const highlighter = new PlayheadHighlighter(stepBtns);
   engine.drums.onStep((idx) => {
     const match = engine.patterns.drumEditBank === engine.arrangement.drumPlayBank;
-    for (const row of stepBtns) {
-      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(match && i === idx);
-    }
+    highlighter.update(idx, match);
   });
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onDrumBankChange((bank) => {
-    stepBtns.forEach((row) => row.forEach((s) => s.setPlaying(false)));
+    highlighter.clear();
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       for (let s = 0; s < SEQ_LENGTH; s++) {
         stepBtns[t]?.[s]?.setOn(bank[t]![s]!.on);

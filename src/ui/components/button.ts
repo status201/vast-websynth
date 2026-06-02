@@ -14,6 +14,8 @@ export interface ButtonOptions {
   onClick?: (ev: MouseEvent) => void;
   /** Render `<span.switch-led>` + `<span.switch-label>` (e.g. Play/Stop). */
   led?: boolean;
+  /** Stable `data-testid` for E2E selectors. */
+  testId?: string;
 }
 
 export function createButton(opts: ButtonOptions): HTMLButtonElement {
@@ -33,6 +35,7 @@ export function createButton(opts: ButtonOptions): HTMLButtonElement {
     btn.textContent = opts.label;
   }
 
+  if (opts.testId) btn.dataset.testid = opts.testId;
   if (opts.onClick) btn.addEventListener('click', opts.onClick);
   return btn;
 }

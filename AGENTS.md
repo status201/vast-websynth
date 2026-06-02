@@ -12,6 +12,7 @@ npm run dev        # dev server (vite --host)
 npm run typecheck  # tsc --noEmit — verify changes
 npm run build      # tsc --noEmit && vite build
 npm test           # vitest run — unit tests (jsdom)
+npm run e2e        # playwright test — browser E2E (Chromium)
 ```
 
 ### What this is

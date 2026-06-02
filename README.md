@@ -46,6 +46,7 @@ npm run build    # tsc typecheck + vite production build to dist/
 npm run preview  # serve the production build
 npm run typecheck
 npm test         # vitest run — unit tests (jsdom)
+npm run e2e      # playwright run — browser end-to-end tests (Chromium)
 ```
 
 Audio starts behind a **"Tap to start"** overlay — browsers require a user
@@ -88,4 +89,5 @@ src/
   styles/            Global CSS: base.css (reset), theme.css (custom properties), layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — component/panel-scoped, imported by components)
 public/worklets/     ladder-filter.js (runs on the audio thread)
+e2e/                 Playwright end-to-end specs (+ playwright.config.ts)
 ```

@@ -6,6 +6,7 @@ export class Scope {
   readonly el: HTMLCanvasElement;
   private mode: ScopeMode = 'wave';
   private rafId = 0;
+  private readonly ctx: CanvasRenderingContext2D | null;
   private readonly waveData: Uint8Array<ArrayBuffer>;
   private readonly freqData: Uint8Array<ArrayBuffer>;
   private bitmapW = 0;
@@ -14,6 +15,7 @@ export class Scope {
   constructor(private readonly analyser: AnalyserNode) {
     this.el = document.createElement('canvas');
     this.el.className = styles.root!;
+    this.ctx = this.el.getContext('2d');
     this.waveData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     this.freqData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
     this.start();
@@ -48,7 +50,7 @@ export class Scope {
 
   private draw(): void {
     if (!this.syncSize()) return;
-    const ctx = this.el.getContext('2d');
+    const ctx = this.ctx;
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     // Set transform fresh each frame — no compounding.

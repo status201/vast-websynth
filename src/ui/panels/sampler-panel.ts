@@ -3,6 +3,7 @@ import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { StepButton } from '../components/step-button';
+import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { openRecordSoundModal } from '../components/record-sound-modal';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
@@ -33,6 +34,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;
+  recBtn.dataset.testid = 'sampler-record';
   recBtn.textContent = 'Record a sound';
   recBtn.title = 'Record a sound from your microphone';
   recBtn.addEventListener('click', () => openRecordSoundModal(engine));
@@ -96,6 +98,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     fileInput.type = 'file';
     fileInput.accept = 'audio/*,.wav,.mp3';
     fileInput.style.display = 'none';
+    fileInput.dataset.testid = `sampler-file-${slot}`;
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files?.[0];
       if (!f) return;
@@ -111,6 +114,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
     const loadBtn = document.createElement('button');
     loadBtn.className = samplerStyles.load!;
+    loadBtn.dataset.testid = `sampler-load-${slot}`;
     loadBtn.textContent = 'Load';
     loadBtn.title = 'Load a WAV/MP3 file into this slot';
     loadBtn.addEventListener('click', () => fileInput.click());
@@ -118,12 +122,14 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
     const label = document.createElement('button');
     label.className = samplerStyles.name!;
+    label.dataset.testid = `sampler-name-${slot}`;
     label.addEventListener('click', () => engine.sampler.triggerSlot(slot, 0.9));
     labels[slot] = label;
     ctrls.appendChild(label);
 
     const editBtn = document.createElement('button');
     editBtn.className = samplerStyles.edit!;
+    editBtn.dataset.testid = `sampler-edit-${slot}`;
     editBtn.textContent = '✎';
     editBtn.title = 'Edit this sample';
     editBtn.style.display = 'none';
@@ -148,6 +154,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     for (let s = 0; s < SEQ_LENGTH; s++) {
       const cell = engine.patterns.sampler[slot]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
+      sb.el.dataset.testid = `sampler-step-${slot}-${s}`;
       sb.setOn(cell.on);
       sb.el.classList.add(StepButton.drumCellClass);
       sb.el.addEventListener('click', () => {
@@ -164,16 +171,15 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   }
 
   // Highlight playback position — only when viewing the bank that's playing
+  const highlighter = new PlayheadHighlighter(stepBtns);
   engine.sampler.onStep((idx) => {
     const match = engine.patterns.samplerEditBank === engine.arrangement.samplerPlayBank;
-    for (const row of stepBtns) {
-      for (let i = 0; i < row.length; i++) row[i]!.setPlaying(match && i === idx);
-    }
+    highlighter.update(idx, match);
   });
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSamplerBankChange((bank) => {
-    stepBtns.forEach((row) => row.forEach((s) => s.setPlaying(false)));
+    highlighter.clear();
     for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
       for (let i = 0; i < SEQ_LENGTH; i++) {
         stepBtns[s]?.[i]?.setOn(bank[s]![i]!.on);

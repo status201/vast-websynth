@@ -9,6 +9,7 @@ export class Switch {
     this.el = document.createElement('button');
     this.el.className = styles.root!;
     this.el.type = 'button';
+    this.el.dataset.testid = `switch-${paramId}`;
     const led = document.createElement('span');
     led.className = styles.led!;
     this.el.appendChild(led);

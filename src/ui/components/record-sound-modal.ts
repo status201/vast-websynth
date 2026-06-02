@@ -121,7 +121,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
 
     const actions = document.createElement('div');
     actions.className = recStyles.actions!;
-    const recBtn = createButton({ label: 'Record', led: true });
+    const recBtn = createButton({ label: 'Record', led: true, testId: 'mic-record-toggle' });
     let recording = false;
     recBtn.addEventListener('click', async () => {
       if (recording) {
@@ -148,7 +148,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
       recBtn.classList.add('on'); // global state class
       setButtonLabel(recBtn, 'Stop');
     });
-    const closeBtn = createButton({ label: 'Close', onClick: () => modal.close() });
+    const closeBtn = createButton({ label: 'Close', testId: 'mic-close', onClick: () => modal.close() });
     actions.appendChild(recBtn);
     actions.appendChild(closeBtn);
     body.appendChild(actions);
@@ -386,6 +386,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     ): void => {
       const btn = createButton({
         label,
+        testId: `mic-fx-${label.toLowerCase().replace(/\s+/g, '-')}`,
         onClick: () => {
           const cur = working;
           if (!cur) return;
@@ -420,6 +421,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     editRow.className = recStyles.fxRow!;
     const undoBtn = createButton({
       label: 'Undo',
+      testId: 'mic-undo',
       onClick: () => {
         const snap = undoSnapshot;
         if (!snap) return;
@@ -429,13 +431,14 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     });
     const resetBtn = createButton({
       label: 'Reset',
+      testId: 'mic-reset',
       onClick: () => {
         if (!original) return;
         undoSnapshot = null;
         afterMutate(cloneCaptured(original), 'Reset to original');
       },
     });
-    const playBtn = createButton({ label: 'Play', led: true });
+    const playBtn = createButton({ label: 'Play', led: true, testId: 'mic-play' });
     playBtn.addEventListener('click', () => {
       if (previewSrc) stopPreview();
       else playSelection();
@@ -460,11 +463,13 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
       slotOptions,
       slotOptions[Math.max(0, Math.min(defaultSlot, SAMPLER_SLOT_COUNT - 1))],
     );
+    picker.el.dataset.testid = 'mic-slot-select';
 
     const finalClip = (): CapturedAudio => crop(working!, cropStart, cropEnd);
 
     const wavBtn = createButton({
       label: 'Save WAV',
+      testId: 'mic-save-wav',
       onClick: () => {
         const c = finalClip();
         const fn = `recording-${timestamp()}.wav`;
@@ -475,6 +480,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     });
     const mp3Btn = createButton({
       label: 'Save MP3',
+      testId: 'mic-save-mp3',
       onClick: () => {
         const c = finalClip();
         const fn = `recording-${timestamp()}.mp3`;
@@ -485,6 +491,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
     });
     const loadBtn = createButton({
       label: 'Load into Sampler',
+      testId: 'mic-load',
       onClick: () => {
         const slot = slotOptions.indexOf(picker.value);
         if (slot < 0) return;
@@ -498,7 +505,7 @@ export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = 
         modal.close();
       },
     });
-    const closeBtn = createButton({ label: 'Close', onClick: () => modal.close() });
+    const closeBtn = createButton({ label: 'Close', testId: 'mic-close', onClick: () => modal.close() });
 
     const pickWrap = document.createElement('div');
     pickWrap.className = recStyles.slot!;

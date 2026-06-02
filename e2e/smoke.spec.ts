@@ -1,0 +1,72 @@
+import { test, expect } from '@playwright/test';
+
+/**
+ * Boot smoke test — the one thing unit tests can't cover: that the real app
+ * boots in a browser, unlocks its AudioContext behind the "Tap to start"
+ * gesture (Playwright clicks are trusted gestures, so `engine.resume()` runs),
+ * loads the two AudioWorklets, and mounts a working UI.
+ *
+ * Selectors are text/role-based only — CSS Modules hash every class name, so
+ * the only stable handles are button labels, roles, and the literal global
+ * state classes `.on` (play) and `.active` (tab).
+ */
+test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
+  const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+  const dialogs: string[] = [];
+
+  // Wire capture BEFORE navigating so nothing slips through during boot.
+  page.on('pageerror', (err) => pageErrors.push(err.message));
+  page.on('dialog', (d) => {
+    // main.ts shows alert(...) only if boot throws — record and dismiss so a
+    // boot failure fails the test instead of hanging on a modal dialog.
+    dialogs.push(d.message());
+    void d.dismiss();
+  });
+  page.on('console', (msg) => {
+    if (msg.type() !== 'error') return;
+    // Defensively ignore resource-load noise (404s etc.); we assert on app code.
+    if (/Failed to load resource/i.test(msg.text())) return;
+    consoleErrors.push(msg.text());
+  });
+
+  await page.goto('/');
+
+  // Start modal is up.
+  const startBtn = page.getByRole('button', { name: 'Tap to start' });
+  await expect(startBtn).toBeVisible();
+
+  // Trusted click → unlocks audio, modal fades out (gets `.hidden`, then removed).
+  await startBtn.click();
+  await expect(startBtn).toBeHidden();
+
+  // Header mounted. `exact` avoids matching the modal's combined "VAST G1-J5".
+  await expect(page.getByText('G1-J5', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Panic' })).toBeVisible();
+
+  // Transport toggles label + the global `.on` state class, then back.
+  // `exact` (case-sensitive) distinguishes the header "Play" from the
+  // Arpeggiator's lowercase "play" segmented option (ARP_PATTERN_LABELS).
+  const play = page.getByRole('button', { name: 'Play', exact: true });
+  await play.click();
+  const stop = page.getByRole('button', { name: 'Stop', exact: true });
+  await expect(stop).toBeVisible();
+  await expect(stop).toHaveClass(/\bon\b/);
+  await stop.click();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+
+  // Pattern tabs activate on click (literal `.active` class). `exact` is
+  // case-sensitive — the capitalized tab labels won't match lowercase
+  // siblings (e.g. the Song panel's "sampler"/"seq" chain-lane labels).
+  for (const label of ['Sequencer', 'Drum Machine', 'Sampler', 'Song', 'Arpeggiator']) {
+    const tab = page.getByRole('button', { name: label, exact: true });
+    await tab.click();
+    await expect(tab).toHaveClass(/\bactive\b/);
+  }
+
+  // No uncaught exceptions, no boot-failure alert, no app-level console errors.
+  expect(pageErrors).toEqual([]);
+  expect(dialogs).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
