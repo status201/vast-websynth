@@ -90,6 +90,11 @@ export class ParamBus {
     for (const [id, v] of Object.entries(snapshot)) this.set(id, v);
   }
 
+  /** Reset every registered param to its default (fires listeners). */
+  resetDefaults(): void {
+    for (const def of this.defs.values()) this.set(def.id, def.default);
+  }
+
   ids(): ParamId[] {
     return [...this.defs.keys()];
   }

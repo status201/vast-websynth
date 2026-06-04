@@ -51,6 +51,7 @@ export const Song = {
   },
 
   apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement): void {
+    bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
     patterns.restore({
       seqBanks: file.seqBanks,

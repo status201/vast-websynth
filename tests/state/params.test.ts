@@ -65,6 +65,16 @@ describe('ParamBus', () => {
     expect(b.get('y')).toBe(60);
   });
 
+  it('resetDefaults restores every registered param to its default', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.set('fx.drum.delay.on', 1);
+    bus.set('transport.bpm', 200);
+    bus.resetDefaults();
+    expect(bus.get('fx.drum.delay.on')).toBe(0);
+    expect(bus.get('transport.bpm')).toBe(120);
+  });
+
   it('dispatches note events to onNote listeners', () => {
     const bus = new ParamBus();
     const events: Array<[boolean, number, number]> = [];

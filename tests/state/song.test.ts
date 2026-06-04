@@ -106,6 +106,18 @@ describe('Song', () => {
     expect(patterns.seqBanks[0]![0]!.note).toBe(36);
   });
 
+  it('apply() resets params omitted from the snapshot back to their defaults', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArr();
+
+    bus.set('fx.drum.delay.on', 1);                   // simulate a prior full snapshot
+    Song.apply(demo(), bus, patterns, arr as never);  // Knight Rider omits the key
+
+    expect(bus.get('fx.drum.delay.on')).toBe(0);      // back to registered default
+  });
+
   it('capture() snapshots params, banks and both chain lanes', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
