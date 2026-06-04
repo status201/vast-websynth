@@ -24,6 +24,9 @@ export class Arpeggiator {
 
   private lastTriggered: { note: number; when: number; release: number } | null = null;
 
+  /** True while the transport is running because the arp auto-started it. */
+  private startedTransport = false;
+
   passthroughSuppressed = false;
 
   constructor(
@@ -38,6 +41,9 @@ export class Arpeggiator {
           this.heldOrder.push(note);
           this.heldSet.add(note);
         }
+        // Holding a key with the arp engaged starts the transport itself, so
+        // you hear the arpeggio without separately pressing Play.
+        this.maybeStartTransport();
       } else {
         this.heldSet.delete(note);
         const idx = this.heldOrder.indexOf(note);
@@ -45,11 +51,29 @@ export class Arpeggiator {
         if (this.heldOrder.length === 0) {
           this.lastTriggered = null;
           this.cursor = 0;
+          this.maybeStopTransport();
         }
       }
     });
 
     clock.onTick((step, when) => this.onTick(step, when));
+    // If the transport stops by any other means (Play toggle, panic, export),
+    // the arp no longer owns it — so a later key release won't stop it again.
+    clock.onStop(() => { this.startedTransport = false; });
+  }
+
+  /** Start the transport when the arp gains its first held note. */
+  private maybeStartTransport(): void {
+    if (this.clock.playing) return; // already running → don't take ownership
+    this.startedTransport = true;
+    this.clock.start();
+  }
+
+  /** Stop the transport on key-release — but only if the arp started it. */
+  private maybeStopTransport(): void {
+    if (!this.startedTransport) return;
+    this.startedTransport = false;
+    this.clock.stop();
   }
 
   setEnabled(on: boolean): void {
@@ -62,6 +86,7 @@ export class Arpeggiator {
       this.heldOrder = [];
       this.heldSet.clear();
       this.lastTriggered = null;
+      this.maybeStopTransport(); // relinquish a transport the arp auto-started
     }
   }
 

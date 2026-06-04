@@ -57,4 +57,7 @@ export class TestClock implements TickSubscriber {
     this.playing = false;
     for (const l of this.stopListeners) l();
   }
+
+  start(): void { this.fireStart(); }
+  stop(): void { this.fireStop(); }
 }

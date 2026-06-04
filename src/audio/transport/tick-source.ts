@@ -8,4 +8,6 @@ export interface TickSubscriber {
   onStop(fn: () => void): () => void;
   sixteenthDuration(): number;
   setBpm(bpm: number): void;
+  start(): void;
+  stop(): void;
 }
