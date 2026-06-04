@@ -6,6 +6,7 @@ import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { UiBridge } from './ui/ui-bridge';
 import { Modal } from './ui/components/modal';
+import type { Onboarding } from './ui/onboarding';
 
 async function boot() {
   // Build the synth and mount the full UI immediately. The AudioContext is
@@ -16,7 +17,7 @@ async function boot() {
   await engine.init();
 
   const bridge = new UiBridge();
-  mountApp(document.getElementById('app')!, engine, bus, bridge);
+  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge);
   installShortcuts(engine, bus, bridge);
   initMIDI(engine, bus);
 
@@ -35,11 +36,11 @@ async function boot() {
   const basic = Presets.factory()['basic'];
   if (basic) Presets.apply(bus, basic);
 
-  showStartModal(engine);
+  showStartModal(engine, onboarding);
 }
 
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */
-function showStartModal(engine: Engine): void {
+function showStartModal(engine: Engine, onboarding: Onboarding): void {
   const backdrop = document.createElement('div');
   backdrop.className = `${Modal.backdropClass} start-backdrop`;
 
@@ -69,6 +70,11 @@ function showStartModal(engine: Engine): void {
     await engine.resume(); // invoked within the gesture → unlocks audio
     backdrop.classList.add('hidden');
     setTimeout(() => backdrop.remove(), 300);
+    // First-visit only: launch the guided tour once the start modal is gone and
+    // audio is unlocked (so the interactive "press a key" step makes sound).
+    if (onboarding.shouldAutoLaunch()) {
+      setTimeout(() => onboarding.startTour(), 350);
+    }
   };
   startBtn.addEventListener('click', start);
 

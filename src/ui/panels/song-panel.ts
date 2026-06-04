@@ -34,7 +34,13 @@ function momentary(label: string, on: () => void, off: () => void): HTMLButtonEl
   return b;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
+export interface SongPanel {
+  el: HTMLElement;
+  /** Load a demo by name AND sync the slot dropdown (shared with the demo buttons). */
+  loadDemo: (name: string) => void;
+}
+
+export function buildSongPanel(bus: ParamBus, engine: Engine): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // ---- Chain lanes ----
@@ -91,6 +97,16 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const dropdown = new Dropdown(Song.list(), Song.list()[0] ?? '');
   dropdown.el.dataset.testid = 'song-slot-select';
   const refreshList = () => dropdown.setOptions(Song.list());
+
+  // Shared demo-load: apply the song AND sync the slot dropdown. Used by the
+  // demo buttons and by the guided tour (so the dropdown reflects what loaded).
+  const loadDemo = (name: string): void => {
+    const file = DEMO_SONGS[name];
+    if (!file) return;
+    Song.apply(file, bus, engine.patterns, engine.arrangement);
+    refreshList();
+    dropdown.setValue(name);
+  };
 
   const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
   loadBtn.dataset.testid = 'song-load';
@@ -166,11 +182,8 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   io.appendChild(el('span', styles.ioLabel!, 'Demos:'));
   for (const name of Object.keys(DEMO_SONGS)) {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
-    d.addEventListener('click', () => {
-      Song.apply(DEMO_SONGS[name]!, bus, engine.patterns, engine.arrangement);
-      refreshList();
-      dropdown.setValue(name);
-    });
+    d.dataset.testid = `song-demo-${name}`;
+    d.addEventListener('click', () => loadDemo(name));
     io.appendChild(d);
   }
   io.appendChild(createAiPromptButton(bus));
@@ -215,7 +228,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): HTMLElement {
   aio.appendChild(recBtn);
   root.appendChild(aio);
 
-  return root;
+  return { el: root, loadDemo };
 }
 
 function emptySamplerBanks() {

@@ -16,8 +16,12 @@ import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
+import { createHelpButton } from './components/help';
+import { createOnboarding, type Onboarding } from './onboarding';
+import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
 import { Presets } from '../state/preset';
+import { Song, DEMO_SONGS } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
@@ -36,22 +40,50 @@ const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matche
  *  stay large enough to play. */
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
-export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge): void {
+export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge): Onboarding {
   root.innerHTML = '';
 
-  root.appendChild(buildHeader(engine, bus, bridge));
+  // Late-bound hooks, filled once their panels are built; the tour calls them.
+  let fxExpand: () => void = () => {};
+  // Default loads a demo without UI sync; replaced by the Song panel's own
+  // loader (which also syncs the slot dropdown) once buildPatternRow runs.
+  let songLoadDemo: (name: string) => void = (name) => {
+    const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
+    if (file) Song.apply(file, bus, engine.patterns, engine.arrangement);
+  };
+
+  // Runtime hooks for the tour. `bridge.toggleTransport` is set inside
+  // buildHeader (runs before any tour starts), so reading it lazily is safe.
+  const ctx: TourCtx = {
+    bus,
+    engine,
+    toggleTransport: () => bridge.toggleTransport(),
+    applyDemo: (name) => songLoadDemo(name),
+    resumeAudio: () => engine.resume(),
+    expandFx: () => fxExpand(),
+  };
+  const onboarding = createOnboarding(ctx);
+
+  root.appendChild(buildHeader(engine, bus, bridge, onboarding));
   root.appendChild(buildMain(bus));
-  root.appendChild(buildFx(bus));
-  root.appendChild(buildPatternRow(engine, bus));
+  const fx = buildFx(bus);
+  fxExpand = fx.expand;
+  root.appendChild(fx.el);
+  const patternRow = buildPatternRow(engine, bus);
+  songLoadDemo = patternRow.loadDemo;
+  root.appendChild(patternRow.el);
   root.appendChild(buildBottom(engine, bus, bridge));
+
+  return onboarding;
 }
 
-function panel(title: string, build: (body: HTMLElement) => void): HTMLElement {
+function panel(title: string, build: (body: HTMLElement) => void, helpId?: string): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.panel!;
   const t = document.createElement('div');
   t.className = styles.panelTitle!;
   t.textContent = title;
+  if (helpId) t.dataset.help = helpId;
   el.appendChild(t);
   const body = document.createElement('div');
   body.className = styles.panelBody!;
@@ -60,9 +92,10 @@ function panel(title: string, build: (body: HTMLElement) => void): HTMLElement {
   return el;
 }
 
-function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLElement {
+function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
+  el.dataset.testid = 'app-header';
 
   // Brand block: VAST G1-J5 / Vast Audio Synthesis Technology
   const brand = document.createElement('div');
@@ -112,6 +145,9 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
   presetGroup.appendChild(createAboutButton());
+  presetGroup.appendChild(
+    createHelpButton({ startTour: onboarding.startTour, toggleHelpMode: onboarding.toggleHelpMode }),
+  );
   el.appendChild(presetGroup);
 
   const spacer = document.createElement('div');
@@ -182,19 +218,21 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   return el;
 }
 
-function buildPatternRow(engine: Engine, bus: ParamBus): HTMLElement {
+function buildPatternRow(engine: Engine, bus: ParamBus): { el: HTMLElement; loadDemo: (name: string) => void } {
+  const song = buildSongPanel(bus, engine);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
     { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
-    { id: 'song', label: 'Song', content: buildSongPanel(bus, engine) },
+    { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
     collapsedByDefault: isCompact,
   });
   tabs.el.classList.add(styles.patternRow!);
-  return tabs.el;
+  tabs.el.dataset.testid = 'pattern-row';
+  return { el: tabs.el, loadDemo: song.loadDemo };
 }
 
 function buildMain(bus: ParamBus): HTMLElement {
@@ -208,7 +246,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
     ]));
-  }));
+  }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
     b.appendChild(new Segmented(bus, 'osc2.wave', WAVE_LABELS, WAVE_ICONS).el);
@@ -229,7 +267,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'unison.voices', label: 'UNISON' }).el,
       new Knob({ bus, paramId: 'unison.detune', label: 'SPREAD' }).el,
     ]));
-  }));
+  }, 'subuni'));
 
   main.appendChild(panel('MIXER', (b) => {
     b.appendChild(row([
@@ -238,7 +276,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'analog.drift', label: 'DRIFT' }).el,
     ]));
     b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
-  }));
+  }, 'mixer'));
 
   main.appendChild(panel('FILTER', (b) => {
     b.appendChild(row([
@@ -249,7 +287,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
       new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
     ]));
-  }));
+  }, 'filter'));
 
   main.appendChild(panel('AMP ENV', (b) => {
     b.appendChild(row([
@@ -258,7 +296,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.amp.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.amp.release', label: 'R' }).el,
     ]));
-  }));
+  }, 'ampenv'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
     b.appendChild(row([
@@ -267,7 +305,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
     ]));
-  }));
+  }, 'filterenv'));
 
   main.appendChild(panel('LFO', (b) => {
     b.appendChild(new Segmented(bus, 'lfo.wave', WAVE_LABELS, WAVE_ICONS).el);
@@ -276,14 +314,15 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
     ]));
     b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
-  }));
+  }, 'lfo'));
 
   return main;
 }
 
-function buildFx(bus: ParamBus): HTMLElement {
+function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   const section = document.createElement('div');
   section.className = styles.fxSection!;
+  section.dataset.testid = 'fx';
 
   const bar = document.createElement('div');
   bar.className = styles.fxSectionBar!;
@@ -291,12 +330,11 @@ function buildFx(bus: ParamBus): HTMLElement {
   title.className = styles.fxSectionTitle!;
   title.textContent = 'FX';
   bar.appendChild(title);
-  bar.appendChild(
-    createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
-      defaultCollapsed: isCompact,
-      trigger: bar, // whole FX bar toggles, not just the chevron
-    }).el,
-  );
+  const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
+    defaultCollapsed: isCompact,
+    trigger: bar, // whole FX bar toggles, not just the chevron
+  });
+  bar.appendChild(collapse.el);
   section.appendChild(bar);
 
   const fx = document.createElement('div');
@@ -306,37 +344,43 @@ function buildFx(bus: ParamBus): HTMLElement {
     { id: 'fx.dist.drive', label: 'DRIVE' },
     { id: 'fx.dist.tone', label: 'TONE' },
     { id: 'fx.dist.mix', label: 'MIX' },
-  ]));
+  ], 'fx.dist'));
 
   fx.appendChild(fxPanel('Wah', bus, 'fx.wah.on', [
     { id: 'fx.wah.rate', label: 'RATE' },
     { id: 'fx.wah.depth', label: 'DEPTH' },
     { id: 'fx.wah.q', label: 'Q' },
-  ]));
+  ], 'fx.wah'));
 
   fx.appendChild(fxPanel('Phaser', bus, 'fx.phaser.on', [
     { id: 'fx.phaser.rate', label: 'RATE' },
     { id: 'fx.phaser.depth', label: 'DEPTH' },
     { id: 'fx.phaser.feedback', label: 'FB' },
-  ]));
+  ], 'fx.phaser'));
 
   fx.appendChild(fxPanel('Delay', bus, 'fx.delay.on', [
     { id: 'fx.delay.time', label: 'TIME' },
     { id: 'fx.delay.feedback', label: 'FB' },
     { id: 'fx.delay.mix', label: 'MIX' },
-  ]));
+  ], 'fx.delay'));
 
   fx.appendChild(fxPanel('Reverb', bus, 'fx.reverb.on', [
     { id: 'fx.reverb.size', label: 'SIZE' },
     { id: 'fx.reverb.damp', label: 'DAMP' },
     { id: 'fx.reverb.mix', label: 'MIX' },
-  ]));
+  ], 'fx.reverb'));
 
   section.appendChild(fx);
-  return section;
+  return { el: section, expand: collapse.expand };
 }
 
-function fxPanel(title: string, bus: ParamBus, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
+function fxPanel(
+  title: string,
+  bus: ParamBus,
+  onParam: string,
+  knobs: Array<{ id: string; label: string }>,
+  helpId: string,
+): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.fxPanel!;
 
@@ -345,6 +389,7 @@ function fxPanel(title: string, bus: ParamBus, onParam: string, knobs: Array<{ i
   const t = document.createElement('div');
   t.className = styles.fxTitle!;
   t.textContent = title;
+  t.dataset.help = helpId;
   header.appendChild(t);
   header.appendChild(new Switch(bus, onParam, 'on').el);
   el.appendChild(header);
@@ -379,6 +424,7 @@ function buildBottom(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
   toggle.className = `${switchStyles.root!} ${styles.scopeToggle!}`;
+  toggle.dataset.testid = 'scope-toggle';
   toggle.textContent = 'Wave';
   let isWave = true;
   toggle.addEventListener('click', () => {
@@ -393,6 +439,7 @@ function buildBottom(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLEleme
 
   const kbWrap = document.createElement('div');
   kbWrap.className = styles.keyboardWrap!;
+  kbWrap.dataset.testid = 'keyboard';
   // Phones get 2 octaves (centred higher) so individual keys stay tappable;
   // wider screens keep the full 3-octave C3–C6 range.
   const phone = isPhone();

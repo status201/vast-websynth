@@ -1,0 +1,139 @@
+/* Guided-tour spotlight overlay + callout, and the help-mode (i) badges.
+   Sits above panels (z 100) and modals (z 1000); the tour only launches once
+   the start modal is gone, so there is never overlay contention. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none; /* clicks pass through to the real control underneath */
+  transition: opacity 200ms ease;
+}
+
+.overlay:global(.hidden) {
+  opacity: 0;
+}
+
+/* The cut-out: a transparent rect whose huge box-shadow dims everything else,
+   plus an accent ring + glow. pointer-events:none keeps the control clickable. */
+.spotlight {
+  position: fixed;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 9999px rgba(8, 6, 3, 0.78),
+    0 0 0 2px var(--accent),
+    0 0 22px 6px var(--accent-glow);
+  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+/* Centered (no-target) steps: a plain full-screen dim, no ring. */
+.centered {
+  box-shadow: none;
+  background: rgba(8, 6, 3, 0.82);
+  backdrop-filter: blur(2px);
+  border-radius: 0;
+}
+
+.callout {
+  position: fixed;
+  pointer-events: auto;
+  z-index: 1101;
+  width: min(330px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  padding: 16px 18px;
+  color: var(--text);
+}
+
+.calloutTitle {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-secondary);
+  text-shadow: 0 0 6px var(--accent-secondary-glow), 0 1px 0 rgba(0, 0, 0, 0.85);
+}
+
+.calloutBody {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.calloutBody strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.confirm {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.progress {
+  margin-right: auto;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Help mode (i) badges ---- */
+
+.badgeLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 900; /* above panels (100), below modals (1000) so a help modal covers the badges */
+  pointer-events: none; /* only the badges themselves are clickable */
+}
+
+.badge {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg-deep);
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 10px var(--accent-glow);
+  animation: tourPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tourPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  50% {
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+}

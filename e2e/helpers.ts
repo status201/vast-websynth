@@ -5,6 +5,15 @@ import { type Page, expect } from '@playwright/test';
  * (which resumes the AudioContext). Shared by specs that need a booted app.
  */
 export async function gotoAndStart(page: Page): Promise<void> {
+  // Suppress the first-visit onboarding tour so its overlay doesn't intercept
+  // these specs (the dedicated onboarding spec clears this flag itself).
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('websynth.onboarding.done', '1');
+    } catch {
+      /* ignore */
+    }
+  });
   await page.goto('/');
   const startBtn = page.getByRole('button', { name: 'Tap to start' });
   await startBtn.click();
