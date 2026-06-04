@@ -146,7 +146,12 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding
   presetGroup.appendChild(saveBtn);
   presetGroup.appendChild(createAboutButton());
   presetGroup.appendChild(
-    createHelpButton({ startTour: onboarding.startTour, toggleHelpMode: onboarding.toggleHelpMode }),
+    createHelpButton({
+      startTour: onboarding.startTour,
+      toggleHelpMode: onboarding.toggleHelpMode,
+      isHelpModeActive: onboarding.isHelpModeActive,
+      onHelpModeChange: onboarding.onHelpModeChange,
+    }),
   );
   el.appendChild(presetGroup);
 

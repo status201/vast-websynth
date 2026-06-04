@@ -11,6 +11,10 @@ export interface Onboarding {
   startTour(): void;
   /** Toggle the help-mode (i) badges. */
   toggleHelpMode(): void;
+  /** Whether the help-mode badges are currently showing. */
+  isHelpModeActive(): boolean;
+  /** Subscribe to help-mode on/off changes (e.g. to light up the Help button). */
+  onHelpModeChange(cb: (active: boolean) => void): void;
   /** True the first time only — used by main.ts to auto-launch. */
   shouldAutoLaunch(): boolean;
 }
@@ -18,6 +22,7 @@ export interface Onboarding {
 export function createOnboarding(ctx: TourCtx): Onboarding {
   const helpMode = new HelpMode();
   let tour: Tour | null = null;
+  const helpListeners: Array<(active: boolean) => void> = [];
 
   const markDone = (): void => {
     try {
@@ -38,6 +43,13 @@ export function createOnboarding(ctx: TourCtx): Onboarding {
     },
     toggleHelpMode(): void {
       helpMode.toggle();
+      for (const l of helpListeners) l(helpMode.isActive);
+    },
+    isHelpModeActive(): boolean {
+      return helpMode.isActive;
+    },
+    onHelpModeChange(cb: (active: boolean) => void): void {
+      helpListeners.push(cb);
     },
     shouldAutoLaunch(): boolean {
       try {

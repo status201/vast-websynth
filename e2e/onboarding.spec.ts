@@ -69,6 +69,9 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await page.getByTestId('help-button').click();
   await page.getByTestId('help-toggle-badges').click();
 
+  // The Help button now reads as active (orange) while the badges show.
+  await expect(page.getByTestId('help-button')).toHaveClass(/toggleActive/);
+
   // A section badge anchored via `data-help` opens its contextual modal.
   const subuni = page.getByTestId('help-badge-subuni');
   await expect(subuni).toBeVisible();
@@ -93,10 +96,13 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // expand again
   await expect(distBadge).toBeVisible();
 
-  // Toggle badges off again → no chrome left behind.
+  // Toggle badges off again → no chrome left behind. Reopening the menu shows
+  // the toggle button itself active; turning it off clears the Help button.
   await page.getByTestId('help-button').click();
+  await expect(page.getByTestId('help-toggle-badges')).toHaveClass(/toggleActive/);
   await page.getByTestId('help-toggle-badges').click();
   await expect(arpBadge).toBeHidden();
+  await expect(page.getByTestId('help-button')).not.toHaveClass(/toggleActive/);
 
   // Replay the tour on demand.
   await page.getByTestId('help-button').click();

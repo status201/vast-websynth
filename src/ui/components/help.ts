@@ -3,14 +3,21 @@
 import { Modal } from './modal';
 import { createButton } from './button';
 import switchStyles from '../styles/switch.module.css';
+import tourStyles from '../styles/tour.module.css';
 
 export interface HelpDeps {
   startTour: () => void;
   toggleHelpMode: () => void;
+  isHelpModeActive: () => boolean;
+  onHelpModeChange: (cb: (active: boolean) => void) => void;
 }
 
 export function createHelpButton(deps: HelpDeps): HTMLButtonElement {
-  return createButton({ label: 'Help', testId: 'help-button', onClick: () => openHelpMenu(deps) });
+  const btn = createButton({ label: 'Help', testId: 'help-button', onClick: () => openHelpMenu(deps) });
+  // Light the Help button orange while the badges are showing, so it's clear
+  // they can be toggled back off from here.
+  deps.onHelpModeChange((active) => btn.classList.toggle(tourStyles.toggleActive!, active));
+  return btn;
 }
 
 function openHelpMenu(deps: HelpDeps): void {
@@ -43,6 +50,8 @@ function openHelpMenu(deps: HelpDeps): void {
       deps.toggleHelpMode();
     },
   });
+  // Reflect the current state so it reads as active (orange) when badges are on.
+  badgeBtn.classList.toggle(tourStyles.toggleActive!, deps.isHelpModeActive());
 
   modal.body.appendChild(tourBtn);
   modal.body.appendChild(badgeBtn);

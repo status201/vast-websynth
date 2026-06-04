@@ -96,6 +96,15 @@
   gap: 8px;
 }
 
+/* Active (orange) state for the Help button + the modal's badge-toggle button
+   while the help badges are showing. `button.X` outranks switch.module's
+   `.root` so it wins regardless of stylesheet order. */
+button.toggleActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+}
+
 /* ---- Help mode (i) badges ---- */
 
 .badgeLayer {
