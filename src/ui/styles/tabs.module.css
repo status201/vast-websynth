@@ -70,7 +70,10 @@
 .collapse:hover { color: var(--accent-secondary); opacity: 1; }
 
 .root:global(.collapsed) .body { display: none; }
-.root:global(.collapsed) .collapse { transform: rotate(-90deg); }
+/* Drive the caret off the button's own aria-expanded so the rotation works
+   for every consumer, regardless of which element gets `.collapsed` (the tab
+   `.root` here, `.fxSection` for the FX panel). */
+.collapse[aria-expanded='false'] { transform: rotate(-90deg); }
 
 /* Responsive — narrow screens */
 @media (max-width: 992px) {

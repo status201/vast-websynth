@@ -10,12 +10,13 @@ export class Phaser implements Effect {
   private readonly lfo: OscillatorNode;
   private readonly lfoDepth: GainNode;
   private readonly feedback: GainNode;
+  private readonly fbDelay: DelayNode;
   private readonly inGain: GainNode;
 
   private depthOct = 1.5;
 
   constructor(private readonly ctx: AudioContext) {
-    this.wrap = new BypassWrapper(ctx, 1);
+    this.wrap = new BypassWrapper(ctx, 0.5);
     this.input = this.wrap.input;
     this.output = this.wrap.output;
 
@@ -44,6 +45,10 @@ export class Phaser implements Effect {
     this.inGain = ctx.createGain();
     this.feedback = ctx.createGain();
     this.feedback.gain.value = 0.4;
+    // A DelayNode is required in the feedback cycle: Web Audio mutes any cycle
+    // that lacks one. Short enough to read as resonance, not an echo.
+    this.fbDelay = ctx.createDelay(0.05);
+    this.fbDelay.delayTime.value = 0.003;
 
     this.wrap.processedIn.connect(this.inGain);
     let prev: AudioNode = this.inGain;
@@ -52,11 +57,14 @@ export class Phaser implements Effect {
       prev = s;
     }
     prev.connect(this.wrap.processedOut);
-    // Feedback: last stage → input
-    prev.connect(this.feedback).connect(this.inGain);
+    // Feedback: last stage → delay → input
+    prev.connect(this.feedback);
+    this.feedback.connect(this.fbDelay);
+    this.fbDelay.connect(this.inGain);
   }
 
   setBypass(b: boolean): void { this.wrap.setBypass(b); }
+  setMix(m: number): void { this.wrap.setMix(m); }
   setRate(hz: number): void {
     this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
   }

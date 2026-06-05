@@ -416,6 +416,7 @@ export class Engine {
     bus.subscribe('fx.phaser.rate', (x) => this.phaser.setRate(x));
     bus.subscribe('fx.phaser.depth', (x) => this.phaser.setDepth(x));
     bus.subscribe('fx.phaser.feedback', (x) => this.phaser.setFeedback(x));
+    bus.subscribe('fx.phaser.mix', (x) => this.phaser.setMix(x));
 
     // FX: Delay
     bus.subscribe('fx.delay.on', (x) => this.delay.setBypass(x < 0.5));
@@ -434,6 +435,7 @@ export class Engine {
     bus.subscribe('fx.drum.phaser.rate', (x) => this.drumPhaser.setRate(x));
     bus.subscribe('fx.drum.phaser.depth', (x) => this.drumPhaser.setDepth(x));
     bus.subscribe('fx.drum.phaser.feedback', (x) => this.drumPhaser.setFeedback(x));
+    bus.subscribe('fx.drum.phaser.mix', (x) => this.drumPhaser.setMix(x));
 
     // Drum FX: Delay
     bus.subscribe('fx.drum.delay.on', (x) => this.drumDelay.setBypass(x < 0.5));
@@ -452,6 +454,7 @@ export class Engine {
     bus.subscribe('fx.sampler.phaser.rate', (x) => this.samplerPhaser.setRate(x));
     bus.subscribe('fx.sampler.phaser.depth', (x) => this.samplerPhaser.setDepth(x));
     bus.subscribe('fx.sampler.phaser.feedback', (x) => this.samplerPhaser.setFeedback(x));
+    bus.subscribe('fx.sampler.phaser.mix', (x) => this.samplerPhaser.setMix(x));
 
     // Sampler FX: Delay
     bus.subscribe('fx.sampler.delay.on', (x) => this.samplerDelay.setBypass(x < 0.5));

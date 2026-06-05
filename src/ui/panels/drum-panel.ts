@@ -31,6 +31,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     { id: 'fx.drum.phaser.rate', label: 'RATE' },
     { id: 'fx.drum.phaser.depth', label: 'DEPTH' },
     { id: 'fx.drum.phaser.feedback', label: 'FB' },
+    { id: 'fx.drum.phaser.mix', label: 'MIX' },
   ]));
   header.appendChild(fxGroup(bus, 'DELAY', 'fx.drum.delay', [
     { id: 'fx.drum.delay.time', label: 'TIME' },

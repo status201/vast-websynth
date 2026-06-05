@@ -189,15 +189,16 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- FX: Wah -----
     { id: 'fx.wah.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.wah.rate', min: 0.05, max: 10, default: 1.5, format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'fx.wah.depth', min: 0, max: 1, default: 0.6, format: fmtPct },
+    { id: 'fx.wah.rate', min: 0.05, max: 10, default: 2.0, format: (v) => v.toFixed(2) + 'Hz' },
+    { id: 'fx.wah.depth', min: 0, max: 1, default: 0.4, format: fmtPct },
     { id: 'fx.wah.q', min: 0.5, max: 20, default: 4, format: (v) => v.toFixed(1) },
 
     // ----- FX: Phaser -----
     { id: 'fx.phaser.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'fx.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'fx.phaser.depth', min: 0, max: 1, default: 0.7, format: fmtPct },
+    { id: 'fx.phaser.depth', min: 0, max: 1, default: 0.5, format: fmtPct },
     { id: 'fx.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
+    { id: 'fx.phaser.mix', min: 0, max: 1, default: 0.5, format: fmtPct },
 
     // ----- FX: Delay -----
     { id: 'fx.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -216,6 +217,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.drum.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'fx.drum.phaser.depth', min: 0, max: 1, default: 0.7, format: fmtPct },
     { id: 'fx.drum.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
+    { id: 'fx.drum.phaser.mix', min: 0, max: 1, default: 0.6, format: fmtPct },
 
     // ----- Drum FX: Delay -----
     { id: 'fx.drum.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -234,6 +236,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.sampler.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'fx.sampler.phaser.depth', min: 0, max: 1, default: 0.7, format: fmtPct },
     { id: 'fx.sampler.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
+    { id: 'fx.sampler.phaser.mix', min: 0, max: 1, default: 0.5, format: fmtPct },
 
     // ----- Sampler FX: Delay -----
     { id: 'fx.sampler.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

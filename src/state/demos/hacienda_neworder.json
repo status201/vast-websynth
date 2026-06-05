@@ -1,7 +1,7 @@
 {
   "format": "websynth-song",
   "version": 1,
-  "name": "Ha\u00e7ienda (New Order Style)",
+  "name": "Ha\u00e7ienda",
   "params": {
     "voicing.mode": 0,
     "osc1.wave": 2,
@@ -61,7 +61,7 @@
     "fx.drum.phaser.rate": 0.5,
     "fx.drum.phaser.depth": 0.7,
     "fx.drum.phaser.feedback": 0.4,
-    "fx.drum.delay.on": 1,
+    "fx.drum.delay.on": 0,
     "fx.drum.delay.time": 0.25,
     "fx.drum.delay.feedback": 0.2,
     "fx.drum.delay.mix": 0.2,

@@ -48,6 +48,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     { id: 'fx.sampler.phaser.rate', label: 'RATE' },
     { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
     { id: 'fx.sampler.phaser.feedback', label: 'FB' },
+    { id: 'fx.sampler.phaser.mix', label: 'MIX' },
   ]));
   header.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
     { id: 'fx.sampler.delay.time', label: 'TIME' },

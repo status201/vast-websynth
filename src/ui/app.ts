@@ -361,6 +361,7 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
     { id: 'fx.phaser.rate', label: 'RATE' },
     { id: 'fx.phaser.depth', label: 'DEPTH' },
     { id: 'fx.phaser.feedback', label: 'FB' },
+    { id: 'fx.phaser.mix', label: 'MIX' },
   ], 'fx.phaser'));
 
   fx.appendChild(fxPanel('Delay', bus, 'fx.delay.on', [
