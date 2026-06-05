@@ -274,7 +274,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Creates a swirling, sweeping shimmer by phase-cancelling parts of the sound.</p>' +
       '<ul><li><strong>RATE</strong> — speed of the swirl.</li>' +
       '<li><strong>DEPTH</strong> — intensity of the effect.</li>' +
-      '<li><strong>FB</strong> — feedback; more makes it more resonant and metallic.</li></ul>',
+      '<li><strong>FB</strong> — feedback; more makes it more resonant and metallic.</li>' +
+      '<li><strong>MIX</strong> — wet vs dry blend; the swirl is strongest around the middle.</li></ul>',
   },
   'fx.delay': {
     title: 'Delay',
