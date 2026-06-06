@@ -211,6 +211,7 @@ function buildHeader(
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
   transport.appendChild(new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' }).el);
+  transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
 
   el.appendChild(transport);
 

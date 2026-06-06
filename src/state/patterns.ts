@@ -15,6 +15,9 @@ export interface SeqStep {
   note: number;     // MIDI note
   velocity: number; // 0..1
   gate: number;     // 0..1 of one step duration
+  prob: number;     // 0..1 chance to fire (1 = always)
+  ratchet: number;  // 1..4 sub-hits within the step
+  tie: boolean;     // hold into the next step (legato / slide)
 }
 
 export interface DrumCell {
@@ -61,6 +64,9 @@ function makeSeqBank(): SeqStep[] {
     note: 60 + (i % 8),
     velocity: 0.8,
     gate: 0.5,
+    prob: 1,
+    ratchet: 1,
+    tie: false,
   }));
 }
 

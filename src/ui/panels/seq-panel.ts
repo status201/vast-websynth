@@ -189,6 +189,47 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     (v) => engine.patterns.setSeqStep(selected, { gate: v }));
   edit.appendChild(gateSlider.el);
 
+  const probSlider = makeSlider('Prob', 0, 1, () => engine.patterns.seq[selected]?.prob ?? 1,
+    (v) => engine.patterns.setSeqStep(selected, { prob: v }));
+  probSlider.el.dataset.testid = 'seq-prob';
+  edit.appendChild(probSlider.el);
+
+  // Ratchet — 1..4 sub-hits within the step.
+  const ratchetCtrl = document.createElement('div');
+  ratchetCtrl.className = styles.noteCtrl!;
+  ratchetCtrl.dataset.testid = 'seq-ratchet';
+  const ratchetLabel = document.createElement('div');
+  ratchetLabel.className = styles.noteLabel!;
+  ratchetLabel.textContent = 'Ratchet';
+  ratchetCtrl.appendChild(ratchetLabel);
+  const ratchetBtns: HTMLButtonElement[] = [];
+  for (let n = 1; n <= 4; n++) {
+    const b = document.createElement('button');
+    b.className = switchStyles.root!;
+    b.textContent = String(n);
+    b.dataset.testid = `seq-ratchet-${n}`;
+    b.title = `${n} hit${n > 1 ? 's' : ''} per step`;
+    b.addEventListener('click', () => engine.patterns.setSeqStep(selected, { ratchet: n }));
+    ratchetBtns.push(b);
+    ratchetCtrl.appendChild(b);
+  }
+  const refreshRatchet = () => {
+    const r = Math.max(1, Math.round(engine.patterns.seq[selected]?.ratchet ?? 1));
+    ratchetBtns.forEach((b, i) => b.classList.toggle('on', i + 1 === r));
+  };
+  edit.appendChild(ratchetCtrl);
+
+  // Tie — hold this step into the next (legato / slide).
+  const tieBtn = createButton({
+    label: 'Tie',
+    led: true,
+    testId: 'seq-tie',
+    onClick: () => engine.patterns.setSeqStep(selected, { tie: !engine.patterns.seq[selected]?.tie }),
+  });
+  tieBtn.title = 'Tie — hold into the next step (legato); slides when mixer.glide > 0';
+  const refreshTie = () => tieBtn.classList.toggle('on', !!engine.patterns.seq[selected]?.tie);
+  edit.appendChild(tieBtn);
+
   root.appendChild(edit);
 
   const refresh = () => {
@@ -197,6 +238,9 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     noteDisplay.textContent = noteName(s.note);
     velSlider.refresh();
     gateSlider.refresh();
+    probSlider.refresh();
+    refreshRatchet();
+    refreshTie();
     renderSelected();
   };
   engine.patterns.onSeqChange((idx) => { if (idx === selected) refresh(); });

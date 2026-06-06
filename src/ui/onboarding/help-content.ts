@@ -92,6 +92,7 @@ export interface HelpTopic {
 
 export type TopicId =
   | 'transport'
+  | 'transport.swing'
   | 'voicing'
   | 'panic'
   | 'oscillators'
@@ -111,6 +112,9 @@ export type TopicId =
   | 'fx.reverb'
   | 'arp'
   | 'seq'
+  | 'seq.prob'
+  | 'seq.ratchet'
+  | 'seq.tie'
   | 'drums'
   | 'sampler'
   | 'song'
@@ -129,6 +133,15 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'you can always play notes by hand.</p>' +
       '<p>The <strong>BPM</strong> knob beside it sets the tempo in beats per minute. The little ' +
       'LED blinks in time so you can feel the beat.</p>',
+  },
+  'transport.swing': {
+    title: 'Swing',
+    body:
+      '<p><strong>Swing</strong> lays the off-beat 16th-notes back a little, turning a stiff, ' +
+      'straight pattern into a shuffling, human groove. At 0% the grid is dead straight; turn it ' +
+      'up for more shuffle.</p>' +
+      '<p>It lives on the clock, so it shapes <em>everything</em> at once — the sequencer, drums, ' +
+      'sampler and arpeggiator all stay locked together.</p>',
   },
   voicing: {
     title: 'Mono / Poly',
@@ -310,12 +323,38 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A 16-step melodic sequencer — it plays a repeating riff while the transport runs. Click ' +
       'a step to switch it on, then set its note (and velocity / gate for the selected step).</p>' +
+      '<p>Each selected step also has <strong>Prob</strong>, <strong>Ratchet</strong> and ' +
+      '<strong>Tie</strong> for variation, rolls and legato slides — flip on the (i) badges beside ' +
+      'them for the details.</p>' +
       '<p><strong>Filling it fast:</strong> arm <strong>Step Input</strong> and play notes on the ' +
       'keyboard (or MIDI) — each lands in the selected step and the cursor advances on its own. ' +
       'Or <strong>scroll</strong> a step to change its pitch, and <strong>Shift</strong>+click ± / ' +
       'Shift+scroll to jump a whole octave.</p>' +
       '<p>It has four banks (<strong>A–D</strong>) you can fill with different riffs and chain ' +
       'together in Song mode. Switch the sequencer on with its <strong>on</strong> toggle.</p>',
+  },
+  'seq.prob': {
+    title: 'Step Probability',
+    body:
+      '<p><strong>Prob</strong> is the chance the selected step fires each time the pattern comes ' +
+      'round. At 100% it always plays; lower it and the step drops in and out at random, so the ' +
+      'loop never repeats exactly.</p>' +
+      '<p>Great for ghost notes, hats and fills that keep evolving on their own.</p>',
+  },
+  'seq.ratchet': {
+    title: 'Ratchet',
+    body:
+      '<p><strong>Ratchet</strong> retriggers the step <strong>1–4 times</strong> inside its own ' +
+      'slot — a quick roll or stutter on a single step. 1 is a normal hit; 4 fires four ' +
+      'evenly-spaced sub-hits.</p>',
+  },
+  'seq.tie': {
+    title: 'Tie / Slide',
+    body:
+      '<p><strong>Tie</strong> holds the step into the next one instead of releasing it, for ' +
+      'smooth legato lines.</p>' +
+      '<p>With <strong>glide</strong> turned up (and Mono voicing) the held note <em>slides</em> ' +
+      'in pitch to the next step — the classic acid-bassline slide.</p>',
   },
   drums: {
     title: 'Drum Machine',

@@ -17,6 +17,7 @@ const SCHEDULE_AHEAD_S = 0.1;
 
 export class Clock implements TickSubscriber {
   private bpm = 120;
+  private swing = 0;
   private _playing = false;
   private nextStepTime = 0;
   private _step = 0;
@@ -32,6 +33,11 @@ export class Clock implements TickSubscriber {
 
   setBpm(b: number): void {
     this.bpm = Math.max(20, Math.min(400, b));
+  }
+
+  /** Shuffle amount, 0 (straight) .. 1. Delays the off-beat 16ths. */
+  setSwing(s: number): void {
+    this.swing = Math.max(0, Math.min(1, s));
   }
 
   start(): void {
@@ -78,9 +84,12 @@ export class Clock implements TickSubscriber {
 
   private tick = (): void => {
     while (this._playing && this.nextStepTime < this.ctx.currentTime + SCHEDULE_AHEAD_S) {
-      for (const l of this.listeners) l(this._step, this.nextStepTime);
-      const secondsPerBeat = 60 / this.bpm;
-      const sixteenth = secondsPerBeat / 4;
+      const sixteenth = 60 / this.bpm / 4;
+      // Lay the off-beat 16ths back. Offset only the emitted time, never the
+      // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an
+      // off-beat never crosses the next on-beat.
+      const off = (this._step & 1) === 1 ? this.swing * 0.5 * sixteenth : 0;
+      for (const l of this.listeners) l(this._step, this.nextStepTime + off);
       this.nextStepTime += sixteenth;
       this._step = (this._step + 1) & 0xffff; // monotonic; subscribers do their own modulo
     }

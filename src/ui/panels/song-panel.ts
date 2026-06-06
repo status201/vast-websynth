@@ -339,7 +339,7 @@ function buildChainLane(
 
 function emptySeqBanks() {
   return Array.from({ length: 4 }, () =>
-    Array.from({ length: SEQ_LENGTH }, (_, i) => ({ on: false, note: 60 + (i % 8), velocity: 0.8, gate: 0.5 })));
+    Array.from({ length: SEQ_LENGTH }, (_, i) => ({ on: false, note: 60 + (i % 8), velocity: 0.8, gate: 0.5, prob: 1, ratchet: 1, tie: false })));
 }
 function emptyDrumBanks() {
   return Array.from({ length: 4 }, () =>

@@ -170,6 +170,37 @@ describe('PatternStore', () => {
     expect(ps2.sampleNames[4]).toBe('hat.mp3');
   });
 
+  it('new seq steps default to prob 1, ratchet 1, tie false', () => {
+    const ps = new PatternStore();
+    const s = ps.seq[0]!;
+    expect(s.prob).toBe(1);
+    expect(s.ratchet).toBe(1);
+    expect(s.tie).toBe(false);
+  });
+
+  it('prob/ratchet/tie round-trip through snapshot/restore', () => {
+    const ps = new PatternStore();
+    ps.setSeqStep(5, { on: true, prob: 0.5, ratchet: 3, tie: true });
+    const snap = ps.snapshot();
+
+    const ps2 = new PatternStore();
+    ps2.restore(snap);
+    expect(ps2.seqBanks[0]![5]!.prob).toBe(0.5);
+    expect(ps2.seqBanks[0]![5]!.ratchet).toBe(3);
+    expect(ps2.seqBanks[0]![5]!.tie).toBe(true);
+  });
+
+  it('restores legacy steps (missing the new fields) to the defaults', () => {
+    const ps = new PatternStore();
+    // Simulate a v1/v2 song whose seq steps predate prob/ratchet/tie.
+    ps.restore({ seqBanks: [[{ on: true, note: 60, velocity: 0.8, gate: 0.5 }]] as SeqStep[][] });
+    const s = ps.seqBanks[0]![0]!;
+    expect(s.on).toBe(true);
+    expect(s.prob).toBe(1);
+    expect(s.ratchet).toBe(1);
+    expect(s.tie).toBe(false);
+  });
+
   it('round-trips through snapshot/restore', () => {
     const ps = new PatternStore();
     ps.setSeqStep(2, { on: true, note: 67, velocity: 0.5, gate: 0.9 });

@@ -161,7 +161,7 @@ function baseParams(): Record<string, number> {
 function seqFromNotes(notes: (number | null)[], gate = 0.5, velocity = 0.85): SeqStep[] {
   return Array.from({ length: SEQ_LENGTH }, (_, i) => {
     const n = notes[i] ?? null;
-    return { on: n !== null, note: n ?? 60, velocity, gate };
+    return { on: n !== null, note: n ?? 60, velocity, gate, prob: 1, ratchet: 1, tie: false };
   });
 }
 

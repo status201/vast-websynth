@@ -31,6 +31,7 @@ const byHelp = (name: string): Element | null => document.querySelector(`[data-h
 // to an existing data-testid; section panels pin via a `data-help` attribute.
 const ANCHORS: Anchor[] = [
   { topic: 'transport', find: () => byTestId('transport-play') },
+  { topic: 'transport.swing', find: () => byTestId('knob-transport.swing') },
   { topic: 'voicing', find: () => byTestId('seg-voicing.mode') },
   { topic: 'panic', find: () => byTestId('panic') },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
@@ -50,6 +51,9 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.reverb', find: () => byHelp('fx.reverb'), place: 'after' },
   { topic: 'arp', find: () => byTestId('tab-arp') },
   { topic: 'seq', find: () => byTestId('tab-seq') },
+  { topic: 'seq.prob', find: () => byTestId('seq-prob') },
+  { topic: 'seq.ratchet', find: () => byTestId('seq-ratchet') },
+  { topic: 'seq.tie', find: () => byTestId('seq-tie') },
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
   { topic: 'song', find: () => byTestId('tab-song') },
@@ -116,7 +120,7 @@ export class HelpMode {
     // resize on those toggles; any one resizing repositions every badge.
     this.ro = new ResizeObserver(() => this.reflow());
     this.ro.observe(document.body);
-    for (const sel of ['[data-testid="fx"]', '[data-testid="pattern-row"]']) {
+    for (const sel of ['[data-testid="fx"]', '[data-testid="pattern-row"]', '[data-testid="panel-seq"]']) {
       const el = document.querySelector(sel);
       if (el) this.ro.observe(el);
     }

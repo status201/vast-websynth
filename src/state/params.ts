@@ -287,6 +287,7 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Transport -----
     { id: 'transport.bpm', min: 40, max: 240, default: 120, step: 1, format: (v) => `${v.toFixed(0)} bpm` },
+    { id: 'transport.swing', min: 0, max: 1, default: 0, format: fmtPct },
 
     // ----- Arpeggiator -----
     { id: 'arp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

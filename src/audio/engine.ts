@@ -482,6 +482,7 @@ export class Engine {
 
     // ----- Transport -----
     bus.subscribe('transport.bpm', (b) => this.clock.setBpm(b));
+    bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 
     // ----- Arpeggiator -----
     bus.subscribe('arp.on', (v) => this.arp.setEnabled(v >= 0.5));

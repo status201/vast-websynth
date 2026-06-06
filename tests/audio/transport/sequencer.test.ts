@@ -127,6 +127,90 @@ describe('StepSequencer', () => {
     expect(steps).toEqual([0, 1, 2]);
   });
 
+  it('skips a step when probability loses the dice roll', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arrangement = new Arrangement(patterns, clock);
+    const perf = createPerfStub();
+    const playNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote: vi.fn() };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, { on: true, note: 60, prob: 0.5 });
+    patterns.setSeqStep(1, { on: true, note: 60, prob: 0.5 });
+
+    const rng = vi.spyOn(Math, 'random');
+    rng.mockReturnValue(0.9); // 0.9 > 0.5 → rest
+    clock.fireTick(0); // step 0
+    expect(playNote).not.toHaveBeenCalled();
+
+    rng.mockReturnValue(0.1); // 0.1 <= 0.5 → fire
+    clock.fireTick(0.125); // step 1
+    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0.125);
+    rng.mockRestore();
+  });
+
+  it('ratchet schedules N evenly-spaced sub-hits within the step', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arrangement = new Arrangement(patterns, clock);
+    const perf = createPerfStub();
+    const playNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote: vi.fn() };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, { on: true, note: 60, gate: 0.5, ratchet: 3 });
+
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledTimes(3);
+    const sub = 0.125 / 3; // one 16th split three ways
+    expect(playNote).toHaveBeenNthCalledWith(1, 60, expect.any(Number), 0);
+    expect(playNote).toHaveBeenNthCalledWith(2, 60, expect.any(Number), sub);
+    expect(playNote).toHaveBeenNthCalledWith(3, 60, expect.any(Number), 2 * sub);
+  });
+
+  it('tie holds into the next step instead of releasing first (legato)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arrangement = new Arrangement(patterns, clock);
+    const perf = createPerfStub();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(1, { on: true, note: 64, gate: 0.5 });
+
+    clock.fireTick(0); // tied step: plays 60 but schedules no release
+    expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0);
+    expect(releaseNote).not.toHaveBeenCalled();
+
+    clock.fireTick(0.125); // next step attacks without first releasing the tied note
+    expect(releaseNote).not.toHaveBeenCalledWith(60, 0.125);
+    expect(playNote).toHaveBeenCalledWith(64, expect.any(Number), 0.125);
+  });
+
+  it('a tie into a rest releases the held note rather than ringing forever', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arrangement = new Arrangement(patterns, clock);
+    const perf = createPerfStub();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote: vi.fn(), releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, { on: true, note: 60, tie: true }); // step 1 stays off (rest)
+
+    clock.fireTick(0);
+    clock.fireTick(0.125); // rest after a tie → release the held note here
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
+  });
+
   it('fires note listeners with note/when/releaseAt', () => {
     const clock = new TestClock();
     const patterns = new PatternStore();
