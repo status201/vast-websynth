@@ -1,0 +1,4816 @@
+{
+  "format": "websynth-song",
+  "version": 2,
+  "name": "Run Away",
+  "params": {
+    "voicing.mode": 1,
+    "osc1.wave": 2,
+    "osc1.octave": -1,
+    "osc1.detune": 0,
+    "osc1.level": 0.805,
+    "osc2.wave": 2,
+    "osc2.octave": 0,
+    "osc2.detune": -5,
+    "osc2.level": 0.86,
+    "sub.wave": 2,
+    "sub.octave": -1,
+    "sub.level": 1,
+    "unison.voices": 3,
+    "unison.detune": 12,
+    "analog.drift": 0.15,
+    "mixer.noise": 0.425,
+    "mixer.glide": 0.05,
+    "glide.mode": 0,
+    "filter.cutoff": 61.5,
+    "filter.resonance": 0.204,
+    "filter.drive": 2.4525,
+    "filter.envAmount": 16.08,
+    "env.amp.attack": 0.002,
+    "env.amp.decay": 1.24,
+    "env.amp.sustain": 0.37,
+    "env.amp.release": 0.749895,
+    "env.fil.attack": 0.002,
+    "env.fil.decay": 0.699865,
+    "env.fil.sustain": 0.115,
+    "env.fil.release": 0.12,
+    "lfo.rate": 0.50875,
+    "lfo.amount": 1,
+    "lfo.wave": 2,
+    "lfo.dest": 1,
+    "fx.dist.on": 1,
+    "fx.dist.drive": 0.245,
+    "fx.dist.tone": 2600,
+    "fx.dist.mix": 0.5,
+    "fx.wah.on": 1,
+    "fx.wah.rate": 2,
+    "fx.wah.depth": 0.065,
+    "fx.wah.q": 1.5625,
+    "fx.phaser.on": 0,
+    "fx.phaser.rate": 0.5,
+    "fx.phaser.depth": 0.5,
+    "fx.phaser.feedback": 0.4,
+    "fx.phaser.mix": 0.5,
+    "fx.delay.on": 1,
+    "fx.delay.time": 0.35,
+    "fx.delay.feedback": 0.10075,
+    "fx.delay.mix": 0.2,
+    "fx.reverb.on": 1,
+    "fx.reverb.size": 0.6,
+    "fx.reverb.damp": 0.4,
+    "fx.reverb.mix": 0.25,
+    "fx.drum.phaser.on": 0,
+    "fx.drum.phaser.rate": 0.5,
+    "fx.drum.phaser.depth": 0.49,
+    "fx.drum.phaser.feedback": 0.4,
+    "fx.drum.phaser.mix": 0.495,
+    "fx.drum.delay.on": 0,
+    "fx.drum.delay.time": 0.3527,
+    "fx.drum.delay.feedback": 0.18625,
+    "fx.drum.delay.mix": 0.1,
+    "fx.sampler.dist.on": 0,
+    "fx.sampler.dist.drive": 0.3,
+    "fx.sampler.dist.tone": 3000,
+    "fx.sampler.dist.mix": 1,
+    "fx.sampler.phaser.on": 0,
+    "fx.sampler.phaser.rate": 0.5,
+    "fx.sampler.phaser.depth": 0.7,
+    "fx.sampler.phaser.feedback": 0.4,
+    "fx.sampler.phaser.mix": 0.5,
+    "fx.sampler.delay.on": 0,
+    "fx.sampler.delay.time": 0.35,
+    "fx.sampler.delay.feedback": 0.4,
+    "fx.sampler.delay.mix": 0.3,
+    "fx.sampler.reverb.on": 0,
+    "fx.sampler.reverb.size": 0.6,
+    "fx.sampler.reverb.damp": 0.4,
+    "fx.sampler.reverb.mix": 0.25,
+    "fx.djfilter": 0,
+    "master.volume": 1,
+    "master.pitchBend": 0,
+    "master.modWheel": 0,
+    "keyboard.transpose": -1,
+    "transport.bpm": 125,
+    "arp.on": 0,
+    "arp.pattern": 0,
+    "arp.rate": 2,
+    "arp.octaves": 1,
+    "arp.gate": 0.5,
+    "seq.on": 1,
+    "drum.on": 1,
+    "drum.master": 0.875,
+    "drum.t0.vol": 0.85,
+    "drum.t0.tune": 0,
+    "drum.t0.decay": 0.3,
+    "drum.t0.mute": 0,
+    "drum.t1.vol": 0.85,
+    "drum.t1.tune": 0,
+    "drum.t1.decay": 0.3,
+    "drum.t1.mute": 0,
+    "drum.t2.vol": 0.85,
+    "drum.t2.tune": 0,
+    "drum.t2.decay": 0.3,
+    "drum.t2.mute": 0,
+    "drum.t3.vol": 0.85,
+    "drum.t3.tune": 0,
+    "drum.t3.decay": 0.3,
+    "drum.t3.mute": 0,
+    "drum.t4.vol": 0.85,
+    "drum.t4.tune": 0,
+    "drum.t4.decay": 0.3,
+    "drum.t4.mute": 0,
+    "drum.t5.vol": 0.85,
+    "drum.t5.tune": 0,
+    "drum.t5.decay": 0.3,
+    "drum.t5.mute": 0,
+    "drum.t6.vol": 0.85,
+    "drum.t6.tune": 0,
+    "drum.t6.decay": 0.3,
+    "drum.t6.mute": 0,
+    "drum.t7.vol": 0.85,
+    "drum.t7.tune": 0,
+    "drum.t7.decay": 0.3,
+    "drum.t7.mute": 0,
+    "sampler.on": 0,
+    "sampler.master": 0.85,
+    "sampler.t0.mute": 0,
+    "sampler.t1.mute": 0,
+    "sampler.t2.mute": 0,
+    "sampler.t3.mute": 0,
+    "sampler.t4.mute": 0,
+    "sampler.t5.mute": 0,
+    "sampler.t6.mute": 0,
+    "sampler.t7.mute": 0
+  },
+  "seqBanks": [
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 1,
+        "gate": 1
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 63,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.3012613932291666
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 63,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 1,
+        "gate": 1
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.3012613932291666
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 62,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 62,
+        "velocity": 0.8,
+        "gate": 0.28146972656249997
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 1,
+        "gate": 1
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.28146972656249997
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 1,
+        "gate": 1
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 63,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 65,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 72,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 63,
+        "velocity": 0.8,
+        "gate": 0.29136555989583335
+      },
+      {
+        "on": true,
+        "note": 38,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": true,
+        "note": 62,
+        "velocity": 0.8,
+        "gate": 0.28146972656249997
+      },
+      {
+        "on": true,
+        "note": 50,
+        "velocity": 1,
+        "gate": 0.5
+      },
+      {
+        "on": false,
+        "note": 67,
+        "velocity": 0.8,
+        "gate": 0.5
+      }
+    ]
+  ],
+  "drumBanks": [
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": true,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ]
+  ],
+  "seqChain": {
+    "enabled": true,
+    "steps": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "drumChain": {
+    "enabled": true,
+    "steps": [
+      0,
+      0,
+      1,
+      2
+    ]
+  },
+  "samplerBanks": [
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        },
+        {
+          "on": false,
+          "velocity": 0.85
+        }
+      ]
+    ]
+  ],
+  "samplerChain": {
+    "enabled": false,
+    "steps": [
+      0
+    ]
+  },
+  "sampleNames": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

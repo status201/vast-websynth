@@ -120,7 +120,7 @@ export class Knob {
 
   private formatValue(v: number): string {
     if (this.def.taper === 'discrete' && this.def.labels) {
-      return this.def.labels[Math.round(v)] ?? String(v);
+      return this.def.labels[Math.round(v - this.def.min)] ?? String(v);
     }
     if (this.def.format) return this.def.format(v);
     return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);

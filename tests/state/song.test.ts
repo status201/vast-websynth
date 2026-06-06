@@ -213,8 +213,11 @@ describe('Song', () => {
     it('is auto-registered ahead of the built-ins and round-trips', () => {
       const apex = DEMO_SONGS['Apex Twin'];
       expect(apex).toBeDefined();
-      // Drop-in demos are spread before the hand-authored built-ins.
-      expect(Object.keys(DEMO_SONGS)[0]).toBe('Apex Twin');
+      // Drop-in demos are spread *before* the hand-authored built-ins, so any
+      // drop-in precedes any built-in regardless of how many demos exist.
+      // (Asserting a fixed [0] key breaks the moment another drop-in is added.)
+      const keys = Object.keys(DEMO_SONGS);
+      expect(keys.indexOf('Apex Twin')).toBeLessThan(keys.indexOf('Knight Rider'));
       expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(apex);
     });
 
