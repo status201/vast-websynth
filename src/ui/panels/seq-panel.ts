@@ -4,6 +4,7 @@ import styles from '../styles/seq.module.css';
 import type { ParamBus } from '../../state/params';
 import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
+import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { Knob } from '../components/knob';
@@ -29,6 +30,22 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     hasContent: (i) => engine.patterns.seqBanks[i]!.some((s) => s.on),
     onContentChange: (fn) => engine.patterns.onSeqChange(fn),
   }).el);
+
+  // Step-record arm toggle. While armed, played notes fill steps (see below).
+  let armed = false;
+  const recBtn = createButton({
+    label: 'Step Input',
+    led: true,
+    testId: 'seq-step-input',
+    onClick: () => {
+      armed = !armed;
+      recBtn.classList.toggle('on', armed);
+      stepRow.classList.toggle(styles.recording!, armed);
+    },
+  });
+  recBtn.title = 'Step Input — play notes (keyboard / MIDI) to fill steps; the cursor auto-advances';
+  header.appendChild(recBtn);
+
   const selectedLabel = document.createElement('div');
   selectedLabel.className = styles.selectedLabel!;
   header.appendChild(selectedLabel);
@@ -46,25 +63,51 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     selectedLabel.textContent = `Step ${selected + 1}  ${noteName(s.note)}  vel ${(s.velocity * 100).toFixed(0)}%  gate ${(s.gate * 100).toFixed(0)}%`;
   };
 
+  // Single place that moves the selection cursor and repaints the edit row.
+  // Used by clicks, the wheel handler, and step-record auto-advance.
+  function setSelected(i: number): void {
+    selected = i;
+    for (let k = 0; k < steps.length; k++) {
+      steps[k]!.el.classList.toggle(StepButton.selectedClass, k === selected);
+    }
+    renderSelected();
+    refresh();
+  }
+
   for (let i = 0; i < SEQ_LENGTH; i++) {
     const cell = engine.patterns.seq[i]!;
     const sb = new StepButton(noteName(cell.note), 'orange');
     sb.el.dataset.testid = `seq-step-${i}`;
     sb.setOn(cell.on);
     sb.el.addEventListener('click', () => {
-      selected = i;
-      // Read the *current* edit bank's step, not the one captured at build.
-      const cur = engine.patterns.seq[i];
-      engine.patterns.setSeqStep(i, { on: !cur?.on });
-      renderSelected();
-      stepRow.querySelectorAll(`.${StepButton.rootClass}`).forEach((el, idx) => {
-        el.classList.toggle(StepButton.selectedClass, idx === selected);
-      });
+      setSelected(i);
+      // While armed, a click only moves the cursor; otherwise toggle on/off.
+      if (!armed) {
+        // Read the *current* edit bank's step, not the one captured at build.
+        const cur = engine.patterns.seq[i];
+        engine.patterns.setSeqStep(i, { on: !cur?.on });
+      }
     });
+    // Scroll a step to change its pitch: wheel = ±1 semitone, Shift = ±1 octave.
+    sb.el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      setSelected(i);
+      bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1), i);
+    }, { passive: false });
     steps.push(sb);
     stepRow.appendChild(sb.el);
   }
   root.appendChild(stepRow);
+
+  // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
+  // selected step and the cursor advances. Audition is automatic — bus.onNote also
+  // reaches the engine, so the note sounds while transport passthrough isn't
+  // suppressed (i.e. the usual case of editing while stopped).
+  bus.onNote((on, note) => {
+    if (!armed || !on) return;
+    engine.patterns.setSeqStep(selected, { on: true, note });
+    setSelected((selected + 1) % SEQ_LENGTH);
+  });
 
   // Highlight playback position — only when viewing the bank that's playing
   const highlighter = new PlayheadHighlighter([steps]);
@@ -108,24 +151,31 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const downBtn = document.createElement('button');
   downBtn.className = switchStyles.root!;
   downBtn.textContent = '−';
-  downBtn.addEventListener('click', () => bumpNote(-1));
+  downBtn.title = 'Lower pitch — Shift+click for a full octave';
+  downBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? -12 : -1));
   noteCtrl.appendChild(downBtn);
   const noteDisplay = document.createElement('div');
   noteDisplay.className = styles.noteDisplay!;
+  noteDisplay.title = 'Scroll to change pitch — Shift+scroll for octaves';
+  noteDisplay.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1));
+  }, { passive: false });
   noteCtrl.appendChild(noteDisplay);
   const upBtn = document.createElement('button');
   upBtn.className = switchStyles.root!;
   upBtn.textContent = '+';
-  upBtn.addEventListener('click', () => bumpNote(1));
+  upBtn.title = 'Raise pitch — Shift+click for a full octave';
+  upBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? 12 : 1));
   noteCtrl.appendChild(upBtn);
   edit.appendChild(noteCtrl);
 
-  function bumpNote(delta: number): void {
-    const s = engine.patterns.seq[selected];
+  function bumpNote(delta: number, index = selected): void {
+    const s = engine.patterns.seq[index];
     if (!s) return;
     const next = Math.max(0, Math.min(127, s.note + delta));
-    engine.patterns.setSeqStep(selected, { note: next });
-    noteDisplay.textContent = noteName(next);
+    engine.patterns.setSeqStep(index, { note: next });
+    if (index === selected) noteDisplay.textContent = noteName(next);
   }
 
   // Use simple sliders for velocity/gate of the selected step

@@ -310,6 +310,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>A 16-step melodic sequencer — it plays a repeating riff while the transport runs. Click ' +
       'a step to switch it on, then set its note (and velocity / gate for the selected step).</p>' +
+      '<p><strong>Filling it fast:</strong> arm <strong>Step Input</strong> and play notes on the ' +
+      'keyboard (or MIDI) — each lands in the selected step and the cursor advances on its own. ' +
+      'Or <strong>scroll</strong> a step to change its pitch, and <strong>Shift</strong>+click ± / ' +
+      'Shift+scroll to jump a whole octave.</p>' +
       '<p>It has four banks (<strong>A–D</strong>) you can fill with different riffs and chain ' +
       'together in Song mode. Switch the sequencer on with its <strong>on</strong> toggle.</p>',
   },

@@ -12,6 +12,14 @@
   width: 100%;
 }
 
+/* Step-record armed: make it obvious played notes will fill the grid. */
+.recording {
+  outline: 1px solid var(--accent-secondary);
+  outline-offset: 4px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(232, 116, 46, 0.35);
+}
+
 .edit {
   display: flex;
   align-items: center;
