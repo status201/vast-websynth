@@ -1,4 +1,5 @@
 import type { ParamBus } from '../../state/params';
+import type { PresetSession } from '../../state/preset-session';
 import type { Engine } from '../../audio/engine';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
@@ -11,7 +12,7 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
-import { Song, DEMO_SONGS } from '../../state/song';
+import { Song, DEMO_SONGS, type SongFile } from '../../state/song';
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
   const e = document.createElement(tag);
@@ -40,8 +41,15 @@ export interface SongPanel {
   loadDemo: (name: string) => void;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: Engine): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSession): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
+
+  // Apply a song AND label the selector with its name (all apply sites route
+  // through here so the header reflects the loaded song).
+  const applySong = (file: SongFile): void => {
+    Song.apply(file, bus, engine.patterns, engine.arrangement);
+    session.setActive(file.name);
+  };
 
   // ---- Chain lanes ----
   const chains = el('div', styles.chains!);
@@ -103,7 +111,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): SongPanel {
   const loadDemo = (name: string): void => {
     const file = DEMO_SONGS[name];
     if (!file) return;
-    Song.apply(file, bus, engine.patterns, engine.arrangement);
+    applySong(file);
     refreshList();
     dropdown.setValue(name);
   };
@@ -112,7 +120,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): SongPanel {
   loadBtn.dataset.testid = 'song-load';
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
-    if (f) Song.apply(f, bus, engine.patterns, engine.arrangement);
+    if (f) applySong(f);
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
@@ -137,7 +145,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine): SongPanel {
     if (!f) return;
     const song = await Song.readFile(f);
     if (!song) { alert('Not a valid WebSynth song file.'); return; }
-    Song.apply(song, bus, engine.patterns, engine.arrangement);
+    applySong(song);
     Song.saveSlot(song.name, song);
     refreshList();
     dropdown.setValue(song.name);

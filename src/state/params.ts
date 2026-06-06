@@ -21,6 +21,8 @@ export class ParamBus {
   private readonly values = new Map<ParamId, number>();
   private readonly listeners = new Map<ParamId, Set<(v: number) => void>>();
   private readonly noteListeners: NoteListener[] = [];
+  private readonly changeListeners = new Set<(id: ParamId, v: number) => void>();
+  private suppressChange = 0;
 
   register(def: ParamDef): void {
     this.defs.set(def.id, def);
@@ -40,7 +42,12 @@ export class ParamBus {
     const v = clamp(value, def.min, def.max);
     if (this.values.get(id) === v) return;
     this.values.set(id, v);
-    if (!silent) this.listeners.get(id)?.forEach((l) => l(v));
+    if (!silent) {
+      this.listeners.get(id)?.forEach((l) => l(v));
+      // Global "something changed" signal. Suppressed during bulk applies
+      // (restore/resetDefaults) so loading a preset/song isn't seen as an edit.
+      if (this.suppressChange === 0) this.changeListeners.forEach((l) => l(id, v));
+    }
   }
 
   get(id: ParamId): number {
@@ -60,6 +67,12 @@ export class ParamBus {
     set.add(listener);
     listener(this.get(id));
     return () => set!.delete(listener);
+  }
+
+  /** Global listener fired on any non-silent, non-bulk param change. */
+  onChange(listener: (id: ParamId, v: number) => void): () => void {
+    this.changeListeners.add(listener);
+    return () => this.changeListeners.delete(listener);
   }
 
   onNote(listener: NoteListener): () => void {
@@ -85,14 +98,26 @@ export class ParamBus {
     return out;
   }
 
-  /** Restore from preset. Fires listeners (so audio + UI update). */
+  /** Restore from preset. Fires per-param listeners (so audio + UI update),
+   *  but suppresses the global `onChange` signal — a bulk apply is not an edit. */
   restore(snapshot: Record<ParamId, number>): void {
-    for (const [id, v] of Object.entries(snapshot)) this.set(id, v);
+    this.suppressChange++;
+    try {
+      for (const [id, v] of Object.entries(snapshot)) this.set(id, v);
+    } finally {
+      this.suppressChange--;
+    }
   }
 
-  /** Reset every registered param to its default (fires listeners). */
+  /** Reset every registered param to its default (fires per-param listeners;
+   *  global `onChange` suppressed like {@link restore}). */
   resetDefaults(): void {
-    for (const def of this.defs.values()) this.set(def.id, def.default);
+    this.suppressChange++;
+    try {
+      for (const def of this.defs.values()) this.set(def.id, def.default);
+    } finally {
+      this.suppressChange--;
+    }
   }
 
   ids(): ParamId[] {

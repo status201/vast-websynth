@@ -75,6 +75,32 @@ describe('ParamBus', () => {
     expect(bus.get('transport.bpm')).toBe(120);
   });
 
+  it('onChange fires on a direct set, respects silent, and stops on unsubscribe', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'a', min: 0, max: 10, default: 0 });
+    const seen: Array<[string, number]> = [];
+    const off = bus.onChange((id, v) => seen.push([id, v]));
+    bus.set('a', 4);
+    bus.set('a', 4); // unchanged → no fire
+    bus.set('a', 7, true); // silent → no fire
+    off();
+    bus.set('a', 2);
+    expect(seen).toEqual([['a', 4]]);
+  });
+
+  it('onChange is suppressed during bulk restore/resetDefaults applies', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'a', min: 0, max: 10, default: 1 });
+    bus.register({ id: 'b', min: 0, max: 10, default: 2 });
+    const seen: string[] = [];
+    bus.onChange((id) => seen.push(id));
+    bus.restore({ a: 5, b: 6 }); // bulk → suppressed
+    bus.resetDefaults(); // bulk → suppressed
+    expect(seen).toEqual([]);
+    bus.set('a', 9); // direct edit → fires
+    expect(seen).toEqual(['a']);
+  });
+
   it('dispatches note events to onNote listeners', () => {
     const bus = new ParamBus();
     const events: Array<[boolean, number, number]> = [];

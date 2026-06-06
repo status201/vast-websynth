@@ -76,15 +76,17 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   const subuni = page.getByTestId('help-badge-subuni');
   await expect(subuni).toBeVisible();
   await subuni.click();
-  await expect(page.getByRole('dialog', { name: 'Sub & Unison' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).click();
+  const subuniDialog = page.getByRole('dialog', { name: 'Sub & Unison' });
+  await expect(subuniDialog).toBeVisible();
+  await subuniDialog.getByRole('button', { name: 'Close' }).click();
 
   // A per-machine badge anchored to a tab button opens its own modal.
   const arpBadge = page.getByTestId('help-badge-arp');
   await expect(arpBadge).toBeVisible();
   await arpBadge.click();
-  await expect(page.getByRole('dialog', { name: 'Arpeggiator' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).click();
+  const arpDialog = page.getByRole('dialog', { name: 'Arpeggiator' });
+  await expect(arpDialog).toBeVisible();
+  await arpDialog.getByRole('button', { name: 'Close' }).click();
 
   // Collapsing/expanding a panel repositions the badges via a ResizeObserver
   // (no scroll/resize fires). A per-effect badge shows while FX is expanded,

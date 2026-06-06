@@ -32,6 +32,10 @@ export const busGet = (page: Page, id: string): Promise<number> =>
 export const busSet = (page: Page, id: string, value: number): Promise<void> =>
   page.evaluate((a) => (window as any).__synth.bus.set(a.id, a.value), { id, value });
 
+/** Read the active preset/song label shown in the header selector. */
+export const sessionDisplay = (page: Page): Promise<string> =>
+  page.evaluate(() => (window as any).__synth.session.display as string);
+
 /**
  * Build a valid 16-bit PCM mono WAV as a Node Buffer — a fixture for
  * `setInputFiles` that the browser's `decodeAudioData` accepts. Default is a

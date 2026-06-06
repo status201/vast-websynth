@@ -4,6 +4,7 @@ import { mountApp } from './ui/app';
 import { installShortcuts } from './ui/shortcuts';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
+import { PresetSession, isPatchParam } from './state/preset-session';
 import { UiBridge } from './ui/ui-bridge';
 import { Modal } from './ui/components/modal';
 import type { Onboarding } from './ui/onboarding';
@@ -16,8 +17,19 @@ async function boot() {
   const engine = new Engine(bus);
   await engine.init();
 
+  // The selector reflects the active sound; a patch edit flips it to dirty.
+  const session = new PresetSession();
+  bus.onChange((id) => { if (isPatchParam(id)) session.markDirty(); });
+
+  // Seed the boot patch before the UI mounts so controls construct reading the
+  // applied values and the selector starts on a clean `basic`.
+  Presets.ensureFactoryPresets();
+  const basic = Presets.factory()['basic'];
+  if (basic) Presets.apply(bus, basic);
+  session.setActive('basic');
+
   const bridge = new UiBridge();
-  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge);
+  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session);
   installShortcuts(engine, bus, bridge);
   initMIDI(engine, bus);
 
@@ -29,12 +41,9 @@ async function boot() {
       engine,
       bus,
       patterns: engine.patterns,
+      session,
     };
   }
-
-  Presets.ensureFactoryPresets();
-  const basic = Presets.factory()['basic'];
-  if (basic) Presets.apply(bus, basic);
 
   showStartModal(engine, onboarding);
 }

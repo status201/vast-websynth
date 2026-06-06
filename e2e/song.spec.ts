@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, sessionDisplay } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
@@ -33,6 +33,17 @@ test.describe('song mode', () => {
 
     await page.getByTestId('song-load').click();
     await expect.poll(() => seqOn(page, 5)).toBe(true);
+  });
+
+  test('loading a demo labels the preset selector with the song name', async ({ page }) => {
+    await gotoAndStart(page);
+    expect(await sessionDisplay(page)).toBe('basic');
+
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('song-demo-Knight Rider').click();
+
+    await expect.poll(() => sessionDisplay(page)).toBe('Knight Rider');
+    await expect(page.getByTestId('preset-select')).toContainText('Knight Rider');
   });
 
   test('Export Song renders and downloads a WAV', async ({ page }) => {

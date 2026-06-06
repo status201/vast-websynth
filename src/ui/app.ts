@@ -1,5 +1,6 @@
 import type { Engine } from '../audio/engine';
 import type { ParamBus } from '../state/params';
+import type { PresetSession } from '../state/preset-session';
 import type { UiBridge } from './ui-bridge';
 import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
 import { Knob } from './components/knob';
@@ -40,7 +41,9 @@ const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matche
  *  stay large enough to play. */
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
-export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge): Onboarding {
+export function mountApp(
+  root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge, session: PresetSession,
+): Onboarding {
   root.innerHTML = '';
 
   // Late-bound hooks, filled once their panels are built; the tour calls them.
@@ -49,7 +52,7 @@ export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridg
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   let songLoadDemo: (name: string) => void = (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
-    if (file) Song.apply(file, bus, engine.patterns, engine.arrangement);
+    if (file) { Song.apply(file, bus, engine.patterns, engine.arrangement); session.setActive(file.name); }
   };
 
   // Runtime hooks for the tour. `bridge.toggleTransport` is set inside
@@ -64,12 +67,12 @@ export function mountApp(root: HTMLElement, engine: Engine, bus: ParamBus, bridg
   };
   const onboarding = createOnboarding(ctx);
 
-  root.appendChild(buildHeader(engine, bus, bridge, onboarding));
+  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session));
   root.appendChild(buildMain(bus));
   const fx = buildFx(bus);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
-  const patternRow = buildPatternRow(engine, bus);
+  const patternRow = buildPatternRow(engine, bus, session);
   songLoadDemo = patternRow.loadDemo;
   root.appendChild(patternRow.el);
   root.appendChild(buildBottom(engine, bus, bridge));
@@ -92,7 +95,9 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
   return el;
 }
 
-function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding): HTMLElement {
+function buildHeader(
+  engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
+): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
   el.dataset.testid = 'app-header';
@@ -122,20 +127,23 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
   dropdown.el.dataset.testid = 'preset-select';
+  // The selector mirrors the active sound (preset/song name + dirty marker).
+  session.subscribe(() => dropdown.setValue(session.display));
   dropdown.onChange((name) => {
     const p = Presets.load(name);
     if (p) Presets.apply(bus, p);
+    session.setActive(name);
   });
 
   const saveBtn = createButton({
     label: 'Save',
     testId: 'preset-save',
     onClick: () => {
-      const name = prompt('Preset name:', dropdown.value);
+      const name = prompt('Preset name:', session.label);
       if (!name) return;
       Presets.save(name, Presets.capture(bus));
       dropdown.setOptions(Presets.list());
-      dropdown.setValue(name);
+      session.setActive(name);
     },
   });
 
@@ -223,8 +231,10 @@ function buildHeader(engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding
   return el;
 }
 
-function buildPatternRow(engine: Engine, bus: ParamBus): { el: HTMLElement; loadDemo: (name: string) => void } {
-  const song = buildSongPanel(bus, engine);
+function buildPatternRow(
+  engine: Engine, bus: ParamBus, session: PresetSession,
+): { el: HTMLElement; loadDemo: (name: string) => void } {
+  const song = buildSongPanel(bus, engine, session);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },
