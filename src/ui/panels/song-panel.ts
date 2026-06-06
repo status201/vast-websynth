@@ -21,11 +21,12 @@ function el(tag: string, cls?: string, text?: string): HTMLElement {
   return e;
 }
 
-function momentary(label: string, on: () => void, off: () => void): HTMLButtonElement {
+function momentary(label: string, on: () => void, off: () => void, testid?: string): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = `${switchStyles.root!} ${styles.djBtn!}`;
   b.textContent = label;
+  if (testid) b.dataset.testid = testid;
   const start = (e: Event) => { e.preventDefault(); if (!b.classList.contains('on')) { b.classList.add('on'); on(); } };
   const end = () => { if (b.classList.contains('on')) { b.classList.remove('on'); off(); } };
   b.addEventListener('pointerdown', start);
@@ -71,16 +72,17 @@ export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSes
   const fx = el('div', styles.djFx!);
   fx.appendChild(el('div', styles.sectionLabel!, 'Live FX'));
 
-  fx.appendChild(momentary('Fill', () => engine.perf.setFill(true), () => engine.perf.setFill(false)));
+  fx.appendChild(momentary('Fill', () => engine.perf.setFill(true), () => engine.perf.setFill(false), 'perf-fill'));
 
   const stutterWrap = el('div', styles.stutter!);
   stutterWrap.appendChild(momentary('Stutter',
-    () => engine.perf.setStutter(true), () => engine.perf.setStutter(false)));
+    () => engine.perf.setStutter(true), () => engine.perf.setStutter(false), 'perf-stutter'));
   const sizes = el('div', `${styles.stutterSize!} ${segmentedStyles.root!}`);
   ([['1', 1], ['1/8', 2], ['1/4', 4]] as Array<[string, number]>).forEach(([lbl, n], i) => {
     const sb = document.createElement('button');
     sb.type = 'button';
     sb.textContent = lbl;
+    sb.dataset.testid = `perf-stutter-size-${n}`;
     if (i === 1) sb.classList.add('active');
     sb.addEventListener('click', () => {
       engine.perf.setStutterSize(n);
@@ -92,9 +94,9 @@ export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSes
   stutterWrap.appendChild(sizes);
   fx.appendChild(stutterWrap);
 
-  fx.appendChild(momentary('Drop', () => engine.perf.setDrop(true), () => engine.perf.setDrop(false)));
+  fx.appendChild(momentary('Drop', () => engine.perf.setDrop(true), () => engine.perf.setDrop(false), 'perf-drop'));
   fx.appendChild(momentary('Tape Stop',
-    () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false)));
+    () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false), 'perf-tapestop'));
   fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
   root.appendChild(fx);
 

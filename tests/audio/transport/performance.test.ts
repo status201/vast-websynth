@@ -1,4 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { Performance } from '../../../src/audio/transport/performance';
+import { ParamBus, registerDefaults } from '../../../src/state/params';
+import { TestClock } from './test-clock';
+import { makeMockAudioContext, makeMockBiquadFilter } from '../mock-audio-context';
 
 /**
  * Tests for the Performance module's pure-logic paths.
@@ -54,5 +58,115 @@ describe('Performance.mapStep (stutter)', () => {
   it('size=1 with negative offset from anchor', () => {
     // anchor = 5, size = 1 → step 4 wraps to 5
     expect(mapStep(4, true, 1, 5)).toBe(5);
+  });
+});
+
+const DJ_OPEN_HZ = 20000;
+
+function makePerf() {
+  const ctx = makeMockAudioContext();
+  const clock = new TestClock();
+  const bus = new ParamBus();
+  registerDefaults(bus);
+  const djFilter = makeMockBiquadFilter();
+  const perf = new Performance(
+    ctx as unknown as AudioContext,
+    clock,
+    bus,
+    djFilter as unknown as BiquadFilterNode,
+  );
+  return { ctx, clock, bus, djFilter, perf };
+}
+
+describe('Performance.setFill', () => {
+  it('toggles the fillActive flag the machines read', () => {
+    const { perf } = makePerf();
+    expect(perf.fillActive).toBe(false);
+    perf.setFill(true);
+    expect(perf.fillActive).toBe(true);
+    perf.setFill(false);
+    expect(perf.fillActive).toBe(false);
+  });
+});
+
+describe('Performance.setDjFilter', () => {
+  it('opens fully to a lowpass at DJ_OPEN_HZ near zero', () => {
+    const { perf, djFilter } = makePerf();
+    perf.setDjFilter(0);
+    expect(djFilter.type).toBe('lowpass');
+    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(DJ_OPEN_HZ, expect.any(Number));
+  });
+
+  it('dives into a lowpass for negative values', () => {
+    const { perf, djFilter } = makePerf();
+    perf.setDjFilter(-0.5);
+    expect(djFilter.type).toBe('lowpass');
+    const target = djFilter.frequency.exponentialRampToValueAtTime.mock.calls.at(-1)![0] as number;
+    expect(target).toBeLessThan(DJ_OPEN_HZ); // swept down from open
+  });
+
+  it('switches to a highpass for positive values', () => {
+    const { perf, djFilter } = makePerf();
+    perf.setDjFilter(0.5);
+    expect(djFilter.type).toBe('highpass');
+  });
+
+  it('is a no-op while a Filter Drop is held', () => {
+    const { perf, djFilter } = makePerf();
+    perf.setDrop(true); // drop now owns the node
+    vi.clearAllMocks();
+    perf.setDjFilter(0.8);
+    expect(djFilter.frequency.cancelScheduledValues).not.toHaveBeenCalled();
+  });
+});
+
+describe('Performance.setDrop', () => {
+  it('dives to a resonant lowpass on press and restores on release', () => {
+    const { perf, djFilter } = makePerf();
+    perf.setDrop(true);
+    expect(djFilter.type).toBe('lowpass');
+    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(160, expect.any(Number));
+    expect(djFilter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(9, expect.any(Number));
+
+    vi.clearAllMocks();
+    perf.setDrop(false); // returns to the (default 0) knob position → open lowpass
+    expect(djFilter.type).toBe('lowpass');
+    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(DJ_OPEN_HZ, expect.any(Number));
+  });
+});
+
+describe('Performance.setTapeStop', () => {
+  let now = 0;
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubRaf() {
+    // One synchronous frame that advances the clock past the ramp duration so
+    // the ease reaches its endpoint in a single step.
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { now += 100000; cb(now); return 1; });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => now });
+  }
+
+  it('ramps the BPM and pitch down on press', () => {
+    now = 1000;
+    stubRaf();
+    const { perf, clock, bus } = makePerf();
+    const setBpm = vi.spyOn(clock, 'setBpm');
+
+    perf.setTapeStop(true);
+    expect(setBpm).toHaveBeenLastCalledWith(20); // dives to the floor BPM
+    expect(bus.get('master.pitchBend')).toBe(-1); // and bends pitch fully down
+  });
+
+  it('recovers the BPM and pitch on release', () => {
+    now = 1000;
+    stubRaf();
+    const { perf, clock, bus } = makePerf();
+    perf.setTapeStop(true);
+    const setBpm = vi.spyOn(clock, 'setBpm');
+
+    perf.setTapeStop(false);
+    expect(setBpm).toHaveBeenLastCalledWith(120); // back to the original BPM
+    expect(bus.get('master.pitchBend')).toBe(0);
   });
 });

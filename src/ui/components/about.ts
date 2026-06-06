@@ -11,7 +11,10 @@ const SHORTCUTS: Array<[string, string]> = [
   ['Q 2 W 3 E R 5 T 6 Y 7 U I', 'Play notes — upper octave'],
   ['←  →', 'Shift keyboard octave down / up'],
   ['.  /', 'Pitch bend up / down'],
+  ['Space', 'Play / stop transport'],
+  ['F (hold)', 'Drum fill'],
   ['Esc', 'Panic — all notes off'],
+  ['Shift + drag', 'Fine knob control'],
 ];
 
 export function createAboutButton(): HTMLButtonElement {

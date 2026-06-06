@@ -29,6 +29,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onPlayChange: (fn) => engine.arrangement.onChange(fn),
     hasContent: (i) => engine.patterns.seqBanks[i]!.some((s) => s.on),
     onContentChange: (fn) => engine.patterns.onSeqChange(fn),
+    testidPrefix: 'seq',
   }).el);
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).

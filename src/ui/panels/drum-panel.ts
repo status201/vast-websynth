@@ -26,6 +26,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onPlayChange: (fn) => engine.arrangement.onChange(fn),
     hasContent: (i) => engine.patterns.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onDrumChange(fn),
+    testidPrefix: 'drum',
   }).el);
   header.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
     { id: 'fx.drum.phaser.rate', label: 'RATE' },

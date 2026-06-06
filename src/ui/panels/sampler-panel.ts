@@ -30,6 +30,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onPlayChange: (fn) => engine.arrangement.onChange(fn),
     hasContent: (i) => engine.patterns.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onSamplerChange(fn),
+    testidPrefix: 'sampler',
   }).el);
 
   const recBtn = document.createElement('button');

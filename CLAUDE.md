@@ -22,12 +22,19 @@ npm run e2e        # playwright test — browser smoke + control-surface specs
 
 `npm run typecheck` is still the primary check (TS is in `strict` mode with
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
-that style). There is also a small Vitest suite under `tests/` covering the
-pure-logic units (`ParamBus`, `PatternStore`, `Song`, audio `encode`, sample
-`buffer-dsp`) and the DOM components (`createButton`, `Dropdown`); it runs in
-jsdom. Tests live **outside `src/`**
-so they stay invisible to `tsc` — `typecheck`/`build` behaviour is unchanged.
-There is no linter.
+that style). There is also a Vitest suite under `tests/` covering the
+pure-logic units (`ParamBus`, `PatternStore`, `Song`, `Presets`, audio `encode`,
+sample `buffer-dsp`), the transport modules (`Arpeggiator`, `Arrangement`,
+`Sequencer`, `DrumMachine`, `SamplerMachine`, `Performance`) and the DOM
+components (`createButton`, `Dropdown`, `Switch`, `Segmented`, `Tabs`,
+`BankBar`, `ParamDropdown`, `Modal`, …); it runs in jsdom. Transport modules
+that build an audio graph in their constructor are tested against a mock
+`AudioContext` (`tests/audio/mock-audio-context.ts`) — chainable node stubs with
+`vi.fn()` `AudioParam`s, so the wiring builds but no audio runs;
+`localStorage`-backed suites install an in-memory `Storage`
+(`tests/storage-mock.ts`), since jsdom's isn't reliably wired under Vitest.
+Tests live **outside `src/`** so they stay invisible to `tsc` —
+`typecheck`/`build` behaviour is unchanged. There is no linter.
 
 **E2E (Playwright)** lives in `e2e/` (also outside `src/`, so `tsc` ignores
 it), config in `playwright.config.ts`. It drives the **dev server** in headless
@@ -38,19 +45,25 @@ stable testids minted at the factory level: `knob-<paramId>`,
 `switch-<paramId>`, `seg-<paramId>`(+`-<idx>`), `strip-<paramId>`,
 `tab-<id>`/`panel-<id>`, plus per-instance ones in the panels (`seq-step-<i>`,
 `drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`, `sampler-load/name/edit/file-<slot>`,
+`bank-<seq|drum|sampler>-<i>`/`bank-…-copy` (the per-machine `BankBar`, via its
+`testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
+`perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
 assertions, `main.ts` exposes a **dev-only** bridge `window.__synth =
-{ engine, bus, patterns }` (gated on `import.meta.env.DEV`, absent in
+{ engine, bus, patterns, session }` (gated on `import.meta.env.DEV`, absent in
 production) — e.g. `window.__synth.bus.get('filter.cutoff')`. Specs cover boot
 (`smoke`), the control surface (`controls`), and the deeper flows — `presets`
 (select/save + localStorage), `patterns` (seq/drum grid edits + clock advance),
-`sampler` (WAV load via `setInputFiles` + a Node-built fixture in
-`helpers.makeWavBuffer`), and `song` (save→new→load round-trip + a WAV Export
-Song download verified by its RIFF/WAVE header), and `mic` (the record-sound
-modal — record from the fake device, edit, load into a slot). `prompt`/`confirm`
+`banks` (A/B/C/D edit/switch/copy), `sampler` (WAV load via `setInputFiles` + a
+Node-built fixture in `helpers.makeWavBuffer`), `song` (save→new→load round-trip
++ a WAV Export Song download verified by its RIFF/WAVE header), `arp` (held-note
+transport auto-start/stop + ownership), `song-fx` (the Song panel's live DJ FX —
+DJ-filter sweep, Filter Drop, Tape Stop pitch-bend, Stutter/Fill), and `mic`
+(the record-sound modal — record from the fake device, edit, load into a slot).
+`prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
 `--use-fake-device/ui-for-media-stream` Chromium flags (in `playwright.config.ts`)

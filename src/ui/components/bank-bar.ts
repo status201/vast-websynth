@@ -13,6 +13,8 @@ export interface BankBarOpts {
   hasContent(i: number): boolean;
   /** Subscribe to pattern mutations so the filled indicator stays live. */
   onContentChange(fn: () => void): () => void;
+  /** Optional testid namespace, e.g. 'seq' → `bank-seq-0`…`bank-seq-copy`. */
+  testidPrefix?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export class BankBar {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = styles.btn!;
+      if (opts.testidPrefix) b.dataset.testid = `bank-${opts.testidPrefix}-${i}`;
       b.innerHTML = `<span class="${styles.letter!}">${label}</span><span class="${styles.dot!}"></span>`;
       b.addEventListener('click', () => {
         if (this.copyArmed) {
@@ -54,6 +57,7 @@ export class BankBar {
     this.copyBtn = document.createElement('button');
     this.copyBtn.type = 'button';
     this.copyBtn.className = `${switchStyles.root!} ${styles.copy!}`;
+    if (opts.testidPrefix) this.copyBtn.dataset.testid = `bank-${opts.testidPrefix}-copy`;
     this.copyBtn.textContent = 'Copy';
     this.copyBtn.title = 'Copy this bank into another (click Copy, then a slot)';
     this.copyBtn.addEventListener('click', () => this.setArmed(!this.copyArmed));
