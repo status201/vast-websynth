@@ -13,6 +13,11 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // Each test boots the full app (AudioContext + worklets) in its own
+  // Chromium against the on-demand-transforming Vite dev server. At the
+  // default worker count (cores/2) the machine starves and `page.goto`
+  // blows the 30s test timeout; 3 workers runs the suite in ~30s.
+  workers: 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'html',
