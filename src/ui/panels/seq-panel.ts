@@ -10,7 +10,19 @@ import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { Knob } from '../components/knob';
 import { BankBar } from '../components/bank-bar';
 import { noteName } from '../components/keyboard';
-import { SEQ_LENGTH } from '../../state/patterns';
+import { SEQ_LENGTH, type SeqStep } from '../../state/patterns';
+
+// Repaint a step cell: lit state, note label, the per-step settings viz
+// (gate/velocity/prob/ratchet/tie) and a tooltip with the exact values.
+function paintStep(sb: StepButton, s: SeqStep): void {
+  sb.setOn(s.on);
+  sb.setLabel(noteName(s.note));
+  sb.setViz(s);
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  sb.el.title = `${noteName(s.note)} · vel ${pct(s.velocity)} · gate ${pct(s.gate)} · prob ${pct(s.prob)}`
+    + (s.ratchet > 1 ? ` · ×${s.ratchet}` : '')
+    + (s.tie ? ' · tie' : '');
+}
 
 export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
@@ -79,7 +91,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     const cell = engine.patterns.seq[i]!;
     const sb = new StepButton(noteName(cell.note), 'orange');
     sb.el.dataset.testid = `seq-step-${i}`;
-    sb.setOn(cell.on);
+    paintStep(sb, cell);
     sb.el.addEventListener('click', () => {
       setSelected(i);
       // While armed, a click only moves the cursor; otherwise toggle on/off.
@@ -124,8 +136,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
       const s = bank[i]!;
       const sb = steps[i];
       if (!sb) continue;
-      sb.setOn(s.on);
-      sb.setLabel(noteName(s.note));
+      paintStep(sb, s);
     }
     renderSelected();
   });
@@ -134,8 +145,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   engine.patterns.onSeqChange((idx, step) => {
     const sb = steps[idx];
     if (!sb) return;
-    sb.setOn(step.on);
-    sb.setLabel(noteName(step.note));
+    paintStep(sb, step);
     if (idx === selected) renderSelected();
   });
 

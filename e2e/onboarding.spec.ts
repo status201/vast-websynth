@@ -106,7 +106,10 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(arpBadge).toBeHidden();
   await expect(page.getByTestId('help-button')).not.toHaveClass(/toggleActive/);
 
-  // Replay the tour on demand.
+  // Replay the tour on demand. The closed menu lingers in the DOM for its
+  // 200ms fade-out (Modal.close), so wait for it to detach before reopening —
+  // otherwise two help-start-tour buttons coexist and strict mode trips.
+  await expect(page.getByTestId('help-start-tour')).toHaveCount(0);
   await page.getByTestId('help-button').click();
   await page.getByTestId('help-start-tour').click();
   await expect(page.getByTestId('tour-callout')).toBeVisible();

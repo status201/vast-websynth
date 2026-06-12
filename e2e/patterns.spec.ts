@@ -49,6 +49,25 @@ test.describe('pattern grids', () => {
     expect(await seqNote(page, 8)).toBe(72);
   });
 
+  test('per-step settings show up on the step button', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+
+    // Click selects step 0 (and toggles it — re-click if it landed off);
+    // edit-row buttons then act on the selected step.
+    await page.getByTestId('seq-step-0').click();
+    if (!(await seqOn(page, 0))) await page.getByTestId('seq-step-0').click();
+    await page.getByTestId('seq-ratchet-3').click();
+    await page.getByTestId('seq-tie').click();
+
+    // CSS-module class names are hashed, so assert via the inline custom
+    // props the StepButton writes plus the value tooltip.
+    const step = page.getByTestId('seq-step-0');
+    expect(await step.evaluate((el) => el.style.getPropertyValue('--sb-ratchet'))).toBe('3');
+    expect(await step.evaluate((el) => el.style.getPropertyValue('--sb-gate'))).toBe('0.5');
+    await expect(step).toHaveAttribute('title', /vel 80% · gate 50% · prob 100% · ×3 · tie/);
+  });
+
   test('drum cell click toggles PatternStore', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
