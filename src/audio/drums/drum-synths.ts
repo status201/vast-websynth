@@ -1,15 +1,38 @@
 /**
  * Synthesised drum voices. Each exposes `output: AudioNode` (wire once)
- * and `trigger(when, velocity)` for sample-accurate firing.
+ * and `trigger(when, velocity, chokeAt?)` for sample-accurate firing.
  *
  * Cheap one-shot graphs — we create + start + stop short-lived OscillatorNodes
  * inside `trigger` because their lifetimes are bounded by the envelope.
  */
 export interface DrumSynth {
   readonly output: AudioNode;
-  trigger(when: number, velocity: number): void;
+  /** `chokeAt` (step gate < 1) cuts the hit early with a fast fade. */
+  trigger(when: number, velocity: number, chokeAt?: number): void;
   setTune(semitones: number): void;
   setDecay(seconds: number): void;
+}
+
+const CHOKE_FADE = 0.005;
+
+/**
+ * Destination for one one-shot hit: the synth's `output`, or — when the hit
+ * is choked — a per-hit gain that ramps to 0 at `chokeAt`. Cutting in a
+ * *downstream* gain never disturbs the envelope ramps already scheduled
+ * inside the hit (and needs only setValueAtTime/linearRamp, which every
+ * browser and the test mock provide).
+ */
+function chokeRoute(
+  ctx: AudioContext,
+  output: AudioNode,
+  chokeAt: number | undefined,
+): { dest: AudioNode; stopAt(natural: number): number } {
+  if (chokeAt === undefined) return { dest: output, stopAt: (n) => n };
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(1, chokeAt);
+  g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
+  g.connect(output);
+  return { dest: g, stopAt: (n) => Math.min(n, chokeAt + 0.03) };
 }
 
 export class Kick implements DrumSynth {
@@ -25,8 +48,9 @@ export class Kick implements DrumSynth {
   setTune(semi: number): void { this.tune = semi; }
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
-  trigger(when: number, velocity: number): void {
+  trigger(when: number, velocity: number, chokeAt?: number): void {
     const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
     const baseHz = 55 * Math.pow(2, this.tune / 12);
@@ -38,9 +62,9 @@ export class Kick implements DrumSynth {
     env.gain.linearRampToValueAtTime(velocity, t + 0.001);
     env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
 
-    osc.connect(env).connect(this.output);
+    osc.connect(env).connect(r.dest);
     osc.start(t);
-    osc.stop(t + this.decay + 0.05);
+    osc.stop(r.stopAt(t + this.decay + 0.05));
   }
 }
 
@@ -56,8 +80,9 @@ export class Snare implements DrumSynth {
   setTune(_semi: number): void { /* not exposed */ }
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
-  trigger(when: number, velocity: number): void {
+  trigger(when: number, velocity: number, chokeAt?: number): void {
     const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
 
     // Noise component (body of the snare)
     const noise = this.ctx.createBufferSource();
@@ -70,9 +95,9 @@ export class Snare implements DrumSynth {
     noiseEnv.gain.setValueAtTime(0, t);
     noiseEnv.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.002);
     noiseEnv.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
-    noise.connect(noiseFilter).connect(noiseEnv).connect(this.output);
+    noise.connect(noiseFilter).connect(noiseEnv).connect(r.dest);
     noise.start(t);
-    noise.stop(t + this.decay + 0.05);
+    noise.stop(r.stopAt(t + this.decay + 0.05));
 
     // Body tone (~180 Hz, fast decay)
     const tone = this.ctx.createOscillator();
@@ -83,9 +108,9 @@ export class Snare implements DrumSynth {
     toneEnv.gain.setValueAtTime(0, t);
     toneEnv.gain.linearRampToValueAtTime(velocity * 0.5, t + 0.001);
     toneEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-    tone.connect(toneEnv).connect(this.output);
+    tone.connect(toneEnv).connect(r.dest);
     tone.start(t);
-    tone.stop(t + 0.1);
+    tone.stop(r.stopAt(t + 0.1));
   }
 }
 
@@ -102,8 +127,9 @@ export class HiHat implements DrumSynth {
   setTune(_semi: number): void { /* not exposed */ }
   setDecay(s: number): void { this.decay = Math.max(0.02, s); }
 
-  trigger(when: number, velocity: number): void {
+  trigger(when: number, velocity: number, chokeAt?: number): void {
     const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.noiseBuf;
     noise.loop = true;
@@ -123,9 +149,9 @@ export class HiHat implements DrumSynth {
     env.gain.linearRampToValueAtTime(velocity * 0.6, t + 0.001);
     env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
 
-    noise.connect(hp).connect(peak).connect(env).connect(this.output);
+    noise.connect(hp).connect(peak).connect(env).connect(r.dest);
     noise.start(t);
-    noise.stop(t + this.decay + 0.05);
+    noise.stop(r.stopAt(t + this.decay + 0.05));
   }
 }
 
@@ -144,8 +170,9 @@ export class Tom implements DrumSynth {
   setTune(semi: number): void { this.tune = semi; }
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
-  trigger(when: number, velocity: number): void {
+  trigger(when: number, velocity: number, chokeAt?: number): void {
     const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
     const osc = this.ctx.createOscillator();
     osc.type = 'sine';
     const f = this.baseHz * Math.pow(2, this.tune / 12);
@@ -157,9 +184,9 @@ export class Tom implements DrumSynth {
     env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.002);
     env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
 
-    osc.connect(env).connect(this.output);
+    osc.connect(env).connect(r.dest);
     osc.start(t);
-    osc.stop(t + this.decay + 0.05);
+    osc.stop(r.stopAt(t + this.decay + 0.05));
   }
 }
 
@@ -175,8 +202,9 @@ export class Clap implements DrumSynth {
   setTune(_semi: number): void { /* not exposed */ }
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
-  trigger(when: number, velocity: number): void {
+  trigger(when: number, velocity: number, chokeAt?: number): void {
     const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.noiseBuf;
     noise.loop = true;
@@ -197,9 +225,9 @@ export class Clap implements DrumSynth {
     env.gain.setValueAtTime(velocity * 0.4, t + 0.045);
     env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
 
-    noise.connect(bp).connect(env).connect(this.output);
+    noise.connect(bp).connect(env).connect(r.dest);
     noise.start(t);
-    noise.stop(t + this.decay + 0.05);
+    noise.stop(r.stopAt(t + this.decay + 0.05));
   }
 }
 

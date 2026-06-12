@@ -56,10 +56,9 @@ export class StepButton {
   setLabel(s: string): void { this.labelSpan.textContent = s; }
 
   /**
-   * Visualize per-step settings on the button face. The fill layer is created
-   * lazily on first call, so buttons that never use viz (drum/sampler) stay a
-   * single node. Values are cached so repeated calls with the same settings
-   * touch no styles.
+   * Visualize per-step settings on the button face (all three machines call
+   * this). The fill layer is created lazily on first call; values are cached
+   * so repeated calls with the same settings touch no styles.
    */
   setViz(v: StepViz): void {
     const prev = this.viz;

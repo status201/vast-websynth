@@ -10,26 +10,37 @@ import { assertIndex } from '../utils/array';
  * differ when a chain lane is running). Subscribers are notified on any
  * mutation and whenever the edit bank changes (every step re-emitted).
  */
-export interface SeqStep {
-  on: boolean;
-  note: number;     // MIDI note
+/** Per-step settings shared by all three machines (seq / drum / sampler). */
+export interface StepSettings {
   velocity: number; // 0..1
-  gate: number;     // 0..1 of one step duration
+  gate: number;     // 0..1 of one step duration (drum/sampler: 1 = let ring, <1 chokes)
   prob: number;     // 0..1 chance to fire (1 = always)
   ratchet: number;  // 1..4 sub-hits within the step
-  tie: boolean;     // hold into the next step (legato / slide)
+  tie: boolean;     // hold into the next step (seq: legato/slide; drum/sampler: skip the choke)
 }
 
-export interface DrumCell {
+export interface SeqStep extends StepSettings {
   on: boolean;
-  velocity: number; // 0..1
+  note: number;     // MIDI note
 }
 
+/** One-shot trigger cell — the drum machine and sampler step shape. */
+export interface TriggerCell extends StepSettings {
+  on: boolean;
+}
+
+export type DrumCell = TriggerCell;
 /** Sampler step — same shape as DrumCell; one-shot trigger of a loaded file. */
-export interface SamplerStep {
-  on: boolean;
-  velocity: number; // 0..1
-}
+export type SamplerStep = TriggerCell;
+
+/** Defaults for drum/sampler cells. gate 1 = natural decay (no choke), so
+ *  legacy patterns/songs that predate per-step settings sound identical. */
+export const TRIGGER_CELL_DEFAULTS: TriggerCell = {
+  on: false, velocity: 0.85, gate: 1, prob: 1, ratchet: 1, tie: false,
+};
+
+/** Seq fields that v1 song files may lack (on/note/velocity/gate were always present). */
+export const SEQ_EXTRA_DEFAULTS = { prob: 1, ratchet: 1, tie: false };
 
 export const SEQ_LENGTH = 16;
 
@@ -72,13 +83,13 @@ function makeSeqBank(): SeqStep[] {
 
 function makeDrumBank(): DrumCell[][] {
   return Array.from({ length: DRUM_TRACK_COUNT }, () =>
-    Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 } as DrumCell))
+    Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );
 }
 
 function makeSamplerBank(): SamplerStep[][] {
   return Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
-    Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 } as SamplerStep))
+    Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );
 }
 
@@ -324,6 +335,8 @@ export class PatternStore {
   }
 
   restore(snap: Partial<PatternSnapshot>): void {
+    // Legacy files may lack the newer per-step fields — spread defaults first
+    // so a load resets anything the incoming cell doesn't carry.
     if (snap.seqBanks) {
       for (let b = 0; b < BANK_COUNT; b++) {
         const incoming = snap.seqBanks[b];
@@ -331,7 +344,7 @@ export class PatternStore {
         const bank = assertIndex(this.seqBanks, b, 'seqBanks');
         for (let i = 0; i < bank.length; i++) {
           const step = incoming[i];
-          if (step) Object.assign(assertIndex(bank, i, 'seqSteps'), step);
+          if (step) Object.assign(assertIndex(bank, i, 'seqSteps'), SEQ_EXTRA_DEFAULTS, step);
         }
       }
     }
@@ -346,7 +359,7 @@ export class PatternStore {
           const rowDst = assertIndex(bank, t, 'drumTracks');
           for (let s = 0; s < rowDst.length; s++) {
             const cell = row[s];
-            if (cell) Object.assign(assertIndex(rowDst, s, 'drumCells'), cell);
+            if (cell) Object.assign(assertIndex(rowDst, s, 'drumCells'), TRIGGER_CELL_DEFAULTS, cell);
           }
         }
       }
@@ -362,7 +375,7 @@ export class PatternStore {
           const rowDst = assertIndex(bank, t, 'samplerTracks');
           for (let s = 0; s < rowDst.length; s++) {
             const cell = row[s];
-            if (cell) Object.assign(assertIndex(rowDst, s, 'samplerCells'), cell);
+            if (cell) Object.assign(assertIndex(rowDst, s, 'samplerCells'), TRIGGER_CELL_DEFAULTS, cell);
           }
         }
       }

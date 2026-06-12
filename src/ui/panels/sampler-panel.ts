@@ -6,11 +6,20 @@ import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { openRecordSoundModal } from '../components/record-sound-modal';
+import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH, type SamplerStep } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
+import editStyles from '../styles/step-settings.module.css';
+
+// Repaint a sampler cell: lit state, the per-step settings viz and a tooltip.
+function paintCell(sb: StepButton, cell: SamplerStep): void {
+  sb.setOn(cell.on);
+  sb.setViz(cell);
+  sb.el.title = stepTitle(cell);
+}
 
 export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
@@ -72,6 +81,18 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const stepBtns: StepButton[][] = [];
   const labels: HTMLButtonElement[] = [];
   const editBtns: HTMLButtonElement[] = [];
+
+  // Selection cursor for the per-step edit row (one cell across the grid).
+  let selSlot = 0;
+  let selStep = 0;
+  const setSelected = (sl: number, st: number): void => {
+    stepBtns[selSlot]?.[selStep]?.el.classList.remove(StepButton.selectedClass);
+    selSlot = sl;
+    selStep = st;
+    stepBtns[sl]?.[st]?.el.classList.add(StepButton.selectedClass);
+    renderSelected();
+    editor.refresh();
+  };
 
   const refreshLabel = (slot: number): void => {
     const lbl = labels[slot];
@@ -157,9 +178,10 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
       const cell = engine.patterns.sampler[slot]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.el.dataset.testid = `sampler-step-${slot}-${s}`;
-      sb.setOn(cell.on);
       sb.el.classList.add(StepButton.drumCellClass);
+      paintCell(sb, cell);
       sb.el.addEventListener('click', () => {
+        setSelected(slot, s);
         engine.patterns.setSamplerCell(slot, s, { on: !engine.patterns.sampler[slot]![s]!.on });
       });
       cells.appendChild(sb.el);
@@ -171,6 +193,22 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
 
     refreshLabel(slot);
   }
+
+  // ---- Per-step edit row (shared component; below the grid) ----
+  const editor = new StepSettingsEditor({
+    testidPrefix: 'sampler',
+    get: () => engine.patterns.sampler[selSlot]?.[selStep],
+    set: (p) => engine.patterns.setSamplerCell(selSlot, selStep, p),
+  });
+  const selectedLabel = document.createElement('div');
+  selectedLabel.className = editStyles.selectedLabel!;
+  const renderSelected = () => {
+    const name = engine.patterns.sampleNames[selSlot] ?? SAMPLER_SLOT_LABELS[selSlot] ?? `S${selSlot + 1}`;
+    selectedLabel.textContent = `${name} · step ${selStep + 1}`;
+  };
+  editor.el.insertBefore(selectedLabel, editor.el.firstChild);
+  root.appendChild(editor.el);
+  setSelected(0, 0);
 
   // Highlight playback position — only when viewing the bank that's playing
   const highlighter = new PlayheadHighlighter(stepBtns);
@@ -184,18 +222,25 @@ export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
     highlighter.clear();
     for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
       for (let i = 0; i < SEQ_LENGTH; i++) {
-        stepBtns[s]?.[i]?.setOn(bank[s]![i]!.on);
+        const sb = stepBtns[s]?.[i];
+        if (sb) paintCell(sb, bank[s]![i]!);
       }
     }
+    editor.refresh();
   });
 
   // Live step edit updates
   engine.patterns.onSamplerChange((slot, step, cell) => {
-    stepBtns[slot]?.[step]?.setOn(cell.on);
+    const sb = stepBtns[slot]?.[step];
+    if (sb) paintCell(sb, cell);
+    if (slot === selSlot && step === selStep) editor.refresh();
   });
 
   // Filename / load-state changes
-  engine.patterns.onSampleMetaChange((slot) => refreshLabel(slot));
+  engine.patterns.onSampleMetaChange((slot) => {
+    refreshLabel(slot);
+    if (slot === selSlot) renderSelected();
+  });
 
   return root;
 }

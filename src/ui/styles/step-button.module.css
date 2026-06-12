@@ -68,7 +68,7 @@
   font-size: 8px;
 }
 
-/* ---- Per-step settings visualization (sequencer only) ---- */
+/* ---- Per-step settings visualization (all three machines) ---- */
 
 .label {
   position: relative;
@@ -104,12 +104,24 @@
 
 .on .fill { display: block; }
 
+/* red-accent cells (drum/sampler beat columns) keep their red when lit */
+.red .fill {
+  background: linear-gradient(180deg, #d4302a 0%, #8a1010 100%);
+  box-shadow:
+    0 0 8px rgba(255, 58, 32, 0.5),
+    inset 0 1px 0 rgba(255, 180, 160, 0.3),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+}
+
 /* tie → bridge across the grid gap into the next cell (overrides gate width) */
 .tie .fill {
   width: calc(100% + 5px);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
+
+/* the drum/sampler grids use a tighter 3px gap */
+.drum-cell.tie .fill { width: calc(100% + 3px); }
 
 /* prob < 100% → dashed border ("might not fire") */
 .prob.on { border-style: dashed; }

@@ -7,10 +7,19 @@ import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
+import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { DRUM_TRACK_LABELS } from '../../state/params';
-import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import { DRUM_TRACK_COUNT, SEQ_LENGTH, type DrumCell } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
+import editStyles from '../styles/step-settings.module.css';
+
+// Repaint a drum cell: lit state, the per-step settings viz and a tooltip.
+function paintCell(sb: StepButton, cell: DrumCell): void {
+  sb.setOn(cell.on);
+  sb.setViz(cell);
+  sb.el.title = stepTitle(cell);
+}
 
 export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const root = document.createElement('div');
@@ -56,6 +65,19 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   const grid = document.createElement('div');
   grid.className = styles.grid!;
   const stepBtns: StepButton[][] = [];
+
+  // Selection cursor for the per-step edit row (one cell across the grid).
+  let selTrack = 0;
+  let selStep = 0;
+  const setSelected = (t: number, s: number): void => {
+    stepBtns[selTrack]?.[selStep]?.el.classList.remove(StepButton.selectedClass);
+    selTrack = t;
+    selStep = s;
+    stepBtns[t]?.[s]?.el.classList.add(StepButton.selectedClass);
+    renderSelected();
+    editor.refresh();
+  };
+
   for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
     const row = document.createElement('div');
     row.className = styles.row!;
@@ -83,9 +105,10 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
       const cell = engine.patterns.drum[t]![s]!;
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.el.dataset.testid = `drum-step-${t}-${s}`;
-      sb.setOn(cell.on);
       sb.el.classList.add(StepButton.drumCellClass);
+      paintCell(sb, cell);
       sb.el.addEventListener('click', () => {
+        setSelected(t, s);
         engine.patterns.setDrumCell(t, s, { on: !engine.patterns.drum[t]![s]!.on });
       });
       cells.appendChild(sb.el);
@@ -96,6 +119,21 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     grid.appendChild(row);
   }
   root.appendChild(grid);
+
+  // ---- Per-step edit row (shared component; below the grid) ----
+  const editor = new StepSettingsEditor({
+    testidPrefix: 'drum',
+    get: () => engine.patterns.drum[selTrack]?.[selStep],
+    set: (p) => engine.patterns.setDrumCell(selTrack, selStep, p),
+  });
+  const selectedLabel = document.createElement('div');
+  selectedLabel.className = editStyles.selectedLabel!;
+  const renderSelected = () => {
+    selectedLabel.textContent = `${DRUM_TRACK_LABELS[selTrack] ?? `T${selTrack}`} · step ${selStep + 1}`;
+  };
+  editor.el.insertBefore(selectedLabel, editor.el.firstChild);
+  root.appendChild(editor.el);
+  setSelected(0, 0);
 
   // Highlight playback position — only when viewing the bank that's playing
   const highlighter = new PlayheadHighlighter(stepBtns);
@@ -109,14 +147,18 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     highlighter.clear();
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       for (let s = 0; s < SEQ_LENGTH; s++) {
-        stepBtns[t]?.[s]?.setOn(bank[t]![s]!.on);
+        const sb = stepBtns[t]?.[s];
+        if (sb) paintCell(sb, bank[t]![s]!);
       }
     }
+    editor.refresh();
   });
 
   // Live step edit updates
   engine.patterns.onDrumChange((track, step, cell) => {
-    stepBtns[track]?.[step]?.setOn(cell.on);
+    const sb = stepBtns[track]?.[step];
+    if (sb) paintCell(sb, cell);
+    if (track === selTrack && step === selStep) editor.refresh();
   });
 
   return root;

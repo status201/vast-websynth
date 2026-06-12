@@ -3,6 +3,7 @@ import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { SEQ_LENGTH } from '../../state/patterns';
 import type { SynthOutput } from './note-output';
+import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 
 export type StepListener = (step: number) => void;
@@ -59,7 +60,7 @@ export class StepSequencer {
 
     // Rest (or step skipped by probability): let any held note finish, but a
     // tie into a rest must be released here so it doesn't ring forever.
-    if (!s || !s.on || (s.prob < 1 && Math.random() > s.prob)) {
+    if (!s || !s.on || !rollProb(s.prob)) {
       if (this.prevTied && this.lastPlayedNote >= 0) {
         this.output.releaseNote(this.lastPlayedNote, when);
         this.lastPlayedNote = -1;
@@ -73,18 +74,15 @@ export class StepSequencer {
     // glide slurs into the new note (audible slide needs mixer.glide > 0).
     if (!this.prevTied && this.lastPlayedNote >= 0) this.output.releaseNote(this.lastPlayedNote, when);
 
-    const stepDur = this.clock.sixteenthDuration();
-    const ratchet = Math.max(1, Math.round(s.ratchet));
-    const sub = stepDur / ratchet;
-    for (let r = 0; r < ratchet; r++) {
-      const t = when + r * sub;
-      this.output.playNote(s.note, s.velocity, t);
+    const hits = stepHits(s, when, this.clock.sixteenthDuration());
+    for (const h of hits) {
+      this.output.playNote(s.note, s.velocity, h.t);
       // The final sub-hit holds (no release) when the step ties into the next.
-      if (!(s.tie && r === ratchet - 1)) this.output.releaseNote(s.note, t + sub * s.gate);
+      if (!h.holds) this.output.releaseNote(s.note, h.gateEnd);
     }
     this.lastPlayedNote = s.note;
-    this.lastReleaseAt = when + (ratchet - 1) * sub + sub * s.gate;
+    this.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
     this.prevTied = s.tie;
-    for (const l of this.noteListeners) l(s.note, when, when + sub * s.gate);
+    for (const l of this.noteListeners) l(s.note, when, hits[0]!.gateEnd);
   }
 }

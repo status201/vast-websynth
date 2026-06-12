@@ -5,7 +5,7 @@
  */
 import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT } from './patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 
 const STORAGE_PREFIX = 'websynth.song.';
@@ -172,7 +172,7 @@ function emptySeq(): SeqStep[] {
 /** rows: map of track index → array of step indices that are ON. */
 function drumFrom(rows: Record<number, number[]>): DrumCell[][] {
   const bank: DrumCell[][] = Array.from({ length: DRUM_TRACK_COUNT }, () =>
-    Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 } as DrumCell))
+    Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );
   for (const [t, steps] of Object.entries(rows)) {
     for (const s of steps) {

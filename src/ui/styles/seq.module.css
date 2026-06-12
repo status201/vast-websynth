@@ -1,9 +1,5 @@
-.selectedLabel {
-  font-size: 11px;
-  color: var(--accent-secondary);
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
+/* Seq-panel-specific styles; the per-step edit row lives in
+   step-settings.module.css (shared with the drum/sampler panels). */
 
 .stepRow {
   display: grid;
@@ -20,27 +16,6 @@
   box-shadow: 0 0 8px rgba(232, 116, 46, 0.35);
 }
 
-.edit {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.noteCtrl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.noteLabel {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  margin-right: 4px;
-}
-
 .noteDisplay {
   min-width: 38px;
   text-align: center;
@@ -48,48 +23,4 @@
   font-weight: 700;
   color: var(--accent-secondary);
   font-family: var(--serif);
-}
-
-.slider {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 200px;
-}
-
-.sliderLabel {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  min-width: 56px;
-}
-
-.sliderTrack {
-  position: relative;
-  flex: 1;
-  height: 10px;
-  background: linear-gradient(180deg, #0a0604, #16100b);
-  border: 1px solid var(--panel-border);
-  border-radius: 5px;
-  overflow: hidden;
-  cursor: ew-resize;
-  touch-action: none;
-}
-
-.sliderFill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  background: linear-gradient(90deg, #d4602a, #f4cd5e);
-  box-shadow: 0 0 6px rgba(232, 116, 46, 0.5);
-}
-
-.sliderValue {
-  font-size: 10px;
-  color: var(--text-dim);
-  min-width: 36px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }

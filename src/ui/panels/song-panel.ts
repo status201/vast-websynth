@@ -8,7 +8,7 @@ import { Dropdown } from '../components/dropdown';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { createAiPromptButton } from '../components/ai-prompt';
-import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../state/patterns';
+import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -255,7 +255,7 @@ export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSes
 function emptySamplerBanks() {
   return Array.from({ length: 4 }, () =>
     Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
-      Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 }))));
+      Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))));
 }
 
 function buildChainLane(
@@ -355,5 +355,5 @@ function emptySeqBanks() {
 function emptyDrumBanks() {
   return Array.from({ length: 4 }, () =>
     Array.from({ length: DRUM_TRACK_COUNT }, () =>
-      Array.from({ length: SEQ_LENGTH }, () => ({ on: false, velocity: 0.85 }))));
+      Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))));
 }

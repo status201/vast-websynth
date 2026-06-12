@@ -210,8 +210,12 @@ TOP-LEVEL SHAPE
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
              "prob": number /* 0..1 chance the step fires, default 1 */, "ratchet": number /* 1-4 sub-hits in the step, default 1 */,
              "tie": boolean /* hold into the next step (legato/slide), default false */ }
-DrumCell = { "on": boolean, "velocity": number /* 0..1 */ }
-SamplerStep = { "on": boolean, "velocity": number /* 0..1 */ }
+DrumCell = SamplerStep = { "on": boolean, "velocity": number /* 0..1 */,
+             "gate": number /* 0..1 of a step; 1 = let the hit ring naturally (default), <1 chokes it early */,
+             "prob": number /* 0..1 chance the step fires, default 1 */, "ratchet": number /* 1-4 sub-hits in the step, default 1 */,
+             "tie": boolean /* let the last ratchet hit ring past a shortened gate into the next step, default false */ }
+On import, any omitted "gate"/"prob"/"ratchet"/"tie" falls back to its default, so plain
+{ "on", "velocity" } cells stay valid.
 
 Banks are labelled ${BANK_LABELS.join('/')}. A chain with enabled:false just plays bank A.
 Drum track index → instrument: ${drumTracks}.
@@ -224,6 +228,9 @@ NOTES
   positive "filter.envAmount", and route the LFO to cutoff with "lfo.dest": 1.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
   in Mono voicing for acid slides.
+- Drum/sampler steps take the same settings: "gate" < 1 chokes a hit early (tight/choked open hats,
+  gated snares), "ratchet" 2-4 makes hat/snare rolls, "prob" < 1 makes ghost notes, and "tie" lets the
+  last ratchet hit of a choked step ring out.
 - Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
   the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
   Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.

@@ -4,6 +4,7 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import { Kick, Snare, HiHat, Tom, Clap, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import { chokeAt, rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 
 export type DrumStepListener = (step: number) => void;
@@ -88,11 +89,13 @@ export class DrumMachine {
     }
 
     const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
+    const stepDur = this.clock.sixteenthDuration();
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       if (this.muted[t]) continue;
       const cell = bank[t]?.[idx];
-      if (cell && cell.on) {
-        this.tracks[t]?.trigger(when, cell.velocity);
+      if (!cell || !cell.on || !rollProb(cell.prob)) continue;
+      for (const h of stepHits(cell, when, stepDur)) {
+        this.tracks[t]?.trigger(h.t, cell.velocity, chokeAt(cell, h));
       }
     }
   }

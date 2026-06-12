@@ -134,6 +134,38 @@ describe('Song', () => {
     expect(file.seqBanks.length).toBe(4);
   });
 
+  it('capture() emits full drum cells (per-step settings included)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    patterns.setDrumCell(2, 5, { on: true, gate: 0.5, ratchet: 3 });
+
+    const file = Song.capture(bus, patterns, fakeArr() as never, 'Full');
+    expect(file.drumBanks[0]![2]![5]!).toEqual(
+      { on: true, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 3, tie: false });
+  });
+
+  it('applying a legacy file (on/velocity drum cells) resets per-step settings to defaults', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    patterns.setDrumCell(0, 0, { gate: 0.25, ratchet: 4, tie: true }); // live edits to reset
+    const arr = fakeArr();
+    const v1 = demo();
+    expect(v1.version).toBe(1);
+    // Strip the cells down to the legacy { on, velocity } shape.
+    v1.drumBanks = v1.drumBanks.map((bank) =>
+      bank.map((row) => row.map((c) => ({ on: c.on, velocity: c.velocity }))),
+    ) as typeof v1.drumBanks;
+
+    Song.apply(v1, bus, patterns, arr as never);
+
+    const cell = patterns.drumBanks[0]![0]![0]!;
+    expect(cell.gate).toBe(1);
+    expect(cell.ratchet).toBe(1);
+    expect(cell.tie).toBe(false);
+  });
+
   describe('sampler (v2)', () => {
     it('capture() writes version 2 with sampler banks/chain/names', () => {
       const bus = new ParamBus();

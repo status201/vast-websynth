@@ -44,7 +44,9 @@ specs select by **text/role** or by `data-testid`. Interactive components carry
 stable testids minted at the factory level: `knob-<paramId>`,
 `switch-<paramId>`, `seg-<paramId>`(+`-<idx>`), `strip-<paramId>`,
 `tab-<id>`/`panel-<id>`, plus per-instance ones in the panels (`seq-step-<i>`,
-`drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`, `sampler-load/name/edit/file-<slot>`,
+`drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`,
+`<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
+`StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
 `bank-<seq|drum|sampler>-<i>`/`bank-…-copy` (the per-machine `BankBar`, via its
 `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`),
@@ -56,7 +58,8 @@ assertions, `main.ts` exposes a **dev-only** bridge `window.__synth =
 { engine, bus, patterns, session }` (gated on `import.meta.env.DEV`, absent in
 production) — e.g. `window.__synth.bus.get('filter.cutoff')`. Specs cover boot
 (`smoke`), the control surface (`controls`), and the deeper flows — `presets`
-(select/save + localStorage), `patterns` (seq/drum grid edits + clock advance),
+(select/save + localStorage), `patterns` (seq/drum/sampler grid edits,
+per-step settings viz + clock advance),
 `banks` (A/B/C/D edit/switch/copy), `sampler` (WAV load via `setInputFiles` + a
 Node-built fixture in `helpers.makeWavBuffer`), `song` (save→new→load round-trip
 + a WAV Export Song download verified by its RIFF/WAVE header), `arp` (held-note
@@ -150,6 +153,21 @@ listener mechanism.
   *edit bank* (`seq`/`drum` getters; `setSeqEditBank`/`setDrumEditBank`
   re-emit every step so panels repaint). The transport reads the *play bank*
   (`seqBank(i)`/`drumBank(i)`) chosen by the Arrangement — which may differ.
+- **Per-step settings** — every machine's step carries velocity/gate/prob/
+  ratchet/tie (`StepSettings` in `state/patterns.ts`; `SeqStep` adds `note`,
+  `DrumCell`/`SamplerStep` are the shared `TriggerCell`). The pure hit math
+  (probability roll + ratchet sub-hit timing) is
+  `audio/transport/step-hits.ts`, consumed by all three machines. The seq
+  releases its voice at `gateEnd`; the one-shot machines use the **choke
+  model**: gate < 1 cuts the hit early via a per-hit downstream gain
+  (`chokeRoute` in `drums/drum-synths.ts`; the sampler chokes its per-hit
+  velocity gain), gate 1 — their default — is the natural decay, and tie
+  lets the last ratchet sub-hit ring into the next step. The shared edit-row
+  UI is `StepSettingsEditor` (`ui/components/step-settings.ts`, styles in
+  `step-settings.module.css`); each panel owns its selection cursor.
+  `PatternStore.restore` spreads defaults under incoming cells, so legacy
+  v1/v2 song files (plain `{on, velocity}` drum/sampler cells) load with
+  gate 1 etc. and sound unchanged.
 - **`Arrangement`** (`audio/transport/arrangement.ts`) — two independent
   chain lanes (seq + drum), each an ordered list of bank indices. Advances
   one slot per bar (`step % SEQ_LENGTH === 0`); a disabled lane's play bank
@@ -220,7 +238,7 @@ listener mechanism.
   - Bridge global classes (e.g. `switch-label`) are kept alongside module classes where global descendant selectors still target children: `className: 'switch-label ' + styles.label!`.
   - Use `:global()` when a module selector targets an element with only a global class: `.icons button :global(svg.wave-icon)`.
   - Step buttons: `.root` is `min-width: 0; width: 100%; height: 32px`. `.drum-cell` overrides height to 22px and font-size to 8px but does NOT set width — parent grid controls sizing.
-  - Step buttons (seq only) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by inline custom props (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. Drum/sampler never call `setViz`, so their cells stay single-node.
+  - Step buttons (all three machines) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by inline custom props (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. `.red .fill` keeps the drum/sampler beat columns red when lit; `.drum-cell.tie .fill` shortens the tie bridge to the drum grid's 3px gap.
   - The drum module's `.cells` uses `display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px` — both `drum-panel.ts` and `sampler-panel.ts` import this via `drumStyles.cells`.
   - Sampler action buttons (`.load`, `.edit`, `.rec`) need full base button styling (background, border, border-radius, cursor, font-family, box-shadow, transition) in their module class — they are standalone classes with no shared base class to inherit from.
   - Panel builder functions must explicitly `appendChild` every sub-container to the root element. Orphaned DOM subtrees (built but never appended) are a common source of blank panels — previously tripped on `drum-panel.ts` where the grid was constructed but `root.appendChild(grid)` was missing.

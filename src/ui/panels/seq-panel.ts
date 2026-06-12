@@ -1,6 +1,7 @@
 import switchStyles from '../styles/switch.module.css';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/seq.module.css';
+import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
 import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
@@ -10,6 +11,7 @@ import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { Knob } from '../components/knob';
 import { BankBar } from '../components/bank-bar';
 import { noteName } from '../components/keyboard';
+import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { SEQ_LENGTH, type SeqStep } from '../../state/patterns';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
@@ -18,10 +20,7 @@ function paintStep(sb: StepButton, s: SeqStep): void {
   sb.setOn(s.on);
   sb.setLabel(noteName(s.note));
   sb.setViz(s);
-  const pct = (v: number) => `${Math.round(v * 100)}%`;
-  sb.el.title = `${noteName(s.note)} · vel ${pct(s.velocity)} · gate ${pct(s.gate)} · prob ${pct(s.prob)}`
-    + (s.ratchet > 1 ? ` · ×${s.ratchet}` : '')
-    + (s.tie ? ' · tie' : '');
+  sb.el.title = `${noteName(s.note)} · ${stepTitle(s)}`;
 }
 
 export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
@@ -60,7 +59,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   header.appendChild(recBtn);
 
   const selectedLabel = document.createElement('div');
-  selectedLabel.className = styles.selectedLabel!;
+  selectedLabel.className = editStyles.selectedLabel!;
   header.appendChild(selectedLabel);
   root.appendChild(header);
 
@@ -149,14 +148,18 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     if (idx === selected) renderSelected();
   });
 
-  // ---- Edit row ----
-  const edit = document.createElement('div');
-  edit.className = styles.edit!;
+  // ---- Edit row ---- (shared sliders/ratchet/tie + the seq-only note picker)
+  const editor = new StepSettingsEditor({
+    testidPrefix: 'seq',
+    get: () => engine.patterns.seq[selected],
+    set: (p) => engine.patterns.setSeqStep(selected, p),
+  });
+  const edit = editor.el;
 
   const noteCtrl = document.createElement('div');
-  noteCtrl.className = styles.noteCtrl!;
+  noteCtrl.className = editStyles.ctrl!;
   const noteLabel = document.createElement('div');
-  noteLabel.className = styles.noteLabel!;
+  noteLabel.className = editStyles.ctrlLabel!;
   noteLabel.textContent = 'Note';
   noteCtrl.appendChild(noteLabel);
   const downBtn = document.createElement('button');
@@ -179,7 +182,7 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   upBtn.title = 'Raise pitch — Shift+click for a full octave';
   upBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? 12 : 1));
   noteCtrl.appendChild(upBtn);
-  edit.appendChild(noteCtrl);
+  edit.insertBefore(noteCtrl, edit.firstChild); // note picker leads the row
 
   function bumpNote(delta: number, index = selected): void {
     const s = engine.patterns.seq[index];
@@ -189,68 +192,13 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
     if (index === selected) noteDisplay.textContent = noteName(next);
   }
 
-  // Use simple sliders for velocity/gate of the selected step
-  // (avoids needing a per-step ParamBus entry)
-  const velSlider = makeSlider('Velocity', 0, 1, () => engine.patterns.seq[selected]?.velocity ?? 0.8,
-    (v) => engine.patterns.setSeqStep(selected, { velocity: v }));
-  edit.appendChild(velSlider.el);
-
-  const gateSlider = makeSlider('Gate', 0.05, 1, () => engine.patterns.seq[selected]?.gate ?? 0.5,
-    (v) => engine.patterns.setSeqStep(selected, { gate: v }));
-  edit.appendChild(gateSlider.el);
-
-  const probSlider = makeSlider('Prob', 0, 1, () => engine.patterns.seq[selected]?.prob ?? 1,
-    (v) => engine.patterns.setSeqStep(selected, { prob: v }));
-  probSlider.el.dataset.testid = 'seq-prob';
-  edit.appendChild(probSlider.el);
-
-  // Ratchet — 1..4 sub-hits within the step.
-  const ratchetCtrl = document.createElement('div');
-  ratchetCtrl.className = styles.noteCtrl!;
-  ratchetCtrl.dataset.testid = 'seq-ratchet';
-  const ratchetLabel = document.createElement('div');
-  ratchetLabel.className = styles.noteLabel!;
-  ratchetLabel.textContent = 'Ratchet';
-  ratchetCtrl.appendChild(ratchetLabel);
-  const ratchetBtns: HTMLButtonElement[] = [];
-  for (let n = 1; n <= 4; n++) {
-    const b = document.createElement('button');
-    b.className = switchStyles.root!;
-    b.textContent = String(n);
-    b.dataset.testid = `seq-ratchet-${n}`;
-    b.title = `${n} hit${n > 1 ? 's' : ''} per step`;
-    b.addEventListener('click', () => engine.patterns.setSeqStep(selected, { ratchet: n }));
-    ratchetBtns.push(b);
-    ratchetCtrl.appendChild(b);
-  }
-  const refreshRatchet = () => {
-    const r = Math.max(1, Math.round(engine.patterns.seq[selected]?.ratchet ?? 1));
-    ratchetBtns.forEach((b, i) => b.classList.toggle('on', i + 1 === r));
-  };
-  edit.appendChild(ratchetCtrl);
-
-  // Tie — hold this step into the next (legato / slide).
-  const tieBtn = createButton({
-    label: 'Tie',
-    led: true,
-    testId: 'seq-tie',
-    onClick: () => engine.patterns.setSeqStep(selected, { tie: !engine.patterns.seq[selected]?.tie }),
-  });
-  tieBtn.title = 'Tie — hold into the next step (legato); slides when mixer.glide > 0';
-  const refreshTie = () => tieBtn.classList.toggle('on', !!engine.patterns.seq[selected]?.tie);
-  edit.appendChild(tieBtn);
-
   root.appendChild(edit);
 
   const refresh = () => {
     const s = engine.patterns.seq[selected];
     if (!s) return;
     noteDisplay.textContent = noteName(s.note);
-    velSlider.refresh();
-    gateSlider.refresh();
-    probSlider.refresh();
-    refreshRatchet();
-    refreshTie();
+    editor.refresh();
     renderSelected();
   };
   engine.patterns.onSeqChange((idx) => { if (idx === selected) refresh(); });
@@ -263,49 +211,4 @@ export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
   void Knob;
 
   return root;
-}
-
-function makeSlider(label: string, min: number, max: number, get: () => number, set: (v: number) => void): { el: HTMLElement; refresh(): void } {
-  const root = document.createElement('div');
-  root.className = styles.slider!;
-  const l = document.createElement('div');
-  l.className = styles.sliderLabel!;
-  l.textContent = label;
-  root.appendChild(l);
-
-  const track = document.createElement('div');
-  track.className = styles.sliderTrack!;
-  const fill = document.createElement('div');
-  fill.className = styles.sliderFill!;
-  track.appendChild(fill);
-  root.appendChild(track);
-
-  const valLabel = document.createElement('div');
-  valLabel.className = styles.sliderValue!;
-  root.appendChild(valLabel);
-
-  const refresh = () => {
-    const v = get();
-    const n = (v - min) / (max - min);
-    fill.style.width = `${n * 100}%`;
-    valLabel.textContent = `${Math.round(n * 100)}%`;
-  };
-
-  let dragging = false;
-  const handle = (clientX: number) => {
-    const rect = track.getBoundingClientRect();
-    const n = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    set(min + n * (max - min));
-    refresh();
-  };
-  track.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    handle(e.clientX);
-  });
-  window.addEventListener('pointermove', (e) => { if (dragging) handle(e.clientX); });
-  window.addEventListener('pointerup', () => { dragging = false; });
-  window.addEventListener('pointercancel', () => { dragging = false; });
-
-  return { el: root, refresh };
 }

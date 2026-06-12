@@ -44,7 +44,7 @@ describe('DrumMachine', () => {
     dm.setEnabled(true);
     patterns.setDrumCell(0, 0, { on: true, velocity: 0.7 }); // kick on step 0
     clock.fireTick(0);
-    expect(spies[0]).toHaveBeenCalledWith(0, 0.7);
+    expect(spies[0]).toHaveBeenCalledWith(0, 0.7, undefined); // gate 1 → no choke
     expect(spies[1]).not.toHaveBeenCalled();
   });
 
@@ -64,7 +64,54 @@ describe('DrumMachine', () => {
     patterns.setDrumCell(0, 0, { on: true, velocity: 0.3 }); // raw step (should be ignored)
     clock.fireTick(0); // raw step 0 → mapStep → 4
     expect(spies[0]).toHaveBeenCalledTimes(1);
-    expect(spies[0]).toHaveBeenCalledWith(0, 0.8);
+    expect(spies[0]).toHaveBeenCalledWith(0, 0.8, undefined);
+  });
+
+  it('plays ratchet sub-hits evenly spaced across the step', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, ratchet: 3 });
+    clock.fireTick(0);
+    const sub = clock.sixteenthDuration() / 3;
+    expect(spies[0]).toHaveBeenCalledTimes(3);
+    expect(spies[0]).toHaveBeenNthCalledWith(1, 0, 0.7, undefined);
+    expect(spies[0]).toHaveBeenNthCalledWith(2, sub, 0.7, undefined);
+    expect(spies[0]).toHaveBeenNthCalledWith(3, 2 * sub, 0.7, undefined);
+  });
+
+  it('chokes each hit at gate × sub-duration when gate < 1', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, gate: 0.5, ratchet: 2 });
+    clock.fireTick(0);
+    const sub = clock.sixteenthDuration() / 2;
+    expect(spies[0]).toHaveBeenNthCalledWith(1, 0, 0.7, sub * 0.5);
+    expect(spies[0]).toHaveBeenNthCalledWith(2, sub, 0.7, sub + sub * 0.5);
+  });
+
+  it('tie lets the last ratchet hit ring (no choke) past a shortened gate', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, gate: 0.25, ratchet: 2, tie: true });
+    clock.fireTick(0);
+    const sub = clock.sixteenthDuration() / 2;
+    expect(spies[0]).toHaveBeenNthCalledWith(1, 0, 0.7, sub * 0.25);
+    expect(spies[0]).toHaveBeenNthCalledWith(2, sub, 0.7, undefined);
+  });
+
+  it('skips the step when the probability roll fails, fires when it passes', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, prob: 0.5 });
+    const rnd = vi.spyOn(Math, 'random');
+    rnd.mockReturnValue(0.9); // > prob → skip
+    clock.fireTick(0);
+    expect(spies[0]).not.toHaveBeenCalled();
+    clock.step = 0;
+    rnd.mockReturnValue(0.1); // ≤ prob → fire
+    clock.fireTick(0);
+    expect(spies[0]).toHaveBeenCalledTimes(1);
+    rnd.mockRestore();
   });
 
   it('plays the fill cascade instead of the pattern when fillActive', () => {

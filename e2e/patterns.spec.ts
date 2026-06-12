@@ -76,6 +76,35 @@ test.describe('pattern grids', () => {
     expect(await drumOn(page, 0, 0)).toBe(!before);
   });
 
+  test('drum per-step settings show up on the cell', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    // Click selects the cell (and toggles it — re-click if it landed off);
+    // the shared edit row below the grid then acts on the selection.
+    await page.getByTestId('drum-step-1-4').click();
+    if (!(await drumOn(page, 1, 4))) await page.getByTestId('drum-step-1-4').click();
+    await page.getByTestId('drum-ratchet-3').click();
+    await page.getByTestId('drum-tie').click();
+
+    const cell = page.getByTestId('drum-step-1-4');
+    expect(await cell.evaluate((el) => el.style.getPropertyValue('--sb-ratchet'))).toBe('3');
+    expect(await cell.evaluate((el) => el.style.getPropertyValue('--sb-gate'))).toBe('1');
+    await expect(cell).toHaveAttribute('title', /vel 85% · gate 100% · prob 100% · ×3 · tie/);
+  });
+
+  test('sampler per-step settings show up on the cell', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-sampler').click();
+
+    await page.getByTestId('sampler-step-0-0').click(); // empty grid → turns on + selects
+    await page.getByTestId('sampler-tie').click();
+
+    const cell = page.getByTestId('sampler-step-0-0');
+    await expect(cell).toHaveAttribute('title', /vel 85% · gate 100% · prob 100% · tie/);
+    expect(await page.evaluate(() => (window as any).__synth.patterns.sampler[0][0].tie)).toBe(true);
+  });
+
   test('transport advances the clock', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('transport-play').click();

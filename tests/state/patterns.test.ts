@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, type SeqStep } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, type SeqStep, type DrumCell } from '../../src/state/patterns';
 
 describe('PatternStore', () => {
   it('seeds a default groove into drum bank A only', () => {
@@ -192,13 +192,53 @@ describe('PatternStore', () => {
 
   it('restores legacy steps (missing the new fields) to the defaults', () => {
     const ps = new PatternStore();
-    // Simulate a v1/v2 song whose seq steps predate prob/ratchet/tie.
+    // Simulate a v1/v2 song whose seq steps predate prob/ratchet/tie —
+    // after a live edit, so stale values must not survive the load.
+    ps.setSeqStep(0, { prob: 0.3, ratchet: 4, tie: true });
     ps.restore({ seqBanks: [[{ on: true, note: 60, velocity: 0.8, gate: 0.5 }]] as SeqStep[][] });
     const s = ps.seqBanks[0]![0]!;
     expect(s.on).toBe(true);
     expect(s.prob).toBe(1);
     expect(s.ratchet).toBe(1);
     expect(s.tie).toBe(false);
+  });
+
+  it('new drum/sampler cells default to gate 1, prob 1, ratchet 1, tie false', () => {
+    const ps = new PatternStore();
+    for (const c of [ps.drum[0]![0]!, ps.sampler[0]![0]!]) {
+      expect(c.gate).toBe(1);
+      expect(c.prob).toBe(1);
+      expect(c.ratchet).toBe(1);
+      expect(c.tie).toBe(false);
+    }
+  });
+
+  it('drum per-step settings round-trip through snapshot/restore and copyDrumBank', () => {
+    const ps = new PatternStore();
+    ps.setDrumCell(2, 5, { on: true, gate: 0.25, prob: 0.6, ratchet: 4, tie: true });
+    ps.copyDrumBank(0, 1);
+    expect(ps.drumBanks[1]![2]![5]!).toEqual({ on: true, velocity: 0.85, gate: 0.25, prob: 0.6, ratchet: 4, tie: true });
+
+    const ps2 = new PatternStore();
+    ps2.restore(ps.snapshot());
+    expect(ps2.drumBanks[0]![2]![5]!.gate).toBe(0.25);
+    expect(ps2.drumBanks[0]![2]![5]!.ratchet).toBe(4);
+    expect(ps2.drumBanks[0]![2]![5]!.tie).toBe(true);
+  });
+
+  it('restores legacy drum/sampler cells (on/velocity only) to the defaults', () => {
+    const ps = new PatternStore();
+    // Live edits that a legacy load must reset.
+    ps.setDrumCell(0, 0, { gate: 0.3, prob: 0.5, ratchet: 4, tie: true });
+    ps.setSamplerCell(0, 0, { gate: 0.3 });
+    ps.restore({
+      drumBanks: [[[{ on: true, velocity: 0.7 }]]] as DrumCell[][][],
+      samplerBanks: [[[{ on: true, velocity: 0.6 }]]] as DrumCell[][][],
+    });
+    const d = ps.drumBanks[0]![0]![0]!;
+    expect(d).toEqual({ on: true, velocity: 0.7, gate: 1, prob: 1, ratchet: 1, tie: false });
+    const s = ps.samplerBanks[0]![0]![0]!;
+    expect(s).toEqual({ on: true, velocity: 0.6, gate: 1, prob: 1, ratchet: 1, tie: false });
   });
 
   it('round-trips through snapshot/restore', () => {
