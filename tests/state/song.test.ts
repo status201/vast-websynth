@@ -241,6 +241,34 @@ describe('Song', () => {
     });
   });
 
+  describe('"Fat" drop-in demo', () => {
+    it('is a v2 file and round-trips through toJSON/fromJSON', () => {
+      const fat = DEMO_SONGS['Fat'];
+      expect(fat).toBeDefined();
+      expect(fat!.version).toBe(2);
+      expect(Song.fromJSON(Song.toJSON(fat!))).toEqual(fat);
+    });
+
+    it('applies its acid params and per-step settings', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const arr = fakeArr();
+
+      Song.apply(DEMO_SONGS['Fat']!, bus, patterns, arr as never);
+
+      expect(bus.get('transport.bpm')).toBe(127);
+      expect(bus.get('voicing.mode')).toBe(0);             // mono 303
+      expect(bus.get('filter.resonance')).toBe(3.2);
+      expect(bus.get('fx.drum.comp.ratio')).toBe(4);       // ALL buttons in
+      expect(patterns.seqBanks[0]![2]!.tie).toBe(true);    // acid slide
+      expect(patterns.drumBanks[0]![3]![2]!.gate).toBeCloseTo(0.45); // choked open hat
+      expect(patterns.drumBanks[0]![2]![1]!.prob).toBeCloseTo(0.35); // ghost hat
+      expect(arr.seq.steps).toHaveLength(16);              // long chains
+      expect(arr.drum.steps).toHaveLength(16);
+    });
+  });
+
   describe('"Apex Twin" drop-in demo', () => {
     it('is auto-registered ahead of the built-ins and round-trips', () => {
       const apex = DEMO_SONGS['Apex Twin'];
