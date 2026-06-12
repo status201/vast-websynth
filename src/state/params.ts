@@ -137,6 +137,8 @@ const fmtPct = (v: number) => `${Math.round(v * 100)}%`;
 const fmtSemi = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}st`;
 const fmtCent = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}c`;
 const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)}dB`;
+const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
+const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
 const fmtNoteFromCutoff = (note: number) => fmtHz(440 * Math.pow(2, (note - 69) / 12));
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
@@ -250,6 +252,14 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.drum.delay.feedback', min: 0, max: 0.95, default: 0.4, format: fmtPct },
     { id: 'fx.drum.delay.mix', min: 0, max: 1, default: 0.3, format: fmtPct },
 
+    // ----- Drum FX: Compressor (1176 FET style; ratio is an index) -----
+    { id: 'fx.drum.comp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'fx.drum.comp.threshold', min: -40, max: 0, default: -18, format: fmtDbRaw },
+    { id: 'fx.drum.comp.ratio', min: 0, max: 4, default: 0, step: 1, taper: 'discrete', labels: ['4:1', '8:1', '12:1', '20:1', 'ALL'] },
+    { id: 'fx.drum.comp.attack', min: 0.00002, max: 0.0008, default: 0.0002, taper: 'exp', format: fmtUs },
+    { id: 'fx.drum.comp.release', min: 0.05, max: 1.1, default: 0.25, taper: 'exp', format: fmtMs },
+    { id: 'fx.drum.comp.makeup', min: 0, max: 24, default: 0, format: fmtDbRaw },
+
     // ----- Sampler FX: Distortion -----
     { id: 'fx.sampler.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'fx.sampler.dist.drive', min: 0, max: 1, default: 0.3, format: fmtPct },
@@ -278,6 +288,14 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- DJ filter (live performance sweep) -----
     { id: 'fx.djfilter', min: -1, max: 1, default: 0, format: (v) =>
         Math.abs(v) < 0.02 ? 'off' : v < 0 ? `LP ${Math.round(-v * 100)}%` : `HP ${Math.round(v * 100)}%` },
+
+    // ----- Master FX: Compressor (SSL G bus VCA style; ratio/release are indices) -----
+    { id: 'fx.master.comp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'fx.master.comp.threshold', min: -40, max: 0, default: -12, format: fmtDbRaw },
+    { id: 'fx.master.comp.ratio', min: 0, max: 2, default: 1, step: 1, taper: 'discrete', labels: ['2:1', '4:1', '10:1'] },
+    { id: 'fx.master.comp.attack', min: 0.0001, max: 0.03, default: 0.01, taper: 'exp', format: fmtMs },
+    { id: 'fx.master.comp.release', min: 0, max: 4, default: 4, step: 1, taper: 'discrete', labels: ['0.1s', '0.3s', '0.6s', '1.2s', 'auto'] },
+    { id: 'fx.master.comp.makeup', min: 0, max: 12, default: 0, format: fmtDbRaw },
 
     // ----- Master -----
     { id: 'master.volume', min: 0, max: 1, default: 0.8, format: fmtDb },

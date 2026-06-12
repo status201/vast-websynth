@@ -61,7 +61,10 @@ production) — e.g. `window.__synth.bus.get('filter.cutoff')`. Specs cover boot
 Node-built fixture in `helpers.makeWavBuffer`), `song` (save→new→load round-trip
 + a WAV Export Song download verified by its RIFF/WAVE header), `arp` (held-note
 transport auto-start/stop + ownership), `song-fx` (the Song panel's live DJ FX —
-DJ-filter sweep, Filter Drop, Tape Stop pitch-bend, Stutter/Fill), and `mic`
+DJ-filter sweep, Filter Drop, Tape Stop pitch-bend, Stutter/Fill), `compressor`
+(the drum/master bus compressors — switch, knobs, `grmeter-<prefix>` presence,
+help badges),
+and `mic`
 (the record-sound modal — record from the fake device, edit, load into a slot).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
@@ -90,13 +93,30 @@ Audio graph:
 
 ```
 voices → voiceBus → distortion → wah → phaser → delay → reverb ─┐
-                                                  drumBus ───────┤
-                                                          preMaster → analyser → master → destination
+                drumBus → drumComp → drumPhaser → drumDelay ─────┤
+                                                          preMaster → djFilter → masterComp → analyser → master → destination
 ```
 
 The analyser taps **pre-master** so the scope is independent of the volume
 knob. The drum bus **and** the sampler bus join at `preMaster`, bypassing the
 synth FX chain.
+
+**Compressors** — a single `hardware-compressor` AudioWorklet
+(`public/worklets/compressor.js`, wrapped by `audio/compressor/node.ts`)
+with two character modes fixed per instance via `processorOptions.mode`:
+`'fet'` (1176-style: feedback detector, program-dependent release, FET
+saturation) heads the drum chain (`engine.drumComp`), and `'vca'` (SSL
+G-bus-style: 6 dB soft knee, auto-release glue) sits `djFilter → masterComp →
+analyser` (`engine.masterComp`). The `Compressor` Effect
+(`audio/effects/compressor.ts`) builds its `BypassWrapper` synchronously so
+Engine's constructor can wire chains, then `attachWorklet()` (from
+`Engine.init()`, after `loadModule`) splices the node in and replays cached
+setter values. Discrete ratio/release params carry an *index*; Engine's
+`subscribeCompressor()` maps it to real values (fet ratio 100 = "all buttons
+in"; an SSL release index past the table = auto). The worklet posts gain
+reduction (dB, ~31 Hz) on its port for the `GrMeter` UI; its DSP is
+unit-tested directly under Vitest (`tests/audio/compressor-worklet.test.ts`)
+by stubbing the worklet globals and importing the file.
 
 **Audio export** — a zero-output `recorder` AudioWorklet
 (`public/worklets/recorder.js`, wrapped by `audio/recorder/node.ts`) is tapped

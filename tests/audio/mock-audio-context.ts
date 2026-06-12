@@ -54,6 +54,7 @@ export function makeMockBiquadFilter() {
 export interface MockAudioContext {
   currentTime: number;
   sampleRate: number;
+  audioWorklet: { addModule: ReturnType<typeof vi.fn> };
   createGain: ReturnType<typeof vi.fn>;
   createOscillator: ReturnType<typeof vi.fn>;
   createBufferSource: ReturnType<typeof vi.fn>;
@@ -64,11 +65,19 @@ export interface MockAudioContext {
 }
 
 export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
+  // Nodes carry a back-reference to their context (production code reads
+  // `node.context.currentTime`, e.g. BypassWrapper), assigned after `ctx`
+  // exists via this helper.
+  const withCtx = (node: Record<string, unknown>) => {
+    node.context = ctx;
+    return node;
+  };
   const ctx = {
     currentTime: 0,
     sampleRate,
-    createGain: vi.fn(() => ({ ...baseNode(), gain: makeParam(1) })),
-    createOscillator: vi.fn(() => ({
+    audioWorklet: { addModule: vi.fn(async () => {}) },
+    createGain: vi.fn(() => withCtx({ ...baseNode(), gain: makeParam(1) })),
+    createOscillator: vi.fn(() => withCtx({
       ...baseNode(),
       type: 'sine' as OscillatorType,
       frequency: makeParam(440),
@@ -76,7 +85,7 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       start: vi.fn(),
       stop: vi.fn(),
     })),
-    createBufferSource: vi.fn(() => ({
+    createBufferSource: vi.fn(() => withCtx({
       ...baseNode(),
       buffer: null as AudioBuffer | null,
       loop: false,
@@ -85,14 +94,14 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       start: vi.fn(),
       stop: vi.fn(),
     })),
-    createBiquadFilter: vi.fn(() => makeMockBiquadFilter()),
-    createConstantSource: vi.fn(() => ({
+    createBiquadFilter: vi.fn(() => withCtx(makeMockBiquadFilter())),
+    createConstantSource: vi.fn(() => withCtx({
       ...baseNode(),
       offset: makeParam(0),
       start: vi.fn(),
       stop: vi.fn(),
     })),
-    createWaveShaper: vi.fn(() => ({
+    createWaveShaper: vi.fn(() => withCtx({
       ...baseNode(),
       curve: null as Float32Array | null,
       oversample: 'none' as OverSampleType,
@@ -109,6 +118,44 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
     }),
   };
   return ctx as unknown as MockAudioContext;
+}
+
+/**
+ * A stand-in for the (jsdom-absent) global `AudioWorkletNode`. `parameters`
+ * auto-creates a `MockAudioParam` per name so it works for any worklet, and
+ * the constructor options (incl. `processorOptions`) are captured for
+ * assertions.
+ */
+export class MockAudioWorkletNode {
+  readonly parameters: { get: (name: string) => MockAudioParam };
+  readonly port = { onmessage: null as ((e: { data: unknown }) => void) | null, postMessage: vi.fn() };
+  readonly connect = vi.fn((target: unknown) => target);
+  readonly disconnect = vi.fn();
+  private readonly params = new Map<string, MockAudioParam>();
+
+  constructor(
+    readonly context: unknown,
+    readonly workletName: string,
+    readonly options?: { processorOptions?: Record<string, unknown> } & Record<string, unknown>,
+  ) {
+    this.parameters = {
+      get: (name: string) => {
+        let p = this.params.get(name);
+        if (!p) { p = makeParam(); this.params.set(name, p); }
+        return p;
+      },
+    };
+    MockAudioWorkletNode.instances.push(this);
+  }
+
+  static instances: MockAudioWorkletNode[] = [];
+}
+
+/** Stub the global `AudioWorkletNode`; pair with `vi.unstubAllGlobals()`. */
+export function installMockAudioWorkletNode(): typeof MockAudioWorkletNode {
+  MockAudioWorkletNode.instances = [];
+  vi.stubGlobal('AudioWorkletNode', MockAudioWorkletNode);
+  return MockAudioWorkletNode;
 }
 
 /** A throwaway AudioBuffer-shaped object for sampler-slot tests. */

@@ -27,6 +27,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones
 - **LFO** routable to cutoff, pitch, amp, or pulse width
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
+- **Bus compressors** (custom AudioWorklet, with gain-reduction meters): a 1176-style FET compressor on the drum bus (microsecond attacks, program-dependent release, "all buttons in" mode) and an SSL-G-style VCA "glue" compressor on the master bus (soft knee, auto-release)
 - **Transport**: clock, arpeggiator, 16-step note sequencer, 8-track drum machine, and 8-slot multi-track sampler
 - **Pattern banks**: the sequencer, drum machine, and sampler each have 4 banks (A/B/C/D), independently copyable and chainable
 - **Sampler sounds**: each of the 8 slots plays a one-shot sample. Load a WAV/MP3, or **record from your microphone and edit in-app** — crop, low/hi-pass, octave up/down, reverse, normalize, fade in/out, boost — then save WAV/MP3 or drop it straight into a slot; any loaded slot can be re-opened (✎) to edit again
@@ -72,7 +73,8 @@ src/
     voice.ts         one voice: 2 osc + noise → ladder filter → amp
     oscillator.ts, envelope.ts, lfo.ts, midi.ts
     ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
-    effects/         distortion, wah, phaser, delay, reverb
+    compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
+    effects/         distortion, wah, phaser, delay, reverb, compressor
     drums/           drum synthesis
     transport/       clock, arpeggiator, sequencer, drum-machine, sampler,
                      arrangement (chain lanes), performance (live DJ FX)
@@ -88,6 +90,6 @@ src/
                      (incl. song-panel: chains, DJ FX, song I/O)
   styles/            Global CSS: base.css (reset), theme.css (custom properties), layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — component/panel-scoped, imported by components)
-public/worklets/     ladder-filter.js (runs on the audio thread)
+public/worklets/     ladder-filter.js, compressor.js, recorder.js (audio thread)
 e2e/                 Playwright end-to-end specs (+ playwright.config.ts)
 ```

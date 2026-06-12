@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busGet } from './helpers';
+import { gotoAndStart, busGet, dragKnobUp } from './helpers';
 
 /**
  * Live DJ FX on the Song panel. The momentary buttons (Fill/Stutter/Drop/Tape
@@ -12,19 +12,6 @@ import { gotoAndStart, busGet } from './helpers';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const djType = (page: Page) =>
   page.evaluate(() => (window as any).__synth.engine.djFilter.type as string);
-
-async function dragKnobUp(page: Page, testid: string): Promise<void> {
-  const knob = page.getByTestId(testid);
-  await expect(knob).toBeVisible();
-  const box = await knob.boundingBox();
-  if (!box) throw new Error(`${testid} has no bounding box`);
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  await page.mouse.move(cx, cy);
-  await page.mouse.down();
-  await page.mouse.move(cx, cy - 60, { steps: 6 }); // up = increase
-  await page.mouse.up();
-}
 
 test.describe('song panel live FX', () => {
   test.beforeEach(async ({ page }) => {

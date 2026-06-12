@@ -1,0 +1,17 @@
+.root {
+  width: 36px;
+  height: 8px;
+  border: 1px solid rgba(244, 205, 94, 0.25);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to left, var(--accent-secondary), #e0633a);
+  transition: width 60ms linear;
+}

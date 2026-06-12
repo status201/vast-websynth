@@ -5,6 +5,8 @@ import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
+import { fxGroup } from '../components/fx-group';
+import { GrMeter } from '../components/gr-meter';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
@@ -98,6 +100,15 @@ export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSes
   fx.appendChild(momentary('Tape Stop',
     () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false), 'perf-tapestop'));
   fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
+  const masterGr = new GrMeter('grmeter-fx.master.comp');
+  engine.masterComp.onGr((db) => masterGr.update(db));
+  fx.appendChild(fxGroup(bus, 'COMP', 'fx.master.comp', [
+    { id: 'fx.master.comp.threshold', label: 'THR' },
+    { id: 'fx.master.comp.ratio', label: 'RATIO' },
+    { id: 'fx.master.comp.attack', label: 'ATK' },
+    { id: 'fx.master.comp.release', label: 'REL' },
+    { id: 'fx.master.comp.makeup', label: 'GAIN' },
+  ], { trailing: masterGr.el }));
   root.appendChild(fx);
 
   // ---- Song I/O ----

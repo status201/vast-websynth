@@ -110,6 +110,8 @@ export type TopicId =
   | 'fx.phaser'
   | 'fx.delay'
   | 'fx.reverb'
+  | 'fx.drum.comp'
+  | 'fx.master.comp'
   | 'arp'
   | 'seq'
   | 'seq.prob'
@@ -305,6 +307,42 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<ul><li><strong>SIZE</strong> — how big the space feels.</li>' +
       '<li><strong>DAMP</strong> — how quickly the tail darkens (soft furnishings vs tile).</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend.</li></ul>',
+  },
+  'fx.drum.comp': {
+    title: 'Drum Compressor (1176 style)',
+    body:
+      '<p>A compressor evens out loudness — it turns peaks down so you can turn the whole ' +
+      'thing up. This one is modelled on the <strong>UREI 1176</strong>, a FET studio classic ' +
+      'famous for lightning-fast attack and aggressive punch: <em>the</em> drum compressor.</p>' +
+      '<ul>' +
+      '<li><strong>THR</strong> — level where compression starts. Lower = more squash.</li>' +
+      '<li><strong>RATIO</strong> — how hard it clamps (4:1 … 20:1). <strong>ALL</strong> is the ' +
+      'famous “all buttons in” mode: crushed, exploding drum room.</li>' +
+      '<li><strong>ATK</strong> — microseconds! Fast flattens the hit; slower lets the initial ' +
+      'crack punch through before the squash.</li>' +
+      '<li><strong>REL</strong> — recovery speed; it also adapts to the material, like the ' +
+      'hardware.</li>' +
+      '<li><strong>GAIN</strong> — makeup volume to bring the squashed signal back up.</li>' +
+      '</ul>' +
+      '<p>The bar shows live <strong>gain reduction</strong>. Try THR low, RATIO ALL, fast ATK ' +
+      'and watch it slam — it also adds a little FET grit as it works.</p>',
+  },
+  'fx.master.comp': {
+    title: 'Master Compressor (SSL bus style)',
+    body:
+      '<p>Modelled on the <strong>SSL G-Series bus compressor</strong> — the “glue” on countless ' +
+      'mixes. A clean VCA design with a gentle soft knee that pulls everything together so the ' +
+      'whole song moves as one. It sits on the master bus, after the DJ filter.</p>' +
+      '<ul>' +
+      '<li><strong>THR</strong> — aim for 2–4 dB on the gain-reduction bar for classic glue.</li>' +
+      '<li><strong>RATIO</strong> — 2:1 is the glue setting; 4:1 tighter; 10:1 slams.</li>' +
+      '<li><strong>ATK</strong> — around 10–30 ms lets transients breathe through.</li>' +
+      '<li><strong>REL</strong> — fixed times, or <strong>auto</strong> (the hardware’s trademark): ' +
+      'fast after hits, slow under sustained level. Leave it on auto.</li>' +
+      '<li><strong>GAIN</strong> — makeup volume.</li>' +
+      '</ul>' +
+      '<p>Use it subtly for a louder, denser, more “finished” mix — or hard, where it pumps ' +
+      'musically with DJ filter sweeps and drops.</p>',
   },
   arp: {
     title: 'Arpeggiator',

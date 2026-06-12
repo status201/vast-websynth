@@ -10,6 +10,7 @@ import {
   BANK_COUNT,
   BANK_LABELS,
   DRUM_TRACK_COUNT,
+  SAMPLER_SLOT_COUNT,
 } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
 import switchStyles from '../styles/switch.module.css';
@@ -193,17 +194,24 @@ OUTPUT RULES
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 1,                        // literal, required
+  "version": 2,                        // 2 (1 is the legacy form without the sampler fields)
   "name": "string",                    // song title
   "params": { "<id>": number, ... },   // synth parameters (see PARAMS)
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
   "drumBanks": DrumCell[${BANK_COUNT}][${DRUM_TRACK_COUNT}][${SEQ_LENGTH}],   // ${BANK_COUNT} banks, ${DRUM_TRACK_COUNT} tracks, ${SEQ_LENGTH} steps
   "seqChain":  { "enabled": boolean, "steps": number[] },   // bank order, indices 0..${BANK_COUNT - 1}
-  "drumChain": { "enabled": boolean, "steps": number[] }
+  "drumChain": { "enabled": boolean, "steps": number[] },
+  // ---- v2 sampler fields, all OPTIONAL (omit them unless asked for sampler parts) ----
+  "samplerBanks": SamplerStep[${BANK_COUNT}][${SAMPLER_SLOT_COUNT}][${SEQ_LENGTH}],   // ${BANK_COUNT} banks, ${SAMPLER_SLOT_COUNT} slots, ${SEQ_LENGTH} steps
+  "samplerChain": { "enabled": boolean, "steps": number[] },
+  "sampleNames":  (string | null)[${SAMPLER_SLOT_COUNT}]   // filenames only — audio is NEVER embedded; the user loads files by hand
 }
 
-SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */ }
+SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
+             "prob": number /* 0..1 chance the step fires, default 1 */, "ratchet": number /* 1-4 sub-hits in the step, default 1 */,
+             "tie": boolean /* hold into the next step (legato/slide), default false */ }
 DrumCell = { "on": boolean, "velocity": number /* 0..1 */ }
+SamplerStep = { "on": boolean, "velocity": number /* 0..1 */ }
 
 Banks are labelled ${BANK_LABELS.join('/')}. A chain with enabled:false just plays bank A.
 Drum track index → instrument: ${drumTracks}.
@@ -214,6 +222,11 @@ NOTES
 - Any param omitted from "params" falls back to its default. Include the full set for predictable results.
 - For a resonant, moving filter (acid/disco bass), use high "filter.resonance", a fast "env.fil.decay",
   positive "filter.envAmount", and route the LFO to cutoff with "lfo.dest": 1.
+- Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
+  in Mono voicing for acid slides.
+- Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
+  the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
+  Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.
 
 PARAMS (id, range, default, discrete value map)
 ${params}

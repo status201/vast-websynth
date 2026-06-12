@@ -6,6 +6,8 @@ import { Wah } from './effects/wah';
 import { Phaser } from './effects/phaser';
 import { Delay } from './effects/delay';
 import { Reverb } from './effects/reverb';
+import { Compressor } from './effects/compressor';
+import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults } from '../state/params';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { assertIndex } from '../utils/array';
@@ -39,6 +41,8 @@ export class Engine {
 
   readonly drumPhaser: Phaser;
   readonly drumDelay: Delay;
+  readonly drumComp: Compressor;
+  readonly masterComp: Compressor;
 
   readonly samplerDist: Distortion;
   readonly samplerPhaser: Phaser;
@@ -93,6 +97,8 @@ export class Engine {
 
     this.drumPhaser = new Phaser(this.ctx);
     this.drumDelay = new Delay(this.ctx);
+    this.drumComp = new Compressor(this.ctx, 'fet');
+    this.masterComp = new Compressor(this.ctx, 'vca');
 
     this.samplerDist = new Distortion(this.ctx);
     this.samplerPhaser = new Phaser(this.ctx);
@@ -126,8 +132,10 @@ export class Engine {
     this.delay.output.connect(this.reverb.input);
     this.reverb.output.connect(this.preMaster);
 
-    // Drum FX chain: phaser → delay
-    this.drumBus.connect(this.drumPhaser.input);
+    // Drum FX chain: compressor → phaser → delay. The 1176-style compressor
+    // sits first so it smashes the dry hits, not the delay/phaser wash.
+    this.drumBus.connect(this.drumComp.input);
+    this.drumComp.output.connect(this.drumPhaser.input);
     this.drumPhaser.output.connect(this.drumDelay.input);
     this.drumDelay.output.connect(this.preMaster);
 
@@ -144,8 +152,11 @@ export class Engine {
     this.djFilter.frequency.value = 20000;
     this.djFilter.Q.value = 0.7;
 
+    // SSL-style bus compressor after the DJ filter (sweeps breathe through
+    // it) and before the analyser (the scope shows the compression).
     this.preMaster.connect(this.djFilter);
-    this.djFilter.connect(this.analyser);
+    this.djFilter.connect(this.masterComp.input);
+    this.masterComp.output.connect(this.analyser);
     this.analyser.connect(this.master);
     this.master.connect(this.ctx.destination);
 
@@ -169,6 +180,9 @@ export class Engine {
   async init(): Promise<void> {
     await LadderFilterNode.loadModule(this.ctx);
     await RecorderNode.loadModule(this.ctx);
+    await CompressorNode.loadModule(this.ctx);
+    this.drumComp.attachWorklet();
+    this.masterComp.attachWorklet();
 
     for (let i = 0; i < VOICE_COUNT; i++) {
       const v = await Voice.create(this.ctx);
@@ -443,6 +457,9 @@ export class Engine {
     bus.subscribe('fx.drum.delay.feedback', (x) => this.drumDelay.setFeedback(x));
     bus.subscribe('fx.drum.delay.mix', (x) => this.drumDelay.setMix(x));
 
+    // Drum FX: Compressor (1176 FET; ratio index → real ratio, 100 = ALL)
+    this.subscribeCompressor('fx.drum.comp', this.drumComp, [4, 8, 12, 20, 100]);
+
     // Sampler FX: Distortion
     bus.subscribe('fx.sampler.dist.on', (x) => this.samplerDist.setBypass(x < 0.5));
     bus.subscribe('fx.sampler.dist.drive', (x) => this.samplerDist.setDrive(x));
@@ -470,6 +487,9 @@ export class Engine {
 
     // DJ filter (manual sweep; Drop overrides it while held)
     bus.subscribe('fx.djfilter', (x) => this.perf.setDjFilter(x));
+
+    // Master FX: Compressor (SSL G bus VCA; release index past the table = auto)
+    this.subscribeCompressor('fx.master.comp', this.masterComp, [2, 4, 10], [0.1, 0.3, 0.6, 1.2]);
 
     // Master
     bus.subscribe('master.volume', (x) => {
@@ -516,6 +536,28 @@ export class Engine {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
     }
+  }
+
+  /**
+   * Wire one compressor instance's params. Discrete ratio/release params
+   * carry an index; `ratios` maps it to the real ratio. When `releases` is
+   * given, an index past the end of the table means auto-release (SSL).
+   */
+  private subscribeCompressor(prefix: string, comp: Compressor, ratios: number[], releases?: number[]): void {
+    const bus = this.bus;
+    bus.subscribe(`${prefix}.on`, (x) => comp.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.threshold`, (x) => comp.setThreshold(x));
+    bus.subscribe(`${prefix}.ratio`, (x) => comp.setRatio(ratios[Math.round(x)] ?? ratios[0]!));
+    bus.subscribe(`${prefix}.attack`, (x) => comp.setAttack(x));
+    bus.subscribe(`${prefix}.release`, releases
+      ? (x) => {
+          const i = Math.round(x);
+          const auto = i >= releases.length;
+          comp.setAutoRelease(auto);
+          if (!auto) comp.setRelease(releases[i]!);
+        }
+      : (x) => comp.setRelease(x));
+    bus.subscribe(`${prefix}.makeup`, (x) => comp.setMakeup(x));
   }
 
   // ---------- Noise source ----------

@@ -5,6 +5,8 @@ import { Knob } from '../components/knob';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
+import { fxGroup } from '../components/fx-group';
+import { GrMeter } from '../components/gr-meter';
 import { DRUM_TRACK_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
@@ -39,6 +41,15 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     { id: 'fx.drum.delay.feedback', label: 'FB' },
     { id: 'fx.drum.delay.mix', label: 'MIX' },
   ]));
+  const drumGr = new GrMeter('grmeter-fx.drum.comp');
+  engine.drumComp.onGr((db) => drumGr.update(db));
+  header.appendChild(fxGroup(bus, 'COMP', 'fx.drum.comp', [
+    { id: 'fx.drum.comp.threshold', label: 'THR' },
+    { id: 'fx.drum.comp.ratio', label: 'RATIO' },
+    { id: 'fx.drum.comp.attack', label: 'ATK' },
+    { id: 'fx.drum.comp.release', label: 'REL' },
+    { id: 'fx.drum.comp.makeup', label: 'GAIN' },
+  ], { trailing: drumGr.el }));
   root.appendChild(header);
 
   // ---- Track rows ----
@@ -109,26 +120,4 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
   });
 
   return root;
-}
-
-function fxGroup(bus: ParamBus, title: string, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
-  const group = document.createElement('div');
-  group.style.cssText = 'display:flex;align-items:center;gap:4px';
-
-  const divider = document.createElement('div');
-  divider.style.cssText = 'width:1px;height:28px;background:rgba(244,205,94,0.15);margin:0 4px';
-  group.appendChild(divider);
-
-  const label = document.createElement('span');
-  label.textContent = title;
-  label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--accent-secondary);font-weight:600';
-  group.appendChild(label);
-
-  group.appendChild(new Switch(bus, `${onParam}.on`, 'on').el);
-
-  for (const k of knobs) {
-    group.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: 22 }).el);
-  }
-
-  return group;
 }

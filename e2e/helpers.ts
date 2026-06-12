@@ -36,6 +36,20 @@ export const busSet = (page: Page, id: string, value: number): Promise<void> =>
 export const sessionDisplay = (page: Page): Promise<string> =>
   page.evaluate(() => (window as any).__synth.session.display as string);
 
+/** Drag a knob upward (= increase) by its testid. */
+export async function dragKnobUp(page: Page, testid: string): Promise<void> {
+  const knob = page.getByTestId(testid);
+  await expect(knob).toBeVisible();
+  const box = await knob.boundingBox();
+  if (!box) throw new Error(`${testid} has no bounding box`);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy - 60, { steps: 6 }); // up = increase
+  await page.mouse.up();
+}
+
 /**
  * Build a valid 16-bit PCM mono WAV as a Node Buffer — a fixture for
  * `setInputFiles` that the browser's `decodeAudioData` accepts. Default is a

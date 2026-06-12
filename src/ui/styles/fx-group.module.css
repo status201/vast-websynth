@@ -1,0 +1,20 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(244, 205, 94, 0.15);
+  margin: 0 4px;
+}
+
+.label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-secondary);
+  font-weight: 600;
+}
