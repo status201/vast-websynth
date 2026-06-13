@@ -191,21 +191,6 @@ function pad4Drum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
   return [a, b, copy(a), copy(a)];
 }
 
-// --- Knight Rider: relentless minor synth-bass ostinato with octave jumps ---
-const KR_A = seqFromNotes(
-  [36, 36, 48, 36, 36, 36, 48, 36, 39, 39, 51, 39, 34, 34, 46, 34], 0.4, 0.9);
-const KR_B = seqFromNotes(
-  [36, 36, 48, 36, 41, 41, 53, 41, 39, 39, 51, 39, 43, 43, 46, 48], 0.4, 0.9);
-const KR_DRUM_A = drumFrom({
-  0: [0, 6, 8, 14],                       // kick (galloping)
-  1: [4, 12],                             // snare backbeat
-  2: [0, 2, 4, 6, 8, 10, 12, 14],         // closed hat 8ths
-});
-const KR_DRUM_B = drumFrom({
-  0: [0, 6, 8, 14], 1: [4, 12, 15],
-  2: [0, 2, 4, 6, 8, 10, 12, 14], 3: [7],
-});
-
 // --- Zombie Nation / Kernkraft 400: the 4-bar A-minor hook. 8th-note grid
 // (note on even steps), played as four distinct bars via the seq chain.
 // MIDI: A4=69 C5=72 D5=74 E5=76 F5=77
@@ -262,30 +247,6 @@ for (const path of Object.keys(DROPPED).sort()) {
 }
 
 const BUILTIN_DEMOS: Record<string, SongFile> = {
-  'Knight Rider': {
-    format: 'websynth-song',
-    version: 1,
-    name: 'Knight Rider',
-    params: {
-      ...baseParams(),
-      'voicing.mode': 0,            // mono
-      'osc1.wave': 2, 'osc1.octave': -1, 'osc1.level': 0.8,
-      'osc2.wave': 3, 'osc2.octave': -1, 'osc2.detune': -5, 'osc2.level': 0.45,
-      'sub.wave': 0, 'sub.octave': -1, 'sub.level': 0.35,
-      'mixer.glide': 0.05, 'glide.mode': 2,
-      'filter.cutoff': 74, 'filter.resonance': 1.8, 'filter.drive': 1.6, 'filter.envAmount': 30,
-      'env.amp.attack': 0.002, 'env.amp.decay': 0.18, 'env.amp.sustain': 0.55, 'env.amp.release': 0.12,
-      'env.fil.attack': 0.002, 'env.fil.decay': 0.16, 'env.fil.sustain': 0.0, 'env.fil.release': 0.12,
-      'fx.dist.on': 1, 'fx.dist.drive': 0.4, 'fx.dist.tone': 2600, 'fx.dist.mix': 0.5,
-      'analog.drift': 0.15,
-      'transport.bpm': 125,
-    },
-    seqBanks: pad4Seq(KR_A, KR_B),
-    drumBanks: pad4Drum(KR_DRUM_A, KR_DRUM_B),
-    seqChain: { enabled: true, steps: [0, 0, 1, 0] },   // A A B A
-    drumChain: { enabled: true, steps: [0, 0, 0, 1] },
-  },
-
   'Zombie Nation': {
     format: 'websynth-song',
     version: 1,
@@ -347,7 +308,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
   },
 };
 
-// Drop-ins first (so "Apex Twin" precedes "Knight Rider"), then built-ins.
+// Drop-ins first (so "Apex Twin" precedes "Zombie Nation"), then built-ins.
 export const DEMO_SONGS: Record<string, SongFile> = {
   ...droppedDemos,
   ...BUILTIN_DEMOS,

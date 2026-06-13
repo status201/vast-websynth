@@ -1,0 +1,9125 @@
+{
+  "format": "websynth-song",
+  "version": 2,
+  "name": "Night Rider",
+  "params": {
+    "voicing.mode": 0,
+    "osc1.wave": 2,
+    "osc1.octave": -1,
+    "osc1.detune": 0,
+    "osc1.level": 0.8,
+    "osc2.wave": 3,
+    "osc2.octave": -1,
+    "osc2.detune": -5,
+    "osc2.level": 0.45,
+    "sub.wave": 0,
+    "sub.octave": -1,
+    "sub.level": 0.35,
+    "unison.voices": 1,
+    "unison.detune": 12,
+    "analog.drift": 0.09999999999999999,
+    "mixer.noise": 0.15499999999999997,
+    "mixer.glide": 0.060000000000000005,
+    "glide.mode": 2,
+    "filter.cutoff": 57,
+    "filter.resonance": 1.0019999999999998,
+    "filter.drive": 1.6,
+    "filter.envAmount": 30,
+    "env.amp.attack": 0.002,
+    "env.amp.decay": 0.18,
+    "env.amp.sustain": 0.55,
+    "env.amp.release": 0.12,
+    "env.fil.attack": 0.002,
+    "env.fil.decay": 0.16,
+    "env.fil.sustain": 0,
+    "env.fil.release": 0.12,
+    "lfo.rate": 0.4422500000000003,
+    "lfo.amount": 0.7549999999999999,
+    "lfo.wave": 0,
+    "lfo.dest": 1,
+    "fx.dist.on": 1,
+    "fx.dist.drive": 0.375,
+    "fx.dist.tone": 3000,
+    "fx.dist.mix": 0.5,
+    "fx.wah.on": 0,
+    "fx.wah.rate": 2,
+    "fx.wah.depth": 0.4,
+    "fx.wah.q": 4,
+    "fx.phaser.on": 0,
+    "fx.phaser.rate": 0.5,
+    "fx.phaser.depth": 0.5,
+    "fx.phaser.feedback": 0.4,
+    "fx.phaser.mix": 0.5,
+    "fx.delay.on": 0,
+    "fx.delay.time": 0.35,
+    "fx.delay.feedback": 0.4,
+    "fx.delay.mix": 0.3,
+    "fx.reverb.on": 1,
+    "fx.reverb.size": 0.29999999999999993,
+    "fx.reverb.damp": 0.4,
+    "fx.reverb.mix": 0.15,
+    "fx.drum.phaser.on": 0,
+    "fx.drum.phaser.rate": 0.5,
+    "fx.drum.phaser.depth": 0.7,
+    "fx.drum.phaser.feedback": 0.4,
+    "fx.drum.phaser.mix": 0.6,
+    "fx.drum.delay.on": 0,
+    "fx.drum.delay.time": 0.35,
+    "fx.drum.delay.feedback": 0.4,
+    "fx.drum.delay.mix": 0.3,
+    "fx.drum.comp.on": 1,
+    "fx.drum.comp.threshold": -23.4,
+    "fx.drum.comp.ratio": 4,
+    "fx.drum.comp.attack": 0.000030009350412198488,
+    "fx.drum.comp.release": 0.2309240849295956,
+    "fx.drum.comp.makeup": 15.600000000000005,
+    "fx.sampler.dist.on": 0,
+    "fx.sampler.dist.drive": 0.3,
+    "fx.sampler.dist.tone": 3000,
+    "fx.sampler.dist.mix": 1,
+    "fx.sampler.phaser.on": 0,
+    "fx.sampler.phaser.rate": 0.5,
+    "fx.sampler.phaser.depth": 0.7,
+    "fx.sampler.phaser.feedback": 0.4,
+    "fx.sampler.phaser.mix": 0.5,
+    "fx.sampler.delay.on": 0,
+    "fx.sampler.delay.time": 0.35,
+    "fx.sampler.delay.feedback": 0.4,
+    "fx.sampler.delay.mix": 0.3,
+    "fx.sampler.reverb.on": 0,
+    "fx.sampler.reverb.size": 0.6,
+    "fx.sampler.reverb.damp": 0.4,
+    "fx.sampler.reverb.mix": 0.25,
+    "fx.djfilter": -0.07000000000000006,
+    "fx.master.comp.on": 1,
+    "fx.master.comp.threshold": -21.600000000000005,
+    "fx.master.comp.ratio": 1,
+    "fx.master.comp.attack": 0.015338542503159509,
+    "fx.master.comp.release": 4,
+    "fx.master.comp.makeup": 1.4999999999999998,
+    "master.volume": 0.865,
+    "master.pitchBend": 0,
+    "master.modWheel": 0,
+    "keyboard.transpose": -2,
+    "transport.bpm": 125,
+    "transport.swing": 0.05,
+    "arp.on": 0,
+    "arp.pattern": 0,
+    "arp.rate": 2,
+    "arp.octaves": 1,
+    "arp.gate": 0.5,
+    "seq.on": 1,
+    "drum.on": 1,
+    "drum.master": 0.9,
+    "drum.t0.vol": 0.85,
+    "drum.t0.tune": 0,
+    "drum.t0.decay": 0.3,
+    "drum.t0.mute": 0,
+    "drum.t1.vol": 0.85,
+    "drum.t1.tune": 0,
+    "drum.t1.decay": 0.3,
+    "drum.t1.mute": 0,
+    "drum.t2.vol": 0.85,
+    "drum.t2.tune": 0,
+    "drum.t2.decay": 0.3,
+    "drum.t2.mute": 0,
+    "drum.t3.vol": 0.85,
+    "drum.t3.tune": 0,
+    "drum.t3.decay": 0.3,
+    "drum.t3.mute": 0,
+    "drum.t4.vol": 0.85,
+    "drum.t4.tune": 0,
+    "drum.t4.decay": 0.3,
+    "drum.t4.mute": 0,
+    "drum.t5.vol": 0.85,
+    "drum.t5.tune": 0,
+    "drum.t5.decay": 0.3,
+    "drum.t5.mute": 0,
+    "drum.t6.vol": 0.85,
+    "drum.t6.tune": 0,
+    "drum.t6.decay": 0.3,
+    "drum.t6.mute": 0,
+    "drum.t7.vol": 0.85,
+    "drum.t7.tune": 0,
+    "drum.t7.decay": 0.3,
+    "drum.t7.mute": 0,
+    "sampler.on": 0,
+    "sampler.master": 0.85,
+    "sampler.t0.mute": 0,
+    "sampler.t1.mute": 0,
+    "sampler.t2.mute": 0,
+    "sampler.t3.mute": 0,
+    "sampler.t4.mute": 0,
+    "sampler.t5.mute": 0,
+    "sampler.t6.mute": 0,
+    "sampler.t7.mute": 0
+  },
+  "seqBanks": [
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 0.4,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": false
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.52490234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.52490234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5353190104166666,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.52490234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.52490234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.49365234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5457356770833334,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 34,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5353190104166666,
+        "ratchet": 1,
+        "tie": true
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5040690104166666,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5457356770833334,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5769856770833334,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 53,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5665690104166666,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 41,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.55615234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 51,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.55615234375,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 39,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5040690104166666,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 43,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 46,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 0.5040690104166666,
+        "ratchet": 1,
+        "tie": true
+      },
+      {
+        "on": true,
+        "note": 48,
+        "velocity": 0.9,
+        "gate": 1,
+        "prob": 1,
+        "ratchet": 1,
+        "tie": true
+      }
+    ]
+  ],
+  "drumBanks": [
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 1,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 1,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 1,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 1,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 1,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": true,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ]
+  ],
+  "seqChain": {
+    "enabled": true,
+    "steps": [
+      0,
+      0,
+      1,
+      0,
+      2,
+      2,
+      3,
+      2
+    ]
+  },
+  "drumChain": {
+    "enabled": true,
+    "steps": [
+      0,
+      0,
+      0,
+      1,
+      2,
+      1,
+      2,
+      0
+    ]
+  },
+  "samplerBanks": [
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ],
+    [
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ],
+      [
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        }
+      ]
+    ]
+  ],
+  "samplerChain": {
+    "enabled": false,
+    "steps": [
+      0
+    ]
+  },
+  "sampleNames": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

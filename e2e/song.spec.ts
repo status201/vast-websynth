@@ -40,10 +40,10 @@ test.describe('song mode', () => {
     expect(await sessionDisplay(page)).toBe('basic');
 
     await page.getByTestId('tab-song').click();
-    await page.getByTestId('song-demo-Knight Rider').click();
+    await page.getByTestId('song-demo-Zombie Nation').click();
 
-    await expect.poll(() => sessionDisplay(page)).toBe('Knight Rider');
-    await expect(page.getByTestId('preset-select')).toContainText('Knight Rider');
+    await expect.poll(() => sessionDisplay(page)).toBe('Zombie Nation');
+    await expect(page.getByTestId('preset-select')).toContainText('Zombie Nation');
   });
 
   test('Export Song renders and downloads a WAV', async ({ page }) => {

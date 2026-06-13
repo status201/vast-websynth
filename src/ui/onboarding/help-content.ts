@@ -4,7 +4,7 @@
 import type { TourStep } from './tour';
 
 /** A loud, instantly-recognisable demo for the "load a demo" headline step. */
-export const DEMO_FOR_TOUR = 'Knight Rider';
+export const DEMO_FOR_TOUR = 'Night Rider';
 
 function clickTestId(id: string): void {
   document.querySelector<HTMLElement>(`[data-testid="${id}"]`)?.click();

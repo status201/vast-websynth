@@ -13,6 +13,21 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    rolldownOptions: {
+      output: {
+        // The drop-in demo songs (src/state/demos/*.json) are full song
+        // exports — ~700 kB of JSON eagerly pulled in by the import.meta.glob
+        // in state/song.ts. Inlined into the entry chunk they pushed it past
+        // Vite's 500 kB warning. Split them into their own `demos` chunk so the
+        // app code and the (rarely-changing) demo data are bundled and cached
+        // separately. New JSON dropped into demos/ is absorbed automatically.
+        codeSplitting: {
+          groups: [
+            { name: 'demos', test: /[\\/]state[\\/]demos[\\/].*\.json$/ },
+          ],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

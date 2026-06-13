@@ -6,7 +6,7 @@ import { PatternStore } from '../../src/state/patterns';
 
 /** Deep clone via JSON so a test never mutates the shared DEMO_SONGS object. */
 function demo(): SongFile {
-  return JSON.parse(JSON.stringify(DEMO_SONGS['Knight Rider'])) as SongFile;
+  return JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
 }
 
 /** Minimal Arrangement stand-in: only the surface Song.capture/apply touch. */
@@ -51,7 +51,7 @@ describe('Song', () => {
     const file = demo();
     const parsed = Song.fromJSON(Song.toJSON(file));
     expect(parsed).not.toBeNull();
-    expect(parsed!.name).toBe('Knight Rider');
+    expect(parsed!.name).toBe('Zombie Nation');
     expect(parsed).toEqual(file);
   });
 
@@ -66,7 +66,7 @@ describe('Song', () => {
 
   it('list() includes the demo songs', () => {
     expect(Song.list()).toEqual(
-      expect.arrayContaining(['Knight Rider', 'Zombie Nation', 'I Feel Love']),
+      expect.arrayContaining(['Zombie Nation', 'I Feel Love']),
     );
   });
 
@@ -93,17 +93,17 @@ describe('Song', () => {
     registerDefaults(bus);
     const patterns = new PatternStore();
     const arr = fakeArr();
-    const file = demo(); // Knight Rider: bpm 125, mono voicing
+    const file = demo(); // Zombie Nation: bpm 130, mono voicing
 
     Song.apply(file, bus, patterns, arr as never);
 
-    expect(bus.get('transport.bpm')).toBe(125);
+    expect(bus.get('transport.bpm')).toBe(130);
     expect(bus.get('voicing.mode')).toBe(0);
     expect(arr.seq.enabled).toBe(true);
-    expect(arr.seq.steps).toEqual([0, 0, 1, 0]);
+    expect(arr.seq.steps).toEqual([0, 1, 2, 3]);
     expect(arr.drum.steps).toEqual([0, 0, 0, 1]);
-    // first sequencer bank note matches the Knight Rider riff
-    expect(patterns.seqBanks[0]![0]!.note).toBe(36);
+    // first sounded note of the Zombie Nation hook (step 0 is a rest)
+    expect(patterns.seqBanks[0]![2]!.note).toBe(69);
   });
 
   it('apply() resets params omitted from the snapshot back to their defaults', () => {
@@ -113,7 +113,7 @@ describe('Song', () => {
     const arr = fakeArr();
 
     bus.set('fx.drum.delay.on', 1);                   // simulate a prior full snapshot
-    Song.apply(demo(), bus, patterns, arr as never);  // Knight Rider omits the key
+    Song.apply(demo(), bus, patterns, arr as never);  // Zombie Nation omits the key
 
     expect(bus.get('fx.drum.delay.on')).toBe(0);      // back to registered default
   });
@@ -202,7 +202,7 @@ describe('Song', () => {
       patterns.setSamplerCell(0, 5, { on: true }); // pre-existing edit state
       patterns.setSampleName(0, 'leftover.wav');
       const arr = fakeArr();
-      const v1 = demo(); // Knight Rider is version 1, no sampler fields
+      const v1 = demo(); // Zombie Nation is version 1, no sampler fields
       expect(v1.version).toBe(1);
 
       Song.apply(v1, bus, patterns, arr as never);
@@ -255,11 +255,14 @@ describe('Song', () => {
       const patterns = new PatternStore();
       const arr = fakeArr();
 
-      Song.apply(DEMO_SONGS['Fat']!, bus, patterns, arr as never);
+      const fat = DEMO_SONGS['Fat']!;
+      Song.apply(fat, bus, patterns, arr as never);
 
       expect(bus.get('transport.bpm')).toBe(127);
       expect(bus.get('voicing.mode')).toBe(0);             // mono 303
-      expect(bus.get('filter.resonance')).toBe(3.2);
+      // resonance is fine-tuned on every re-export, so assert it transferred
+      // faithfully rather than pinning a float that drifts on each retune.
+      expect(bus.get('filter.resonance')).toBe(fat.params['filter.resonance']);
       expect(bus.get('fx.drum.comp.ratio')).toBe(4);       // ALL buttons in
       expect(patterns.seqBanks[0]![2]!.tie).toBe(true);    // acid slide
       expect(patterns.drumBanks[0]![3]![2]!.gate).toBeCloseTo(0.45); // choked open hat
@@ -277,7 +280,7 @@ describe('Song', () => {
       // drop-in precedes any built-in regardless of how many demos exist.
       // (Asserting a fixed [0] key breaks the moment another drop-in is added.)
       const keys = Object.keys(DEMO_SONGS);
-      expect(keys.indexOf('Apex Twin')).toBeLessThan(keys.indexOf('Knight Rider'));
+      expect(keys.indexOf('Apex Twin')).toBeLessThan(keys.indexOf('Zombie Nation'));
       expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(apex);
     });
 

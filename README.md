@@ -34,7 +34,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Sampler sounds**: each of the 8 slots plays a one-shot sample. Load a WAV/MP3, or **record from your microphone and edit in-app** — crop, low/hi-pass, octave up/down, reverse, normalize, fade in/out, boost — then save WAV/MP3 or drop it straight into a slot; any loaded slot can be re-opened (✎) to edit again
 - **Song chains**: build an arrangement (e.g. `A A B A C A A D`) per machine — independent seq, drum, and sampler lanes
 - **Live DJ FX**: momentary Fill, Stutter/beat-repeat (1 / 1/8 / 1/4), Filter Drop, Tape Stop, and a manual bipolar DJ Filter sweep (LP ← → HP)
-- **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable `.json` files and browser slots — sampler *audio* isn't embedded, so its files are re-loaded after import; built-in demos **Apex Twin**, **Knight Rider**, **Zombie Nation**, and **I Feel Love** (drop any `.json` SongFile into `src/state/demos/` to add a demo at build time)
+- **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable `.json` files and browser slots — sampler *audio* isn't embedded, so its files are re-loaded after import; built-in demos **Apex Twin**, **Zombie Nation**, and **I Feel Love** (drop any `.json` SongFile into `src/state/demos/` to add a demo at build time)
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
 - Oscilloscope / spectrum display, pitch-bend and mod wheels

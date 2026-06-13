@@ -192,8 +192,8 @@ listener mechanism.
   optional `samplerBanks`/`samplerChain`/`sampleNames`. `fromJSON` is unchanged
   and accepts both; v1 files (incl. `DEMO_SONGS`) load with empty sampler
   state. JSON file export/import **and** localStorage slots under
-  `websynth.song.*`. `DEMO_SONGS` (Apex Twin, Knight Rider, Zombie Nation,
-  I Feel Love). Demos are the three hand-authored `SongFile` literals **plus**
+  `websynth.song.*`. `DEMO_SONGS` (Apex Twin, Zombie Nation, I Feel Love, plus
+  any drop-ins). Demos are the two hand-authored `SongFile` literals **plus**
   any `*.json` SongFile in `src/state/demos/`, auto-registered at build time via
   an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
   *before* the built-ins, so they lead the demo button row (`Object.keys` order).

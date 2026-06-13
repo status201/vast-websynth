@@ -41,7 +41,7 @@ test('auto-launches on first visit, drives first sound, and never nags again', a
   await expect(page.getByTestId('transport-play')).toHaveClass(/\bon\b/);
 
   // …and the Song slot dropdown reflects the demo that was just loaded.
-  await expect(page.getByTestId('song-slot-select').locator('button').first()).toContainText('Knight Rider');
+  await expect(page.getByTestId('song-slot-select').locator('button').first()).toContainText('Night Rider');
 
   // Bail out of the rest; finishing or skipping both set the done-flag.
   await page.getByTestId('tour-skip').click();
