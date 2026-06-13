@@ -63,7 +63,7 @@
     "fx.drum.phaser.depth": 0.31399993896484374,
     "fx.drum.phaser.feedback": 0.36400000000000005,
     "fx.drum.phaser.mix": 0.4229998779296875,
-    "fx.drum.delay.on": 1,
+    "fx.drum.delay.on": 0,
     "fx.drum.delay.time": 0.3527,
     "fx.drum.delay.feedback": 0.18625,
     "fx.drum.delay.mix": 0.1,
@@ -907,7 +907,7 @@
         },
         {
           "on": true,
-          "velocity": 0.85,
+          "velocity": 1,
           "gate": 1,
           "prob": 1,
           "ratchet": 1,
@@ -1015,7 +1015,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 0.5335353374481201,
-          "prob": 1,
+          "prob": 0.54638671875,
           "ratchet": 1,
           "tie": false
         },
@@ -1023,7 +1023,7 @@
           "on": true,
           "velocity": 0.5173176129659017,
           "gate": 0.44645182291666663,
-          "prob": 1,
+          "prob": 0.54638671875,
           "ratchet": 1,
           "tie": false
         },
@@ -1031,7 +1031,7 @@
           "on": true,
           "velocity": 0.5506509145100912,
           "gate": 0.5018685499827067,
-          "prob": 1,
+          "prob": 0.57763671875,
           "ratchet": 1,
           "tie": false
         },
@@ -1047,7 +1047,7 @@
           "on": true,
           "velocity": 0.458984375,
           "gate": 0.49395200411478674,
-          "prob": 1,
+          "prob": 0.5047200520833334,
           "ratchet": 1,
           "tie": false
         },
@@ -1063,7 +1063,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.5359700520833334,
           "ratchet": 1,
           "tie": false
         },
@@ -1079,7 +1079,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.52978515625,
           "ratchet": 1,
           "tie": false
         },
@@ -1095,7 +1095,7 @@
           "on": true,
           "velocity": 0.5402345657348633,
           "gate": 0.5869727770487468,
-          "prob": 1,
+          "prob": 0.5089518229166666,
           "ratchet": 1,
           "tie": false
         },
@@ -1111,7 +1111,7 @@
           "on": true,
           "velocity": 0.490234375,
           "gate": 0.51572265625,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -1119,7 +1119,7 @@
           "on": true,
           "velocity": 0.49856774012247723,
           "gate": 0.5632228374481202,
-          "prob": 1,
+          "prob": 0.4881184895833333,
           "ratchet": 1,
           "tie": false
         },
@@ -1949,7 +1949,7 @@
         },
         {
           "on": true,
-          "velocity": 0.85,
+          "velocity": 1,
           "gate": 1,
           "prob": 1,
           "ratchet": 1,
@@ -2057,7 +2057,7 @@
           "on": true,
           "velocity": 0.4673175811767578,
           "gate": 0.4385352770487467,
-          "prob": 1,
+          "prob": 0.5047200520833334,
           "ratchet": 1,
           "tie": false
         },
@@ -2065,7 +2065,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.4109700520833333,
           "ratchet": 1,
           "tie": false
         },
@@ -2073,7 +2073,7 @@
           "on": true,
           "velocity": 0.47565094629923504,
           "gate": 0.5493687311808269,
-          "prob": 1,
+          "prob": 0.5255533854166666,
           "ratchet": 1,
           "tie": false
         },
@@ -2089,7 +2089,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.51513671875,
           "ratchet": 1,
           "tie": false
         },
@@ -2105,7 +2105,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.51513671875,
           "ratchet": 1,
           "tie": false
         },
@@ -2121,7 +2121,7 @@
           "on": true,
           "velocity": 0.5235676765441895,
           "gate": 0.5078061103820801,
-          "prob": 1,
+          "prob": 0.4777018229166667,
           "ratchet": 1,
           "tie": false
         },
@@ -2129,7 +2129,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.5193684895833334,
           "ratchet": 1,
           "tie": false
         },
@@ -2137,7 +2137,7 @@
           "on": true,
           "velocity": 0.5319010416666666,
           "gate": 0.4840561707814534,
-          "prob": 1,
+          "prob": 0.5089518229166666,
           "ratchet": 1,
           "tie": false
         },
@@ -2153,7 +2153,7 @@
           "on": true,
           "velocity": 0.5319010416666666,
           "gate": 0.5078061103820801,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -2991,7 +2991,7 @@
         },
         {
           "on": true,
-          "velocity": 0.85,
+          "velocity": 1,
           "gate": 1,
           "prob": 1,
           "ratchet": 1,
@@ -3099,7 +3099,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.48388671875,
           "ratchet": 1,
           "tie": false
         },
@@ -3107,7 +3107,7 @@
           "on": true,
           "velocity": 0.6839842796325684,
           "gate": 0.47811861038208003,
-          "prob": 1,
+          "prob": 0.51513671875,
           "ratchet": 1,
           "tie": false
         },
@@ -3115,7 +3115,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.4943033854166667,
           "ratchet": 1,
           "tie": false
         },
@@ -3131,7 +3131,7 @@
           "on": true,
           "velocity": 0.5256509780883789,
           "gate": 0.5097853978474935,
-          "prob": 1,
+          "prob": 0.54638671875,
           "ratchet": 1,
           "tie": false
         },
@@ -3139,7 +3139,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.5047200520833334,
           "ratchet": 1,
           "tie": false
         },
@@ -3147,7 +3147,7 @@
           "on": true,
           "velocity": 0.5006510416666666,
           "gate": 0.4306187311808268,
-          "prob": 1,
+          "prob": 0.5047200520833334,
           "ratchet": 1,
           "tie": false
         },
@@ -3163,7 +3163,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -3171,7 +3171,7 @@
           "on": true,
           "velocity": 0.6069011688232422,
           "gate": 0.5236395041147868,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -3179,7 +3179,7 @@
           "on": true,
           "velocity": 0.85,
           "gate": 1,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -3195,7 +3195,7 @@
           "on": true,
           "velocity": 0.5569009780883789,
           "gate": 0.4682227770487467,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
@@ -3203,7 +3203,7 @@
           "on": true,
           "velocity": 0.5735677083333334,
           "gate": 0.5473894437154133,
-          "prob": 1,
+          "prob": 0.49853515625,
           "ratchet": 1,
           "tie": false
         },
