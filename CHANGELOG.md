@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-06-22
+
 ### Added
 
 - Custom bus compressors as AudioWorklets with gain-reduction meters: a
@@ -45,5 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/status201/vast-websynth/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/status201/vast-websynth/releases/tag/v1.3.0
