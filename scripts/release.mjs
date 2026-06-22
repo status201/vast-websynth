@@ -125,6 +125,10 @@ function confirm(question) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     rl.question(c.yellow('? ') + question + c.dim(' [y/N] '), (answer) => {
       rl.close();
+      // readline resumes stdin; rl.close() doesn't release it, which keeps the
+      // event loop (and the process) alive after we're done. unref it so the
+      // script exits on its own once main() finishes.
+      process.stdin.unref?.();
       resolve(/^y(es)?$/i.test(answer.trim()));
     });
   });
