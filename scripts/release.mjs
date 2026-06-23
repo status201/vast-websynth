@@ -113,6 +113,11 @@ function parseVersion(v) {
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
+/** Escape a string for safe use inside a RegExp pattern. */
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** -1 if a<b, 0 if equal core, 1 if a>b. */
 function cmpVersion(a, b) {
   for (let i = 0; i < 3; i++) {
@@ -448,7 +453,7 @@ async function main() {
     die(`Could not read ${CHANGELOG_PATH}. Create it first (Keep a Changelog format).`);
   }
 
-  if (new RegExp(`^##\\s+\\[${targetVersion.replace(/\./g, '\\.')}\\]`, 'm').test(changelogRaw)) {
+  if (new RegExp(`^##\\s+\\[${escapeRegExp(targetVersion)}\\]`, 'm').test(changelogRaw)) {
     die(`CHANGELOG.md already has a section for ${targetVersion}.`);
   }
 

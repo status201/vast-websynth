@@ -11,6 +11,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege default token: jobs only read the repo.
+permissions:
+  contents: read
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
