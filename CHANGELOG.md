@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-23
+
 ### Added
 
 - Per-lane DJ mixer in the Song tab: **Mute**, **Solo**, and **Volume** for the
@@ -56,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/status201/vast-websynth/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/status201/vast-websynth/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/status201/vast-websynth/releases/tag/v1.3.0
