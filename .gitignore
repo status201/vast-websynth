@@ -8,3 +8,7 @@ dist-v*
 test-results/
 playwright-report/
 /playwright/.cache/
+
+# SDD guard: local trivial-change bypass sentinel + machine-local Claude settings
+.sdd-skip
+.claude/settings.local.json

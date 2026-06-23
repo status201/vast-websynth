@@ -1,0 +1,96 @@
+# Voicing, unison, glide & drift (voice management)
+
+```yaml
+id: voicing
+status: implemented
+version: 1
+owner: core
+related:
+  - architecture
+  - oscillators
+source:
+  - src/audio/engine.ts        # voice pool, unison, glide, drift, note flow
+  - src/audio/voice.ts
+  - src/state/params.ts
+  - src/ui/app.ts
+```
+
+How notes become voices: poly vs mono, unison stacking, glide between notes,
+analogue drift, pitch bend, and keyboard transpose. These are the engine-level
+"how it plays" controls, distinct from per-voice tone ([oscillators](oscillators.md)).
+
+## Background / Why
+
+A real analogue synth's character is as much about *voice allocation* as about the
+oscillators: mono with glide for basslines and leads, poly for chords, unison for
+a fat detuned stack, and subtle per-voice pitch **drift** for an un-digital,
+"alive" quality. `glide.mode` defaults to `always` (1) because `always` with glide
+time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchanged.
+
+## Requirements
+
+- **REQ-1** — `voicing.mode` toggles mono/poly; switching **kills all voices** so
+  no notes hang across the mode change.
+- **REQ-2** — Unison stacks `1..4` detuned copies per note (`unison.detune` cents).
+- **REQ-3** — Glide time + mode control portamento; defaults reproduce the legacy
+  no-glide behaviour.
+- **REQ-4** — Analogue drift adds subtle per-voice pitch wander (default 0 = off).
+- **REQ-5** — Pitch bend (`±` cents) and keyboard transpose (`±2` oct) shift pitch
+  globally.
+- **REQ-6** — Note events flow `bus.onNote → Engine.playNote / releaseNote` unless
+  `passthroughSuppressed` (arp/sequencer own triggering then).
+
+## Technical design
+
+### Data shapes (registry)
+
+```yaml
+voicing.mode:      { discrete, labels: VOICING_LABELS, range: 0..1, default: 1 }
+unison.voices:     { discrete, labels: UNISON_LABELS, range: 1..4, default: 1 }   # no-op default
+unison.detune:     { range: 0..50, default: 12, unit: cents }
+mixer.glide:       { range: 0..1, default: 0, format: ms }
+glide.mode:        { discrete, labels: GLIDE_MODE_LABELS, range: 0..2, default: 1 }  # 'always'
+analog.drift:      { range: 0..1, default: 0 }                                       # no-op default
+master.pitchBend:  { range: -1..1, default: 0, unit: semitones }
+keyboard.transpose:{ discrete, range: -2..2, default: 0 }
+```
+
+### Layer touchpoints
+
+```yaml
+engine (subscribeParams):
+  voicing.mode  -> this.polyMode = v >= 0.5; if changed -> killAllVoices()
+  unison.voices -> this.unisonCount = max(1, round(x))
+  unison.detune -> this.unisonDetune = x
+  mixer.glide   -> all((v, x) => v.setGlide(x))
+  glide.mode    -> this.glideMode = round(x)
+  analog.drift  -> this.driftAmount = x
+  master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
+note flow: bus.onNote -> Engine.playNote/ releaseNote  (unless passthroughSuppressed)
+ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
+```
+
+## Scenarios (BDD)
+
+```gherkin
+Scenario: Switching mono<->poly never leaves a hanging note
+  Given a note is sounding
+  When the user toggles voicing.mode
+  Then all voices are killed and no note hangs
+# pinned by: tests/state/params.test.ts (subscription); manual/e2e controls
+
+Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
+  Given glide.mode is 'always' (1) and mixer.glide is 0
+  Then notes retrigger with no audible portamento, exactly as before song mode
+# pinned by: tests/state/preset.test.ts (existing presets unchanged)
+```
+
+## Tests & verification
+
+- `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
+- `npm test` / `npm run e2e`.
+
+## Open questions / future
+
+- New voice params must keep **no-op defaults** (see
+  [add-a-parameter](../recipes/add-a-parameter.md)) to preserve old presets.

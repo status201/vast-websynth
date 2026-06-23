@@ -1,0 +1,27 @@
+name: SDD
+
+# Spec-before-code gate: a PR that changes production code must also change a spec.
+# Mirrors the local Claude Code hooks (scripts/sdd-guard.mjs) so the rule also
+# applies to non-Claude agents and direct pushes. Bypass a genuinely trivial
+# production change with [skip-sdd] in a commit message or the 'skip-sdd' label.
+
+on:
+  pull_request:
+
+jobs:
+  sdd-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch base branch
+        run: git fetch origin "${{ github.base_ref }}"
+      - name: Spec-before-code check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          SDD_SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-sdd') }}
+        run: node scripts/sdd-guard.mjs ci

@@ -2,6 +2,26 @@
 
 Guidance for working in this repo. See `README.md` for the user-facing overview.
 
+## Specs (Spec-Driven Development)
+
+`specs/` holds the architectural source of truth as human- and AI-readable specs.
+Start at `specs/README.md` (the SDD method, tailored to this repo) and
+`specs/architecture.md` (system-wide overview: contracts, audio graph, conventions
+with versions). Per-feature specs live in `specs/features/` and repeatable how-tos
+in `specs/recipes/` (e.g. `specs/recipes/add-a-parameter.md`). For **new** features,
+write/review the spec before generating code; copy `specs/_template.md` to start.
+Specs are standalone, so they restate the conventions they rely on — this file
+remains the canonical, exhaustive reference.
+
+**SDD is enforced, not optional.** A change that edits production code (`src/**`,
+`public/worklets/**`) must create/update a spec under `specs/` in the *same* change
+— enforced by `scripts/sdd-guard.mjs` (Claude Code hooks in `.claude/settings.json`
++ the `sdd-check` CI job). A blocked `Edit`/`Write` or a blocked `Stop` is the gate
+working: write the spec first (`/feature`, `/fix`, `/spec`). Exempt: paths outside
+`src/`/`public/worklets/`, plus `*.md`, `*.css`/styles, and `src/vendor/`. Genuinely
+trivial production tweak? `touch .sdd-skip` (local) or `[skip-sdd]` in a commit / the
+`skip-sdd` PR label (CI). See `specs/README.md` → "Procedure by change type".
+
 ## What this is
 
 A Web Audio synthesizer in vanilla TypeScript. No framework, no runtime
@@ -245,9 +265,13 @@ listener mechanism.
   `http://localhost`.
 - UI is hand-built DOM (`document.createElement`), no virtual DOM. Components
   in `ui/components/`, larger sections in `ui/panels/`. The on-screen keyboard
-  is exposed as `window.__synthKeyboard` and the transport toggle as
-  `window.__transportToggle` so `shortcuts.ts` can drive them (keeps the
-  play-button visuals in sync).
+  and transport toggle are driven through a shared **`UiBridge`**
+  (`ui/ui-bridge.ts`): `app.ts` wires its `pressKey`/`releaseKey`/
+  `toggleTransport` callbacks to the keyboard component and the header Play
+  button, and `shortcuts.ts` is handed the bridge so it can drive them
+  (`toggleTransport` clicks the real Play button, keeping its visuals in sync).
+  The only dev-only `window` global is `__synth` (gated on `import.meta.env.DEV`);
+  there is no `window.__synthKeyboard`/`__transportToggle`.
 - `glide.mode` defaults to **`always`** (1), not `off`, because `always`
   with glide time 0 reproduces the pre-song-mode behaviour — keeps existing
   presets that set `mixer.glide` sounding the same.
