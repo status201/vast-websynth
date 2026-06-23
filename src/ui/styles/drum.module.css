@@ -47,13 +47,7 @@
   min-width: 0;
 }
 
-/* Kit picker + randomize (panel header) */
-.kitBar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
+/* KIT label in the sound-design row */
 .kitLabel {
   font-size: 9px;
   text-transform: uppercase;
@@ -61,7 +55,7 @@
   color: var(--text-dim);
 }
 
-/* Selected-drum tuning strip (below the grid) */
+/* Sound-design row below the grid: KIT picker + randomize + tuning strip */
 .tuning {
   display: flex;
   align-items: center;

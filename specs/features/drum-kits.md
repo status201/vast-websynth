@@ -40,9 +40,11 @@ sub-ranges; reset writes each param back to its registered default.
 - **REQ-3** — `randomKitValues(rand?)` is **pure** (takes an injectable RNG) and
   returns param→value entries within musical sub-ranges (not the full param
   range). `randomizeKit(bus, rand?)` applies them via `bus.set`.
-- **REQ-4** — UI: a KIT dropdown + a Randomize button in the drum-panel header;
-  selecting a kit applies it, Randomize rolls a new one. Both repaint the tuning
-  strip via the knobs' own bus subscriptions.
+- **REQ-4** — UI: a KIT dropdown + a Randomize button lead the **sound-design
+  row below the grid** (alongside the per-drum tuning strip), not the panel
+  header — the header is already full and widening it pushes the drum-compressor
+  help badge off-screen. Selecting a kit applies it, Randomize rolls a new one;
+  both repaint the tuning strip via the knobs' own bus subscriptions.
 - **REQ-5** — No-op safety: the Default kit and reset reproduce the registered
   defaults exactly, so existing presets/songs are unaffected.
 
@@ -77,9 +79,10 @@ KitDef:
 
 ```yaml
 drum-kits.ts: pure data + bus writes only — imports DRUM_TRACK_COUNT, no AudioContext
-ui (drum-panel.ts header): Dropdown(Object.keys(DRUM_KITS)) -> applyKit;
-  Randomize button -> randomizeKit; testids drum-kit / drum-randomize
-reset (drum-panel tuning strip): per-track, writes bus.def(id).default via bus.set
+ui (drum-panel.ts sound-design row, below the grid — not the header):
+  Dropdown(Object.keys(DRUM_KITS)) -> applyKit; Randomize button -> randomizeKit;
+  testids drum-kit / drum-randomize
+reset (same row's tuning strip): per-track, writes bus.def(id).default via bus.set
 ```
 
 ### Persistence

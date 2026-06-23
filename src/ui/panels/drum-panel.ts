@@ -43,24 +43,6 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     testidPrefix: 'drum',
   }).el);
 
-  // Kit picker + randomize — bulk per-track tweaks via the bus (see drum-kits.ts).
-  const kitBar = document.createElement('div');
-  kitBar.className = styles.kitBar!;
-  const kitLabel = document.createElement('span');
-  kitLabel.className = styles.kitLabel!;
-  kitLabel.textContent = 'KIT';
-  const kitDd = new Dropdown(Object.keys(DRUM_KITS), 'Default');
-  kitDd.el.dataset.testid = 'drum-kit';
-  kitDd.onChange((name) => applyKit(bus, name));
-  kitBar.appendChild(kitLabel);
-  kitBar.appendChild(kitDd.el);
-  kitBar.appendChild(createButton({
-    label: '🎲 Random',
-    testId: 'drum-randomize',
-    onClick: () => randomizeKit(bus),
-  }));
-  header.appendChild(kitBar);
-
   header.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
     { id: 'fx.drum.phaser.rate', label: 'RATE' },
     { id: 'fx.drum.phaser.depth', label: 'DEPTH' },
@@ -186,6 +168,23 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
       }
     },
   });
+  // Kit picker + randomize lead the sound-design row (kept out of the header so
+  // it doesn't widen it; see drum-kits.ts). These apply across all tracks.
+  const kitLabel = document.createElement('span');
+  kitLabel.className = styles.kitLabel!;
+  kitLabel.textContent = 'KIT';
+  const kitDd = new Dropdown(Object.keys(DRUM_KITS), 'Default');
+  kitDd.el.dataset.testid = 'drum-kit';
+  kitDd.onChange((name) => applyKit(bus, name));
+  const kitRandom = createButton({
+    label: '🎲 Random',
+    testId: 'drum-randomize',
+    onClick: () => randomizeKit(bus),
+  });
+
+  tuning.appendChild(kitLabel);
+  tuning.appendChild(kitDd.el);
+  tuning.appendChild(kitRandom);
   tuning.appendChild(tuningLabel);
   tuning.appendChild(tuningKnobs);
   tuning.appendChild(tuningReset);

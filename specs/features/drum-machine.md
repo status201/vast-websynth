@@ -105,8 +105,9 @@ hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (dr
 graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(lowpass biquad)
          -> trackGain -> pan(StereoPanner) -> drumBus -> drumComp -> drumPhaser -> drumDelay -> preMaster
 ui: src/ui/panels/drum-panel.ts (drum-step-<t>-<s> grid + per-track mute +
-    a selected-drum tuning strip: knob-drum.t<i>.{tune,decay,tone,drive,pan,vol},
-    drum-reset; header KIT dropdown + randomize — see drum-kits.md)
+    a sound-design row below the grid: KIT dropdown + randomize then a
+    selected-drum tuning strip knob-drum.t<i>.{tune,decay,tone,drive,pan,vol} +
+    drum-reset — see drum-kits.md)
 ```
 
 The per-track channel sits **downstream** of the voice `output`, so it never
