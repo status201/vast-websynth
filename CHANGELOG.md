@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-23
+
+### Added
+
+- Per-drum sound design in the Drum Machine: every track now has **Tune**,
+  **Decay**, **Tone**, **Drive**, **Pan** and volume controls in a selected-drum
+  tuning strip, with a per-track **Reset**. Click a drum's name to audition and
+  edit its sound. Tune now shapes **every** voice (kick, snare, hats, toms,
+  clap), not just the pitched ones.
+- **Drum kits**: a KIT picker with factory kits (808, 909, LoFi, Acoustic,
+  Techno) plus a **Randomize** ("surprise me") button for instant new kits. Kit
+  and per-drum tweaks save with presets and songs; existing presets/songs are
+  unaffected.
+
 ## [1.4.0] - 2026-06-23
 
 ### Added
@@ -58,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/status201/vast-websynth/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/status201/vast-websynth/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/status201/vast-websynth/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/status201/vast-websynth/releases/tag/v1.3.0
