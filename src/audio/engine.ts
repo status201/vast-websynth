@@ -19,6 +19,7 @@ import { DrumMachine } from './transport/drum-machine';
 import { SamplerMachine } from './transport/sampler-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
+import { audibleLanes, type LaneFlags } from './transport/lane-mix';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore } from '../state/patterns';
@@ -71,6 +72,13 @@ export class Engine {
   private readonly noise: AudioBufferSourceNode;
   private polyMode = true;
   private heldNotes = new Map<number, Voice[]>();
+
+  // Song-tab lane mixer (mute/solo across seq/drum/sampler). Volumes are held
+  // here so mute/solo and the volume knobs can both resolve the bus gain.
+  private laneMute: LaneFlags = { seq: false, drum: false, sampler: false };
+  private laneSolo: LaneFlags = { seq: false, drum: false, sampler: false };
+  private drumVol = 0.85;
+  private samplerVol = 0.85;
 
   private driftAmount = 0;
   private driftTimer: number | null = null;
@@ -513,12 +521,21 @@ export class Engine {
 
     // ----- Sequencer -----
     bus.subscribe('seq.on', (v) => this.seq.setEnabled(v >= 0.5));
+    // Synth voice-bus volume (independent of mute: seq mute stops triggering,
+    // not the bus, so live keys keep playing at this level).
+    bus.subscribe('seq.master', (v) => rampTo(this.voiceBus.gain, v, this.ctx, RAMP_MEDIUM));
+
+    // ----- Song-tab lane mixer (mute + solo across all three machines) -----
+    bus.subscribe('seq.mute', (v) => { this.laneMute.seq = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('drum.mute', (v) => { this.laneMute.drum = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('sampler.mute', (v) => { this.laneMute.sampler = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('seq.solo', (v) => { this.laneSolo.seq = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('drum.solo', (v) => { this.laneSolo.drum = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('sampler.solo', (v) => { this.laneSolo.sampler = v >= 0.5; this.applyLaneMix(); });
 
     // ----- Drums -----
     bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
-    bus.subscribe('drum.master', (v) => {
-      rampTo(this.drumBus.gain, v, this.ctx, RAMP_MEDIUM);
-    });
+    bus.subscribe('drum.master', (v) => { this.drumVol = v; this.applyLaneMix(); });
     for (let i = 0; i < 8; i++) {
       const track = i;
       bus.subscribe(`drum.t${i}.vol`, (v) => this.drums.setTrackVolume(track, v));
@@ -529,13 +546,24 @@ export class Engine {
 
     // ----- Sampler -----
     bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
-    bus.subscribe('sampler.master', (v) => {
-      rampTo(this.samplerBus.gain, v, this.ctx, RAMP_MEDIUM);
-    });
+    bus.subscribe('sampler.master', (v) => { this.samplerVol = v; this.applyLaneMix(); });
     for (let i = 0; i < 8; i++) {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
     }
+  }
+
+  /**
+   * Resolve the lane mixer (mute/solo) to the audio graph. Drums/sampler mute
+   * by cutting their bus gain (the pattern keeps running, instant un-mute);
+   * the sequencer mutes by suppressing triggering (live keys stay audible). The
+   * audibility rule itself lives in the pure `audibleLanes` helper.
+   */
+  private applyLaneMix(): void {
+    const audible = audibleLanes(this.laneMute, this.laneSolo);
+    this.seq.setMuted(!audible.seq);
+    rampTo(this.drumBus.gain, audible.drum ? this.drumVol : 0, this.ctx, RAMP_MEDIUM);
+    rampTo(this.samplerBus.gain, audible.sampler ? this.samplerVol : 0, this.ctx, RAMP_MEDIUM);
   }
 
   /**

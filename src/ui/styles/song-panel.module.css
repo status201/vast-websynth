@@ -45,6 +45,24 @@
   flex: 1;
 }
 
+/* Per-lane DJ mixer strip: mute / solo / volume. */
+.mix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Push the volume knob to the trailing edge of the strip. */
+.vol { margin-left: auto; }
+
+/* A lane that is silenced (its own mute, or another lane's solo) dims so the
+   mixer state reads at a glance. Controls stay clickable (opacity only). */
+.silenced {
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

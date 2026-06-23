@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Per-lane DJ mixer in the Song tab: **Mute**, **Solo**, and **Volume** for the
+  Sequencer, Drums, and Sampler, so you can ride levels and drop lanes without
+  switching machines. Solo isolates a lane (dimming the others); muting the
+  Sequencer stops its notes while live keyboard play keeps going.
+
 ## [1.3.1] - 2026-06-22
 
 ### Added

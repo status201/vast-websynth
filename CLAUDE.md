@@ -25,7 +25,10 @@ npm run release    # bump version + CHANGELOG, build, zip dist/, print publish s
 deps) bumps `package.json` + promotes the CHANGELOG, then builds and zips `dist/`
 into `dist-v<version>.zip` (a GitHub-release asset) and **prints** the
 `git` + `gh release create … <zip>` commands — it never touches git/GitHub
-itself. `--dry-run` previews, `--skip-build` skips the build+zip.
+itself (attaching the zip needs the `gh` CLI authenticated). Flags: `--dry-run`
+(preview, write/build nothing), `--yes`/`-y` (skip the confirm prompt),
+`--skip-build` (bump files but skip the build+zip). The zip + a
+`dist-v<version>.notes.md` are gitignored (`dist-v*`). See `DEPLOYMENT.md`.
 
 `npm run typecheck` is still the primary check (TS is in `strict` mode with
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
@@ -56,7 +59,9 @@ stable testids minted at the factory level: `knob-<paramId>`,
 `StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
 `bank-<seq|drum|sampler>-<i>`/`bank-…-copy` (the per-machine `BankBar`, via its
 `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
-`perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`),
+`perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
+DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
+`switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
@@ -186,6 +191,14 @@ listener mechanism.
   `fillActive` makes the drum machine play a roll; Filter Drop / manual DJ
   Filter drive `engine.djFilter` (a BiquadFilter inserted `preMaster →
   djFilter → analyser`); Tape Stop ramps `Clock` BPM + pitch-bend via rAF.
+- **Lane mixer** — Song-tab mute/solo/volume per lane (`<lane>.mute`/
+  `.solo`/`.master` params). The audibility rule is the pure `audibleLanes`
+  (`audio/transport/lane-mix.ts`, solo wins over mute), shared by
+  `Engine.applyLaneMix()` and the Song panel's dim-when-silenced visual.
+  Drums/sampler mute by cutting their bus gain; the sequencer mutes via
+  `StepSequencer.setMuted` (stops triggering, leaving live-keyboard play and the
+  voice bus untouched). `seq.master` is the synth voice-bus volume (default 1,
+  a no-op for existing presets).
 - **Sampler** — `PatternStore` also holds 4 **sampler** banks (8 slots × 16
   steps, `SamplerStep`). `SamplerMachine` (`audio/transport/sampler-machine.ts`)
   mirrors `DrumMachine` but each slot plays a user-loaded `AudioBuffer`

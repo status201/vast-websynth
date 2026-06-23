@@ -49,10 +49,22 @@ npm run preview  # serve the production build
 npm run typecheck
 npm test         # vitest run — unit tests (jsdom)
 npm run e2e      # playwright run — browser end-to-end tests (Chromium)
+npm run release  # cut a versioned release (see Releasing below)
 ```
 
 Audio starts behind a **"Tap to start"** overlay — browsers require a user
 gesture before an `AudioContext` may produce sound.
+
+## Releasing
+
+`npm run release -- <version|major|minor|patch>` bumps `package.json`, promotes
+the CHANGELOG `[Unreleased]` section, builds the app, and zips `dist/` into
+`dist-v<version>.zip` — then **prints** the `git` and `gh release create`
+commands to publish (it never touches git/GitHub itself). Use `--dry-run` to
+preview, `--yes` to skip the prompt, `--skip-build` to skip the build + zip.
+Attaching the zip needs the [`gh` CLI](https://cli.github.com/) authenticated.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full flow and how to deploy the
+built `dist/`.
 
 ## Controls
 

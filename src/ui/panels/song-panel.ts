@@ -4,7 +4,9 @@ import type { Engine } from '../../audio/engine';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
+import { Switch } from '../components/switch';
 import { Dropdown } from '../components/dropdown';
+import { audibleLanes, LANE_IDS, type LaneId, type LaneFlags } from '../../audio/transport/lane-mix';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { createAiPromptButton } from '../components/ai-prompt';
@@ -54,21 +56,41 @@ export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSes
     session.setActive(file.name);
   };
 
-  // ---- Chain lanes ----
+  // ---- Chain lanes (each with DJ mute / solo / volume) ----
   const chains = el('div', styles.chains!);
-  chains.appendChild(buildChainLane(
-    'Sequencer', engine.arrangement.seq,
-    (s, en) => engine.arrangement.setSeqChain(s, en),
-    () => engine.arrangement.seqChainPos, engine));
-  chains.appendChild(buildChainLane(
-    'Drums', engine.arrangement.drum,
-    (s, en) => engine.arrangement.setDrumChain(s, en),
-    () => engine.arrangement.drumChainPos, engine));
-  chains.appendChild(buildChainLane(
-    'Sampler', engine.arrangement.sampler,
-    (s, en) => engine.arrangement.setSamplerChain(s, en),
-    () => engine.arrangement.samplerChainPos, engine));
+  const laneEls: Record<LaneId, HTMLElement> = {
+    seq: buildChainLane(
+      'Sequencer', 'seq', bus, engine.arrangement.seq,
+      (s, en) => engine.arrangement.setSeqChain(s, en),
+      () => engine.arrangement.seqChainPos, engine),
+    drum: buildChainLane(
+      'Drums', 'drum', bus, engine.arrangement.drum,
+      (s, en) => engine.arrangement.setDrumChain(s, en),
+      () => engine.arrangement.drumChainPos, engine),
+    sampler: buildChainLane(
+      'Sampler', 'sampler', bus, engine.arrangement.sampler,
+      (s, en) => engine.arrangement.setSamplerChain(s, en),
+      () => engine.arrangement.samplerChainPos, engine),
+  };
+  for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
   root.appendChild(chains);
+
+  // Dim a lane card whenever it is silenced — by its own mute or by another
+  // lane's solo. Uses the same `audibleLanes` rule the engine applies, so the
+  // visual can never disagree with what you hear.
+  const flag = (suffix: string): LaneFlags => ({
+    seq: bus.get(`seq.${suffix}`) >= 0.5,
+    drum: bus.get(`drum.${suffix}`) >= 0.5,
+    sampler: bus.get(`sampler.${suffix}`) >= 0.5,
+  });
+  const refreshSilenced = (): void => {
+    const audible = audibleLanes(flag('mute'), flag('solo'));
+    for (const id of LANE_IDS) laneEls[id].classList.toggle(styles.silenced!, !audible[id]);
+  };
+  for (const id of LANE_IDS) {
+    bus.subscribe(`${id}.mute`, refreshSilenced);
+    bus.subscribe(`${id}.solo`, refreshSilenced);
+  }
 
   // ---- Live DJ FX ----
   const fx = el('div', styles.djFx!);
@@ -260,12 +282,15 @@ function emptySamplerBanks() {
 
 function buildChainLane(
   title: string,
+  prefix: LaneId,
+  bus: ParamBus,
   lane: ChainLane,
   setChain: (steps: number[], enabled: boolean) => void,
   getPos: () => number,
   engine: Engine,
 ): HTMLElement {
   const root = el('div', styles.lane!);
+  root.dataset.testid = `song-lane-${prefix}`;
 
   const head = el('div', styles.head!);
   head.appendChild(el('div', styles.title!, title));
@@ -277,6 +302,17 @@ function buildChainLane(
   enableBtn.addEventListener('click', () => setChain([...lane.steps], !lane.enabled));
   head.appendChild(enableBtn);
   root.appendChild(head);
+
+  // DJ mixer strip: mute / solo / volume, so the lane is operable from the Song
+  // tab without switching machines. All three bind straight to ParamBus, so
+  // they stay in sync with the per-machine panels and persist with the song.
+  const mix = el('div', styles.mix!);
+  mix.appendChild(new Switch(bus, `${prefix}.mute`, 'Mute').el);
+  mix.appendChild(new Switch(bus, `${prefix}.solo`, 'Solo').el);
+  const vol = new Knob({ bus, paramId: `${prefix}.master`, label: 'Vol', size: 34 });
+  vol.el.classList.add(styles.vol!);
+  mix.appendChild(vol.el);
+  root.appendChild(mix);
 
   const chips = el('div', styles.chips!);
   root.appendChild(chips);

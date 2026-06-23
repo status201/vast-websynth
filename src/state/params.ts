@@ -316,10 +316,19 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Sequencer -----
     { id: 'seq.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // Synth voice-bus volume. Defaults to 1 (no-op: the bus was always unity)
+    // so existing presets/songs sound unchanged. Drives engine.voiceBus.gain.
+    { id: 'seq.master', min: 0, max: 1, default: 1, format: fmtPct },
+    // Song-tab DJ controls. Seq mute stops the sequencer triggering (live keys
+    // stay audible); solo silences the other lanes. Defaults are no-ops.
+    { id: 'seq.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
+    { id: 'seq.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
 
     // ----- Drum machine -----
     { id: 'drum.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'drum.master', min: 0, max: 1, default: 0.85, format: fmtPct },
+    { id: 'drum.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
+    { id: 'drum.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
 
     // Per-track drum params (8 tracks)
     ...drumTrackParams(),
@@ -327,6 +336,8 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- Sampler -----
     { id: 'sampler.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'sampler.master', min: 0, max: 1, default: 0.85, format: fmtPct },
+    { id: 'sampler.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
+    { id: 'sampler.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
 
     // Per-slot sampler params (8 slots)
     ...samplerTrackParams(),

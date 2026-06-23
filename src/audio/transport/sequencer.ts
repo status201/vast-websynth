@@ -16,6 +16,7 @@ export type SeqNoteListener = (note: number, when: number, releaseAt: number) =>
  */
 export class StepSequencer {
   private enabled = false;
+  private muted = false;
   private lastPlayedNote = -1;
   private lastReleaseAt = 0;
   private prevTied = false;
@@ -41,6 +42,20 @@ export class StepSequencer {
     if (!on) this.prevTied = false;
   }
 
+  /**
+   * Song-tab DJ mute: suppress note triggering while the pattern keeps running
+   * (the playhead still advances). Live keyboard input is unaffected — it never
+   * routed through the sequencer. Releases any ringing sequenced note at once.
+   */
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (muted && this.lastPlayedNote >= 0) {
+      this.output.releaseNote(this.lastPlayedNote);
+      this.lastPlayedNote = -1;
+      this.prevTied = false;
+    }
+  }
+
   onStep(fn: StepListener): () => void {
     this.stepListeners.add(fn);
     return () => { this.stepListeners.delete(fn); };
@@ -56,6 +71,9 @@ export class StepSequencer {
     if (!this.enabled) return;
     const idx = this.perf.mapStep(step) % SEQ_LENGTH;
     for (const l of this.stepListeners) l(idx);
+    // Muted: keep the playhead moving (above) but trigger nothing. setMuted has
+    // already released any held note, so just bail before scheduling.
+    if (this.muted) return;
     const s = this.patterns.seqBank(this.arrangement.seqPlayBank)[idx];
 
     // Rest (or step skipped by probability): let any held note finish, but a
