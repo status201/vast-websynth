@@ -8,6 +8,9 @@ name: SDD
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   sdd-check:
     runs-on: ubuntu-latest
