@@ -35,6 +35,7 @@ import { deflateRawSync } from 'node:zlib';
 const root = new URL('../', import.meta.url);
 const ROOT_DIR = fileURLToPath(root);
 const PKG_PATH = fileURLToPath(new URL('package.json', root));
+const PKG_LOCK_PATH = fileURLToPath(new URL('package-lock.json', root));
 const CHANGELOG_PATH = fileURLToPath(new URL('CHANGELOG.md', root));
 const DIST_DIR = fileURLToPath(new URL('dist', root));
 
@@ -64,20 +65,13 @@ function die(msg) {
   process.exit(1);
 }
 
-function box(lines) {
-  const width = Math.max(...lines.map((l) => stripAnsi(l).length));
-  const bar = '─'.repeat(width + 2);
-  log(c.dim('  ┌' + bar + '┐'));
-  for (const l of lines) {
-    const pad = ' '.repeat(width - stripAnsi(l).length);
-    log(c.dim('  │ ') + l + pad + c.dim(' │'));
-  }
-  log(c.dim('  └' + bar + '┘'));
-}
-
-function stripAnsi(s) {
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/\x1b\[[0-9;]*m/g, '');
+// Print a block of shell commands at column 0 with no surrounding box, so the
+// whole block can be highlighted and pasted into a shell in one go — box borders
+// or leading indentation would otherwise be copied along with the commands.
+// (ANSI colour codes are not included when selecting terminal text, so colouring
+// `git`/`gh` is safe.)
+function commands(lines) {
+  for (const l of lines) log(l);
 }
 
 function usage() {
@@ -491,8 +485,9 @@ async function main() {
   }
 
   heading('Files to change');
-  arrow(`package.json    ${c.dim(`version → ${targetVersion}`)}`);
-  arrow(`CHANGELOG.md    ${c.dim(`promote [Unreleased] → [${targetVersion}] - ${today()}`)}`);
+  arrow(`package.json       ${c.dim(`version → ${targetVersion}`)}`);
+  arrow(`package-lock.json  ${c.dim(`version → ${targetVersion}`)}`);
+  arrow(`CHANGELOG.md       ${c.dim(`promote [Unreleased] → [${targetVersion}] - ${today()}`)}`);
   arrow(`${notesName}    ${c.dim('release notes (for gh --notes-file)')}`);
   if (!skipBuild) {
     arrow(`dist/           ${c.dim('build via npm run build')}`);
@@ -523,6 +518,21 @@ async function main() {
   if (newPkgRaw === pkgRaw) die('Failed to update the version field in package.json.');
   writeFileSync(PKG_PATH, newPkgRaw);
 
+  // package-lock.json: keep the lockfile's own version fields in lockstep so it
+  // never drifts behind package.json. Only the two websynth-owned fields change
+  // (top-level `version` + `packages[""].version`); dependency entries are left
+  // untouched. A missing lockfile is a soft skip, not a hard failure.
+  let lockBumped = false;
+  try {
+    const lock = JSON.parse(readFileSync(PKG_LOCK_PATH, 'utf8'));
+    lock.version = targetVersion;
+    if (lock.packages && lock.packages['']) lock.packages[''].version = targetVersion;
+    writeFileSync(PKG_LOCK_PATH, JSON.stringify(lock, null, 2) + '\n');
+    lockBumped = true;
+  } catch {
+    note('package-lock.json not found or unparseable — skipping lockfile bump.');
+  }
+
   const newChangelog = rewriteChangelog(parsed, targetVersion, repoBase, prevVersion);
   writeFileSync(CHANGELOG_PATH, newChangelog);
 
@@ -532,6 +542,7 @@ async function main() {
 
   heading('Files written');
   ok('package.json');
+  if (lockBumped) ok('package-lock.json');
   ok('CHANGELOG.md');
   ok(notesName);
 
@@ -552,8 +563,8 @@ async function main() {
   // --- Publish playbook ------------------------------------------------------
   const commitMsg = `[RELEASE] ${tag}`;
   heading('Next: commit, tag & push');
-  box([
-    c.cyan('git') + ' add package.json CHANGELOG.md',
+  commands([
+    c.cyan('git') + ' add package.json package-lock.json CHANGELOG.md',
     c.cyan('git') + ` commit -m ${JSON.stringify(commitMsg)}`,
     c.cyan('git') + ` tag -a ${tag} -m ${JSON.stringify(tag)}`,
     c.cyan('git') + ' push origin main --follow-tags',
@@ -562,7 +573,7 @@ async function main() {
 
   // --- GitHub release (with the dist zip attached) ---------------------------
   heading('Then: create the GitHub release (with the dist zip attached)');
-  box([
+  commands([
     c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName}`,
   ]);
   note('Requires the `gh` CLI (authenticated). --verify-tag uses the tag you pushed above.');
