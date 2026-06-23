@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!--
   Maintainers: jot user-facing changes under "[Unreleased]" as you work, grouped
   into Added / Changed / Deprecated / Removed / Fixed / Security. At release time,
-  `npm run release -- <version>` promotes this section to a dated version heading
-  and prints the publish steps. Keep entries short and recognisable.
+  `npm run release -- <version>` promotes this section to a dated version heading,
+  builds the app, zips dist/ into a release artifact (dist-v<version>.zip), and
+  prints the git + `gh release create` steps to publish. Keep entries short and
+  recognisable.
 -->
 
 ## [Unreleased]

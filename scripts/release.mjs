@@ -4,31 +4,39 @@
 // Takes a version (an explicit x.y.z or a major|minor|patch keyword), bumps
 // package.json — which is the single source of truth the About modal reads via
 // __APP_VERSION__ — and promotes the CHANGELOG's [Unreleased] section to a dated
-// version heading. It then prints the exact git + GitHub steps to publish.
+// version heading. It then builds the app, zips the dist/ folder into a
+// release artifact, and prints the exact git + GitHub steps to publish (with
+// the dist zip attached to the release).
 //
-// Deliberately conservative: it edits files only and NEVER touches git. Run the
-// printed commands yourself to commit, tag, and push.
+// Deliberately conservative: it only edits files + produces local build
+// artifacts and NEVER touches git or GitHub. Run the printed commands yourself
+// to commit, tag, push, and create the release.
 //
 // Usage:
-//   npm run release -- <version|major|minor|patch> [--dry-run] [--yes]
+//   npm run release -- <version|major|minor|patch> [--dry-run] [--yes] [--skip-build]
 //
 // Flags:
-//   --dry-run   Show what would change; write nothing.
-//   --yes, -y   Skip the confirmation prompt.
-//   --help, -h  Show usage.
+//   --dry-run     Show what would change; write/build nothing.
+//   --yes, -y     Skip the confirmation prompt.
+//   --skip-build  Bump files but skip the build + zip (e.g. dist/ already built).
+//   --help, -h    Show usage.
 //
 // Zero dependencies — Node built-ins only.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
+import { spawnSync } from 'node:child_process';
+import { deflateRawSync } from 'node:zlib';
 
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
 const root = new URL('../', import.meta.url);
+const ROOT_DIR = fileURLToPath(root);
 const PKG_PATH = fileURLToPath(new URL('package.json', root));
 const CHANGELOG_PATH = fileURLToPath(new URL('CHANGELOG.md', root));
+const DIST_DIR = fileURLToPath(new URL('dist', root));
 
 // ---------------------------------------------------------------------------
 // Pretty console output (degrades when not a TTY or NO_COLOR is set)
@@ -76,7 +84,10 @@ function usage() {
   log(`
 ${c.bold('VAST G1-J5 — release helper')}
 
-  ${c.dim('Usage:')}  npm run release -- <version|major|minor|patch> [--dry-run] [--yes]
+  ${c.dim('Bumps the version + CHANGELOG, builds the app, and zips dist/ into a')}
+  ${c.dim('release artifact — then prints the git + gh commands to publish.')}
+
+  ${c.dim('Usage:')}  npm run release -- <version|major|minor|patch> [--dry-run] [--yes] [--skip-build]
 
   ${c.dim('Examples:')}
     npm run release -- 1.4.0
@@ -84,9 +95,10 @@ ${c.bold('VAST G1-J5 — release helper')}
     npm run release -- patch --dry-run
 
   ${c.dim('Flags:')}
-    --dry-run   Preview the changes; write nothing.
-    --yes, -y   Skip the confirmation prompt.
-    --help, -h  Show this help.
+    --dry-run     Preview the changes; write/build nothing.
+    --yes, -y     Skip the confirmation prompt.
+    --skip-build  Bump files but skip the build + zip step.
+    --help, -h    Show this help.
 `);
 }
 
@@ -260,6 +272,124 @@ function renderNotes(bodyLines) {
 }
 
 // ---------------------------------------------------------------------------
+// Build + zip the dist/ folder
+// ---------------------------------------------------------------------------
+
+/** Run the production build (`npm run build`), inheriting stdio. */
+function runBuild() {
+  // shell:true so Windows resolves npm → npm.cmd (Node refuses to spawn .cmd
+  // directly since 18.20/20.12); the shell also finds `npm` on POSIX. Args are
+  // static, so there's no injection surface.
+  const res = spawnSync('npm', ['run', 'build'], { stdio: 'inherit', cwd: ROOT_DIR, shell: true });
+  if (res.error) die(`Failed to run "npm run build": ${res.error.message}`);
+  if (res.status !== 0) {
+    die(
+      `Build failed (exit ${res.status}). package.json/CHANGELOG.md were already ` +
+        `bumped — run "git checkout -- package.json CHANGELOG.md" before retrying.`,
+    );
+  }
+}
+
+// CRC32 — table-based, so we don't depend on zlib.crc32 (newer Node only).
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** Recursively list files under dir, returning paths relative to `dir` (posix). */
+function listFiles(dir, base = '') {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const abs = `${dir}/${entry.name}`;
+    const rel = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) out.push(...listFiles(abs, rel));
+    else if (entry.isFile()) out.push(rel);
+  }
+  return out;
+}
+
+/** Pack a Date into DOS date + time words (used by the ZIP local header). */
+function dosDateTime(d) {
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds() / 2));
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  return { time: time & 0xffff, date: date & 0xffff };
+}
+
+/**
+ * Build a ZIP archive (Buffer) of every file under `srcDir`, with each entry
+ * named `<topPrefix>/<relative path>`. Dependency-free: deflate via node:zlib,
+ * CRC32 in JS. Implements the minimal local-header + central-directory + EOCD
+ * structure (no Zip64 — fine for a web build).
+ */
+function zipDir(srcDir, topPrefix) {
+  const files = listFiles(srcDir).sort();
+  const local = [];
+  const central = [];
+  let offset = 0;
+
+  for (const rel of files) {
+    const name = `${topPrefix}/${rel}`;
+    const nameBuf = Buffer.from(name, 'utf8');
+    const data = readFileSync(`${srcDir}/${rel}`);
+    const crc = crc32(data);
+    const compressed = deflateRawSync(data);
+    const { time, date } = dosDateTime(statSync(`${srcDir}/${rel}`).mtime);
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0); // local file header signature
+    localHeader.writeUInt16LE(20, 4); // version needed
+    localHeader.writeUInt16LE(0, 6); // general purpose flags
+    localHeader.writeUInt16LE(8, 8); // method: deflate
+    localHeader.writeUInt16LE(time, 10);
+    localHeader.writeUInt16LE(date, 12);
+    localHeader.writeUInt32LE(crc, 14);
+    localHeader.writeUInt32LE(compressed.length, 18);
+    localHeader.writeUInt32LE(data.length, 22);
+    localHeader.writeUInt16LE(nameBuf.length, 26);
+    localHeader.writeUInt16LE(0, 28); // extra field length
+    local.push(localHeader, nameBuf, compressed);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0); // central dir header signature
+    centralHeader.writeUInt16LE(20, 4); // version made by
+    centralHeader.writeUInt16LE(20, 6); // version needed
+    centralHeader.writeUInt16LE(0, 8); // flags
+    centralHeader.writeUInt16LE(8, 10); // method: deflate
+    centralHeader.writeUInt16LE(time, 12);
+    centralHeader.writeUInt16LE(date, 14);
+    centralHeader.writeUInt32LE(crc, 16);
+    centralHeader.writeUInt32LE(compressed.length, 20);
+    centralHeader.writeUInt32LE(data.length, 24);
+    centralHeader.writeUInt16LE(nameBuf.length, 28);
+    centralHeader.writeUInt32LE(offset, 42); // relative offset of local header
+    central.push(centralHeader, nameBuf);
+
+    offset += localHeader.length + nameBuf.length + compressed.length;
+  }
+
+  const centralBuf = Buffer.concat(central);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0); // end of central dir signature
+  eocd.writeUInt16LE(files.length, 8); // entries on this disk
+  eocd.writeUInt16LE(files.length, 10); // total entries
+  eocd.writeUInt32LE(centralBuf.length, 12); // central dir size
+  eocd.writeUInt32LE(offset, 16); // central dir offset
+
+  return Buffer.concat([...local, centralBuf, eocd]);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
@@ -272,6 +402,7 @@ async function main() {
 
   const dryRun = argv.includes('--dry-run');
   const skipConfirm = argv.includes('--yes') || argv.includes('-y');
+  const skipBuild = argv.includes('--skip-build');
   const positionals = argv.filter((a) => !a.startsWith('-'));
 
   if (positionals.length !== 1) {
@@ -331,6 +462,10 @@ async function main() {
   const prevVersion = findPreviousVersion(parsed.after);
   const notes = renderNotes(parsed.body);
   const tag = `v${targetVersion}`;
+  const zipName = `dist-${tag}.zip`;
+  const notesName = `dist-${tag}.notes.md`;
+  const ZIP_PATH = fileURLToPath(new URL(zipName, root));
+  const NOTES_PATH = fileURLToPath(new URL(notesName, root));
 
   // --- Preview ---------------------------------------------------------------
   heading('Release preview');
@@ -351,11 +486,16 @@ async function main() {
   }
 
   heading('Files to change');
-  arrow(`package.json   ${c.dim(`version → ${targetVersion}`)}`);
-  arrow(`CHANGELOG.md   ${c.dim(`promote [Unreleased] → [${targetVersion}] - ${today()}`)}`);
+  arrow(`package.json    ${c.dim(`version → ${targetVersion}`)}`);
+  arrow(`CHANGELOG.md    ${c.dim(`promote [Unreleased] → [${targetVersion}] - ${today()}`)}`);
+  arrow(`${notesName}    ${c.dim('release notes (for gh --notes-file)')}`);
+  if (!skipBuild) {
+    arrow(`dist/           ${c.dim('build via npm run build')}`);
+    arrow(`${zipName}    ${c.dim('zip of dist/ (GitHub release asset)')}`);
+  }
 
   if (dryRun) {
-    log('\n' + c.dim('  --dry-run: no files were written.') + '\n');
+    log('\n' + c.dim('  --dry-run: nothing was written or built.') + '\n');
     return;
   }
 
@@ -381,9 +521,28 @@ async function main() {
   const newChangelog = rewriteChangelog(parsed, targetVersion, repoBase, prevVersion);
   writeFileSync(CHANGELOG_PATH, newChangelog);
 
+  // Release notes file — referenced by the printed `gh release create` command
+  // via --notes-file, so the markdown notes never need shell-escaping.
+  writeFileSync(NOTES_PATH, notes + '\n');
+
   heading('Files written');
   ok('package.json');
   ok('CHANGELOG.md');
+  ok(notesName);
+
+  // --- Build + zip dist/ -----------------------------------------------------
+  if (skipBuild) {
+    log('');
+    note(`--skip-build: not building. ${zipName} must already exist for the gh command below.`);
+  } else {
+    heading('Building app (npm run build)');
+    runBuild();
+
+    const zip = zipDir(DIST_DIR, 'dist');
+    writeFileSync(ZIP_PATH, zip);
+    heading('Release artifact');
+    ok(`${zipName}  ${c.dim(`(${(zip.length / 1024).toFixed(0)} kB — zip of dist/)`)}`);
+  }
 
   // --- Publish playbook ------------------------------------------------------
   const commitMsg = `[RELEASE] ${tag}`;
@@ -396,16 +555,13 @@ async function main() {
   ]);
   note('--follow-tags pushes the annotated tag alongside the commit.');
 
-  // --- GitHub release link ---------------------------------------------------
-  const releaseUrl =
-    `${repoBase}/releases/new?tag=${encodeURIComponent(tag)}` +
-    `&title=${encodeURIComponent(tag)}` +
-    `&body=${encodeURIComponent(notes)}`;
-
-  heading('Then: create the GitHub release');
-  arrow('Open this prefilled link (notes already filled in):');
-  log('  ' + c.blue(releaseUrl));
-  note('Or paste the notes shown above into a new release for ' + tag + '.');
+  // --- GitHub release (with the dist zip attached) ---------------------------
+  heading('Then: create the GitHub release (with the dist zip attached)');
+  box([
+    c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName}`,
+  ]);
+  note('Requires the `gh` CLI (authenticated). --verify-tag uses the tag you pushed above.');
+  note(`No gh? Create it at ${repoBase}/releases/new?tag=${tag} and upload ${zipName} manually.`);
 
   log('\n' + c.green(c.bold(`✓ Prepared ${targetVersion}.`)) + ' ' + c.dim('Run the commands above to publish.') + '\n');
 }

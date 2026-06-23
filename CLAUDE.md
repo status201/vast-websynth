@@ -18,7 +18,14 @@ npm run typecheck  # tsc --noEmit — run this to verify changes
 npm run build      # tsc --noEmit && vite build
 npm test           # vitest run — pure-logic + component unit tests
 npm run e2e        # playwright test — browser smoke + control-surface specs
+npm run release    # bump version + CHANGELOG, build, zip dist/, print publish steps
 ```
+
+`npm run release -- <version|major|minor|patch>` (`scripts/release.mjs`, zero
+deps) bumps `package.json` + promotes the CHANGELOG, then builds and zips `dist/`
+into `dist-v<version>.zip` (a GitHub-release asset) and **prints** the
+`git` + `gh release create … <zip>` commands — it never touches git/GitHub
+itself. `--dry-run` previews, `--skip-build` skips the build+zip.
 
 `npm run typecheck` is still the primary check (TS is in `strict` mode with
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
