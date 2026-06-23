@@ -2,12 +2,15 @@ import type { ParamBus } from '../../state/params';
 import type { Engine } from '../../audio/engine';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
+import { Dropdown } from '../components/dropdown';
+import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
+import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
 import { DRUM_TRACK_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH, type DrumCell } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
@@ -39,6 +42,25 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     onContentChange: (fn) => engine.patterns.onDrumChange(fn),
     testidPrefix: 'drum',
   }).el);
+
+  // Kit picker + randomize — bulk per-track tweaks via the bus (see drum-kits.ts).
+  const kitBar = document.createElement('div');
+  kitBar.className = styles.kitBar!;
+  const kitLabel = document.createElement('span');
+  kitLabel.className = styles.kitLabel!;
+  kitLabel.textContent = 'KIT';
+  const kitDd = new Dropdown(Object.keys(DRUM_KITS), 'Default');
+  kitDd.el.dataset.testid = 'drum-kit';
+  kitDd.onChange((name) => applyKit(bus, name));
+  kitBar.appendChild(kitLabel);
+  kitBar.appendChild(kitDd.el);
+  kitBar.appendChild(createButton({
+    label: '🎲 Random',
+    testId: 'drum-randomize',
+    onClick: () => randomizeKit(bus),
+  }));
+  header.appendChild(kitBar);
+
   header.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
     { id: 'fx.drum.phaser.rate', label: 'RATE' },
     { id: 'fx.drum.phaser.depth', label: 'DEPTH' },
@@ -75,6 +97,7 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     selStep = s;
     stepBtns[t]?.[s]?.el.classList.add(StepButton.selectedClass);
     renderSelected();
+    renderTuning();
     editor.refresh();
   };
 
@@ -88,8 +111,11 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     label.className = styles.trackLabel!;
     label.dataset.testid = `drum-track-${t}`;
     label.textContent = DRUM_TRACK_LABELS[t] ?? `T${t}`;
-    label.title = 'Click to audition';
-    label.addEventListener('click', () => engine.drums.triggerTrack(t, 0.9));
+    label.title = 'Click to audition + edit its sound';
+    label.addEventListener('click', () => {
+      setSelected(t, selStep);
+      engine.drums.triggerTrack(t, 0.9);
+    });
     ctrls.appendChild(label);
 
     const mute = new Switch(bus, `drum.t${t}.mute`, 'mute');
@@ -119,6 +145,51 @@ export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
     grid.appendChild(row);
   }
   root.appendChild(grid);
+
+  // ---- Selected-drum tuning strip (sound design for the selected track) ----
+  // Mirrors the per-step editor: one shared row driven by the selection cursor.
+  // Knobs bind their paramId at construction, so the row is rebuilt on selection.
+  const TUNING_PARAMS: { suffix: string; label: string }[] = [
+    { suffix: 'tune', label: 'TUNE' },
+    { suffix: 'decay', label: 'DECAY' },
+    { suffix: 'tone', label: 'TONE' },
+    { suffix: 'drive', label: 'DRIVE' },
+    { suffix: 'pan', label: 'PAN' },
+    { suffix: 'vol', label: 'VOL' },
+  ];
+  const tuning = document.createElement('div');
+  tuning.className = styles.tuning!;
+  const tuningLabel = document.createElement('div');
+  tuningLabel.className = editStyles.selectedLabel!;
+  const tuningKnobs = document.createElement('div');
+  tuningKnobs.className = styles.tuningKnobs!;
+  let tuningCells: Knob[] = [];
+  const renderTuning = (): void => {
+    for (const k of tuningCells) k.destroy();
+    tuningCells = [];
+    tuningKnobs.innerHTML = '';
+    tuningLabel.textContent = `${DRUM_TRACK_LABELS[selTrack] ?? `T${selTrack}`} — sound`;
+    for (const { suffix, label } of TUNING_PARAMS) {
+      const knob = new Knob({ bus, paramId: `drum.t${selTrack}.${suffix}`, label, size: 34 });
+      tuningCells.push(knob);
+      tuningKnobs.appendChild(knob.el);
+    }
+  };
+  const tuningReset = createButton({
+    label: 'Reset',
+    testId: 'drum-reset',
+    onClick: () => {
+      for (const { suffix } of TUNING_PARAMS) {
+        const id = `drum.t${selTrack}.${suffix}`;
+        const def = bus.def(id);
+        if (def) bus.set(id, def.default);
+      }
+    },
+  });
+  tuning.appendChild(tuningLabel);
+  tuning.appendChild(tuningKnobs);
+  tuning.appendChild(tuningReset);
+  root.appendChild(tuning);
 
   // ---- Per-step edit row (shared component; below the grid) ----
   const editor = new StepSettingsEditor({

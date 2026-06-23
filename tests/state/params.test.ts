@@ -129,4 +129,14 @@ describe('ParamBus', () => {
     // 8 drum tracks each contribute per-track params
     expect(bus.def('drum.t7.vol')).toBeDefined();
   });
+
+  it('registers per-track tone/drive/pan with no-op defaults for every drum track', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (let i = 0; i < 8; i++) {
+      expect(bus.def(`drum.t${i}.tone`)?.default).toBe(1); // open
+      expect(bus.def(`drum.t${i}.drive`)?.default).toBe(0); // clean
+      expect(bus.def(`drum.t${i}.pan`)?.default).toBe(0); // centre
+    }
+  });
 });

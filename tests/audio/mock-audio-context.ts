@@ -61,6 +61,7 @@ export interface MockAudioContext {
   createBiquadFilter: ReturnType<typeof vi.fn>;
   createConstantSource: ReturnType<typeof vi.fn>;
   createWaveShaper: ReturnType<typeof vi.fn>;
+  createStereoPanner: ReturnType<typeof vi.fn>;
   createBuffer: ReturnType<typeof vi.fn>;
 }
 
@@ -106,6 +107,7 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       curve: null as Float32Array | null,
       oversample: 'none' as OverSampleType,
     })),
+    createStereoPanner: vi.fn(() => withCtx({ ...baseNode(), pan: makeParam(0) })),
     createBuffer: vi.fn((channels: number, length: number, sr: number) => {
       const data: Float32Array[] = Array.from({ length: channels }, () => new Float32Array(length));
       return {

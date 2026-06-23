@@ -1,3 +1,5 @@
+import { DRUM_TRACK_COUNT } from './patterns';
+
 export type ParamId = string;
 
 export type Taper = 'linear' | 'exp' | 'discrete';
@@ -135,6 +137,8 @@ const fmtHz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(2)}k` : v.toFixe
 const fmtMs = (v: number) => (v >= 1 ? `${v.toFixed(2)}s` : `${(v * 1000).toFixed(0)}ms`);
 const fmtPct = (v: number) => `${Math.round(v * 100)}%`;
 const fmtSemi = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}st`;
+const fmtPan = (v: number) =>
+  Math.abs(v) < 0.005 ? 'C' : `${v < 0 ? 'L' : 'R'}${Math.round(Math.abs(v) * 100)}`;
 const fmtCent = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}c`;
 const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)}dB`;
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
@@ -354,10 +358,14 @@ function samplerTrackParams(): ParamDef[] {
 
 function drumTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
     out.push({ id: `drum.t${i}.vol`, min: 0, max: 1, default: 0.85, format: fmtPct });
     out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st' });
     out.push({ id: `drum.t${i}.decay`, min: 0.02, max: 1.5, default: 0.3, format: fmtMs });
+    // Per-track channel — all no-op at default (open / clean / centre).
+    out.push({ id: `drum.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });
+    out.push({ id: `drum.t${i}.drive`, min: 0, max: 1, default: 0, format: fmtPct });
+    out.push({ id: `drum.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `drum.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
   }
   return out;

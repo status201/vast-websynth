@@ -47,8 +47,18 @@ test('auto-launches on first visit, drives first sound, and never nags again', a
   await page.getByTestId('tour-skip').click();
   await expect(callout).toBeHidden();
 
-  // The flag persists, so a reload does NOT relaunch the tour.
-  await page.reload();
+  // Quiesce audio before navigating: stop the transport and suspend the
+  // AudioContext via the dev bridge. The tour left it playing, and an active
+  // AudioContext torn down mid-navigation is what intermittently aborts the
+  // reload ("net::ERR_ABORTED; frame detached"). Suspending removes that race.
+  await page.getByTestId('transport-play').click();
+  await page.evaluate(async () => {
+    await (window as unknown as { __synth: { engine: { ctx: AudioContext } } }).__synth.engine.ctx.suspend();
+  });
+
+  // The done-flag persists in localStorage, so loading the app again does NOT
+  // relaunch the tour.
+  await page.goto('/');
   await startBtn(page).click();
   await expect(page.getByTestId('tour-callout')).toBeHidden();
 });

@@ -22,7 +22,7 @@ import { Performance } from './transport/performance';
 import { audibleLanes, type LaneFlags } from './transport/lane-mix';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
-import { PatternStore } from '../state/patterns';
+import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -536,11 +536,14 @@ export class Engine {
     // ----- Drums -----
     bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
     bus.subscribe('drum.master', (v) => { this.drumVol = v; this.applyLaneMix(); });
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
       const track = i;
       bus.subscribe(`drum.t${i}.vol`, (v) => this.drums.setTrackVolume(track, v));
       bus.subscribe(`drum.t${i}.tune`, (v) => this.drums.setTrackTune(track, v));
       bus.subscribe(`drum.t${i}.decay`, (v) => this.drums.setTrackDecay(track, v));
+      bus.subscribe(`drum.t${i}.tone`, (v) => this.drums.setTrackTone(track, v));
+      bus.subscribe(`drum.t${i}.drive`, (v) => this.drums.setTrackDrive(track, v));
+      bus.subscribe(`drum.t${i}.pan`, (v) => this.drums.setTrackPan(track, v));
       bus.subscribe(`drum.t${i}.mute`, (v) => this.drums.setTrackMute(track, v >= 0.5));
     }
 

@@ -141,4 +141,33 @@ describe('DrumMachine', () => {
     clock.fireTicks(3);
     expect(steps).toEqual([0, 1, 2]);
   });
+
+  it('builds a per-track channel: one waveshaper (drive) + one panner per track', () => {
+    const { ctx, dm } = build();
+    expect(ctx.createWaveShaper).toHaveBeenCalledTimes(dm.tracks.length);
+    expect(ctx.createStereoPanner).toHaveBeenCalledTimes(dm.tracks.length);
+  });
+
+  it('setTrackPan ramps the per-track stereo panner', () => {
+    const { ctx, dm } = build();
+    const panner = ctx.createStereoPanner.mock.results[0]!.value; // track 0
+    dm.setTrackPan(0, -0.5);
+    expect(panner.pan.setTargetAtTime).toHaveBeenCalledWith(-0.5, expect.any(Number), expect.any(Number));
+  });
+
+  it('setTrackTone darkens the per-track lowpass toward 300 Hz', () => {
+    const { ctx, dm } = build();
+    // At construction the only biquads created are the 8 channel tone filters,
+    // in track order (voices build their own biquads later, at trigger time).
+    const tone = ctx.createBiquadFilter.mock.results[0]!.value; // track 0 tone
+    dm.setTrackTone(0, 0); // fully dark
+    expect(tone.frequency.setTargetAtTime).toHaveBeenCalledWith(300, expect.any(Number), expect.any(Number));
+  });
+
+  it('setTrackDrive installs a waveshaper curve', () => {
+    const { ctx, dm } = build();
+    const shaper = ctx.createWaveShaper.mock.results[0]!.value; // track 0
+    dm.setTrackDrive(0, 0.5);
+    expect(shaper.curve).toBeInstanceOf(Float32Array);
+  });
 });

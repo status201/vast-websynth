@@ -58,10 +58,11 @@ Append to `this.tracks = [ … new MyDrum(this.ctx) ]` (order must match the lab
 
 ## Gotchas
 
-- **Literal counts.** `drumTrackParams()` (params.ts) and the per-track subscribe
-  loop in `Engine.subscribeParams()` iterate a **literal `8`**, not
-  `DRUM_TRACK_COUNT`. Update those literals (or refactor them to the constant) or
-  your new track gets no params/wiring.
+- **Track counts.** `drumTrackParams()` (params.ts) and the per-track subscribe
+  loop in `Engine.subscribeParams()` iterate `DRUM_TRACK_COUNT` (they were
+  refactored off a literal `8` when per-track tone/drive/pan were added). Bumping
+  `DRUM_TRACK_COUNT` now grows the params + wiring automatically — but double-check
+  any remaining literal loops if you touch that area.
 - Track order in `DrumMachine.tracks` must line up with `DRUM_TRACK_LABELS` and the
   grid rows.
 - The grid (`drum-panel.ts`) renders `DRUM_TRACK_COUNT` rows — confirm it picks up

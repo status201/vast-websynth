@@ -46,3 +46,34 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Kit picker + randomize (panel header) */
+.kitBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kitLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+/* Selected-drum tuning strip (below the grid) */
+.tuning {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 8px 0 2px;
+  margin-top: 6px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.tuningKnobs {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
