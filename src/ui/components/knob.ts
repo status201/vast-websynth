@@ -1,5 +1,6 @@
 import styles from '../styles/knob.module.css';
 import type { ParamBus, ParamDef } from '../../state/params';
+import { toNorm, fromNorm } from './taper';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -100,22 +101,11 @@ export class Knob {
   }
 
   private normalize(v: number): number {
-    if (this.def.taper === 'exp' && this.def.min > 0) {
-      return Math.log(v / this.def.min) / Math.log(this.def.max / this.def.min);
-    }
-    return (v - this.def.min) / (this.def.max - this.def.min);
+    return toNorm(this.def, v);
   }
 
   private denormalize(n: number): number {
-    const c = Math.max(0, Math.min(1, n));
-    let v: number;
-    if (this.def.taper === 'exp' && this.def.min > 0) {
-      v = this.def.min * Math.pow(this.def.max / this.def.min, c);
-    } else {
-      v = this.def.min + c * (this.def.max - this.def.min);
-    }
-    if (this.def.step) v = Math.round(v / this.def.step) * this.def.step;
-    return v;
+    return fromNorm(this.def, n);
   }
 
   private formatValue(v: number): string {

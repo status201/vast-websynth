@@ -39,7 +39,10 @@ Add a `ParamDef` inside `registerDefaults()`'s `bus.registerMany([...])`:
 - Set `min/max/default`. **Default to a no-op** so existing presets/songs are
   unaffected (see `architecture.md` → Conventions).
 - Use `taper: 'discrete'` + `labels: [...]` for switch/segmented params,
-  `taper: 'exp'` for wide-range time/frequency knobs, and a `format` for the readout.
+  `taper: 'exp'` for wide-range time/frequency knobs (needs `min > 0`),
+  `taper: 'power'` + `curve` for a 0-based knob that needs finer resolution at
+  one end (e.g. `filter.resonance` near self-oscillation), and a `format` for
+  the readout.
 
 ### 2. Apply it
 

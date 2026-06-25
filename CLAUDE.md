@@ -252,6 +252,12 @@ listener mechanism.
   `public/worklets/ladder-filter.js` (plain JS, runs on the audio thread —
   no TS, no imports). `LadderFilterNode.loadModule()` must be awaited before
   voices are created.
+- **DSP worklets are _musical, stable, cheap_** (in that priority order):
+  perceived behaviour over circuit accuracy, bounded/no-NaN output always,
+  minimal per-sample cost (8-voice poly × 2ch). Governs the ladder filter +
+  compressors; tuning constants (e.g. `RES_MAKEUP`, resonance `curve`) are dialled
+  by ear. Don't add "academically correct" DSP (ZDF, oversampling, thermal models)
+  unless it's also cheap and stable. See `specs/decisions/adr-010-musical-stable-cheap-dsp.md`.
 - `Engine.init()` is async (loads the worklet, creates voices, builds
   transport modules). Transport modules are created **after** voices so they
   can call back into the engine.

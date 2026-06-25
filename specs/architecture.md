@@ -180,7 +180,8 @@ ParamDef:                # the scalar "schema" — src/state/params.ts
   max: number
   default: number
   step?: number
-  taper?: linear | exp | discrete
+  taper?: linear | exp | power | discrete
+  curve?: number         # exponent for the power taper (see ladder-filter.md)
   unit?: string
   format?: (v) => string
   labels?: string[]      # for discrete params
@@ -213,6 +214,12 @@ not_persisted:
 - **AudioWorklets** (`ladder-filter`, `hardware-compressor`, `recorder`) live as
   plain JS in `public/worklets/` and must be `loadModule()`-ed (awaited) before the
   nodes that use them are created. `Engine.init()` is async for this reason.
+- **DSP worklets favour _musical, stable, cheap_ over physical accuracy** —
+  perceived behaviour first, bounded/no-NaN output always, minimal per-sample cost
+  (it runs across 8-voice polyphony × 2 channels). This governs the ladder filter
+  and the compressors; "academically correct" DSP (ZDF, oversampling, thermal
+  models) is declined unless it is *also* cheap and stable. See
+  [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md).
 - **No-op defaults for new params.** New analogue/song params default to a value
   that changes nothing (sub level 0, unison 1 voice, drift 0, djfilter 0,
   `seq.master` 1) so existing presets are unaffected. `glide.mode` defaults to
@@ -258,6 +265,9 @@ load-bearing ones:
 - [ADR-009](decisions/adr-009-ui-depends-on-studio-api-facade.md) — the UI
   depends on a narrow `StudioApi` facade, not the concrete `Engine` (Engine
   satisfies it structurally; internals stay invisible to the UI).
+- [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md) — DSP worklets favour
+  *musical, stable, cheap* over physical accuracy (the ladder filter + the
+  compressors).
 
 ## Tests & verification
 

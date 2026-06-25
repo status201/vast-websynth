@@ -7,6 +7,8 @@ version: 1
 owner: core
 related:
   - architecture
+  - ../decisions/adr-002-audioworklet-compressor
+  - ../decisions/adr-010-musical-stable-cheap-dsp
 source:
   - public/worklets/compressor.js     # the DSP (audio thread)
   - src/audio/compressor/node.ts      # CompressorNode wrapper
@@ -38,6 +40,13 @@ The UI exposes musician-friendly **discrete** ratio/release switches (e.g. `4:1`
 `8:1`, … `ALL`); the engine maps those indices to the real numeric values the
 worklet expects. This keeps the param registry simple and the controls authentic
 to the modelled hardware.
+
+Both modes are tuned for **recognisable character over circuit accuracy** — the
+*musical, stable, cheap* stance that governs the DSP worklets
+([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): the FET's feedback
+detector and program-dependent release, the VCA's soft-knee "glue" auto-release,
+and "all buttons in" are chosen for *feel*; the DSP is bounded (unit-tested for
+boundedness) and runs cheaply on the audio thread.
 
 ## Requirements
 

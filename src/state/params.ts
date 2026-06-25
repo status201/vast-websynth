@@ -2,7 +2,7 @@ import { DRUM_TRACK_COUNT } from './patterns';
 
 export type ParamId = string;
 
-export type Taper = 'linear' | 'exp' | 'discrete';
+export type Taper = 'linear' | 'exp' | 'power' | 'discrete';
 
 export interface ParamDef {
   id: ParamId;
@@ -11,6 +11,7 @@ export interface ParamDef {
   default: number;
   step?: number;
   taper?: Taper;
+  curve?: number; // exponent for the 'power' taper (curve < 1 = finer near max)
   unit?: string;
   format?: (v: number) => string;
   labels?: string[]; // for discrete taper
@@ -190,7 +191,7 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Filter -----
     { id: 'filter.cutoff', min: 30, max: 130, default: 90, format: (v) => fmtNoteFromCutoff(v) },
-    { id: 'filter.resonance', min: 0, max: 4.2, default: 0.5, format: (v) => v.toFixed(2) },
+    { id: 'filter.resonance', min: 0, max: 4.2, default: 0.5, taper: 'power', curve: 0.6, format: (v) => v.toFixed(2) },
     { id: 'filter.drive', min: 0.5, max: 6, default: 1.2, format: (v) => v.toFixed(2) + 'x' },
     { id: 'filter.envAmount', min: -48, max: 48, default: 24, format: fmtSemi },
 

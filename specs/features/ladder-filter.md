@@ -3,18 +3,21 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - envelopes
   - lfo
+  - ../decisions/adr-005-cutoff-as-midi-note
+  - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../recipes/add-a-parameter
 source:
   - public/worklets/ladder-filter.js     # the DSP (audio thread, plain JS)
   - src/audio/ladder-filter/node.ts       # LadderFilterNode wrapper
   - src/state/params.ts                   # filter.* ParamDefs
   - src/audio/engine.ts                   # subscribeParams (per-voice)
+  - src/ui/components/taper.ts             # power-taper knob mapping
   - src/ui/app.ts                         # the FILTER panel
 ```
 
@@ -28,6 +31,17 @@ The resonant low-pass ladder filter — the synth's main tone shaper. It is also
 A Moog-style 4-pole ladder gives the synth its character: a self-resonant low-pass
 with drive. It runs as an **AudioWorklet** (`public/worklets/ladder-filter.js`,
 plain JS on the audio thread) so it can do per-sample non-linear processing.
+
+**Per-stage saturation (v2).** A cheap, bounded, odd-symmetric rational
+nonlinearity — `sat(x) = x / (1 + |x|)` — is applied at the input *and* at every
+pole (the transistor-ladder character: smooth overdrive, gentle self-limiting
+self-oscillation). It is deliberately **not** `tanh` — no transcendental per
+sample keeps it *cheap*. Two invariants fall out of the shape: `sat'(0) === 1`,
+so at low level / low resonance the response matches the linear ladder and
+existing presets are preserved; and the feedback is taken from **saturated**
+states (`|fb| < 1`), so the loop is bounded and **cannot run away to NaN** at any
+resonance. This is the "musical, stable, cheap" trade in code — the worklet-wide
+stance recorded in [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md).
 
 The load-bearing convention: **cutoff is a MIDI note number, not Hz.** The worklet
 takes `cutoffNote`, so the [filter envelope](envelopes.md) and [LFO](lfo.md) can sum
@@ -46,6 +60,16 @@ frequencies. The on-screen value is still shown in Hz for the user.
   cutoff must not be re-expressed in Hz anywhere in the audio path.
 - **REQ-5** — `LadderFilterNode.loadModule()` is awaited (in `Engine.init()`)
   before any voice is created.
+- **REQ-6** — The input and every pole are saturated with a bounded rational
+  nonlinearity. Output stays **finite and bounded** for any input at any
+  resonance (no NaN / runaway) — the feedback path reads saturated states.
+- **REQ-7** — At max resonance the filter self-oscillates **gently and
+  self-limits** (no explosion). Because `sat'(0) === 1`, low-level / low-resonance
+  tone matches the pre-v2 linear ladder.
+- **REQ-8** — The `resonance` knob uses a **`power` taper** (`curve < 1`) for
+  finer resolution near self-oscillation. The taper is a UI knob mapping only;
+  the stored value and its `[0, 4.2]` range are unchanged, so presets are
+  unaffected.
 
 ## Technical design
 
@@ -67,10 +91,15 @@ Voice setters (per-voice, called by the engine):
 
 ```yaml
 filter.cutoff:    { range: 30..130, default: 90, format: fmtNoteFromCutoff }  # NOTE units
-filter.resonance: { range: 0..4.2,  default: 0.5 }
+filter.resonance: { range: 0..4.2,  default: 0.5, taper: power, curve: 0.6 }  # power taper = finer near self-osc
 filter.drive:     { range: 0.5..6,  default: 1.2, format: "x" }
 filter.envAmount: { range: -48..48, default: 24, unit: semitones }            # bipolar
 ```
+
+The `power` taper (`Taper` in `params.ts`, applied by `ui/components/taper.ts`)
+maps knob position `c → min + (max-min)·c^curve`; `curve < 1` stretches the
+high-resonance end across more knob travel. It is the only non-trivial mapping
+that works at `min = 0` (`exp` requires `min > 0`).
 
 ### Layer touchpoints (the universal 3-layer scalar pattern)
 
@@ -129,12 +158,39 @@ Scenario: Filter envelope sweeps cutoff additively (edge)
   When a note triggers
   Then the effective cutoff peaks ~24 semitones above 60, summed at the AudioParam
 # pinned by: envelopes.md invariant; tests/state/params.test.ts
+
+Scenario: Self-oscillation is bounded (stability)
+  Given resonance is at maximum
+  When white noise or silence is processed for many blocks
+  Then every output sample is finite (no NaN) and bounded below a sane ceiling
+  And with zero input the filter still rings (self-oscillates) rather than dying
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: Low-resonance tone matches the linear ladder (edge)
+  Given resonance is 0 and drive is ~1
+  When a small-amplitude signal is processed
+  Then the output tracks a linear one-pole-cascade reference within tolerance
+  # sat'(0) === 1, so existing presets are preserved
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: Resonance knob has a power taper (non-linear mapping)
+  Given filter.resonance uses taper 'power' with curve < 1
+  When the knob sits at its midpoint (norm 0.5)
+  Then the resolved value is above the linear midpoint (0.5·max)
+  And normalize/denormalize round-trip for any value in range
+# pinned by: tests/ui/taper.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/state/params.test.ts` — registration, clamping, subscribe,
   snapshot/restore. `npm test`.
+- Unit (DSP): `tests/audio/ladder-filter-worklet.test.ts` — stubs the
+  AudioWorklet globals and imports the real worklet (pattern:
+  `tests/audio/compressor-worklet.test.ts`): boundedness at max resonance,
+  bounded self-oscillation, low-res ≈ linear reference.
+- Unit (taper): `tests/ui/taper.test.ts` — `power` taper mapping +
+  round-trip for `ui/components/taper.ts`.
 - E2E: `e2e/controls.spec.ts` — drives the control surface; assert via
   `window.__synth.bus.get('filter.cutoff')`. `npm run e2e`.
 - Typecheck: `npm run typecheck`.

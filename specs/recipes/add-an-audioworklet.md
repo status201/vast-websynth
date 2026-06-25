@@ -9,6 +9,7 @@ related:
   - architecture
   - compressor
   - ladder-filter
+  - ../decisions/adr-010-musical-stable-cheap-dsp
 source:
   - public/worklets/compressor.js        # reference DSP
   - src/audio/compressor/node.ts          # reference wrapper
@@ -25,6 +26,13 @@ The processor is **plain JS** (no TS, no imports — it runs on the audio render
 thread) under `public/worklets/`, which Vite serves verbatim at `/worklets/…`. A
 thin TS wrapper in `src/audio/<name>/node.ts` loads the module, constructs the node,
 and exposes its `AudioParam`s + a `port` for messaging the main thread.
+
+**Design stance** — a DSP worklet here is tuned *musical, stable, cheap*, in that
+priority order: perceived behaviour over circuit accuracy, bounded/no-NaN output
+always, and minimal per-sample cost (it runs across 8-voice polyphony × 2
+channels). Prefer a rational approximation to a transcendental, keep feedback
+loops bounded (saturate the loop), and add a boundedness unit test. See
+[ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md).
 
 ## Steps
 

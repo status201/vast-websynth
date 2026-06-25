@@ -1,7 +1,22 @@
-// 4-pole Moog-style ladder lowpass with tanh saturation.
+// 4-pole Moog-style ladder lowpass with per-stage saturation.
 // Cutoff is expressed as a MIDI note number (linear-in-pitch),
 // so envelope/LFO modulators can sum in semitones via Web Audio's
 // AudioParam input summation.
+//
+// Saturation: a cheap, bounded, odd-symmetric rational nonlinearity is applied
+// at the input *and* at every pole — the transistor-ladder character that gives
+// smooth overdrive and self-limiting self-oscillation. `sat'(0) === 1`, so at
+// low level / low resonance the response matches the linear ladder (existing
+// presets are preserved). The feedback is taken from saturated states so the
+// loop is bounded — it cannot run away to NaN regardless of resonance.
+
+// Bounded to ±1, slope 1 at the origin. Cheaper than tanh (no transcendental).
+function sat(x) {
+  return x / (1 + Math.abs(x));
+}
+
+// Make-up gain to offset the passband level lost as resonance rises.
+const RES_MAKEUP = 0.25;
 
 class LadderFilterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -72,19 +87,24 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
 
         const x = inCh ? inCh[i] : 0;
 
-        // Half-sample feedback delay smooths self-oscillation
-        const fb = (s[3] + s[4]) * 0.5;
-        let v = (x - res * fb) * drive;
-        v = Math.tanh(v);
+        // Half-sample feedback delay smooths self-oscillation; taking it from
+        // saturated states bounds the loop (|fb| < 1, so it can't run away).
+        const fb = (sat(s[3]) + sat(s[4])) * 0.5;
 
-        s[0] += g * (v - s[0]);
-        s[1] += g * (s[0] - s[1]);
-        s[2] += g * (s[1] - s[2]);
+        // Input drive + saturation, then a saturated one-pole per stage.
+        // `v` carries each stage's saturated output into the next stage's input.
+        let v = sat((x - res * fb) * drive);
+        s[0] += g * (v - sat(s[0]));
+        v = sat(s[0]);
+        s[1] += g * (v - sat(s[1]));
+        v = sat(s[1]);
+        s[2] += g * (v - sat(s[2]));
+        v = sat(s[2]);
         s[4] = s[3];
-        s[3] += g * (s[2] - s[3]);
+        s[3] += g * (v - sat(s[3]));
 
-        // Slight level compensation as resonance rises (filter loses gain)
-        outCh[i] = s[3] * (1 + res * 0.25);
+        // Level compensation as resonance rises (filter loses passband gain)
+        outCh[i] = s[3] * (1 + res * RES_MAKEUP);
       }
     }
     return true;

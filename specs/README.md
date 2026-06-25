@@ -217,6 +217,9 @@ specs/
     adr-005-cutoff-as-midi-note.md            ·  semitone-additive modulation
     adr-006-no-op-param-defaults.md           ·  new params can't change old sounds
     adr-007-songfile-additive-versioning.md   ·  the song format only grows
+    adr-008-components-self-wire-params.md     ·  effects self-wire (Effect.bind)
+    adr-009-ui-depends-on-studio-api-facade.md ·  UI sees a narrow StudioApi facade
+    adr-010-musical-stable-cheap-dsp.md        ·  DSP worklets: musical, stable, cheap
 ```
 
 > Coverage note: the feature set above documents the current system. New features
