@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -57,6 +57,13 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   (tune/decay/tone/drive/pan/vol knobs + a Reset) driven by the same selection
   cursor as the per-step editor; clicking a track label selects **and** auditions
   it. Reset returns that track's params to their registered defaults.
+- **REQ-9** — Each one-shot hit's per-hit nodes (oscillators, noise sources,
+  filters, envelope gains, and the choke gain when present) are **disconnected
+  once the hit's source(s) end** — the hit's source `onended` tears them down
+  (the last `onended` for a multi-source voice). Only the persistent per-synth
+  `output` gain, built in the constructor and wired into the track channel once,
+  survives. This bounds the live graph: a long song must not accumulate
+  stopped-but-connected nodes (which crackle/distort the audio over time).
 
 ## Technical design
 
@@ -152,6 +159,13 @@ Scenario: Fill plays a roll instead of the pattern (edge)
   When the bar plays
   Then the drum machine plays a roll rather than the programmed cells
 # pinned by: tests/audio/transport/drum-machine.test.ts, e2e/song-fx.spec.ts
+
+Scenario: A hit disconnects its one-shot nodes once it ends (REQ-9, regression)
+  Given a drum voice is triggered
+  When the hit's source(s) finish (onended fires; the last one for a multi-source voice)
+  Then every per-hit node it created is disconnected, including the choke gain when choked
+  And the persistent per-synth output gain is never disconnected
+# pinned by: tests/audio/drums/drum-synths.test.ts
 ```
 
 ## Tests & verification

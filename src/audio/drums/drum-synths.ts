@@ -3,7 +3,10 @@
  * and `trigger(when, velocity, chokeAt?)` for sample-accurate firing.
  *
  * Cheap one-shot graphs — we create + start + stop short-lived OscillatorNodes
- * inside `trigger` because their lifetimes are bounded by the envelope.
+ * inside `trigger` because their lifetimes are bounded by the envelope. The
+ * per-hit nodes are torn down via `disposeAfter` once the hit's source(s) end,
+ * so a long song does not accumulate stopped-but-connected nodes (the
+ * persistent `output` gain, built once in the constructor, is never touched).
  */
 export interface DrumSynth {
   readonly output: AudioNode;
@@ -20,19 +23,36 @@ const CHOKE_FADE = 0.005;
  * is choked — a per-hit gain that ramps to 0 at `chokeAt`. Cutting in a
  * *downstream* gain never disturbs the envelope ramps already scheduled
  * inside the hit (and needs only setValueAtTime/linearRamp, which every
- * browser and the test mock provide).
+ * browser and the test mock provide). `choke` is returned (when present) so
+ * the caller adds it to the per-hit nodes that `disposeAfter` tears down — the
+ * shared `output` is the only node that survives the hit.
  */
 function chokeRoute(
   ctx: AudioContext,
   output: AudioNode,
   chokeAt: number | undefined,
-): { dest: AudioNode; stopAt(natural: number): number } {
+): { dest: AudioNode; stopAt(natural: number): number; choke?: GainNode } {
   if (chokeAt === undefined) return { dest: output, stopAt: (n) => n };
   const g = ctx.createGain();
   g.gain.setValueAtTime(1, chokeAt);
   g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
   g.connect(output);
-  return { dest: g, stopAt: (n) => Math.min(n, chokeAt + 0.03) };
+  return { dest: g, stopAt: (n) => Math.min(n, chokeAt + 0.03), choke: g };
+}
+
+/**
+ * Disconnect every per-hit node once the hit's source(s) finish. Sources stop
+ * at staggered times (e.g. the snare's noise vs. body tone), so we wait for the
+ * **last** `onended` before tearing down the shared nodes. Without this, every
+ * drum hit leaks its stopped-but-still-connected nodes into the live graph —
+ * unbounded growth that crackles/distorts after a song runs for a while.
+ */
+function disposeAfter(sources: AudioScheduledSourceNode[], nodes: AudioNode[]): void {
+  let remaining = sources.length;
+  const done = (): void => {
+    if (--remaining === 0) for (const n of nodes) n.disconnect();
+  };
+  for (const s of sources) s.onended = done;
 }
 
 export class Kick implements DrumSynth {
@@ -65,6 +85,10 @@ export class Kick implements DrumSynth {
     osc.connect(env).connect(r.dest);
     osc.start(t);
     osc.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [osc, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([osc], nodes);
   }
 }
 
@@ -113,6 +137,10 @@ export class Snare implements DrumSynth {
     tone.connect(toneEnv).connect(r.dest);
     tone.start(t);
     tone.stop(r.stopAt(t + 0.1));
+
+    const nodes: AudioNode[] = [noise, noiseFilter, noiseEnv, tone, toneEnv];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([noise, tone], nodes);
   }
 }
 
@@ -156,6 +184,10 @@ export class HiHat implements DrumSynth {
     noise.connect(hp).connect(peak).connect(env).connect(r.dest);
     noise.start(t);
     noise.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [noise, hp, peak, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([noise], nodes);
   }
 }
 
@@ -191,6 +223,10 @@ export class Tom implements DrumSynth {
     osc.connect(env).connect(r.dest);
     osc.start(t);
     osc.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [osc, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([osc], nodes);
   }
 }
 
@@ -233,6 +269,10 @@ export class Clap implements DrumSynth {
     noise.connect(bp).connect(env).connect(r.dest);
     noise.start(t);
     noise.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [noise, bp, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([noise], nodes);
   }
 }
 
