@@ -202,6 +202,7 @@ localStorage:
   websynth.preset.*   : factory + user presets   # state/preset.ts
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
+  websynth.perf       : performance-mode pref (auto|on|off)  # state/perf-mode.ts — device-scoped, NOT a patch param
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded
 ```

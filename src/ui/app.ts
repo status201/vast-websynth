@@ -18,6 +18,8 @@ import { createButton, setButtonLabel } from './components/button';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
+import { createPerfSettingsButton } from './components/perf-settings';
+import { resolvePerfActive } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
@@ -152,6 +154,7 @@ function buildHeader(
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
+  presetGroup.appendChild(createPerfSettingsButton());
   presetGroup.appendChild(createAboutButton());
   presetGroup.appendChild(
     createHelpButton({
@@ -437,7 +440,7 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
 
   const scopeWrap = document.createElement('div');
   scopeWrap.className = styles.scopeWrap!;
-  const scope = new Scope(engine.analyser);
+  const scope = new Scope(engine.analyser, { lightweight: resolvePerfActive() });
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
   toggle.className = `${switchStyles.root!} ${styles.scopeToggle!}`;

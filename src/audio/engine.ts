@@ -26,7 +26,22 @@ import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
 
 const VOICE_COUNT = 8;
+/** Polyphony cap when Performance mode is active — fewer per-voice ladder-filter
+ * worklets is the biggest steady-state CPU saving on weak devices. Tunable. */
+export const PERF_VOICE_COUNT = 5;
 const PITCH_BEND_RANGE_CENTS = 200;
+
+/**
+ * Boot-time tuning chosen by Performance mode (see `state/perf-mode.ts`). Both
+ * fields can only be applied when the `AudioContext`/voice pool are built, so
+ * they are passed once at construction and cannot change without a reload.
+ */
+export interface EngineOptions {
+  /** AudioContext buffer hint; 'playback' trades latency for a larger, glitch-resistant buffer. */
+  latencyHint?: AudioContextLatencyCategory;
+  /** Size of the voice pool (defaults to VOICE_COUNT). */
+  voiceCount?: number;
+}
 
 export class Engine {
   readonly ctx: AudioContext;
@@ -81,9 +96,12 @@ export class Engine {
   /** True when the arpeggiator is suppressing direct note input. */
   get arpPassthroughSuppressed(): boolean { return this.arp?.passthroughSuppressed ?? false; }
 
-  constructor(private readonly bus: ParamBus) {
+  private readonly voiceCount: number;
+
+  constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
-    this.ctx = new AudioContext({ latencyHint: 'interactive' });
+    this.voiceCount = opts.voiceCount ?? VOICE_COUNT;
+    this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
 
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;
@@ -170,7 +188,7 @@ export class Engine {
     // `this.voices` array (Engine fans per-voice params over the same array).
     this.polyphony = new Polyphony(this.ctx, this.voices);
 
-    for (let i = 0; i < VOICE_COUNT; i++) {
+    for (let i = 0; i < this.voiceCount; i++) {
       const v = await Voice.create(this.ctx);
       v.out.connect(this.voiceBus);
       this.noise.connect(v.noiseGain);
