@@ -1,4 +1,4 @@
-import type { Engine } from '../audio/engine';
+import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { UiBridge } from './ui-bridge';
 
@@ -15,7 +15,7 @@ const UPPER: Record<string, number> = {
   i: 24,
 };
 
-export function installShortcuts(engine: Engine, bus: ParamBus, bridge: UiBridge): void {
+export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
   const held = new Set<string>();
   let fillHeld = false;

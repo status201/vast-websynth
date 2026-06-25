@@ -1,5 +1,5 @@
 import type { ParamBus } from '../../state/params';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
@@ -24,7 +24,7 @@ function paintCell(sb: StepButton, cell: DrumCell): void {
   sb.el.title = stepTitle(cell);
 }
 
-export function buildDrumPanel(bus: ParamBus, engine: Engine): HTMLElement {
+export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} drum-panel`;
   const header = document.createElement('div');

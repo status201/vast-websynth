@@ -218,7 +218,7 @@ listener mechanism.
 - **Lane mixer** — Song-tab mute/solo/volume per lane (`<lane>.mute`/
   `.solo`/`.master` params). The audibility rule is the pure `audibleLanes`
   (`audio/transport/lane-mix.ts`, solo wins over mute), shared by
-  `Engine.applyLaneMix()` and the Song panel's dim-when-silenced visual.
+  `LaneMixer` (`audio/lane-mixer.ts`) and the Song panel's dim-when-silenced visual.
   Drums/sampler mute by cutting their bus gain; the sequencer mutes via
   `StepSequencer.setMuted` (stops triggering, leaving live-keyboard play and the
   voice bus untouched). `seq.master` is the synth voice-bus volume (default 1,
@@ -268,7 +268,10 @@ listener mechanism.
   blocked by the browser — the modal shows a clear message; it works from
   `http://localhost`.
 - UI is hand-built DOM (`document.createElement`), no virtual DOM. Components
-  in `ui/components/`, larger sections in `ui/panels/`. The on-screen keyboard
+  in `ui/components/`, larger sections in `ui/panels/`. Panels/components that
+  need transport/pattern/recorder/meter access take a **`StudioApi`**
+  (`ui/studio-api.ts`) — the UI's narrow, structural view of the `Engine`, not the
+  whole object (ADR-009); `main.ts` passes the concrete `Engine`. The on-screen keyboard
   and transport toggle are driven through a shared **`UiBridge`**
   (`ui/ui-bridge.ts`): `app.ts` wires its `pressKey`/`releaseKey`/
   `toggleTransport` callbacks to the keyboard component and the header Play

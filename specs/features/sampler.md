@@ -71,7 +71,7 @@ store:
 
 ```yaml
 engine (subscribeParams):
-  sampler.on -> setEnabled; sampler.master -> samplerVol + applyLaneMix
+  sampler.on -> setEnabled; sampler.master -> laneMixer.setSamplerVol
   sampler.t{i}.mute -> sampler.setSlotMute(i, ...)
 graph: slotGain -> samplerBus (+ sampler dist/phaser/delay/reverb) -> preMaster
 ui: src/ui/panels/sampler-panel.ts

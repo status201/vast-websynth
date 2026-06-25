@@ -5,7 +5,7 @@
  * `buffer-dsp` ops, the `offline-render` effects, and the `encode` pipeline.
  */
 import recStyles from '../styles/record-sound.module.css';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import { Modal } from './modal';
 import { createButton, setButtonLabel } from './button';
 import { Dropdown } from './dropdown';
@@ -58,7 +58,7 @@ function errorText(code: string): string {
   }
 }
 
-export function openRecordSoundModal(engine: Engine, opts: RecordSoundOptions = {}): void {
+export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions = {}): void {
   const defaultSlot = opts.slot ?? 0;
 
   let session: MicSession | null = null;

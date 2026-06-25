@@ -86,7 +86,7 @@ never call each other directly.
 ```
    UI  (ui/app.ts · panels · components)
     │
-    │  writes: bus.set(id, v) · patterns.*       (UI never calls Engine directly)
+    │  writes: bus.set(id, v) · patterns.*       (UI writes params via the bus, not the Engine)
     ▼
    ParamBus (scalars) ◄─── Song.capture/restore ───► PatternStore (step grids)
     │
@@ -102,6 +102,13 @@ never call each other directly.
 
 `main.ts` constructs `ParamBus` then `Engine(bus)` and threads both everywhere;
 `Song` is the only thing that snapshots `ParamBus` **and** `PatternStore` together.
+
+For **non-param** interactions (transport, pattern grids, recorder, GR meters,
+sample decode) the UI does not get the whole `Engine` — it depends on the narrow
+**`StudioApi`** facade (`src/ui/studio-api.ts`), which exposes only the curated
+collaborators and hides Engine's internals (voices, LFO, `Polyphony`, `LaneMixer`,
+the bus nodes, `subscribeParams`). `Engine` satisfies it **structurally**; see
+[ADR-009](decisions/adr-009-ui-depends-on-studio-api-facade.md).
 
 ### Layer contracts (public surfaces)
 
@@ -123,6 +130,11 @@ Engine:          # src/audio/engine.ts
   playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
   # owns: AudioContext, voices[8], FX chain, arrangement, perf, seq, drums, sampler
   # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
+
+StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
+  # patterns, arrangement, clock, perf, seq, drums, sampler, recorder, analyser,
+  # ctx, drumComp, masterComp + panic()/resume(). Engine satisfies it structurally;
+  # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
 PatternStore:    # src/state/patterns.ts
   # 4 seq + 4 drum + 4 sampler banks; edit-bank (UI) vs play-bank (transport)
@@ -243,6 +255,9 @@ load-bearing ones:
 - [ADR-008](decisions/adr-008-components-self-wire-params.md) — components
   self-wire their params (`Effect.bind`); voice allocation / lane mix extracted
   to `Polyphony` / `LaneMixer` so `Engine` coordinates rather than knows-all.
+- [ADR-009](decisions/adr-009-ui-depends-on-studio-api-facade.md) — the UI
+  depends on a narrow `StudioApi` facade, not the concrete `Engine` (Engine
+  satisfies it structurally; internals stay invisible to the UI).
 
 ## Tests & verification
 

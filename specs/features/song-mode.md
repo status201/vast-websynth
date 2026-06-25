@@ -138,7 +138,7 @@ why: Arrangement's clock.onTick runs first, so seq/drum/samplerPlayBank are
      settled before the machines read them on the SAME tick
      (e.g. sampler-machine reads patterns.samplerBank(arrangement.samplerPlayBank))
 edit-vs-play bank: a DISABLED lane's play bank tracks that machine's EDIT bank
-lane mix: audibleLanes(mute, solo) — solo wins; shared by Engine.applyLaneMix()
+lane mix: audibleLanes(mute, solo) — solo wins; shared by LaneMixer
           (cuts bus gain / StepSequencer.setMuted) and the panel's dim visual
 ```
 

@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
@@ -46,7 +46,7 @@ export interface SongPanel {
   loadDemo: (name: string) => void;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: Engine, session: PresetSession): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
@@ -287,7 +287,7 @@ function buildChainLane(
   lane: ChainLane,
   setChain: (steps: number[], enabled: boolean) => void,
   getPos: () => number,
-  engine: Engine,
+  engine: StudioApi,
 ): HTMLElement {
   const root = el('div', styles.lane!);
   root.dataset.testid = `song-lane-${prefix}`;
