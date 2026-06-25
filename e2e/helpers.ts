@@ -6,10 +6,13 @@ import { type Page, expect } from '@playwright/test';
  */
 export async function gotoAndStart(page: Page): Promise<void> {
   // Suppress the first-visit onboarding tour so its overlay doesn't intercept
-  // these specs (the dedicated onboarding spec clears this flag itself).
+  // these specs (the dedicated onboarding spec clears this flag itself), and
+  // pin Performance mode off so every spec boots the standard 8-voice /
+  // interactive-latency config regardless of the host's navigator.hardwareConcurrency.
   await page.addInitScript(() => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
+      localStorage.setItem('websynth.perf', 'off');
     } catch {
       /* ignore */
     }

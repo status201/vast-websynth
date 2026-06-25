@@ -85,6 +85,7 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       type: 'sine' as OscillatorType,
       frequency: makeParam(440),
       detune: makeParam(0),
+      onended: null as (() => void) | null,
       start: vi.fn(),
       stop: vi.fn(),
     })),

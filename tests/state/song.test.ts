@@ -118,6 +118,28 @@ describe('Song', () => {
     expect(bus.get('fx.drum.delay.on')).toBe(0);      // back to registered default
   });
 
+  it('apply() fires per-param subscribers (audio/UI repaint) but suppresses onChange (not an edit)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArr();
+
+    // A per-param subscriber stands in for BOTH an Engine audio applier and a
+    // UI control: on load they repaint through this one `subscribe` channel.
+    const bpmSeen: number[] = [];
+    bus.subscribe('transport.bpm', (v) => bpmSeen.push(v)); // fires now with default 120
+    // onChange is the global "an edit happened" signal (→ session.markDirty()).
+    const edits: string[] = [];
+    bus.onChange((id) => edits.push(id));
+
+    Song.apply(demo(), bus, patterns, arr as never); // Zombie Nation: bpm 130
+
+    // The per-param channel delivered the restored value, so audio + UI update…
+    expect(bpmSeen).toContain(130);
+    // …but loading a song is NOT an edit, so the global onChange never fired.
+    expect(edits).toEqual([]);
+  });
+
   it('capture() snapshots params, banks and both chain lanes', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

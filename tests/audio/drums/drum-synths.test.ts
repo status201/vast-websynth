@@ -108,3 +108,77 @@ describe('drum synth tune', () => {
     expect(bp.frequency.value).toBeCloseTo(550); // 1100 × 0.5
   });
 });
+
+/**
+ * Node lifecycle (regression): a one-shot hit must disconnect every per-hit
+ * node once its source(s) finish, or a running song accumulates stopped-but-
+ * connected nodes until the audio thread crackles. The persistent per-synth
+ * `output` gain (built once in the constructor) must survive the hit.
+ */
+describe('drum synth node cleanup', () => {
+  it('an unchoked Kick disconnects its per-hit nodes on onended, but not output', () => {
+    const { mock, ctx } = setup();
+    const kick = new Kick(ctx);
+    const output = mock.createGain.mock.results[0]!.value; // persistent output gain
+    mock.createGain.mockClear();
+    mock.createOscillator.mockClear();
+
+    kick.trigger(0.5, 0.9);
+    const osc = mock.createOscillator.mock.results[0]!.value;
+    const env = mock.createGain.mock.results[0]!.value;
+    // Still connected until the source actually ends.
+    expect(osc.disconnect).not.toHaveBeenCalled();
+    expect(env.disconnect).not.toHaveBeenCalled();
+
+    osc.onended();
+    expect(osc.disconnect).toHaveBeenCalled();
+    expect(env.disconnect).toHaveBeenCalled();
+    expect(output.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('a choked Kick also disconnects the per-hit choke gain', () => {
+    const { mock, ctx } = setup();
+    const kick = new Kick(ctx);
+    const output = mock.createGain.mock.results[0]!.value;
+    mock.createGain.mockClear();
+    mock.createOscillator.mockClear();
+
+    kick.trigger(0.5, 0.9, 0.6);
+    const choke = mock.createGain.mock.results[0]!.value; // choke gain created first
+    const env = mock.createGain.mock.results[1]!.value;
+    const osc = mock.createOscillator.mock.results[0]!.value;
+
+    osc.onended();
+    expect(choke.disconnect).toHaveBeenCalled();
+    expect(env.disconnect).toHaveBeenCalled();
+    expect(osc.disconnect).toHaveBeenCalled();
+    expect(output.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('a Snare tears down only after BOTH its sources end', () => {
+    const { mock, ctx, noise } = setup();
+    const snare = new Snare(ctx, noise);
+    const output = mock.createGain.mock.results[0]!.value;
+    mock.createGain.mockClear();
+    mock.createOscillator.mockClear();
+    mock.createBufferSource.mockClear();
+
+    snare.trigger(0, 0.8);
+    const src = mock.createBufferSource.mock.results[0]!.value; // noise body
+    const tone = mock.createOscillator.mock.results[0]!.value; // body tone
+    const noiseEnv = mock.createGain.mock.results[0]!.value;
+    const toneEnv = mock.createGain.mock.results[1]!.value;
+
+    src.onended();
+    // One source done — the shared nodes must stay wired until the last ends.
+    expect(noiseEnv.disconnect).not.toHaveBeenCalled();
+    expect(toneEnv.disconnect).not.toHaveBeenCalled();
+
+    tone.onended();
+    expect(src.disconnect).toHaveBeenCalled();
+    expect(tone.disconnect).toHaveBeenCalled();
+    expect(noiseEnv.disconnect).toHaveBeenCalled();
+    expect(toneEnv.disconnect).toHaveBeenCalled();
+    expect(output.disconnect).not.toHaveBeenCalled();
+  });
+});

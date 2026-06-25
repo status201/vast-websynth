@@ -2,26 +2,47 @@ import styles from '../styles/scope.module.css';
 
 export type ScopeMode = 'wave' | 'spectrum';
 
+export interface ScopeOptions {
+  /**
+   * Performance mode: skip the canvas drop-shadow (a comparatively expensive
+   * op) and halve the redraw rate (~30fps). Cuts main-thread work that
+   * contends with the audio callback on weak devices.
+   */
+  lightweight?: boolean;
+}
+
 export class Scope {
   readonly el: HTMLCanvasElement;
   private mode: ScopeMode = 'wave';
   private rafId = 0;
+  private running = false;
+  private tick = 0;
+  private readonly lightweight: boolean;
   private readonly ctx: CanvasRenderingContext2D | null;
   private readonly waveData: Uint8Array<ArrayBuffer>;
   private readonly freqData: Uint8Array<ArrayBuffer>;
   private bitmapW = 0;
   private bitmapH = 0;
 
-  constructor(private readonly analyser: AnalyserNode) {
+  constructor(private readonly analyser: AnalyserNode, opts: ScopeOptions = {}) {
+    this.lightweight = opts.lightweight ?? false;
     this.el = document.createElement('canvas');
     this.el.className = styles.root!;
     this.ctx = this.el.getContext('2d');
     this.waveData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     this.freqData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+    // Pause the redraw loop while the tab is hidden — a backgrounded scope is
+    // pure wasted main-thread work that can starve the audio thread on mobile.
+    document.addEventListener('visibilitychange', this.onVisibility);
     this.start();
   }
 
   setMode(m: ScopeMode): void { this.mode = m; }
+
+  private readonly onVisibility = (): void => {
+    if (document.hidden) this.stop();
+    else this.start();
+  };
 
   /** Sync the canvas bitmap size with its layout box. No-op if already in sync. */
   private syncSize(): boolean {
@@ -41,11 +62,20 @@ export class Scope {
   }
 
   private start(): void {
+    if (this.running) return;
+    this.running = true;
     const loop = () => {
-      this.draw();
+      if (!this.running) return;
+      // Lightweight mode draws every other frame (~30fps).
+      if (!(this.lightweight && (this.tick++ & 1))) this.draw();
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);
+  }
+
+  private stop(): void {
+    this.running = false;
+    cancelAnimationFrame(this.rafId);
   }
 
   private draw(): void {
@@ -72,8 +102,10 @@ export class Scope {
       this.analyser.getByteTimeDomainData(this.waveData);
       ctx.lineWidth = 1.8;
       ctx.strokeStyle = '#e8742e';
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = 'rgba(232, 116, 46, 0.7)';
+      if (!this.lightweight) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = 'rgba(232, 116, 46, 0.7)';
+      }
       ctx.beginPath();
       const len = this.waveData.length;
       for (let i = 0; i < len; i++) {
@@ -95,8 +127,10 @@ export class Scope {
       grad.addColorStop(0.6, '#f4cd5e');
       grad.addColorStop(1, '#ff3a20');
       ctx.fillStyle = grad;
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = 'rgba(232, 116, 46, 0.5)';
+      if (!this.lightweight) {
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(232, 116, 46, 0.5)';
+      }
       for (let i = 0; i < used; i++) {
         const v = (this.freqData[i] ?? 0) / 255;
         const bh = v * (h - 2);
@@ -108,6 +142,7 @@ export class Scope {
   }
 
   destroy(): void {
-    cancelAnimationFrame(this.rafId);
+    this.stop();
+    document.removeEventListener('visibilitychange', this.onVisibility);
   }
 }

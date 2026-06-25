@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -166,6 +166,15 @@ Scenario: Round-trip a song through a slot
   When the user saves it to a slot, starts a new song, then loads the slot
   Then params, all banks, and all three chains match the saved song
 # pinned by: tests/state/song.test.ts, e2e/song.spec.ts
+
+Scenario: Loading a song repaints the UI without marking it edited
+  Given a per-param subscriber on transport.bpm and a global onChange listener
+  When apply() loads a song whose bpm differs from the current value
+  Then the per-param subscriber receives the new bpm (audio + UI repaint via the
+    same `subscribe` channel — there is no explicit "repaint" call)
+  And onChange never fires, so the load is not seen as an edit (session stays clean)
+# pinned by: tests/state/song.test.ts
+# see: architecture.md → "Event flow / propagation"
 
 Scenario: A v1 file loads with empty sampler state (backward compat)
   Given a SongFile with version 1 and no sampler fields

@@ -265,6 +265,16 @@ listener mechanism.
   presets are seeded by `ensureFactoryPresets()` on boot.
 - Audio cannot start without a user gesture — everything is wired inside the
   "Tap to start" handler in `main.ts`.
+- **Performance mode** (`state/perf-mode.ts`) — a device-scoped `auto`/`on`/`off`
+  quality setting persisted under `websynth.perf`, **not** a `ParamBus` param (so
+  it never enters presets/songs). `main.ts` resolves it at boot via
+  `resolvePerfActive()`; when active (auto-detects a weak device by
+  `hardwareConcurrency`/`deviceMemory`/mobile-UA, or forced on) the `Engine` is
+  built with a larger `latencyHint` (`'playback'`) + fewer voices
+  (`PERF_VOICE_COUNT`) through `EngineOptions`, and the scope renders lighter +
+  pauses while the tab is hidden. Buffer/voice count are fixed at `AudioContext`
+  build, so a change applies on **reload** — the header "Perf" modal shows the
+  effective state and a reload nudge. See `specs/features/performance-mode.md`.
 - Dialogs use the shared **`Modal`** (`ui/components/modal.ts`), extracted
   from the previously-duplicated about/start-modal pattern (`.about-backdrop`/
   `.about` CSS, Escape captured to beat the panic handler, backdrop-click +

@@ -3,7 +3,7 @@
 ```yaml
 id: architecture
 status: implemented
-version: 1
+version: 2
 owner: core
 related: []
 source:
@@ -148,11 +148,68 @@ Arrangement / Performance:  # src/audio/transport/
   # chain lanes (seq/drum/sampler) and live DJ FX, respectively
 ```
 
-### Note flow
+### Event flow / propagation
 
-`bus.onNote` → `Engine.playNote` / `releaseNote`, **unless**
-`passthroughSuppressed` is set — then the arpeggiator/sequencer own note
-triggering instead.
+The dependency graph above is the *static* view (who owns whom). This is the
+*dynamic* view — **what fires what, and in what order**. The forward param path
+is the obvious half; the **reverse (repaint) path and the bulk-load suppression
+are where the subtlety lives**, so they're spelled out here.
+
+**Two notification channels** (both on `ParamBus`):
+
+- `subscribe(id, fn)` — **per-param**. Fires immediately with the current value,
+  then on every non-`silent` `set(id, …)`. This is the **convergence point**:
+  the `Engine`'s audio appliers (`subscribeParams` / `Effect.bind`) *and* every
+  UI control (`knob`, `switch`, `segmented`, `strip`, `param-dropdown`) register
+  here. One channel drives **both** audio and visuals, and neither side knows
+  about the other (REQ-1).
+- `onChange(id, v)` — **global** "an edit happened" signal. One consumer:
+  `main.ts` → `session.markDirty()` (the active preset becomes dirty). Suppressed
+  during bulk applies via an internal `suppressChange` counter.
+
+**1 — Live edit** (forward + repaint; the common case)
+
+```
+knob drag ─→ bus.set(id, v)
+               ├─ per-param listeners ─┬─→ Engine applier ─→ audio graph update
+               │                       └─→ bound controls re-render (the editing
+               │                            control + any other UI bound to id)
+               └─ onChange(id) ─→ session.markDirty()   (preset now dirty)
+```
+
+**2 — Song / preset load** (bulk apply) — `Song.apply`:
+
+```
+Song.apply ─→ bus.resetDefaults()      (clear stale params; onChange suppressed)
+          ─→ bus.restore(file.params)  (per-param listeners FIRE → audio + UI
+          │                              repaint; onChange SUPPRESSED → not an edit)
+          ─→ patterns.restore(...)     (re-emits every step → panels repaint)
+          ─→ arr.set{Seq,Drum,Sampler}Chain → arrangement.onChange → chain panels
+```
+
+The load-bearing move: `restore()` is **not** `silent`, so per-param listeners
+fire and the UI repaints through the *same* `subscribe` channel as a live edit —
+there is **no explicit "repaint the UI" call anywhere**. Only the global
+`onChange` is gated, so loading a song isn't seen as an edit. (`resetDefaults`
+runs first to make the apply *authoritative*: a param absent from the file snaps
+back to its default instead of lingering from the previous patch — see REQ-4 /
+[ADR-006](decisions/adr-006-no-op-param-defaults.md).)
+
+**3 — Note trigger**
+
+```
+bus.onNote ─→ Engine.playNote / releaseNote ─→ Polyphony
+   (unless passthroughSuppressed — then the arpeggiator/sequencer own triggering)
+```
+
+The arp sets `passthroughSuppressed` when it takes ownership of held notes, so
+raw key passthrough is gated while it (or the sequencer) drives the voices.
+
+**Ordering that matters**: `Arrangement` is constructed **before** the
+sequencer/drum/sampler machines in `Engine.init()`, so its `clock.onTick` runs
+first and the **play banks are settled before the machines read them on the same
+tick**. And transport modules are built **after** the voices so they can call
+back into the engine.
 
 ### Audio graph (system diagram)
 
@@ -202,6 +259,7 @@ localStorage:
   websynth.preset.*   : factory + user presets   # state/preset.ts
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
+  websynth.perf       : performance-mode pref (auto|on|off)  # state/perf-mode.ts — device-scoped, NOT a patch param
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded
 ```
