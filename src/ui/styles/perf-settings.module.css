@@ -1,0 +1,103 @@
+/* Performance modal — readable sentence-case body copy (the shared Modal .tag
+   style is an uppercase italic tagline, wrong for paragraphs). */
+
+.desc {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.modeLabel {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.help {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.status {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.status strong {
+  font-weight: 800;
+}
+
+/* Engaged vs not — accent the on word, dim the off word. */
+.statusOn strong {
+  color: var(--accent-secondary);
+}
+
+.statusOff strong {
+  color: var(--text);
+}
+
+.reloadHint {
+  margin-top: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+
+.reloadBtn {
+  margin-top: 8px;
+}
+
+/* There is no global `.hidden { display:none }` (only scoped opacity variants),
+   so hide these explicitly when the `hidden` class is toggled on. Without this
+   the reload hint/button show even on a fresh open with no pending change. */
+.reloadHint:global(.hidden),
+.reloadBtn:global(.hidden) {
+  display: none;
+}
+
+/* Header "Perf" button state. Orange when performance mode is engaged (forced
+   on, or auto-detected on); green when forced off; neutral (no class) when set
+   to auto and not engaged. `button.X` outranks switch.module's `.root` so it
+   wins regardless of stylesheet order — same trick as tour's .toggleActive. */
+button.engaged {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+}
+
+button.forcedOff {
+  border-color: #6fb86a;
+  color: #8fd089;
+  box-shadow: 0 0 8px rgba(111, 184, 106, 0.42), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+}
+
+/* Pending reload: the chosen mode differs from what the engine is actually
+   running (buffer/voices are fixed at AudioContext build), so pulse the button
+   as a "reload to apply" nudge until the page reloads. */
+@keyframes perfPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+button.pending {
+  animation: perfPulse 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.pending {
+    animation: none;
+  }
+}

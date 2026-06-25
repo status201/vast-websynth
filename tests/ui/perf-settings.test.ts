@@ -51,4 +51,45 @@ describe('createPerfSettingsButton', () => {
     expect(sel('perf-reload-hint')!.classList.contains('hidden')).toBe(true);
     expect(sel('perf-reload')!.classList.contains('hidden')).toBe(true);
   });
+
+  it('states the effective engaged state, disambiguating the Auto preference', () => {
+    const btn = createPerfSettingsButton();
+    btn.click(); // capable desktop, pref 'auto'
+
+    // Auto on a capable device → off, and the line explains why.
+    const status = sel('perf-status')!;
+    expect(status.textContent!.toLowerCase()).toContain('off');
+    expect(status.textContent!.toLowerCase()).toContain('capable');
+
+    // Forcing On flips the status to a "forced on" reading.
+    sel('perf-mode-on')!.click();
+    expect(status.textContent!.toLowerCase()).toContain('forced on');
+  });
+
+  it('reflects the engaged state on the header button itself', () => {
+    const btn = createPerfSettingsButton(); // capable desktop, default pref 'auto'
+    // Auto + not engaged → neutral (no active state).
+    expect(btn.dataset.perfState).toBe('auto-idle');
+
+    btn.click();
+    sel('perf-mode-on')!.click();
+    expect(btn.dataset.perfState).toBe('engaged'); // forced on → orange
+
+    sel('perf-mode-off')!.click();
+    expect(btn.dataset.perfState).toBe('forced-off'); // forced off → green
+  });
+
+  it('flags a pending reload on the button when the choice is not yet live', () => {
+    const btn = createPerfSettingsButton(); // booted auto→inactive (capable desktop)
+    expect(btn.dataset.perfPending).toBe('0'); // matches the running state
+
+    btn.click();
+    // Forcing On would engage perf, but it isn't live until reload → pending.
+    sel('perf-mode-on')!.click();
+    expect(btn.dataset.perfPending).toBe('1');
+
+    // Off resolves to the same (inactive) state the engine is already running → not pending.
+    sel('perf-mode-off')!.click();
+    expect(btn.dataset.perfPending).toBe('0');
+  });
 });

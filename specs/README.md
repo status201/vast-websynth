@@ -196,6 +196,7 @@ specs/
     # — UI / UX —
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
+    performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
   recipes/             ← repeatable how-tos / playbooks
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param
     add-an-effect.md         ·  a bypass-able insert effect on a bus

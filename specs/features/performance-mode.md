@@ -60,6 +60,18 @@ node growth that caused audio to degrade *over time*.
 - **REQ-6** — A header "Perf" button opens a modal with an Auto/On/Off control;
   changing it persists immediately and shows a "reload to apply" hint + button
   whenever the new choice's resolved active state differs from the booted one.
+  The body copy is readable sentence case (not the uppercase tagline style), and
+  a **status line** states what the selected preference *resolves to on this
+  device* (e.g. "on — slower hardware detected" / "off — this device looks
+  capable" / "forced on/off"). This separates the *preference* (the segmented:
+  what decides) from whether Performance mode is actually *engaged* — so "Auto"
+  is not mistaken for "currently on". The header "Perf" button itself carries an
+  at-a-glance state (`data-perf-state`): **orange** when engaged (forced on or
+  auto-detected on), **green** when forced off, and **no active state** when set
+  to auto and not engaged — mirroring the Help button's active-state pattern.
+  While a chosen mode is **pending a reload** (its resolved engaged state differs
+  from what the engine booted with), the button **pulses** (`data-perf-pending`)
+  as a "reload to apply" nudge, respecting `prefers-reduced-motion`.
 - **REQ-7** — No-op for capable devices on the default `auto`: the engine builds
   exactly as before (`latencyHint: 'interactive'`, 8 voices, full-fidelity scope).
 
@@ -83,8 +95,9 @@ PERF_VOICE_COUNT = 5                             # exported
 # src/ui/components/scope.ts
 new Scope(analyser, opts?: { lightweight?: boolean })
 
-# src/ui/components/perf-settings.ts
-createPerfSettingsButton(): HTMLButtonElement
+# src/ui/components/perf-settings.ts  (styles: ui/styles/perf-settings.module.css)
+createPerfSettingsButton(): HTMLButtonElement   # modal testids: perf-mode[-auto|on|off],
+                                                # perf-status, perf-reload-hint, perf-reload
 ```
 
 ### Layer touchpoints & ordering
