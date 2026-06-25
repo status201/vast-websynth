@@ -1,4 +1,5 @@
 import { BypassWrapper, type Effect } from './effect';
+import type { ParamBus } from '../../state/params';
 
 const STAGES = 4;
 
@@ -74,6 +75,14 @@ export class Phaser implements Effect {
   }
   setFeedback(f: number): void {
     this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, 0.02);
+  }
+
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.rate`, (x) => this.setRate(x));
+    bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
+    bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
+    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 
   private depthHz(): number {

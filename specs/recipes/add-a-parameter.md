@@ -41,20 +41,34 @@ Add a `ParamDef` inside `registerDefaults()`'s `bus.registerMany([...])`:
 - Use `taper: 'discrete'` + `labels: [...]` for switch/segmented params,
   `taper: 'exp'` for wide-range time/frequency knobs, and a `format` for the readout.
 
-### 2. Apply it — `src/audio/engine.ts`
+### 2. Apply it
 
-Subscribe in `subscribeParams()`:
+Where you subscribe depends on **who owns the param** (see
+[ADR-008](../decisions/adr-008-components-self-wire-params.md) — components
+self-wire their params):
 
 ```ts
-// per-voice: fan out to all 8 voices via the all(...) helper
-bus.subscribe('fx.myThing.amount', all((v, x) => v.setMyThing(x)));
+// per-voice (osc/filter/env): in Engine.subscribeParams(), fan out via all(...)
+bus.subscribe('osc1.level', all((v, x) => v.osc1.setLevel(x)));
 
-// engine-global (not per-voice): subscribe directly
-bus.subscribe('fx.myThing.amount', (x) => { this.myThingNode.gain.value = x; });
+// an insert effect's param: add it to that Effect's own bind(bus, prefix)
+//   src/audio/effects/<name>.ts
+bind(bus: ParamBus, prefix: string): void {
+  bus.subscribe(`${prefix}.amount`, (x) => this.setAmount(x));
+}
+// Engine just calls this.myFx.bind(bus, 'fx.myThing') once.
+
+// engine-global one-off (transport/master/etc.): subscribe directly in Engine
+bus.subscribe('master.volume', (x) => rampTo(this.master.gain, x * x, this.ctx, RAMP_MEDIUM));
 ```
 
-- `all(fn)` (`(v, x) => …` for each `Voice`) is for per-voice params.
-- For an effect, set the relevant `AudioNode`/`AudioParam` directly.
+- `all(fn)` (`(v, x) => …` for each `Voice`) is for per-voice params and stays
+  in `Engine.subscribeParams()`.
+- For an **insert effect**, add the subscribe to that effect's `bind(bus, prefix)`
+  so the param contract lives with the component that owns it (the same class
+  binds at `fx.drum.*` / `fx.sampler.*` for the bus variants).
+- For voicing params (poly/unison/glide/drift) call the `Polyphony` setter; for
+  lane mute/solo/volume call the `LaneMixer` setter.
 - `subscribe` fires immediately with the current value, so the graph initialises
   correctly without extra code.
 

@@ -1,4 +1,5 @@
 import { BypassWrapper, type Effect } from './effect';
+import type { ParamBus } from '../../state/params';
 
 /**
  * Algorithmic-feel reverb built on a ConvolverNode with a procedurally
@@ -41,6 +42,13 @@ export class Reverb implements Effect {
     // 0 = bright (12 kHz), 1 = dark (1 kHz)
     const hz = 12000 - d * 11000;
     this.damp.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.05);
+  }
+
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.size`, (x) => this.setSize(x));
+    bus.subscribe(`${prefix}.damp`, (x) => this.setDamp(x));
+    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }
 

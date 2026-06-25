@@ -1,4 +1,5 @@
 import { BypassWrapper, type Effect } from './effect';
+import type { ParamBus } from '../../state/params';
 
 export class Delay implements Effect {
   readonly input: AudioNode;
@@ -40,5 +41,12 @@ export class Delay implements Effect {
   }
   setFeedback(f: number): void {
     this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, 0.02);
+  }
+
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.time`, (x) => this.setTime(x));
+    bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
+    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }

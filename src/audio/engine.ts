@@ -7,10 +7,12 @@ import { Phaser } from './effects/phaser';
 import { Delay } from './effects/delay';
 import { Reverb } from './effects/reverb';
 import { Compressor } from './effects/compressor';
+import { chain } from './effects/effect';
 import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults } from '../state/params';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
-import { assertIndex } from '../utils/array';
+import { Polyphony } from './polyphony';
+import { LaneMixer } from './lane-mixer';
 import type { SynthOutput } from './transport/note-output';
 import { Clock } from './transport/clock';
 import { Arpeggiator } from './transport/arpeggiator';
@@ -19,7 +21,6 @@ import { DrumMachine } from './transport/drum-machine';
 import { SamplerMachine } from './transport/sampler-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
-import { audibleLanes, type LaneFlags } from './transport/lane-mix';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
@@ -68,23 +69,13 @@ export class Engine {
 
   readonly lfo: LFO;
   private readonly pitchBend: ConstantSourceNode;
-  private readonly drift: ConstantSourceNode;
   private readonly noise: AudioBufferSourceNode;
-  private polyMode = true;
-  private heldNotes = new Map<number, Voice[]>();
 
-  // Song-tab lane mixer (mute/solo across seq/drum/sampler). Volumes are held
-  // here so mute/solo and the volume knobs can both resolve the bus gain.
-  private laneMute: LaneFlags = { seq: false, drum: false, sampler: false };
-  private laneSolo: LaneFlags = { seq: false, drum: false, sampler: false };
-  private drumVol = 0.85;
-  private samplerVol = 0.85;
+  // Voice allocation + voicing (poly/unison/glide/drift) and the Song-tab lane
+  // mixer (mute/solo/volume) are delegated out of the Engine (ADR-008).
+  private polyphony!: Polyphony;
+  private laneMixer!: LaneMixer;
 
-  private driftAmount = 0;
-  private driftTimer: number | null = null;
-  private unisonCount = 1;
-  private unisonDetune = 12;
-  private glideMode = 1; // 0 off · 1 always · 2 legato
   /** When true, bus.noteOn/Off do not directly play notes — arp/seq do. */
   passthroughSuppressed = false;
   /** True when the arpeggiator is suppressing direct note input. */
@@ -133,26 +124,14 @@ export class Engine {
     this.samplerBus.gain.value = 1;
 
     // Synth FX chain
-    this.voiceBus.connect(this.distortion.input);
-    this.distortion.output.connect(this.wah.input);
-    this.wah.output.connect(this.phaser.input);
-    this.phaser.output.connect(this.delay.input);
-    this.delay.output.connect(this.reverb.input);
-    this.reverb.output.connect(this.preMaster);
+    chain(this.voiceBus, [this.distortion, this.wah, this.phaser, this.delay, this.reverb], this.preMaster);
 
     // Drum FX chain: compressor → phaser → delay. The 1176-style compressor
     // sits first so it smashes the dry hits, not the delay/phaser wash.
-    this.drumBus.connect(this.drumComp.input);
-    this.drumComp.output.connect(this.drumPhaser.input);
-    this.drumPhaser.output.connect(this.drumDelay.input);
-    this.drumDelay.output.connect(this.preMaster);
+    chain(this.drumBus, [this.drumComp, this.drumPhaser, this.drumDelay], this.preMaster);
 
     // Sampler FX chain: distortion → phaser → delay → reverb
-    this.samplerBus.connect(this.samplerDist.input);
-    this.samplerDist.output.connect(this.samplerPhaser.input);
-    this.samplerPhaser.output.connect(this.samplerDelay.input);
-    this.samplerDelay.output.connect(this.samplerReverb.input);
-    this.samplerReverb.output.connect(this.preMaster);
+    chain(this.samplerBus, [this.samplerDist, this.samplerPhaser, this.samplerDelay, this.samplerReverb], this.preMaster);
 
     // DJ performance filter — transparent by default, swept live.
     this.djFilter = this.ctx.createBiquadFilter();
@@ -174,11 +153,6 @@ export class Engine {
     this.pitchBend.offset.value = 0;
     this.pitchBend.start();
 
-    // Analogue oscillator drift — slow random detune summed into all oscs.
-    this.drift = this.ctx.createConstantSource();
-    this.drift.offset.value = 0;
-    this.drift.start();
-
     this.noise = this.createNoiseSource();
 
     this.patterns = new PatternStore();
@@ -191,6 +165,10 @@ export class Engine {
     await CompressorNode.loadModule(this.ctx);
     this.drumComp.attachWorklet();
     this.masterComp.attachWorklet();
+
+    // Polyphony owns the voice pool + the analogue-drift source; it shares the
+    // `this.voices` array (Engine fans per-voice params over the same array).
+    this.polyphony = new Polyphony(this.ctx, this.voices);
 
     for (let i = 0; i < VOICE_COUNT; i++) {
       const v = await Voice.create(this.ctx);
@@ -209,10 +187,8 @@ export class Engine {
       this.pitchBend.connect(v.osc2.detuneParam);
       this.pitchBend.connect(v.sub.detuneParam);
 
-      // Analogue drift
-      this.drift.connect(v.osc1.detuneParam);
-      this.drift.connect(v.osc2.detuneParam);
-      this.drift.connect(v.sub.detuneParam);
+      // Analogue drift (source owned by Polyphony)
+      this.polyphony.connectDrift(v);
 
       this.voices.push(v);
     }
@@ -232,13 +208,15 @@ export class Engine {
     this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus);
     this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
 
+    // Lane mixer — needs the sequencer (mute = stop triggering) + the drum/
+    // sampler buses (mute = cut bus gain), so it is built after the machines.
+    this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus);
+
     // Audio capture: tap master (post master-volume). The recorder node has
     // zero outputs so it is a pure sink and never doubles into destination.
     this.recorderNode = await RecorderNode.create(this.ctx);
     this.master.connect(this.recorderNode.input);
     this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
-
-    this.driftTimer = window.setInterval(this.driftStep, 110);
 
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => {
@@ -261,92 +239,20 @@ export class Engine {
 
   // ---------- Note handling ----------
 
-  /** Play a note at the given audio time (defaults to now). */
+  /** Play a note at the given audio time (defaults to now). Delegates to Polyphony. */
   playNote(note: number, velocity = 0.8, when?: number): void {
-    const t = when ?? this.ctx.currentTime;
-    const count = Math.max(1, Math.min(this.unisonCount, this.voices.length));
-    // Legato = glide only when another note is already sounding.
-    const anySounding = this.heldNotes.size > 0;
-    const glide = this.glideMode === 1 ? true : this.glideMode === 2 ? anySounding : false;
-
-    if (!this.polyMode) {
-      const used: Voice[] = [];
-      for (let i = 0; i < count; i++) {
-        const v = this.voices[i]!;
-        v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
-        used.push(v);
-      }
-      this.heldNotes.set(note, used);
-      return;
-    }
-
-    const existing = this.heldNotes.get(note);
-    if (existing && existing.some((v) => v.state !== 'idle')) {
-      for (let i = 0; i < existing.length; i++) {
-        existing[i]!.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, existing.length), glide });
-      }
-      return;
-    }
-    const used: Voice[] = [];
-    for (let i = 0; i < count; i++) {
-      const v = this.pickVoice();
-      v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
-      used.push(v);
-    }
-    this.heldNotes.set(note, used);
+    this.polyphony.playNote(note, velocity, when);
   }
 
   /** Release a note at the given audio time (defaults to now). */
   releaseNote(note: number, when?: number): void {
-    const t = when ?? this.ctx.currentTime;
-    const vs = this.heldNotes.get(note);
-    if (vs) {
-      for (const v of vs) v.noteOff(t);
-      this.heldNotes.delete(note);
-    }
-  }
-
-  /** Force-silence every voice and forget held notes (no transport change). */
-  private killAllVoices(): void {
-    const t = this.ctx.currentTime;
-    for (const v of this.voices) v.kill(t);
-    this.heldNotes.clear();
+    this.polyphony.releaseNote(note, when);
   }
 
   /** Stop the transport AND silence everything (Panic button / Esc). */
   panic(): void {
     this.clock.stop();
-    this.killAllVoices();
-  }
-
-  /** Symmetric detune spread in cents for unison copy i of n. */
-  private unisonOffset(i: number, n: number): number {
-    if (n <= 1) return 0;
-    return (i / (n - 1) - 0.5) * 2 * this.unisonDetune;
-  }
-
-  private driftStep = (): void => {
-    const range = this.driftAmount * 12; // ±12 cents at full
-    const target = range <= 0 ? 0 : (Math.random() * 2 - 1) * range;
-    this.drift.offset.setTargetAtTime(target, this.ctx.currentTime, 0.12);
-  };
-
-  private pickVoice(): Voice {
-    // Prefer idle voices, then oldest releasing, then oldest playing
-    let idle: Voice | null = null;
-    let oldestReleasing: Voice | null = null;
-    let oldestPlaying: Voice | null = null;
-    for (const v of this.voices) {
-      if (v.state === 'idle') { idle = v; break; }
-      if (v.state === 'releasing') {
-        if (!oldestReleasing || v.noteOffAt < oldestReleasing.noteOffAt) oldestReleasing = v;
-      } else {
-        if (!oldestPlaying || v.noteOnAt < oldestPlaying.noteOnAt) oldestPlaying = v;
-      }
-    }
-    if (idle) return idle;
-    if (oldestReleasing) return oldestReleasing;
-    return oldestPlaying ?? assertIndex(this.voices, 0, 'voices');
+    this.polyphony.killAll();
   }
 
   // ---------- Param subscriptions ----------
@@ -356,12 +262,8 @@ export class Engine {
     const all = (fn: (v: Voice, value: number) => void) =>
       (value: number) => { for (const v of this.voices) fn(v, value); };
 
-    // Voicing
-    bus.subscribe('voicing.mode', (v) => {
-      const wasPoly = this.polyMode;
-      this.polyMode = v >= 0.5;
-      if (wasPoly !== this.polyMode) this.killAllVoices();
-    });
+    // Voicing (poly/mono, unison, glide, drift all live in Polyphony)
+    bus.subscribe('voicing.mode', (v) => this.polyphony.setPoly(v >= 0.5));
 
     // OSC 1
     bus.subscribe('osc1.wave', all((v, x) => v.osc1.setWave(x)));
@@ -381,12 +283,12 @@ export class Engine {
     bus.subscribe('sub.level', all((v, x) => v.setSubLevel(x)));
 
     // Unison
-    bus.subscribe('unison.voices', (x) => { this.unisonCount = Math.max(1, Math.round(x)); });
-    bus.subscribe('unison.detune', (x) => { this.unisonDetune = x; });
+    bus.subscribe('unison.voices', (x) => this.polyphony.setUnisonCount(x));
+    bus.subscribe('unison.detune', (x) => this.polyphony.setUnisonDetune(x));
 
     // Analogue drift / glide mode
-    bus.subscribe('analog.drift', (x) => { this.driftAmount = x; });
-    bus.subscribe('glide.mode', (x) => { this.glideMode = Math.round(x); });
+    bus.subscribe('analog.drift', (x) => this.polyphony.setDrift(x));
+    bus.subscribe('glide.mode', (x) => this.polyphony.setGlideMode(x));
 
     // Mixer
     bus.subscribe('mixer.noise', all((v, x) => v.setNoiseLevel(x)));
@@ -421,83 +323,30 @@ export class Engine {
     bus.subscribe('lfo.wave', (x) => this.lfo.setWave(x));
     bus.subscribe('lfo.dest', (x) => this.lfo.setDest(x));
 
-    // FX: Distortion
-    bus.subscribe('fx.dist.on', (x) => this.distortion.setBypass(x < 0.5));
-    bus.subscribe('fx.dist.drive', (x) => this.distortion.setDrive(x));
-    bus.subscribe('fx.dist.tone', (x) => this.distortion.setTone(x));
-    bus.subscribe('fx.dist.mix', (x) => this.distortion.setMix(x));
+    // Insert effects self-wire their own params (ADR-008); the same class binds
+    // at a different prefix for the drum/sampler bus variants.
+    this.distortion.bind(bus, 'fx.dist');
+    this.wah.bind(bus, 'fx.wah');
+    this.phaser.bind(bus, 'fx.phaser');
+    this.delay.bind(bus, 'fx.delay');
+    this.reverb.bind(bus, 'fx.reverb');
 
-    // FX: Wah
-    bus.subscribe('fx.wah.on', (x) => this.wah.setBypass(x < 0.5));
-    bus.subscribe('fx.wah.rate', (x) => this.wah.setRate(x));
-    bus.subscribe('fx.wah.depth', (x) => this.wah.setDepth(x));
-    bus.subscribe('fx.wah.q', (x) => this.wah.setQ(x));
+    // Drum FX (compressor: 1176 FET; ratio index → real ratio, 100 = ALL)
+    this.drumPhaser.bind(bus, 'fx.drum.phaser');
+    this.drumDelay.bind(bus, 'fx.drum.delay');
+    this.drumComp.bind(bus, 'fx.drum.comp', [4, 8, 12, 20, 100]);
 
-    // FX: Phaser
-    bus.subscribe('fx.phaser.on', (x) => this.phaser.setBypass(x < 0.5));
-    bus.subscribe('fx.phaser.rate', (x) => this.phaser.setRate(x));
-    bus.subscribe('fx.phaser.depth', (x) => this.phaser.setDepth(x));
-    bus.subscribe('fx.phaser.feedback', (x) => this.phaser.setFeedback(x));
-    bus.subscribe('fx.phaser.mix', (x) => this.phaser.setMix(x));
-
-    // FX: Delay
-    bus.subscribe('fx.delay.on', (x) => this.delay.setBypass(x < 0.5));
-    bus.subscribe('fx.delay.time', (x) => this.delay.setTime(x));
-    bus.subscribe('fx.delay.feedback', (x) => this.delay.setFeedback(x));
-    bus.subscribe('fx.delay.mix', (x) => this.delay.setMix(x));
-
-    // FX: Reverb
-    bus.subscribe('fx.reverb.on', (x) => this.reverb.setBypass(x < 0.5));
-    bus.subscribe('fx.reverb.size', (x) => this.reverb.setSize(x));
-    bus.subscribe('fx.reverb.damp', (x) => this.reverb.setDamp(x));
-    bus.subscribe('fx.reverb.mix', (x) => this.reverb.setMix(x));
-
-    // Drum FX: Phaser
-    bus.subscribe('fx.drum.phaser.on', (x) => this.drumPhaser.setBypass(x < 0.5));
-    bus.subscribe('fx.drum.phaser.rate', (x) => this.drumPhaser.setRate(x));
-    bus.subscribe('fx.drum.phaser.depth', (x) => this.drumPhaser.setDepth(x));
-    bus.subscribe('fx.drum.phaser.feedback', (x) => this.drumPhaser.setFeedback(x));
-    bus.subscribe('fx.drum.phaser.mix', (x) => this.drumPhaser.setMix(x));
-
-    // Drum FX: Delay
-    bus.subscribe('fx.drum.delay.on', (x) => this.drumDelay.setBypass(x < 0.5));
-    bus.subscribe('fx.drum.delay.time', (x) => this.drumDelay.setTime(x));
-    bus.subscribe('fx.drum.delay.feedback', (x) => this.drumDelay.setFeedback(x));
-    bus.subscribe('fx.drum.delay.mix', (x) => this.drumDelay.setMix(x));
-
-    // Drum FX: Compressor (1176 FET; ratio index → real ratio, 100 = ALL)
-    this.subscribeCompressor('fx.drum.comp', this.drumComp, [4, 8, 12, 20, 100]);
-
-    // Sampler FX: Distortion
-    bus.subscribe('fx.sampler.dist.on', (x) => this.samplerDist.setBypass(x < 0.5));
-    bus.subscribe('fx.sampler.dist.drive', (x) => this.samplerDist.setDrive(x));
-    bus.subscribe('fx.sampler.dist.tone', (x) => this.samplerDist.setTone(x));
-    bus.subscribe('fx.sampler.dist.mix', (x) => this.samplerDist.setMix(x));
-
-    // Sampler FX: Phaser
-    bus.subscribe('fx.sampler.phaser.on', (x) => this.samplerPhaser.setBypass(x < 0.5));
-    bus.subscribe('fx.sampler.phaser.rate', (x) => this.samplerPhaser.setRate(x));
-    bus.subscribe('fx.sampler.phaser.depth', (x) => this.samplerPhaser.setDepth(x));
-    bus.subscribe('fx.sampler.phaser.feedback', (x) => this.samplerPhaser.setFeedback(x));
-    bus.subscribe('fx.sampler.phaser.mix', (x) => this.samplerPhaser.setMix(x));
-
-    // Sampler FX: Delay
-    bus.subscribe('fx.sampler.delay.on', (x) => this.samplerDelay.setBypass(x < 0.5));
-    bus.subscribe('fx.sampler.delay.time', (x) => this.samplerDelay.setTime(x));
-    bus.subscribe('fx.sampler.delay.feedback', (x) => this.samplerDelay.setFeedback(x));
-    bus.subscribe('fx.sampler.delay.mix', (x) => this.samplerDelay.setMix(x));
-
-    // Sampler FX: Reverb
-    bus.subscribe('fx.sampler.reverb.on', (x) => this.samplerReverb.setBypass(x < 0.5));
-    bus.subscribe('fx.sampler.reverb.size', (x) => this.samplerReverb.setSize(x));
-    bus.subscribe('fx.sampler.reverb.damp', (x) => this.samplerReverb.setDamp(x));
-    bus.subscribe('fx.sampler.reverb.mix', (x) => this.samplerReverb.setMix(x));
+    // Sampler FX
+    this.samplerDist.bind(bus, 'fx.sampler.dist');
+    this.samplerPhaser.bind(bus, 'fx.sampler.phaser');
+    this.samplerDelay.bind(bus, 'fx.sampler.delay');
+    this.samplerReverb.bind(bus, 'fx.sampler.reverb');
 
     // DJ filter (manual sweep; Drop overrides it while held)
     bus.subscribe('fx.djfilter', (x) => this.perf.setDjFilter(x));
 
     // Master FX: Compressor (SSL G bus VCA; release index past the table = auto)
-    this.subscribeCompressor('fx.master.comp', this.masterComp, [2, 4, 10], [0.1, 0.3, 0.6, 1.2]);
+    this.masterComp.bind(bus, 'fx.master.comp', [2, 4, 10], [0.1, 0.3, 0.6, 1.2]);
 
     // Master
     bus.subscribe('master.volume', (x) => {
@@ -526,16 +375,16 @@ export class Engine {
     bus.subscribe('seq.master', (v) => rampTo(this.voiceBus.gain, v, this.ctx, RAMP_MEDIUM));
 
     // ----- Song-tab lane mixer (mute + solo across all three machines) -----
-    bus.subscribe('seq.mute', (v) => { this.laneMute.seq = v >= 0.5; this.applyLaneMix(); });
-    bus.subscribe('drum.mute', (v) => { this.laneMute.drum = v >= 0.5; this.applyLaneMix(); });
-    bus.subscribe('sampler.mute', (v) => { this.laneMute.sampler = v >= 0.5; this.applyLaneMix(); });
-    bus.subscribe('seq.solo', (v) => { this.laneSolo.seq = v >= 0.5; this.applyLaneMix(); });
-    bus.subscribe('drum.solo', (v) => { this.laneSolo.drum = v >= 0.5; this.applyLaneMix(); });
-    bus.subscribe('sampler.solo', (v) => { this.laneSolo.sampler = v >= 0.5; this.applyLaneMix(); });
+    bus.subscribe('seq.mute', (v) => this.laneMixer.setMute('seq', v >= 0.5));
+    bus.subscribe('drum.mute', (v) => this.laneMixer.setMute('drum', v >= 0.5));
+    bus.subscribe('sampler.mute', (v) => this.laneMixer.setMute('sampler', v >= 0.5));
+    bus.subscribe('seq.solo', (v) => this.laneMixer.setSolo('seq', v >= 0.5));
+    bus.subscribe('drum.solo', (v) => this.laneMixer.setSolo('drum', v >= 0.5));
+    bus.subscribe('sampler.solo', (v) => this.laneMixer.setSolo('sampler', v >= 0.5));
 
     // ----- Drums -----
     bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
-    bus.subscribe('drum.master', (v) => { this.drumVol = v; this.applyLaneMix(); });
+    bus.subscribe('drum.master', (v) => this.laneMixer.setDrumVol(v));
     for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
       const track = i;
       bus.subscribe(`drum.t${i}.vol`, (v) => this.drums.setTrackVolume(track, v));
@@ -549,46 +398,11 @@ export class Engine {
 
     // ----- Sampler -----
     bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
-    bus.subscribe('sampler.master', (v) => { this.samplerVol = v; this.applyLaneMix(); });
+    bus.subscribe('sampler.master', (v) => this.laneMixer.setSamplerVol(v));
     for (let i = 0; i < 8; i++) {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
     }
-  }
-
-  /**
-   * Resolve the lane mixer (mute/solo) to the audio graph. Drums/sampler mute
-   * by cutting their bus gain (the pattern keeps running, instant un-mute);
-   * the sequencer mutes by suppressing triggering (live keys stay audible). The
-   * audibility rule itself lives in the pure `audibleLanes` helper.
-   */
-  private applyLaneMix(): void {
-    const audible = audibleLanes(this.laneMute, this.laneSolo);
-    this.seq.setMuted(!audible.seq);
-    rampTo(this.drumBus.gain, audible.drum ? this.drumVol : 0, this.ctx, RAMP_MEDIUM);
-    rampTo(this.samplerBus.gain, audible.sampler ? this.samplerVol : 0, this.ctx, RAMP_MEDIUM);
-  }
-
-  /**
-   * Wire one compressor instance's params. Discrete ratio/release params
-   * carry an index; `ratios` maps it to the real ratio. When `releases` is
-   * given, an index past the end of the table means auto-release (SSL).
-   */
-  private subscribeCompressor(prefix: string, comp: Compressor, ratios: number[], releases?: number[]): void {
-    const bus = this.bus;
-    bus.subscribe(`${prefix}.on`, (x) => comp.setBypass(x < 0.5));
-    bus.subscribe(`${prefix}.threshold`, (x) => comp.setThreshold(x));
-    bus.subscribe(`${prefix}.ratio`, (x) => comp.setRatio(ratios[Math.round(x)] ?? ratios[0]!));
-    bus.subscribe(`${prefix}.attack`, (x) => comp.setAttack(x));
-    bus.subscribe(`${prefix}.release`, releases
-      ? (x) => {
-          const i = Math.round(x);
-          const auto = i >= releases.length;
-          comp.setAutoRelease(auto);
-          if (!auto) comp.setRelease(releases[i]!);
-        }
-      : (x) => comp.setRelease(x));
-    bus.subscribe(`${prefix}.makeup`, (x) => comp.setMakeup(x));
   }
 
   // ---------- Noise source ----------

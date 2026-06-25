@@ -47,30 +47,34 @@ export class MyFx implements Effect {
   setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   // + your own setters (setRate, setDepth, …) using setTargetAtTime to avoid zipper noise
+
+  // self-wire your params (ADR-008): Engine calls this.myFx.bind(bus, 'fx.myfx')
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`,  (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
+    // … your other params
+  }
 }
 ```
 
-### 2. Construct + splice into a bus — `src/audio/engine.ts`
+### 2. Construct + add to a bus chain — `src/audio/engine.ts`
 
-Build it in the constructor and connect it into the chain (synth voice bus shown):
+Build it in the constructor and add it to the relevant bus's `chain([...])` list:
 
 ```ts
 this.myFx = new MyFx(this.ctx);
-// voiceBus → distortion → wah → phaser → delay → reverb → preMaster
-// insert MyFx by re-pointing the two connects around your chosen slot
-prev.output.connect(this.myFx.input);
-this.myFx.output.connect(next.input);
+// synth voice bus, in order:
+chain(this.voiceBus, [this.distortion, this.wah, this.phaser, this.myFx, this.delay, this.reverb], this.preMaster);
 ```
 
-### 3. Add params + subscribe
+### 3. Bind params
 
 Register the params ([add-a-parameter](add-a-parameter.md)) — always a `<id>.on`
-toggle defaulting to **off** (no-op), then in `subscribeParams()`:
+toggle defaulting to **off** (no-op) — then call your effect's `bind` once in
+`Engine.subscribeParams()`:
 
 ```ts
-bus.subscribe('fx.myfx.on',  (x) => this.myFx.setBypass(x < 0.5));
-bus.subscribe('fx.myfx.mix', (x) => this.myFx.setMix(x));
-// … your other params
+this.myFx.bind(bus, 'fx.myfx');
 ```
 
 ### 4. UI + verify

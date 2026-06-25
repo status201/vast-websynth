@@ -118,8 +118,11 @@ ParamBus:        # src/state/params.ts
 
 Engine:          # src/audio/engine.ts
   init()                         # async: loads worklets, builds voices + transport
-  subscribeParams()              # wires every param to the audio graph (once)
-  # owns: voices[8], FX chain, arrangement, perf, seq, drums, sampler
+  subscribeParams()              # wires params to the audio graph (once); FX/comps
+                                 #   self-wire via Effect.bind(bus, prefix) — ADR-008
+  playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
+  # owns: AudioContext, voices[8], FX chain, arrangement, perf, seq, drums, sampler
+  # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
 
 PatternStore:    # src/state/patterns.ts
   # 4 seq + 4 drum + 4 sampler banks; edit-bank (UI) vs play-bank (transport)
@@ -237,6 +240,9 @@ load-bearing ones:
   params (REQ-4; existing presets/songs are unaffected).
 - [ADR-007](decisions/adr-007-songfile-additive-versioning.md) — additive
   `SongFile` versioning (old songs keep loading and sounding the same).
+- [ADR-008](decisions/adr-008-components-self-wire-params.md) — components
+  self-wire their params (`Effect.bind`); voice allocation / lane mix extracted
+  to `Polyphony` / `LaneMixer` so `Engine` coordinates rather than knows-all.
 
 ## Tests & verification
 

@@ -117,12 +117,16 @@ Two long-lived objects are created once in `main.ts` and threaded everywhere:
   `min/max/default/taper/format`. Setting a value clamps it and notifies
   subscribers. **UI and audio never talk directly** — a knob calls
   `bus.set(...)`; the `Engine` does `bus.subscribe(...)` to apply it to the
-  audio graph. To add a parameter: add a `ParamDef`, subscribe in
-  `Engine.subscribeParams()`, add a UI control in `ui/app.ts`.
+  audio graph. To add a parameter: add a `ParamDef`, wire it (per-voice +
+  one-off in `Engine.subscribeParams()`; an insert-effect param goes in that
+  effect's own `bind(bus, prefix)` — ADR-008), add a UI control in `ui/app.ts`.
 - **`Engine`** (`audio/engine.ts`) — owns the `AudioContext`, the voice pool
-  (8 `Voice`s), the FX chain, and transport modules. Note events flow through
-  `bus.onNote` → `playNote` / `releaseNote` unless `passthroughSuppressed` is
-  set (arpeggiator/sequencer take over note triggering then).
+  (8 `Voice`s), the FX chain, and transport modules; it *coordinates* rather
+  than knows-all (ADR-008). Voice allocation + unison/glide/drift live in
+  **`Polyphony`** (`audio/polyphony.ts`); the Song-tab mute/solo/volume mixer in
+  **`LaneMixer`** (`audio/lane-mixer.ts`). Note events flow through `bus.onNote`
+  → `playNote` / `releaseNote` (thin delegators to `Polyphony`) unless
+  `passthroughSuppressed` is set (arpeggiator/sequencer take over triggering then).
 
 Audio graph:
 
@@ -146,9 +150,9 @@ analyser` (`engine.masterComp`). The `Compressor` Effect
 (`audio/effects/compressor.ts`) builds its `BypassWrapper` synchronously so
 Engine's constructor can wire chains, then `attachWorklet()` (from
 `Engine.init()`, after `loadModule`) splices the node in and replays cached
-setter values. Discrete ratio/release params carry an *index*; Engine's
-`subscribeCompressor()` maps it to real values (fet ratio 100 = "all buttons
-in"; an SSL release index past the table = auto). The worklet posts gain
+setter values. Discrete ratio/release params carry an *index*; the compressor's
+`bind(bus, prefix, ratios, releases?)` maps it to real values (fet ratio 100 =
+"all buttons in"; an SSL release index past the table = auto). The worklet posts gain
 reduction (dB, ~31 Hz) on its port for the `GrMeter` UI; its DSP is
 unit-tested directly under Vitest (`tests/audio/compressor-worklet.test.ts`)
 by stubbing the worklet globals and importing the file.

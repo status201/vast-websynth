@@ -11,7 +11,7 @@ source:
   - public/worklets/compressor.js     # the DSP (audio thread)
   - src/audio/compressor/node.ts      # CompressorNode wrapper
   - src/audio/effects/compressor.ts   # Compressor Effect (BypassWrapper)
-  - src/audio/engine.ts               # subscribeCompressor + attachWorklet
+  - src/audio/engine.ts               # calls Compressor.bind + attachWorklet
   - src/state/params.ts               # the fx.drum.comp.* / fx.master.comp.* defs
   - src/ui/panels/drum-panel.ts       # drum comp UI
   - src/ui/panels/song-panel.ts       # master comp UI + GrMeter
@@ -69,6 +69,7 @@ CompressorNode:   # src/audio/compressor/node.ts
 Compressor (Effect):  # src/audio/effects/compressor.ts
   # builds its BypassWrapper synchronously so Engine can wire chains in its ctor;
   attachWorklet()      # splices the real node in (after loadModule) + replays setters
+  bind(bus, prefix, ratios, releases?)  # self-wires its params + the index→real maps
   setBypass / setThreshold / setRatio / setAttack / setRelease / setAutoRelease / setMakeup
 ```
 
@@ -94,11 +95,12 @@ fx.master.comp.makeup:    { min: 0, max: 12, default: 0 }
 
 ### Index → real-value mapping
 
-`Engine.subscribeCompressor(prefix, comp, ratios, releases?)`:
+`Compressor.bind(bus, prefix, ratios, releases?)` (the index→real map lives in
+the compressor effect, called once from `Engine.subscribeParams()`):
 
 ```yaml
-drum:   subscribeCompressor('fx.drum.comp',   drumComp,   [4, 8, 12, 20, 100])
-master: subscribeCompressor('fx.master.comp', masterComp, [2, 4, 10], [0.1, 0.3, 0.6, 1.2])
+drum:   drumComp.bind(bus, 'fx.drum.comp',     [4, 8, 12, 20, 100])
+master: masterComp.bind(bus, 'fx.master.comp', [2, 4, 10], [0.1, 0.3, 0.6, 1.2])
 rules:
   ratio:   comp.setRatio(ratios[round(x)] ?? ratios[0])
   release: if releases given and round(x) >= releases.length -> setAutoRelease(true)
@@ -112,7 +114,7 @@ rules:
 ctor (sync):  engine builds Compressor effects -> BypassWrapper wired into chains
 init (async): await CompressorNode.loadModule(ctx)
               drumComp.attachWorklet(); masterComp.attachWorklet()  # splice + replay
-              subscribeCompressor(...) wires params to the bus
+              drumComp.bind(...) / masterComp.bind(...) wire params to the bus
 ```
 
 This split exists because `Engine`'s constructor must wire the audio graph

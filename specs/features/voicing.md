@@ -9,7 +9,8 @@ related:
   - architecture
   - oscillators
 source:
-  - src/audio/engine.ts        # voice pool, unison, glide, drift, note flow
+  - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
+  - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
   - src/audio/voice.ts
   - src/state/params.ts
   - src/ui/app.ts
@@ -58,15 +59,15 @@ keyboard.transpose:{ discrete, range: -2..2, default: 0 }
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams):
-  voicing.mode  -> this.polyMode = v >= 0.5; if changed -> killAllVoices()
-  unison.voices -> this.unisonCount = max(1, round(x))
-  unison.detune -> this.unisonDetune = x
-  mixer.glide   -> all((v, x) => v.setGlide(x))
-  glide.mode    -> this.glideMode = round(x)
-  analog.drift  -> this.driftAmount = x
+engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live there):
+  voicing.mode  -> polyphony.setPoly(v >= 0.5)        # kills all voices on change
+  unison.voices -> polyphony.setUnisonCount(x)        # max(1, round(x))
+  unison.detune -> polyphony.setUnisonDetune(x)
+  mixer.glide   -> all((v, x) => v.setGlide(x))        # per-voice, stays in Engine
+  glide.mode    -> polyphony.setGlideMode(x)
+  analog.drift  -> polyphony.setDrift(x)               # drift source owned by Polyphony
   master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
-note flow: bus.onNote -> Engine.playNote/ releaseNote  (unless passthroughSuppressed)
+note flow: bus.onNote -> Engine.playNote/ releaseNote -> Polyphony (unless passthroughSuppressed)
 ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
 ```
 

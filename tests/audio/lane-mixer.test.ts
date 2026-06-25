@@ -1,0 +1,50 @@
+import { describe, it, expect, vi } from 'vitest';
+import { LaneMixer } from '../../src/audio/lane-mixer';
+import { makeMockAudioContext } from './mock-audio-context';
+
+function build() {
+  const ctx = makeMockAudioContext();
+  const seq = { setMuted: vi.fn() };
+  const drumBus = ctx.createGain() as unknown as GainNode;
+  const samplerBus = ctx.createGain() as unknown as GainNode;
+  const mix = new LaneMixer(ctx as unknown as AudioContext, seq, drumBus, samplerBus);
+  return { ctx, seq, drumBus, samplerBus, mix };
+}
+
+const gainOf = (bus: GainNode) => bus.gain as unknown as { setTargetAtTime: ReturnType<typeof vi.fn> };
+
+describe('LaneMixer', () => {
+  it('muting drums ramps the drum bus to 0; the sampler bus stays up', () => {
+    const { drumBus, samplerBus, mix } = build();
+    mix.setMute('drum', true);
+    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0, 0, expect.any(Number));
+    // sampler stays at its volume (0.85), not cut
+    expect(gainOf(samplerBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
+  });
+
+  it('mutes the sequencer by suppressing triggering (not its bus)', () => {
+    const { seq, mix } = build();
+    mix.setMute('seq', true);
+    expect(seq.setMuted).toHaveBeenLastCalledWith(true);
+  });
+
+  it('solo wins over mute on the same lane (drum soloed + muted → audible)', () => {
+    const { drumBus, mix } = build();
+    mix.setMute('drum', true);
+    mix.setSolo('drum', true);
+    // drum is soloed → audible at its volume despite the mute
+    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0.85, 0, expect.any(Number));
+  });
+
+  it('a solo on another lane silences the non-soloed drum bus', () => {
+    const { drumBus, mix } = build();
+    mix.setSolo('seq', true);
+    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0, 0, expect.any(Number));
+  });
+
+  it('the drum volume knob drives the audible bus gain', () => {
+    const { drumBus, mix } = build();
+    mix.setDrumVol(0.5);
+    expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0.5, 0, expect.any(Number));
+  });
+});
