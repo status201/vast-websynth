@@ -1,4 +1,5 @@
 import { BypassWrapper, type Effect } from './effect';
+import type { ParamBus } from '../../state/params';
 
 export class Wah implements Effect {
   readonly input: AudioNode;
@@ -43,6 +44,13 @@ export class Wah implements Effect {
   }
   setQ(q: number): void {
     this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, 0.02);
+  }
+
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.rate`, (x) => this.setRate(x));
+    bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
+    bus.subscribe(`${prefix}.q`, (x) => this.setQ(x));
   }
 
   private depthHz(): number {

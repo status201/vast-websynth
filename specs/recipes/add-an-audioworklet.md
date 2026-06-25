@@ -83,8 +83,8 @@ the real node in after `loadModule` and replay cached setter values (see
   DOM. Type the wrapper, not the processor.
 - `loadModule` **must** be awaited before node construction (the ladder filter is
   awaited before voices are created).
-- Discrete UI indices → real values are mapped in the **engine**, not the worklet
-  (see compressor's `subscribeCompressor`).
+- Discrete UI indices → real values are mapped in the **wrapper's `bind`**, not
+  the worklet (see `Compressor.bind(bus, prefix, ratios, releases?)`).
 
 ## Acceptance (BDD)
 

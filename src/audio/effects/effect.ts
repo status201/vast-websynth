@@ -4,11 +4,25 @@ import { rampTo, RAMP_MEDIUM } from '../param-utils';
  * Common interface for all effects. Each effect owns a fixed signal graph
  * with `input` and `output` AudioNodes — wire them into the chain once at
  * setup time. Bypass is realised as a dry/wet crossfade so it never clicks.
+ *
+ * Concrete effects additionally expose `bind(bus, prefix)` to self-wire their
+ * own params (ADR-008); it is not on this interface because `Compressor.bind`
+ * takes extra index-table args. See `add-an-effect.md`.
  */
 export interface Effect {
   readonly input: AudioNode;
   readonly output: AudioNode;
   setBypass(b: boolean): void;
+}
+
+/** Series-wire `input → fx[0] → fx[1] → … → output`. */
+export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
+  let node: AudioNode = input;
+  for (const e of fx) {
+    node.connect(e.input);
+    node = e.output;
+  }
+  node.connect(output);
 }
 
 /**

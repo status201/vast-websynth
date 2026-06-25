@@ -1,5 +1,6 @@
 import { BypassWrapper, type Effect } from './effect';
 import { CompressorNode, type CompressorMode } from '../compressor/node';
+import type { ParamBus } from '../../state/params';
 
 /**
  * Hardware-modelled bus compressor ('fet' = 1176 style, 'vca' = SSL G bus
@@ -86,6 +87,27 @@ export class Compressor implements Effect {
   setMakeup(db: number): void {
     this.makeup = db;
     this.apply(this.node?.makeup, db);
+  }
+
+  /**
+   * Self-wire this compressor's params. Discrete ratio/release params carry an
+   * index; `ratios` maps it to the real ratio. When `releases` is given, an
+   * index past the end of the table means auto-release (SSL).
+   */
+  bind(bus: ParamBus, prefix: string, ratios: number[], releases?: number[]): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.threshold`, (x) => this.setThreshold(x));
+    bus.subscribe(`${prefix}.ratio`, (x) => this.setRatio(ratios[Math.round(x)] ?? ratios[0]!));
+    bus.subscribe(`${prefix}.attack`, (x) => this.setAttack(x));
+    bus.subscribe(`${prefix}.release`, releases
+      ? (x) => {
+          const i = Math.round(x);
+          const auto = i >= releases.length;
+          this.setAutoRelease(auto);
+          if (!auto) this.setRelease(releases[i]!);
+        }
+      : (x) => this.setRelease(x));
+    bus.subscribe(`${prefix}.makeup`, (x) => this.setMakeup(x));
   }
 
   private apply(param: AudioParam | undefined, v: number): void {

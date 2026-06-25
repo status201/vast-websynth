@@ -13,7 +13,7 @@ source:
   - src/audio/effects/effect.ts        # Effect interface + BypassWrapper
   - src/audio/effects/{distortion,wah,phaser,delay,reverb}.ts
   - src/state/params.ts
-  - src/audio/engine.ts                 # subscribeParams (synth/drum/sampler FX)
+  - src/audio/engine.ts                 # calls each Effect.bind(bus, prefix)
   - src/ui/app.ts / src/ui/panels/*
 ```
 
@@ -49,9 +49,12 @@ Effect:        # src/audio/effects/effect.ts
   input: AudioNode
   output: AudioNode
   setBypass(b: boolean): void
+  # each concrete effect also exposes bind(bus, prefix) to self-wire its params
+  # (ADR-008); not on the interface because Compressor.bind takes index tables.
 BypassWrapper: # dry/wet crossfade helper used by all effects
   input / output / dry / wet / processedIn / processedOut: GainNode
   setBypass(b) / setMix(m)
+chain(input, fx[], output)  # series-wires input → fx[0] → … → output
 ```
 
 ### Data shapes (registry — synth bus; drum/sampler mirror with a prefix)
@@ -71,11 +74,11 @@ prefixes:
 ### Layer touchpoints
 
 ```yaml
-engine (subscribeParams): one block per effect, e.g.
-  fx.delay.on  -> this.delay.setBypass(x < 0.5)
-  fx.delay.time/feedback/mix -> this.delay.setTime/ setFeedback/ setMix
-  (drum.* -> this.drumPhaser/ this.drumDelay; sampler.* -> this.samplerDist/...)
-graph: see architecture.md audio-graph diagram
+engine: each effect self-wires via Effect.bind(bus, prefix), e.g.
+  this.delay.bind(bus, 'fx.delay')        # on/time/feedback/mix subscribed inside Delay
+  this.drumPhaser.bind(bus, 'fx.drum.phaser')   # same class, drum prefix
+  this.samplerDist.bind(bus, 'fx.sampler.dist') # same class, sampler prefix
+graph: constructor wires the three chains via chain(bus, [..fx], preMaster)
 ui: synth FX in app.ts; drum FX in drum-panel.ts; sampler FX in sampler-panel.ts
 ```
 
@@ -102,5 +105,5 @@ Scenario: Drum and sampler FX are independent of the synth FX (edge)
 
 ## Open questions / future
 
-- A new effect adds an `Effect` impl + a `BypassWrapper`, its params, and one
-  engine subscribe block — then splice it into the relevant bus chain.
+- A new effect adds an `Effect` impl + a `BypassWrapper`, its params, and its own
+  `bind(bus, prefix)` — then add it to the relevant bus's `chain([...])` list.

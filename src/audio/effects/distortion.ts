@@ -1,4 +1,5 @@
 import { BypassWrapper, type Effect } from './effect';
+import type { ParamBus } from '../../state/params';
 
 function tanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
   const k = 1 + amount * 50;
@@ -56,5 +57,12 @@ export class Distortion implements Effect {
   }
   setTone(hz: number): void {
     this.tone.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
+  }
+
+  bind(bus: ParamBus, prefix: string): void {
+    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bus.subscribe(`${prefix}.drive`, (x) => this.setDrive(x));
+    bus.subscribe(`${prefix}.tone`, (x) => this.setTone(x));
+    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }

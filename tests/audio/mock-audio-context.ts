@@ -62,6 +62,8 @@ export interface MockAudioContext {
   createConstantSource: ReturnType<typeof vi.fn>;
   createWaveShaper: ReturnType<typeof vi.fn>;
   createStereoPanner: ReturnType<typeof vi.fn>;
+  createDelay: ReturnType<typeof vi.fn>;
+  createConvolver: ReturnType<typeof vi.fn>;
   createBuffer: ReturnType<typeof vi.fn>;
 }
 
@@ -108,6 +110,16 @@ export function makeMockAudioContext(sampleRate = 44100): MockAudioContext {
       oversample: 'none' as OverSampleType,
     })),
     createStereoPanner: vi.fn(() => withCtx({ ...baseNode(), pan: makeParam(0) })),
+    createDelay: vi.fn((maxDelayTime = 1) => withCtx({
+      ...baseNode(),
+      delayTime: makeParam(0),
+      maxDelayTime,
+    })),
+    createConvolver: vi.fn(() => withCtx({
+      ...baseNode(),
+      buffer: null as AudioBuffer | null,
+      normalize: true,
+    })),
     createBuffer: vi.fn((channels: number, length: number, sr: number) => {
       const data: Float32Array[] = Array.from({ length: channels }, () => new Float32Array(length));
       return {
