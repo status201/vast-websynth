@@ -218,7 +218,7 @@ listener mechanism.
 - **Lane mixer** — Song-tab mute/solo/volume per lane (`<lane>.mute`/
   `.solo`/`.master` params). The audibility rule is the pure `audibleLanes`
   (`audio/transport/lane-mix.ts`, solo wins over mute), shared by
-  `Engine.applyLaneMix()` and the Song panel's dim-when-silenced visual.
+  `LaneMixer` (`audio/lane-mixer.ts`) and the Song panel's dim-when-silenced visual.
   Drums/sampler mute by cutting their bus gain; the sequencer mutes via
   `StepSequencer.setMuted` (stops triggering, leaving live-keyboard play and the
   voice bus untouched). `seq.master` is the synth voice-bus volume (default 1,

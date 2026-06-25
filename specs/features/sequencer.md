@@ -69,7 +69,7 @@ seq.solo:   { discrete, labels: [off, solo], default: 0 }
 engine (subscribeParams):
   seq.on     -> this.seq.setEnabled(v >= 0.5)
   seq.master -> rampTo(voiceBus.gain, v)      # independent of mute
-  seq.mute/solo -> lane mixer (applyLaneMix -> seq.setMuted), see song-mode.md
+  seq.mute/solo -> laneMixer.setMute/setSolo (-> seq.setMuted), see song-mode.md
 hit math: stepHits / rollProb (step-hits.ts); releases voice at gateEnd
 ui: src/ui/panels/seq-panel.ts (16 seq-step-<i> buttons + StepSettingsEditor)
 ```

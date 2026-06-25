@@ -82,7 +82,9 @@ built `dist/`.
 src/
   main.ts            boot: create Engine + ParamBus, mount UI, wire input
   audio/             AudioContext graph
-    engine.ts        voice allocation, FX chain wiring, param subscriptions
+    engine.ts        AudioContext owner: graph wiring, param subscriptions, transport
+    polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
+    lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → ladder filter → amp
     oscillator.ts, envelope.ts, lfo.ts, midi.ts
     ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
@@ -99,8 +101,9 @@ src/
     preset.ts        factory bank + localStorage persistence
     song.ts          full-song save/load + demo songs
     demos/           drop-in *.json SongFiles, auto-loaded at build time
-  ui/                hand-built DOM components and panels
-                     (incl. song-panel: chains, DJ FX, song I/O)
+  ui/                hand-built DOM components and panels (incl. song-panel:
+                     chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
+                     view of the Engine (see specs ADR-009)
   styles/            Global CSS: base.css (reset), theme.css (custom properties), layout.css (.app grid + responsive)
   ui/styles/         CSS Modules (*.module.css — component/panel-scoped, imported by components)
 public/worklets/     ladder-filter.js, compressor.js, recorder.js (audio thread)

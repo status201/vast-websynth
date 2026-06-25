@@ -98,7 +98,7 @@ drum.t{i}.mute:  { discrete, labels: [on, mute], default: 0 }
 
 ```yaml
 engine (subscribeParams):
-  drum.on -> setEnabled; drum.master -> drumVol + applyLaneMix
+  drum.on -> setEnabled; drum.master -> laneMixer.setDrumVol
   drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)

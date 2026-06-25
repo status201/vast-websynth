@@ -86,7 +86,7 @@ never call each other directly.
 ```
    UI  (ui/app.ts · panels · components)
     │
-    │  writes: bus.set(id, v) · patterns.*       (UI never calls Engine directly)
+    │  writes: bus.set(id, v) · patterns.*       (UI writes params via the bus, not the Engine)
     ▼
    ParamBus (scalars) ◄─── Song.capture/restore ───► PatternStore (step grids)
     │
