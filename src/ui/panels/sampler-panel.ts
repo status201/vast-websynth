@@ -1,5 +1,5 @@
 import type { ParamBus } from '../../state/params';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { StepButton } from '../components/step-button';
@@ -21,7 +21,7 @@ function paintCell(sb: StepButton, cell: SamplerStep): void {
   sb.el.title = stepTitle(cell);
 }
 
-export function buildSamplerPanel(bus: ParamBus, engine: Engine): HTMLElement {
+export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
 

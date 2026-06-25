@@ -4,7 +4,7 @@
 // is what lets steps like "press a key" / "press Play" be genuinely
 // interactive. Only the callout (and its Back/Skip/Next buttons) is clickable.
 import type { ParamBus } from '../../state/params';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import { createButton, setButtonLabel } from '../components/button';
 import styles from '../styles/tour.module.css';
 
@@ -16,7 +16,7 @@ const NOTE_ADVANCE_MS = 2000;
 /** Runtime hooks the steps need — injected so we never read DEV-only globals. */
 export interface TourCtx {
   bus: ParamBus;
-  engine: Engine;
+  engine: StudioApi;
   /** Toggle the transport via the header button (keeps the LED/label synced). */
   toggleTransport: () => void;
   /** Load a demo song by name (does NOT start the transport). */

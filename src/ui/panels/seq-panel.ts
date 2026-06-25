@@ -3,7 +3,7 @@ import layout from '../styles/layout.module.css';
 import styles from '../styles/seq.module.css';
 import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
-import type { Engine } from '../../audio/engine';
+import type { StudioApi } from '../studio-api';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
@@ -23,7 +23,7 @@ function paintStep(sb: StepButton, s: SeqStep): void {
   sb.el.title = `${noteName(s.note)} · ${stepTitle(s)}`;
 }
 
-export function buildSeqPanel(bus: ParamBus, engine: Engine): HTMLElement {
+export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} seq-panel`;
 

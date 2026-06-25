@@ -1,4 +1,4 @@
-import type { Engine } from '../audio/engine';
+import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { PresetSession } from '../state/preset-session';
 import type { UiBridge } from './ui-bridge';
@@ -42,7 +42,7 @@ const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matche
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
 export function mountApp(
-  root: HTMLElement, engine: Engine, bus: ParamBus, bridge: UiBridge, session: PresetSession,
+  root: HTMLElement, engine: StudioApi, bus: ParamBus, bridge: UiBridge, session: PresetSession,
 ): Onboarding {
   root.innerHTML = '';
 
@@ -96,7 +96,7 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
 }
 
 function buildHeader(
-  engine: Engine, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
+  engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
@@ -233,7 +233,7 @@ function buildHeader(
 }
 
 function buildPatternRow(
-  engine: Engine, bus: ParamBus, session: PresetSession,
+  engine: StudioApi, bus: ParamBus, session: PresetSession,
 ): { el: HTMLElement; loadDemo: (name: string) => void } {
   const song = buildSongPanel(bus, engine, session);
   const tabs = new TabContainer([
@@ -421,7 +421,7 @@ function fxPanel(
   return el;
 }
 
-function buildBottom(engine: Engine, bus: ParamBus, bridge: UiBridge): HTMLElement {
+function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLElement {
   const bottom = document.createElement('div');
   bottom.className = styles.bottom!;
 

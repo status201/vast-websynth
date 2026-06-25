@@ -268,7 +268,10 @@ listener mechanism.
   blocked by the browser — the modal shows a clear message; it works from
   `http://localhost`.
 - UI is hand-built DOM (`document.createElement`), no virtual DOM. Components
-  in `ui/components/`, larger sections in `ui/panels/`. The on-screen keyboard
+  in `ui/components/`, larger sections in `ui/panels/`. Panels/components that
+  need transport/pattern/recorder/meter access take a **`StudioApi`**
+  (`ui/studio-api.ts`) — the UI's narrow, structural view of the `Engine`, not the
+  whole object (ADR-009); `main.ts` passes the concrete `Engine`. The on-screen keyboard
   and transport toggle are driven through a shared **`UiBridge`**
   (`ui/ui-bridge.ts`): `app.ts` wires its `pressKey`/`releaseKey`/
   `toggleTransport` callbacks to the keyboard component and the header Play
