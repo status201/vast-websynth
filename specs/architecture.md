@@ -76,6 +76,33 @@ Created once in `main.ts` and threaded everywhere:
 
 Non-scalar state lives in **`PatternStore`** (`src/state/patterns.ts`).
 
+### Module dependency graph
+
+*Who owns and depends on whom* — module ownership + data-flow direction (distinct
+from the signal-flow **audio graph** below, which is audio routing). The spine is
+the UI/audio separation (REQ-1): the UI writes state, the `Engine` reads it; they
+never call each other directly.
+
+```
+   UI  (ui/app.ts · panels · components)
+    │
+    │  writes: bus.set(id, v) · patterns.*       (UI never calls Engine directly)
+    ▼
+   ParamBus (scalars) ◄─── Song.capture/restore ───► PatternStore (step grids)
+    │
+    │  Engine.subscribe(...) · bus.onNote      (+ Transport reads PatternStore grids)
+    ▼
+   Engine  (owns the AudioContext)
+    ├─ Voices      — 8-voice pool
+    ├─ FX          — insert chain + drum/master compressors
+    ├─ Transport   — Clock, Arrangement, Performance, Sequencer,
+    │                DrumMachine, SamplerMachine, Arpeggiator
+    └─ Recorder    — RecorderController (audio export), taps master
+```
+
+`main.ts` constructs `ParamBus` then `Engine(bus)` and threads both everywhere;
+`Song` is the only thing that snapshots `ParamBus` **and** `PatternStore` together.
+
 ### Layer contracts (public surfaces)
 
 ```yaml
@@ -187,6 +214,29 @@ not_persisted:
 - **TypeScript is strict** with `noUncheckedIndexedAccess` — expect `arr[i]!`
   assertions; match that style. Tests live **outside `src/`** so `tsc` ignores
   them. So does this `specs/` folder.
+
+## Key decisions (ADRs)
+
+The *why* behind the choices above — and the alternatives each one rejected —
+lives in [`decisions/`](decisions/) as Architecture Decision Records. The
+load-bearing ones:
+
+- [ADR-000](decisions/adr-000-spec-driven-development.md) — Spec-Driven Development
+  as the working method (enforced, not optional).
+- [ADR-001](decisions/adr-001-parambus-over-redux.md) — `ParamBus` over a state
+  framework (the scalar single-source-of-truth behind REQ-1/REQ-2).
+- [ADR-002](decisions/adr-002-audioworklet-compressor.md) — a custom AudioWorklet
+  compressor over the native `DynamicsCompressorNode`.
+- [ADR-003](decisions/adr-003-no-runtime-dependencies.md) — zero runtime
+  dependencies (vanilla TS + the Web platform; `lamejs` vendored).
+- [ADR-004](decisions/adr-004-patternstore-separate-from-parambus.md) —
+  `PatternStore` separate from `ParamBus` (REQ-5; grids aren't scalars).
+- [ADR-005](decisions/adr-005-cutoff-as-midi-note.md) — filter cutoff as a MIDI
+  note number, for semitone-additive modulation.
+- [ADR-006](decisions/adr-006-no-op-param-defaults.md) — no-op defaults for new
+  params (REQ-4; existing presets/songs are unaffected).
+- [ADR-007](decisions/adr-007-songfile-additive-versioning.md) — additive
+  `SongFile` versioning (old songs keep loading and sounding the same).
 
 ## Tests & verification
 

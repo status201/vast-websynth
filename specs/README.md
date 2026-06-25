@@ -94,6 +94,24 @@ Each spec carries a `status` in its metadata block:
 For **new** features: write the spec as `draft`, get a human to catch logic flaws
 *before* an agent generates code, then move it to `active`/`implemented`.
 
+## Decisions (ADRs) — the "why" layer
+
+Feature specs capture the **what** and recipes the **how**, but the *why* behind a
+cross-cutting architectural choice — and crucially, **which alternatives were
+rejected and the trade-off accepted** — lived only implicitly in prose. That's
+what makes a deliberate constraint indistinguishable from an accident, and invites
+someone to "fix" a thing that was chosen on purpose.
+
+`decisions/` holds **Architecture Decision Records**: one short, immutable record
+per decision, structured Context → Decision → Alternatives → Consequences. Copy
+[`decisions/_adr-template.md`](decisions/_adr-template.md) to start one
+(`adr-NNN-<slug>.md`, numbered contiguously). An ADR's `status` is its own
+decision lifecycle — `proposed | accepted | superseded by adr-XXX | deprecated` —
+**not** the `draft | active | implemented` of a feature spec. ADRs are
+append-only: to change a decision, write a new ADR that supersedes the old one
+rather than rewriting it. Each ADR's `related:` links to the specs it governs, and
+[`architecture.md`](architecture.md) → "Key decisions" links back to the ADRs.
+
 ## Procedure by change type
 
 **Spec-before-code**: a change that edits production code (`src/**`,
@@ -189,6 +207,16 @@ specs/
     add-a-tour-step.md        ·  a guided-tour / help step
     evolve-the-song-format.md ·  bump the SongFile version, stay back-compat
     write-a-test.md           ·  unit (Vitest) + E2E (Playwright) conventions
+  decisions/           ← Architecture Decision Records (the "why")
+    _adr-template.md                          ·  copy this to start a new ADR
+    adr-000-spec-driven-development.md        ·  why specs lead code (enforced)
+    adr-001-parambus-over-redux.md            ·  one scalar bus, not a framework
+    adr-002-audioworklet-compressor.md        ·  custom worklet over the native node
+    adr-003-no-runtime-dependencies.md        ·  vanilla TS + the Web platform
+    adr-004-patternstore-separate-from-parambus.md ·  grids aren't scalars
+    adr-005-cutoff-as-midi-note.md            ·  semitone-additive modulation
+    adr-006-no-op-param-defaults.md           ·  new params can't change old sounds
+    adr-007-songfile-additive-versioning.md   ·  the song format only grows
 ```
 
 > Coverage note: the feature set above documents the current system. New features
