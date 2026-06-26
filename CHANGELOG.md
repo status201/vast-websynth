@@ -16,6 +16,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-06-26
+
+### Added
+
+- **Performance mode** — a device-scoped audio-quality setting (Auto / On /
+  Off) in the header **Perf** modal. On weak hardware it trades a little
+  latency, polyphony, and visual fidelity to keep audio stable; **Auto**
+  detects weak devices automatically. Buffer and voice count are fixed when
+  audio starts, so a change applies on **reload** (the modal shows the
+  effective state and a reload hint). The setting never enters presets or songs.
+
+### Changed
+
+- **Ladder filter** now has per-stage saturation and a smoother resonance taper
+  for a warmer, more musical filter sweep (with a matching cutoff-knob taper).
+
+### Fixed
+
+- Synthesised drum hits no longer leak audio nodes: each one-shot hit's
+  oscillators, filters, and gains are disconnected when it ends, fixing the
+  crackle/distortion that built up over a long-running song (worst on mobile).
+- Performance modal: the reload hint and button no longer appear on a fresh
+  open when no change is pending.
+
 ## [1.5.1] - 2026-06-23
 
 ## [1.5.0] - 2026-06-23
@@ -74,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/status201/vast-websynth/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/status201/vast-websynth/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/status201/vast-websynth/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/status201/vast-websynth/compare/v1.3.1...v1.4.0
