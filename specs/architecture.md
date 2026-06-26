@@ -133,7 +133,8 @@ Engine:          # src/audio/engine.ts
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
   # patterns, arrangement, clock, perf, seq, drums, sampler, recorder, analyser,
-  # ctx, drumComp, masterComp + panic()/resume(). Engine satisfies it structurally;
+  # analyserL, analyserR, ctx, drumComp, masterComp + panic()/resume(). Engine
+  # satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
 PatternStore:    # src/state/patterns.ts
@@ -224,7 +225,9 @@ voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
 - The **analyser taps pre-master**, so the scope is independent of the master
-  volume knob.
+  volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
+  analyser` so the scope can also show per-channel L/R (see
+  [`features/scope.md`](features/scope.md)).
 - `drumComp` is a **FET**-mode compressor; `masterComp` is a **VCA**-mode
   compressor (see [`features/compressor.md`](features/compressor.md)).
 

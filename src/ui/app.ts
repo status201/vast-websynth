@@ -440,7 +440,10 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
 
   const scopeWrap = document.createElement('div');
   scopeWrap.className = styles.scopeWrap!;
-  const scope = new Scope(engine.analyser, { lightweight: resolvePerfActive() });
+  const scope = new Scope(
+    { mono: engine.analyser, left: engine.analyserL, right: engine.analyserR },
+    { lightweight: resolvePerfActive() },
+  );
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
   toggle.className = `${switchStyles.root!} ${styles.scopeToggle!}`;
@@ -453,6 +456,18 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
     toggle.textContent = isWave ? 'Wave' : 'Spectrum';
   });
   scopeWrap.appendChild(toggle);
+  // Mono/Stereo toggle — orthogonal to Wave/Spectrum. Defaults to Mono.
+  const chanToggle = document.createElement('button');
+  chanToggle.className = `${switchStyles.root!} ${styles.scopeChannelsToggle!}`;
+  chanToggle.dataset.testid = 'scope-channels-toggle';
+  chanToggle.textContent = 'Mono';
+  let isStereo = false;
+  chanToggle.addEventListener('click', () => {
+    isStereo = !isStereo;
+    scope.setChannels(isStereo ? 'stereo' : 'mono');
+    chanToggle.textContent = isStereo ? 'Stereo' : 'Mono';
+  });
+  scopeWrap.appendChild(chanToggle);
   top.appendChild(scopeWrap);
 
   bottom.appendChild(top);

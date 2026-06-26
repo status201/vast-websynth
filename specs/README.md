@@ -197,6 +197,7 @@ specs/
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
+    scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param
     add-an-effect.md         ·  a bypass-able insert effect on a bus

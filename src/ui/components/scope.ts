@@ -1,6 +1,117 @@
 import styles from '../styles/scope.module.css';
 
 export type ScopeMode = 'wave' | 'spectrum';
+export type ScopeChannels = 'mono' | 'stereo';
+
+/** At/above this canvas width (CSS px) stereo splits side-by-side; below it stacks. */
+export const STEREO_SIDE_BY_SIDE_MIN_W = 480;
+
+/** Centre gutter (CSS px) between the side-by-side L/R halves so they read apart. */
+export const STEREO_GAP = 16;
+
+/** Which analyser feeds a region, and where/how big it draws (CSS px, layout box). */
+export interface ScopeRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tag: 'mono' | 'left' | 'right';
+  label: string;
+}
+
+/**
+ * Pure split geometry for the scope (canvas-free, so it is unit-testable). Mono is
+ * one full-panel region. Stereo tiles the panel into two equal halves — side-by-side
+ * (L left / R right) on a wide panel, stacked (L top / R bottom) on small screens —
+ * decided from the panel width so it tracks the space actually available.
+ */
+export function scopeRegions(channels: ScopeChannels, w: number, h: number): ScopeRegion[] {
+  if (channels === 'mono') {
+    return [{ x: 0, y: 0, w, h, tag: 'mono', label: '' }];
+  }
+  if (w >= STEREO_SIDE_BY_SIDE_MIN_W) {
+    // Inset each half by half the gutter so a STEREO_GAP-wide gap sits dead centre.
+    const half = (w - STEREO_GAP) / 2;
+    return [
+      { x: 0, y: 0, w: half, h, tag: 'left', label: 'L' },
+      { x: half + STEREO_GAP, y: 0, w: half, h, tag: 'right', label: 'R' },
+    ];
+  }
+  const half = h / 2;
+  return [
+    { x: 0, y: 0, w, h: half, tag: 'left', label: 'L' },
+    { x: 0, y: half, w, h: half, tag: 'right', label: 'R' },
+  ];
+}
+
+/** dB shown at the very top of a spectrum region — i.e. "clip" (REQ-11). */
+export const SPECTRUM_DB_TOP = 0;
+
+/**
+ * dB span from the top of a region to its bottom. 70 matches the AnalyserNode's
+ * default `getByteFrequencyData` range (−100…−30 dB), so the displayed scale is a
+ * pure +30 re-label of the existing bars — bar heights are untouched (REQ-11).
+ */
+export const SPECTRUM_DB_RANGE = 70;
+
+/** Peak-hold fall rate. Deliberately very slow ("real slow"); single tunable knob. */
+export const PEAK_DECAY_DB_PER_SEC = 3;
+
+/** How long the held peak stays pinned at a new max before it starts falling. */
+export const PEAK_HOLD_SEC = 1.5;
+
+/**
+ * Map an analyser frequency byte (0..255) onto the displayed dB scale: 0 dB at the
+ * top of the graph (byte 255) down to −SPECTRUM_DB_RANGE at the bottom (byte 0).
+ * Pure (canvas-free) so it is unit-testable. (REQ-11)
+ */
+export function byteToDisplayDb(byte: number): number {
+  return SPECTRUM_DB_TOP - SPECTRUM_DB_RANGE * (1 - byte / 255);
+}
+
+/**
+ * Inverse of `byteToDisplayDb` as a 0..1 fraction of region height (0 = bottom,
+ * 1 = top), clamped — places the peak line on the same vertical scale as the bars.
+ */
+export function dbToFrac(db: number): number {
+  const frac = (db - SPECTRUM_DB_TOP + SPECTRUM_DB_RANGE) / SPECTRUM_DB_RANGE;
+  return frac < 0 ? 0 : frac > 1 ? 1 : frac;
+}
+
+/**
+ * Slow fall: the held value drops at `PEAK_DECAY_DB_PER_SEC`, never below the
+ * current maximum. Frame-rate independent via `dtSec`.
+ */
+export function decayPeak(heldDb: number, currentMaxDb: number, dtSec: number): number {
+  return Math.max(currentMaxDb, heldDb - PEAK_DECAY_DB_PER_SEC * dtSec);
+}
+
+/** Held peak: the level and how long it stays pinned before decaying. */
+export interface PeakState {
+  db: number;       // held level in displayed dB; -Infinity = cleared
+  holdS: number;    // seconds remaining on the hold plateau
+}
+
+/**
+ * Peak-hold update (REQ-12): a louder bar pushes the held dB up instantly and
+ * re-arms a `PEAK_HOLD_SEC` plateau during which the line stays pinned (so the max
+ * is readable); once the plateau elapses it falls slowly via `decayPeak`. A
+ * `-Infinity` start (just reset) snaps straight to `currentMaxDb`.
+ */
+export function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number): PeakState {
+  if (currentMaxDb >= state.db) return { db: currentMaxDb, holdS: PEAK_HOLD_SEC };
+  const holdS = state.holdS - dtSec;
+  if (holdS > 0) return { db: state.db, holdS };
+  return { db: decayPeak(state.db, currentMaxDb, dtSec), holdS: 0 };
+}
+
+export interface ScopeAnalysers {
+  /** Mono down-mix (the default view). */
+  mono: AnalyserNode;
+  /** Left/right channel taps — required for the stereo view. */
+  left?: AnalyserNode;
+  right?: AnalyserNode;
+}
 
 export interface ScopeOptions {
   /**
@@ -11,38 +122,87 @@ export interface ScopeOptions {
   lightweight?: boolean;
 }
 
+/** An analyser paired with its reusable time-domain + frequency buffers. */
+interface Channel {
+  analyser: AnalyserNode;
+  wave: Uint8Array<ArrayBuffer>;
+  freq: Uint8Array<ArrayBuffer>;
+  /** Held max level in displayed dB for the Spectrum peak-hold; -Infinity = cleared. */
+  peakDb: number;
+  /** Seconds left on the hold plateau before the held peak starts to fall. */
+  peakHoldS: number;
+}
+
 export class Scope {
   readonly el: HTMLCanvasElement;
   private mode: ScopeMode = 'wave';
+  private channels: ScopeChannels = 'mono';
   private rafId = 0;
   private running = false;
   private tick = 0;
   private readonly lightweight: boolean;
   private readonly ctx: CanvasRenderingContext2D | null;
-  private readonly waveData: Uint8Array<ArrayBuffer>;
-  private readonly freqData: Uint8Array<ArrayBuffer>;
+  private readonly mono: Channel;
+  private readonly left: Channel | null;
+  private readonly right: Channel | null;
   private bitmapW = 0;
   private bitmapH = 0;
+  /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
+  private lastTs = 0;
 
-  constructor(private readonly analyser: AnalyserNode, opts: ScopeOptions = {}) {
+  constructor(analysers: ScopeAnalysers, opts: ScopeOptions = {}) {
     this.lightweight = opts.lightweight ?? false;
     this.el = document.createElement('canvas');
     this.el.className = styles.root!;
+    this.el.dataset.testid = 'scope-canvas';
     this.ctx = this.el.getContext('2d');
-    this.waveData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
-    this.freqData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+    this.mono = makeChannel(analysers.mono);
+    this.left = analysers.left ? makeChannel(analysers.left) : null;
+    this.right = analysers.right ? makeChannel(analysers.right) : null;
     // Pause the redraw loop while the tab is hidden — a backgrounded scope is
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
+    // Clicking the graph resets the Spectrum peak-hold. The listener is on the
+    // canvas itself; the Wave/Spectrum + Mono/Stereo buttons are siblings (not
+    // children) of it, so clicking a button never resets — "anywhere but the
+    // buttons" with no stopPropagation needed. (REQ-13)
+    this.el.addEventListener('click', this.onClick);
     this.start();
   }
 
   setMode(m: ScopeMode): void { this.mode = m; }
 
+  /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
+  resetPeak(): void {
+    for (const c of [this.mono, this.left, this.right]) {
+      if (!c) continue;
+      c.peakDb = -Infinity;
+      c.peakHoldS = 0;
+    }
+    this.clearPeakDataset();
+  }
+
+  /** Switch mono/stereo. Stereo needs both channel analysers; falls back to mono. */
+  setChannels(c: ScopeChannels): void {
+    this.channels = c === 'stereo' && this.left && this.right ? 'stereo' : 'mono';
+  }
+
+  /** The effective channel layout (mono unless stereo was set with both analysers). */
+  get channelMode(): ScopeChannels { return this.channels; }
+
   private readonly onVisibility = (): void => {
     if (document.hidden) this.stop();
     else this.start();
   };
+
+  private readonly onClick = (): void => { this.resetPeak(); };
+
+  /** The channel feeding a region tag (left/right fall back to mono if absent). */
+  private channelFor(tag: ScopeRegion['tag']): Channel {
+    if (tag === 'left') return this.left ?? this.mono;
+    if (tag === 'right') return this.right ?? this.mono;
+    return this.mono;
+  }
 
   /** Sync the canvas bitmap size with its layout box. No-op if already in sync. */
   private syncSize(): boolean {
@@ -76,12 +236,20 @@ export class Scope {
   private stop(): void {
     this.running = false;
     cancelAnimationFrame(this.rafId);
+    // Forget the last frame time so the first frame after resuming has dt 0 — the
+    // peak-hold must not decay across the (possibly long) paused-while-hidden gap.
+    this.lastTs = 0;
   }
 
   private draw(): void {
     if (!this.syncSize()) return;
     const ctx = this.ctx;
     if (!ctx) return;
+    // Seconds since the previous frame, clamped — drives the dt-based peak decay
+    // identically at ~30/60fps. The clamp caps any residual gap after a pause.
+    const now = performance.now();
+    const dt = this.lastTs ? Math.min((now - this.lastTs) / 1000, 0.1) : 0;
+    this.lastTs = now;
     const dpr = window.devicePixelRatio || 1;
     // Set transform fresh each frame — no compounding.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -89,60 +257,156 @@ export class Scope {
     const w = this.el.clientWidth;
     const h = this.el.clientHeight;
     ctx.clearRect(0, 0, w, h);
+    // Stale-free dataset: only the channels drawn this frame re-set their key.
+    this.clearPeakDataset();
 
-    // Faint horizontal mid-line and grid (vintage CRT look)
+    // One renderer drives every region (DRY): mono = 1 region, stereo = 2.
+    for (const region of scopeRegions(this.channels, w, h)) {
+      const channel = this.channelFor(region.tag);
+      if (this.mode === 'wave') this.drawWave(ctx, channel, region);
+      else this.drawSpectrum(ctx, channel, region, dt);
+      if (region.label) this.drawLabel(ctx, region);
+    }
+  }
+
+  /** Faint horizontal mid-line for a region (vintage CRT look). */
+  private drawMidline(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
+    const midY = r.y + r.h / 2;
     ctx.strokeStyle = 'rgba(244, 205, 94, 0.07)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, h / 2);
-    ctx.lineTo(w, h / 2);
+    ctx.moveTo(r.x, midY);
+    ctx.lineTo(r.x + r.w, midY);
     ctx.stroke();
+  }
 
-    if (this.mode === 'wave') {
-      this.analyser.getByteTimeDomainData(this.waveData);
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = '#e8742e';
-      if (!this.lightweight) {
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = 'rgba(232, 116, 46, 0.7)';
-      }
-      ctx.beginPath();
-      const len = this.waveData.length;
-      for (let i = 0; i < len; i++) {
-        const x = (i / (len - 1)) * w;
-        const v = ((this.waveData[i] ?? 128) - 128) / 128;
-        const y = h / 2 + v * (h / 2 - 4);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    } else {
-      this.analyser.getByteFrequencyData(this.freqData);
-      const bins = this.freqData.length;
-      const used = Math.floor(bins * 0.6);
-      const barW = w / used;
-      const grad = ctx.createLinearGradient(0, h, 0, 0);
-      grad.addColorStop(0, '#e8742e');
-      grad.addColorStop(0.6, '#f4cd5e');
-      grad.addColorStop(1, '#ff3a20');
-      ctx.fillStyle = grad;
-      if (!this.lightweight) {
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = 'rgba(232, 116, 46, 0.5)';
-      }
-      for (let i = 0; i < used; i++) {
-        const v = (this.freqData[i] ?? 0) / 255;
-        const bh = v * (h - 2);
-        if (bh < 0.5) continue;
-        ctx.fillRect(i * barW, h - bh, Math.max(1, barW - 1), bh);
-      }
-      ctx.shadowBlur = 0;
+  private drawLabel(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
+    ctx.fillStyle = 'rgba(244, 205, 94, 0.4)';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.textBaseline = 'top';
+    ctx.fillText(r.label, r.x + 4, r.y + 4);
+  }
+
+  private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
+    this.drawMidline(ctx, r);
+    channel.analyser.getByteTimeDomainData(channel.wave);
+    const data = channel.wave;
+    const midY = r.y + r.h / 2;
+    const amp = r.h / 2 - 4;
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = '#e8742e';
+    if (!this.lightweight) {
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = 'rgba(232, 116, 46, 0.7)';
     }
+    ctx.beginPath();
+    const len = data.length;
+    for (let i = 0; i < len; i++) {
+      const x = r.x + (i / (len - 1)) * r.w;
+      const v = ((data[i] ?? 128) - 128) / 128;
+      const y = midY + v * amp;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  private drawSpectrum(
+    ctx: CanvasRenderingContext2D,
+    channel: Channel,
+    r: ScopeRegion,
+    dtSec: number,
+  ): void {
+    this.drawMidline(ctx, r);
+    channel.analyser.getByteFrequencyData(channel.freq);
+    const data = channel.freq;
+    const used = Math.floor(data.length * 0.6);
+    const barW = r.w / used;
+    const grad = ctx.createLinearGradient(0, r.y + r.h, 0, r.y);
+    grad.addColorStop(0, '#e8742e');
+    grad.addColorStop(0.6, '#f4cd5e');
+    grad.addColorStop(1, '#ff3a20');
+    ctx.fillStyle = grad;
+    if (!this.lightweight) {
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = 'rgba(232, 116, 46, 0.5)';
+    }
+    let maxByte = 0;
+    for (let i = 0; i < used; i++) {
+      const b = data[i] ?? 0;
+      if (b > maxByte) maxByte = b;
+      const bh = (b / 255) * (r.h - 2);
+      if (bh < 0.5) continue;
+      ctx.fillRect(r.x + i * barW, r.y + r.h - bh, Math.max(1, barW - 1), bh);
+    }
+    ctx.shadowBlur = 0;
+
+    // Peak-hold: pushed up by the loudest visible bar, held briefly, then falls slowly.
+    const next = updatePeak(
+      { db: channel.peakDb, holdS: channel.peakHoldS },
+      byteToDisplayDb(maxByte),
+      dtSec,
+    );
+    channel.peakDb = next.db;
+    channel.peakHoldS = next.holdS;
+    this.drawPeak(ctx, r, channel.peakDb);
+    this.mirrorPeak(r.tag, channel.peakDb);
+  }
+
+  /** The dotted max-dB peak-hold line + its dB label for one region. (REQ-10/11) */
+  private drawPeak(ctx: CanvasRenderingContext2D, r: ScopeRegion, peakDb: number): void {
+    if (!Number.isFinite(peakDb)) return;
+    const y = r.y + r.h - dbToFrac(peakDb) * (r.h - 2);
+    // Turn the red accent on as the peak approaches 0 dB (clip).
+    const color = peakDb >= -0.05 ? '#ff3a20' : 'rgba(244, 205, 94, 0.9)';
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(r.x, y);
+    ctx.lineTo(r.x + r.w, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color;
+    ctx.font = '10px ui-monospace, monospace';
+    // Centre the value within the region so it can't hide behind the corner buttons.
+    ctx.textAlign = 'center';
+    // Flip the label below the line when it's hugging the top edge.
+    const near = y < r.y + 12;
+    ctx.textBaseline = near ? 'top' : 'bottom';
+    ctx.fillText(`${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2);
+    ctx.restore();
+  }
+
+  /** Mirror a region's held peak onto the canvas dataset for E2E (REQ-15). */
+  private mirrorPeak(tag: ScopeRegion['tag'], peakDb: number): void {
+    const v = Number.isFinite(peakDb) ? peakDb.toFixed(1) : '';
+    if (tag === 'left') this.el.dataset.peakL = v;
+    else if (tag === 'right') this.el.dataset.peakR = v;
+    else this.el.dataset.peak = v;
+  }
+
+  private clearPeakDataset(): void {
+    delete this.el.dataset.peak;
+    delete this.el.dataset.peakL;
+    delete this.el.dataset.peakR;
   }
 
   destroy(): void {
     this.stop();
     document.removeEventListener('visibilitychange', this.onVisibility);
+    this.el.removeEventListener('click', this.onClick);
   }
+}
+
+function makeChannel(analyser: AnalyserNode): Channel {
+  return {
+    analyser,
+    wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)),
+    freq: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)),
+    peakDb: -Infinity,
+    peakHoldS: 0,
+  };
 }

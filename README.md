@@ -37,7 +37,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable `.json` files and browser slots — sampler *audio* isn't embedded, so its files are re-loaded after import; built-in demos **Apex Twin**, **Zombie Nation**, and **I Feel Love** (drop any `.json` SongFile into `src/state/demos/` to add a demo at build time)
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
-- Oscilloscope / spectrum display, pitch-bend and mod wheels
+- Oscilloscope / spectrum display (mono or stereo, with a max-dB peak-hold readout), pitch-bend and mod wheels
 - **Performance mode**: auto-detects slower devices (or force it on/off) and trades a little latency, polyphony, and visual detail for glitch-free audio — a larger audio buffer, fewer voices, and a lighter scope
 
 ## Running

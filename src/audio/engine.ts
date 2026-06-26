@@ -49,6 +49,9 @@ export class Engine {
   readonly voiceBus: GainNode;
   readonly master: GainNode;
   readonly analyser: AnalyserNode;
+  /** Per-channel analysers for the scope's stereo view (left / right). */
+  readonly analyserL: AnalyserNode;
+  readonly analyserR: AnalyserNode;
 
   readonly distortion: Distortion;
   readonly wah: Wah;
@@ -129,6 +132,15 @@ export class Engine {
     this.analyser.fftSize = 2048;
     this.analyser.smoothingTimeConstant = 0.2;
 
+    // Per-channel analysers for the scope's stereo view. Same fftSize/smoothing
+    // as the mono analyser so all three buffers are uniform and comparable.
+    this.analyserL = this.ctx.createAnalyser();
+    this.analyserR = this.ctx.createAnalyser();
+    for (const a of [this.analyserL, this.analyserR]) {
+      a.fftSize = 2048;
+      a.smoothingTimeConstant = 0.2;
+    }
+
     // Sum bus where synth FX chain and drum bus meet before master volume.
     // Tapping the analyser here (pre-master) keeps the scope amplitude
     // independent of the master-volume knob.
@@ -161,7 +173,18 @@ export class Engine {
     // it) and before the analyser (the scope shows the compression).
     this.preMaster.connect(this.djFilter);
     this.djFilter.connect(this.masterComp.input);
-    this.masterComp.output.connect(this.analyser);
+    // Split the post-compressor stereo signal into per-channel analysers, then
+    // merge it back losslessly so the mono `analyser` reads the same down-mix as
+    // before and every analyser stays in the live path to destination (so they
+    // are pulled — an AnalyserNode off a dead-end tap is not guaranteed to run).
+    const scopeSplitter = this.ctx.createChannelSplitter(2);
+    const scopeMerger = this.ctx.createChannelMerger(2);
+    this.masterComp.output.connect(scopeSplitter);
+    scopeSplitter.connect(this.analyserL, 0);
+    scopeSplitter.connect(this.analyserR, 1);
+    this.analyserL.connect(scopeMerger, 0, 0);
+    this.analyserR.connect(scopeMerger, 0, 1);
+    scopeMerger.connect(this.analyser);
     this.analyser.connect(this.master);
     this.master.connect(this.ctx.destination);
 

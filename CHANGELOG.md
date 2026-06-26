@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Stereo scope** — a Mono/Stereo toggle on the Wave/Spectrum visualiser. Stereo
+  splits the display into independent **L** and **R** traces (side-by-side on wide
+  panels, stacked on small screens), so you can see stereo effects move the channels
+  apart.
+- **Spectrum peak-hold** — in the Spectrum view a dotted **max-dB** line is pushed
+  up by the bars to mark the loudest level reached (0 dB at the top = clipping), with
+  the value shown in dB — handy when riding the compressors. It holds the peak
+  briefly, then falls back very slowly; **click the graph** to reset it.
+
 ## [1.6.0] - 2026-06-26
 
 ### Added

@@ -300,6 +300,16 @@
   font-size: 10px !important;
 }
 
+.scopeChannelsToggle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+  font-size: 10px !important;
+}
+
 .keyboardWrap {
   background: var(--panel);
   border: 1px solid var(--panel-border);

@@ -38,8 +38,11 @@ export interface StudioApi {
   readonly sampler: SamplerMachine;
   /** Audio export (exportSong / toggleManual / onState). */
   readonly recorder: RecorderController;
-  /** Pre-master analyser tap for the scope. */
+  /** Pre-master analyser tap for the scope (mono down-mix). */
   readonly analyser: AnalyserNode;
+  /** Per-channel pre-master analyser taps for the scope's stereo view. */
+  readonly analyserL: AnalyserNode;
+  readonly analyserR: AnalyserNode;
   /** AudioContext — for sample decode, mic capture, and preview playback. */
   readonly ctx: AudioContext;
   /** Drum-bus compressor; UI reads its gain reduction via `onGr`. */

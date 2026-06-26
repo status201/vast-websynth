@@ -454,6 +454,13 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>A live visualiser of the sound. <strong>Wave</strong> shows the waveform like an ' +
       'oscilloscope (you can see the shape of the tone); <strong>Spectrum</strong> shows the ' +
       'frequency content (bass on the left, treble on the right). Click the button to switch.</p>' +
+      '<p>The <strong>Mono/Stereo</strong> button splits the view: <strong>Stereo</strong> shows ' +
+      'the <strong>L</strong> and <strong>R</strong> channels separately, so you can see stereo ' +
+      'effects (reverb, delay, phaser) move the channels apart.</p>' +
+      '<p>In <strong>Spectrum</strong> a dotted <strong>max-dB</strong> line is pushed up by the ' +
+      'bars to mark the loudest level reached (0 dB at the top = clipping) — handy when riding the ' +
+      'compressors. It holds the peak briefly, then falls back very slowly; ' +
+      '<strong>click the graph</strong> to reset it.</p>' +
       '<p>It taps the signal <em>before</em> the volume knob, so the display stays steady whatever ' +
       'your volume.</p>',
   },
