@@ -144,6 +144,9 @@
   justify-content: center;
 }
 
+/* Mobile preset-cluster toggle (hamburger). Hidden until the phone breakpoint. */
+.menuToggle { display: none; }
+
 .playBtn:global(.on) :global(.switch-label) {
   color: var(--accent-secondary);
 }
@@ -335,6 +338,9 @@
     min-height: 0;
   }
   .headerSpacer { display: none; }
+  /* Let each cluster's buttons reflow onto a new line instead of overflowing
+     (and getting clipped by the page's overflow-x:hidden) on narrow screens. */
+  .headerGroup { flex-wrap: wrap; gap: 8px 10px; }
   .main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -342,4 +348,33 @@
   .mixerTall { grid-row: auto; }
   .fxRow { grid-template-columns: repeat(2, 1fr); }
   .keyboardWrap { min-height: 160px; }
+}
+
+@media (max-width: 720px) {
+  /* Collapse the preset cluster behind the hamburger so the sticky header stays
+     compact; it expands inline as its own row only while the menu is open. */
+  .menuToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto; /* park the hamburger at the top-right of the brand row */
+    font-size: 16px;
+    line-height: 1;
+  }
+  .presetGroup { display: none; }
+  .header.menuOpen .presetGroup {
+    display: flex;
+    flex-basis: 100%; /* reveal as its own full-width row below the brand */
+  }
+  /* Active (open) state — the gold "on" look shared by the Play button + the
+     segmented controls, so the hamburger reads as toggled on. The descendant
+     compound outranks switch.module's base `.root`. */
+  .header.menuOpen .menuToggle {
+    background: linear-gradient(180deg, #4a3525, #2a1c10);
+    border-color: rgba(244, 205, 94, 0.5);
+    color: var(--accent-secondary);
+    box-shadow:
+      0 0 8px var(--accent-secondary-glow),
+      inset 0 1px 0 rgba(244, 205, 94, 0.15);
+  }
 }

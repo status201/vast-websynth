@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   up by the bars to mark the loudest level reached (0 dB at the top = clipping), with
   the value shown in dB — handy when riding the compressors. It holds the peak
   briefly, then falls back very slowly; **click the graph** to reset it.
+- **Mobile header menu** — on phones (≤720px) the preset controls
+  (Preset / Save / Perf / About / Help) collapse behind a ☰ menu button in the
+  top-right so the header stays compact; tap to reveal them. This fixes the
+  header overflowing and clipping those buttons on narrow screens. Wider screens
+  are unchanged.
 
 ## [1.6.0] - 2026-06-26
 

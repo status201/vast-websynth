@@ -124,8 +124,24 @@ function buildHeader(
   brand.appendChild(brandTag);
   el.appendChild(brand);
 
+  // Below 720px the preset cluster collapses behind this hamburger to keep the
+  // sticky header compact; CSS parks it top-right and expands the cluster inline
+  // while `.menuOpen` is set (see specs/features/responsive-header.md).
+  const menuToggle = createButton({
+    label: '☰',
+    testId: 'header-menu',
+    className: `${switchStyles.root!} ${styles.menuToggle!}`,
+    onClick: () => {
+      const open = el.classList.toggle(styles.menuOpen!);
+      menuToggle.setAttribute('aria-expanded', String(open));
+    },
+  });
+  menuToggle.setAttribute('aria-label', 'Toggle preset menu');
+  menuToggle.setAttribute('aria-expanded', 'false');
+  el.appendChild(menuToggle);
+
   const presetGroup = document.createElement('div');
-  presetGroup.className = styles.headerGroup!;
+  presetGroup.className = `${styles.headerGroup!} ${styles.presetGroup!}`;
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
   dropdown.el.dataset.testid = 'preset-select';
