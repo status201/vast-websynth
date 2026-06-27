@@ -113,9 +113,19 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   drop-shadow like the bars; while the tab is hidden the loop is paused, so the held
   value neither decays nor updates.
 - **REQ-15** — For test observability the canvas carries `data-testid="scope-canvas"`
-  and the held dB is mirrored onto its `dataset` each draw: `el.dataset.peak`
+  and the held dB is mirrored onto its `dataset`: `el.dataset.peak`
   (mono) / `el.dataset.peakL` / `el.dataset.peakR` (stereo), formatted to one
-  decimal; cleared in Wave view and on reset. (Lets E2E assert without a 2D context.)
+  decimal; cleared in Wave view, on a Mono/Stereo switch, and on reset. The mirror
+  is written **only when the formatted value changes** (not every frame), so a
+  steady scope performs no per-frame attribute write — the dataset still always
+  reflects the latest displayed value. (Lets E2E assert without a 2D context.)
+- **REQ-16 (performance)** — The redraw loop must do **no per-frame layout read and
+  no per-frame DOM mutation**: the canvas bitmap is sized from a `ResizeObserver`
+  (cached CSS box + dpr), not by reading `clientWidth`/`clientHeight` inside the
+  rAF loop, and the `dataset` mirror only writes on change (REQ-15). So an animated
+  scope costs a single composited canvas raster, not a full page
+  layout/style/layerize/paint each frame. Environments without `ResizeObserver`
+  (jsdom under unit test) fall back to measuring on draw — behaviour unchanged.
 
 ## Technical design
 
@@ -220,6 +230,17 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
 - **`help-content.ts`** `scope` topic text mentions the Mono/Stereo split and the
   peak-hold (click to reset). CSS for the new button lives in `layout.module.css`
   (style-exempt from SDD).
+- **Sizing / redraw cost (REQ-16)** — the constructor creates a `ResizeObserver` on
+  the canvas that, on resize, reads `clientWidth`/`clientHeight` + `devicePixelRatio`
+  and resizes the bitmap (`el.width`/`el.height`) only when it changes, caching the
+  CSS size + dpr. `draw()`/`syncSize()` read those cached values — never the live
+  layout — so the rAF loop forces no reflow. `mirrorPeak` writes a `dataset` key only
+  when its `toFixed(1)` value changes; `clearPeakDataset` runs on Wave/Mono-Stereo/
+  reset transitions (not per frame) and is a no-op when already clear. The observer is
+  `disconnect()`ed in `destroy()`. No `ResizeObserver` (jsdom) → measure-on-draw
+  fallback. The canvas CSS bezel (radial-gradient background + inset box-shadow) lives
+  on the static `.scopeWrap`, not the animated canvas, so it is not re-rastered each
+  frame.
 - **`Scope.drawSpectrum`** owns the peak-hold (v2): after the existing
   `getByteFrequencyData` read it takes the max byte over the same visible bins,
   converts with `byteToDisplayDb`, updates `channel.peakDb` via `decayPeak` (from a
@@ -334,6 +355,14 @@ Scenario: Clicking the graph resets the peak-hold
   Then resetPeak clears the held value and the dataset mirror
   And clicking the Wave/Spectrum or Mono/Stereo buttons does not reset it
 # pinned by: tests/ui/scope-regions.test.ts, e2e/scope.spec.ts
+
+Scenario: The redraw loop performs no per-frame layout read or DOM write (REQ-16)
+  Given the scope is running and the canvas size is unchanged
+  When successive animation frames draw
+  Then the bitmap size is taken from the ResizeObserver-cached CSS box, not clientWidth
+  And the dataset peak mirror is written only on a frame where its value changed
+  And no canvas attribute is mutated on a steady frame
+# pinned by: design contract (REQ-16); dataset observability via e2e/scope.spec.ts
 ```
 
 ## Tests & verification

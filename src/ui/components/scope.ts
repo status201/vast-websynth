@@ -147,6 +147,14 @@ export class Scope {
   private readonly right: Channel | null;
   private bitmapW = 0;
   private bitmapH = 0;
+  /** Cached CSS layout box + devicePixelRatio, refreshed only by the ResizeObserver. */
+  private cssW = 0;
+  private cssH = 0;
+  private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  private ro: ResizeObserver | null = null;
+  /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
+  private readonly mirrored: { peak: string; peakL: string; peakR: string } =
+    { peak: '', peakL: '', peakR: '' };
   /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
   private lastTs = 0;
 
@@ -167,10 +175,21 @@ export class Scope {
     // children) of it, so clicking a button never resets — "anywhere but the
     // buttons" with no stopPropagation needed. (REQ-13)
     this.el.addEventListener('click', this.onClick);
+    // Track the canvas's layout box so the rAF loop never reads clientWidth/Height
+    // (a per-frame forced reflow). jsdom (unit tests) has no ResizeObserver — the
+    // draw path measures itself in that case (see syncSize).
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => this.measure());
+      this.ro.observe(this.el);
+    }
     this.start();
   }
 
-  setMode(m: ScopeMode): void { this.mode = m; }
+  setMode(m: ScopeMode): void {
+    this.mode = m;
+    // Leaving Spectrum must drop the held-peak readout; re-entering re-acquires it.
+    this.clearPeakDataset();
+  }
 
   /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
   resetPeak(): void {
@@ -185,6 +204,8 @@ export class Scope {
   /** Switch mono/stereo. Stereo needs both channel analysers; falls back to mono. */
   setChannels(c: ScopeChannels): void {
     this.channels = c === 'stereo' && this.left && this.right ? 'stereo' : 'mono';
+    // The set of active peak keys (peak vs peakL/peakR) changes with the layout.
+    this.clearPeakDataset();
   }
 
   /** The effective channel layout (mono unless stereo was set with both analysers). */
@@ -204,21 +225,33 @@ export class Scope {
     return this.mono;
   }
 
-  /** Sync the canvas bitmap size with its layout box. No-op if already in sync. */
-  private syncSize(): boolean {
+  /**
+   * Measure the canvas layout box and resize its bitmap to match. This reads
+   * layout (clientWidth/Height) so it runs only from the ResizeObserver (on an
+   * actual resize), never from the rAF loop. The cached CSS size + dpr feed `draw`.
+   */
+  private measure(): void {
     const w = this.el.clientWidth;
     const h = this.el.clientHeight;
-    if (w === 0 || h === 0) return false;
-    const dpr = window.devicePixelRatio || 1;
-    const bw = Math.round(w * dpr);
-    const bh = Math.round(h * dpr);
+    if (w === 0 || h === 0) return;
+    this.cssW = w;
+    this.cssH = h;
+    this.dpr = window.devicePixelRatio || 1;
+    const bw = Math.round(w * this.dpr);
+    const bh = Math.round(h * this.dpr);
     if (bw !== this.bitmapW || bh !== this.bitmapH) {
       this.el.width = bw;
       this.el.height = bh;
       this.bitmapW = bw;
       this.bitmapH = bh;
     }
-    return true;
+  }
+
+  /** Ready-to-draw guard from the cached size — no layout read in the rAF loop. */
+  private syncSize(): boolean {
+    // No ResizeObserver (jsdom): keep the old behaviour and measure on each draw.
+    if (!this.ro) this.measure();
+    return this.cssW > 0 && this.cssH > 0;
   }
 
   private start(): void {
@@ -250,15 +283,14 @@ export class Scope {
     const now = performance.now();
     const dt = this.lastTs ? Math.min((now - this.lastTs) / 1000, 0.1) : 0;
     this.lastTs = now;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = this.dpr;
     // Set transform fresh each frame — no compounding.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const w = this.el.clientWidth;
-    const h = this.el.clientHeight;
+    // Cached CSS box (kept in sync by the ResizeObserver) — no per-frame layout read.
+    const w = this.cssW;
+    const h = this.cssH;
     ctx.clearRect(0, 0, w, h);
-    // Stale-free dataset: only the channels drawn this frame re-set their key.
-    this.clearPeakDataset();
 
     // One renderer drives every region (DRY): mono = 1 region, stereo = 2.
     for (const region of scopeRegions(this.channels, w, h)) {
@@ -380,22 +412,35 @@ export class Scope {
     ctx.restore();
   }
 
-  /** Mirror a region's held peak onto the canvas dataset for E2E (REQ-15). */
+  /**
+   * Mirror a region's held peak onto the canvas dataset for E2E (REQ-15) — but only
+   * when the formatted value changes, so a steady scope writes no attribute per frame
+   * (a per-frame `data-*` write would dirty layout). The mirror still always reflects
+   * the latest displayed value.
+   */
   private mirrorPeak(tag: ScopeRegion['tag'], peakDb: number): void {
+    const key = tag === 'left' ? 'peakL' : tag === 'right' ? 'peakR' : 'peak';
     const v = Number.isFinite(peakDb) ? peakDb.toFixed(1) : '';
-    if (tag === 'left') this.el.dataset.peakL = v;
-    else if (tag === 'right') this.el.dataset.peakR = v;
-    else this.el.dataset.peak = v;
+    if (this.mirrored[key] === v) return;
+    this.mirrored[key] = v;
+    if (v) this.el.dataset[key] = v;
+    else delete this.el.dataset[key];
   }
 
+  /**
+   * Drop every mirrored peak. Only called on rare transitions (Wave/Mono-Stereo
+   * switch, reset) — never per frame — so it clears unconditionally for correctness.
+   */
   private clearPeakDataset(): void {
-    delete this.el.dataset.peak;
-    delete this.el.dataset.peakL;
-    delete this.el.dataset.peakR;
+    for (const key of ['peak', 'peakL', 'peakR'] as const) {
+      this.mirrored[key] = '';
+      delete this.el.dataset[key];
+    }
   }
 
   destroy(): void {
     this.stop();
+    this.ro?.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.el.removeEventListener('click', this.onClick);
   }

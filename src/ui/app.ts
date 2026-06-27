@@ -456,6 +456,11 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
 
   const scopeWrap = document.createElement('div');
   scopeWrap.className = styles.scopeWrap!;
+  // Static CRT screen underlay (gradient + inset vignette) behind the transparent
+  // canvas, so the 60fps redraw never re-rasters the decoration. (scope REQ-16)
+  const scopeScreen = document.createElement('div');
+  scopeScreen.className = styles.scopeScreen!;
+  scopeWrap.appendChild(scopeScreen);
   const scope = new Scope(
     { mono: engine.analyser, left: engine.analyserL, right: engine.analyserR },
     { lightweight: resolvePerfActive() },

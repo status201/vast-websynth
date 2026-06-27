@@ -11,7 +11,10 @@
 
 .fill {
   height: 100%;
-  width: 0%;
+  width: 100%;
+  /* Right-anchored leftward growth via a compositor-only transform (no layout). */
+  transform: scaleX(0);
+  transform-origin: right;
   background: linear-gradient(to left, var(--accent-secondary), #e0633a);
-  transition: width 60ms linear;
+  transition: transform 60ms linear;
 }

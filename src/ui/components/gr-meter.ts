@@ -22,7 +22,8 @@ export class GrMeter {
   }
 
   update(db: number): void {
-    const pct = Math.min(Math.max(db, 0), FULL_SCALE_DB) / FULL_SCALE_DB * 100;
-    this.fill.style.width = `${pct}%`;
+    const frac = Math.min(Math.max(db, 0), FULL_SCALE_DB) / FULL_SCALE_DB;
+    // scaleX (not width) keeps this on the compositor — no layout/paint per update.
+    this.fill.style.transform = `scaleX(${frac})`;
   }
 }
