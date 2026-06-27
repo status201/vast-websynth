@@ -189,6 +189,7 @@ export function buildSongPrompt(bus: ParamBus): string {
 OUTPUT RULES
 - Respond with ONE valid JSON object and nothing else (no markdown, no commentary).
 - It must parse and conform exactly to the schema below.
+- A machine-readable JSON Schema (draft 2020-12) for this format is published with the app at /schema/websynth-song.schema.json — the shape below mirrors it.
 - The user imports it via the synth's Song panel → Import.
 
 TOP-LEVEL SHAPE

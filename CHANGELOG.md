@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   top-right so the header stays compact; tap to reveal them. This fixes the
   header overflowing and clipping those buttons on narrow screens. Wider screens
   are unchanged.
+- **Documented, validated song format** — the `.websynth.json` song format now
+  has a published [JSON Schema](public/schema/websynth-song.schema.json) (served
+  with the app at `/schema/websynth-song.schema.json`) for external tools and AI
+  agents. Importing a song is now **validated**: a malformed file is rejected
+  with specific field-level messages (which step/field is wrong) instead of a
+  single generic error, and legacy/older songs still load unchanged.
 
 ## [1.6.0] - 2026-06-26
 

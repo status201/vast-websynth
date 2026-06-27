@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "websynth-song.schema.json",
+  "title": "VAST G1-J5 song file (.websynth.json)",
+  "description": "Portable song format for the VAST G1-J5 web synthesizer (package name: websynth). A song captures the full parameter snapshot plus all sequencer / drum / sampler banks and the three arrangement chain lanes. The format is additive and forward-compatible: new fields are optional and defaulted, so older files keep loading. Validation mirrors the loader contract — strict on types/structure/ranges/dimensions, lenient on the optional per-step fields (legacy v1 cells omit them). Unknown extra keys are tolerated (forward-compat); decoded audio is never embedded (only sampler filenames persist). Canonical runtime validation is the hand-written validator in src/state/song-validate.ts; this schema is the published machine-readable mirror.",
+  "type": "object",
+  "required": ["format", "version", "name", "params", "seqBanks", "drumBanks", "seqChain", "drumChain"],
+  "properties": {
+    "format": {
+      "const": "websynth-song",
+      "description": "Required discriminator. Always the literal string 'websynth-song'."
+    },
+    "version": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "Format version. capture() always writes 2; v1 files (incl. some built-in demos) lack the sampler fields and still load. Versions beyond those this build knows are rejected."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable song name (also the localStorage slot key and export filename stem)."
+    },
+    "params": {
+      "type": "object",
+      "description": "Flat ParamBus snapshot: dotted parameter id -> scalar value (e.g. 'filter.cutoff', 'fx.delay.mix', 'drum.t0.tune'). Keys are intentionally NOT restricted, so files that carry params from a newer build still load.",
+      "additionalProperties": {
+        "type": "number",
+        "description": "A finite scalar. (JSON cannot encode NaN/Infinity, so non-finite values cannot appear here.)"
+      }
+    },
+    "seqBanks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "4 sequencer banks (A/B/C/D), each exactly 16 steps.",
+      "items": {
+        "type": "array",
+        "minItems": 16,
+        "maxItems": 16,
+        "items": { "$ref": "#/$defs/seqStep" }
+      }
+    },
+    "drumBanks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "4 drum banks, each 8 tracks (Kick, Snare, C.Hat, O.Hat, L.Tom, M.Tom, H.Tom, Clap) x 16 steps.",
+      "items": {
+        "type": "array",
+        "minItems": 8,
+        "maxItems": 8,
+        "items": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/triggerCell" }
+        }
+      }
+    },
+    "seqChain": { "$ref": "#/$defs/chainData", "description": "Sequencer arrangement lane." },
+    "drumChain": { "$ref": "#/$defs/chainData", "description": "Drum arrangement lane." },
+    "samplerBanks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "v2 (optional). 4 sampler banks, each 8 slots x 16 steps.",
+      "items": {
+        "type": "array",
+        "minItems": 8,
+        "maxItems": 8,
+        "items": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/triggerCell" }
+        }
+      }
+    },
+    "samplerChain": { "$ref": "#/$defs/chainData", "description": "v2 (optional). Sampler arrangement lane." },
+    "sampleNames": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "description": "v2 (optional). One filename per sampler slot, or null for an empty slot. Filenames ONLY — decoded audio is never embedded; the user reloads the files after import.",
+      "items": { "type": ["string", "null"] }
+    }
+  },
+  "$comment": "additionalProperties is intentionally NOT forbidden at the root: the format is additive/forward-compatible, so a file carrying keys from a newer build still validates.",
+  "$defs": {
+    "stepSettings": {
+      "type": "object",
+      "description": "Per-step settings shared by all three machines. All fields are OPTIONAL on disk: legacy cells omit them and the loader fills defaults (velocity 0.85, gate 1, prob 1, ratchet 1, tie false). When present they are type/range-checked.",
+      "properties": {
+        "velocity": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1." },
+        "gate": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1 of one step. Drum/sampler: 1 = natural decay (let ring); <1 chokes the hit early." },
+        "prob": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1 chance to fire (1 = always)." },
+        "ratchet": { "type": "integer", "minimum": 1, "maximum": 4, "description": "1..4 sub-hits within the step." },
+        "tie": { "type": "boolean", "description": "Hold into the next step (seq: legato/slide; drum/sampler: skip the choke)." }
+      }
+    },
+    "seqStep": {
+      "type": "object",
+      "description": "A sequencer step. Requires on + note; the per-step settings (velocity/gate/prob/ratchet/tie) are optional and defaulted.",
+      "required": ["on", "note"],
+      "allOf": [{ "$ref": "#/$defs/stepSettings" }],
+      "properties": {
+        "on": { "type": "boolean", "description": "Whether this step triggers a note." },
+        "note": { "type": "number", "description": "MIDI note number." }
+      }
+    },
+    "triggerCell": {
+      "type": "object",
+      "description": "A one-shot trigger cell — the drum-machine and sampler step shape. Requires on; the per-step settings are optional and defaulted.",
+      "required": ["on"],
+      "allOf": [{ "$ref": "#/$defs/stepSettings" }],
+      "properties": {
+        "on": { "type": "boolean", "description": "Whether this cell triggers." }
+      }
+    },
+    "chainData": {
+      "type": "object",
+      "description": "An arrangement chain lane: an ordered list of bank indices, advanced one slot per bar.",
+      "required": ["enabled", "steps"],
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Whether the chain drives this lane's play bank (a disabled lane tracks its edit bank)." },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered bank indices (0..3 = A/B/C/D).",
+          "items": { "type": "integer", "minimum": 0, "maximum": 3 }
+        }
+      }
+    }
+  }
+}

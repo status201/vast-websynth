@@ -124,10 +124,10 @@
     "drum.t0.pan": 0.1631142911913778,
     "drum.t0.mute": 0,
     "drum.t1.vol": 1,
-    "drum.t1.tune": 4,
-    "drum.t1.decay": 0.10516009364330844,
-    "drum.t1.tone": 0.794405574788972,
-    "drum.t1.drive": 0.39756385817003137,
+    "drum.t1.tune": 3,
+    "drum.t1.decay": 0.12736009364330841,
+    "drum.t1.tone": 0.699405574788972,
+    "drum.t1.drive": 0.34256385817003127,
     "drum.t1.pan": -0.08401194955565172,
     "drum.t1.mute": 0,
     "drum.t2.vol": 0.5192925769261675,
@@ -137,7 +137,7 @@
     "drum.t2.drive": 0.19984703980127363,
     "drum.t2.pan": 0.0006278590123668159,
     "drum.t2.mute": 0,
-    "drum.t3.vol": 0.3881263346695535,
+    "drum.t3.vol": 0.8331263346695534,
     "drum.t3.tune": 4,
     "drum.t3.decay": 0.28756368419809186,
     "drum.t3.tone": 0.4579290065722557,
@@ -158,18 +158,18 @@
     "drum.t5.drive": 0.05924977372010352,
     "drum.t5.pan": -0.31736369375115153,
     "drum.t5.mute": 0,
-    "drum.t6.vol": 0.7059772978569644,
+    "drum.t6.vol": 0.5450000000000002,
     "drum.t6.tune": -11,
-    "drum.t6.decay": 0.5508668862397544,
-    "drum.t6.tone": 0.30987013320222945,
-    "drum.t6.drive": 0.09746924739092322,
+    "drum.t6.decay": 0.7654668862397545,
+    "drum.t6.tone": 0.54,
+    "drum.t6.drive": 0.1374692473909233,
     "drum.t6.pan": -0.5709878139804352,
     "drum.t6.mute": 0,
-    "drum.t7.vol": 0.8811548401736294,
-    "drum.t7.tune": -6,
-    "drum.t7.decay": 0.32318733616862794,
-    "drum.t7.tone": 0.6996358689696941,
-    "drum.t7.drive": 0.0013797306343051653,
+    "drum.t7.vol": 0.3161548401736294,
+    "drum.t7.tune": 3,
+    "drum.t7.decay": 0.24178733616862794,
+    "drum.t7.tone": 0.9696358689696941,
+    "drum.t7.drive": 0.2563797306343052,
     "drum.t7.pan": -0.5123223165051746,
     "drum.t7.mute": 0,
     "sampler.on": 0,
@@ -1311,7 +1311,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -1359,23 +1375,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -1407,7 +1407,7 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -1441,7 +1441,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -1473,7 +1489,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -1505,39 +1537,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2353,7 +2353,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2401,23 +2417,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2449,7 +2449,7 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2483,7 +2483,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2515,7 +2531,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -2547,39 +2579,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3395,7 +3395,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3443,23 +3459,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3491,7 +3491,7 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3525,7 +3525,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3557,7 +3573,23 @@
           "tie": false
         },
         {
-          "on": true,
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
+          "velocity": 0.85,
+          "gate": 1,
+          "prob": 1,
+          "ratchet": 1,
+          "tie": false
+        },
+        {
+          "on": false,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,
@@ -3589,39 +3621,7 @@
           "tie": false
         },
         {
-          "on": true,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
           "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": false,
-          "velocity": 0.85,
-          "gate": 1,
-          "prob": 1,
-          "ratchet": 1,
-          "tie": false
-        },
-        {
-          "on": true,
           "velocity": 0.85,
           "gate": 1,
           "prob": 1,

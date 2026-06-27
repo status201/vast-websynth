@@ -7,6 +7,8 @@ import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
+import { validateSongFile } from './song-validate';
+export type { SongValidation } from './song-validate';
 
 const STORAGE_PREFIX = 'websynth.song.';
 const INDEX_KEY = 'websynth.song.index';
@@ -69,11 +71,19 @@ export const Song = {
   },
 
   fromJSON(text: string): SongFile | null {
+    const res = Song.parse(text);
+    return res.ok ? res.file : null;
+  },
+
+  /** Like `fromJSON` but returns field-level errors instead of collapsing to null. */
+  parse(text: string): import('./song-validate').SongValidation {
+    let parsed: unknown;
     try {
-      const o = JSON.parse(text) as SongFile;
-      if (o && o.format === 'websynth-song' && o.params && o.seqBanks && o.drumBanks) return o;
-    } catch { /* fall through */ }
-    return null;
+      parsed = JSON.parse(text);
+    } catch (e) {
+      return { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] };
+    }
+    return validateSongFile(parsed);
   },
 
   download(file: SongFile): void {
@@ -88,6 +98,11 @@ export const Song = {
 
   readFile(f: File): Promise<SongFile | null> {
     return f.text().then((t) => Song.fromJSON(t));
+  },
+
+  /** Like `readFile` but returns field-level validation errors for the import UI. */
+  parseFile(f: File): Promise<import('./song-validate').SongValidation> {
+    return f.text().then((t) => Song.parse(t));
   },
 
   // ---- localStorage slots ----

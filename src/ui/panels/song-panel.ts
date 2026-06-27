@@ -178,9 +178,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
-    const song = await Song.readFile(f);
-    if (!song) { alert('Not a valid WebSynth song file.'); return; }
-    applySong(song);
+    const res = await Song.parseFile(f);
+    if (!res.ok) {
+      const shown = res.errors.slice(0, 8);
+      const more = res.errors.length - shown.length;
+      alert('Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''));
+      fileInput.value = '';
+      return;
+    }
+    const song = res.file;
+    try {
+      applySong(song);
+    } catch (e) {
+      alert('Song imported but failed to apply: ' + (e as Error).message);
+      fileInput.value = '';
+      return;
+    }
     Song.saveSlot(song.name, song);
     refreshList();
     dropdown.setValue(song.name);

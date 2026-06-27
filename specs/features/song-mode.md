@@ -3,13 +3,15 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
   - compressor
 source:
-  - src/state/song.ts                         # capture/apply/persist + demos
+  - src/state/song.ts                         # capture/apply/persist + demos + parse
+  - src/state/song-validate.ts                # validateSongFile (import validation)
+  - public/schema/websynth-song.schema.json   # machine-readable JSON Schema (shipped)
   - src/state/patterns.ts                     # banks + restore (migration)
   - src/audio/transport/arrangement.ts        # 3 chain lanes
   - src/audio/transport/performance.ts        # live DJ FX
@@ -50,6 +52,13 @@ demos, the load path **must stay backward compatible** as the format grows.
   mute), used by both the engine and the UI.
 - **REQ-7** — Play banks must be settled **before** the machines read them on a
   given tick (construction ordering).
+- **REQ-8** — An imported file is **validated** before it is applied. Validation is
+  hand-rolled (no runtime dependency, per ADR-003) and **mirrors the additive loader
+  contract**: strict on types / structure / ranges / dimensions, but lenient on the
+  optional per-step fields (so legacy v1 files still pass). A rejection surfaces
+  **field-level, path-prefixed** messages, not one generic error. A
+  machine-readable JSON Schema (draft 2020-12) ships at
+  `/schema/websynth-song.schema.json` as the published contract for external tools.
 
 ## Technical design
 
@@ -59,10 +68,16 @@ demos, the load path **must stay backward compatible** as the format grows.
 Song:   # src/state/song.ts (a plain object of functions, not a class)
   capture(bus, patterns, arr, name): SongFile
   apply(file, bus, patterns, arr): void
-  toJSON(file) / fromJSON(text): SongFile | null
+  toJSON(file) / fromJSON(text): SongFile | null   # fromJSON: validate, return file|null
+  parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
   download(file) / readFile(File): Promise<SongFile | null>
+  parseFile(File): Promise<SongValidation>         # rich variant for the import UI
   list(): string[]                       # demo names ∪ stored slot names, sorted
   saveSlot(name, file) / loadSlot(name) / deleteSlot(name)
+
+song-validate:  # src/state/song-validate.ts (pure, dependency-free)
+  validateSongFile(value: unknown): SongValidation
+  type SongValidation = { ok: true; file: SongFile } | { ok: false; errors: string[] }
 
 Arrangement:  # setSeqChain / setDrumChain / setSamplerChain(steps, enabled)
 Performance:  # setFill / setStutter / setDrop / setTapeStop  (live DJ FX)
@@ -113,6 +128,42 @@ patterns.restore: Object.assign(dst, TRIGGER_CELL_DEFAULTS, cell)
   # spreads defaults UNDER incoming cells, so legacy {on, velocity} cells
   # gain gate:1 / prob:1 / ratchet:1 / tie:false and sound unchanged
 ```
+
+### Import validation (the field-level contract)
+
+`fromJSON` no longer trusts a 4-key presence check — it parses then runs
+`validateSongFile` (`src/state/song-validate.ts`), a pure, dependency-free
+validator. The validator's job is to reject corruption **without** rejecting any
+file the loader would accept, so it tracks the *additive* loader contract above,
+not the strict current shape:
+
+```yaml
+strict (reject + name the path):
+  root:        object; format === 'websynth-song'; version ∈ {1,2}; name: string
+  params:      object of string -> finite number   # keys NOT restricted (forward-compat)
+  seqBanks:    SeqStep[4][16]                       # exact dims
+  drumBanks:   DrumCell[4][8][16]
+  samplerBanks?: SamplerStep[4][8][16]              # if present
+  sampleNames?:  (string|null)[8]                   # if present
+  chainData:   { enabled: boolean, steps: int[ ]≥1, each 0..3 }
+  cell fields when present, by type/range:
+    velocity/gate/prob: number 0..1 ; ratchet: int 1..4 ; tie: boolean
+    SeqStep.note: number
+lenient (additive — do NOT require):
+  per-step velocity/gate/prob/ratchet/tie      # v1 cells omit them; restore defaults them
+  required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}
+surface:
+  fromJSON(text): SongFile | null              # back-compat: returns null on any failure
+  parse(text) / parseFile(File): SongValidation # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
+  song-panel Import: alerts the first N errors; applySong wrapped in try/catch
+```
+
+The published JSON Schema (`public/schema/websynth-song.schema.json`, draft
+2020-12) encodes the same rules and **ships to `dist/schema/`** via Vite's
+`public/` copy (like `worklets/`), fetchable at `/schema/websynth-song.schema.json`.
+It is documentation/tooling only — the runtime validator is the hand-rolled TS
+above (no schema interpreter at runtime, per ADR-003). Both are kept honest by the
+demo-conformance tests (every demo must pass `validateSongFile`).
 
 ### Persistence
 
@@ -198,12 +249,38 @@ Scenario: Stale param reverts on load (failure guard)
   When apply() runs
   Then P returns to its registered default (resetDefaults precedes restore)
 # pinned by: tests/state/song.test.ts
+
+Scenario: A valid legacy v1 file passes validation (backward compat)
+  Given a version-1 SongFile whose drum cells are plain { on, velocity }
+  When validateSongFile runs
+  Then it returns { ok: true } (missing per-step fields are tolerated)
+# pinned by: tests/state/song-validate.test.ts
+
+Scenario: An out-of-range field is rejected with its path (validation)
+  Given a SongFile with a drum cell ratchet of 5
+  When validateSongFile runs
+  Then it returns { ok: false } and an error naming "drumBanks[…].ratchet"
+# pinned by: tests/state/song-validate.test.ts
+
+Scenario: A non-number param is rejected (validation)
+  Given a SongFile whose params has a value that is a string or NaN
+  When validateSongFile runs
+  Then it returns { ok: false } naming the offending param key
+# pinned by: tests/state/song-validate.test.ts
+
+Scenario: Every shipped demo conforms to the validator (schema↔reality)
+  Given each DEMO_SONGS entry and each src/state/demos/*.websynth.json file
+  When validateSongFile runs on it
+  Then it returns { ok: true }
+# pinned by: tests/state/song-validate.test.ts
 ```
 
 ## Tests & verification
 
 - Unit (pure): `tests/state/song.test.ts` (round-trip, slot CRUD, v1/v2 apply,
-  demo applies), `tests/state/patterns.test.ts`,
+  demo applies), `tests/state/song-validate.test.ts` (accepts v1/v2 + every demo,
+  rejects malformed input with path-prefixed messages, schema file well-formed),
+  `tests/state/patterns.test.ts`,
   `tests/audio/transport/arrangement.test.ts`,
   `tests/audio/transport/lane-mix.test.ts`,
   `tests/audio/transport/sampler-machine.test.ts`,
