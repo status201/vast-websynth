@@ -222,11 +222,11 @@ function pad4Drum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
 // Bar 3: D  rest rest C rest E  A
 // Bar 4: (silent — melody drops out, drums carry the bar)
 const ZN_1 = seqFromNotes(
-  [null, null, 69, null, 72, null, 74, null, 76, null, 69, null, null, null, null, null], 0.9, 0.95);
+  [null, null, 69, null, 72, null, 74, null, 76, null, 69, null, null, null, 69, null], 0.9, 0.95);
 const ZN_2 = seqFromNotes(
   [null, null, 69, null, 72, null, 74, null, 76, null, 77, null, 76, null, 72, null], 0.9, 0.95);
 const ZN_3 = seqFromNotes(
-  [74, null, null, null, null, null, 72, null, null, null, 76, null, 69, null, null, null], 0.9, 0.95);
+  [74, null, null, null, 74, null, 72, null, null, null, 76, null, 69, null, null, null], 0.9, 0.95);
 const ZN_4 = seqFromNotes(
   [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], 0.95, 0.95);
 const ZN_DRUM_A = drumFrom({
@@ -316,6 +316,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
       'env.fil.attack': 0.001, 'env.fil.decay': 0.18, 'env.fil.sustain': 0.15,
       'env.fil.release': 0.1,
       'lfo.rate': 0.5, 'lfo.amount': 0.25, 'lfo.wave': 0, 'lfo.dest': 1,
+      'fx.dist.on': 1, 'fx.dist.drive': 0.05, 'fx.dist.tone': 1500, 'fx.dist.mix': 0.35,
       'fx.delay.on': 1, 'fx.delay.time': 0.3, 'fx.delay.feedback': 0.32,
       'fx.delay.mix': 0.18,
       'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5,
