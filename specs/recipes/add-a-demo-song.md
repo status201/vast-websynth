@@ -41,7 +41,16 @@ drumChain: { enabled: true, steps: [0,0,0,1] }
 # optional v2: samplerBanks / samplerChain / sampleNames
 ```
 
-### 2. That's it
+### 2. Canonicalize it (recommended)
+
+Demos ship in **canonical compact** form (numbers rounded to 4 sig-figs, default
+step-cells collapsed to `{ "on": false }`; see
+[ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md)).
+Run `npm run clean:demos` to rewrite every `src/state/demos/*.json` through the same
+`compactSongForExport` helper the app exports with — small files, readable diffs.
+A hand-authored full-precision file still loads fine; this just keeps the repo tidy.
+
+### 3. That's it
 
 It appears in the demo row and the song-load list on next build. To verify the
 shape parses: `Song.fromJSON` requires `format === 'websynth-song'` plus

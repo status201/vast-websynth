@@ -3,13 +3,15 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
   - compressor
+  - presets
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
+  - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
   - src/state/song-validate.ts                # validateSongFile (import validation)
   - public/schema/websynth-song.schema.json   # machine-readable JSON Schema (shipped)
   - src/state/patterns.ts                     # banks + restore (migration)
@@ -59,6 +61,11 @@ demos, the load path **must stay backward compatible** as the format grows.
   **field-level, path-prefixed** messages, not one generic error. A
   machine-readable JSON Schema (draft 2020-12) ships at
   `/schema/websynth-song.schema.json` as the published contract for external tools.
+- **REQ-9** — Serialization is **optimized at the boundary** (`toJSON`), never in
+  live state: numbers round to 4 significant figures and cells are written
+  **default-sparse**, producing the *canonical compact* form. The output must still
+  `apply()` to identical-sounding state (rounding is inaudible; sparse cells re-expand
+  via `restore`). See [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
 
 ## Technical design
 
@@ -68,7 +75,8 @@ demos, the load path **must stay backward compatible** as the format grows.
 Song:   # src/state/song.ts (a plain object of functions, not a class)
   capture(bus, patterns, arr, name): SongFile
   apply(file, bus, patterns, arr): void
-  toJSON(file) / fromJSON(text): SongFile | null   # fromJSON: validate, return file|null
+  toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
+  fromJSON(text): SongFile | null                  # validate, return file|null (the sparse object; apply re-expands)
   parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
   download(file) / readFile(File): Promise<SongFile | null>
   parseFile(File): Promise<SongValidation>         # rich variant for the import UI
@@ -165,6 +173,30 @@ It is documentation/tooling only — the runtime validator is the hand-rolled TS
 above (no schema interpreter at runtime, per ADR-003). Both are kept honest by the
 demo-conformance tests (every demo must pass `validateSongFile`).
 
+### Serialization / on-disk compaction (the canonical form)
+
+`Song.toJSON` runs one pure helper, `compactSongForExport` (`src/state/serialize.ts`),
+so every persisted artifact is the *canonical compact* form. Live `ParamBus` /
+`PatternStore` state is untouched — optimization happens **only** here
+([ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md)).
+
+```yaml
+round:   every number -> Number(n.toPrecision(4))   # 4 sig-figs; inaudible, keeps tiny exp values
+sparse cells (drop fields equal to the cell's restore default):
+  trigger (drum/sampler): keep `on`; drop velocity/gate/prob/ratchet/tie when default
+                          -> a dead cell is just { "on": false }
+  seq:     keep on/note/velocity/gate ALWAYS; drop only prob/ratchet/tie when default
+           # asymmetry: restore spreads SEQ_EXTRA_DEFAULTS (prob/ratchet/tie) only, and
+           # apply() does not reset the store first, so velocity/gate must be present
+params:  ALL params kept (rounded) — not default-omitted (forward-compat: a future
+         default change must not silently move old songs)
+whitespace: download()/saveSlot() -> compact (no indent); clean:demos -> pretty (readable diffs)
+round-trip: fromJSON(toJSON(x)) === compactSongForExport(x)   # canonical inverse, NOT raw x
+            full fidelity is restored by apply()/restore re-expanding defaults
+reuse:   compare-to-default happens AFTER rounding (0.8500001 -> 0.85 -> dropped);
+         defaults come from TRIGGER_CELL_DEFAULTS / SEQ_EXTRA_DEFAULTS (patterns.ts)
+```
+
 ### Persistence
 
 ```yaml
@@ -177,6 +209,7 @@ NOT persisted: decoded AudioBuffers — only sampleNames (user reloads files;
                the UI shows a .needs-reload hint)
 demos:       DEMO_SONGS = drop-in src/state/demos/*.json (import.meta.glob, eager,
              build-time) spread BEFORE two hand-authored built-ins
+             stored in canonical compact form; re-canonicalize via `npm run clean:demos`
 ```
 
 ### Layer touchpoints & ordering (the tick constraint)
@@ -217,6 +250,15 @@ Scenario: Round-trip a song through a slot
   When the user saves it to a slot, starts a new song, then loads the slot
   Then params, all banks, and all three chains match the saved song
 # pinned by: tests/state/song.test.ts, e2e/song.spec.ts
+
+Scenario: Export is the canonical compact form (round + default-sparse)
+  Given a song with high-precision params and default-valued step cells
+  When toJSON serializes it
+  Then numbers are rounded to 4 significant figures, a dead drum cell is { "on": false },
+    and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie
+  And fromJSON(toJSON(file)) deep-equals compactSongForExport(file)
+  And applying it reproduces the original-sounding state (defaults re-expanded)
+# pinned by: tests/state/serialize.test.ts, tests/state/song.test.ts
 
 Scenario: Loading a song repaints the UI without marking it edited
   Given a per-param subscriber on transport.bpm and a global onChange listener
@@ -278,7 +320,8 @@ Scenario: Every shipped demo conforms to the validator (schema↔reality)
 ## Tests & verification
 
 - Unit (pure): `tests/state/song.test.ts` (round-trip, slot CRUD, v1/v2 apply,
-  demo applies), `tests/state/song-validate.test.ts` (accepts v1/v2 + every demo,
+  demo applies), `tests/state/serialize.test.ts` (rounding + default-sparse cells +
+  canonical round-trip), `tests/state/song-validate.test.ts` (accepts v1/v2 + every demo,
   rejects malformed input with path-prefixed messages, schema file well-formed),
   `tests/state/patterns.test.ts`,
   `tests/audio/transport/arrangement.test.ts`,

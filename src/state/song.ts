@@ -8,6 +8,7 @@ import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import { validateSongFile } from './song-validate';
+import { compactSongForExport } from './serialize';
 export type { SongValidation } from './song-validate';
 
 const STORAGE_PREFIX = 'websynth.song.';
@@ -66,8 +67,15 @@ export const Song = {
     arr.setSamplerChain(file.samplerChain?.steps ?? [0], file.samplerChain?.enabled ?? false);
   },
 
-  toJSON(file: SongFile): string {
-    return JSON.stringify(file, null, 2);
+  /**
+   * Serialize to the *canonical compact* form: numbers rounded to 4 significant
+   * figures and step cells written default-sparse (`compactSongForExport`).
+   * Runtime files (`download`/`saveSlot`) are whitespace-compact; `pretty` is for
+   * the committed demos (`npm run clean:demos`) so their diffs stay readable.
+   * `apply()`/`restore` re-expand the defaults on load — sound is unchanged.
+   */
+  toJSON(file: SongFile, pretty = false): string {
+    return JSON.stringify(compactSongForExport(file), null, pretty ? 2 : undefined);
   },
 
   fromJSON(text: string): SongFile | null {

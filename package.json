@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "clean:demos": "vitest run --config scripts/clean-demos.config.ts",
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {

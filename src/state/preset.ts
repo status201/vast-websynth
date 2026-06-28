@@ -1,4 +1,5 @@
 import type { ParamBus } from './params';
+import { roundParams } from './serialize';
 
 const STORAGE_PREFIX = 'websynth.preset.';
 const INDEX_KEY = 'websynth.preset.index';
@@ -112,7 +113,9 @@ export const Presets = {
   },
 
   save(name: string, snap: Snapshot): void {
-    localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(snap));
+    // Round at the serialization boundary (same helper as song export) — clean
+    // JSON, no audible change. capture() keeps live state full-precision.
+    localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(roundParams(snap)));
     const ix = readIndex();
     if (!ix.includes(name)) { ix.push(name); writeIndex(ix); }
   },

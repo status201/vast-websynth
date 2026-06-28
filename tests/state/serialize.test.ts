@@ -1,0 +1,166 @@
+import { describe, it, expect } from 'vitest';
+import { roundNum, roundParams, compactSongForExport } from '../../src/state/serialize';
+import { Song, DEMO_SONGS } from '../../src/state/song';
+import type { SongFile } from '../../src/state/song';
+import { ParamBus, registerDefaults } from '../../src/state/params';
+import { PatternStore, TRIGGER_CELL_DEFAULTS } from '../../src/state/patterns';
+import type { SeqStep, TriggerCell } from '../../src/state/patterns';
+
+/** Minimal Arrangement stand-in (mirrors tests/state/song.test.ts). */
+function fakeArr() {
+  return {
+    seq: { enabled: false, steps: [0] as number[] },
+    drum: { enabled: false, steps: [0] as number[] },
+    sampler: { enabled: false, steps: [0] as number[] },
+    setSeqChain(steps: number[], enabled: boolean) { this.seq = { enabled, steps: [...steps] }; },
+    setDrumChain(steps: number[], enabled: boolean) { this.drum = { enabled, steps: [...steps] }; },
+    setSamplerChain(steps: number[], enabled: boolean) { this.sampler = { enabled, steps: [...steps] }; },
+  };
+}
+
+/** Build a structurally-minimal SongFile for unit-level compaction checks. */
+function songWith(partial: Partial<SongFile>): SongFile {
+  return {
+    format: 'websynth-song', version: 2, name: 'T',
+    params: {}, seqBanks: [], drumBanks: [],
+    seqChain: { enabled: false, steps: [0] },
+    drumChain: { enabled: false, steps: [0] },
+    ...partial,
+  } as SongFile;
+}
+
+const trigger = (o: Partial<TriggerCell>): TriggerCell => ({ ...TRIGGER_CELL_DEFAULTS, ...o });
+const seq = (o: Partial<SeqStep>): SeqStep =>
+  ({ on: true, note: 60, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, ...o });
+
+const firstDrum = (out: Record<string, unknown>) =>
+  (out.drumBanks as unknown[][][])[0]![0]![0];
+const firstSeq = (out: Record<string, unknown>) =>
+  (out.seqBanks as unknown[][])[0]![0];
+
+describe('roundNum', () => {
+  it('rounds to 4 significant figures', () => {
+    expect(roundNum(0.330909194946289)).toBe(0.3309);
+    expect(roundNum(60.03635787963867)).toBe(60.04);
+    expect(roundNum(2784.3633117675786)).toBe(2784);
+    expect(roundNum(0.000030253496406868542)).toBe(0.00003025); // sig-figs keep tiny exp values
+  });
+
+  it('leaves already-clean and integer values untouched', () => {
+    for (const n of [0, 1, 0.5, 0.85, 36, 125, -5, -0.075]) expect(roundNum(n)).toBe(n);
+  });
+
+  it('passes non-finite values through (JSON can never encode them anyway)', () => {
+    expect(roundNum(NaN)).toBeNaN();
+    expect(roundNum(Infinity)).toBe(Infinity);
+  });
+
+  it('is idempotent', () => {
+    const v = roundNum(0.330909194946289);
+    expect(roundNum(v)).toBe(v);
+  });
+});
+
+describe('roundParams', () => {
+  it('rounds every value and keeps every key', () => {
+    expect(roundParams({
+      'sub.level': 0.330909194946289,
+      'filter.cutoff': 60.03635787963867,
+      'fx.dist.tone': 2784.3633117675786,
+      'fx.drum.comp.attack': 0.000030253496406868542,
+      'keyboard.transpose': -1,
+    })).toEqual({
+      'sub.level': 0.3309,
+      'filter.cutoff': 60.04,
+      'fx.dist.tone': 2784,
+      'fx.drum.comp.attack': 0.00003025,
+      'keyboard.transpose': -1,
+    });
+  });
+});
+
+describe('compactSongForExport — drum/sampler cells', () => {
+  it('collapses a default OFF cell to { on: false }', () => {
+    const out = compactSongForExport(songWith({ drumBanks: [[[trigger({ on: false })]]] }));
+    expect(firstDrum(out)).toEqual({ on: false });
+  });
+
+  it('collapses a default ON cell to { on: true }', () => {
+    const out = compactSongForExport(songWith({ drumBanks: [[[trigger({ on: true })]]] }));
+    expect(firstDrum(out)).toEqual({ on: true });
+  });
+
+  it('keeps only non-default fields (rounded)', () => {
+    const cell = trigger({
+      on: true, velocity: 0.5173176129659017, gate: 0.44645182291666663, prob: 1, ratchet: 2, tie: false,
+    });
+    const out = compactSongForExport(songWith({ drumBanks: [[[cell]]] }));
+    expect(firstDrum(out)).toEqual({ on: true, velocity: 0.5173, gate: 0.4465, ratchet: 2 });
+  });
+
+  it('drops a field that equals its default only AFTER rounding', () => {
+    const out = compactSongForExport(songWith({ drumBanks: [[[trigger({ velocity: 0.8500001 })]]] }));
+    expect(firstDrum(out)).toEqual({ on: false }); // 0.8500001 -> 0.85 (default) -> dropped
+  });
+});
+
+describe('compactSongForExport — seq steps', () => {
+  it('always keeps on/note/velocity/gate but drops default prob/ratchet/tie', () => {
+    const out = compactSongForExport(songWith({
+      seqBanks: [[seq({ on: true, note: 36, velocity: 0.8, gate: 0.3553091684977213 })]],
+    }));
+    expect(firstSeq(out)).toEqual({ on: true, note: 36, velocity: 0.8, gate: 0.3553 });
+  });
+
+  it('keeps non-default prob/ratchet/tie (rounded)', () => {
+    const out = compactSongForExport(songWith({
+      seqBanks: [[seq({ note: 48, velocity: 1, gate: 0.5, prob: 0.314453125, ratchet: 3, tie: true })]],
+    }));
+    expect(firstSeq(out)).toEqual({
+      on: true, note: 48, velocity: 1, gate: 0.5, prob: 0.3145, ratchet: 3, tie: true,
+    });
+  });
+});
+
+describe('compactSongForExport — whole-song', () => {
+  it('rounds params and preserves optional-field presence', () => {
+    const out = compactSongForExport(songWith({
+      params: { 'filter.cutoff': 60.03635787963867 },
+      // no sampler fields -> output must not grow them
+    }));
+    expect(out.params).toEqual({ 'filter.cutoff': 60.04 });
+    expect('samplerBanks' in out).toBe(false);
+    expect('sampleNames' in out).toBe(false);
+  });
+
+  it('is idempotent (re-compacting a compact file is a no-op)', () => {
+    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
+    const compact = compactSongForExport(file);
+    const reloaded = JSON.parse(JSON.stringify(compact)) as SongFile;
+    expect(compactSongForExport(reloaded)).toEqual(compact);
+  });
+});
+
+describe('round-trip fidelity', () => {
+  it('fromJSON(toJSON(x)) deep-equals the canonical compact form', () => {
+    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
+    expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
+  });
+
+  it('applying the compact file reproduces the original-sounding state', () => {
+    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
+    const compactFile = Song.fromJSON(Song.toJSON(file))!;
+
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    Song.apply(compactFile, bus, patterns, fakeArr() as never);
+
+    expect(bus.get('transport.bpm')).toBe(130);
+    expect(patterns.seqBanks[0]![2]!.note).toBe(69);
+    // default fields the sparse cells omitted are re-expanded by restore()
+    expect(patterns.seqBanks[0]![2]!.prob).toBe(1);
+    expect(patterns.seqBanks[0]![2]!.ratchet).toBe(1);
+    expect(patterns.drumBanks[0]![0]![0]!.gate).toBe(1);
+  });
+});

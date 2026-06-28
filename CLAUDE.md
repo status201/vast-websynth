@@ -241,6 +241,14 @@ listener mechanism.
   any `*.json` SongFile in `src/state/demos/`, auto-registered at build time via
   an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
   *before* the built-ins, so they lead the demo button row (`Object.keys` order).
+- **Song/preset serialization** (`state/serialize.ts`) — `Song.toJSON` and
+  `Presets.save` optimize **only at the boundary** (live state stays full-precision):
+  `compactSongForExport`/`roundParams` round every number to 4 sig-figs and write
+  **default-sparse** step cells (a dead cell is `{on:false}`; seq keeps
+  on/note/velocity/gate). Output is the *canonical compact* form —
+  `fromJSON(toJSON(x))` equals `compactSongForExport(x)`, not `x`; `apply`/`restore`
+  re-expand defaults (sound unchanged). Re-canonicalize committed demos with
+  `npm run clean:demos`. See ADR-011.
 
 ## Conventions & gotchas
 

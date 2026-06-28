@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import type { SongFile } from '../../src/state/song';
+import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
 
@@ -52,7 +53,9 @@ describe('Song', () => {
     const parsed = Song.fromJSON(Song.toJSON(file));
     expect(parsed).not.toBeNull();
     expect(parsed!.name).toBe('Zombie Nation');
-    expect(parsed).toEqual(file);
+    // toJSON emits the canonical compact form (rounded + default-sparse cells),
+    // so fromJSON returns that, not the full-cell input. apply() re-expands it.
+    expect(parsed).toEqual(compactSongForExport(file));
   });
 
   it('fromJSON rejects malformed JSON', () => {
@@ -214,7 +217,7 @@ describe('Song', () => {
       const arr = fakeArr();
       arr.setSamplerChain([1], true);
       const file = Song.capture(bus, patterns, arr as never, 'RT');
-      expect(Song.fromJSON(Song.toJSON(file))).toEqual(file);
+      expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
     });
 
     it('v1 song (no sampler fields) still applies — empty banks, chain off', () => {
@@ -242,7 +245,7 @@ describe('Song', () => {
       const ifl = DEMO_SONGS['I Feel Love'];
       expect(ifl).toBeDefined();
       const parsed = Song.fromJSON(Song.toJSON(ifl!));
-      expect(parsed).toEqual(ifl);
+      expect(parsed).toEqual(compactSongForExport(ifl!));
     });
 
     it('applies the ladder-filter bass params + octave-pulse riff', () => {
@@ -268,7 +271,7 @@ describe('Song', () => {
       const fat = DEMO_SONGS['Fat'];
       expect(fat).toBeDefined();
       expect(fat!.version).toBe(2);
-      expect(Song.fromJSON(Song.toJSON(fat!))).toEqual(fat);
+      expect(Song.fromJSON(Song.toJSON(fat!))).toEqual(compactSongForExport(fat!));
     });
 
     it('applies its acid params and per-step settings', () => {
@@ -303,7 +306,7 @@ describe('Song', () => {
       // (Asserting a fixed [0] key breaks the moment another drop-in is added.)
       const keys = Object.keys(DEMO_SONGS);
       expect(keys.indexOf('Apex Twin')).toBeLessThan(keys.indexOf('Zombie Nation'));
-      expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(apex);
+      expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(compactSongForExport(apex!));
     });
 
     it('applies its params + 8-step chains', () => {

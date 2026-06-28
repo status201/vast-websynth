@@ -59,7 +59,13 @@ applyMyNewThing(file.myNewThing ?? DEFAULT_MY_NEW_THING);
 If you add a field to a step cell, add it to `StepSettings` /
 `TRIGGER_CELL_DEFAULTS` (`patterns.ts`). `PatternStore.restore` spreads defaults
 **under** incoming cells (`Object.assign(dst, DEFAULTS, cell)`), so legacy cells
-gain the field and sound unchanged.
+gain the field and sound unchanged. The export side mirrors this: the
+default-sparse serializer (`compactSongForExport`, `src/state/serialize.ts`) drops
+the field whenever it equals the default — so teach the matching `compact*Cell`
+helper about it (and decide whether it's safe to drop for the **seq** shape, whose
+`restore` only spreads `SEQ_EXTRA_DEFAULTS`). See
+[ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
+After changing the format, re-run `npm run clean:demos`.
 
 ## Gotchas
 

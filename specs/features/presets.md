@@ -3,13 +3,14 @@
 ```yaml
 id: presets
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - song-mode
 source:
   - src/state/preset.ts
+  - src/state/serialize.ts              # roundParams (export precision)
   - src/state/preset-session.ts
   - src/audio/engine.ts                 # main.ts seeds on boot
   - src/ui/app.ts                       # preset-select dropdown
@@ -35,6 +36,10 @@ what songs are for.
 - **REQ-4** — Loading a preset restores params via the bus (a bulk apply, not seen
   as an edit).
 - **REQ-5** — The active preset name is tracked by the session (shared with songs).
+- **REQ-6** — `save()` rounds the snapshot to 4 significant figures (`roundParams`,
+  shared with song export per [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md))
+  before writing — clean JSON, no audible change. `capture()` stays full-precision
+  (live state is untouched; rounding is a serialization-boundary concern).
 
 ## Technical design
 
@@ -54,7 +59,7 @@ Snapshot = Record<string, number>
 
 ```yaml
 localStorage:
-  websynth.preset.<name> : a Snapshot (JSON)
+  websynth.preset.<name> : a Snapshot (JSON), values rounded to 4 sig-figs on save()
   websynth.preset.index  : user preset name index
 NOT in a preset: patterns / banks / chains (those belong to a SongFile)
 ```

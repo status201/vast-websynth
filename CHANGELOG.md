@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   with specific field-level messages (which step/field is wrong) instead of a
   single generic error, and legacy/older songs still load unchanged.
 
+### Changed
+
+- **Smaller song & preset files** — exported `.websynth.json` songs and saved
+  presets are now far more compact: numbers are rounded to a musically-inaudible
+  precision and default step-cells are omitted (a dropped grid cell is just
+  `{"on":false}`). A downloaded song is ~8× smaller; older files still load and
+  sound identical.
+
 ## [1.6.0] - 2026-06-26
 
 ### Added
