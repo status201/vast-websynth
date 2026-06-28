@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { buildSongPrompt } from '../../src/ui/components/ai-prompt';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+  buildSongPrompt,
+  createAiPromptButton,
+} from '../../src/ui/components/ai-prompt';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
+import modalStyles from '../../src/ui/styles/modal.module.css';
 
 const EXAMPLE_NAME = 'I Feel Love';
 
@@ -43,5 +47,24 @@ describe('buildSongPrompt', () => {
     expect(prompt).toContain('…');
     // The whole "I Feel Love" demo must no longer be pasted into the prompt.
     expect(prompt).not.toContain(Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!));
+  });
+});
+
+describe('AI Prompt modal', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('opens a card that is both base .card (capped/scrollable) and .cardWide', () => {
+    const btn = createAiPromptButton(bus());
+    document.body.appendChild(btn);
+    btn.click();
+    const card = document.querySelector('[role="dialog"]');
+    expect(card).not.toBeNull();
+    // Base .card carries max-height/overflow so the title + Close stay reachable
+    // on small screens; .cardWide only widens it. Regressing to wide-only would
+    // let the modal overflow the viewport.
+    expect(card!.className).toContain(modalStyles.card!);
+    expect(card!.className).toContain(modalStyles.cardWide!);
   });
 });

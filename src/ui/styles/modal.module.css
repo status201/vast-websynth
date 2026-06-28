@@ -54,6 +54,19 @@
   margin-top: 4px;
 }
 
+/* The AI-prompt modal's instruction line is a full sentence, not a tagline —
+   the shared .tag uppercase-italic treatment (kept for the about/start modals)
+   is unreadable for it. Scope a sentence-case override to the wide card only.
+   Mirrors perf-settings.module.css .desc. */
+.cardWide .tag {
+  font-size: 12.5px;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
 .meta {
   margin-top: 16px;
   font-size: 12px;
@@ -165,4 +178,11 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/* On phones the modal is height-capped + scrollable (the base .card); shrink the
+   tall textareas so the actions (incl. Close) come into reach with little scroll. */
+@media (max-width: 720px) {
+  .aiText { height: 220px; }
+  .aiBrief { height: 64px; }
 }

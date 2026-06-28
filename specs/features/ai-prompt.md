@@ -51,6 +51,12 @@ an external agent can actually fetch.
   map) and the NOTES/tips section are generated live and kept as the format
   reference; the modal's **Copy Example JSON** / **Download Example** buttons still
   return the full built-in "I Feel Love" demo.
+- **REQ-6** — The modal card composes the base `.card` (height-capped to `86vh`,
+  internally scrollable) **with** the `.cardWide` width variant — the same
+  composition the reusable `Modal` helper uses. So on small/short viewports the card
+  fits the screen and scrolls internally; the title and every action (incl. Close)
+  stay reachable. On phones the prompt/brief textareas are shortened so the actions
+  come into reach with little scrolling.
 
 ## Technical design
 
@@ -68,6 +74,10 @@ prompt `<textarea>` (`.aiText`); an `input` listener rebuilds the prompt value v
 `buildSongPrompt(bus, brief.value)`. **Copy Prompt** copies the live prompt value
 (so the brief is always included). **Copy Example JSON** / **Download Example** use
 `Song.toJSON` / `Song.download` of `DEMO_SONGS['I Feel Love']`.
+
+The ad-hoc card must carry both classes —
+`card.className = ${Modal.cardClass} ${Modal.cardWideClass}` — so it inherits the
+base `.card` cap/scroll (REQ-6); `.cardWide` wins on width by source order.
 
 ### Prompt shape (sections, in order)
 
@@ -119,6 +129,11 @@ Scenario: The prompt no longer embeds a full song
   When buildSongPrompt(bus) is generated
   Then it contains the EXAMPLE SHAPE skeleton marker with "…"
   And it is far shorter than Song.toJSON(DEMO_SONGS['I Feel Love'])
+
+Scenario: Modal stays usable on a small screen
+  When the AI Prompt modal is opened
+  Then its dialog card carries both the base "card" and "cardWide" classes
+  And so it is height-capped and scrolls internally (Close stays reachable)
 # pinned by: tests/ui/ai-prompt.test.ts
 ```
 

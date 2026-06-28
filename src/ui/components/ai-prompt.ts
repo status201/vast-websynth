@@ -80,7 +80,10 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   });
 
   const card = document.createElement('div');
-  card.className = Modal.cardWideClass;
+  // Base .card gives the 86vh cap + internal scroll (so the title/actions stay
+  // reachable on small screens); .cardWide widens it (wins on width by source
+  // order) — the same composition the reusable Modal helper uses.
+  card.className = `${Modal.cardClass} ${Modal.cardWideClass}`;
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'Generate a song with AI');
 
