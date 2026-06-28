@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-06-28
+
 ### Added
 
 - **Stereo scope** — a Mono/Stereo toggle on the Wave/Spectrum visualiser. Stereo
@@ -56,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Typing no longer plays the synth** — entering text in a field (such as the new
   AI Prompt brief box) no longer triggers notes, transport, or other
   computer-keyboard shortcuts.
+- **AI Prompt modal fits small screens** — the dialog is now height-capped and
+  scrolls internally, so its title and the **Close** button stay reachable on a
+  phone (previously it could overflow the screen and be impossible to close); its
+  instruction line is also now readable sentence-case.
 
 ## [1.6.0] - 2026-06-26
 
@@ -139,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/status201/vast-websynth/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/status201/vast-websynth/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/status201/vast-websynth/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/status201/vast-websynth/compare/v1.4.0...v1.5.0
