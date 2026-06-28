@@ -15,6 +15,13 @@ const UPPER: Record<string, number> = {
   i: 24,
 };
 
+/** True when the event originates inside an editable field, where keystrokes
+ *  must reach the field rather than play the synth. */
+function isEditableTarget(e: Event): boolean {
+  const t = e.target as HTMLElement | null;
+  return !!t?.closest('input, textarea, [contenteditable="true"]');
+}
+
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
   const held = new Set<string>();
@@ -37,6 +44,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   }
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     if (e.repeat) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
@@ -82,6 +90,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   });
 
   window.addEventListener('keyup', (e: KeyboardEvent) => {
+    if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     const k = e.key;
     if (k === '.' || k === '/') { bus.set('master.pitchBend', 0); return; }
     if (k === 'f' || k === 'F') {
@@ -100,8 +109,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     // Android/iOS long-press on a button (Stutter etc.) otherwise opens the
     // native menu, which steals focus and cancels the press-and-hold. Keep
     // the menu only inside editable fields so touch copy/paste still works.
-    const t = e.target as HTMLElement | null;
-    if (t && t.closest('input, textarea, [contenteditable="true"]')) return;
+    if (isEditableTarget(e)) return;
     e.preventDefault();
   });
 

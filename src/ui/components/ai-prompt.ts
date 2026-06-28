@@ -21,6 +21,16 @@ import songStyles from '../styles/song-panel.module.css';
 
 const EXAMPLE_NAME = 'I Feel Love';
 
+/** Greyed example shown in the "Describe your song" field (placeholder only). */
+const BRIEF_PLACEHOLDER =
+  "e.g. a song in the style of Herbie Hancock's breakdance hit Rockit — a " +
+  '12-bar loop with some crazy breaks. Take advantage of the fact that ' +
+  "you're a robot yourself and you'd be dancing to it too.";
+
+/** Stand-in for the SONG REQUEST section when the user typed no brief. */
+const REQUEST_PLACEHOLDER =
+  '[Describe the song you want — style, length, mood, structure, references…]';
+
 export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
@@ -81,24 +91,40 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   const tag = document.createElement('div');
   tag.className = Modal.tagClass;
   tag.textContent =
-    'Copy the prompt into any AI agent, then import the JSON it returns ' +
-    'via Song → Import.';
+    'Describe your song, copy the prompt into any AI agent, then import the ' +
+    'JSON it returns via Song → Import.';
 
-  const prompt = buildSongPrompt(bus);
+  // Editable creative brief. Seeded only as a placeholder so an un-typed copy
+  // never injects the example text; the prompt updates live as the user types.
+  const briefLabel = document.createElement('label');
+  briefLabel.className = modalStyles.aiLabel!;
+  briefLabel.textContent = 'Describe your song';
+  briefLabel.htmlFor = 'ai-prompt-brief';
+
+  const brief = document.createElement('textarea');
+  brief.id = 'ai-prompt-brief';
+  brief.className = modalStyles.aiBrief!;
+  brief.placeholder = BRIEF_PLACEHOLDER;
+
   const example = Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!);
 
   const ta = document.createElement('textarea');
   ta.className = modalStyles.aiText!;
   ta.readOnly = true;
-  ta.value = prompt;
+  ta.value = buildSongPrompt(bus, brief.value);
   ta.addEventListener('focus', () => ta.select());
+
+  // Rebuild the prompt's SONG REQUEST section live as the brief changes.
+  brief.addEventListener('input', () => {
+    ta.value = buildSongPrompt(bus, brief.value);
+  });
 
   const actions = document.createElement('div');
   actions.className = modalStyles.aiActions!;
 
   const copyPrompt = createButton({
     label: 'Copy Prompt',
-    onClick: () => flash(copyPrompt, 'Copy Prompt', copyText(prompt)),
+    onClick: () => flash(copyPrompt, 'Copy Prompt', copyText(ta.value)),
   });
   const copyExample = createButton({
     label: 'Copy Example JSON',
@@ -121,6 +147,8 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
 
   card.appendChild(title);
   card.appendChild(tag);
+  card.appendChild(briefLabel);
+  card.appendChild(brief);
   card.appendChild(ta);
   card.appendChild(actions);
   backdrop.appendChild(card);
@@ -165,7 +193,7 @@ async function copyText(text: string): Promise<boolean> {
  * Build the prompt text. The parameter table is generated from the live
  * ParamBus registry so it always matches `registerDefaults()`.
  */
-export function buildSongPrompt(bus: ParamBus): string {
+export function buildSongPrompt(bus: ParamBus, brief?: string): string {
   const params = bus
     .ids()
     .map((id) => {
@@ -182,14 +210,27 @@ export function buildSongPrompt(bus: ParamBus): string {
     .join('\n');
 
   const drumTracks = DRUM_TRACK_LABELS.map((l, i) => `${i}=${l}`).join(', ');
-  const example = Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!);
+
+  // The user's creative brief, or a bracketed stand-in when they typed nothing.
+  const request = brief && brief.trim() ? brief.trim() : REQUEST_PLACEHOLDER;
+
+  // Resolve an absolute schema URL from the live host so external agents can
+  // actually fetch it. Guarded so the export is safe to import outside a browser.
+  const origin =
+    typeof window !== 'undefined' && window.location
+      ? window.location.origin
+      : '';
+  const schemaUrl = `${origin}/schema/websynth-song.schema.json`;
 
   return `You are generating a song file for the WebSynth (VAST G1-J5) browser synthesizer.
+
+SONG REQUEST
+${request}
 
 OUTPUT RULES
 - Respond with ONE valid JSON object and nothing else (no markdown, no commentary).
 - It must parse and conform exactly to the schema below.
-- A machine-readable JSON Schema (draft 2020-12) for this format is published with the app at /schema/websynth-song.schema.json — the shape below mirrors it.
+- A machine-readable JSON Schema (draft 2020-12) for this format is published at ${schemaUrl} — the shape below mirrors it.
 - The user imports it via the synth's Song panel → Import.
 
 TOP-LEVEL SHAPE
@@ -239,6 +280,23 @@ NOTES
 PARAMS (id, range, default, discrete value map)
 ${params}
 
-EXAMPLE — the built-in "${EXAMPLE_NAME}" demo (a valid, complete song file):
-${example}`;
+EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)
+{
+  "format": "websynth-song",
+  "version": 2,
+  "name": "My Song",
+  "params": { "mixer.glide": 0, "filter.cutoff": 60, "filter.resonance": 0.4, "…": 0 },
+  "seqBanks": [
+    [ { "on": true, "note": 48, "velocity": 0.9, "gate": 0.5 },
+      { "on": false, "note": 48 }, "… ${SEQ_LENGTH} steps total" ],
+    "… ${BANK_COUNT} banks total"
+  ],
+  "drumBanks": [
+    [ [ { "on": true }, { "on": false }, "… ${SEQ_LENGTH} steps total" ], "… ${DRUM_TRACK_COUNT} tracks total" ],
+    "… ${BANK_COUNT} banks total"
+  ],
+  "seqChain":  { "enabled": false, "steps": [0] },
+  "drumChain": { "enabled": false, "steps": [0] }
+}
+Cells are default-sparse: a seq step keeps "on"/"note"/"velocity"/"gate"; a dead drum/sampler cell is just { "on": false }. Omitted "prob"/"ratchet"/"tie" (and velocity/gate on triggers) fall back to defaults.`;
 }

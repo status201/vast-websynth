@@ -45,6 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   precision and default step-cells are omitted (a dropped grid cell is just
   `{"on":false}`). A downloaded song is ~8× smaller; older files still load and
   sound identical.
+- **AI song prompt revamp** — the Song panel's **✨ AI Prompt** now has a
+  *"Describe your song"* box (type your idea — style, length, mood — and it's
+  folded into the prompt), a much shorter prompt (a small illustrative example
+  instead of an embedded full song), and an **absolute, host-resolved** schema
+  link so external AI tools can actually fetch it.
+
+### Fixed
+
+- **Typing no longer plays the synth** — entering text in a field (such as the new
+  AI Prompt brief box) no longer triggers notes, transport, or other
+  computer-keyboard shortcuts.
 
 ## [1.6.0] - 2026-06-26
 

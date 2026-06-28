@@ -190,6 +190,7 @@ specs/
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
     presets.md         ·  sound snapshots (param-only)
+    ai-prompt.md       ·  copyable prompt that has an AI generate a song file
     # — audio I/O —
     audio-export.md    ·  WAV/MP3 capture of the master
     sample-recorder.md ·  mic record + buffer editor

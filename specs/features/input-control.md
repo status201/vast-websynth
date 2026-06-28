@@ -38,6 +38,11 @@ not.
   shiftable; auto-repeat is ignored.
 - **REQ-4** — MIDI (Web MIDI) maps Note On (vel 0 = off) / Note Off to the bus;
   absence of Web MIDI is a no-op (logged), not an error.
+- **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
+  editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
+  reach the field and never play a note, toggle transport, bend pitch, shift
+  octave, or trigger a drum fill. (Same `closest(...)` rule the `contextmenu`
+  guard already uses.)
 
 ## Technical design
 
@@ -85,6 +90,13 @@ Scenario: No Web MIDI is a silent no-op
   When initMIDI runs
   Then it logs and returns without throwing
 # pinned by: midi.ts (guarded)
+
+Scenario: Typing in a text field does not play notes
+  Given a textarea is focused (e.g. the AI Prompt "Describe your song" field)
+  When the user presses 'z'
+  Then no note is played (UiBridge.pressKey is not called)
+  And a 'z' that originates outside an editable field still plays a note
+# pinned by: tests/ui/shortcuts.test.ts
 ```
 
 ## Tests & verification

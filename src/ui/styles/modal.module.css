@@ -116,6 +116,35 @@
   justify-content: center;
 }
 
+.aiLabel {
+  display: block;
+  margin-top: 16px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+}
+
+.aiBrief {
+  width: 100%;
+  height: 84px;
+  resize: vertical;
+  margin-top: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  background: #0a0805;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.aiBrief::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 .aiText {
   width: 100%;
   height: 320px;
