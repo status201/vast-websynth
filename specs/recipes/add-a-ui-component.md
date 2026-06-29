@@ -70,7 +70,7 @@ descendant selectors target children (`className: 'switch-label ' + styles.label
 - `bus.subscribe` fires immediately with the current value (so the control paints
   correctly on mount) and returns an unsubscribe — store it for `destroy()`.
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The control writes and reflects the bus

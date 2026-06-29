@@ -1,5 +1,8 @@
 <!--
-  Copy this file to features/<name>.md or recipes/<name>.md and fill it in.
+  Copy this file to <name>.md in this folder (features/) and fill it in. This is
+  the FEATURE template (the "what"). For a repeatable how-to use the recipe
+  template (../recipes/_recipe-template.md); for an architectural decision use
+  ../decisions/_adr-template.md.
   Keep it lean (see ../README.md "Format rules"): Markdown for narrative, flat
   YAML for structured schemas, reference code by symbol name not line number.
   Delete any section that genuinely does not apply — don't leave empty headings.

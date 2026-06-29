@@ -329,6 +329,9 @@ load-bearing ones:
 - [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md) — DSP worklets favour
   *musical, stable, cheap* over physical accuracy (the ladder filter + the
   compressors).
+- [ADR-011](decisions/adr-011-export-precision-and-default-sparse-serialization.md) —
+  song/preset export rounds to 4 sig-figs + writes default-sparse step cells
+  (optimise only at the serialization boundary).
 
 ## Tests & verification
 

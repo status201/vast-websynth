@@ -61,7 +61,7 @@ Run: `npm run e2e` (or `npm run e2e:ui`).
 - Don't reach for a real `AudioContext` in unit tests; use the mock.
 - `window.__synth` exists only in DEV builds — fine for E2E against the dev server.
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: A new unit test pins behaviour without real audio

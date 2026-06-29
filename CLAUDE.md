@@ -9,7 +9,8 @@ Start at `specs/README.md` (the SDD method, tailored to this repo) and
 `specs/architecture.md` (system-wide overview: contracts, audio graph, conventions
 with versions). Per-feature specs live in `specs/features/` and repeatable how-tos
 in `specs/recipes/` (e.g. `specs/recipes/add-a-parameter.md`). For **new** features,
-write/review the spec before generating code; copy `specs/_template.md` to start.
+write/review the spec before generating code; copy `specs/features/_feature-template.md`
+to start (a how-to copies `specs/recipes/_recipe-template.md`).
 Specs are standalone, so they restate the conventions they rely on — this file
 remains the canonical, exhaustive reference.
 

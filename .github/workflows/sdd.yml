@@ -28,3 +28,5 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           SDD_SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-sdd') }}
         run: node scripts/sdd-guard.mjs ci
+      - name: Spec structure lint
+        run: node scripts/spec-lint.mjs

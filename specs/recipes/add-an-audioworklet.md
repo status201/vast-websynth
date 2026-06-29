@@ -94,7 +94,7 @@ the real node in after `loadModule` and replay cached setter values (see
 - Discrete UI indices → real values are mapped in the **wrapper's `bind`**, not
   the worklet (see `Compressor.bind(bus, prefix, ratios, releases?)`).
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The worklet processes audio after init

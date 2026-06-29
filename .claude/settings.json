@@ -18,14 +18,16 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/sdd-guard.mjs stop" }
+          { "type": "command", "command": "node scripts/sdd-guard.mjs stop" },
+          { "type": "command", "command": "node scripts/spec-lint.mjs hook" }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/sdd-guard.mjs stop" }
+          { "type": "command", "command": "node scripts/sdd-guard.mjs stop" },
+          { "type": "command", "command": "node scripts/spec-lint.mjs hook" }
         ]
       }
     ]

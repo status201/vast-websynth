@@ -34,6 +34,13 @@ Every spec aims to cover, in roughly this order:
   cases, written as **BDD/Gherkin** (see below).
 - **Tests & verification** — which suites pin the behaviour and how to run them.
 
+> This is the **feature** shape (the *what*). **Recipes** (`recipes/`) follow a
+> leaner *playbook* shape — Background → Steps → Gotchas → Scenarios (BDD) → Tests,
+> dropping Requirements / Technical-design / Visual-aids — so copy
+> `recipes/_recipe-template.md`, not the feature template. **ADRs** (`decisions/`)
+> use their own Context → Decision → Alternatives → Consequences shape
+> (`decisions/_adr-template.md`).
+
 ## This repo is not a typical web app — concept mapping
 
 The general SDD literature assumes a backend with a database and a REST API. This
@@ -105,7 +112,8 @@ someone to "fix" a thing that was chosen on purpose.
 `decisions/` holds **Architecture Decision Records**: one short, immutable record
 per decision, structured Context → Decision → Alternatives → Consequences. Copy
 [`decisions/_adr-template.md`](decisions/_adr-template.md) to start one
-(`adr-NNN-<slug>.md`, numbered contiguously). An ADR's `status` is its own
+(`adr-NNN-<slug>.md`, numbered contiguously); [`decisions/README.md`](decisions/README.md)
+is the index. An ADR's `status` is its own
 decision lifecycle — `proposed | accepted | superseded by adr-XXX | deprecated` —
 **not** the `draft | active | implemented` of a feature spec. ADRs are
 append-only: to change a decision, write a new ADR that supersedes the old one
@@ -119,8 +127,9 @@ rather than rewriting it. Each ADR's `related:` links to the specs it governs, a
 hooks + CI enforce this (see "Enforcement & exemptions"). By kind of change:
 
 **Feature / any behaviour change**
-1. **Spec first** — create/update `specs/features/<name>.md` from `_template.md`
-   (`status: draft`): background, requirements (`REQ-n`), contract, data shapes,
+1. **Spec first** — create/update `specs/features/<name>.md` from
+   `features/_feature-template.md` (`status: draft`): background, requirements
+   (`REQ-n`), contract, data shapes,
    BDD scenarios.
 2. **Review** — a human reads the spec (plan-approval / PR). `status: active`.
 3. **Implement** the code to satisfy the spec.
@@ -157,17 +166,22 @@ SDD is enforced by `scripts/sdd-guard.mjs`, wired as Claude Code hooks
 `skip-sdd` PR label for CI.
 
 > The guard checks that a spec *changed*, not that it is *good* — spec quality is
-> the human review gate. Hooks can be disabled by editing `.claude/settings.json`,
-> so CI is the real cross-tool backstop.
+> the human review gate. A companion check, `scripts/spec-lint.mjs`
+> (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
+> matching the filename, a valid `status`, that `# pinned by:` paths resolve, and
+> that every spec/ADR is listed in this folder map **and** the `decisions/` index.
+> It runs in CI **and** as a local `Stop` hook (only when `specs/` changed this
+> turn, blocking the finish on a malformed spec). Hooks can be disabled by editing
+> `.claude/settings.json`, so CI is the real cross-tool backstop.
 
 ## Folder map
 
 ```
 specs/
   README.md            ← you are here (the method)
-  _template.md         ← copy this to start a new spec
   architecture.md      ← system-wide source of truth (read this first)
   features/            ← one spec per feature
+    _feature-template.md ·  copy this to start a new feature spec
     # — synth sound engine —
     oscillators.md     ·  osc1/osc2/sub + noise mixer (sound sources)
     ladder-filter.md   ·  the resonant ladder filter (canonical scalar example)
@@ -182,6 +196,7 @@ specs/
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
     drum-machine.md    ·  8-track synth drums
+    drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
@@ -195,11 +210,13 @@ specs/
     audio-export.md    ·  WAV/MP3 capture of the master
     sample-recorder.md ·  mic record + buffer editor
     # — UI / UX —
+    responsive-header.md ·  mobile hamburger menu + header cluster reflow
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks
+    _recipe-template.md       ·  copy this to start a new recipe
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param
     add-an-effect.md         ·  a bypass-able insert effect on a bus
     add-an-audioworklet.md   ·  a new audio-thread DSP node + wrapper
@@ -211,6 +228,7 @@ specs/
     evolve-the-song-format.md ·  bump the SongFile version, stay back-compat
     write-a-test.md           ·  unit (Vitest) + E2E (Playwright) conventions
   decisions/           ← Architecture Decision Records (the "why")
+    README.md                                 ·  the ADR index (number / title / status)
     _adr-template.md                          ·  copy this to start a new ADR
     adr-000-spec-driven-development.md        ·  why specs lead code (enforced)
     adr-001-parambus-over-redux.md            ·  one scalar bus, not a framework
@@ -223,18 +241,20 @@ specs/
     adr-008-components-self-wire-params.md     ·  effects self-wire (Effect.bind)
     adr-009-ui-depends-on-studio-api-facade.md ·  UI sees a narrow StudioApi facade
     adr-010-musical-stable-cheap-dsp.md        ·  DSP worklets: musical, stable, cheap
+    adr-011-export-precision-and-default-sparse-serialization.md ·  compact export at the boundary
 ```
 
 > Coverage note: the feature set above documents the current system. New features
-> get their own spec (copy `_template.md`) as they're built — keep the folder lean,
+> get their own spec (copy `features/_feature-template.md`) as they're built — keep the folder lean,
 > not exhaustive-for-its-own-sake. Smaller single-function extension points (a new
 > `encode` format, a `buffer-dsp` op, an LFO destination) are noted inline in the
 > relevant feature spec's "Open questions" rather than as separate recipes.
 
 ## Writing a new spec
 
-1. Copy [`_template.md`](_template.md) to `features/<feature>.md` (or
-   `recipes/<recipe>.md`).
+1. For a feature, copy [`features/_feature-template.md`](features/_feature-template.md)
+   to `features/<feature>.md`; for a repeatable how-to, copy
+   [`recipes/_recipe-template.md`](recipes/_recipe-template.md) to `recipes/<recipe>.md`.
 2. Fill the metadata block, then the sections top-to-bottom. Delete sections that
    genuinely don't apply (e.g. no worklet → drop the worklet-contract subsection).
 3. Write scenarios in Gherkin and name the tests that pin them.

@@ -56,7 +56,7 @@ If the step introduces a new control, add a `HelpTopic` + `TopicId` in
 - Take everything from `TourCtx`; never read `window.__synth` or other globals from
   a step (they're absent in production).
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The new step spotlights a live control

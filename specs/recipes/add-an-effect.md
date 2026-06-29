@@ -91,7 +91,7 @@ Add controls in `app.ts` (or the drum/sampler panel for a bus variant), then
   its `BypassWrapper` synchronously, then attaches the node after `loadModule` — see
   [add-an-audioworklet](add-an-audioworklet.md).
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The new effect bypasses cleanly when off

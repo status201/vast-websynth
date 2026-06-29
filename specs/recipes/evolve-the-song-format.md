@@ -73,7 +73,7 @@ After changing the format, re-run `npm run clean:demos`.
   field's meaning — that breaks old files.
 - Add a regression test that applies a `v2` (and `v1`) fixture under the new code.
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: An old file still loads under the new version

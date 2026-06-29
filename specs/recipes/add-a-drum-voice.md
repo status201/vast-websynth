@@ -68,7 +68,7 @@ Append to `this.tracks = [ … new MyDrum(this.ctx) ]` (order must match the lab
 - The grid (`drum-panel.ts`) renders `DRUM_TRACK_COUNT` rows — confirm it picks up
   the new count.
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The new track triggers and has its own controls

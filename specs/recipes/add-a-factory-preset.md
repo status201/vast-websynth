@@ -51,7 +51,7 @@ It shows up in the preset dropdown after a reload (the boot seeder runs
 - A factory preset is a *sound only* — patterns/banks/chains belong in a
   [song](../features/song-mode.md), not a preset.
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: The factory preset seeds and loads

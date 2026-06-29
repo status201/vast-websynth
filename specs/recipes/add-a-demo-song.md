@@ -65,7 +65,7 @@ shape parses: `Song.fromJSON` requires `format === 'websynth-song'` plus
 - Sampler audio is **not** embeddable — only `sampleNames` persist; a demo that
   references samples will show the needs-reload hint (see [sampler](../features/sampler.md)).
 
-## Acceptance (BDD)
+## Scenarios (BDD)
 
 ```gherkin
 Scenario: A dropped-in demo loads and applies
