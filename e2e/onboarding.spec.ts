@@ -108,6 +108,27 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // expand again
   await expect(distBadge).toBeVisible();
 
+  // The Song panel's file buttons each carry their own badge; the Save and
+  // Export copy must distinguish the two (the whole reason they exist). Open
+  // the Song tab and scroll the I/O row into view so the fixed-position badges
+  // land on-screen (the scroll re-runs the badge layout), then check both modals.
+  await page.getByTestId('tab-song').click();
+  await page.getByTestId('song-save').scrollIntoViewIfNeeded();
+  const saveBadge = page.getByTestId('help-badge-song.save');
+  await expect(saveBadge).toBeVisible();
+  await saveBadge.click();
+  const saveDialog = page.getByRole('dialog', { name: 'Save' });
+  await expect(saveDialog).toContainText('Export'); // Save copy cross-references Export
+  await saveDialog.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByTestId('song-export').scrollIntoViewIfNeeded();
+  const exportBadge = page.getByTestId('help-badge-song.export');
+  await expect(exportBadge).toBeVisible();
+  await exportBadge.click();
+  const exportDialog = page.getByRole('dialog', { name: 'Export' });
+  await expect(exportDialog).toContainText('Save'); // Export copy cross-references Save
+  await exportDialog.getByRole('button', { name: 'Close' }).click();
+
   // Toggle badges off again → no chrome left behind. Reopening the menu shows
   // the toggle button itself active; turning it off clears the Help button.
   await page.getByTestId('help-button').click();

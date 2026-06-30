@@ -59,6 +59,16 @@ const ANCHORS: Anchor[] = [
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
   { topic: 'song', find: () => byTestId('tab-song') },
+  // Per-button badges on the Song panel's file/audio controls (the Save vs
+  // Export confusion lives here). They pin to existing testids and reposition
+  // /hide on tab switch via the same reflow path as the seq-step badges.
+  { topic: 'song.load', find: () => byTestId('song-load') },
+  { topic: 'song.save', find: () => byTestId('song-save') },
+  { topic: 'song.import', find: () => byTestId('song-import') },
+  { topic: 'song.export', find: () => byTestId('song-export') },
+  { topic: 'song.new', find: () => byTestId('song-new') },
+  { topic: 'song.exportAudio', find: () => byTestId('song-export-audio') },
+  { topic: 'song.record', find: () => byTestId('song-record') },
   { topic: 'keyboard', find: () => byTestId('keyboard') },
   { topic: 'pitchBend', find: () => byTestId('strip-master.pitchBend') },
   { topic: 'transpose', find: () => byTestId('strip-keyboard.transpose') },

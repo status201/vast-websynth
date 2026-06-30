@@ -35,6 +35,13 @@ never reads DEV-only globals.
   the real app via injected hooks, not globals.
 - **REQ-3** — Help mode shows per-control help badges/content from
   `help-content.ts`.
+- **REQ-5** — The Song panel's file/audio buttons each carry their own badge —
+  `song.load`, `song.save`, `song.import`, `song.export`, `song.new`,
+  `song.exportAudio`, `song.record` — and their copy disambiguates the
+  easy-to-confuse pairs (Save vs Export; Export the `.json` project vs Export
+  Song the WAV/MP3 audio). These pin to the buttons' existing testids, so they
+  reposition/hide on tab switch via the same reflow path as other in-panel
+  badges (e.g. `seq.prob`).
 - **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
   on-screen.
 
@@ -77,6 +84,12 @@ Scenario: Callout placement stays on-screen (edge)
   When the callout renders with placement 'auto'
   Then it flips to a side that keeps it fully visible
 # pinned by: tests/ui/tour-place.test.ts
+
+Scenario: Song file buttons each explain themselves
+  Given help mode is on and the Song tab is open
+  When the user clicks the Save badge, then the Export badge
+  Then each opens its own modal whose copy distinguishes the two
+# pinned by: e2e/onboarding.spec.ts
 ```
 
 ## Tests & verification

@@ -120,6 +120,13 @@ export type TopicId =
   | 'drums'
   | 'sampler'
   | 'song'
+  | 'song.load'
+  | 'song.save'
+  | 'song.import'
+  | 'song.export'
+  | 'song.new'
+  | 'song.exportAudio'
+  | 'song.record'
   | 'keyboard'
   | 'pitchBend'
   | 'transpose'
@@ -419,7 +426,74 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'sampler, add live DJ-style FX (<strong>Fill, Stutter, Drop, Tape&nbsp;Stop</strong> and a ' +
       'sweepable DJ filter), and save / load / export songs.</p>' +
       '<p>The demo buttons load complete examples — remember to press <strong>Play</strong> ' +
-      'afterwards to hear them.</p>',
+      'afterwards to hear them.</p>' +
+      '<p>Not sure what a button does? <strong>Save</strong>, <strong>Export</strong> and the ' +
+      'audio <strong>Export Song</strong> are easy to mix up — each file button has its own (i) ' +
+      'badge with the details.</p>',
+  },
+  'song.load': {
+    title: 'Load',
+    body:
+      '<p>Loads the song chosen in the <strong>Slot</strong> dropdown back from your browser, ' +
+      "replacing the current banks, chains and settings. Slots are the songs you've " +
+      '<strong>Saved</strong> (plus the demos).</p>' +
+      '<p>It only loads — your current unsaved work is discarded, so <strong>Save</strong> first ' +
+      'if you want to return to it.</p>',
+  },
+  'song.save': {
+    title: 'Save',
+    body:
+      '<p><strong>Save</strong> keeps the whole song. It asks for a name, then does two things: ' +
+      'stores it in your browser so it appears in the <strong>Slot</strong> list (ready to ' +
+      '<strong>Load</strong> later) <em>and</em> downloads a <strong>.json</strong> backup file.</p>' +
+      '<p>This is the one to use to keep a song you are working on. By contrast, ' +
+      '<strong>Export</strong> only downloads the file — it does <em>not</em> add a slot.</p>',
+  },
+  'song.import': {
+    title: 'Import',
+    body:
+      '<p>Opens a song <strong>.json</strong> file from your computer — one you or someone else ' +
+      '<strong>Exported</strong> or <strong>Saved</strong> — loads it, and adds it to your ' +
+      '<strong>Slot</strong> list so you can reach it again.</p>' +
+      '<p>It is the counterpart to <strong>Export</strong>: Export writes the file, Import reads ' +
+      'it back in.</p>',
+  },
+  'song.export': {
+    title: 'Export',
+    body:
+      '<p>Downloads the current song as a <strong>.json</strong> file — the editable project ' +
+      '(banks, chains, settings), <em>not</em> audio. Good for sharing a song or backing it up ' +
+      'outside the browser; bring it back with <strong>Import</strong>.</p>' +
+      '<p>Two things it is <em>not</em>: unlike <strong>Save</strong> it does not add the song to ' +
+      'your <strong>Slot</strong> list, and unlike <strong>Export Song</strong> (below) it does ' +
+      'not render any sound.</p>',
+  },
+  'song.new': {
+    title: 'New',
+    body:
+      '<p>Clears every bank and chain — sequencer, drums and sampler — back to empty so you can ' +
+      'start a fresh song. It asks for confirmation first, as it cannot be undone.</p>' +
+      '<p><strong>Save</strong> or <strong>Export</strong> anything you want to keep before ' +
+      'pressing it.</p>',
+  },
+  'song.exportAudio': {
+    title: 'Export Song (audio)',
+    body:
+      '<p>Renders the arrangement to an <strong>audio file</strong> you can play anywhere — pick ' +
+      '<strong>WAV</strong> (lossless) or <strong>MP3</strong> with the Format switch. It plays ' +
+      'one full pass of the longest chain, then downloads automatically.</p>' +
+      '<p>This is the actual <em>sound</em>. To save the editable project instead, use ' +
+      '<strong>Export</strong> (a <strong>.json</strong> file) up above.</p>',
+  },
+  'song.record': {
+    title: 'Record',
+    body:
+      '<p>A free-form audio recorder. Press <strong>Record</strong> and it captures everything ' +
+      'that plays — live notes, patterns, knob tweaks — to a <strong>WAV</strong> or ' +
+      '<strong>MP3</strong> file (set the Format), starting the transport if it is stopped. Press ' +
+      '<strong>Stop</strong> to finish and download.</p>' +
+      '<p>Use it to grab a jam or a take; use <strong>Export Song</strong> for a clean, automatic ' +
+      'render of the whole arrangement.</p>',
   },
   keyboard: {
     title: 'Keyboard',
