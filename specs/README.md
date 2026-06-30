@@ -214,7 +214,8 @@ specs/
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
-    ios-audio.md       ·  iOS silent-switch unlock + interruption re-arm + About Debug panel
+    ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
+    debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe

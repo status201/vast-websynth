@@ -24,7 +24,7 @@ import { Performance } from './transport/performance';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
-import { IosAudioSession, shouldResumeContext } from './ios-audio-session';
+import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
 const VOICE_COUNT = 8;
 /** Polyphony cap when Performance mode is active — fewer per-voice ladder-filter
@@ -103,12 +103,14 @@ export class Engine {
   private readonly voiceCount: number;
 
   /** iOS-only audio-session workarounds; inert (no-op) on every other platform. */
-  private readonly iosSession = new IosAudioSession();
+  private readonly iosSession: IosAudioSession;
 
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
     this.voiceCount = opts.voiceCount ?? VOICE_COUNT;
     this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
+    // Built here (after ctx) so the silent loop can be routed through the context.
+    this.iosSession = new IosAudioSession(this.ctx);
 
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;
@@ -306,6 +308,9 @@ export class Engine {
       if (!document.hidden && shouldResumeContext(this.ctx.state)) void this.resume();
     });
   }
+
+  /** iOS audio-session diagnostics for the Debug panel (see ios-audio.md / debug-panel.md). */
+  get iosAudio(): IosAudioDiagnostics { return this.iosSession.diagnostics; }
 
   // ---------- Note handling ----------
 

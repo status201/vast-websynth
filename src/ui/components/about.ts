@@ -28,6 +28,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   let backdrop: HTMLElement | null = null;
   let refreshDebug: (() => void) | null = null;
   let closeTimer: number | undefined;
+  let refreshTimer: number | undefined;
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -45,6 +46,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
     if (!backdrop) return;
     window.removeEventListener('keydown', onKey, true);
     engine.ctx.removeEventListener('statechange', onState);
+    window.clearInterval(refreshTimer);
     backdrop.classList.add('hidden');
     const el = backdrop;
     closeTimer = window.setTimeout(() => el.remove(), 200);
@@ -64,6 +66,9 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
     refreshDebug?.();
     window.addEventListener('keydown', onKey, true);
     engine.ctx.addEventListener('statechange', onState);
+    // Poll while open so values that change without an event (e.g. the silent
+    // loop's currentTime advancing) visibly tick. Cleared in close().
+    refreshTimer = window.setInterval(() => refreshDebug?.(), 500);
   }
 
   return btn;
@@ -174,11 +179,21 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
   stateVal.dataset.testid = 'debug-ctx-state';
   const iosVal = addRow('iOS');
   const rateVal = addRow('Sample rate');
+  // iOS audio-session diagnostics (owned by ios-audio.md; inert off iOS).
+  const unlockVal = addRow('Audio unlock');
+  unlockVal.dataset.testid = 'debug-ios-unlock';
+  const loopVal = addRow('Silent loop');
+  loopVal.dataset.testid = 'debug-ios-loop';
 
   const refresh = (): void => {
     stateVal.textContent = engine.ctx.state;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
+    const ios = engine.iosAudio;
+    unlockVal.textContent = ios.status + (ios.routed ? ' · routed' : '');
+    loopVal.textContent = ios.paused === null
+      ? (ios.active ? 'idle' : 'n/a')
+      : (ios.paused ? 'paused' : `playing t=${(ios.currentTime ?? 0).toFixed(1)}`);
   };
   refresh();
 

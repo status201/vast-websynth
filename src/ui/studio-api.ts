@@ -7,6 +7,7 @@ import type { DrumMachine } from '../audio/transport/drum-machine';
 import type { SamplerMachine } from '../audio/transport/sampler-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
 import type { Compressor } from '../audio/effects/compressor';
+import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 
 /**
  * The UI's narrow view of the `Engine` (ADR-009). UI panels/components depend on
@@ -49,6 +50,9 @@ export interface StudioApi {
   readonly drumComp: Compressor;
   /** Master-bus compressor; UI reads its gain reduction via `onGr`. */
   readonly masterComp: Compressor;
+
+  /** iOS audio-session diagnostics (inert off iOS); read by the Debug panel. */
+  readonly iosAudio: IosAudioDiagnostics;
 
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;
