@@ -129,6 +129,19 @@
   justify-content: center;
 }
 
+/* Debug section header: the .sec label plus a fold chevron, whole row clickable. */
+.debugHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.debugBody:global(.collapsed) {
+  display: none;
+}
+
 .aiLabel {
   display: block;
   margin-top: 16px;

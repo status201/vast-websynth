@@ -171,7 +171,7 @@ function buildHeader(
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
   presetGroup.appendChild(createPerfSettingsButton());
-  presetGroup.appendChild(createAboutButton());
+  presetGroup.appendChild(createAboutButton(engine));
   presetGroup.appendChild(
     createHelpButton({
       startTour: onboarding.startTour,

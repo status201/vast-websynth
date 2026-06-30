@@ -24,6 +24,7 @@ import { Performance } from './transport/performance';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
+import { IosAudioSession, shouldResumeContext } from './ios-audio-session';
 
 const VOICE_COUNT = 8;
 /** Polyphony cap when Performance mode is active — fewer per-voice ladder-filter
@@ -100,6 +101,9 @@ export class Engine {
   get arpPassthroughSuppressed(): boolean { return this.arp?.passthroughSuppressed ?? false; }
 
   private readonly voiceCount: number;
+
+  /** iOS-only audio-session workarounds; inert (no-op) on every other platform. */
+  private readonly iosSession = new IosAudioSession();
 
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
@@ -265,17 +269,42 @@ export class Engine {
       if (on) this.playNote(note, vel);
       else this.releaseNote(note);
     });
+
+    this.installIosRearm();
   }
 
   /**
    * Resume the AudioContext. Browsers create it suspended until a user
    * gesture, so `init()` can run (and the UI can mount) before this is
    * called — this must be invoked from within the start-button gesture.
+   *
+   * `iosSession.unlock()` runs first (synchronously, inside the gesture) to
+   * switch iOS off the silent-switch-respecting *ambient* category; it is a
+   * no-op elsewhere. `shouldResumeContext` then covers `'suspended'` and the
+   * iOS-only `'interrupted'` state alike.
    */
   async resume(): Promise<void> {
-    if (this.ctx.state === 'suspended') {
+    this.iosSession.unlock();
+    if (shouldResumeContext(this.ctx.state)) {
       try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
     }
+  }
+
+  /**
+   * iOS drops the context into `'suspended'`/`'interrupted'` on calls, Siri, and
+   * app-switching, and audio stays dead until resumed. On iOS only, re-resume
+   * (which also replays the silent loop) when the page returns to the foreground
+   * or the context reports a non-running state while visible. Some iOS versions
+   * still require a fresh gesture — the next tap is the natural fallback.
+   */
+  private installIosRearm(): void {
+    if (!this.iosSession.active) return;
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) void this.resume();
+    });
+    this.ctx.addEventListener('statechange', () => {
+      if (!document.hidden && shouldResumeContext(this.ctx.state)) void this.resume();
+    });
   }
 
   // ---------- Note handling ----------
