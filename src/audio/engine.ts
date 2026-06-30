@@ -27,9 +27,6 @@ import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
 const VOICE_COUNT = 8;
-/** Polyphony cap when Performance mode is active — fewer per-voice ladder-filter
- * worklets is the biggest steady-state CPU saving on weak devices. Tunable. */
-export const PERF_VOICE_COUNT = 5;
 const PITCH_BEND_RANGE_CENTS = 200;
 
 /**

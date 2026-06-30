@@ -8,7 +8,7 @@ const sel = (id: string) => document.querySelector<HTMLElement>(`[data-testid="$
 describe('createPerfSettingsButton', () => {
   beforeEach(() => {
     installLocalStorageMock();
-    // A capable desktop → 'auto' resolves to inactive at boot.
+    // A capable desktop → 'auto' resolves to 'strong' at boot.
     vi.stubGlobal('navigator', { hardwareConcurrency: 12, deviceMemory: 16, userAgent: 'Windows' });
   });
   afterEach(() => {
@@ -16,80 +16,89 @@ describe('createPerfSettingsButton', () => {
     document.body.innerHTML = '';
   });
 
-  it('opens a modal with a three-way Auto/On/Off control defaulting to the stored pref', () => {
+  it('opens a modal with a four-way Auto/Weak/Medium/Strong control defaulting to the stored pref', () => {
     const btn = createPerfSettingsButton();
     expect(sel('perf-mode')).toBeNull(); // closed until clicked
 
     btn.click();
     expect(sel('perf-mode')).not.toBeNull();
+    for (const v of ['auto', 'weak', 'medium', 'strong']) {
+      expect(sel(`perf-mode-${v}`)).not.toBeNull();
+    }
     // Default pref is 'auto'.
     expect(sel('perf-mode-auto')!.classList.contains('active')).toBe(true);
-    expect(sel('perf-mode-on')!.classList.contains('active')).toBe(false);
+    expect(sel('perf-mode-strong')!.classList.contains('active')).toBe(false);
   });
 
   it('persists the chosen preference and moves the active marker', () => {
     const btn = createPerfSettingsButton();
     btn.click();
 
-    sel('perf-mode-on')!.click();
-    expect(readPerfPref()).toBe('on');
-    expect(sel('perf-mode-on')!.classList.contains('active')).toBe(true);
+    sel('perf-mode-weak')!.click();
+    expect(readPerfPref()).toBe('weak');
+    expect(sel('perf-mode-weak')!.classList.contains('active')).toBe(true);
     expect(sel('perf-mode-auto')!.classList.contains('active')).toBe(false);
   });
 
-  it('shows the reload hint only when the choice changes the booted active state', () => {
-    const btn = createPerfSettingsButton();
-    btn.click(); // booted with auto→inactive (capable desktop)
+  it('applies the resolved tier fps live via the onTierPreview callback', () => {
+    const onTierPreview = vi.fn();
+    const btn = createPerfSettingsButton({ onTierPreview });
+    btn.click();
 
-    // 'on' diverges from the inactive boot state → needs reload.
-    sel('perf-mode-on')!.click();
+    sel('perf-mode-medium')!.click();
+    expect(onTierPreview).toHaveBeenLastCalledWith('medium');
+
+    sel('perf-mode-weak')!.click();
+    expect(onTierPreview).toHaveBeenLastCalledWith('weak');
+
+    // 'auto' resolves to the detected tier ('strong' on this capable desktop).
+    sel('perf-mode-auto')!.click();
+    expect(onTierPreview).toHaveBeenLastCalledWith('strong');
+  });
+
+  it('shows the reload hint only when the choice changes the audio profile', () => {
+    const btn = createPerfSettingsButton();
+    btn.click(); // booted as 'strong' (capable desktop)
+
+    // Weak changes buffer + voices → needs a reload.
+    sel('perf-mode-weak')!.click();
     expect(sel('perf-reload-hint')!.classList.contains('hidden')).toBe(false);
     expect(sel('perf-reload')!.classList.contains('hidden')).toBe(false);
 
-    // Back to a choice that resolves to the booted state → no reload needed.
-    sel('perf-mode-off')!.click();
+    // Medium shares the audio profile with the booted Strong → fps-only, no reload.
+    sel('perf-mode-medium')!.click();
     expect(sel('perf-reload-hint')!.classList.contains('hidden')).toBe(true);
     expect(sel('perf-reload')!.classList.contains('hidden')).toBe(true);
   });
 
-  it('states the effective engaged state, disambiguating the Auto preference', () => {
+  it('states the resolved tier, disambiguating the Auto preference', () => {
     const btn = createPerfSettingsButton();
     btn.click(); // capable desktop, pref 'auto'
 
-    // Auto on a capable device → off, and the line explains why.
     const status = sel('perf-status')!;
-    expect(status.textContent!.toLowerCase()).toContain('off');
-    expect(status.textContent!.toLowerCase()).toContain('capable');
+    expect(status.textContent!.toLowerCase()).toContain('auto selected');
+    expect(status.textContent!.toLowerCase()).toContain('strong');
 
-    // Forcing On flips the status to a "forced on" reading.
-    sel('perf-mode-on')!.click();
-    expect(status.textContent!.toLowerCase()).toContain('forced on');
+    sel('perf-mode-weak')!.click();
+    expect(status.textContent!.toLowerCase()).toContain('forced to');
+    expect(status.textContent!.toLowerCase()).toContain('weak');
   });
 
-  it('reflects the engaged state on the header button itself', () => {
-    const btn = createPerfSettingsButton(); // capable desktop, default pref 'auto'
-    // Auto + not engaged → neutral (no active state).
-    expect(btn.dataset.perfState).toBe('auto-idle');
+  it('reflects the resolved tier on the header button itself', () => {
+    const btn = createPerfSettingsButton(); // capable desktop, default pref 'auto' → strong
+    expect(btn.dataset.perfTier).toBe('strong');
+    expect(btn.dataset.perfPending).toBe('0');
 
     btn.click();
-    sel('perf-mode-on')!.click();
-    expect(btn.dataset.perfState).toBe('engaged'); // forced on → orange
-
-    sel('perf-mode-off')!.click();
-    expect(btn.dataset.perfState).toBe('forced-off'); // forced off → green
-  });
-
-  it('flags a pending reload on the button when the choice is not yet live', () => {
-    const btn = createPerfSettingsButton(); // booted auto→inactive (capable desktop)
-    expect(btn.dataset.perfPending).toBe('0'); // matches the running state
-
-    btn.click();
-    // Forcing On would engage perf, but it isn't live until reload → pending.
-    sel('perf-mode-on')!.click();
+    sel('perf-mode-weak')!.click();
+    expect(btn.dataset.perfTier).toBe('weak');
+    expect(btn.dataset.perfPref).toBe('weak');
+    // Weak crosses the audio boundary from the booted Strong → pending a reload.
     expect(btn.dataset.perfPending).toBe('1');
 
-    // Off resolves to the same (inactive) state the engine is already running → not pending.
-    sel('perf-mode-off')!.click();
+    // Medium shares Strong's audio profile → not pending.
+    sel('perf-mode-medium')!.click();
+    expect(btn.dataset.perfTier).toBe('medium');
     expect(btn.dataset.perfPending).toBe('0');
   });
 });

@@ -1,8 +1,8 @@
 /**
  * iOS OS detection.
  *
- * Deliberately separate from `detectWeakDevice()` (`state/perf-mode.ts`): that
- * asks "is this hardware weak?", this asks "is this iOS?". They share neither a
+ * Deliberately separate from `detectTier()` (`state/perf-mode.ts`): that
+ * asks "how capable is this hardware?", this asks "is this iOS?". They share neither a
  * heuristic nor a consequence — iOS needs the audio-session workarounds
  * (`audio/ios-audio-session.ts`) regardless of how capable the device is.
  */

@@ -76,9 +76,11 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   in the scope panel, labelled `Mono`/`Stereo`, defaulting to `Mono`. Clicking it
   flips `Scope.setChannels` and its own label, without disturbing the Wave/Spectrum
   toggle.
-- **REQ-8** — Lightweight/performance-mode behaviour (skip drop-shadow, ~30fps,
-  pause while hidden — see `performance-mode`) is unchanged and applies equally to
-  the mono and stereo renderers.
+- **REQ-8** — Performance scaling: the canvas **drop-shadow is dropped for all
+  modes** (a baseline cost cut), and the redraw rate is a configurable target fps
+  (`ScopeOptions.fps`, default 60; `setFps` live) — perf-mode drives 15/30/60. The
+  loop always pauses while the tab is hidden. Applies equally to the mono and stereo
+  renderers. See `performance-mode`.
 - **REQ-9** — Defensive fallback: if `setChannels('stereo')` is called on a `Scope`
   built without left/right analysers, it stays in mono (no throw).
 - **REQ-10** — In **Spectrum** view each region draws a **peak-hold** indicator: a
@@ -100,7 +102,7 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   the held peak **falls very slowly** at `PEAK_DECAY_DB_PER_SEC`, never below the
   current bar. All timing is frame-rate independent from a clamped inter-frame `dt`
   (the clamp guards the long gap after the tab was hidden), so it feels identical at
-  ~30fps (lightweight) and ~60fps. The pure update is
+  any target fps (e.g. 15/30/60, set by perf-mode). The pure update is
   `updatePeak(state, currentMaxDb, dtSec)` (composing `decayPeak` for the fall);
   `state` is the per-channel `{ db, holdS }`.
 - **REQ-13** — **Clicking the graph resets** the peak (every channel back to
@@ -108,10 +110,9 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   element itself; the `scope-toggle`/`scope-channels-toggle` buttons are siblings of
   the canvas (not children), so clicking a button never resets the peak — satisfying
   "anywhere but the buttons" with no `stopPropagation`.
-- **REQ-14** — Lightweight/performance-mode behaviour (REQ-8) applies to the
-  peak-hold too: it is cheap (one line + one label per region) and skips the
-  drop-shadow like the bars; while the tab is hidden the loop is paused, so the held
-  value neither decays nor updates.
+- **REQ-14** — Performance scaling (REQ-8) applies to the peak-hold too: it is cheap
+  (one line + one label per region) and draws with no drop-shadow like the bars; while
+  the tab is hidden the loop is paused, so the held value neither decays nor updates.
 - **REQ-15** — For test observability the canvas carries `data-testid="scope-canvas"`
   and the held dB is mirrored onto its `dataset`: `el.dataset.peak`
   (mono) / `el.dataset.peakL` / `el.dataset.peakR` (stereo), formatted to one
@@ -138,7 +139,7 @@ type ScopeMode = 'wave' | 'spectrum';
 type ScopeChannels = 'mono' | 'stereo';
 
 interface ScopeAnalysers { mono: AnalyserNode; left?: AnalyserNode; right?: AnalyserNode; }
-interface ScopeOptions { lightweight?: boolean; }
+interface ScopeOptions { fps?: number; }  // target redraw rate (default 60); see performance-mode
 
 class Scope {
   readonly el: HTMLCanvasElement;
@@ -147,6 +148,7 @@ class Scope {
   setChannels(c: ScopeChannels): void;  // mono | stereo    (new; stereo needs left+right)
   get channelMode(): ScopeChannels;     // effective layout (mono unless stereo set with both)
   resetPeak(): void;                     // clear the spectrum peak-hold (also bound to canvas click)
+  setFps(fps: number): void;             // change the target redraw rate live (perf-mode tier switch)
   destroy(): void;
 }
 
@@ -225,7 +227,8 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
   widened `StudioApi`) to `mountApp`; `window.__synth.engine` therefore exposes
   `analyserL`/`analyserR` (DEV only) for E2E assertions.
 - **`app.ts` `buildBottom`** constructs `new Scope({ mono: engine.analyser, left:
-  engine.analyserL, right: engine.analyserR }, { lightweight })` and adds the
+  engine.analyserL, right: engine.analyserR }, { fps: PERF_PROFILES[resolveTier()].fps })`,
+  returns the scope so `mountApp` can bind a live `setFps` hook (perf-mode), and adds the
   `scope-channels-toggle` button beside the existing `scope-toggle`.
 - **`help-content.ts`** `scope` topic text mentions the Mono/Stereo split and the
   peak-hold (click to reset). CSS for the new button lives in `layout.module.css`

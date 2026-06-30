@@ -3,14 +3,23 @@ import { installLocalStorageMock } from '../storage-mock';
 import {
   readPerfPref,
   writePerfPref,
-  detectWeakDevice,
-  resolvePerfActive,
+  detectTier,
+  resolveTier,
+  sameAudioProfile,
+  perfDiagnostics,
+  PERF_PROFILES,
 } from '../../src/state/perf-mode';
 
 /** Replace `navigator` with a minimal stub for the detection branches. */
 function stubNavigator(fields: { hardwareConcurrency?: number; deviceMemory?: number; userAgent?: string }): void {
   vi.stubGlobal('navigator', { userAgent: '', ...fields });
 }
+
+const DESKTOP = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)';
+const ANDROID = 'Mozilla/5.0 (Linux; Android 10; SM-G960)';
+// Modern iPads report a desktop-class UA (no Mobi/iPhone token).
+const IPAD_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Version/17.0 Safari/605';
 
 describe('perf-mode preference storage', () => {
   beforeEach(() => installLocalStorageMock());
@@ -20,13 +29,18 @@ describe('perf-mode preference storage', () => {
     expect(readPerfPref()).toBe('auto');
   });
 
-  it('round-trips on / off / auto', () => {
-    writePerfPref('on');
-    expect(readPerfPref()).toBe('on');
-    writePerfPref('off');
-    expect(readPerfPref()).toBe('off');
-    writePerfPref('auto');
-    expect(readPerfPref()).toBe('auto');
+  it('round-trips auto / weak / medium / strong', () => {
+    for (const v of ['auto', 'weak', 'medium', 'strong'] as const) {
+      writePerfPref(v);
+      expect(readPerfPref()).toBe(v);
+    }
+  });
+
+  it('migrates legacy v1 values (on→weak, off→strong)', () => {
+    localStorage.setItem('websynth.perf', 'on');
+    expect(readPerfPref()).toBe('weak');
+    localStorage.setItem('websynth.perf', 'off');
+    expect(readPerfPref()).toBe('strong');
   });
 
   it('falls back to auto for an unrecognised stored value', () => {
@@ -35,44 +49,111 @@ describe('perf-mode preference storage', () => {
   });
 });
 
-describe('detectWeakDevice', () => {
+describe('detectTier', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('is weak when there are few logical cores', () => {
-    stubNavigator({ hardwareConcurrency: 2, userAgent: 'Desktop' });
-    expect(detectWeakDevice()).toBe(true);
+  it('is weak with very few cores', () => {
+    stubNavigator({ hardwareConcurrency: 2, userAgent: DESKTOP });
+    expect(detectTier()).toBe('weak');
   });
 
-  it('is weak when device memory is low', () => {
-    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 2, userAgent: 'Desktop' });
-    expect(detectWeakDevice()).toBe(true);
+  it('is weak with very little memory', () => {
+    stubNavigator({ hardwareConcurrency: 8, deviceMemory: 2, userAgent: DESKTOP });
+    expect(detectTier()).toBe('weak');
   });
 
-  it('is weak for a mobile user agent even with many cores', () => {
-    stubNavigator({ hardwareConcurrency: 8, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)' });
-    expect(detectWeakDevice()).toBe(true);
+  it('is weak for a phone with few cores', () => {
+    stubNavigator({ hardwareConcurrency: 4, userAgent: ANDROID });
+    expect(detectTier()).toBe('weak');
   });
 
-  it('is not weak on a capable desktop', () => {
-    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
-    expect(detectWeakDevice()).toBe(false);
+  it('is weak for a phone with little memory', () => {
+    stubNavigator({ hardwareConcurrency: 6, deviceMemory: 3, userAgent: IPHONE });
+    expect(detectTier()).toBe('weak');
+  });
+
+  it('is strong on a capable desktop', () => {
+    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: DESKTOP });
+    expect(detectTier()).toBe('strong');
+  });
+
+  it('is strong on a desktop with many cores and no memory signal', () => {
+    stubNavigator({ hardwareConcurrency: 8, userAgent: DESKTOP });
+    expect(detectTier()).toBe('strong');
+  });
+
+  it('is medium for an in-between desktop', () => {
+    stubNavigator({ hardwareConcurrency: 6, deviceMemory: 8, userAgent: DESKTOP });
+    expect(detectTier()).toBe('medium');
+  });
+
+  it('does not force a capable iPad-class device to weak (the v1 regression)', () => {
+    stubNavigator({ hardwareConcurrency: 8, userAgent: IPAD_DESKTOP });
+    expect(detectTier()).not.toBe('weak');
+  });
+
+  it('defaults a modern phone (many cores, no memory signal) to medium, not weak', () => {
+    stubNavigator({ hardwareConcurrency: 8, userAgent: IPHONE });
+    expect(detectTier()).toBe('medium');
   });
 });
 
-describe('resolvePerfActive', () => {
+describe('resolveTier', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('honours an explicit on / off regardless of the device', () => {
-    stubNavigator({ hardwareConcurrency: 12, userAgent: 'Desktop' }); // capable
-    expect(resolvePerfActive('on')).toBe(true);
-    stubNavigator({ hardwareConcurrency: 1, userAgent: 'iPhone' }); // weak
-    expect(resolvePerfActive('off')).toBe(false);
+  it('passes a concrete tier through, ignoring the device', () => {
+    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: DESKTOP }); // strong device
+    expect(resolveTier('weak')).toBe('weak');
+    stubNavigator({ hardwareConcurrency: 1, userAgent: IPHONE }); // weak device
+    expect(resolveTier('strong')).toBe('strong');
   });
 
-  it('auto follows device capability', () => {
-    stubNavigator({ hardwareConcurrency: 2, userAgent: 'Desktop' });
-    expect(resolvePerfActive('auto')).toBe(true);
-    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: 'Desktop' });
-    expect(resolvePerfActive('auto')).toBe(false);
+  it('auto follows device detection', () => {
+    stubNavigator({ hardwareConcurrency: 2, userAgent: DESKTOP });
+    expect(resolveTier('auto')).toBe('weak');
+    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: DESKTOP });
+    expect(resolveTier('auto')).toBe('strong');
+  });
+});
+
+describe('sameAudioProfile', () => {
+  it('medium and strong share an audio profile (fps-only difference)', () => {
+    expect(sameAudioProfile('medium', 'strong')).toBe(true);
+  });
+
+  it('weak differs from medium and strong (buffer + voices)', () => {
+    expect(sameAudioProfile('weak', 'medium')).toBe(false);
+    expect(sameAudioProfile('weak', 'strong')).toBe(false);
+  });
+});
+
+describe('perfDiagnostics', () => {
+  beforeEach(() => installLocalStorageMock());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('surfaces the raw signals and the resolved tier', () => {
+    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: DESKTOP });
+    const d = perfDiagnostics();
+    expect(d.cores).toBe(12);
+    expect(d.memoryGb).toBe(16);
+    expect(d.mobile).toBe(false);
+    expect(d.pref).toBe('auto');
+    expect(d.detected).toBe('strong');
+    expect(d.tier).toBe('strong');
+    expect(d.profile).toEqual(PERF_PROFILES.strong);
+  });
+
+  it('reports memoryGb as null when deviceMemory is unavailable', () => {
+    stubNavigator({ hardwareConcurrency: 8, userAgent: DESKTOP });
+    expect(perfDiagnostics().memoryGb).toBeNull();
+  });
+
+  it('reflects a forced preference', () => {
+    stubNavigator({ hardwareConcurrency: 12, deviceMemory: 16, userAgent: DESKTOP });
+    writePerfPref('weak');
+    const d = perfDiagnostics();
+    expect(d.pref).toBe('weak');
+    expect(d.tier).toBe('weak');
+    expect(d.profile.fps).toBe(15);
   });
 });

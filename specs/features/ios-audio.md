@@ -56,8 +56,8 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
 - **REQ-1** — `isIOS()` detects iOS: a UA match for `iPhone | iPad | iPod`, **or**
   the iPadOS-13+ desktop-mode case (`navigator.platform === 'MacIntel'` **and**
   `navigator.maxTouchPoints > 1`). Pure; safe when `navigator` is absent (returns
-  `false`). Kept separate from `detectWeakDevice()` (`perf-mode.ts`) — different
-  concern (OS identity vs. weak hardware).
+  `false`). Kept separate from `detectTier()` (`perf-mode.ts`) — different
+  concern (OS identity vs. hardware capability).
 - **REQ-2** — `IosAudioSession(ctx)` lazily builds **one** silent, **looping**
   `<audio>` element (source = a tiny silent stereo WAV from the existing `encodeWav`
   in `audio/recorder/encode.ts` via `URL.createObjectURL` — no hardcoded base64) **and

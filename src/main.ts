@@ -1,6 +1,6 @@
-import { Engine, PERF_VOICE_COUNT } from './audio/engine';
+import { Engine } from './audio/engine';
 import { ParamBus } from './state/params';
-import { resolvePerfActive } from './state/perf-mode';
+import { PERF_PROFILES, resolveTier } from './state/perf-mode';
 import { mountApp } from './ui/app';
 import { installShortcuts } from './ui/shortcuts';
 import { initMIDI } from './audio/midi';
@@ -16,10 +16,11 @@ async function boot() {
   // behind the start modal — audio is unlocked when the user taps it.
   const bus = new ParamBus();
   // Performance mode (device-aware, persisted outside the bus) trades a little
-  // latency/polyphony for a glitch-resistant buffer on weak hardware. Read once
-  // here because the buffer size + voice count are fixed at AudioContext build.
-  const perf = resolvePerfActive();
-  const engine = new Engine(bus, perf ? { latencyHint: 'playback', voiceCount: PERF_VOICE_COUNT } : {});
+  // latency/polyphony for a glitch-resistant buffer on weak hardware. The audio
+  // fields are read once here because the buffer size + voice count are fixed at
+  // AudioContext build (scope fps is applied live; see perf-mode.ts).
+  const { latencyHint, voiceCount } = PERF_PROFILES[resolveTier()];
+  const engine = new Engine(bus, { latencyHint, voiceCount });
   await engine.init();
 
   // The selector reflects the active sound; a patch edit flips it to dirty.

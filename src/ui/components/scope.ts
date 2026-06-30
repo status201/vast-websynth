@@ -115,11 +115,18 @@ export interface ScopeAnalysers {
 
 export interface ScopeOptions {
   /**
-   * Performance mode: skip the canvas drop-shadow (a comparatively expensive
-   * op) and halve the redraw rate (~30fps). Cuts main-thread work that
-   * contends with the audio callback on weak devices.
+   * Target redraw rate (frames per second). The loop throttles to this via a
+   * timestamp accumulator, so it stays correct on high-refresh displays;
+   * `fps >= 60` means "draw every frame". Lower fps cuts main-thread work that
+   * contends with the audio callback on weaker devices. Default 60.
+   * (perf-mode REQ-6)
    */
-  lightweight?: boolean;
+  fps?: number;
+}
+
+/** Min ms between drawn frames for a target fps; 0 = draw every frame. */
+function fpsToInterval(fps: number): number {
+  return fps >= 60 ? 0 : 1000 / fps;
 }
 
 /** An analyser paired with its reusable time-domain + frequency buffers. */
@@ -139,8 +146,10 @@ export class Scope {
   private channels: ScopeChannels = 'mono';
   private rafId = 0;
   private running = false;
-  private tick = 0;
-  private readonly lightweight: boolean;
+  /** Min ms between drawn frames; 0 = every frame. Set by fps (live via setFps). */
+  private frameInterval: number;
+  /** rAF timestamp of the last drawn frame; throttles the loop to frameInterval. */
+  private lastDrawTs = 0;
   private readonly ctx: CanvasRenderingContext2D | null;
   private readonly mono: Channel;
   private readonly left: Channel | null;
@@ -159,7 +168,7 @@ export class Scope {
   private lastTs = 0;
 
   constructor(analysers: ScopeAnalysers, opts: ScopeOptions = {}) {
-    this.lightweight = opts.lightweight ?? false;
+    this.frameInterval = fpsToInterval(opts.fps ?? 60);
     this.el = document.createElement('canvas');
     this.el.className = styles.root!;
     this.el.dataset.testid = 'scope-canvas';
@@ -254,13 +263,22 @@ export class Scope {
     return this.cssW > 0 && this.cssH > 0;
   }
 
+  /** Change the target redraw rate live (e.g. a perf-mode tier switch). */
+  setFps(fps: number): void {
+    this.frameInterval = fpsToInterval(fps);
+  }
+
   private start(): void {
     if (this.running) return;
     this.running = true;
-    const loop = () => {
+    // Throttle to frameInterval using the rAF timestamp, not a frame counter — a
+    // counter would lock to the display's refresh rate (wrong on 120Hz panels).
+    const loop = (now: number) => {
       if (!this.running) return;
-      // Lightweight mode draws every other frame (~30fps).
-      if (!(this.lightweight && (this.tick++ & 1))) this.draw();
+      if (now - this.lastDrawTs >= this.frameInterval) {
+        this.lastDrawTs = now;
+        this.draw();
+      }
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);
@@ -327,10 +345,6 @@ export class Scope {
     const amp = r.h / 2 - 4;
     ctx.lineWidth = 1.8;
     ctx.strokeStyle = '#e8742e';
-    if (!this.lightweight) {
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = 'rgba(232, 116, 46, 0.7)';
-    }
     ctx.beginPath();
     const len = data.length;
     for (let i = 0; i < len; i++) {
@@ -341,7 +355,6 @@ export class Scope {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
   private drawSpectrum(
@@ -360,10 +373,6 @@ export class Scope {
     grad.addColorStop(0.6, '#f4cd5e');
     grad.addColorStop(1, '#ff3a20');
     ctx.fillStyle = grad;
-    if (!this.lightweight) {
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = 'rgba(232, 116, 46, 0.5)';
-    }
     let maxByte = 0;
     for (let i = 0; i < used; i++) {
       const b = data[i] ?? 0;
@@ -372,7 +381,6 @@ export class Scope {
       if (bh < 0.5) continue;
       ctx.fillRect(r.x + i * barW, r.y + r.h - bh, Math.max(1, barW - 1), bh);
     }
-    ctx.shadowBlur = 0;
 
     // Peak-hold: pushed up by the loudest visible bar, held briefly, then falls slowly.
     const next = updatePeak(

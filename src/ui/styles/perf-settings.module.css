@@ -38,15 +38,7 @@
 
 .status strong {
   font-weight: 800;
-}
-
-/* Engaged vs not — accent the on word, dim the off word. */
-.statusOn strong {
   color: var(--accent-secondary);
-}
-
-.statusOff strong {
-  color: var(--text);
 }
 
 .reloadHint {
@@ -68,17 +60,23 @@
   display: none;
 }
 
-/* Header "Perf" button state. Orange when performance mode is engaged (forced
-   on, or auto-detected on); green when forced off; neutral (no class) when set
-   to auto and not engaged. `button.X` outranks switch.module's `.root` so it
-   wins regardless of stylesheet order — same trick as tour's .toggleActive. */
-button.engaged {
+/* Header "Perf" button tier colour: weak=red, medium=amber, strong=green — shown
+   even under Auto (it reflects the *resolved* tier, so the user sees what Auto
+   picked). `button.X` outranks switch.module's `.root` so it wins regardless of
+   stylesheet order — same trick as tour's .toggleActive. */
+button.tierWeak {
+  border-color: #e0533a;
+  color: #ff7a5c;
+  box-shadow: 0 0 8px rgba(224, 83, 58, 0.42), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+}
+
+button.tierMedium {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
 }
 
-button.forcedOff {
+button.tierStrong {
   border-color: #6fb86a;
   color: #8fd089;
   box-shadow: 0 0 8px rgba(111, 184, 106, 0.42), inset 0 1px 0 rgba(244, 205, 94, 0.06);

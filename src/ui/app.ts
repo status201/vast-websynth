@@ -19,7 +19,7 @@ import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
 import { createPerfSettingsButton } from './components/perf-settings';
-import { resolvePerfActive } from '../state/perf-mode';
+import { PERF_PROFILES, resolveTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
@@ -50,6 +50,8 @@ export function mountApp(
 
   // Late-bound hooks, filled once their panels are built; the tour calls them.
   let fxExpand: () => void = () => {};
+  // Scope fps is applied live when the perf tier changes; bound once buildBottom runs.
+  let setScopeFps: (fps: number) => void = () => {};
   // Default loads a demo without UI sync; replaced by the Song panel's own
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   let songLoadDemo: (name: string) => void = (name) => {
@@ -69,7 +71,7 @@ export function mountApp(
   };
   const onboarding = createOnboarding(ctx);
 
-  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session));
+  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session, (fps) => setScopeFps(fps)));
   root.appendChild(buildMain(bus));
   const fx = buildFx(bus);
   fxExpand = fx.expand;
@@ -77,7 +79,9 @@ export function mountApp(
   const patternRow = buildPatternRow(engine, bus, session);
   songLoadDemo = patternRow.loadDemo;
   root.appendChild(patternRow.el);
-  root.appendChild(buildBottom(engine, bus, bridge));
+  const bottom = buildBottom(engine, bus, bridge);
+  setScopeFps = (fps) => bottom.scope.setFps(fps);
+  root.appendChild(bottom.el);
 
   return onboarding;
 }
@@ -99,6 +103,7 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
+  previewFps: (fps: number) => void,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
@@ -170,7 +175,9 @@ function buildHeader(
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
-  presetGroup.appendChild(createPerfSettingsButton());
+  presetGroup.appendChild(
+    createPerfSettingsButton({ onTierPreview: (t) => previewFps(PERF_PROFILES[t].fps) }),
+  );
   presetGroup.appendChild(createAboutButton(engine));
   presetGroup.appendChild(
     createHelpButton({
@@ -440,7 +447,7 @@ function fxPanel(
   return el;
 }
 
-function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLElement {
+function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: HTMLElement; scope: Scope } {
   const bottom = document.createElement('div');
   bottom.className = styles.bottom!;
 
@@ -463,7 +470,7 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
   scopeWrap.appendChild(scopeScreen);
   const scope = new Scope(
     { mono: engine.analyser, left: engine.analyserL, right: engine.analyserR },
-    { lightweight: resolvePerfActive() },
+    { fps: PERF_PROFILES[resolveTier()].fps },
   );
   scopeWrap.appendChild(scope.el);
   const toggle = document.createElement('button');
@@ -528,7 +535,7 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): HTMLEl
     keyboard.clearSeqHighlights();
   });
 
-  return bottom;
+  return { el: bottom, scope };
 }
 
 function row(children: HTMLElement[]): HTMLElement {

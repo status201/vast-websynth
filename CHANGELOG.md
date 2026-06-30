@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Performance mode is now three tiers** — Weak / Medium / Strong (plus Auto),
+  replacing the On/Off toggle. Each tier scales latency, polyphony, and the
+  visualiser's frame rate (15 / 30 / 60 fps); the header **Perf** button is
+  colour-coded by tier and **About → Debug** shows the detected tier and device
+  signals (cores, memory). Auto no longer forces capable tablets into the
+  high-latency profile, and the canvas drop-shadow is dropped on all tiers.
+
 ## [1.7.0] - 2026-06-28
 
 ### Added

@@ -274,16 +274,21 @@ listener mechanism.
   presets are seeded by `ensureFactoryPresets()` on boot.
 - Audio cannot start without a user gesture — everything is wired inside the
   "Tap to start" handler in `main.ts`.
-- **Performance mode** (`state/perf-mode.ts`) — a device-scoped `auto`/`on`/`off`
-  quality setting persisted under `websynth.perf`, **not** a `ParamBus` param (so
-  it never enters presets/songs). `main.ts` resolves it at boot via
-  `resolvePerfActive()`; when active (auto-detects a weak device by
-  `hardwareConcurrency`/`deviceMemory`/mobile-UA, or forced on) the `Engine` is
-  built with a larger `latencyHint` (`'playback'`) + fewer voices
-  (`PERF_VOICE_COUNT`) through `EngineOptions`, and the scope renders lighter +
-  pauses while the tab is hidden. Buffer/voice count are fixed at `AudioContext`
-  build, so a change applies on **reload** — the header "Perf" modal shows the
-  effective state and a reload nudge. See `specs/features/performance-mode.md`.
+- **Performance mode** (`state/perf-mode.ts`) — a device-scoped quality setting in
+  three tiers (`weak`/`medium`/`strong`, plus `auto`), persisted under `websynth.perf`,
+  **not** a `ParamBus` param (so it never enters presets/songs). `PERF_PROFILES` is the
+  single source of truth mapping each tier to `{ latencyHint, voiceCount, fps }`:
+  weak = `'playback'`/5/15, medium = `'interactive'`/8/30, strong = `'interactive'`/8/60.
+  `detectTier()` errs toward `medium` (only genuinely low signals → weak, clearly
+  high-end non-phones → strong); `resolveTier(pref)` resolves `auto` via detection.
+  `main.ts` reads `PERF_PROFILES[resolveTier()]` at boot for the audio fields
+  (buffer/voices are fixed at `AudioContext` build → a change across an *audio* boundary
+  applies on **reload**); the scope **fps is applied live** (`Scope({ fps })` + `setFps`,
+  wired through a late-bound hook in `app.ts`). The canvas drop-shadow is dropped for all
+  tiers. The header "Perf" button is colour-coded by resolved tier (red/amber/green) and
+  its modal shows a reload nudge only when the choice crosses an audio boundary
+  (`sameAudioProfile`). The About → Debug panel surfaces `perfDiagnostics()` (tier, cores,
+  memory, mobile, profile). See `specs/features/performance-mode.md`.
 - Dialogs use the shared **`Modal`** (`ui/components/modal.ts`), extracted
   from the previously-duplicated about/start-modal pattern (`.about-backdrop`/
   `.about` CSS, Escape captured to beat the panic handler, backdrop-click +

@@ -40,7 +40,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
 - Oscilloscope / spectrum display (mono or stereo, with a max-dB peak-hold readout), pitch-bend and mod wheels
-- **Performance mode**: auto-detects slower devices (or force it on/off) and trades a little latency, polyphony, and visual detail for glitch-free audio — a larger audio buffer, fewer voices, and a lighter scope
+- **Performance mode**: three tiers (Weak / Medium / Strong, or Auto) that scale latency, polyphony, and the visualiser's frame rate to your device — keeping audio glitch-free on slow hardware while keeping latency low on fast machines
 
 ## Running
 
@@ -104,7 +104,7 @@ src/
     preset.ts        factory bank + localStorage persistence
     song.ts          full-song save/load + demo songs
     demos/           drop-in *.json SongFiles, auto-loaded at build time
-    perf-mode.ts     performance-mode preference + weak-device detection
+    perf-mode.ts     performance-mode preference + device-tier detection
   ui/                hand-built DOM components and panels (incl. song-panel:
                      chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
                      view of the Engine (see specs ADR-009)

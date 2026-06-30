@@ -4,6 +4,7 @@ import { Modal } from './modal';
 import { createButton } from './button';
 import { createCollapseToggle } from './collapse-toggle';
 import { isIOS } from '../../platform/ios';
+import { perfDiagnostics } from '../../state/perf-mode';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/modal.module.css';
@@ -179,6 +180,13 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
   stateVal.dataset.testid = 'debug-ctx-state';
   const iosVal = addRow('iOS');
   const rateVal = addRow('Sample rate');
+  // Device / performance-mode diagnostics (owned by performance-mode.md).
+  const tierVal = addRow('Perf tier');
+  tierVal.dataset.testid = 'debug-perf-tier';
+  const coresVal = addRow('CPU cores');
+  const memVal = addRow('Device memory');
+  const mobileVal = addRow('Mobile UA');
+  const profileVal = addRow('Audio profile');
   // iOS audio-session diagnostics (owned by ios-audio.md; inert off iOS).
   const unlockVal = addRow('Audio unlock');
   unlockVal.dataset.testid = 'debug-ios-unlock';
@@ -189,6 +197,13 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
     stateVal.textContent = engine.ctx.state;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
+    const perf = perfDiagnostics();
+    tierVal.textContent = `${perf.tier} (${perf.pref === 'auto' ? 'auto' : 'forced'})`;
+    coresVal.textContent = perf.cores != null ? String(perf.cores) : 'unknown';
+    memVal.textContent = perf.memoryGb != null ? `${perf.memoryGb} GB` : 'unknown';
+    mobileVal.textContent = perf.mobile ? 'yes' : 'no';
+    profileVal.textContent =
+      `${perf.profile.latencyHint} · ${perf.profile.voiceCount} voices · ${perf.profile.fps} fps`;
     const ios = engine.iosAudio;
     unlockVal.textContent = ios.status + (ios.routed ? ' · routed' : '');
     loopVal.textContent = ios.paused === null
