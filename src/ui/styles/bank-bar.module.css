@@ -57,6 +57,8 @@
 
 .copy { min-height: 28px; padding: 5px 9px; }
 
+.follow { min-height: 28px; padding: 5px 9px; }
+
 .root:global(.copy-armed) .seg { outline: 1px dashed var(--accent-secondary); }
 
 .add {

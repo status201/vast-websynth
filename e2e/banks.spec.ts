@@ -38,4 +38,30 @@ test.describe('sequencer banks', () => {
     expect(await editBank(page)).toBe(1); // copy also selects the target
     expect(await stepOnInBank(page, 1, 0)).toBe(true); // clone landed
   });
+
+  test('Follow tracks the arrangement; a manual click disables it', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+
+    // Follow is on by default.
+    await expect(page.getByTestId('bank-seq-follow')).toHaveClass(/\bon\b/);
+
+    // Enable a seq chain A,B,B,B via the dev bridge and start the transport
+    // (B holds for three bars so the manual-click step below can't race the
+    // chain wrapping back to A).
+    await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0, 1, 1, 1], true));
+    await page.getByTestId('transport-play').click();
+
+    // After a bar the play bank advances to B — the edit bank follows.
+    await expect(page.getByTestId('bank-seq-1')).toHaveClass(/\bactive\b/, { timeout: 15_000 });
+    expect(await editBank(page)).toBe(1);
+
+    // Manually picking another bank while the song runs = editing intent:
+    // Follow turns off and the view stays put from then on.
+    await page.getByTestId('bank-seq-0').click();
+    await expect(page.getByTestId('bank-seq-follow')).not.toHaveClass(/\bon\b/);
+    expect(await editBank(page)).toBe(0);
+
+    await page.getByTestId('transport-play').click(); // stop
+  });
 });
