@@ -216,7 +216,7 @@ back into the engine.
 
 ```
 voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb ─┐
-            drumBus ─→ drumComp → drumPhaser → drumDelay ─────────┤
+            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─┤
             samplerBus  (+ sampler dist/phaser/delay/reverb) ─────┤
                                                                    ▼
         preMaster ─→ djFilter ─→ masterComp ─→ analyser ─→ master ─→ destination

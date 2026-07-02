@@ -130,6 +130,17 @@ describe('ParamBus', () => {
     expect(bus.def('drum.t7.vol')).toBeDefined();
   });
 
+  it('registers the drum reverb params with off-by-default bypass', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    expect(bus.get('fx.drum.reverb.on')).toBe(0); // legacy songs load with drums dry
+    expect(bus.get('fx.drum.reverb.size')).toBe(0.6);
+    expect(bus.get('fx.drum.reverb.damp')).toBe(0.4);
+    expect(bus.get('fx.drum.reverb.mix')).toBe(0.25);
+    bus.set('fx.drum.reverb.on', 1);
+    expect(bus.get('fx.reverb.on')).toBe(0); // distinct from the synth reverb
+  });
+
   it('registers per-track tone/drive/pan with no-op defaults for every drum track', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

@@ -146,7 +146,7 @@ params (k-rate AudioParams, NOT messages):
 ## Visual aids
 
 ```
-drumBus ─► drumComp (FET) ─► drumPhaser ─► drumDelay ─► preMaster
+drumBus ─► drumComp (FET) ─► drumPhaser ─► drumDelay ─► drumReverb ─► preMaster
 preMaster ─► djFilter ─► masterComp (VCA) ─► analyser ─► master
                               │ port (gain reduction dB, ~31 Hz)
                               └─────────────► GrMeter (grmeter-fx.master.comp)

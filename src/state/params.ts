@@ -257,6 +257,12 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.drum.delay.feedback', min: 0, max: 0.95, default: 0.4, format: fmtPct },
     { id: 'fx.drum.delay.mix', min: 0, max: 1, default: 0.3, format: fmtPct },
 
+    // ----- Drum FX: Reverb -----
+    { id: 'fx.drum.reverb.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'fx.drum.reverb.size', min: 0, max: 1, default: 0.6, format: fmtPct },
+    { id: 'fx.drum.reverb.damp', min: 0, max: 1, default: 0.4, format: fmtPct },
+    { id: 'fx.drum.reverb.mix', min: 0, max: 1, default: 0.25, format: fmtPct },
+
     // ----- Drum FX: Compressor (1176 FET style; ratio is an index) -----
     { id: 'fx.drum.comp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'fx.drum.comp.threshold', min: -40, max: 0, default: -18, format: fmtDbRaw },

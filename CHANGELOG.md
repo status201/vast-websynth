@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Reverb on the Drum Machine** — the drum bus gained a fourth effect group
+  (Size / Damp / Mix), sitting last in the chain after the Delay so echoes tail
+  off into the room. Off by default, so existing songs and presets sound
+  unchanged.
+
 - **Follow toggle on the bank bars** — the Sequencer, Drum Machine and Sampler
   each gained a **Follow** button before the A/B/C/D banks. While on (the
   default), the panel switches banks along with the song's arrangement, so you
@@ -27,9 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Drum Machine effect groups now follow the signal flow** — the header reads
+  Comp / Phaser / Delay / Reverb, matching the order the audio actually passes
+  through them (the compressor was always first in the chain).
+
 - **Effect knobs hide while an effect is off** — the inline effect groups in
-  the Drum Machine (Phaser / Delay / Comp), Sampler (Dist / Phaser / Delay /
-  Reverb) and the Song tab's master Comp now show only their name and on/off
+  the Drum Machine (Comp / Phaser / Delay / Reverb), Sampler (Dist / Phaser /
+  Delay / Reverb) and the Song tab's master Comp now show only their name and on/off
   switch while bypassed. Flipping an effect on reveals its knobs in place (and
   the Comp's gain-reduction meter); loading a preset or song that uses an
   effect expands it automatically. Clears a lot of header clutter.

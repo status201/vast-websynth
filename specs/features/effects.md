@@ -3,7 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 1
+version: 2   # v2: drum bus gains a reverb (chain: comp → phaser → delay → reverb)
 owner: core
 related:
   - architecture
@@ -37,8 +37,9 @@ subsets, so a song can colour each bus independently.
   `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`, ramped.
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
   reverb.
-- **REQ-4** — Drum bus: phaser → delay → [compressor]; sampler bus: distortion →
-  phaser → delay → reverb.
+- **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
+  sits first so it smashes the dry hits, not the FX wash); sampler bus:
+  distortion → phaser → delay → reverb.
 - **REQ-5** — `<fx>.on` < 0.5 means bypassed.
 
 ## Technical design
@@ -68,7 +69,7 @@ fx.delay.on/time/feedback/mix      # time 0.01..1.5 s, feedback 0..0.95
 fx.reverb.on/size/damp/mix
 # all *.on default 0 (off); all are no-ops until enabled
 prefixes:
-  fx.drum.*    : phaser, delay (+ fx.drum.comp, see compressor.md)
+  fx.drum.*    : phaser, delay, reverb (+ fx.drum.comp, see compressor.md)
   fx.sampler.* : dist, phaser, delay, reverb
 ```
 
@@ -96,11 +97,18 @@ Scenario: Drum and sampler FX are independent of the synth FX (edge)
   Given fx.reverb.on (synth) is 1 and fx.sampler.reverb.on is 0
   Then the synth tail is wet but sampler hits are dry
 # pinned by: tests/state/params.test.ts (distinct param ids)
+
+Scenario: Drum reverb is off by default so legacy songs/presets are unchanged
+  Given a song or preset saved before fx.drum.reverb.* existed
+  When it is loaded
+  Then fx.drum.reverb.on is 0 (bypassed, dry passthrough) and the drums sound as before
+# pinned by: tests/state/params.test.ts (defaults), tests/audio/effects/effect-bind.test.ts
 ```
 
 ## Tests & verification
 
 - `tests/state/params.test.ts` (each effect's params registered + wired),
+  `tests/audio/effects/effect-bind.test.ts` (per-prefix bind independence),
   `e2e/controls.spec.ts`.
 - `npm test` / `npm run e2e`.
 

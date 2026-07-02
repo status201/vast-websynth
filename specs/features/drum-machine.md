@@ -110,7 +110,7 @@ engine (subscribeParams):
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)
 graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(lowpass biquad)
-         -> trackGain -> pan(StereoPanner) -> drumBus -> drumComp -> drumPhaser -> drumDelay -> preMaster
+         -> trackGain -> pan(StereoPanner) -> drumBus -> drumComp -> drumPhaser -> drumDelay -> drumReverb -> preMaster
 ui: src/ui/panels/drum-panel.ts (drum-step-<t>-<s> grid + per-track mute +
     a sound-design row below the grid: KIT dropdown + randomize then a
     selected-drum tuning strip knob-drum.t<i>.{tune,decay,tone,drive,pan,vol} +

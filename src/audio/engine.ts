@@ -59,6 +59,7 @@ export class Engine {
 
   readonly drumPhaser: Phaser;
   readonly drumDelay: Delay;
+  readonly drumReverb: Reverb;
   readonly drumComp: Compressor;
   readonly masterComp: Compressor;
 
@@ -120,6 +121,7 @@ export class Engine {
 
     this.drumPhaser = new Phaser(this.ctx);
     this.drumDelay = new Delay(this.ctx);
+    this.drumReverb = new Reverb(this.ctx);
     this.drumComp = new Compressor(this.ctx, 'fet');
     this.masterComp = new Compressor(this.ctx, 'vca');
 
@@ -159,9 +161,9 @@ export class Engine {
     // Synth FX chain
     chain(this.voiceBus, [this.distortion, this.wah, this.phaser, this.delay, this.reverb], this.preMaster);
 
-    // Drum FX chain: compressor → phaser → delay. The 1176-style compressor
-    // sits first so it smashes the dry hits, not the delay/phaser wash.
-    chain(this.drumBus, [this.drumComp, this.drumPhaser, this.drumDelay], this.preMaster);
+    // Drum FX chain: compressor → phaser → delay → reverb. The 1176-style
+    // compressor sits first so it smashes the dry hits, not the FX wash.
+    chain(this.drumBus, [this.drumComp, this.drumPhaser, this.drumDelay, this.drumReverb], this.preMaster);
 
     // Sampler FX chain: distortion → phaser → delay → reverb
     chain(this.samplerBus, [this.samplerDist, this.samplerPhaser, this.samplerDelay, this.samplerReverb], this.preMaster);
@@ -406,6 +408,7 @@ export class Engine {
     // Drum FX (compressor: 1176 FET; ratio index → real ratio, 100 = ALL)
     this.drumPhaser.bind(bus, 'fx.drum.phaser');
     this.drumDelay.bind(bus, 'fx.drum.delay');
+    this.drumReverb.bind(bus, 'fx.drum.reverb');
     this.drumComp.bind(bus, 'fx.drum.comp', [4, 8, 12, 20, 100]);
 
     // Sampler FX

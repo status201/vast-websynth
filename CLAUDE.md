@@ -133,7 +133,7 @@ Audio graph:
 
 ```
 voices → voiceBus → distortion → wah → phaser → delay → reverb ─┐
-                drumBus → drumComp → drumPhaser → drumDelay ─────┤
+                drumBus → drumComp → drumPhaser → drumDelay → drumReverb ─┤
                                                           preMaster → djFilter → masterComp → analyser → master → destination
 ```
 

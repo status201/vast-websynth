@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { Distortion } from '../../../src/audio/effects/distortion';
 import { Phaser } from '../../../src/audio/effects/phaser';
+import { Reverb } from '../../../src/audio/effects/reverb';
 import { Compressor } from '../../../src/audio/effects/compressor';
 import {
   makeMockAudioContext,
@@ -48,6 +49,26 @@ describe('Effect.bind — simple effects (self-wiring, ADR-008)', () => {
     bus.set('fx.drum.phaser.rate', 3);
     expect(drumRate).toHaveBeenCalledWith(3);
     expect(synthRate).not.toHaveBeenCalled();
+  });
+
+  it('drum reverb binds at fx.drum.reverb, boots bypassed, independent of the synth reverb', () => {
+    const synth = new Reverb(ctx());
+    const drum = new Reverb(ctx());
+    const bus = busWithDefaults();
+    const synthMix = vi.spyOn(synth, 'setMix');
+    const drumMix = vi.spyOn(drum, 'setMix');
+    const drumBypass = vi.spyOn(drum, 'setBypass');
+
+    synth.bind(bus, 'fx.reverb');
+    drum.bind(bus, 'fx.drum.reverb');
+    // fx.drum.reverb.on defaults 0 → bypassed, so legacy songs/presets are unchanged
+    expect(drumBypass).toHaveBeenLastCalledWith(true);
+
+    synthMix.mockClear();
+    drumMix.mockClear();
+    bus.set('fx.drum.reverb.mix', 0.8);
+    expect(drumMix).toHaveBeenCalledWith(0.8);
+    expect(synthMix).not.toHaveBeenCalled();
   });
 });
 
