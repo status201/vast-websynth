@@ -32,6 +32,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Much lower CPU use on phones (mobile crackle fix)** — a series of engine
+  optimisations aimed at mid-range Android devices:
+  - the transport's timing pulse moved off the main thread into a Worker, so
+    the groove no longer stumbles when the browser is busy and keeps playing
+    when the tab is backgrounded;
+  - a synth voice's filter now sleeps while the voice is silent (previously
+    all 8 filters computed at full cost forever), and it processes mono
+    instead of a duplicated stereo pair — identical sound at half the cost;
+  - switched-off effects are now truly disconnected: bypassed reverbs,
+    distortions, phasers, delays and compressors no longer burn audio CPU
+    (they used to run silently behind the crossfade);
+  - drum-track drive only engages its oversampling while actually driven.
+  Nothing changes sonically — presets and songs sound the same.
+
+- **Weak performance tier cuts effect cost too** — on Weak, the engine now
+  also widens the transport look-ahead (steadier on throttled devices), caps
+  reverb tails at 1.5 s, and skips distortion oversampling. **About → Debug**'s
+  audio-profile row shows the extra fields (lookahead, IR cap, oversample).
+
 - **Drum Machine effect groups now follow the signal flow** — the header reads
   Comp / Phaser / Delay / Reverb, matching the order the audio actually passes
   through them (the compressor was always first in the chain).

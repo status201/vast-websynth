@@ -202,8 +202,11 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
     coresVal.textContent = perf.cores != null ? String(perf.cores) : 'unknown';
     memVal.textContent = perf.memoryGb != null ? `${perf.memoryGb} GB` : 'unknown';
     mobileVal.textContent = perf.mobile ? 'yes' : 'no';
+    const p = perf.profile;
     profileVal.textContent =
-      `${perf.profile.latencyHint} · ${perf.profile.voiceCount} voices · ${perf.profile.fps} fps`;
+      `${p.latencyHint} · ${p.voiceCount} voices · ${p.fps} fps · ` +
+      `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
+      `oversample ${p.fxOversample ? 'on' : 'off'}`;
     const ios = engine.iosAudio;
     unlockVal.textContent = ios.status + (ios.routed ? ' · routed' : '');
     loopVal.textContent = ios.paused === null

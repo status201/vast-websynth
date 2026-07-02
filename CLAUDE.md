@@ -260,7 +260,25 @@ listener mechanism.
 - The ladder filter is an **AudioWorklet**; its processor lives in
   `public/worklets/ladder-filter.js` (plain JS, runs on the audio thread —
   no TS, no imports). `LadderFilterNode.loadModule()` must be awaited before
-  voices are created.
+  voices are created. The node is **mono** (the voice path is mono until the
+  FX/panners) and **idle-gated**: an active flag posted over the worklet port
+  sleeps the per-sample DSP while the voice is silent — voices boot inactive,
+  `noteOn` activates unconditionally (a lost deactivate can only cost CPU,
+  never a note), release-completion/`kill` deactivate. Any step is masked by
+  the closed downstream amp VCA. See `specs/features/ladder-filter.md`
+  REQ-9/REQ-10.
+- **The transport clock's wakeup timer runs in a Worker**
+  (`audio/transport/tick-timer.ts` + `clock-timer-worker.ts`, Vite-bundled via
+  `new URL`) so the look-ahead survives main-thread jank and background-tab
+  timer throttling; the scheduling logic itself stays on the main thread.
+  `TimeoutTimer` is the no-`Worker` fallback and the unit-test double (jsdom
+  has no `Worker`). `Clock` takes `{ timer?, scheduleAheadS? }` opts.
+- **Bypassed effects are truly disconnected** (ADR-012): `BypassWrapper` keeps
+  the click-free dry/wet crossfade but, 150 ms after bypassing, disconnects
+  its own two edges (`input → processedIn`, `processedOut → wet`) so the
+  processed subgraph (convolver/shaper/worklet…) stops being rendered;
+  un-bypass reconnects *before* ramping. Effects must wire their DSP
+  `processedIn → … → processedOut` (they all do) — never straight into `wet`.
 - **DSP worklets are _musical, stable, cheap_** (in that priority order):
   perceived behaviour over circuit accuracy, bounded/no-NaN output always,
   minimal per-sample cost (8-voice poly × 2ch). Governs the ladder filter +
@@ -277,18 +295,23 @@ listener mechanism.
 - **Performance mode** (`state/perf-mode.ts`) — a device-scoped quality setting in
   three tiers (`weak`/`medium`/`strong`, plus `auto`), persisted under `websynth.perf`,
   **not** a `ParamBus` param (so it never enters presets/songs). `PERF_PROFILES` is the
-  single source of truth mapping each tier to `{ latencyHint, voiceCount, fps }`:
-  weak = `'playback'`/5/15, medium = `'interactive'`/8/30, strong = `'interactive'`/8/60.
+  single source of truth mapping each tier to
+  `{ latencyHint, voiceCount, fps, scheduleAheadS, reverbIrMaxS, fxOversample }`:
+  weak = `'playback'`/5/15 + 0.2 s look-ahead, 1.5 s IR cap, no oversampling;
+  medium = `'interactive'`/8/30, strong = `'interactive'`/8/60 (both full-cost:
+  0.1 s look-ahead, 4 s IRs, oversampling on — so they still share one audio profile).
   `detectTier()` errs toward `medium` (only genuinely low signals → weak, clearly
   high-end non-phones → strong); `resolveTier(pref)` resolves `auto` via detection.
   `main.ts` reads `PERF_PROFILES[resolveTier()]` at boot for the audio fields
-  (buffer/voices are fixed at `AudioContext` build → a change across an *audio* boundary
+  (all boot-time knobs — buffer, voices, look-ahead, IR cap, oversampling — are fixed
+  when the `AudioContext`/graph are built → a change across an *audio* boundary
   applies on **reload**); the scope **fps is applied live** (`Scope({ fps })` + `setFps`,
   wired through a late-bound hook in `app.ts`). The canvas drop-shadow is dropped for all
   tiers. The header "Perf" button is colour-coded by resolved tier (red/amber/green) and
   its modal shows a reload nudge only when the choice crosses an audio boundary
-  (`sameAudioProfile`). The About → Debug panel surfaces `perfDiagnostics()` (tier, cores,
-  memory, mobile, profile). See `specs/features/performance-mode.md`.
+  (`sameAudioProfile`, which compares every boot-time field). The About → Debug panel
+  surfaces `perfDiagnostics()` (tier, cores, memory, mobile, and the full profile incl.
+  lookahead/IR cap/oversample). See `specs/features/performance-mode.md`.
 - Dialogs use the shared **`Modal`** (`ui/components/modal.ts`), extracted
   from the previously-duplicated about/start-modal pattern (`.about-backdrop`/
   `.about` CSS, Escape captured to beat the panic handler, backdrop-click +

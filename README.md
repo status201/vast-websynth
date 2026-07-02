@@ -40,7 +40,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Presets**: factory bank (basic, bass, lead, pad, pluck, wobble) + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
 - Oscilloscope / spectrum display (mono or stereo, with a max-dB peak-hold readout), pitch-bend and mod wheels
-- **Performance mode**: three tiers (Weak / Medium / Strong, or Auto) that scale latency, polyphony, and the visualiser's frame rate to your device — keeping audio glitch-free on slow hardware while keeping latency low on fast machines
+- **Performance mode**: three tiers (Weak / Medium / Strong, or Auto) that scale latency, polyphony, effect cost (reverb tail length, distortion oversampling, transport look-ahead) and the visualiser's frame rate to your device — keeping audio glitch-free on slow hardware while keeping latency low on fast machines
 
 ## Running
 

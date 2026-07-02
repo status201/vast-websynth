@@ -332,6 +332,9 @@ load-bearing ones:
 - [ADR-011](decisions/adr-011-export-precision-and-default-sparse-serialization.md) —
   song/preset export rounds to 4 sig-figs + writes default-sparse step cells
   (optimise only at the serialization boundary).
+- [ADR-012](decisions/adr-012-true-bypass-disconnects.md) — bypassed effects
+  disconnect their processed path after the crossfade settles (true bypass), so
+  idle convolvers/shapers/compressor worklets cost zero audio-thread CPU.
 
 ## Tests & verification
 

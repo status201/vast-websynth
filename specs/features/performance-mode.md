@@ -113,7 +113,8 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
   `perfDiagnostics()` helper (so it never re-reads `navigator` itself): the resolved
   Perf tier (with `(auto)`/`(forced)` suffix; testid `debug-perf-tier`), CPU cores,
   device memory (`unknown` when unavailable), mobile-UA flag, and the active audio
-  profile (`latencyHint · voices · fps`).
+  profile — since v3 including the FX-cost fields:
+  `latencyHint · voices · fps · lookahead <ms>ms · IR ≤<s>s · oversample on|off`.
 - **REQ-10** — No-op for capable devices on default `auto`: a strong/medium device
   builds the engine with `latencyHint: 'interactive'` and 8 voices, exactly as before.
 
