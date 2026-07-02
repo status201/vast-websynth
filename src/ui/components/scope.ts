@@ -159,6 +159,8 @@ export class Scope {
   /** Cached CSS layout box + devicePixelRatio, refreshed only by the ResizeObserver. */
   private cssW = 0;
   private cssH = 0;
+  /** Spectrum gradients per region box — allocated once, not per frame. */
+  private readonly gradCache = new Map<string, CanvasGradient>();
   private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private ro: ResizeObserver | null = null;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
@@ -243,6 +245,7 @@ export class Scope {
     const w = this.el.clientWidth;
     const h = this.el.clientHeight;
     if (w === 0 || h === 0) return;
+    this.gradCache.clear(); // region boxes moved — cached gradients are stale
     this.cssW = w;
     this.cssH = h;
     this.dpr = window.devicePixelRatio || 1;
@@ -320,6 +323,19 @@ export class Scope {
   }
 
   /** Faint horizontal mid-line for a region (vintage CRT look). */
+  private spectrumGradient(ctx: CanvasRenderingContext2D, r: ScopeRegion): CanvasGradient {
+    const key = `${r.y}:${r.h}`;
+    let grad = this.gradCache.get(key);
+    if (!grad) {
+      grad = ctx.createLinearGradient(0, r.y + r.h, 0, r.y);
+      grad.addColorStop(0, '#e8742e');
+      grad.addColorStop(0.6, '#f4cd5e');
+      grad.addColorStop(1, '#ff3a20');
+      this.gradCache.set(key, grad);
+    }
+    return grad;
+  }
+
   private drawMidline(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
     const midY = r.y + r.h / 2;
     ctx.strokeStyle = 'rgba(244, 205, 94, 0.07)';
@@ -368,11 +384,7 @@ export class Scope {
     const data = channel.freq;
     const used = Math.floor(data.length * 0.6);
     const barW = r.w / used;
-    const grad = ctx.createLinearGradient(0, r.y + r.h, 0, r.y);
-    grad.addColorStop(0, '#e8742e');
-    grad.addColorStop(0.6, '#f4cd5e');
-    grad.addColorStop(1, '#ff3a20');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = this.spectrumGradient(ctx, r);
     let maxByte = 0;
     for (let i = 0; i < used; i++) {
       const b = data[i] ?? 0;

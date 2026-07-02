@@ -32,7 +32,6 @@ function build(n = 4) {
 }
 
 describe('Polyphony', () => {
-  // Polyphony starts a drift interval in its ctor; fake timers keep it inert.
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -79,5 +78,23 @@ describe('Polyphony', () => {
     const { voices, poly } = build();
     poly.setPoly(true); // already poly by default
     for (const v of voices) expect(v.kill).not.toHaveBeenCalled();
+  });
+
+  it('runs the drift interval only while drift > 0 (voicing.md REQ-4)', () => {
+    const { ctx, poly } = build();
+    const offset = ctx.createConstantSource.mock.results[0]!.value.offset;
+
+    vi.advanceTimersByTime(1000); // default drift 0 — no timer at all
+    expect(offset.setTargetAtTime).not.toHaveBeenCalled();
+
+    poly.setDrift(0.5);
+    vi.advanceTimersByTime(330); // 3 × 110 ms wander steps
+    expect(offset.setTargetAtTime).toHaveBeenCalledTimes(3);
+
+    poly.setDrift(0); // stops the timer and settles the detune back to 0
+    expect(offset.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.12);
+    const calls = offset.setTargetAtTime.mock.calls.length;
+    vi.advanceTimersByTime(1000);
+    expect(offset.setTargetAtTime.mock.calls.length).toBe(calls);
   });
 });

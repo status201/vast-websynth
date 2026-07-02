@@ -36,6 +36,10 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
 - **REQ-3** — Glide time + mode control portamento; defaults reproduce the legacy
   no-glide behaviour.
 - **REQ-4** — Analogue drift adds subtle per-voice pitch wander (default 0 = off).
+  The 110 ms drift interval runs **only while drift > 0** (v2): `setDrift`
+  starts it on a 0→>0 transition and on >0→0 clears it after settling the
+  detune source back to 0 — at the default there is no recurring main-thread
+  timer (pinned by `tests/audio/polyphony.test.ts`).
 - **REQ-5** — Pitch bend (`±` cents) and keyboard transpose (`±2` oct) shift pitch
   globally.
 - **REQ-6** — Note events flow `bus.onNote → Engine.playNote / releaseNote` unless

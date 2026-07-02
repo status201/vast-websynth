@@ -27,7 +27,8 @@ export class Polyphony {
     this.drift = ctx.createConstantSource();
     this.drift.offset.value = 0;
     this.drift.start();
-    this.driftTimer = window.setInterval(this.driftStep, 110);
+    // The 110 ms wander interval only runs while drift > 0 (voicing.md REQ-4);
+    // setDrift owns its lifecycle. Default drift is 0 → no recurring timer.
   }
 
   /** Sum the analogue-drift detune source into a voice's oscillators. */
@@ -47,7 +48,16 @@ export class Polyphony {
   setUnisonCount(n: number): void { this.unisonCount = Math.max(1, Math.round(n)); }
   setUnisonDetune(cents: number): void { this.unisonDetune = cents; }
   setGlideMode(mode: number): void { this.glideMode = Math.round(mode); }
-  setDrift(amount: number): void { this.driftAmount = amount; }
+  setDrift(amount: number): void {
+    this.driftAmount = amount;
+    if (amount > 0) {
+      if (this.driftTimer === null) this.driftTimer = window.setInterval(this.driftStep, 110);
+    } else if (this.driftTimer !== null) {
+      clearInterval(this.driftTimer);
+      this.driftTimer = null;
+      this.drift.offset.setTargetAtTime(0, this.ctx.currentTime, 0.12); // settle back
+    }
+  }
 
   // ---------- Note handling ----------
 

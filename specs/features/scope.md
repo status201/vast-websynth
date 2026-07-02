@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 2
+version: 3   # v3: spectrum gradient cached per region (no per-frame allocation)
 owner: status201
 related:
   - architecture
@@ -127,6 +127,10 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   scope costs a single composited canvas raster, not a full page
   layout/style/layerize/paint each frame. Environments without `ResizeObserver`
   (jsdom under unit test) fall back to measuring on draw — behaviour unchanged.
+  (v3) The spectrum bar gradient is likewise **cached per region** (keyed by the
+  region's `y`/`h`, invalidated on resize) instead of `createLinearGradient`
+  allocating every frame — no per-frame canvas-object allocation on the steady
+  path.
 
 ## Technical design
 
