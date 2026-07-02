@@ -3,7 +3,7 @@
 ```yaml
 id: effects
 status: implemented
-version: 2   # v2: drum bus gains a reverb (chain: comp → phaser → delay → reverb)
+version: 3   # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
 owner: core
 related:
   - architecture
@@ -26,15 +26,27 @@ separately.
 
 Each effect owns a fixed `input → DSP → output` graph wired **once** at setup.
 Toggling an effect must never click, so bypass is a **dry/wet crossfade**
-(`BypassWrapper`) rather than a graph reconnect. The same five effects are
+(`BypassWrapper`). Since v3 the crossfade is followed by a **delayed
+disconnect** of the processed path (ADR-012): the Web Audio renderer keeps
+computing any subgraph reachable from the destination, so a merely-crossfaded
+convolver/oversampled shaper/compressor still burned audio-thread CPU while
+"off" — the dominant idle cost on mobile. The same five effects are
 instantiated on the synth voice bus; the drum and sampler buses get their own
 subsets, so a song can colour each bus independently.
 
 ## Requirements
 
 - **REQ-1** — Every effect implements `Effect { input, output, setBypass }`.
-- **REQ-2** — Bypass + mix are a click-free crossfade (`BypassWrapper`): wet =
-  `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`, ramped.
+- **REQ-2** — (v3, ADR-012) Bypass + mix are a click-free crossfade
+  (`BypassWrapper`): wet = `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`,
+  ramped. **In addition**, `DISCONNECT_DELAY_MS` (150 ms ≫ the ramp) after
+  bypassing, the wrapper disconnects its own two edges (`input → processedIn`,
+  `processedOut → wet`) so the processed DSP stops being rendered; un-bypassing
+  cancels any pending disconnect, **reconnects first**, then ramps. The wrapper
+  never disconnects while wet > 0; rapid toggles are safe (timer cancellation);
+  `setMix` while bypassed must not reconnect. Only the wrapper's own edges are
+  touched — internal splices like `Compressor.attachWorklet()` survive, even
+  when attach happens while bypassed-and-disconnected.
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
   reverb.
 - **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
@@ -53,9 +65,11 @@ Effect:        # src/audio/effects/effect.ts
   setBypass(b: boolean): void
   # each concrete effect also exposes bind(bus, prefix) to self-wire its params
   # (ADR-008); not on the interface because Compressor.bind takes index tables.
-BypassWrapper: # dry/wet crossfade helper used by all effects
+BypassWrapper: # dry/wet crossfade + delayed true-bypass disconnect (ADR-012)
   input / output / dry / wet / processedIn / processedOut: GainNode
   setBypass(b) / setMix(m)
+  # bypassed 150ms -> disconnects input→processedIn and processedOut→wet;
+  # un-bypass reconnects before ramping. DISCONNECT_DELAY_MS = 150.
 chain(input, fx[], output)  # series-wires input → fx[0] → … → output
 ```
 
@@ -103,13 +117,31 @@ Scenario: Drum reverb is off by default so legacy songs/presets are unchanged
   When it is loaded
   Then fx.drum.reverb.on is 0 (bypassed, dry passthrough) and the drums sound as before
 # pinned by: tests/state/params.test.ts (defaults), tests/audio/effects/effect-bind.test.ts
+
+Scenario: A bypassed effect stops costing audio-thread CPU (perf, ADR-012)
+  Given an effect is enabled and then bypassed
+  When the wet ramp has finished (150 ms)
+  Then the wrapper has disconnected input→processedIn and processedOut→wet
+# pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Rapid toggle never disconnects mid-ramp (edge)
+  Given an effect is bypassed and re-enabled within 150 ms
+  Then no disconnect happens and the crossfade proceeds from the reconnected graph
+# pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Compressor attach while bypassed-and-disconnected (edge)
+  Given a compressor whose worklet attaches after its wrapper already disconnected
+  When the compressor is enabled
+  Then the wrapper edges reconnect and the spliced worklet path is intact
+# pinned by: tests/audio/effects/bypass.test.ts
 ```
 
 ## Tests & verification
 
 - `tests/state/params.test.ts` (each effect's params registered + wired),
   `tests/audio/effects/effect-bind.test.ts` (per-prefix bind independence),
-  `e2e/controls.spec.ts`.
+  `tests/audio/effects/bypass.test.ts` (true-bypass disconnect state machine,
+  ADR-012), `e2e/controls.spec.ts`.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

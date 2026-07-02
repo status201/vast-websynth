@@ -26,10 +26,25 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
 }
 
 /**
+ * How long after bypassing before the processed path is disconnected — must
+ * comfortably outlast the RAMP_MEDIUM crossfade (~10 ms time constant, so the
+ * wet gain is far below audibility by 150 ms). See ADR-012.
+ */
+export const DISCONNECT_DELAY_MS = 150;
+
+/**
  * Helper for bypass-able effects with a dry/wet crossfade.
  * Connect inputs to `inputGate`. The host wires `processedOut` into the
  * effect-specific DSP chain, which writes back into `wet`. `dry` is summed
  * with `wet` at `output`.
+ *
+ * True bypass (ADR-012): the renderer keeps computing any subgraph reachable
+ * from the destination, so after the bypass crossfade settles the wrapper
+ * disconnects its own two edges (`input → processedIn`, `processedOut → wet`)
+ * — the effect's DSP (convolver, shaper, worklet, …) then costs nothing.
+ * Un-bypassing reconnects *before* ramping, so it stays click-free. Only the
+ * wrapper's own edges are ever touched; splices inside the processed path
+ * (e.g. `Compressor.attachWorklet`) are unaffected.
  */
 export class BypassWrapper {
   readonly input: GainNode;
@@ -41,6 +56,8 @@ export class BypassWrapper {
 
   private mix = 1;
   private bypassed = true;
+  private disconnected = false;
+  private disconnectTimer: number | null = null;
 
   constructor(ctx: AudioContext, initialMix = 1) {
     this.input = ctx.createGain();
@@ -56,16 +73,24 @@ export class BypassWrapper {
 
     this.mix = initialMix;
     this.update();
+    this.scheduleDisconnect(); // effects boot bypassed — sleep the DSP path
   }
 
   setBypass(b: boolean): void {
     this.bypassed = b;
-    this.update();
+    if (b) {
+      this.update(); // ramp wet → 0 first …
+      this.scheduleDisconnect(); // … disconnect only after it has settled
+    } else {
+      this.cancelDisconnect();
+      this.reconnect(); // reconnect before any signal is expected
+      this.update();
+    }
   }
 
   setMix(m: number): void {
     this.mix = Math.max(0, Math.min(1, m));
-    this.update();
+    this.update(); // a bypassed (disconnected) wrapper stays disconnected
   }
 
   private update(): void {
@@ -74,5 +99,30 @@ export class BypassWrapper {
     const ctx = this.dry.context as AudioContext;
     rampTo(this.dry.gain, dry, ctx, RAMP_MEDIUM);
     rampTo(this.wet.gain, wet, ctx, RAMP_MEDIUM);
+  }
+
+  private scheduleDisconnect(): void {
+    if (this.disconnected || this.disconnectTimer !== null) return;
+    this.disconnectTimer = window.setTimeout(() => {
+      this.disconnectTimer = null;
+      if (!this.bypassed || this.disconnected) return;
+      this.input.disconnect(this.processedIn);
+      this.processedOut.disconnect(this.wet);
+      this.disconnected = true;
+    }, DISCONNECT_DELAY_MS);
+  }
+
+  private cancelDisconnect(): void {
+    if (this.disconnectTimer !== null) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
+    }
+  }
+
+  private reconnect(): void {
+    if (!this.disconnected) return;
+    this.input.connect(this.processedIn);
+    this.processedOut.connect(this.wet);
+    this.disconnected = false;
   }
 }
