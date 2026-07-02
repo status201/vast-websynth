@@ -79,6 +79,9 @@ export class Voice {
     this.ampEnv.out.connect(this.ampVCA.gain);
     this.filEnv.out.connect(this.filEnvScale);
     this.filEnvScale.connect(this.filter.cutoffNote);
+
+    // Pool voices boot idle — no note yet, so the filter can sleep (REQ-10).
+    this.filter.setActive(false);
   }
 
   noteOn(
@@ -91,6 +94,8 @@ export class Voice {
       clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
     }
+    // Unconditionally every call: a lost deactivate may cost CPU, never a note.
+    this.filter.setActive(true);
     this.currentNote = note;
     this.state = 'playing';
     this.noteOnAt = when;
@@ -121,6 +126,7 @@ export class Voice {
       if (this.state === 'releasing') {
         this.state = 'idle';
         this.currentNote = -1;
+        this.filter.setActive(false);
       }
     }, delayMs);
   }
@@ -138,6 +144,11 @@ export class Voice {
     g.setTargetAtTime(0, t, 0.003);
     this.state = 'idle';
     this.currentNote = -1;
+    // Deactivate only after the 3 ms kill fade has passed, and only if no
+    // noteOn re-claimed the voice meanwhile (it posts its own true) (REQ-10).
+    window.setTimeout(() => {
+      if (this.state === 'idle') this.filter.setActive(false);
+    }, 30);
   }
 
   setGlide(seconds: number): void {

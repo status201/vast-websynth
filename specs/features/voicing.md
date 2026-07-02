@@ -3,7 +3,7 @@
 ```yaml
 id: voicing
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -40,6 +40,11 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   globally.
 - **REQ-6** — Note events flow `bus.onNote → Engine.playNote / releaseNote` unless
   `passthroughSuppressed` (arp/sequencer own triggering then).
+- **REQ-7** — (v2) The voice lifecycle drives the ladder filter's **idle gating**:
+  voices boot inactive, `noteOn` activates the filter unconditionally, and
+  release-completion / `kill` deactivate it — see
+  [ladder-filter](ladder-filter.md) REQ-10 for the protocol and its safety
+  asymmetry (pinned by `tests/audio/voice.test.ts`).
 
 ## Technical design
 

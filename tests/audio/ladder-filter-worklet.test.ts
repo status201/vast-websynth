@@ -10,6 +10,7 @@ const SR = 48000;
 const BLOCK = 128;
 
 interface ProcessorLike {
+  port: { onmessage: ((e: { data: unknown }) => void) | null };
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
@@ -21,7 +22,9 @@ let Processor: new () => ProcessorLike;
 
 beforeAll(async () => {
   vi.stubGlobal('sampleRate', SR);
-  vi.stubGlobal('AudioWorkletProcessor', class {});
+  vi.stubGlobal('AudioWorkletProcessor', class {
+    port = { onmessage: null, postMessage: () => {} };
+  });
   vi.stubGlobal('registerProcessor', (_name: string, cls: unknown) => {
     Processor = cls as typeof Processor;
   });
@@ -129,5 +132,26 @@ describe('ladder-filter worklet DSP', () => {
     const tone = (n: number) => 0.5 * Math.sin((2 * Math.PI * 6000 * n) / SR);
     const out = run(proc, makeParams({ resonance: 0, cutoffNote: 48 }), tone, 60);
     expect(peak(out)).toBeLessThan(0.1); // << 0.5 input peak
+  });
+
+  it('idle gating: silence while inactive, clean (fresh-equal) restart (REQ-10)', () => {
+    const gen = (n: number) => 0.5 * Math.sin((2 * Math.PI * 220 * n) / SR);
+    const params = makeParams({ resonance: 1, cutoffNote: 80 });
+
+    const proc = new Processor();
+    const before = run(proc, params, gen, 10);
+    expect(peak(before)).toBeGreaterThan(0); // active by default
+
+    proc.port.onmessage!({ data: false });
+    const silent = run(proc, params, gen, 10);
+    expect(peak(silent)).toBe(0); // hot input, zero output — DSP skipped
+
+    proc.port.onmessage!({ data: true });
+    const after = run(proc, params, gen, 10);
+    // Deactivation zeroed the state, so reactivation matches a fresh filter
+    // bit-for-bit on the same input.
+    const fresh = run(new Processor(), params, gen, 10);
+    expect(after).toEqual(fresh);
+    expect(allFinite(after)).toBe(true);
   });
 });

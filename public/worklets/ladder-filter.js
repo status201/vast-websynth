@@ -51,12 +51,30 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       [0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0],
     ];
+    // Idle gating: the voice's oscillators feed us forever and the amp VCA is
+    // downstream, so silence detection can never fire — the host posts an
+    // explicit active flag instead. Defaults ON so a lost message can only
+    // cost CPU, never silence a note. Any step is masked by the closed VCA.
+    this.active = true;
+    this.port.onmessage = (e) => {
+      const on = !!e.data;
+      if (!on) {
+        // Zero state so reactivation starts from a clean filter.
+        for (const s of this.state) if (s) s.fill(0);
+      }
+      this.active = on;
+    };
   }
 
   process(inputs, outputs, params) {
     const input = inputs[0];
     const output = outputs[0];
     if (!output || output.length === 0) return true;
+
+    if (!this.active) {
+      for (let ch = 0; ch < output.length; ch++) output[ch].fill(0);
+      return true;
+    }
 
     const channels = output.length;
     const sr = sampleRate;

@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -77,6 +77,16 @@ frequencies. The on-screen value is still shown in Hz for the user.
   stereo (pre-v3) merely computed identical samples twice — per ADR-010
   (*cheap*), the duplicate channel is dropped. Output is bit-identical after
   the downstream mono→stereo up-mix.
+- **REQ-10** — **Idle gating** (v4): an *active flag* posted over the worklet
+  port gates the per-sample DSP. While inactive the processor zeroes its state
+  once, outputs silence, and skips all per-sample work (the pow/exp/sat loop).
+  The voice's oscillators feed the filter forever and the amp VCA sits
+  *downstream*, so input-silence detection can never fire — the flag is the
+  only workable gate. Safety asymmetry: `noteOn` posts `true`
+  **unconditionally on every call**, so a lost `false` can only waste CPU,
+  never silence a note. The worklet **defaults to active** for the same
+  reason. Any activation step is inaudible by construction: the downstream
+  ampVCA is already closed whenever the flag flips (masking invariant).
 
 ## Technical design
 
@@ -89,9 +99,15 @@ standard bus surface (`bus.set`/`get`/`subscribe`). The worklet wrapper:
 LadderFilterNode:  # src/audio/ladder-filter/node.ts
   static loadModule(ctx): Promise<void>   # await once per context, before voices
   cutoffNote: AudioParam                  # note units; env + LFO sum in here
+  setActive(on: boolean)                  # REQ-10 — port.postMessage(boolean)
   # (+ resonance / drive params per the node's surface)
 Voice setters (per-voice, called by the engine):
   setFilterCutoff(note) / setFilterResonance(r) / setFilterDrive(d) / setFilterEnvAmount(semis)
+Voice lifecycle -> filter activity (REQ-10):
+  construction     -> setActive(false)   # pool voices boot idle
+  noteOn()         -> setActive(true)    # unconditionally, every call
+  release complete -> setActive(false)   # the noteOff releaseTimer firing
+  kill()           -> setActive(false)   # voice stealing; noteOn re-activates after
 ```
 
 ### Data shapes (registry)
@@ -180,6 +196,20 @@ Scenario: Low-resonance tone matches the linear ladder (edge)
   # sat'(0) === 1, so existing presets are preserved
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
+Scenario: Idle gating skips the DSP and restarts clean (perf)
+  Given the processor received an inactive message on its port
+  When blocks are processed
+  Then the output is all zeros and the internal state is zeroed
+  When an active message arrives and blocks are processed again
+  Then the filter behaves like a freshly constructed one (bounded, filtering)
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: A lost deactivate can only cost CPU, never a note (safety edge)
+  Given a voice whose filter missed a setActive(false)
+  When the voice is allocated again and noteOn fires
+  Then setActive(true) is posted unconditionally and the note sounds
+# pinned by: tests/audio/voice.test.ts
+
 Scenario: Resonance knob has a power taper (non-linear mapping)
   Given filter.resonance uses taper 'power' with curve < 1
   When the knob sits at its midpoint (norm 0.5)
@@ -195,7 +225,10 @@ Scenario: Resonance knob has a power taper (non-linear mapping)
 - Unit (DSP): `tests/audio/ladder-filter-worklet.test.ts` — stubs the
   AudioWorklet globals and imports the real worklet (pattern:
   `tests/audio/compressor-worklet.test.ts`): boundedness at max resonance,
-  bounded self-oscillation, low-res ≈ linear reference.
+  bounded self-oscillation, low-res ≈ linear reference, idle gating (REQ-10).
+- Unit (lifecycle): `tests/audio/voice.test.ts` — Voice posts the active flag
+  on construction/noteOn/release-complete/kill (mock AudioContext + mock
+  worklet port).
 - Unit (taper): `tests/ui/taper.test.ts` — `power` taper mapping +
   round-trip for `ui/components/taper.ts`.
 - E2E: `e2e/controls.spec.ts` — drives the control surface; assert via

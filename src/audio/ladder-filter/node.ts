@@ -13,6 +13,15 @@ export class LadderFilterNode {
     this.drive = node.parameters.get('drive')!;
   }
 
+  /**
+   * Idle gating (ladder-filter.md REQ-10): while inactive the processor skips
+   * its per-sample DSP and outputs silence. The downstream ampVCA is closed
+   * whenever this flips, so the step is inaudible by construction.
+   */
+  setActive(on: boolean): void {
+    this.node.port.postMessage(on);
+  }
+
   static async create(ctx: AudioContext): Promise<LadderFilterNode> {
     // Mono: the voice path is mono end-to-end; stereo starts downstream by
     // up-mix. A stereo node here would compute identical samples twice
