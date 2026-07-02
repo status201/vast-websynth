@@ -14,11 +14,14 @@ export class LadderFilterNode {
   }
 
   static async create(ctx: AudioContext): Promise<LadderFilterNode> {
+    // Mono: the voice path is mono end-to-end; stereo starts downstream by
+    // up-mix. A stereo node here would compute identical samples twice
+    // (ladder-filter.md REQ-9).
     const node = new AudioWorkletNode(ctx, 'ladder-filter', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
-      outputChannelCount: [2],
-      channelCount: 2,
+      outputChannelCount: [1],
+      channelCount: 1,
       channelCountMode: 'explicit',
       channelInterpretation: 'speakers',
     });

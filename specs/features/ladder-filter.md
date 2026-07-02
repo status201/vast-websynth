@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -70,6 +70,13 @@ frequencies. The on-screen value is still shown in Hz for the user.
   finer resolution near self-oscillation. The taper is a UI knob mapping only;
   the stored value and its `[0, 4.2]` range are unchanged, so presets are
   unaffected.
+- **REQ-9** — The worklet node is **mono** (`channelCount: 1`,
+  `outputChannelCount: [1]`, v3). The voice path is mono end-to-end (mono
+  oscillators/noise → gains → filter → gains); stereo first materialises
+  downstream (drum panners, stereo reverb IRs) by up-mix. Forcing the node
+  stereo (pre-v3) merely computed identical samples twice — per ADR-010
+  (*cheap*), the duplicate channel is dropped. Output is bit-identical after
+  the downstream mono→stereo up-mix.
 
 ## Technical design
 
