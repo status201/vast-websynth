@@ -26,13 +26,19 @@ export interface PerfProfile {
   voiceCount: number;
   /** Scope target frame rate (applied live). */
   fps: number;
+  /** Transport look-ahead horizon (s) — wider absorbs slow wakeups on throttled devices. */
+  scheduleAheadS: number;
+  /** Longest reverb IR the banks render (s) — caps always-on convolution cost. */
+  reverbIrMaxS: number;
+  /** Allow WaveShaper oversampling (synth/sampler distortion 4x, drum tracks 2x). */
+  fxOversample: boolean;
 }
 
 /** The single source of truth for every tier-dependent knob. */
 export const PERF_PROFILES: Record<PerfTier, PerfProfile> = {
-  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15 },
-  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30 },
-  strong: { latencyHint: 'interactive', voiceCount: 8, fps: 60 },
+  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15, scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false },
+  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true },
+  strong: { latencyHint: 'interactive', voiceCount: 8, fps: 60, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true },
 };
 
 const TIERS: readonly PerfTier[] = ['weak', 'medium', 'strong'];
@@ -99,11 +105,17 @@ export function resolveTier(pref: PerfPref = readPerfPref()): PerfTier {
   return pref === 'auto' ? detectTier() : pref;
 }
 
-/** Two tiers need a reload between them iff their audio profile differs. */
+/** Two tiers need a reload between them iff any boot-time audio field differs. */
 export function sameAudioProfile(a: PerfTier, b: PerfTier): boolean {
   const x = PERF_PROFILES[a];
   const y = PERF_PROFILES[b];
-  return x.latencyHint === y.latencyHint && x.voiceCount === y.voiceCount;
+  return (
+    x.latencyHint === y.latencyHint &&
+    x.voiceCount === y.voiceCount &&
+    x.scheduleAheadS === y.scheduleAheadS &&
+    x.reverbIrMaxS === y.reverbIrMaxS &&
+    x.fxOversample === y.fxOversample
+  );
 }
 
 export interface PerfDiagnostics {

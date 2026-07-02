@@ -11,7 +11,7 @@ function perfStub(mapStep: (s: number) => number = (s) => s) {
   return { mapStep, fillActive: false, setFill() {} } as unknown as Performance & { fillActive: boolean };
 }
 
-function build(perf = perfStub()) {
+function build(perf = perfStub(), fxOversample = true) {
   const ctx = makeMockAudioContext();
   const clock = new TestClock();
   const patterns = new PatternStore();
@@ -24,6 +24,7 @@ function build(perf = perfStub()) {
     arrangement,
     perf as unknown as Performance,
     drumBus,
+    fxOversample,
   );
   // Edit bank B (index 1) is empty — avoids the default groove seeded in bank A.
   patterns.setDrumEditBank(1);
@@ -169,5 +170,22 @@ describe('DrumMachine', () => {
     const shaper = ctx.createWaveShaper.mock.results[0]!.value; // track 0
     dm.setTrackDrive(0, 0.5);
     expect(shaper.curve).toBeInstanceOf(Float32Array);
+  });
+
+  it('shapers only oversample while driven: none at drive 0, 2x above (REQ-11)', () => {
+    const { ctx, dm } = build();
+    const shaper = ctx.createWaveShaper.mock.results[0]!.value; // track 0
+    expect(shaper.oversample).toBe('none'); // identity curve at boot
+    dm.setTrackDrive(0, 0.5);
+    expect(shaper.oversample).toBe('2x');
+    dm.setTrackDrive(0, 0);
+    expect(shaper.oversample).toBe('none');
+  });
+
+  it('a weak tier (fxOversample false) pins the shapers to none even when driven', () => {
+    const { ctx, dm } = build(perfStub(), false);
+    const shaper = ctx.createWaveShaper.mock.results[0]!.value;
+    dm.setTrackDrive(0, 0.8);
+    expect(shaper.oversample).toBe('none');
   });
 });

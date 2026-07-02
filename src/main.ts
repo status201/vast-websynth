@@ -16,11 +16,12 @@ async function boot() {
   // behind the start modal — audio is unlocked when the user taps it.
   const bus = new ParamBus();
   // Performance mode (device-aware, persisted outside the bus) trades a little
-  // latency/polyphony for a glitch-resistant buffer on weak hardware. The audio
-  // fields are read once here because the buffer size + voice count are fixed at
-  // AudioContext build (scope fps is applied live; see perf-mode.ts).
-  const { latencyHint, voiceCount } = PERF_PROFILES[resolveTier()];
-  const engine = new Engine(bus, { latencyHint, voiceCount });
+  // latency/polyphony/FX cost for a glitch-resistant graph on weak hardware.
+  // The audio fields are read once here because they are fixed when the
+  // AudioContext/graph are built (scope fps is applied live; see perf-mode.ts).
+  const { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample } =
+    PERF_PROFILES[resolveTier()];
+  const engine = new Engine(bus, { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample });
   await engine.init();
 
   // The selector reflects the active sound; a patch edit flips it to dirty.

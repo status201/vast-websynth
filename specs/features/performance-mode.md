@@ -3,7 +3,7 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -42,6 +42,12 @@ stability, and the scope cost scales (15 / 30 / 60 fps). It remains a runtime/de
 preference, **not** a sound parameter — stored outside the `ParamBus`, never in a
 preset or song.
 
+v3 (the mobile-crackle work, with the worker clock / idle gating / ADR-012 true
+bypass) teaches the weak tier to reach the remaining **fixed FX costs**: reverb
+IR length, WaveShaper oversampling, and the transport look-ahead horizon. All
+three are boot-time fields, and only **weak** deviates — medium and strong keep
+sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
+
 ## Requirements
 
 - **REQ-1** — A preference `auto | weak | medium | strong`, persisted under
@@ -49,11 +55,11 @@ preset or song.
   and is never captured by presets/songs. Legacy values migrate on read: `on → weak`,
   `off → strong`, anything unrecognised → `auto`.
 - **REQ-2** — `PERF_PROFILES: Record<PerfTier, PerfProfile>` is the single source of
-  truth for every tier-dependent knob:
-  `weak = { latencyHint:'playback', voiceCount:5, fps:15 }`,
-  `medium = { 'interactive', 8, 30 }`, `strong = { 'interactive', 8, 60 }`.
-  Strong and medium share the same **audio** profile (latency + voices); they differ
-  only by scope fps.
+  truth for every tier-dependent knob (v3 adds the last three fields):
+  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false }`,
+  `medium = { 'interactive', 8, 30, 0.1, 4, true }`,
+  `strong = { 'interactive', 8, 60, 0.1, 4, true }`.
+  Strong and medium share the same **audio** profile; they differ only by scope fps.
 - **REQ-3** — `detectTier()` errs toward **medium** (the safe, normal-latency default).
   Weak only on a genuinely low signal: `hardwareConcurrency <= 2`, **or**
   `deviceMemory <= 2`, **or** a phone UA (`/Mobi|Android|iPhone|iPod/`, **not** `iPad`)
@@ -63,12 +69,29 @@ preset or song.
   override is the real escape hatch.
 - **REQ-4** — `resolveTier(pref)` returns the effective tier: a concrete tier passes
   through; `auto` → `detectTier()`. `sameAudioProfile(a, b)` is true iff two tiers share
-  `latencyHint` + `voiceCount`.
-- **REQ-5** — The **audio** profile (buffer + voice count) is tuned **at boot** only
-  (it can only be chosen when the `AudioContext`/voice pool are built): boot reads
-  `PERF_PROFILES[resolveTier()]` and passes `{ latencyHint, voiceCount }` to the Engine.
+  **every boot-time field**: `latencyHint`, `voiceCount`, `scheduleAheadS`,
+  `reverbIrMaxS`, `fxOversample` (v3).
+- **REQ-5** — The **audio** profile (buffer, voice count, and the v3 FX-cost fields)
+  is tuned **at boot** only (chosen when the `AudioContext`/graph are built): boot
+  reads `PERF_PROFILES[resolveTier()]` and passes all boot-time fields to the Engine.
   Changing the tier across an audio boundary therefore takes full effect only after a
   reload.
+- **REQ-11** — (v3) Weak-tier FX-cost reductions, threaded via `EngineOptions`:
+  - `scheduleAheadS` widens the transport look-ahead horizon
+    ([transport](transport.md)): weak 0.2 s absorbs slow wakeups on throttled
+    devices; the trade-off is coarser quantisation of live BPM/swing edits and
+    Tape Stop ramps.
+  - `reverbIrMaxS` caps the reverb IR bank by **capping durations, not
+    shrinking the bank**: weak renders `[0.4, 0.8, 1.5, 1.5, 1.5]` s so
+    `setSize`'s 0..1→index mapping and every preset value stay valid —
+    big-room presets simply sound tighter on weak.
+  - `fxOversample: false` builds the synth/sampler distortion WaveShapers at
+    `'none'` instead of `'4x'`, and pins the 8 drum-track shapers to `'none'`.
+  - **Universal (all tiers):** a drum-track shaper runs `oversample = 'none'`
+    while its curve is the identity (drive 0, the default) and only steps up to
+    `'2x'` when drive > 0 — oversampling an identity curve is pure waste.
+  Presets/songs are untouched by construction: none of these are `ParamBus`
+  params, and every param's range/default is unchanged.
 - **REQ-6** — Scope **fps** is applied **live**: `Scope` takes `{ fps }` and exposes
   `setFps(fps)`. Changing tiers updates the scope frame rate immediately (no reload).
   Throttling is timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw
@@ -102,7 +125,8 @@ preset or song.
 # src/state/perf-mode.ts
 PerfTier: 'weak' | 'medium' | 'strong'
 PerfPref: 'auto' | PerfTier
-PerfProfile: { latencyHint: AudioContextLatencyCategory; voiceCount: number; fps: number }
+PerfProfile: { latencyHint: AudioContextLatencyCategory; voiceCount: number; fps: number;
+               scheduleAheadS: number; reverbIrMaxS: number; fxOversample: boolean }  # v3
 PERF_PROFILES: Record<PerfTier, PerfProfile>   # single source of truth
 readPerfPref(): PerfPref                        # validates + migrates legacy on/off
 writePerfPref(pref: PerfPref): void
@@ -113,8 +137,10 @@ PerfDiagnostics: { cores; memoryGb; mobile; pref; detected; tier; profile }
 perfDiagnostics(): PerfDiagnostics
 
 # src/audio/engine.ts
-EngineOptions: { latencyHint?: AudioContextLatencyCategory; voiceCount?: number }
-new Engine(bus, opts?: EngineOptions)           # latencyHint→AudioContext, voiceCount→pool
+EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample? }
+new Engine(bus, opts?: EngineOptions)
+  # latencyHint→AudioContext, voiceCount→pool, scheduleAheadS→Clock,
+  # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3)
 
 # src/ui/components/scope.ts
 new Scope(analysers, opts?: { fps?: number })   # default 60
@@ -133,9 +159,11 @@ buildDebugSection(...)                           # adds debug-perf-tier + cores/
 
 ```yaml
 boot (main.ts):
-  { latencyHint, voiceCount } = PERF_PROFILES[resolveTier()]
-  new Engine(bus, { latencyHint, voiceCount })   # read once — buffer + pool fixed thereafter
-engine: opts.latencyHint -> new AudioContext({ latencyHint }); opts.voiceCount -> init() voice loop
+  profile = PERF_PROFILES[resolveTier()]
+  new Engine(bus, profile-fields)                # read once — all boot-time knobs fixed thereafter
+engine: opts.latencyHint -> new AudioContext({ latencyHint }); opts.voiceCount -> init() voice loop;
+  opts.scheduleAheadS -> new Clock(ctx, { scheduleAheadS }); opts.reverbIrMaxS -> new Reverb(ctx, { maxIrS });
+  opts.fxOversample -> new Distortion(ctx, { oversample }) + DrumMachine's per-track shapers
 ui (app.ts):
   buildHeader mounts createPerfSettingsButton({ onTierPreview: t -> setScopeFps(PERF_PROFILES[t].fps) })
   buildBottom builds Scope({ fps: PERF_PROFILES[resolveTier()].fps }) and returns it; mountApp
@@ -196,6 +224,25 @@ Scenario: Debug panel reports the detected tier and raw signals
   Given the About modal is open
   Then the Debug section shows the resolved tier, CPU cores, device memory, and mobile flag
 # pinned by: tests/state/perf-mode.test.ts (perfDiagnostics)
+
+Scenario: Weak caps the reverb IR bank without changing its shape (v3)
+  Given a Reverb built with maxIrS 1.5
+  Then it renders 5 IRs of [0.4, 0.8, 1.5, 1.5, 1.5] s
+  And setSize's index mapping is unchanged (presets keep their meaning)
+# pinned by: tests/audio/effects/fx-cost.test.ts
+
+Scenario: Weak builds distortion without oversampling (v3)
+  Given a Distortion built with oversample false
+  Then its WaveShaper runs at 'none' (default '4x')
+# pinned by: tests/audio/effects/fx-cost.test.ts
+
+Scenario: Drum-track shapers only oversample when driven (all tiers, v3)
+  Given a drum track at drive 0 (the default identity curve)
+  Then its shaper's oversample is 'none'
+  When drive is raised above 0
+  Then it becomes '2x' (unless the tier disallows oversampling)
+  And back at drive 0 it returns to 'none'
+# pinned by: tests/audio/transport/drum-machine.test.ts
 ```
 
 ## Tests & verification
@@ -218,4 +265,10 @@ Scenario: Debug panel reports the detected tier and raw signals
   out for now (glitch-prone, platform-dependent).
 - A future adaptive mode could *measure* underruns and step the tier automatically;
   today detection is static.
+- Phone detection thresholds: a Pixel-8a-class phone (9 cores, `deviceMemory` 8)
+  resolves to **medium** and struggled before the v3 work. Decision (2026-07-02):
+  keep detection as-is and revisit the thresholds once the worker clock / idle
+  gating / true bypass have been validated on device — medium may now be viable
+  on such phones; if not, tighten the phone rule rather than forcing all phones
+  weak.
 ```

@@ -20,7 +20,7 @@ export class Distortion implements Effect {
   private readonly tone: BiquadFilterNode;
   private readonly postGain: GainNode;
 
-  constructor(private readonly ctx: AudioContext) {
+  constructor(private readonly ctx: AudioContext, opts?: { oversample?: boolean }) {
     this.wrap = new BypassWrapper(ctx, 1);
     this.input = this.wrap.input;
     this.output = this.wrap.output;
@@ -30,7 +30,8 @@ export class Distortion implements Effect {
 
     this.shaper = ctx.createWaveShaper();
     this.shaper.curve = tanhCurve(0.3);
-    this.shaper.oversample = '4x';
+    // Weak perf tiers skip the 4× up/down-sampling (performance-mode.md REQ-11).
+    this.shaper.oversample = opts?.oversample === false ? 'none' : '4x';
 
     this.tone = ctx.createBiquadFilter();
     this.tone.type = 'lowpass';

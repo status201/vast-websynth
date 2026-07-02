@@ -121,9 +121,21 @@ describe('sameAudioProfile', () => {
     expect(sameAudioProfile('medium', 'strong')).toBe(true);
   });
 
-  it('weak differs from medium and strong (buffer + voices)', () => {
+  it('weak differs from medium and strong (buffer + voices + FX cost)', () => {
     expect(sameAudioProfile('weak', 'medium')).toBe(false);
     expect(sameAudioProfile('weak', 'strong')).toBe(false);
+  });
+
+  it('a tier equals itself', () => {
+    expect(sameAudioProfile('weak', 'weak')).toBe(true);
+  });
+});
+
+describe('PERF_PROFILES v3 FX-cost fields', () => {
+  it('weak widens the look-ahead and caps FX cost; medium/strong stay full', () => {
+    expect(PERF_PROFILES.weak).toMatchObject({ scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false });
+    expect(PERF_PROFILES.medium).toMatchObject({ scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true });
+    expect(PERF_PROFILES.strong).toMatchObject({ scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true });
   });
 });
 

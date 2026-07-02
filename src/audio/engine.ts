@@ -39,6 +39,12 @@ export interface EngineOptions {
   latencyHint?: AudioContextLatencyCategory;
   /** Size of the voice pool (defaults to VOICE_COUNT). */
   voiceCount?: number;
+  /** Transport look-ahead horizon (s); wider on weak tiers (defaults to the Clock's own). */
+  scheduleAheadS?: number;
+  /** Longest reverb IR the banks render (s); caps always-on convolution cost (default 4). */
+  reverbIrMaxS?: number;
+  /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
+  fxOversample?: boolean;
 }
 
 export class Engine {
@@ -99,6 +105,7 @@ export class Engine {
   get arpPassthroughSuppressed(): boolean { return this.arp?.passthroughSuppressed ?? false; }
 
   private readonly voiceCount: number;
+  private readonly fxOversample: boolean;
 
   /** iOS-only audio-session workarounds; inert (no-op) on every other platform. */
   private readonly iosSession: IosAudioSession;
@@ -113,22 +120,27 @@ export class Engine {
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;
 
-    this.distortion = new Distortion(this.ctx);
+    // Perf-tier FX-cost knobs (performance-mode.md REQ-11); defaults are no-ops.
+    this.fxOversample = opts.fxOversample ?? true;
+    const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
+    const distOpts = { oversample: this.fxOversample };
+
+    this.distortion = new Distortion(this.ctx, distOpts);
     this.wah = new Wah(this.ctx);
     this.phaser = new Phaser(this.ctx);
     this.delay = new Delay(this.ctx);
-    this.reverb = new Reverb(this.ctx);
+    this.reverb = new Reverb(this.ctx, reverbOpts);
 
     this.drumPhaser = new Phaser(this.ctx);
     this.drumDelay = new Delay(this.ctx);
-    this.drumReverb = new Reverb(this.ctx);
+    this.drumReverb = new Reverb(this.ctx, reverbOpts);
     this.drumComp = new Compressor(this.ctx, 'fet');
     this.masterComp = new Compressor(this.ctx, 'vca');
 
-    this.samplerDist = new Distortion(this.ctx);
+    this.samplerDist = new Distortion(this.ctx, distOpts);
     this.samplerPhaser = new Phaser(this.ctx);
     this.samplerDelay = new Delay(this.ctx);
-    this.samplerReverb = new Reverb(this.ctx);
+    this.samplerReverb = new Reverb(this.ctx, reverbOpts);
 
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
@@ -202,7 +214,7 @@ export class Engine {
     this.noise = this.createNoiseSource();
 
     this.patterns = new PatternStore();
-    this.clock = new Clock(this.ctx);
+    this.clock = new Clock(this.ctx, { scheduleAheadS: opts.scheduleAheadS });
   }
 
   async init(): Promise<void> {
@@ -251,7 +263,7 @@ export class Engine {
     };
     this.arp = new Arpeggiator(synthOutput, this.bus, this.clock);
     this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf);
-    this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus);
+    this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus, this.fxOversample);
     this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
 
     // Lane mixer — needs the sequencer (mute = stop triggering) + the drum/

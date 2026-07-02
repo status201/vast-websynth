@@ -30,6 +30,7 @@ export class DrumMachine {
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,
     private readonly drumBus: GainNode,
+    private readonly fxOversample = true,
   ) {
     const noise = makeNoiseBuffer(this.ctx, 2);
 
@@ -51,7 +52,9 @@ export class DrumMachine {
       const drivePre = this.ctx.createGain();
       const shaper = this.ctx.createWaveShaper();
       shaper.curve = driveCurve(0); // identity at drive 0 (no-op)
-      shaper.oversample = '2x';
+      // Oversampling an identity curve is pure waste — setTrackDrive steps it
+      // up to 2x only while actually driven (performance-mode.md REQ-11).
+      shaper.oversample = 'none';
       const drivePost = this.ctx.createGain();
 
       const tone = this.ctx.createBiquadFilter();
@@ -121,6 +124,7 @@ export class DrumMachine {
     if (!pre || !shaper || !post) return;
     rampTo(pre.gain, 1 + amt * 8, this.ctx, RAMP_MEDIUM);
     shaper.curve = driveCurve(amt);
+    shaper.oversample = amt > 0 && this.fxOversample ? '2x' : 'none';
     rampTo(post.gain, 1 / (1 + amt * 1.5), this.ctx, RAMP_MEDIUM);
   }
 

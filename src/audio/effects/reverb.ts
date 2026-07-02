@@ -14,7 +14,7 @@ export class Reverb implements Effect {
   private readonly damp: BiquadFilterNode;
   private readonly irs: AudioBuffer[];
 
-  constructor(private readonly ctx: AudioContext) {
+  constructor(private readonly ctx: AudioContext, opts?: { maxIrS?: number }) {
     this.wrap = new BypassWrapper(ctx, 0.25);
     this.input = this.wrap.input;
     this.output = this.wrap.output;
@@ -25,7 +25,11 @@ export class Reverb implements Effect {
     this.damp.frequency.value = 8000;
     this.damp.Q.value = 0.707;
 
-    this.irs = [0.4, 0.8, 1.5, 2.5, 4.0].map((d) => generateIR(ctx, d, 2));
+    // Weak perf tiers cap the IR *durations*, never the bank size, so
+    // setSize's 0..1 → index mapping and preset values keep their meaning
+    // (performance-mode.md REQ-11).
+    const maxIrS = opts?.maxIrS ?? 4;
+    this.irs = [0.4, 0.8, 1.5, 2.5, 4.0].map((d) => generateIR(ctx, Math.min(d, maxIrS), 2));
     this.convolver.buffer = this.irs[2]!;
 
     this.wrap.processedIn.connect(this.convolver).connect(this.damp).connect(this.wrap.processedOut);
