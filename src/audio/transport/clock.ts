@@ -1,4 +1,5 @@
 import type { TickSubscriber, TickListener } from './tick-source';
+import { type TickTimer, defaultTickTimer } from './tick-timer';
 
 /**
  * Look-ahead transport clock. Subscribers receive a callback with the
@@ -6,14 +7,23 @@ import type { TickSubscriber, TickListener } from './tick-source';
  * scheduled ~100 ms ahead so events can be set on AudioParams with
  * sample-accurate timing.
  *
- * Design follows the classic "two clocks" pattern (Chris Wilson, 2013):
- * setInterval timer wakes us up every 25 ms to enqueue work; the actual
- * triggering uses absolute AudioContext time via setValueAtTime etc.
+ * Design follows the classic "two clocks" pattern (Chris Wilson, 2013): a
+ * timer wakes us up every 25 ms to enqueue work; the actual triggering uses
+ * absolute AudioContext time via setValueAtTime etc. The wakeup timer runs in
+ * a Worker (see tick-timer.ts) so it survives main-thread jank and
+ * background-tab timer throttling; scheduling itself stays on this thread.
  */
 export type { TickListener };
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
+
+export interface ClockOptions {
+  /** Wakeup source; defaults to a Worker timer (main-thread fallback). */
+  timer?: TickTimer;
+  /** Look-ahead horizon in seconds; perf tier may widen the default. */
+  scheduleAheadS?: number;
+}
 
 export class Clock implements TickSubscriber {
   private bpm = 120;
@@ -21,12 +31,16 @@ export class Clock implements TickSubscriber {
   private _playing = false;
   private nextStepTime = 0;
   private _step = 0;
-  private timer: number | null = null;
+  private readonly timer: TickTimer;
+  private readonly scheduleAheadS: number;
   private readonly listeners = new Set<TickListener>();
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
 
-  constructor(private readonly ctx: AudioContext) {}
+  constructor(private readonly ctx: AudioContext, opts?: ClockOptions) {
+    this.timer = opts?.timer ?? defaultTickTimer();
+    this.scheduleAheadS = opts?.scheduleAheadS ?? SCHEDULE_AHEAD_S;
+  }
 
   get playing(): boolean { return this._playing; }
   get step(): number { return this._step; }
@@ -46,16 +60,14 @@ export class Clock implements TickSubscriber {
     this.nextStepTime = this.ctx.currentTime + 0.05;
     this._step = 0;
     for (const l of this.startListeners) l();
-    this.tick();
+    this.tick(); // schedule the first horizon synchronously
+    this.timer.start(this.tick, LOOKAHEAD_MS);
   }
 
   stop(): void {
     if (!this._playing) return;
     this._playing = false;
-    if (this.timer !== null) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
+    this.timer.stop();
     for (const l of this.stopListeners) l();
   }
 
@@ -83,7 +95,8 @@ export class Clock implements TickSubscriber {
   }
 
   private tick = (): void => {
-    while (this._playing && this.nextStepTime < this.ctx.currentTime + SCHEDULE_AHEAD_S) {
+    // A wakeup may land after stop() (worker message in flight) — emit nothing.
+    while (this._playing && this.nextStepTime < this.ctx.currentTime + this.scheduleAheadS) {
       const sixteenth = 60 / this.bpm / 4;
       // Lay the off-beat 16ths back. Offset only the emitted time, never the
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an
@@ -92,9 +105,6 @@ export class Clock implements TickSubscriber {
       for (const l of this.listeners) l(this._step, this.nextStepTime + off);
       this.nextStepTime += sixteenth;
       this._step = (this._step + 1) & 0xffff; // monotonic; subscribers do their own modulo
-    }
-    if (this._playing) {
-      this.timer = window.setTimeout(this.tick, LOOKAHEAD_MS);
     }
   };
 

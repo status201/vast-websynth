@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Clock } from '../../../src/audio/transport/clock';
+import { TimeoutTimer } from '../../../src/audio/transport/tick-timer';
 
 /**
- * The Clock drives itself off a setTimeout look-ahead loop, reading
- * AudioContext.currentTime. We fake both: a mutable `currentTime` plus
- * Vitest fake timers, advancing the audio clock between scheduler wakeups so
- * the loop emits a run of ticks we can inspect.
+ * The Clock's look-ahead loop reads AudioContext.currentTime on each timer
+ * wakeup. We inject the main-thread TimeoutTimer (the Worker timer is not
+ * available under jsdom anyway) and fake both clocks: a mutable `currentTime`
+ * plus Vitest fake timers, advancing the audio clock between scheduler
+ * wakeups so the loop emits a run of ticks we can inspect.
  */
 function collectTicks(swing: number, count = 8): Array<{ step: number; when: number }> {
   vi.useFakeTimers();
   const ctx = { currentTime: 0 } as unknown as AudioContext;
-  const clock = new Clock(ctx);
+  const clock = new Clock(ctx, { timer: new TimeoutTimer() });
   clock.setBpm(120); // one 16th = 0.125s
   clock.setSwing(swing);
 
