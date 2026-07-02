@@ -7,6 +7,12 @@ import styles from '../styles/fx-group.module.css';
  * Compact inline effect group for panel headers: divider, title, on/off
  * switch (`${onPrefix}.on`) and a row of small knobs. `opts.trailing`
  * appends one extra element after the knobs (e.g. a gain-reduction meter).
+ *
+ * While the effect is bypassed (`${onPrefix}.on` < 0.5) the knobs and the
+ * trailing element are hidden — only divider, title and switch remain — and
+ * they reappear when the param engages, whatever set it (switch click,
+ * preset/song load). Param-driven visibility, not the user-driven
+ * collapse-toggle.
  */
 export function fxGroup(
   bus: ParamBus,
@@ -17,6 +23,7 @@ export function fxGroup(
 ): HTMLElement {
   const group = document.createElement('div');
   group.className = styles.root!;
+  group.dataset.testid = `fxgroup-${onPrefix}`;
 
   const divider = document.createElement('div');
   divider.className = styles.divider!;
@@ -29,11 +36,17 @@ export function fxGroup(
 
   group.appendChild(new Switch(bus, `${onPrefix}.on`, 'on').el);
 
+  const knobRow = document.createElement('div');
+  knobRow.className = styles.knobs!;
   for (const k of knobs) {
-    group.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: opts?.knobSize ?? 22 }).el);
+    knobRow.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: opts?.knobSize ?? 22 }).el);
   }
+  if (opts?.trailing) knobRow.appendChild(opts.trailing);
+  group.appendChild(knobRow);
 
-  if (opts?.trailing) group.appendChild(opts.trailing);
+  bus.subscribe(`${onPrefix}.on`, (v) => {
+    group.classList.toggle('collapsed', v < 0.5);
+  });
 
   return group;
 }

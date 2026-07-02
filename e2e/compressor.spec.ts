@@ -19,8 +19,15 @@ test.describe('drum bus compressor (1176 FET style)', () => {
     await page.getByTestId('tab-drums').click();
   });
 
-  test('the COMP group renders with its switch, knobs and GR meter', async ({ page }) => {
+  test('the COMP group boots collapsed and engaging reveals knobs and GR meter', async ({ page }) => {
+    // Bypassed by default: only the switch shows; knobs + meter stay in the
+    // DOM but hidden (fx-group collapse).
     await expect(page.getByTestId('switch-fx.drum.comp.on')).toBeVisible();
+    await expect(page.getByTestId('knob-fx.drum.comp.threshold')).toBeHidden();
+    await expect(page.getByTestId('grmeter-fx.drum.comp')).toBeAttached();
+    await expect(page.getByTestId('grmeter-fx.drum.comp')).toBeHidden();
+
+    await page.getByTestId('switch-fx.drum.comp.on').click();
     for (const k of ['threshold', 'ratio', 'attack', 'release', 'makeup']) {
       await expect(page.getByTestId(`knob-fx.drum.comp.${k}`)).toBeVisible();
     }
@@ -43,6 +50,7 @@ test.describe('drum bus compressor (1176 FET style)', () => {
   });
 
   test('threshold and ratio knobs drive the bus params', async ({ page }) => {
+    await page.getByTestId('switch-fx.drum.comp.on').click(); // reveal the knobs
     await dragKnobUp(page, 'knob-fx.drum.comp.threshold');
     expect(await busGet(page, 'fx.drum.comp.threshold')).toBeGreaterThan(-18);
 
@@ -58,8 +66,10 @@ test.describe('master bus compressor (SSL G VCA style)', () => {
     await page.getByTestId('tab-song').click();
   });
 
-  test('the COMP group renders next to the DJ filter with its GR meter', async ({ page }) => {
+  test('the COMP group renders next to the DJ filter, knobs behind the switch', async ({ page }) => {
     await expect(page.getByTestId('switch-fx.master.comp.on')).toBeVisible();
+    await expect(page.getByTestId('knob-fx.master.comp.threshold')).toBeHidden(); // bypassed
+    await page.getByTestId('switch-fx.master.comp.on').click();
     await expect(page.getByTestId('knob-fx.master.comp.threshold')).toBeVisible();
     await expect(page.getByTestId('grmeter-fx.master.comp')).toBeVisible();
   });

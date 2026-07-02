@@ -191,6 +191,7 @@ specs/
     # — effects —
     effects.md         ·  distortion/wah/phaser/delay/reverb insert chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
+    fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock
     arpeggiator.md     ·  held-note arp + transport ownership

@@ -9,6 +9,7 @@ related:
   - architecture
   - compressor
   - performance
+  - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
 source:
   - src/audio/effects/effect.ts        # Effect interface + BypassWrapper
   - src/audio/effects/{distortion,wah,phaser,delay,reverb}.ts

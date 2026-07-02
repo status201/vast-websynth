@@ -11,6 +11,17 @@
   margin: 0 4px;
 }
 
+.knobs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Bypassed effect: only divider + title + switch remain (spec fx-group REQ-2). */
+.root:global(.collapsed) .knobs {
+  display: none;
+}
+
 .label {
   font-size: 9px;
   text-transform: uppercase;

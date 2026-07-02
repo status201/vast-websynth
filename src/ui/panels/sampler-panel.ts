@@ -2,6 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
+import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
@@ -243,26 +244,4 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
   });
 
   return root;
-}
-
-function fxGroup(bus: ParamBus, title: string, onParam: string, knobs: Array<{ id: string; label: string }>): HTMLElement {
-  const group = document.createElement('div');
-  group.style.cssText = 'display:flex;align-items:center;gap:4px';
-
-  const divider = document.createElement('div');
-  divider.style.cssText = 'width:1px;height:28px;background:rgba(244,205,94,0.15);margin:0 4px';
-  group.appendChild(divider);
-
-  const label = document.createElement('span');
-  label.textContent = title;
-  label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--accent-secondary);font-weight:600';
-  group.appendChild(label);
-
-  group.appendChild(new Switch(bus, `${onParam}.on`, 'on').el);
-
-  for (const k of knobs) {
-    group.appendChild(new Knob({ bus, paramId: k.id, label: k.label, size: 22 }).el);
-  }
-
-  return group;
 }
