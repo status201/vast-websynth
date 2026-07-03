@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-07-03
+
 ### Added
 
 - **Reverb on the Drum Machine** — the drum bus gained a fourth effect group
@@ -30,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Clicking a bank other than the one playing turns Follow off — handy when you
   want to edit one bank while another plays.
 
+- **Song panel button help** — every file-management button in the Song panel
+  (Load, Save, Import, Export, New, Export Song, Record) now has its own (i)
+  help badge explaining exactly what it does. **Save**, **Export**, and
+  **Export Song** (audio) are easy to mix up — each now gets a precise,
+  disambiguating explanation.
+
 ### Changed
 
 - **Much lower CPU use on phones (mobile crackle fix)** — a series of engine
@@ -43,7 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - switched-off effects are now truly disconnected: bypassed reverbs,
     distortions, phasers, delays and compressors no longer burn audio CPU
     (they used to run silently behind the crossfade);
-  - drum-track drive only engages its oversampling while actually driven.
+  - drum-track drive only engages its oversampling while actually driven;
+  - the analogue drift ("wobble") timer only runs while Drift is turned up —
+    previously it ticked every 110 ms from boot even at the default of off;
+  - the spectrum scope's background gradient is now cached instead of
+    reallocated every animation frame.
   Nothing changes sonically — presets and songs sound the same.
 
 - **Weak performance tier cuts effect cost too** — on Weak, the engine now
@@ -68,6 +80,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   colour-coded by tier and **About → Debug** shows the detected tier and device
   signals (cores, memory). Auto no longer forces capable tablets into the
   high-latency profile, and the canvas drop-shadow is dropped on all tiers.
+
+### Fixed
+
+- **iOS: audio now plays with the ring/silent switch set to silent** —
+  iPhones and iPads route Web Audio through the "ambient" category, which
+  honors the physical mute switch and previously left the synth silent
+  whenever it was flipped. Sound now upgrades the page's audio session to
+  "playback" (the same trick apps like YouTube and Spotify use) by routing a
+  silent loop *through* the `AudioContext` itself, so audio reaches the
+  speaker regardless of the switch. iOS-only; nothing changes on other
+  platforms.
+- **iOS: audio recovers automatically after phone calls, Siri, and
+  backgrounding** — iOS can drop the audio session into a non-standard
+  "interrupted" state that the previous resume logic didn't recognise,
+  leaving the synth silent until a page reload. Resuming now also handles
+  that state, and **About → Debug** gains iOS unlock/session diagnostics for
+  tracking down issues in the field.
+- **MIDI's permission prompt no longer appears before you've tapped to
+  start** — Web MIDI access is now requested from the start-gesture handler
+  instead of at page load, so Chrome's MIDI permission prompt no longer pops
+  up behind the "Tap to start" modal for visitors who never plug in a
+  controller.
 
 ## [1.7.0] - 2026-06-28
 
@@ -198,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/status201/vast-websynth/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/status201/vast-websynth/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/status201/vast-websynth/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/status201/vast-websynth/compare/v1.5.0...v1.5.1
