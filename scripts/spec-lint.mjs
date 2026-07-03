@@ -6,7 +6,8 @@
 // indexes stay complete. Zero-dep. Runs three ways:
 //   • `npm run spec:lint` / `node scripts/spec-lint.mjs` — lint all, exit 1 on error
 //   • CI (.github/workflows/sdd.yml)                     — same
-//   • local Stop hook (`spec-lint.mjs hook`) — only when specs/ changed this turn;
+//   • local Stop hook (`spec-lint.mjs hook`) — lints unconditionally (fast, and a
+//     changed-this-turn gate misses turns that end after `git commit`);
 //     exit 2 to block finishing, so a malformed spec is caught at edit time too
 // It complements — never replaces — human review of spec quality.
 //
@@ -211,10 +212,6 @@ function lint(failExit) {
 }
 
 /** Did the working tree touch anything under specs/ this turn? */
-function specsChanged() {
-  return Boolean(git(['status', '--porcelain', '--', 'specs'], ROOT));
-}
-
 async function readStdin() {
   const chunks = [];
   for await (const c of process.stdin) chunks.push(c);
@@ -229,12 +226,12 @@ function parseJson(json) {
   }
 }
 
-// Stop-hook mode: skip unless specs changed this turn, and never loop on ourselves;
-// block (exit 2) on failure so the agent fixes the spec before finishing.
+// Stop-hook mode: lint unconditionally (a changed-this-turn gate misses turns
+// that end after `git commit` — the tree is clean by then), but never loop on
+// ourselves; block (exit 2) on failure so the agent fixes the spec before finishing.
 async function runHook() {
   const input = parseJson(await readStdin());
   if (input?.stop_hook_active) process.exit(0);
-  if (!specsChanged()) process.exit(0);
   lint(2);
 }
 

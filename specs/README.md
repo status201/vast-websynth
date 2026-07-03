@@ -170,9 +170,11 @@ SDD is enforced by `scripts/sdd-guard.mjs`, wired as Claude Code hooks
 > (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
 > matching the filename, a valid `status`, that `# pinned by:` paths resolve, and
 > that every spec/ADR is listed in this folder map **and** the `decisions/` index.
-> It runs in CI **and** as a local `Stop` hook (only when `specs/` changed this
-> turn, blocking the finish on a malformed spec). Hooks can be disabled by editing
-> `.claude/settings.json`, so CI is the real cross-tool backstop.
+> It runs in CI (PRs **and** pushes to `main`) **and** unconditionally as a local
+> `Stop` hook (blocking the finish on a malformed spec — it lints even when the
+> turn ended with everything committed, since a clean tree says nothing about the
+> committed specs). Hooks can be disabled by editing `.claude/settings.json`, so
+> CI is the real cross-tool backstop.
 
 ## Folder map
 
@@ -245,6 +247,7 @@ specs/
     adr-009-ui-depends-on-studio-api-facade.md ·  UI sees a narrow StudioApi facade
     adr-010-musical-stable-cheap-dsp.md        ·  DSP worklets: musical, stable, cheap
     adr-011-export-precision-and-default-sparse-serialization.md ·  compact export at the boundary
+    adr-012-true-bypass-disconnects.md         ·  bypassed FX disconnect their processed path
 ```
 
 > Coverage note: the feature set above documents the current system. New features

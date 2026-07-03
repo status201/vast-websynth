@@ -27,6 +27,7 @@ the old one rather than rewriting it. An ADR's `status` is its own lifecycle —
 | [009](adr-009-ui-depends-on-studio-api-facade.md) | The UI depends on a `StudioApi` facade, not the concrete Engine | accepted |
 | [010](adr-010-musical-stable-cheap-dsp.md) | DSP worklets favour *musical, stable, cheap* over physical accuracy | accepted |
 | [011](adr-011-export-precision-and-default-sparse-serialization.md) | Export precision & default-sparse serialization | accepted |
+| [012](adr-012-true-bypass-disconnects.md) | Bypassed effects disconnect their processed path (true bypass) | accepted |
 
 New ADRs copy [`_adr-template.md`](_adr-template.md) to `adr-NNN-<slug>.md`, numbered
 contiguously. Keep this index and the folder map in [`../README.md`](../README.md) in

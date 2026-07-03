@@ -2,11 +2,14 @@ name: SDD
 
 # Spec-before-code gate: a PR that changes production code must also change a spec.
 # Mirrors the local Claude Code hooks (scripts/sdd-guard.mjs) so the rule also
-# applies to non-Claude agents and direct pushes. Bypass a genuinely trivial
-# production change with [skip-sdd] in a commit message or the 'skip-sdd' label.
+# applies to non-Claude agents. The structure lint additionally runs on direct
+# pushes to main (the guard needs a PR base to diff against). Bypass a genuinely
+# trivial production change with [skip-sdd] in a commit message or the 'skip-sdd' label.
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -21,9 +24,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # The spec-before-code diff needs a PR base branch; on direct pushes to
+      # main only the (self-contained) structure lint below runs.
       - name: Fetch base branch
+        if: github.event_name == 'pull_request'
         run: git fetch origin "${{ github.base_ref }}"
       - name: Spec-before-code check
+        if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
           SDD_SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-sdd') }}

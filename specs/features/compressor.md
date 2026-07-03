@@ -129,7 +129,11 @@ init (async): await CompressorNode.loadModule(ctx)
 This split exists because `Engine`'s constructor must wire the audio graph
 synchronously, but an `AudioWorkletNode` can't be created until its module is
 loaded (async). The `BypassWrapper` is the placeholder; `attachWorklet()` swaps in
-the real node and replays cached setter values so nothing is lost.
+the real node and replays cached setter values so nothing is lost. The splice
+happens *inside* the wrapper's processed path (`processedIn → node →
+processedOut`), so it also works while the effect is bypassed-and-disconnected
+under true bypass
+([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)).
 
 ### Worklet message contract
 

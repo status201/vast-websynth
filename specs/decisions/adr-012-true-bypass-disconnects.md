@@ -79,4 +79,3 @@ one tail-length after reconnect.
   at a different LFO phase after re-enable, which is musically irrelevant.
 - effects.md REQ-2 is rewritten by this ADR (v3); the "no graph reconnect"
   wording of v2 is superseded.
-```
