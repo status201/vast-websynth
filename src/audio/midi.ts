@@ -2,13 +2,17 @@ import type { Engine } from './engine';
 import type { ParamBus } from '../state/params';
 
 export async function initMIDI(_engine: Engine, bus: ParamBus): Promise<void> {
-  const nav = navigator as unknown as { requestMIDIAccess?: () => Promise<MIDIAccess> };
+  const nav = navigator as unknown as {
+    requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
+  };
   if (!nav.requestMIDIAccess) {
     console.info('[MIDI] Web MIDI not available in this browser.');
     return;
   }
   try {
-    const access = await nav.requestMIDIAccess();
+    // Explicit non-sysex request; the browser may still show a permission
+    // prompt (Chrome ≥124 gates all MIDI access) — denial lands in the catch.
+    const access = await nav.requestMIDIAccess({ sysex: false });
     const wire = (input: MIDIInput) => {
       input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, bus);
     };

@@ -18,12 +18,12 @@ jobs:
   sdd-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       # The spec-before-code diff needs a PR base branch; on direct pushes to
       # main only the (self-contained) structure lint below runs.
       - name: Fetch base branch

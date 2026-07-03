@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -38,6 +38,13 @@ not.
   shiftable; auto-repeat is ignored.
 - **REQ-4** — MIDI (Web MIDI) maps Note On (vel 0 = off) / Note Off to the bus;
   absence of Web MIDI is a no-op (logged), not an error.
+- **REQ-6** — MIDI access is requested only after the "Tap to start" gesture,
+  never at page load: Chrome ≥124 shows a permission prompt for *all* MIDI
+  access (sysex or not), and an unprompted load-time permission dialog is
+  hostile to the (majority) MIDI-less visitor. The request passes an explicit
+  `{ sysex: false }`; a denied prompt degrades exactly like absence of Web
+  MIDI (logged, no error). Note: Chrome's DevTools deprecation line ("Web MIDI
+  will ask a permission…") is informational and cannot be silenced from code.
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -55,6 +62,7 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   baseOctave (shiftable); ignores e.repeat
 UiBridge: pressKey(note) / releaseKey(note)             # syncs on-screen keys
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
+  requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
 note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppressed)
 ```
@@ -66,7 +74,8 @@ note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppre
 ### Layer touchpoints
 
 ```yaml
-boot (main.ts): builds the UiBridge, installShortcuts(...), initMIDI(...)
+boot (main.ts): builds the UiBridge, installShortcuts(...)
+start gesture (main.ts showStartModal): initMIDI(...) fires on tap-to-start (REQ-6)
 on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
 arp/seq ownership: when passthroughSuppressed, the engine gates raw note passthrough
 ```
@@ -90,6 +99,14 @@ Scenario: No Web MIDI is a silent no-op
   When initMIDI runs
   Then it logs and returns without throwing
 # pinned by: midi.ts (guarded)
+
+Scenario: MIDI permission is not requested before the start gesture
+  Given the page has just loaded (start modal showing)
+  Then requestMIDIAccess has not been called
+  When the user taps to start
+  Then initMIDI runs (a browser permission prompt may appear)
+  And a denied prompt is a logged no-op, like absence of Web MIDI
+# pinned by: main.ts showStartModal onStart -> initMIDI; midi.ts try/catch
 
 Scenario: Typing in a text field does not play notes
   Given a textarea is focused (e.g. the AI Prompt "Describe your song" field)

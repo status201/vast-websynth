@@ -38,7 +38,6 @@ async function boot() {
   const bridge = new UiBridge();
   const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session);
   installShortcuts(engine, bus, bridge);
-  initMIDI(engine, bus);
 
   // Dev-only debug bridge for E2E tests (Playwright drives the dev server, so
   // import.meta.env.DEV is true there). Lets specs read/drive state directly —
@@ -52,11 +51,14 @@ async function boot() {
     };
   }
 
-  showStartModal(engine, onboarding);
+  // MIDI is initialized from the start gesture, not at boot: Chrome ≥124
+  // gates all Web MIDI behind a permission prompt, and prompting on page
+  // load (behind the start modal) is hostile to MIDI-less visitors.
+  showStartModal(engine, onboarding, () => { void initMIDI(engine, bus); });
 }
 
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */
-function showStartModal(engine: Engine, onboarding: Onboarding): void {
+function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => void): void {
   const backdrop = document.createElement('div');
   backdrop.className = `${Modal.backdropClass} start-backdrop`;
 
@@ -84,6 +86,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding): void {
     started = true;
     startBtn.removeEventListener('click', start);
     await engine.resume(); // invoked within the gesture → unlocks audio
+    onStart(); // e.g. initMIDI — any permission prompt follows the gesture
     backdrop.classList.add('hidden');
     setTimeout(() => backdrop.remove(), 300);
     // First-visit only: launch the guided tour once the start modal is gone and
