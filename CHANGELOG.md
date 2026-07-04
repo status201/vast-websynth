@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **BPM "sweet spots" help badges** — the Delay Time knobs (synth, drum, sampler)
+  and the LFO / wah / phaser rate knobs gained help-mode (i) badges that list the
+  musical note divisions — straight, dotted and triplet — with their value at the
+  **current tempo** (milliseconds for delays, Hz for rates), filtered to each
+  knob's range. **Click a value to snap the knob to it**, so getting a delay or
+  LFO perfectly in time no longer means doing the math by hand. Change the BPM and
+  reopen the badge to see the values recomputed.
+
+- **Relationship help badges** — the filter cutoff, resonance and envelope-amount
+  knobs, the unison detune knob, and the drum/master compressor thresholds gained
+  (i) badges that explain their live derived numbers (cutoff in Hz, the
+  self-oscillation pitch, the envelope sweep's top, the unison spread in cents,
+  and so on) so mutually-dependent controls make sense at a glance.
+
 ## [1.8.0] - 2026-07-03
 
 ### Added

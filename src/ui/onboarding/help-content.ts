@@ -2,6 +2,15 @@
 // stays pure): the interactive tour script + the contextual help topics shown
 // by the help-mode (i) badges.
 import type { TourStep } from './tour';
+import type { ParamBus } from '../../state/params';
+import {
+  renderTempoSync,
+  renderFilterCutoff,
+  renderFilterResonance,
+  renderFilterEnvAmount,
+  renderUnisonDetune,
+  renderCompThreshold,
+} from './help-widgets';
 
 /** A loud, instantly-recognisable demo for the "load a demo" headline step. */
 export const DEMO_FOR_TOUR = 'Night Rider';
@@ -84,10 +93,18 @@ export const TOUR_STEPS: TourStep[] = [
 
 // ---- Contextual help (the help-mode (i) badges) ----
 
+/** Runtime handed to a dynamic (function) topic body so it can read/write live
+ *  params and dismiss the modal (e.g. after a click-to-snap). */
+export interface HelpContext {
+  bus: ParamBus;
+  close: () => void;
+}
+
 export interface HelpTopic {
   title: string;
-  /** Light HTML (trusted, authored copy). */
-  body: string;
+  /** Static light HTML (trusted, authored copy), or a live DOM builder for
+   *  BPM-aware / relationship badges (see help-widgets.ts). */
+  body: string | ((ctx: HelpContext) => Node);
 }
 
 export type TopicId =
@@ -101,17 +118,29 @@ export type TopicId =
   | 'filter'
   | 'filter.cutoff'
   | 'filter.resonance'
+  | 'filter.envAmount'
+  | 'unison.detune'
   | 'ampenv'
   | 'filterenv'
   | 'lfo'
+  | 'lfo.rate'
   | 'fx'
   | 'fx.dist'
   | 'fx.wah'
+  | 'fx.wah.rate'
   | 'fx.phaser'
+  | 'fx.phaser.rate'
   | 'fx.delay'
+  | 'fx.delay.time'
   | 'fx.reverb'
   | 'fx.drum.comp'
+  | 'fx.drum.comp.threshold'
+  | 'fx.drum.phaser.rate'
+  | 'fx.drum.delay.time'
   | 'fx.master.comp'
+  | 'fx.master.comp.threshold'
+  | 'fx.sampler.phaser.rate'
+  | 'fx.sampler.delay.time'
   | 'arp'
   | 'seq'
   | 'seq.prob'
@@ -222,16 +251,11 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   },
   'filter.cutoff': {
     title: 'Filter — Cutoff',
-    body:
-      '<p>How bright or dark the sound is: the filter removes frequencies above this point. ' +
-      'Sweeping it up and down is the single most recognisable synth move. Drag to change; ' +
-      'double-click to reset; hold <strong>Shift</strong> while dragging for fine control.</p>',
+    body: renderFilterCutoff,
   },
   'filter.resonance': {
     title: 'Filter — Resonance',
-    body:
-      '<p>Boosts the frequencies right at the cutoff, adding a vocal / whistling emphasis. Push it ' +
-      'high together with a cutoff sweep for that squelchy acid-bass sound.</p>',
+    body: renderFilterResonance,
   },
   ampenv: {
     title: 'Amp Envelope (ADSR)',
@@ -351,6 +375,59 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Use it subtly for a louder, denser, more “finished” mix — or hard, where it pumps ' +
       'musically with DJ filter sweeps and drops.</p>',
   },
+
+  // ---- BPM-aware "sweet spots" (delays show ms, rates show Hz) ----
+  'fx.delay.time': {
+    title: 'Delay Time — sweet spots',
+    body: (ctx) => renderTempoSync(ctx, 'fx.delay.time', 'time'),
+  },
+  'fx.drum.delay.time': {
+    title: 'Drum Delay Time — sweet spots',
+    body: (ctx) => renderTempoSync(ctx, 'fx.drum.delay.time', 'time'),
+  },
+  'fx.sampler.delay.time': {
+    title: 'Sampler Delay Time — sweet spots',
+    body: (ctx) => renderTempoSync(ctx, 'fx.sampler.delay.time', 'time'),
+  },
+  'lfo.rate': {
+    title: 'LFO Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'lfo.rate', 'freq'),
+  },
+  'fx.wah.rate': {
+    title: 'Wah Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.wah.rate', 'freq'),
+  },
+  'fx.phaser.rate': {
+    title: 'Phaser Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.phaser.rate', 'freq'),
+  },
+  'fx.drum.phaser.rate': {
+    title: 'Drum Phaser Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.drum.phaser.rate', 'freq'),
+  },
+  'fx.sampler.phaser.rate': {
+    title: 'Sampler Phaser Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'fx.sampler.phaser.rate', 'freq'),
+  },
+
+  // ---- Mutual-dependency explainers (live derived numbers) ----
+  'filter.envAmount': {
+    title: 'Filter — Env Amount',
+    body: renderFilterEnvAmount,
+  },
+  'unison.detune': {
+    title: 'Unison — Spread',
+    body: renderUnisonDetune,
+  },
+  'fx.drum.comp.threshold': {
+    title: 'Drum Compressor — Threshold',
+    body: (ctx) => renderCompThreshold(ctx, 'fx.drum.comp'),
+  },
+  'fx.master.comp.threshold': {
+    title: 'Master Compressor — Threshold',
+    body: (ctx) => renderCompThreshold(ctx, 'fx.master.comp'),
+  },
+
   arp: {
     title: 'Arpeggiator',
     body:

@@ -20,7 +20,7 @@ export interface Onboarding {
 }
 
 export function createOnboarding(ctx: TourCtx): Onboarding {
-  const helpMode = new HelpMode();
+  const helpMode = new HelpMode(ctx.bus);
   let tour: Tour | null = null;
   const helpListeners: Array<(active: boolean) => void> = [];
 

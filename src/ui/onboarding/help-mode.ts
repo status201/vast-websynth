@@ -6,6 +6,7 @@ import { createButton } from '../components/button';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/tour.module.css';
 import { HELP_TOPICS, type TopicId } from './help-content';
+import type { ParamBus } from '../../state/params';
 
 interface Anchor {
   topic: TopicId;
@@ -76,6 +77,22 @@ const ANCHORS: Anchor[] = [
   { topic: 'transpose', find: () => byTestId('strip-keyboard.transpose') },
   { topic: 'modWheel', find: () => byTestId('strip-master.modWheel') },
   { topic: 'scope', find: () => byTestId('scope-toggle') },
+  // Tempo "sweet spots" — delay times (ms) + LFO/phaser/wah rates (Hz). The
+  // drum/sampler ones sit on their tabs and stay hidden until that panel lays
+  // out (same reflow path as the Song per-button badges above).
+  { topic: 'fx.delay.time', find: () => byTestId('knob-fx.delay.time') },
+  { topic: 'lfo.rate', find: () => byTestId('knob-lfo.rate') },
+  { topic: 'fx.wah.rate', find: () => byTestId('knob-fx.wah.rate') },
+  { topic: 'fx.phaser.rate', find: () => byTestId('knob-fx.phaser.rate') },
+  { topic: 'fx.drum.delay.time', find: () => byTestId('knob-fx.drum.delay.time') },
+  { topic: 'fx.drum.phaser.rate', find: () => byTestId('knob-fx.drum.phaser.rate') },
+  { topic: 'fx.sampler.delay.time', find: () => byTestId('knob-fx.sampler.delay.time') },
+  { topic: 'fx.sampler.phaser.rate', find: () => byTestId('knob-fx.sampler.phaser.rate') },
+  // Relationship explainers (live derived numbers).
+  { topic: 'filter.envAmount', find: () => byTestId('knob-filter.envAmount') },
+  { topic: 'unison.detune', find: () => byTestId('knob-unison.detune') },
+  { topic: 'fx.drum.comp.threshold', find: () => byTestId('knob-fx.drum.comp.threshold') },
+  { topic: 'fx.master.comp.threshold', find: () => byTestId('knob-fx.master.comp.threshold') },
 ];
 
 export class HelpMode {
@@ -85,6 +102,10 @@ export class HelpMode {
   private rafQueued = false;
   private ro: ResizeObserver | null = null;
   private headerEl: Element | null = null;
+
+  /** The bus is threaded in so dynamic (function) topic bodies can read live
+   *  params — e.g. the BPM-aware delay "sweet spots". */
+  constructor(private readonly bus: ParamBus) {}
 
   get isActive(): boolean {
     return this.active;
@@ -115,7 +136,7 @@ export class HelpMode {
       el.textContent = 'i';
       el.dataset.testid = `help-badge-${a.topic}`;
       el.setAttribute('aria-label', `Help: ${HELP_TOPICS[a.topic].title}`);
-      el.addEventListener('click', () => openTopic(a.topic));
+      el.addEventListener('click', () => this.openTopic(a.topic));
       layer.appendChild(el);
       this.badges.push({
         el,
@@ -195,21 +216,26 @@ export class HelpMode {
       el.style.top = `${top}px`;
     }
   }
-}
-
-function openTopic(id: TopicId): void {
-  const topic = HELP_TOPICS[id];
-  const modal = new Modal({ title: topic.title });
-  const content = document.createElement('div');
-  content.className = Modal.metaClass;
-  content.innerHTML = topic.body;
-  modal.body.appendChild(content);
-  modal.body.appendChild(
-    createButton({
-      label: 'Close',
-      className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
-      onClick: () => modal.close(),
-    }),
-  );
-  modal.open();
+  private openTopic(id: TopicId): void {
+    const topic = HELP_TOPICS[id];
+    const modal = new Modal({ title: topic.title });
+    const content = document.createElement('div');
+    content.className = Modal.metaClass;
+    if (typeof topic.body === 'string') {
+      content.innerHTML = topic.body;
+    } else {
+      // Dynamic body (BPM-aware "sweet spots" / relationship badges): build live
+      // DOM with access to the bus and a close() for click-to-snap.
+      content.appendChild(topic.body({ bus: this.bus, close: () => modal.close() }));
+    }
+    modal.body.appendChild(content);
+    modal.body.appendChild(
+      createButton({
+        label: 'Close',
+        className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+        onClick: () => modal.close(),
+      }),
+    );
+    modal.open();
+  }
 }

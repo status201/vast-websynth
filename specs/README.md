@@ -216,6 +216,7 @@ specs/
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
+    tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
