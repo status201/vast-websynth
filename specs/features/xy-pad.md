@@ -3,7 +3,7 @@
 ```yaml
 id: xy-pad
 status: draft
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -57,6 +57,17 @@ same way `fx.djfilter` already does.
   **v3** (an additive, optional `xy` field). Loading a file without it restores the
   defaults. Only the *assignment* persists — live dragging is momentary and never
   written.
+- **REQ-7** — **On-surface axis labels + finer grid** (orientation only, no
+  behaviour change): the pad surface shows the **short name** of each assigned
+  param — its id's last dotted segment, lowercased (`filter.cutoff` → `cutoff`) —
+  in a small, faint font. The **X** label sits centred just above the bottom edge
+  (`xypad-axis-x`); the **Y** label runs down the left edge **rotated 90° CCW**
+  (reading bottom-to-top, `xypad-axis-y`). Both update live when their axis is
+  reassigned (they flow through the same `xy.onChange` path as the dot). In
+  addition to the centre crosshair, the surface draws **faint dotted** grid lines
+  at 25% and 75% on both axes, so each existing quadrant is itself divided into
+  quarters (a 4×4 reference grid). Labels and grid are non-interactive
+  (`pointer-events: none`) and never intercept a drag/wheel gesture.
 
 ## Technical design
 
@@ -145,16 +156,19 @@ FloatingWindow "XY Pad"
  ┌───────────────────────────┐
  │ X: [filter.cutoff  ▾]     │   two assign dropdowns (bus.ids())
  │ Y: [filter.resonance ▾]   │
- │ ┌───────────────────────┐ │
- │ │            •          │ │   surface (~220px square); dot = toNorm(value)
- │ │                       │ │   drag / two-finger scroll -> bus.set(fromNorm)
+ │ ┌───────────────────────┐ │   surface (~220px square); dot = toNorm(value)
+ │ │r ┆   ┆ • ┆   ┆        │ │   drag / two-finger scroll -> bus.set(fromNorm)
+ │ │e ┄┄┄┄┄┼┄┄┄┼┄┄┄┄┄┄┄┄┄┄ │ │   faint dotted 4x4 grid (25/50/75% both axes)
+ │ │s      ┆   ┆           │ │   Y label (resonance) rotated 90 CCW, left edge
+ │ │        cutoff         │ │   X label (cutoff) centred above bottom edge
  │ └───────────────────────┘ │
  │ two-finger scroll to nudge│   hint (xypad-hint)
  └───────────────────────────┘
 ```
 
 Testids: `xypad-window` (the FloatingWindow root), `xypad-assign-x`,
-`xypad-assign-y`, `xypad-surface`, `xypad-dot`, `xypad-hint`, launch `perf-xypad`.
+`xypad-assign-y`, `xypad-surface`, `xypad-dot`, `xypad-axis-x`, `xypad-axis-y`,
+`xypad-hint`, launch `perf-xypad`.
 
 ## Scenarios (BDD)
 
@@ -209,6 +223,13 @@ Scenario: A v2 file loads with the default XY axes (backward compat)
   When apply() runs with the XyPadStore
   Then the store holds { x: filter.cutoff, y: filter.resonance }
 # pinned by: tests/state/song.test.ts
+
+Scenario: The surface labels each axis with the assigned param's short name
+  Given the pad is open with the default assignment
+  Then the xypad-axis-x label reads "cutoff" and xypad-axis-y reads "resonance"
+  When the user reassigns X to lfo.rate
+  Then the xypad-axis-x label reads "rate"
+# pinned by: tests/ui/xy-pad.test.ts
 ```
 
 ## Tests & verification

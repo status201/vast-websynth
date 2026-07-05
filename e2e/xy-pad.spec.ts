@@ -34,6 +34,15 @@ test.describe('XY Pad', () => {
     await expect(page.getByTestId('xypad-window')).toBeHidden();
   });
 
+  test('the surface labels each axis with the assigned param short name', async ({ page }) => {
+    await page.getByTestId('perf-xypad').click();
+    await expect(page.getByTestId('xypad-axis-x')).toHaveText('cutoff');
+    await expect(page.getByTestId('xypad-axis-y')).toHaveText('resonance');
+
+    await page.evaluate(() => (window as any).__synth.xy.set({ x: 'lfo.rate' }));
+    await expect(page.getByTestId('xypad-axis-x')).toHaveText('rate');
+  });
+
   test('dragging the pad sweeps a param, which springs back on release', async ({ page }) => {
     await page.getByTestId('perf-xypad').click();
     const surface = page.getByTestId('xypad-surface');

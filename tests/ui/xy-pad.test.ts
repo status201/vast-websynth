@@ -54,6 +54,21 @@ describe('createXyPad', () => {
     expect(pad.el.querySelector('[data-testid="xypad-assign-y"]')).not.toBeNull();
   });
 
+  it('labels each axis with the assigned param short name and updates on reassign', () => {
+    const bus = mkBus();
+    const xy = new XyPadStore();
+    const { pad } = mountPad(bus, xy);
+    pads.push(pad);
+    const xLabel = pad.el.querySelector('[data-testid="xypad-axis-x"]') as HTMLElement;
+    const yLabel = pad.el.querySelector('[data-testid="xypad-axis-y"]') as HTMLElement;
+
+    expect(xLabel.textContent).toBe('cutoff'); // filter.cutoff -> cutoff
+    expect(yLabel.textContent).toBe('resonance'); // filter.resonance -> resonance
+
+    xy.set({ x: 'lfo.rate' });
+    expect(xLabel.textContent).toBe('rate');
+  });
+
   it('dragging drives both assigned params through their tapers (Y inverted)', () => {
     const bus = mkBus();
     const { pad, surface } = mountPad(bus, new XyPadStore());

@@ -48,6 +48,38 @@ export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; d
   surface.className = styles.surface!;
   surface.dataset.testid = 'xypad-surface';
 
+  // --- Finer dotted grid: quarter-division lines at 25%/75% on both axes.
+  // The 50% centre crosshair is drawn by the surface's ::before/::after; these
+  // subdivide each existing quadrant into quarters (a 4x4 reference grid).
+  const grid = document.createElement('div');
+  grid.className = styles.grid!;
+  for (const pct of [25, 75]) {
+    const v = document.createElement('div');
+    v.className = styles.gridV!;
+    v.style.left = `${pct}%`;
+    const h = document.createElement('div');
+    h.className = styles.gridH!;
+    h.style.top = `${pct}%`;
+    grid.appendChild(v);
+    grid.appendChild(h);
+  }
+  surface.appendChild(grid);
+
+  // --- On-surface axis labels (short param name, kept in sync with ax/ay).
+  const xLabel = document.createElement('span');
+  xLabel.className = styles.axisLabelX!;
+  xLabel.dataset.testid = 'xypad-axis-x';
+  const yLabel = document.createElement('span');
+  yLabel.className = styles.axisLabelY!;
+  yLabel.dataset.testid = 'xypad-axis-y';
+  surface.appendChild(xLabel);
+  surface.appendChild(yLabel);
+  function syncLabels(): void {
+    xLabel.textContent = shortName(ax);
+    yLabel.textContent = shortName(ay);
+  }
+  syncLabels();
+
   const dot = document.createElement('div');
   dot.className = styles.dot!;
   dot.dataset.testid = 'xypad-dot';
@@ -213,6 +245,7 @@ export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; d
     abortGesture(); // snap the OLD axes home before switching
     ax = a.x;
     ay = a.y;
+    syncLabels();
     unsubX();
     unsubY();
     unsubX = bus.subscribe(ax, setDotX); // fires immediately -> repaint
@@ -244,4 +277,10 @@ function labeled(text: string, control: HTMLElement): HTMLElement {
 
 function clamp01(n: number): number {
   return n < 0 ? 0 : n > 1 ? 1 : n;
+}
+
+/** Short display name for a param id: its last dotted segment, lowercased
+ *  (`filter.cutoff` -> `cutoff`). Used for the on-surface axis labels. */
+function shortName(id: string): string {
+  return (id.split('.').pop() ?? id).toLowerCase();
 }

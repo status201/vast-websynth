@@ -68,6 +68,54 @@
   height: 1px;
 }
 
+/* Finer quarter-division grid (25%/75% both axes), fainter than the
+   ::before/::after centre crosshair. Non-interactive overlay. */
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.gridV {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dotted rgba(244, 205, 94, 0.05);
+}
+.gridH {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dotted rgba(244, 205, 94, 0.05);
+}
+
+/* On-surface axis labels: short param name, small + faint, non-interactive. */
+.axisLabelX,
+.axisLabelY {
+  position: absolute;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.axisLabelX {
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+}
+.axisLabelY {
+  /* Centre the box just inside the left edge (~half a rotated line-height off
+     the border), then rotate 90 CCW around that centre so the word runs up the
+     left edge, vertically centred and reading bottom-to-top. */
+  left: 9px;
+  top: 50%;
+  transform-origin: center;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
 .dot {
   position: absolute;
   left: 50%;
@@ -84,9 +132,9 @@
 }
 
 .hint {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 10px;
   letter-spacing: 0.04em;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-dim);
 }

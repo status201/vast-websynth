@@ -41,6 +41,7 @@
       transparent 9px
     );
   --serif: 'Georgia', 'Times New Roman', serif;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
 
   /* Responsive sizing tokens — overridden per-breakpoint on `.app`
      (layout.css). Inherit down to knobs / section margins / wood cheeks. */
