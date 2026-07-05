@@ -128,5 +128,24 @@ describe('Presets', () => {
       expect(bus.get('filter.cutoff')).toBe(60);
       expect(bus.get('master.volume')).toBe(0.3);
     });
+
+    it('after apply, reset() returns a param to the preset value', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      Presets.apply(bus, { 'filter.cutoff': 60 });
+      bus.set('filter.cutoff', 110); // user drags the knob
+      bus.reset('filter.cutoff');    // double-tap
+      expect(bus.get('filter.cutoff')).toBe(60);
+    });
+
+    it('a param the preset omits resets to the global default, not the preset', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const def = bus.def('transport.bpm')!.default;
+      Presets.apply(bus, { 'filter.cutoff': 60 }); // no transport.bpm
+      bus.set('transport.bpm', 200);
+      bus.reset('transport.bpm');
+      expect(bus.get('transport.bpm')).toBe(def);
+    });
   });
 });

@@ -126,7 +126,9 @@ export class Knob {
 
     const now = performance.now();
     if (now - this.lastTap < 300) {
-      this.opts.bus.set(this.opts.paramId, this.def.default);
+      // Reset to the active preset/song value if one set it, else the global
+      // default (see specs/features/param-reset-baseline.md).
+      this.opts.bus.reset(this.opts.paramId);
       this.lastTap = 0;
       return;
     }

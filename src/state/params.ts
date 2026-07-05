@@ -22,6 +22,11 @@ export type NoteListener = (on: boolean, note: number, velocity: number) => void
 export class ParamBus {
   private readonly defs = new Map<ParamId, ParamDef>();
   private readonly values = new Map<ParamId, number>();
+  // Per-param "reset target" for the knob double-tap / drum Reset button. Set by
+  // the active preset/song (load or save); cleared on resetDefaults(). Not
+  // persisted — derived from whatever sound is active. See
+  // specs/features/param-reset-baseline.md.
+  private readonly baselines = new Map<ParamId, number>();
   private readonly listeners = new Map<ParamId, Set<(v: number) => void>>();
   private readonly noteListeners: NoteListener[] = [];
   private readonly changeListeners = new Set<(id: ParamId, v: number) => void>();
@@ -102,7 +107,8 @@ export class ParamBus {
   }
 
   /** Restore from preset. Fires per-param listeners (so audio + UI update),
-   *  but suppresses the global `onChange` signal — a bulk apply is not an edit. */
+   *  but suppresses the global `onChange` signal — a bulk apply is not an edit.
+   *  Also refreshes the reset baselines for the applied ids (merge). */
   restore(snapshot: Record<ParamId, number>): void {
     this.suppressChange++;
     try {
@@ -110,10 +116,12 @@ export class ParamBus {
     } finally {
       this.suppressChange--;
     }
+    this.setBaselines(snapshot);
   }
 
   /** Reset every registered param to its default (fires per-param listeners;
-   *  global `onChange` suppressed like {@link restore}). */
+   *  global `onChange` suppressed like {@link restore}). Clears all reset
+   *  baselines — a fresh/New song has no preset value to return to. */
   resetDefaults(): void {
     this.suppressChange++;
     try {
@@ -121,6 +129,33 @@ export class ParamBus {
     } finally {
       this.suppressChange--;
     }
+    this.baselines.clear();
+  }
+
+  /** Record these ids' values as the reset target (the double-tap baseline)
+   *  without touching live values or firing listeners. Only *registered* ids are
+   *  kept, clamped like {@link set}; ids absent from `snapshot` keep their prior
+   *  baseline (a patch-only preset must not wipe song-set drum baselines). Called
+   *  by preset/song load (via {@link restore}) and by the Save handlers. */
+  setBaselines(snapshot: Record<ParamId, number>): void {
+    for (const [id, v] of Object.entries(snapshot)) {
+      const def = this.defs.get(id);
+      if (def) this.baselines.set(id, clamp(v, def.min, def.max));
+    }
+  }
+
+  /** The value {@link reset} would apply: the baseline if the active preset/song
+   *  set one, else the registered default (0 for an unknown id). */
+  resetValue(id: ParamId): number {
+    const baseline = this.baselines.get(id);
+    return baseline !== undefined ? baseline : this.defs.get(id)?.default ?? 0;
+  }
+
+  /** Reset a single param to its baseline (loaded/saved preset or song value) if
+   *  one exists, else its registered default. Fires listeners like a normal
+   *  edit. Backs the knob double-tap and the drum per-track Reset button. */
+  reset(id: ParamId): void {
+    this.set(id, this.resetValue(id));
   }
 
   ids(): ParamId[] {

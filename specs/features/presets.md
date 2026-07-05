@@ -8,6 +8,7 @@ owner: core
 related:
   - architecture
   - song-mode
+  - param-reset-baseline
 source:
   - src/state/preset.ts
   - src/state/serialize.ts              # roundParams (export precision)
@@ -44,7 +45,9 @@ what songs are for.
   recipe).
 - **REQ-3** — `list()` merges factory names with stored user names, sorted.
 - **REQ-4** — Loading a preset restores params via the bus (a bulk apply, not seen
-  as an edit).
+  as an edit). The bulk apply also refreshes the per-param **reset baseline**, so a
+  knob double-tap returns to the loaded preset value (see
+  [param-reset-baseline](param-reset-baseline.md)). Save-preset marks the baseline too.
 - **REQ-5** — The active preset name is tracked by the session (shared with songs).
 - **REQ-6** — `save()` rounds the snapshot to 4 significant figures (`roundParams`,
   shared with song export per [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md))

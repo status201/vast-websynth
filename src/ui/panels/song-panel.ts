@@ -165,6 +165,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (!name) return;
     const file = Song.capture(bus, engine.patterns, engine.arrangement, name);
     Song.saveSlot(name, file);
+    // The saved song's params become the new double-tap reset target.
+    bus.setBaselines(file.params);
     Song.download(file);
     refreshList();
     dropdown.setValue(name);

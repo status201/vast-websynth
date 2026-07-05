@@ -101,6 +101,77 @@ describe('ParamBus', () => {
     expect(seen).toEqual(['a']);
   });
 
+  describe('reset baselines', () => {
+    it('reset() falls back to the registered default when no baseline is set', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 3 });
+      bus.set('a', 8);
+      bus.reset('a');
+      expect(bus.get('a')).toBe(3);
+    });
+
+    it('restore() records baselines so reset() returns the loaded value', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 3 });
+      bus.restore({ a: 6 });
+      bus.set('a', 9);
+      bus.reset('a');
+      expect(bus.get('a')).toBe(6);
+    });
+
+    it('resetValue() reports the target without applying it', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 3 });
+      expect(bus.resetValue('a')).toBe(3); // default until a baseline is set
+      bus.restore({ a: 6 });
+      bus.set('a', 9);
+      expect(bus.resetValue('a')).toBe(6);
+      expect(bus.get('a')).toBe(9); // unchanged — pure query
+    });
+
+    it('setBaselines() merges: ids absent from a later snapshot keep their baseline', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 1 });
+      bus.register({ id: 'b', min: 0, max: 10, default: 2 });
+      bus.setBaselines({ a: 5, b: 7 });   // e.g. a song sets both
+      bus.setBaselines({ a: 9 });         // a patch-only preset sets only a
+      bus.reset('a');
+      bus.reset('b');
+      expect(bus.get('a')).toBe(9); // updated
+      expect(bus.get('b')).toBe(7); // survived the merge, not reverted to default
+    });
+
+    it('setBaselines() clamps to range and ignores unregistered ids', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 1 });
+      bus.setBaselines({ a: 99, ghost: 5 });
+      expect(bus.resetValue('a')).toBe(10); // clamped
+      expect(bus.resetValue('ghost')).toBe(0); // unknown id → 0, not stored
+    });
+
+    it('resetDefaults() clears baselines so reset() reverts to defaults', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 3 });
+      bus.restore({ a: 6 });
+      bus.resetDefaults();
+      bus.set('a', 8);
+      bus.reset('a');
+      expect(bus.get('a')).toBe(3);
+    });
+
+    it('setting a baseline does not fire onChange or per-param listeners', () => {
+      const bus = new ParamBus();
+      bus.register({ id: 'a', min: 0, max: 10, default: 1 });
+      const changes: string[] = [];
+      const perParam: number[] = [];
+      bus.onChange((id) => changes.push(id));
+      bus.subscribe('a', (v) => perParam.push(v)); // immediate: [1]
+      bus.setBaselines({ a: 5 });
+      expect(changes).toEqual([]);
+      expect(perParam).toEqual([1]); // no extra notify from the baseline write
+    });
+  });
+
   it('dispatches note events to onNote listeners', () => {
     const bus = new ParamBus();
     const events: Array<[boolean, number, number]> = [];

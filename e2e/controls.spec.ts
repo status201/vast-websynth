@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart, busGet } from './helpers';
+import { gotoAndStart, busGet, dragKnobUp } from './helpers';
 
 /**
  * Exercises the Phase-2 test surface: the `data-testid` handles added to the
@@ -55,6 +55,22 @@ test.describe('control surface (testids + debug bridge)', () => {
     await page.mouse.move(cx, cy - 60, { steps: 6 }); // drag up = increase
     await page.mouse.up();
     expect(await busGet(page, 'filter.cutoff')).toBeGreaterThan(before);
+  });
+
+  test('double-tapping a knob resets it to the loaded preset value, not the global default', async ({ page }) => {
+    await gotoAndStart(page);
+    // Load "acid" (filter.cutoff 60) so the reset baseline differs from the
+    // registered default (90).
+    const select = page.getByTestId('preset-select');
+    await select.click();
+    await select.getByText('acid', { exact: true }).click();
+    await expect.poll(() => busGet(page, 'filter.cutoff')).toBeCloseTo(60, 1);
+
+    await dragKnobUp(page, 'knob-filter.cutoff'); // move it away from 60
+    expect(await busGet(page, 'filter.cutoff')).toBeGreaterThan(60);
+
+    await page.getByTestId('knob-filter.cutoff').dblclick(); // two pointerdowns < 300 ms
+    await expect.poll(() => busGet(page, 'filter.cutoff')).toBeCloseTo(60, 1);
   });
 
   test('a sequencer step toggles pattern state', async ({ page }) => {

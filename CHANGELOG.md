@@ -40,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   self-oscillation pitch, the envelope sweep's top, the unison spread in cents,
   and so on) so mutually-dependent controls make sense at a glance.
 
+### Changed
+
+- **Double-tap reset returns to the loaded sound** — double-tapping a knob (or the
+  drum panel's per-track Reset) now snaps it back to the value the current preset
+  or song set for that control, instead of the factory default. Load *acid* and
+  double-tap Cutoff and you get *acid*'s cutoff, not a generic one. Controls no
+  preset/song has touched still reset to their default, and saving a preset/song
+  makes the saved values the new reset target.
+
 ### Fixed
 
 - **Step Input inserted two steps per computer key** — with the Sequencer's Step

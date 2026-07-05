@@ -78,6 +78,8 @@ built `dist/`.
 - **Space**: transport play / stop
 - **F** (hold): drum fill
 - **Esc**: panic (all notes off)
+- **Double-tap a knob**: reset it to the loaded preset/song's value (or the
+  factory default if none set it); Shift-drag for fine adjustment
 
 ## Project layout
 

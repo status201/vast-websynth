@@ -9,6 +9,7 @@ related:
   - architecture
   - compressor
   - presets
+  - param-reset-baseline
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -45,7 +46,9 @@ demos, the load path **must stay backward compatible** as the format grows.
   optional sampler fields. v1 files (incl. built-in demos) must still load.
 - **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**,
   then restores, so a stale param omitted by an older file reverts rather than
-  lingering.
+  lingering. `resetDefaults()`+`restore()` also replaces every knob **reset
+  baseline** with the song's values (see
+  [param-reset-baseline](param-reset-baseline.md)); Save-song marks it too.
 - **REQ-4** — Legacy step cells (plain `{on, velocity}`) must load and **sound
   unchanged** (gain defaults filled in).
 - **REQ-5** — Decoded audio is **never embedded**; only sampler filenames persist

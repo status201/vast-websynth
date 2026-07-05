@@ -164,7 +164,10 @@ function buildHeader(
     onClick: () => {
       const name = prompt('Preset name:', session.label);
       if (!name) return;
-      Presets.save(name, Presets.capture(bus));
+      const snap = Presets.capture(bus);
+      Presets.save(name, snap);
+      // The saved patch becomes the new double-tap reset target.
+      bus.setBaselines(snap);
       dropdown.setOptions(Presets.list());
       session.setActive(name);
     },

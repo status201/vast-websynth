@@ -167,10 +167,10 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     label: 'Reset',
     testId: 'drum-reset',
     onClick: () => {
+      // Reset each tuning knob to the same baseline a double-tap uses (loaded
+      // preset/song value, else default; see param-reset-baseline.md).
       for (const { suffix } of TUNING_PARAMS) {
-        const id = `drum.t${selTrack}.${suffix}`;
-        const def = bus.def(id);
-        if (def) bus.set(id, def.default);
+        bus.reset(`drum.t${selTrack}.${suffix}`);
       }
     },
   });

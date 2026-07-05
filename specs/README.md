@@ -208,6 +208,7 @@ specs/
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
     presets.md         ·  sound snapshots (param-only)
+    param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file
     # — audio I/O —
     audio-export.md    ·  WAV/MP3 capture of the master
