@@ -15,6 +15,10 @@
   --accent-glow: rgba(232, 116, 46, 0.5);
   --accent-secondary: #f4cd5e;
   --accent-secondary-glow: rgba(244, 205, 94, 0.45);
+  --accent-good: #6fb86a;
+  --accent-good-glow: rgba(111, 184, 106, 0.42);
+  --accent-bad: #e0403a;
+  --accent-bad-glow: rgba(232, 116, 46, 0.5);
   --led-on: #ff3a20;
   --led-off: #2a0a05;
   --key-white: linear-gradient(180deg, #ece1bc 0%, #c8b890 100%);

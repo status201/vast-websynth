@@ -65,9 +65,9 @@
    picked). `button.X` outranks switch.module's `.root` so it wins regardless of
    stylesheet order — same trick as tour's .toggleActive. */
 button.tierWeak {
-  border-color: #e0533a;
-  color: #ff7a5c;
-  box-shadow: 0 0 8px rgba(224, 83, 58, 0.42), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+  border-color: var(--accent-bad);
+  color: var(--accent-bad);
+  box-shadow: 0 0 8px var(--accent-bad-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
 }
 
 button.tierMedium {
@@ -77,9 +77,9 @@ button.tierMedium {
 }
 
 button.tierStrong {
-  border-color: #6fb86a;
-  color: #8fd089;
-  box-shadow: 0 0 8px rgba(111, 184, 106, 0.42), inset 0 1px 0 rgba(244, 205, 94, 0.06);
+  border-color: var(--accent-good);
+  color: var(--accent-good);
+  box-shadow: 0 0 8px var(--accent-good-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);
 }
 
 /* Pending reload: the chosen mode differs from what the engine is actually
