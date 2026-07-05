@@ -26,7 +26,7 @@ clobbered) and merged into `Presets.list()`.
 
 ```ts
 const FACTORY: FactoryBank = {
-  // … basic, bass, lead, pad, pluck, wobble …
+  // … basic, bass, lead, pad, …, upright, wobble …
   myPreset: {
     'osc1.wave': 2, 'osc1.level': 0.7,
     'filter.cutoff': 90, 'filter.resonance': 1.0,

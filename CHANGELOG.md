@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **10 new factory presets** — the factory bank grows from 6 to 16 sounds:
+  basses **upright** (acoustic), **pbass** (electric), **reese** (DnB) and
+  **acid** (303 squelch with legato slide), keys **piano**, **rhodes**, **b3**
+  (tonewheel organ) and **bells**, plus **solina** (string machine) and
+  **brass** (poly synth brass). Every factory preset (old and new) now sets the
+  full sound — sub, unison, drift, glide mode and all FX switches included — so
+  switching presets never carries a setting over from the previous patch.
+
 - **BPM "sweet spots" help badges** — the Delay Time knobs (synth, drum, sampler)
   and the LFO / wah / phaser rate knobs gained help-mode (i) badges that list the
   musical note divisions — straight, dotted and triplet — with their value at the

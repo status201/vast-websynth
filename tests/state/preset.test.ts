@@ -5,6 +5,10 @@ import { installLocalStorageMock } from '../storage-mock';
 
 const PREFIX = 'websynth.preset.';
 const INDEX_KEY = 'websynth.preset.index';
+const FACTORY_NAMES = [
+  'acid', 'b3', 'basic', 'bass', 'bells', 'brass', 'lead', 'pad', 'pbass',
+  'piano', 'pluck', 'reese', 'rhodes', 'solina', 'upright', 'wobble',
+];
 
 describe('Presets', () => {
   beforeEach(() => {
@@ -12,9 +16,9 @@ describe('Presets', () => {
   });
 
   describe('factory()', () => {
-    it('exposes the six built-in banks', () => {
+    it('exposes the sixteen built-in banks', () => {
       const f = Presets.factory();
-      expect(Object.keys(f).sort()).toEqual(['basic', 'bass', 'lead', 'pad', 'pluck', 'wobble']);
+      expect(Object.keys(f).sort()).toEqual(FACTORY_NAMES);
     });
 
     it('each bank carries the core synth params', () => {
@@ -23,21 +27,35 @@ describe('Presets', () => {
         expect(snap['master.volume']).toBeTypeOf('number');
       }
     });
+
+    // A typo'd id would be stored but silently do nothing; an out-of-range
+    // value would be clamped, so the patch would not sound as authored.
+    it('uses only registered param ids, with in-range values', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      for (const [name, snap] of Object.entries(Presets.factory())) {
+        for (const [id, value] of Object.entries(snap)) {
+          expect(bus.def(id), `${name}: unknown param '${id}'`).toBeDefined();
+          bus.set(id, value);
+          expect(bus.get(id), `${name}: '${id}' value ${value} clamped`).toBe(value);
+        }
+      }
+    });
   });
 
   describe('list()', () => {
     it('returns the factory names sorted when nothing is stored', () => {
-      expect(Presets.list()).toEqual(['basic', 'bass', 'lead', 'pad', 'pluck', 'wobble']);
+      expect(Presets.list()).toEqual(FACTORY_NAMES);
     });
 
     it('merges the stored index with factory names, deduped and sorted', () => {
       localStorage.setItem(INDEX_KEY, JSON.stringify(['zed', 'basic', 'alpha']));
-      expect(Presets.list()).toEqual(['alpha', 'basic', 'bass', 'lead', 'pad', 'pluck', 'wobble', 'zed']);
+      expect(Presets.list()).toEqual(['alpha', 'zed', ...FACTORY_NAMES].sort());
     });
 
     it('survives a corrupt index key', () => {
       localStorage.setItem(INDEX_KEY, '{not json');
-      expect(Presets.list()).toEqual(['basic', 'bass', 'lead', 'pad', 'pluck', 'wobble']);
+      expect(Presets.list()).toEqual(FACTORY_NAMES);
     });
   });
 
@@ -48,7 +66,7 @@ describe('Presets', () => {
         expect(localStorage.getItem(PREFIX + name)).not.toBeNull();
       }
       const index = JSON.parse(localStorage.getItem(INDEX_KEY)!) as string[];
-      expect(index.sort()).toEqual(['basic', 'bass', 'lead', 'pad', 'pluck', 'wobble']);
+      expect(index.sort()).toEqual(FACTORY_NAMES);
     });
 
     it('does not overwrite a customised factory entry', () => {

@@ -3,7 +3,7 @@
 ```yaml
 id: presets
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -30,8 +30,18 @@ what songs are for.
 ## Requirements
 
 - **REQ-1** — A preset is a `Snapshot` (`Record<string, number>`) = `bus.snapshot()`.
-- **REQ-2** — Factory presets (`basic`, `bass`, `lead`, `pad`, `pluck`, `wobble`)
-  are seeded by `ensureFactoryPresets()` on boot (only if absent).
+- **REQ-2** — The 16 factory presets (`acid`, `b3`, `basic`, `bass`, `bells`,
+  `brass`, `lead`, `pad`, `pbass`, `piano`, `pluck`, `reese`, `rhodes`, `solina`,
+  `upright`, `wobble`) are seeded by `ensureFactoryPresets()` on boot (only if
+  absent). Together they cover the core instrument families: basses (`bass`,
+  `upright`, `pbass`, `reese`, `acid`), keys (`piano`, `rhodes`, `b3`, `bells`),
+  ensemble/poly (`pad`, `solina`, `brass`), leads/plucks (`lead`, `pluck`) and
+  FX basses (`wobble`).
+- **REQ-2b** — Every factory preset sets the **full sound** (all osc/sub/unison/
+  drift/mixer/glide/filter/env/LFO params plus every synth-FX `.on` flag), so
+  switching between factory presets is deterministic — no param from the previous
+  patch leaks through (per the [add-a-factory-preset](../recipes/add-a-factory-preset.md)
+  recipe).
 - **REQ-3** — `list()` merges factory names with stored user names, sorted.
 - **REQ-4** — Loading a preset restores params via the bus (a bulk apply, not seen
   as an edit).
@@ -84,7 +94,7 @@ Scenario: Saving then loading a preset round-trips the sound
 Scenario: Factory presets seed once (edge)
   Given a fresh localStorage
   When the app boots
-  Then the 6 factory presets exist; a second boot does not overwrite edited copies
+  Then the 16 factory presets exist; a second boot does not overwrite edited copies
 # pinned by: tests/state/preset.test.ts
 ```
 
