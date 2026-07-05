@@ -230,6 +230,10 @@ specs/
     add-an-effect.md         ·  a bypass-able insert effect on a bus
     add-an-audioworklet.md   ·  a new audio-thread DSP node + wrapper
     add-a-ui-component.md     ·  a hand-built DOM component
+    add-a-panel.md            ·  a tab panel (StudioApi facade + TabContainer)
+    add-a-modal-dialog.md     ·  a single-use Modal dialog (backdrop + Escape)
+    add-a-floating-window.md  ·  a non-modal draggable window launcher
+    add-a-transport-module.md ·  a clock-driven scheduler (onTick + absolute when)
     add-a-demo-song.md        ·  a drop-in demo SongFile (data only)
     add-a-drum-voice.md       ·  a new synthesised drum track
     add-a-factory-preset.md   ·  a built-in sound preset

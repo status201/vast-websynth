@@ -7,6 +7,7 @@ version: 1
 owner: core
 related:
   - architecture
+  - ../recipes/add-a-floating-window.md
 source:
   - src/ui/components/floating-window.ts
   - src/ui/styles/floating-window.module.css
@@ -16,7 +17,7 @@ source:
 
 A reusable **non-modal** floating panel: a draggable, titled window that hovers
 over the synth **without** a backdrop, so the instrument underneath stays fully
-interactive while it is open. It is the sibling of [`Modal`](../recipes/add-a-ui-component.md)
+interactive while it is open. It is the sibling of [`Modal`](../recipes/add-a-modal-dialog.md)
 (`src/ui/components/modal.ts`) — same fade/lifecycle idiom — but deliberately drops
 the two things that make `Modal` *modal*: the backdrop that captures clicks, and
 the Escape-to-close binding. The first use is the [XY Pad](xy-pad.md); the
