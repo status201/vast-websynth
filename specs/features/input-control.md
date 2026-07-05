@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -23,17 +23,22 @@ keyboard, and external MIDI — all converging on `bus.noteOn` / `bus.noteOff`.
 
 The `ParamBus` note path (`onNote`/`noteOn`/`noteOff`) is the single funnel for note
 input, so every source is treated identically by the [engine](voicing.md), arp, and
-sequencer. The computer keyboard routes through a `UiBridge` so the on-screen
-keyboard's visuals stay in sync (it presses/releases the same keys the engine
-hears). MIDI is wired through Web MIDI when available and degrades silently when
-not.
+sequencer. The computer keyboard is that source: `installShortcuts` calls
+`bus.noteOn`/`noteOff` **once** per key, and separately drives a `UiBridge` purely
+to *repaint* the on-screen keyboard (highlight the matching key). The bridge must
+stay visual-only — if it also fired the bus, a computer key would emit **two**
+note-ons, which the funnel forwards to every consumer (double-triggering a voice,
+and advancing the sequencer's Step-Input cursor by two). MIDI is wired through Web
+MIDI when available and degrades silently when not.
 
 ## Requirements
 
 - **REQ-1** — All input sources call `bus.noteOn(note, velocity)` /
   `bus.noteOff(note)`; the engine handles the rest.
-- **REQ-2** — Computer-keyboard input goes via `UiBridge.pressKey/releaseKey` so the
-  on-screen keyboard repaints in lock-step.
+- **REQ-2** — A computer key emits **exactly one** `bus.noteOn`/`noteOff` (from
+  `installShortcuts`). `UiBridge.pressKey/releaseKey` only repaints the on-screen
+  keyboard in lock-step (`keyboard.highlight`, a visual toggle); it never calls the
+  bus, so no source double-fires the note funnel.
 - **REQ-3** — Two key rows (lower from C, upper one octave higher); a base octave is
   shiftable; auto-repeat is ignored.
 - **REQ-4** — MIDI (Web MIDI) maps Note On (vel 0 = off) / Note Off to the bus;
@@ -60,7 +65,8 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   LOWER: z s x d c v g b h n j m ,    # semitone offsets from C
   UPPER: q 2 w 3 e r 5 t 6 y 7 u i    # one octave up
   baseOctave (shiftable); ignores e.repeat
-UiBridge: pressKey(note) / releaseKey(note)             # syncs on-screen keys
+UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboard.highlight(note, on)
+  # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-2)
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
@@ -77,6 +83,8 @@ note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppre
 boot (main.ts): builds the UiBridge, installShortcuts(...)
 start gesture (main.ts showStartModal): initMIDI(...) fires on tap-to-start (REQ-6)
 on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
+  keyboard.highlight(note, on): visual-only key toggle (the UiBridge target; no bus call)
+app.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
 arp/seq ownership: when passthroughSuppressed, the engine gates raw note passthrough
 ```
 
@@ -88,6 +96,14 @@ Scenario: A computer key plays a note and lights the on-screen key
   When the user presses 'z'
   Then bus.noteOn fires for C at the base octave and the on-screen C lights up
 # pinned by: e2e/controls.spec.ts (keyboard interaction), e2e/smoke.spec.ts
+
+Scenario: A single computer key fires exactly one note-on (regression, no double-trigger)
+  Given the Sequencer's Step Input is armed with the cursor at step 0
+  When the user presses one computer key (e.g. 'x' = D)
+  Then that single step is filled and the cursor advances by exactly one
+  # because the UiBridge highlight is visual-only — the key emits one bus.noteOn,
+  # not two (which would fill two steps / play two voices)
+# pinned by: e2e/patterns.spec.ts, tests/ui/keyboard.test.ts
 
 Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Given a MIDI device sends 0x90 note 60 velocity 0
@@ -120,7 +136,9 @@ Scenario: Typing in a text field does not play notes
 
 - `e2e/controls.spec.ts`, `e2e/smoke.spec.ts` (input drives the engine; assert via
   `window.__synth.bus`).
-- `npm run e2e` / `npm run typecheck`.
+- `e2e/patterns.spec.ts` (one key = one Step-Input step, the no-double-trigger
+  regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only).
+- `npm run e2e` / `npm test` / `npm run typecheck`.
 
 ## Open questions / future
 

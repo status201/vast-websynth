@@ -102,19 +102,6 @@ export class Keyboard {
     }
   }
 
-  /** Programmatically press a key (for QWERTY / MIDI). */
-  press(note: number): void {
-    const k = this.keys.get(note);
-    if (k) k.classList.add('active');
-    this.bus.noteOn(this.tr(note));
-  }
-
-  release(note: number): void {
-    const k = this.keys.get(note);
-    if (k) k.classList.remove('active');
-    this.bus.noteOff(this.tr(note));
-  }
-
   private noteAt(x: number, y: number): number | null {
     const el = document.elementFromPoint(x, y) as HTMLElement | null;
     if (!el) return null;
@@ -159,7 +146,13 @@ export class Keyboard {
     this.activeByPointer.delete(e.pointerId);
   };
 
-  /** Optional: highlight a held note (e.g. from MIDI input). */
+  /**
+   * Visual-only key highlight — the target of `UiBridge.pressKey/releaseKey`, so
+   * the on-screen keyboard repaints in lock-step with computer-keyboard / MIDI
+   * input. It must NOT touch the bus: the note-on/off itself is owned by the
+   * input source (`installShortcuts` for the computer keyboard), so highlighting
+   * here would double-fire the note funnel. See input-control.md REQ-2.
+   */
   highlight(note: number, on: boolean): void {
     this.setKeyActive(note, on);
   }

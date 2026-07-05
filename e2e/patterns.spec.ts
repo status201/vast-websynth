@@ -49,6 +49,22 @@ test.describe('pattern grids', () => {
     expect(await seqNote(page, 8)).toBe(72);
   });
 
+  test('one computer key fills exactly one step (no double-trigger)', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-step-input').click();
+
+    // A real (trusted) keydown routes through installShortcuts + the UiBridge
+    // exactly as in production, unlike playNote()'s direct bus.noteOn. 'x' = D at
+    // the default base octave (MIDI 62). A single key must advance the cursor by
+    // one — the bridge highlight is visual-only, so no second note-on fires.
+    await page.keyboard.press('x');
+    expect(await seqOn(page, 0)).toBe(true);
+    expect(await seqNote(page, 0)).toBe(62);
+    // Step 1 stays empty: the cursor moved by one, not two.
+    expect(await seqOn(page, 1)).toBe(false);
+  });
+
   test('per-step settings show up on the step button', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-seq').click();

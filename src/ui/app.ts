@@ -514,8 +514,11 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: 
   kbWrap.appendChild(keyboard.el);
   bottom.appendChild(kbWrap);
 
-  bridge.pressKey = (n) => keyboard.press(n);
-  bridge.releaseKey = (n) => keyboard.release(n);
+  // Visual-only: reflect computer-keyboard input on the on-screen keys. The note
+  // itself is fired once by installShortcuts (bus.noteOn); highlighting here must
+  // not also touch the bus or a single key double-fires. See input-control.md REQ-2.
+  bridge.pressKey = (n) => keyboard.highlight(n, true);
+  bridge.releaseKey = (n) => keyboard.highlight(n, false);
 
   // Light up the on-screen keys in time with the sequencer. The clock
   // schedules ~100 ms ahead, so defer each highlight to its audible moment.

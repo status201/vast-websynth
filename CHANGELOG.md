@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   self-oscillation pitch, the envelope sweep's top, the unison spread in cents,
   and so on) so mutually-dependent controls make sense at a glance.
 
+### Fixed
+
+- **Step Input inserted two steps per computer key** — with the Sequencer's Step
+  Input armed, pressing a single key on the computer keyboard (e.g. `x` for D)
+  filled two steps instead of one. The key was firing the note twice; it now fires
+  once, matching mouse input.
+
 ## [1.8.0] - 2026-07-03
 
 ### Added
