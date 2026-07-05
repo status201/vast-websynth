@@ -21,7 +21,7 @@ function fakeArr() {
   };
 }
 
-/** A guaranteed-valid, full-dimension v2 file (independent of the demos). */
+/** A guaranteed-valid, full-dimension current-version file (independent of the demos). */
 function captureValid(): SongFile {
   const bus = new ParamBus();
   registerDefaults(bus);
@@ -40,9 +40,23 @@ function expectReject(file: unknown, ...needles: string[]): void {
 }
 
 describe('validateSongFile — accepts', () => {
-  it('a freshly captured v2 song', () => {
+  it('a freshly captured current-version song', () => {
     const res = validateSongFile(captureValid());
     expect(res.ok).toBe(true);
+  });
+
+  it('a v3 file with an xy axis assignment', () => {
+    const f = captureValid() as SongFile & Record<string, unknown>;
+    f.version = 3;
+    f.xy = { x: 'lfo.rate', y: 'filter.cutoff' };
+    expect(validateSongFile(f).ok).toBe(true);
+  });
+
+  it('a v2 file without an xy field (xy is optional)', () => {
+    const f = captureValid() as SongFile & Record<string, unknown>;
+    f.version = 2;
+    delete f.xy;
+    expect(validateSongFile(f).ok).toBe(true);
   });
 
   // Covers the hand-authored v1 built-ins AND every on-disk *.websynth.json
@@ -94,8 +108,22 @@ describe('validateSongFile — rejects', () => {
 
   it('an unknown version', () => {
     const f = clone(captureValid()) as Record<string, unknown>;
-    f.version = 3;
+    f.version = 4;
     expectReject(f, 'version');
+  });
+
+  it('a v3 xy field with a non-string axis, naming its path', () => {
+    const f = clone(captureValid()) as SongFile & Record<string, unknown>;
+    f.version = 3;
+    f.xy = { x: 123, y: 'filter.cutoff' };
+    expectReject(f, 'xy.x');
+  });
+
+  it('a v3 xy field with an empty-string axis', () => {
+    const f = clone(captureValid()) as SongFile & Record<string, unknown>;
+    f.version = 3;
+    f.xy = { x: 'filter.cutoff', y: '' };
+    expectReject(f, 'xy.y');
   });
 
   it('a missing required section', () => {
@@ -185,6 +213,7 @@ describe('published JSON Schema file', () => {
       $schema: string;
       required: string[];
       $defs: Record<string, unknown>;
+      properties: { version: { enum: number[] }; xy?: { properties: Record<string, unknown> } };
     };
     expect(schema.$schema).toContain('2020-12');
     expect(schema.required).toEqual(
@@ -196,5 +225,9 @@ describe('published JSON Schema file', () => {
     for (const def of ['stepSettings', 'seqStep', 'triggerCell', 'chainData']) {
       expect(schema.$defs).toHaveProperty(def);
     }
+    // v3: the version enum must know 3, and the optional xy property is defined.
+    expect(schema.properties.version.enum).toEqual(expect.arrayContaining([1, 2, 3]));
+    expect(schema.properties.xy?.properties).toHaveProperty('x');
+    expect(schema.properties.xy?.properties).toHaveProperty('y');
   });
 });

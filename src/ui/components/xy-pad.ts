@@ -1,0 +1,247 @@
+import type { ParamBus } from '../../state/params';
+import type { XyPadStore, XyAssign } from '../../state/xy-pad';
+import { Dropdown } from './dropdown';
+import { toNorm, fromNorm } from './taper';
+import styles from '../styles/xy-pad.module.css';
+
+/**
+ * XY Pad surface — a Kaoss-pad-style square whose two axes each drive an
+ * assignable `ParamBus` param. Dragging (or two-finger scroll) sweeps both
+ * params through their tapers; on gesture end both **spring back** to their
+ * pre-gesture values (momentary DJ-FX semantics). The axis assignment lives in
+ * the pure `XyPadStore` (persisted via SongFile v3). No audio wiring here —
+ * assignable params drive the live graph through the existing `bus.subscribe`.
+ * See `specs/features/xy-pad.md`.
+ */
+
+/** Wheel sensitivity: normalized units per pixel of scroll. */
+const WHEEL_K = 1 / 400;
+/** Spring-back ramp duration (ms). */
+const SPRING_MS = 180;
+
+type GestureState = 'idle' | 'drag' | 'wheel';
+
+export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; destroy(): void } {
+  const ids = bus.ids().slice().sort();
+  const initial = xy.get();
+  let ax = initial.x;
+  let ay = initial.y;
+
+  const el = document.createElement('div');
+  el.className = styles.root!;
+
+  // --- Assign dropdowns ---
+  const assignRow = document.createElement('div');
+  assignRow.className = styles.assign!;
+
+  const ddX = new Dropdown(ids, ax);
+  ddX.el.dataset.testid = 'xypad-assign-x';
+  const ddY = new Dropdown(ids, ay);
+  ddY.el.dataset.testid = 'xypad-assign-y';
+
+  assignRow.appendChild(labeled('X', ddX.el));
+  assignRow.appendChild(labeled('Y', ddY.el));
+  el.appendChild(assignRow);
+
+  // --- Surface + dot ---
+  const surface = document.createElement('div');
+  surface.className = styles.surface!;
+  surface.dataset.testid = 'xypad-surface';
+
+  const dot = document.createElement('div');
+  dot.className = styles.dot!;
+  dot.dataset.testid = 'xypad-dot';
+  surface.appendChild(dot);
+  el.appendChild(surface);
+
+  // --- Trackpad hint ---
+  const hint = document.createElement('div');
+  hint.className = styles.hint!;
+  hint.dataset.testid = 'xypad-hint';
+  hint.textContent = 'Two-finger scroll to nudge';
+  el.appendChild(hint);
+
+  // --- Gesture state ---
+  let state: GestureState = 'idle';
+  let pre: { x: number; y: number } | null = null;
+  let rampRaf = 0;
+  // Running normalized position for the (incremental) wheel gesture.
+  let wheelNx = 0;
+  let wheelNy = 0;
+
+  // --- Dot rendering: subscribe to the two assigned params ---
+  let unsubX = bus.subscribe(ax, setDotX);
+  let unsubY = bus.subscribe(ay, setDotY);
+
+  function setDotX(v: number): void {
+    const def = bus.def(ax);
+    if (!def) return;
+    dot.style.left = `${clamp01(toNorm(def, v)) * 100}%`;
+  }
+  function setDotY(v: number): void {
+    const def = bus.def(ay);
+    if (!def) return;
+    dot.style.top = `${(1 - clamp01(toNorm(def, v))) * 100}%`;
+  }
+
+  // --- Apply / gesture helpers ---
+  function apply(nx: number, ny: number): void {
+    const dx = bus.def(ax);
+    const dy = bus.def(ay);
+    if (dx) bus.set(ax, fromNorm(dx, clamp01(nx)));
+    if (dy) bus.set(ay, fromNorm(dy, clamp01(ny)));
+  }
+
+  function applyFromEvent(e: PointerEvent): void {
+    const rect = surface.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = 1 - (e.clientY - rect.top) / rect.height;
+    apply(nx, ny);
+  }
+
+  function cancelRamp(): void {
+    if (rampRaf) {
+      cancelAnimationFrame(rampRaf);
+      rampRaf = 0;
+    }
+  }
+
+  function startGesture(next: GestureState): void {
+    // Mid-ramp restart keeps the ORIGINAL pre so a flurry of gestures still
+    // returns to the true starting point, not a half-sprung one.
+    if (rampRaf !== 0) cancelRamp();
+    else pre = { x: bus.get(ax), y: bus.get(ay) };
+    state = next;
+  }
+
+  function springBack(): void {
+    state = 'idle';
+    if (!pre) return;
+    const axL = ax;
+    const ayL = ay;
+    const fromX = bus.get(axL);
+    const fromY = bus.get(ayL);
+    const toX = pre.x;
+    const toY = pre.y;
+    // `pre` stays set for the duration of the ramp: a gesture that restarts
+    // mid-ramp (startGesture cancels the ramp but keeps `pre`) must spring back
+    // to the ORIGINAL start, not the half-sprung value. It is cleared only when
+    // the ramp actually completes (below) or a gesture aborts (abortGesture).
+    const t0 = performance.now();
+    const tick = (): void => {
+      const k = Math.min(1, (performance.now() - t0) / SPRING_MS);
+      const e = 1 - (1 - k) * (1 - k); // ease-out
+      bus.set(axL, fromX + (toX - fromX) * e);
+      bus.set(ayL, fromY + (toY - fromY) * e);
+      if (k < 1) {
+        rampRaf = requestAnimationFrame(tick);
+      } else {
+        bus.set(axL, toX); // exact snap
+        bus.set(ayL, toY);
+        rampRaf = 0;
+        pre = null; // ramp finished cleanly -> next gesture recaptures fresh
+      }
+    };
+    cancelRamp();
+    rampRaf = requestAnimationFrame(tick);
+  }
+
+  /** Snap the current (old) axes back to `pre` and drop the gesture — used on
+   *  axis reassignment and destroy. */
+  function abortGesture(): void {
+    cancelRamp();
+    if (pre) {
+      bus.set(ax, pre.x);
+      bus.set(ay, pre.y);
+    }
+    pre = null;
+    state = 'idle';
+  }
+
+  // --- Pointer / wheel handlers ---
+  const onPointerDown = (e: PointerEvent): void => {
+    e.preventDefault();
+    surface.setPointerCapture?.(e.pointerId);
+    startGesture('drag');
+    applyFromEvent(e);
+  };
+  const onPointerMove = (e: PointerEvent): void => {
+    if (state !== 'drag') return;
+    applyFromEvent(e);
+  };
+  const onPointerUp = (e: PointerEvent): void => {
+    if (state !== 'drag') return;
+    surface.releasePointerCapture?.(e.pointerId);
+    springBack();
+  };
+  const onPointerLeave = (): void => {
+    // A captured drag also fires leave, but a drag ends on pointerup — only a
+    // wheel gesture ends on leaving the surface.
+    if (state === 'wheel') springBack();
+  };
+  const onWheel = (e: WheelEvent): void => {
+    if (state === 'drag') return;
+    e.preventDefault(); // stop the page scrolling under the pad
+    if (state !== 'wheel') {
+      startGesture('wheel');
+      const dx = bus.def(ax);
+      const dy = bus.def(ay);
+      wheelNx = dx ? clamp01(toNorm(dx, bus.get(ax))) : 0;
+      wheelNy = dy ? clamp01(toNorm(dy, bus.get(ay))) : 0;
+    }
+    wheelNx = clamp01(wheelNx + e.deltaX * WHEEL_K);
+    wheelNy = clamp01(wheelNy - e.deltaY * WHEEL_K);
+    apply(wheelNx, wheelNy);
+  };
+
+  surface.addEventListener('pointerdown', onPointerDown);
+  surface.addEventListener('pointermove', onPointerMove);
+  surface.addEventListener('pointerup', onPointerUp);
+  surface.addEventListener('pointercancel', onPointerUp);
+  surface.addEventListener('pointerleave', onPointerLeave);
+  surface.addEventListener('wheel', onWheel, { passive: false });
+
+  // --- Axis reassignment (the store is the single writer) ---
+  ddX.onChange((v) => xy.set({ x: v }));
+  ddY.onChange((v) => xy.set({ y: v }));
+
+  const unsubStore = xy.onChange((a: XyAssign) => {
+    ddX.setValue(a.x);
+    ddY.setValue(a.y);
+    if (a.x === ax && a.y === ay) return;
+    abortGesture(); // snap the OLD axes home before switching
+    ax = a.x;
+    ay = a.y;
+    unsubX();
+    unsubY();
+    unsubX = bus.subscribe(ax, setDotX); // fires immediately -> repaint
+    unsubY = bus.subscribe(ay, setDotY);
+  });
+
+  function destroy(): void {
+    abortGesture();
+    unsubX();
+    unsubY();
+    unsubStore();
+    ddX.destroy();
+    ddY.destroy();
+  }
+
+  return { el, destroy };
+}
+
+function labeled(text: string, control: HTMLElement): HTMLElement {
+  const wrap = document.createElement('label');
+  wrap.className = styles.field!;
+  const span = document.createElement('span');
+  span.className = styles.fieldLabel!;
+  span.textContent = text;
+  wrap.appendChild(span);
+  wrap.appendChild(control);
+  return wrap;
+}
+
+function clamp01(n: number): number {
+  return n < 0 ? 0 : n > 1 ? 1 : n;
+}

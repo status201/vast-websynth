@@ -3,7 +3,7 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - song-mode
@@ -19,25 +19,28 @@ saved songs or demos**. This is the load-bearing backward-compatibility playbook
 ## Background / Why
 
 Users save song files and demos ship as data, so the load path must keep parsing
-older files forever. The format already did this once (`version: 1 → 2` added
-optional sampler fields). The contract: **additive, optional, defaulted** — never
+older files forever. The format already did this twice (`version: 1 → 2` added
+optional sampler fields; `2 → 3` added the optional [XY Pad](../features/xy-pad.md)
+`xy` axis assignment). The contract: **additive, optional, defaulted** — never
 required, never repurposed.
 
-## Steps (going from v2 → v3)
+## Steps (going from v3 → v4)
 
 ### 1. Extend `SongFile` with OPTIONAL fields — `src/state/song.ts`
 
 ```ts
 export interface SongFile {
   // …
-  version: 1 | 2 | 3;
-  myNewThing?: SomeShape;     // optional, so v1/v2 files still satisfy the type
+  version: 1 | 2 | 3 | 4;
+  myNewThing?: SomeShape;     // optional, so v1/v2/v3 files still satisfy the type
 }
 ```
 
 ### 2. Bump the version `capture()` writes
 
-`Song.capture(...)` always writes the latest (`version: 3`).
+`Song.capture(...)` always writes the latest (`version: 4`). If the new field lives
+in its own store (like `xy`), thread it in as an optional `capture(...)` arg and
+include it only when passed, mirroring the `xy` precedent.
 
 ### 3. Keep `fromJSON` permissive
 
@@ -48,11 +51,24 @@ export interface SongFile {
 
 `Song.apply` already does `bus.resetDefaults()` then `bus.restore(file.params)`
 (so params an old file omits revert to defaults). Read your new field with a
-default:
+default (the `xy` field does `xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)`):
 
 ```ts
 applyMyNewThing(file.myNewThing ?? DEFAULT_MY_NEW_THING);
 ```
+
+### 4b. Let it survive the compaction boundary + validator + schema
+
+Three more places must learn the field or it is silently dropped / rejected:
+
+- `compactSongForExport` (`src/state/serialize.ts`) — copy the field through when
+  present (it drops unknown keys), else it never reaches disk.
+- `validateSongFile` (`src/state/song-validate.ts`) — widen the `version` set and
+  validate the new field **only when present** (path-prefixed message), so older
+  files still pass.
+- `public/schema/websynth-song.schema.json` — bump `version.enum` and add the
+  optional property (docs/tooling mirror). Also update the version literals in the
+  `buildSongPrompt` copy (`src/ui/components/ai-prompt.ts`).
 
 ### 5. New step-cell fields → defaults under
 
@@ -77,10 +93,10 @@ After changing the format, re-run `npm run clean:demos`.
 
 ```gherkin
 Scenario: An old file still loads under the new version
-  Given a version: 2 SongFile without the v3 field
-  When apply() runs on v3 code
-  Then it parses, the v3 field uses its default, and v1/v2 content is unchanged
-# pinned by: tests/state/song.test.ts (v1/v2 apply cases)
+  Given a prior-version SongFile without the new field
+  When apply() runs on the new code
+  Then it parses, the new field uses its default, and prior content is unchanged
+# pinned by: tests/state/song.test.ts (v1/v2/v3 apply cases)
 ```
 
 ## Tests & verification

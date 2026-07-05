@@ -12,8 +12,8 @@
     },
     "version": {
       "type": "integer",
-      "enum": [1, 2],
-      "description": "Format version. capture() always writes 2; v1 files (incl. some built-in demos) lack the sampler fields and still load. Versions beyond those this build knows are rejected."
+      "enum": [1, 2, 3],
+      "description": "Format version. capture() always writes 3; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment — all still load. Versions beyond those this build knows are rejected."
     },
     "name": {
       "type": "string",
@@ -82,6 +82,15 @@
       "maxItems": 8,
       "description": "v2 (optional). One filename per sampler slot, or null for an empty slot. Filenames ONLY — decoded audio is never embedded; the user reloads the files after import.",
       "items": { "type": ["string", "null"] }
+    },
+    "xy": {
+      "type": "object",
+      "description": "v3 (optional). XY Pad axis assignment — which ParamBus param each axis drives. Only the assignment persists; live dragged values are momentary and never written. Absent = default (filter.cutoff x filter.resonance).",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "string", "minLength": 1, "description": "ParamBus id driven by the horizontal axis." },
+        "y": { "type": "string", "minLength": 1, "description": "ParamBus id driven by the vertical axis (up = more)." }
+      }
     }
   },
   "$comment": "additionalProperties is intentionally NOT forbidden at the root: the format is additive/forward-compatible, so a file carrying keys from a newer build still validates.",

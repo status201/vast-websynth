@@ -107,5 +107,6 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
   }
   if (file.samplerChain !== undefined) out.samplerChain = cloneChain(file.samplerChain);
   if (file.sampleNames !== undefined) out.sampleNames = [...file.sampleNames];
+  if (file.xy !== undefined) out.xy = { x: file.xy.x, y: file.xy.y };
   return out;
 }

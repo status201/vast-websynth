@@ -205,6 +205,7 @@ specs/
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
     arrangement.md     ·  the three chain lanes
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
+    xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
     presets.md         ·  sound snapshots (param-only)
@@ -214,6 +215,7 @@ specs/
     audio-export.md    ·  WAV/MP3 capture of the master
     sample-recorder.md ·  mic record + buffer editor
     # — UI / UX —
+    floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape)
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode

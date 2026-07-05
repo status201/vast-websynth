@@ -239,7 +239,7 @@ OUTPUT RULES
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 2,                        // 2 (1 is the legacy form without the sampler fields)
+  "version": 3,                        // 3 (2 lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",                    // song title
   "params": { "<id>": number, ... },   // synth parameters (see PARAMS)
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -249,7 +249,9 @@ TOP-LEVEL SHAPE
   // ---- v2 sampler fields, all OPTIONAL (omit them unless asked for sampler parts) ----
   "samplerBanks": SamplerStep[${BANK_COUNT}][${SAMPLER_SLOT_COUNT}][${SEQ_LENGTH}],   // ${BANK_COUNT} banks, ${SAMPLER_SLOT_COUNT} slots, ${SEQ_LENGTH} steps
   "samplerChain": { "enabled": boolean, "steps": number[] },
-  "sampleNames":  (string | null)[${SAMPLER_SLOT_COUNT}]   // filenames only — audio is NEVER embedded; the user loads files by hand
+  "sampleNames":  (string | null)[${SAMPLER_SLOT_COUNT}],   // filenames only — audio is NEVER embedded; the user loads files by hand
+  // ---- v3 XY Pad field, OPTIONAL (omit unless asked) ----
+  "xy": { "x": "<param id>", "y": "<param id>" }   // which param each pad axis drives; default filter.cutoff x filter.resonance
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
@@ -286,7 +288,7 @@ ${params}
 EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)
 {
   "format": "websynth-song",
-  "version": 2,
+  "version": 3,
   "name": "My Song",
   "params": { "mixer.glide": 0, "filter.cutoff": 60, "filter.resonance": 0.4, "…": 0 },
   "seqBanks": [

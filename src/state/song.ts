@@ -7,6 +7,8 @@ import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
+import type { XyPadStore, XyAssign } from './xy-pad';
+import { XY_DEFAULT_ASSIGN } from './xy-pad';
 import { validateSongFile } from './song-validate';
 import { compactSongForExport } from './serialize';
 export type { SongValidation } from './song-validate';
@@ -21,7 +23,7 @@ export interface ChainData {
 
 export interface SongFile {
   format: 'websynth-song';
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   name: string;
   params: Record<string, number>;
   seqBanks: SeqStep[][];
@@ -33,14 +35,16 @@ export interface SongFile {
   samplerChain?: ChainData;
   /** Filenames only — decoded audio is not embedded; user reloads files. */
   sampleNames?: (string | null)[];
+  // ---- v3: XY Pad axis assignment (optional so v1/v2 files still load) ----
+  xy?: XyAssign;
 }
 
 export const Song = {
-  capture(bus: ParamBus, patterns: PatternStore, arr: Arrangement, name: string): SongFile {
+  capture(bus: ParamBus, patterns: PatternStore, arr: Arrangement, name: string, xy?: XyPadStore): SongFile {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 2,
+      version: 3,
       name,
       params: bus.snapshot(),
       seqBanks: snap.seqBanks,
@@ -50,10 +54,11 @@ export const Song = {
       samplerBanks: snap.samplerBanks,
       samplerChain: { enabled: arr.sampler.enabled, steps: [...arr.sampler.steps] },
       sampleNames: [...patterns.sampleNames],
+      xy: xy ? xy.get() : { ...XY_DEFAULT_ASSIGN },
     };
   },
 
-  apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement): void {
+  apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement, xyStore?: XyPadStore): void {
     bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
     patterns.restore({
@@ -65,6 +70,7 @@ export const Song = {
     arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);
     arr.setSamplerChain(file.samplerChain?.steps ?? [0], file.samplerChain?.enabled ?? false);
+    xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN);
   },
 
   /**

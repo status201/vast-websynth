@@ -1,6 +1,7 @@
 import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { PresetSession } from '../state/preset-session';
+import type { XyPadStore } from '../state/xy-pad';
 import type { UiBridge } from './ui-bridge';
 import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
 import { Knob } from './components/knob';
@@ -44,7 +45,7 @@ const isCompact = (): boolean => window.matchMedia('(max-width: 1280px)').matche
 const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
 export function mountApp(
-  root: HTMLElement, engine: StudioApi, bus: ParamBus, bridge: UiBridge, session: PresetSession,
+  root: HTMLElement, engine: StudioApi, bus: ParamBus, bridge: UiBridge, session: PresetSession, xy: XyPadStore,
 ): Onboarding {
   root.innerHTML = '';
 
@@ -56,7 +57,7 @@ export function mountApp(
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   let songLoadDemo: (name: string) => void = (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
-    if (file) { Song.apply(file, bus, engine.patterns, engine.arrangement); session.setActive(file.name); }
+    if (file) { Song.apply(file, bus, engine.patterns, engine.arrangement, xy); session.setActive(file.name); }
   };
 
   // Runtime hooks for the tour. `bridge.toggleTransport` is set inside
@@ -76,7 +77,7 @@ export function mountApp(
   const fx = buildFx(bus);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
-  const patternRow = buildPatternRow(engine, bus, session);
+  const patternRow = buildPatternRow(engine, bus, session, xy);
   songLoadDemo = patternRow.loadDemo;
   root.appendChild(patternRow.el);
   const bottom = buildBottom(engine, bus, bridge);
@@ -262,9 +263,9 @@ function buildHeader(
 }
 
 function buildPatternRow(
-  engine: StudioApi, bus: ParamBus, session: PresetSession,
+  engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore,
 ): { el: HTMLElement; loadDemo: (name: string) => void } {
-  const song = buildSongPanel(bus, engine, session);
+  const song = buildSongPanel(bus, engine, session, xy);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },

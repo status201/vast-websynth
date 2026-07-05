@@ -139,6 +139,14 @@ describe('compactSongForExport — whole-song', () => {
     const reloaded = JSON.parse(JSON.stringify(compact)) as SongFile;
     expect(compactSongForExport(reloaded)).toEqual(compact);
   });
+
+  it('copies a v3 xy assignment through, and omits it when absent', () => {
+    const withXy = compactSongForExport(songWith({ version: 3, xy: { x: 'lfo.rate', y: 'filter.cutoff' } }));
+    expect(withXy.xy).toEqual({ x: 'lfo.rate', y: 'filter.cutoff' });
+
+    const withoutXy = compactSongForExport(songWith({}));
+    expect('xy' in withoutXy).toBe(false);
+  });
 });
 
 describe('round-trip fidelity', () => {

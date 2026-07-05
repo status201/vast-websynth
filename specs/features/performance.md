@@ -9,6 +9,7 @@ related:
   - architecture
   - transport
   - song-mode
+  - xy-pad
 source:
   - src/audio/transport/performance.ts
   - src/state/params.ts                 # fx.djfilter
@@ -71,6 +72,7 @@ machines: sequencer + drum machine call perf.mapStep() each tick; drum machine
           checks perf.fillActive
 ui: src/ui/panels/song-panel.ts momentary buttons:
     perf-fill / perf-stutter / perf-drop / perf-tapestop, perf-stutter-size-<n>
+    + perf-xypad (opens the XY Pad floating window — its own feature, see xy-pad.md)
 ```
 
 ## Scenarios (BDD)

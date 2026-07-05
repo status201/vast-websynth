@@ -1,5 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
+import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
@@ -9,6 +10,8 @@ import { Dropdown } from '../components/dropdown';
 import { audibleLanes, LANE_IDS, type LaneId, type LaneFlags } from '../../audio/transport/lane-mix';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
+import { FloatingWindow } from '../components/floating-window';
+import { createXyPad } from '../components/xy-pad';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
@@ -40,19 +43,47 @@ function momentary(label: string, on: () => void, off: () => void, testid?: stri
   return b;
 }
 
+/**
+ * Toggle button that opens/closes the XY Pad in a non-modal FloatingWindow. The
+ * pad instance is built lazily and kept alive across closes, so its live axis
+ * assignment survives (and follows a song load) while the window is hidden.
+ */
+function buildXyPadLauncher(bus: ParamBus, xy: XyPadStore): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
+  b.textContent = 'XY Pad';
+  b.dataset.testid = 'perf-xypad';
+  let win: FloatingWindow | null = null;
+  b.addEventListener('click', () => {
+    if (win?.isOpen) { win.close(); return; }
+    if (!win) {
+      win = new FloatingWindow({
+        title: 'XY Pad',
+        testId: 'xypad-window',
+        onClose: () => b.classList.remove('on'),
+      });
+      win.body.appendChild(createXyPad(bus, xy).el);
+    }
+    win.open();
+    b.classList.add('on');
+  });
+  return b;
+}
+
 export interface SongPanel {
   el: HTMLElement;
   /** Load a demo by name AND sync the slot dropdown (shared with the demo buttons). */
   loadDemo: (name: string) => void;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
   // through here so the header reflects the loaded song).
   const applySong = (file: SongFile): void => {
-    Song.apply(file, bus, engine.patterns, engine.arrangement);
+    Song.apply(file, bus, engine.patterns, engine.arrangement, xy);
     session.setActive(file.name);
   };
 
@@ -121,6 +152,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fx.appendChild(momentary('Drop', () => engine.perf.setDrop(true), () => engine.perf.setDrop(false), 'perf-drop'));
   fx.appendChild(momentary('Tape Stop',
     () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false), 'perf-tapestop'));
+  fx.appendChild(buildXyPadLauncher(bus, xy));
   fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
   const masterGr = new GrMeter('grmeter-fx.master.comp');
   engine.masterComp.onGr((db) => masterGr.update(db));
@@ -163,7 +195,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   saveBtn.addEventListener('click', () => {
     const name = prompt('Song name:', dropdown.value || 'My Song');
     if (!name) return;
-    const file = Song.capture(bus, engine.patterns, engine.arrangement, name);
+    const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
     Song.saveSlot(name, file);
     // The saved song's params become the new double-tap reset target.
     bus.setBaselines(file.params);
@@ -209,7 +241,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   exportBtn.dataset.testid = 'song-export';
   exportBtn.addEventListener('click', () => {
     const name = dropdown.value || 'My Song';
-    Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name));
+    Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name, xy));
   });
 
   const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;

@@ -4,6 +4,7 @@ import type { SongFile } from '../../src/state/song';
 import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
+import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
 
 /** Deep clone via JSON so a test never mutates the shared DEMO_SONGS object. */
 function demo(): SongFile {
@@ -192,7 +193,7 @@ describe('Song', () => {
   });
 
   describe('sampler (v2)', () => {
-    it('capture() writes version 2 with sampler banks/chain/names', () => {
+    it('capture() writes the current version with sampler banks/chain/names', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
@@ -202,7 +203,7 @@ describe('Song', () => {
       arr.setSamplerChain([2, 3], true);
 
       const file = Song.capture(bus, patterns, arr as never, 'S');
-      expect(file.version).toBe(2);
+      expect(file.version).toBe(3);
       expect(file.samplerChain).toEqual({ enabled: true, steps: [2, 3] });
       expect(file.samplerBanks!.length).toBe(4);
       expect(file.samplerBanks![0]![0]![3]!.on).toBe(true);
@@ -237,6 +238,68 @@ describe('Song', () => {
       // so applying a v1 song never corrupts sampler state.
       expect(patterns.samplerBanks[0]![0]![5]!.on).toBe(true);
       expect(patterns.sampleNames[0]).toBe('leftover.wav');
+    });
+  });
+
+  describe('XY Pad (v3)', () => {
+    it('capture() writes version 3 and the store\'s current axis assignment', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const xy = new XyPadStore();
+      xy.set({ x: 'lfo.rate', y: 'master.volume' });
+
+      const file = Song.capture(bus, patterns, fakeArr() as never, 'XY', xy);
+      expect(file.version).toBe(3);
+      expect(file.xy).toEqual({ x: 'lfo.rate', y: 'master.volume' });
+    });
+
+    it('capture() without a store still writes the default assignment (v3)', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'XY');
+      expect(file.version).toBe(3);
+      expect(file.xy).toEqual(XY_DEFAULT_ASSIGN);
+    });
+
+    it('apply() sets the XY store from the file', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const arr = fakeArr();
+      const xy = new XyPadStore();
+      const file = Song.capture(bus, patterns, arr as never, 'XY', xy);
+      file.xy = { x: 'filter.drive', y: 'fx.delay.mix' };
+
+      const target = new XyPadStore();
+      Song.apply(file, bus, patterns, arr as never, target);
+      expect(target.get()).toEqual({ x: 'filter.drive', y: 'fx.delay.mix' });
+    });
+
+    it('apply() of a v1/v2 file (no xy) resets the store to defaults', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const arr = fakeArr();
+      const target = new XyPadStore();
+      target.set({ x: 'lfo.rate', y: 'lfo.amount' }); // pre-existing assignment
+
+      const v1 = demo(); // Zombie Nation, version 1 — no xy field
+      expect(v1.xy).toBeUndefined();
+      Song.apply(v1, bus, patterns, arr as never, target);
+
+      expect(target.get()).toEqual(XY_DEFAULT_ASSIGN);
+    });
+
+    it('the xy assignment round-trips through toJSON/fromJSON', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const xy = new XyPadStore();
+      xy.set({ x: 'lfo.rate', y: 'filter.cutoff' });
+      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'RT', xy);
+      const parsed = Song.fromJSON(Song.toJSON(file));
+      expect(parsed!.xy).toEqual({ x: 'lfo.rate', y: 'filter.cutoff' });
+      expect(parsed).toEqual(compactSongForExport(file));
     });
   });
 

@@ -3,13 +3,14 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
   - compressor
   - presets
   - param-reset-baseline
+  - xy-pad
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -42,8 +43,9 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 - **REQ-1** — A song captures the full bus snapshot + all seq/drum/sampler banks +
   all three chain lanes into one `SongFile`.
-- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2`); v2 adds
-  optional sampler fields. v1 files (incl. built-in demos) must still load.
+- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3`); v2 adds
+  optional sampler fields, v3 adds the optional [XY Pad](xy-pad.md) axis assignment
+  (`xy`). Older files (incl. built-in demos) must still load.
 - **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**,
   then restores, so a stale param omitted by an older file reverts rather than
   lingering. `resetDefaults()`+`restore()` also replaces every knob **reset
@@ -76,8 +78,8 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 ```yaml
 Song:   # src/state/song.ts (a plain object of functions, not a class)
-  capture(bus, patterns, arr, name): SongFile
-  apply(file, bus, patterns, arr): void
+  capture(bus, patterns, arr, name, xy?): SongFile   # writes version 3; xy included only when passed
+  apply(file, bus, patterns, arr, xyStore?): void    # ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
   fromJSON(text): SongFile | null                  # validate, return file|null (the sparse object; apply re-expands)
   parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
@@ -102,7 +104,7 @@ Nested beyond ~3 levels, so as flat YAML:
 ```yaml
 SongFile:
   format: 'websynth-song'            # required discriminator
-  version: 1 | 2
+  version: 1 | 2 | 3
   name: string
   params: Record<string, number>     # = ParamBus.snapshot()
   seqBanks:  SeqStep[][]             # 4 banks × 16 steps
@@ -113,6 +115,8 @@ SongFile:
   samplerBanks?: SamplerStep[][][]   # 4 banks × 8 slots × 16 steps
   samplerChain?: ChainData
   sampleNames?: (string | null)[]    # filenames ONLY — audio is not embedded
+  # ---- v3 addition (optional, so v1/v2 files still parse) ----
+  xy?: { x: string; y: string }      # XY Pad axis assignment (ParamBus ids) — see xy-pad.md
 
 ChainData:
   enabled: boolean
@@ -125,9 +129,9 @@ ChainData:
 ### Versioning & backward-compat (the load-bearing detail)
 
 ```yaml
-capture: always writes version: 2
+capture: always writes version: 3
 fromJSON: version-agnostic — only checks format === 'websynth-song'
-          AND presence of params + seqBanks + drumBanks  -> v1 and v2 both parse
+          AND presence of params + seqBanks + drumBanks  -> v1, v2 and v3 all parse
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
   2. bus.restore(file.params)
@@ -135,6 +139,7 @@ apply (migration point):
   4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false)
      arr.setDrumChain(... ?? [0], ... ?? false)
      arr.setSamplerChain(... ?? [0], ... ?? false)   # v1 files lack these -> defaults
+  5. xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)       # v3; older files -> default axes
 patterns.restore: Object.assign(dst, TRIGGER_CELL_DEFAULTS, cell)
   # spreads defaults UNDER incoming cells, so legacy {on, velocity} cells
   # gain gate:1 / prob:1 / ratchet:1 / tie:false and sound unchanged
@@ -150,8 +155,9 @@ not the strict current shape:
 
 ```yaml
 strict (reject + name the path):
-  root:        object; format === 'websynth-song'; version ∈ {1,2}; name: string
+  root:        object; format === 'websynth-song'; version ∈ {1,2,3}; name: string
   params:      object of string -> finite number   # keys NOT restricted (forward-compat)
+  xy?:         { x: non-empty string, y: non-empty string }   # v3; param-id existence NOT checked
   seqBanks:    SeqStep[4][16]                       # exact dims
   drumBanks:   DrumCell[4][8][16]
   samplerBanks?: SamplerStep[4][8][16]              # if present
@@ -278,6 +284,13 @@ Scenario: A v1 file loads with empty sampler state (backward compat)
   Then it parses, sampler banks/chain default, and seq/drum play unchanged
 # pinned by: tests/state/song.test.ts
 
+Scenario: A v2 file loads with default XY axes (backward compat)
+  Given a SongFile without an xy field and an XyPadStore
+  When apply(file, …, xyStore) runs
+  Then the store holds the default axes { x: filter.cutoff, y: filter.resonance }
+# pinned by: tests/state/song.test.ts
+# see: xy-pad.md → REQ-6
+
 Scenario: Legacy {on, velocity} cells sound unchanged (edge)
   Given a drum cell with only { on, velocity }
   When patterns.restore loads it
@@ -337,5 +350,7 @@ Scenario: Every shipped demo conforms to the validator (schema↔reality)
 
 ## Open questions / future
 
-- A future `version: 3` should keep new fields **optional** and extend the
-  `apply()` defaults-fallback pattern, so older files keep loading.
+- `version: 3` shipped the optional `xy` field (see [xy-pad](xy-pad.md)) following
+  the additive contract. A future `version: 4` must keep new fields **optional** and
+  extend the `apply()` defaults-fallback pattern the same way, so older files keep
+  loading.

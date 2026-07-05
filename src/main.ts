@@ -6,6 +6,7 @@ import { installShortcuts } from './ui/shortcuts';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
+import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
 import { Modal } from './ui/components/modal';
 import type { Onboarding } from './ui/onboarding';
@@ -28,6 +29,11 @@ async function boot() {
   const session = new PresetSession();
   bus.onChange((id) => { if (isPatchParam(id)) session.markDirty(); });
 
+  // XY Pad axis assignment — pure state, persisted in songs (SongFile v3). Lives
+  // outside the Engine (assignment survives while the pad window is closed), so
+  // it is threaded to the UI alongside the PresetSession.
+  const xy = new XyPadStore();
+
   // Seed the boot patch before the UI mounts so controls construct reading the
   // applied values and the selector starts on a clean `basic`.
   Presets.ensureFactoryPresets();
@@ -36,7 +42,7 @@ async function boot() {
   session.setActive('basic');
 
   const bridge = new UiBridge();
-  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session);
+  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy);
   installShortcuts(engine, bus, bridge);
 
   // Dev-only debug bridge for E2E tests (Playwright drives the dev server, so
@@ -48,6 +54,7 @@ async function boot() {
       bus,
       patterns: engine.patterns,
       session,
+      xy,
     };
   }
 

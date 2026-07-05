@@ -142,6 +142,17 @@ function checkSampleNames(v: unknown, add: AddError): void {
   });
 }
 
+/** v3 XY Pad axis assignment — each axis is a non-empty ParamBus id string. */
+function checkXy(v: unknown, add: AddError): void {
+  if (!isObject(v)) { add(`xy must be an object (got ${describe(v)})`); return; }
+  for (const axis of ['x', 'y'] as const) {
+    const id = v[axis];
+    if (typeof id !== 'string' || id.length === 0) {
+      add(`xy.${axis} must be a non-empty string (got ${describe(id)})`);
+    }
+  }
+}
+
 /**
  * Validate a parsed value as a `SongFile`. Returns the (unchanged) value typed
  * as `SongFile` on success, or the list of human-readable errors on failure.
@@ -154,7 +165,7 @@ export function validateSongFile(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== 'websynth-song') add(`format must be "websynth-song" (got ${describe(o.format)})`);
-  if (o.version !== 1 && o.version !== 2) add(`version must be 1 or 2 (got ${describe(o.version)})`);
+  if (o.version !== 1 && o.version !== 2 && o.version !== 3) add(`version must be 1, 2, or 3 (got ${describe(o.version)})`);
   if (typeof o.name !== 'string') add(`name must be a string (got ${describe(o.name)})`);
 
   checkParams(o.params, add);
@@ -167,6 +178,9 @@ export function validateSongFile(value: unknown): SongValidation {
   if (o.samplerBanks !== undefined) check3D('samplerBanks', o.samplerBanks, SAMPLER_SLOT_COUNT, SEQ_LENGTH, validateTriggerCell, add);
   if (o.samplerChain !== undefined) checkChain('samplerChain', o.samplerChain, true, add);
   if (o.sampleNames !== undefined) checkSampleNames(o.sampleNames, add);
+
+  // v3 (optional) — XY Pad axis assignment; only validated when present.
+  if (o.xy !== undefined) checkXy(o.xy, add);
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, file: value as unknown as SongFile };

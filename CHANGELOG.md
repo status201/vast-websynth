@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **XY Pad** — an assignable, Kaoss-pad-style performance controller, opened from a
+  button in the Song tab's **Live FX** row. Its two axes each drive **any**
+  parameter (defaults X = filter cutoff, Y = filter resonance) through the correct
+  taper; **drag** the square — or **two-finger scroll** it on a trackpad — to sweep
+  both at once, and on release both **spring back** to where they were, so it
+  colours a moment without editing the patch. It floats in a movable, **non-modal**
+  window, so you can keep playing the keyboard and turning knobs while you sweep it.
+  The axis assignment saves with the song (older song files load with the default
+  axes).
+
 - **10 new factory presets** — the factory bank grows from 6 to 16 sounds:
   basses **upright** (acoustic), **pbass** (electric), **reese** (DnB) and
   **acid** (303 squelch with legato slide), keys **piano**, **rhodes**, **b3**
