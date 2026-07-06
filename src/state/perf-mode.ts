@@ -38,8 +38,8 @@ export interface PerfProfile {
 
 /** The single source of truth for every tier-dependent knob. */
 export const PERF_PROFILES: Record<PerfTier, PerfProfile> = {
-  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15, scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false, analyserFftSize: 1024 },
-  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 2048 },
+  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15, scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false, analyserFftSize: 512 },
+  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 1024 },
   strong: { latencyHint: 'interactive', voiceCount: 8, fps: 60, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 2048 },
 };
 
