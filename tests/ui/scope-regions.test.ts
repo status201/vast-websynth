@@ -168,6 +168,22 @@ describe('Scope.setChannels (defensive fallback)', () => {
     scope.destroy();
   });
 
+  it('setFftSize applies the new fftSize to every channel analyser live (v5)', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    const mono = fakeAnalyser();
+    const left = fakeAnalyser();
+    const right = fakeAnalyser();
+    const scope = new Scope({ mono, left, right });
+    scope.setFftSize(512);
+    expect(mono.fftSize).toBe(512);
+    expect(left.fftSize).toBe(512);
+    expect(right.fftSize).toBe(512);
+    scope.destroy();
+  });
+
   it('resetPeak clears the dataset peak mirror and does not throw', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
     vi.stubGlobal('requestAnimationFrame', () => 0);

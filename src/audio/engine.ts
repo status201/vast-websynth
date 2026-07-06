@@ -147,9 +147,11 @@ export class Engine {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
 
-    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): weak halves it
-    // to cut the always-pulled analyser FFT + per-draw copy cost. All three share
-    // one value so the scope's per-channel buffers stay uniform (scope.md REQ-2).
+    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): 512/1024/2048 for
+    // weak/medium/strong, cutting the always-pulled analyser FFT + per-draw copy cost
+    // on weaker tiers. This is the BOOT seed only — the scope applies later tier
+    // changes live via setFftSize. All three share one value so the scope's
+    // per-channel buffers stay uniform (scope.md REQ-2).
     const fft = opts.analyserFftSize ?? 2048;
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = fft;

@@ -8,10 +8,12 @@
  * `localStorage` try/catch pattern in `ui/components/collapse-toggle.ts`.
  *
  * `PERF_PROFILES` is the single source of truth for every tier-dependent knob.
- * The two *audio* fields (`latencyHint`, `voiceCount`) can only be chosen when
- * the `AudioContext`/voice pool are built, so they are read once at boot
- * (`main.ts`) — changing across an audio boundary takes full effect on reload.
- * `fps` is applied live by the scope (see `ui/components/scope.ts`).
+ * The *audio* fields (`latencyHint`, `voiceCount`, and the v3 FX-cost fields) can
+ * only be chosen when the `AudioContext`/graph are built, so they are read once at
+ * boot (`main.ts`) — changing across an audio boundary takes full effect on reload.
+ * The two *scope* knobs, `fps` and `analyserFftSize`, are applied **live** by the
+ * scope (see `ui/components/scope.ts` `setFps`/`setFftSize`) and so are excluded
+ * from `sameAudioProfile`.
  */
 
 const STORE_KEY = 'websynth.perf';
@@ -32,7 +34,7 @@ export interface PerfProfile {
   reverbIrMaxS: number;
   /** Allow WaveShaper oversampling (synth/sampler distortion 4x, drum tracks 2x). */
   fxOversample: boolean;
-  /** fftSize of the 3 scope analysers — smaller cuts always-on FFT + per-draw copy cost. */
+  /** fftSize of the 3 scope analysers (applied live) — smaller cuts always-on FFT + per-draw copy cost. */
   analyserFftSize: number;
 }
 
@@ -107,7 +109,12 @@ export function resolveTier(pref: PerfPref = readPerfPref()): PerfTier {
   return pref === 'auto' ? detectTier() : pref;
 }
 
-/** Two tiers need a reload between them iff any boot-time audio field differs. */
+/**
+ * Two tiers need a reload between them iff any boot-time audio field differs.
+ * `fps` and `analyserFftSize` are deliberately excluded: both are scope knobs
+ * applied **live** (see `ui/components/scope.ts` `setFps`/`setFftSize`), so a
+ * change between two otherwise-identical tiers never forces a reload.
+ */
 export function sameAudioProfile(a: PerfTier, b: PerfTier): boolean {
   const x = PERF_PROFILES[a];
   const y = PERF_PROFILES[b];
@@ -116,8 +123,7 @@ export function sameAudioProfile(a: PerfTier, b: PerfTier): boolean {
     x.voiceCount === y.voiceCount &&
     x.scheduleAheadS === y.scheduleAheadS &&
     x.reverbIrMaxS === y.reverbIrMaxS &&
-    x.fxOversample === y.fxOversample &&
-    x.analyserFftSize === y.analyserFftSize
+    x.fxOversample === y.fxOversample
   );
 }
 

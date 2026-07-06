@@ -10,8 +10,8 @@ import { Dropdown } from '../components/dropdown';
 import { audibleLanes, LANE_IDS, type LaneId, type LaneFlags } from '../../audio/transport/lane-mix';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
-import { FloatingWindow } from '../components/floating-window';
-import { createXyPad } from '../components/xy-pad';
+import { createXyPadWindowController } from '../components/xy-pad-window';
+import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
@@ -26,52 +26,6 @@ function el(tag: string, cls?: string, text?: string): HTMLElement {
   if (cls) e.className = cls;
   if (text !== undefined) e.textContent = text;
   return e;
-}
-
-function momentary(label: string, on: () => void, off: () => void, testid?: string): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
-  b.textContent = label;
-  if (testid) b.dataset.testid = testid;
-  const start = (e: Event) => { e.preventDefault(); if (!b.classList.contains('on')) { b.classList.add('on'); on(); } };
-  const end = () => { if (b.classList.contains('on')) { b.classList.remove('on'); off(); } };
-  b.addEventListener('pointerdown', start);
-  b.addEventListener('pointerup', end);
-  b.addEventListener('pointerleave', end);
-  b.addEventListener('pointercancel', end);
-  return b;
-}
-
-/**
- * Toggle button that opens/closes the XY Pad in a non-modal FloatingWindow. The
- * pad instance is built lazily and kept alive across closes, so its live axis
- * assignment survives (and follows a song load) while the window is hidden.
- */
-function buildXyPadLauncher(bus: ParamBus, xy: XyPadStore): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
-  b.textContent = 'XY Pad';
-  b.dataset.testid = 'perf-xypad';
-  let win: FloatingWindow | null = null;
-  b.addEventListener('click', () => {
-    if (win?.isOpen) { win.close(); return; }
-    if (!win) {
-      // Build the pad first so its gear can seed the window's title-bar slot.
-      const pad = createXyPad(bus, xy);
-      win = new FloatingWindow({
-        title: 'XY Pad',
-        testId: 'xypad-window',
-        leading: pad.gear,
-        onClose: () => b.classList.remove('on'),
-      });
-      win.body.appendChild(pad.el);
-    }
-    win.open();
-    b.classList.add('on');
-  });
-  return b;
 }
 
 export interface SongPanel {
@@ -127,36 +81,17 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   }
 
   // ---- Live DJ FX ----
+  // One shared XY Pad window controller: the Song panel's launcher AND the LIVE FX
+  // window's launcher toggle the SAME window (never two).
+  const xyWin = createXyPadWindowController(bus, xy);
+
   const fx = el('div', styles.djFx!);
-  fx.appendChild(el('div', styles.sectionLabel!, 'Live FX'));
-
-  fx.appendChild(momentary('Fill', () => engine.perf.setFill(true), () => engine.perf.setFill(false), 'perf-fill'));
-
-  const stutterWrap = el('div', styles.stutter!);
-  stutterWrap.appendChild(momentary('Stutter',
-    () => engine.perf.setStutter(true), () => engine.perf.setStutter(false), 'perf-stutter'));
-  const sizes = el('div', `${styles.stutterSize!} ${segmentedStyles.root!}`);
-  ([['1', 1], ['1/8', 2], ['1/4', 4]] as Array<[string, number]>).forEach(([lbl, n], i) => {
-    const sb = document.createElement('button');
-    sb.type = 'button';
-    sb.textContent = lbl;
-    sb.dataset.testid = `perf-stutter-size-${n}`;
-    if (i === 1) sb.classList.add('active');
-    sb.addEventListener('click', () => {
-      engine.perf.setStutterSize(n);
-      for (const c of Array.from(sizes.children)) c.classList.remove('active');
-      sb.classList.add('active');
-    });
-    sizes.appendChild(sb);
-  });
-  stutterWrap.appendChild(sizes);
-  fx.appendChild(stutterWrap);
-
-  fx.appendChild(momentary('Drop', () => engine.perf.setDrop(true), () => engine.perf.setDrop(false), 'perf-drop'));
-  fx.appendChild(momentary('Tape Stop',
-    () => engine.perf.setTapeStop(true), () => engine.perf.setTapeStop(false), 'perf-tapestop'));
-  fx.appendChild(buildXyPadLauncher(bus, xy));
+  // The LIVE FX launcher doubles as the section title (replaces the old text label,
+  // saving space) and leads the row; it opens the floating window usable off the Song tab.
+  fx.appendChild(createLiveFxWindowLauncher(engine, bus, xyWin));
   fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
+  for (const c of buildLiveFxControls(engine)) fx.appendChild(c); // Fill / Stutter / Drop / Tape Stop (perf-*)
+  fx.appendChild(xyPadLaunchButton(xyWin, 'perf-xypad'));
   const masterGr = new GrMeter('grmeter-fx.master.comp');
   engine.masterComp.onGr((db) => masterGr.update(db));
   fx.appendChild(fxGroup(bus, 'COMP', 'fx.master.comp', [

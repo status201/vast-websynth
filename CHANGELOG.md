@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **LIVE FX window** — the live DJ controls (DJ Filter, Fill, Stutter, Drop, Tape
+  Stop) plus the XY Pad launcher now live in a movable, **non-modal** "LIVE FX"
+  window you can pop open and keep on screen **while working on any other tab**, so
+  performing the effects no longer means sitting on the Song tab. It opens from the
+  **LIVE FX** button, which now also serves as the Song tab's Live FX section title
+  (with a small "new window" glyph) to save space.
+
+- **Minimise floating windows** — every floating window (the XY Pad and the new
+  LIVE FX window) gained a **minimise** button on the left of its title bar that
+  collapses it to just the toolbar; click again to restore. Handy for parking a
+  window out of the way without closing it.
+
 - **XY Pad** — an assignable, Kaoss-pad-style performance controller, opened from a
   button in the Song tab's **Live FX** row. Its two axes each drive **any**
   parameter (defaults X = filter cutoff, Y = filter resonance) through the correct
@@ -58,9 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     while the cutoff is held still (the common case), instead of recomputing an
     expensive calculation on every single sample — the biggest per-note saving,
     and it applies to every voice;
-  - on the **Weak** performance tier the oscilloscope's analysers run at half the
-    resolution (FFT 1024 vs 2048), trimming always-on cost with no visible change
-    to the scope. Medium and Strong are unchanged.
+  - the oscilloscope's analysers now scale with the performance tier (FFT
+    **512 / 1024 / 2048** for Weak / Medium / Strong) and this applies **live**
+    when you switch tiers (no reload), trimming always-on cost on weaker devices
+    with no visible change to the scope. Switching between Medium and Strong still
+    needs no reload.
 
 - **Double-tap reset returns to the loaded sound** — double-tapping a knob (or the
   drum panel's per-track Reset) now snaps it back to the value the current preset

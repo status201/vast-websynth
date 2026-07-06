@@ -98,18 +98,70 @@ describe('FloatingWindow', () => {
     expect(w.isOpen).toBe(false);
   });
 
-  it('renders a leading control as the title bar first child and never drags from it', () => {
+  it('renders a leading control after the minimise button and never drags from it', () => {
     const gear = document.createElement('button');
     gear.textContent = '⚙';
     const w = mk({ title: 'X', leading: gear, initial: { left: 100, top: 100 } });
     w.open();
     const bar = inDoc()!.querySelector(`.${FloatingWindow.titleBarClass}`)! as HTMLElement;
 
-    // Inserted before the title, as the first child of the title bar.
-    expect(bar.firstElementChild).toBe(gear);
+    // Inserted after the built-in minimise button, before the title.
+    expect(bar.firstElementChild?.classList.contains(FloatingWindow.minBtnClass)).toBe(true);
+    expect(bar.children[1]).toBe(gear);
 
     // A pointer-drag starting on the leading control must NOT move the window.
     gear.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 160, clientY: 140 }));
+    const root = inDoc()!;
+    expect(root.style.left).toBe('100px');
+    expect(root.style.top).toBe('100px');
+  });
+
+  it('minimise button collapses and restores the body, flipping the glyph', () => {
+    const w = mk({ title: 'X' });
+    const p = document.createElement('p');
+    p.textContent = 'content';
+    w.body.appendChild(p);
+    w.open();
+
+    const bar = inDoc()!.querySelector(`.${FloatingWindow.titleBarClass}`)! as HTMLElement;
+    const minBtn = bar.firstElementChild as HTMLButtonElement;
+    expect(minBtn.classList.contains(FloatingWindow.minBtnClass)).toBe(true);
+    expect(minBtn.textContent).toBe('−');
+    expect(w.isCollapsed).toBe(false);
+
+    minBtn.click();
+    expect(w.isCollapsed).toBe(true);
+    expect(inDoc()?.classList.contains('collapsed')).toBe(true);
+    expect(minBtn.textContent).toBe('+');
+    expect(minBtn.getAttribute('aria-expanded')).toBe('false');
+
+    minBtn.click();
+    expect(w.isCollapsed).toBe(false);
+    expect(inDoc()?.classList.contains('collapsed')).toBe(false);
+    expect(minBtn.textContent).toBe('−');
+    expect(minBtn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('re-opening a minimised (then closed) window reveals it expanded', () => {
+    vi.useFakeTimers();
+    const w = mk({ title: 'X' });
+    w.open();
+    const minBtn = inDoc()!.querySelector(`.${FloatingWindow.minBtnClass}`) as HTMLButtonElement;
+    minBtn.click();
+    expect(w.isCollapsed).toBe(true);
+    w.close();
+    w.open();
+    expect(w.isCollapsed).toBe(false);
+    expect(inDoc()?.classList.contains('collapsed')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('dragging never starts from the minimise button', () => {
+    const w = mk({ title: 'X', initial: { left: 100, top: 100 } });
+    w.open();
+    const minBtn = inDoc()!.querySelector(`.${FloatingWindow.minBtnClass}`) as HTMLButtonElement;
+    minBtn.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
     window.dispatchEvent(new MouseEvent('pointermove', { clientX: 160, clientY: 140 }));
     const root = inDoc()!;
     expect(root.style.left).toBe('100px');

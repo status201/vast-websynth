@@ -3,7 +3,7 @@
 ```yaml
 id: floating-window
 status: draft
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -44,11 +44,21 @@ matrix) reuse it.
   removes the node after the 200 ms transition; a re-`open()` before removal cancels
   the pending removal and reveals it again.
 - **REQ-6** — Optional **leading title-bar slot**: `opts.leading` (an
-  `HTMLElement`) is inserted as the **first child** of the title bar, left of the
-  title, for a caller-owned control (e.g. the XY Pad's gear toggle). Its
-  `pointerdown` is stopped so dragging never starts from it (same guard as the
-  close button). Layout keeps the leading control + title on the left and the
-  close button on the right regardless of child count.
+  `HTMLElement`) is inserted **after** the built-in minimise button (REQ-7),
+  still left of the title, for a caller-owned control (e.g. the XY Pad's gear
+  toggle). Its `pointerdown` is stopped so dragging never starts from it (same
+  guard as the close button). Layout keeps the minimise button + leading control
+  + title on the left and the close button on the right regardless of child count.
+- **REQ-7** — Built-in **minimise / restore button**: every floating window has a
+  `[−]` button as the **far-left** child of the title bar (before `opts.leading`,
+  `minBtn`). Clicking it **collapses** the window to just its title bar — the
+  `.body` is hidden (global `collapsed` class on the root) — and flips the glyph
+  to `[+]`; clicking again **restores** the body. The button updates
+  `aria-expanded` (`true` when expanded) and `aria-label` (Minimise / Restore),
+  and stops its `pointerdown` so a drag never starts from it. Collapse state is
+  **ephemeral**: it is not persisted, and `open()` always reveals the window
+  **expanded** (predictable re-open), even for an instance kept alive across
+  closes. `isCollapsed` reflects the current state.
 
 ## Technical design
 
@@ -58,11 +68,12 @@ matrix) reuse it.
 FloatingWindow:   # src/ui/components/floating-window.ts (a class, like Modal)
   new (opts: FloatingWindowOptions)
   readonly body: HTMLElement          # caller appends content here
-  open(): void                        # idempotent; mounts + reveals
+  open(): void                        # idempotent; mounts + reveals; always EXPANDED
   close(): void                       # idempotent; hides, fires onClose once, removes after fade
   get isOpen(): boolean
+  get isCollapsed(): boolean          # true while minimised (body hidden)
   # static class getters (parity with Modal, for consistent markup/testing):
-  static rootClass / titleBarClass / titleClass / closeBtnClass / bodyClass: string
+  static rootClass / titleBarClass / titleClass / closeBtnClass / bodyClass / minBtnClass: string
 
 FloatingWindowOptions:
   title: string
@@ -76,14 +87,19 @@ FloatingWindowOptions:
 ### Layer touchpoints & ordering
 
 ```yaml
-DOM: root (.root, position:fixed, z-index 950) > [ .titleBar ([leading?] + .title + .closeBtn), .body ]
+DOM: root (.root, position:fixed, z-index 950) > [ .titleBar (.minBtn + [leading?] + .title + .closeBtn), .body ]
 drag: pointerdown on .titleBar -> record start pointer + window pos; window-level
       pointermove updates clamped left/top; pointerup/leave ends. setPointerCapture
       on the title bar retargets moves to it (optional-chained for jsdom).
+minimise button: far-left child; click stops propagation (no drag) and toggles the
+      global `collapsed` class on the root + the glyph/aria; open() clears it.
 close button: click stops propagation so it never starts a drag; calls close().
-leading slot: opts.leading is inserted before .title; its pointerdown is stopped so
-      a drag never starts from it. .titleBar is justify-content:flex-start with
-      .closeBtn margin-left:auto so title stays left, close stays right.
+leading slot: opts.leading is inserted after .minBtn, before .title; its pointerdown
+      is stopped so a drag never starts from it. .titleBar is justify-content:flex-start
+      with .closeBtn margin-left:auto so the minimise/leading/title cluster stays left,
+      close stays right.
+collapsed: root.collapsed hides .body (display:none) and rounds the title bar fully
+      (it becomes a standalone pill). CSS only; state driven by the minimise button.
 no backdrop: the root is appended straight to document.body — there is no overlay.
 ```
 
@@ -140,9 +156,30 @@ Scenario: close() is idempotent
 
 Scenario: A leading control renders in the title bar and never starts a drag
   Given a FloatingWindow created with a leading button
-  Then the button is the first child of the title bar
+  Then the button is the second child of the title bar (after the minimise button)
   When the user pointer-drags starting on the leading button
   Then the window does not move (the drag never starts)
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: The minimise button collapses and restores the window
+  Given an open FloatingWindow with content in its body
+  Then the minimise button is the first child of the title bar and reads "−"
+  When the user clicks the minimise button
+  Then the body is hidden (root gets the collapsed class), the glyph reads "+", and isCollapsed is true
+  When the user clicks it again
+  Then the body is shown, the glyph reads "−", and isCollapsed is false
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: Re-opening a minimised window reveals it expanded
+  Given a FloatingWindow that was minimised then closed
+  When it is opened again
+  Then it is expanded (isCollapsed is false, body visible)
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: Dragging never starts from the minimise button
+  Given an open FloatingWindow at a known position
+  When the user pointer-drags starting on the minimise button
+  Then the window does not move
 # pinned by: tests/ui/floating-window.test.ts
 ```
 

@@ -28,9 +28,11 @@ export class FloatingWindow {
   readonly body: HTMLElement;
 
   private readonly root: HTMLElement;
+  private readonly minBtn: HTMLButtonElement;
   private readonly onCloseCb?: () => void;
   private closeTimer: number | undefined;
   private _isOpen = false;
+  private _collapsed = false;
 
   // Drag state.
   private dragging = false;
@@ -45,6 +47,7 @@ export class FloatingWindow {
   static get titleBarClass(): string { return styles.titleBar!; }
   static get titleClass(): string { return styles.title!; }
   static get closeBtnClass(): string { return styles.closeBtn!; }
+  static get minBtnClass(): string { return styles.minBtn!; }
   static get bodyClass(): string { return styles.body!; }
 
   constructor(opts: FloatingWindowOptions) {
@@ -66,6 +69,16 @@ export class FloatingWindow {
     bar.className = styles.titleBar!;
     bar.addEventListener('pointerdown', this.onDragStart);
 
+    // Built-in minimise/restore button — far-left of the title bar, before any
+    // caller `leading` control. Collapses the body to leave just the toolbar.
+    this.minBtn = document.createElement('button');
+    this.minBtn.type = 'button';
+    this.minBtn.className = styles.minBtn!;
+    // Stop the pointerdown so the title-bar drag never starts from the − button.
+    this.minBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.minBtn.addEventListener('click', () => this.toggleCollapsed());
+    this.syncMinBtn();
+
     const title = document.createElement('div');
     title.className = styles.title!;
     title.textContent = opts.title;
@@ -79,6 +92,7 @@ export class FloatingWindow {
     closeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
     closeBtn.addEventListener('click', () => this.close());
 
+    bar.appendChild(this.minBtn);
     if (opts.leading) {
       // Stop the pointerdown so the title-bar drag never starts from the control.
       opts.leading.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -96,9 +110,14 @@ export class FloatingWindow {
 
   get isOpen(): boolean { return this._isOpen; }
 
+  get isCollapsed(): boolean { return this._collapsed; }
+
   open(): void {
     if (this._isOpen) return;
     this._isOpen = true;
+    // Always reveal expanded — collapse state is ephemeral, so a re-open of an
+    // instance kept alive across closes is predictable (body visible).
+    this.setCollapsed(false);
     window.clearTimeout(this.closeTimer);
     if (!this.root.isConnected) document.body.appendChild(this.root);
     // Force reflow so the opacity transition runs from the .hidden state.
@@ -114,6 +133,23 @@ export class FloatingWindow {
     const el = this.root;
     this.closeTimer = window.setTimeout(() => el.remove(), 200);
     this.onCloseCb?.();
+  }
+
+  private toggleCollapsed(): void {
+    this.setCollapsed(!this._collapsed);
+  }
+
+  private setCollapsed(collapsed: boolean): void {
+    this._collapsed = collapsed;
+    this.root.classList.toggle('collapsed', collapsed);
+    this.syncMinBtn();
+  }
+
+  /** Reflect the current collapse state on the minimise button (glyph + a11y). */
+  private syncMinBtn(): void {
+    this.minBtn.textContent = this._collapsed ? '+' : '−';
+    this.minBtn.setAttribute('aria-expanded', String(!this._collapsed));
+    this.minBtn.setAttribute('aria-label', this._collapsed ? 'Restore' : 'Minimise');
   }
 
   private readonly onDragStart = (e: PointerEvent): void => {

@@ -15,6 +15,7 @@ source:
   - src/ui/components/xy-pad.ts          # the pad surface + assign dropdowns
   - src/ui/styles/xy-pad.module.css
   - src/ui/components/floating-window.ts # the host window
+  - src/ui/components/xy-pad-window.ts    # single shared window controller + launch button
   - src/ui/panels/song-panel.ts          # the "XY Pad" launch button
   - src/state/song.ts                    # SongFile v3 persistence of the assignment
 ```
@@ -35,7 +36,13 @@ same way `fx.djfilter` already does.
 
 - **REQ-1** — A button in the Song tab's **Live FX** row (`perf-xypad`) toggles a
   non-modal floating window containing the pad. The app stays interactive while it
-  is open.
+  is open. The window is owned by a single shared controller
+  (`createXyPadWindowController`, `src/ui/components/xy-pad-window.ts`), so the
+  **same** window can also be toggled from the LIVE FX window's XY Pad launcher
+  (`livefx-xypad`, see [live-fx-window](live-fx-window.md)) — only one
+  `xypad-window` ever exists, and every launcher button mirrors its open state.
+  The window also carries the built-in minimise button (see
+  [floating-window](floating-window.md) REQ-7).
 - **REQ-2** — **Assignable axes**: two dropdowns (X and Y), each seeded from
   `bus.ids()`, choose the param each axis drives. The assignment lives in a small
   pure store, `XyPadStore`; defaults are X = `filter.cutoff`, Y = `filter.resonance`.

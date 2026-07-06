@@ -3,13 +3,14 @@
 ```yaml
 id: performance
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - transport
   - song-mode
   - xy-pad
+  - live-fx-window
 source:
   - src/audio/transport/performance.ts
   - src/state/params.ts                 # fx.djfilter
@@ -70,9 +71,11 @@ engine: owns this.perf and the djFilter BiquadFilter, inserted preMaster -> djFi
         -> masterComp -> analyser; fx.djfilter -> perf.setDjFilter(x)
 machines: sequencer + drum machine call perf.mapStep() each tick; drum machine
           checks perf.fillActive
-ui: src/ui/panels/song-panel.ts momentary buttons:
-    perf-fill / perf-stutter / perf-drop / perf-tapestop, perf-stutter-size-<n>
-    + perf-xypad (opens the XY Pad floating window — its own feature, see xy-pad.md)
+ui: momentary buttons are built by the shared `buildLiveFxControls(engine, bus, opts)`
+    (src/ui/components/live-fx.ts) — used by both the Song panel (testids
+    perf-fill / perf-stutter / perf-drop / perf-tapestop, perf-stutter-size-<n>)
+    and the LIVE FX floating window (livefx-* testids; see live-fx-window.md).
+    perf-xypad opens the XY Pad floating window — its own feature, see xy-pad.md.
 ```
 
 ## Scenarios (BDD)

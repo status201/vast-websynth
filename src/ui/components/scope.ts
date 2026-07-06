@@ -271,6 +271,20 @@ export class Scope {
     this.frameInterval = fpsToInterval(fps);
   }
 
+  /**
+   * Change the analyser FFT size live (a perf-mode tier switch). `AnalyserNode.fftSize`
+   * is settable at runtime — no graph rebuild — but the reusable read buffers are sized
+   * to it, so reallocate each channel's `wave`/`freq` to match the new size.
+   */
+  setFftSize(fftSize: number): void {
+    for (const c of [this.mono, this.left, this.right]) {
+      if (!c) continue;
+      c.analyser.fftSize = fftSize;
+      c.wave = new Uint8Array(new ArrayBuffer(c.analyser.fftSize));
+      c.freq = new Uint8Array(new ArrayBuffer(c.analyser.frequencyBinCount));
+    }
+  }
+
   private start(): void {
     if (this.running) return;
     this.running = true;

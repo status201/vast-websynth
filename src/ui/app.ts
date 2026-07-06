@@ -20,7 +20,7 @@ import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
 import { createPerfSettingsButton } from './components/perf-settings';
-import { PERF_PROFILES, resolveTier } from '../state/perf-mode';
+import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
@@ -51,8 +51,15 @@ export function mountApp(
 
   // Late-bound hooks, filled once their panels are built; the tour calls them.
   let fxExpand: () => void = () => {};
-  // Scope fps is applied live when the perf tier changes; bound once buildBottom runs.
+  // Scope fps + analyser fftSize are applied live when the perf tier changes;
+  // bound once buildBottom runs.
   let setScopeFps: (fps: number) => void = () => {};
+  let setScopeFft: (fftSize: number) => void = () => {};
+  // Apply both live scope knobs for a tier (perf-mode: fps + fftSize are live).
+  const previewScopeTier = (tier: PerfTier): void => {
+    setScopeFps(PERF_PROFILES[tier].fps);
+    setScopeFft(PERF_PROFILES[tier].analyserFftSize);
+  };
   // Default loads a demo without UI sync; replaced by the Song panel's own
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   let songLoadDemo: (name: string) => void = (name) => {
@@ -72,7 +79,7 @@ export function mountApp(
   };
   const onboarding = createOnboarding(ctx);
 
-  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session, (fps) => setScopeFps(fps)));
+  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session, previewScopeTier));
   root.appendChild(buildMain(bus));
   const fx = buildFx(bus);
   fxExpand = fx.expand;
@@ -82,6 +89,7 @@ export function mountApp(
   root.appendChild(patternRow.el);
   const bottom = buildBottom(engine, bus, bridge);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
+  setScopeFft = (fftSize) => bottom.scope.setFftSize(fftSize);
   root.appendChild(bottom.el);
 
   return onboarding;
@@ -104,7 +112,7 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
-  previewFps: (fps: number) => void,
+  previewScopeTier: (tier: PerfTier) => void,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
@@ -180,7 +188,7 @@ function buildHeader(
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
   presetGroup.appendChild(
-    createPerfSettingsButton({ onTierPreview: (t) => previewFps(PERF_PROFILES[t].fps) }),
+    createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
   presetGroup.appendChild(createAboutButton(engine));
   presetGroup.appendChild(

@@ -121,6 +121,15 @@
   padding-top: 12px;
 }
 
+/* The LIVE FX floating window's body: the same wrapping DJ-control row as .djFx
+   but without the dashed section divider (the window title bar frames it). */
+.djFxWindow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .djBtn {
   min-height: 36px;
   padding: 8px 14px;
@@ -133,6 +142,13 @@
   color: #1a1410;
   border-color: var(--accent);
   box-shadow: 0 0 10px var(--accent-glow), inset 0 1px 0 rgba(255, 220, 180, 0.3);
+}
+
+/* "Opens a new window" glyph inside the LIVE FX launcher button. */
+.winGlyph {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .stutter { display: inline-flex; align-items: center; gap: 6px; }
