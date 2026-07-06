@@ -139,6 +139,19 @@ describe('PERF_PROFILES v3 FX-cost fields', () => {
   });
 });
 
+describe('PERF_PROFILES v4 analyser fftSize', () => {
+  it('weak halves the analyser fftSize; medium/strong keep 2048', () => {
+    expect(PERF_PROFILES.weak.analyserFftSize).toBe(1024);
+    expect(PERF_PROFILES.medium.analyserFftSize).toBe(2048);
+    expect(PERF_PROFILES.strong.analyserFftSize).toBe(2048);
+  });
+
+  it('keeps medium/strong sharing one audio profile and weak distinct', () => {
+    expect(sameAudioProfile('medium', 'strong')).toBe(true);
+    expect(sameAudioProfile('weak', 'medium')).toBe(false);
+  });
+});
+
 describe('perfDiagnostics', () => {
   beforeEach(() => installLocalStorageMock());
   afterEach(() => vi.unstubAllGlobals());

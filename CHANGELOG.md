@@ -52,6 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Lower steady-state CPU (less crackle on weak devices)** — two engine
+  optimisations, both sonically identical:
+  - the ladder filter now works out its cutoff coefficient **once per audio block**
+    while the cutoff is held still (the common case), instead of recomputing an
+    expensive calculation on every single sample — the biggest per-note saving,
+    and it applies to every voice;
+  - on the **Weak** performance tier the oscilloscope's analysers run at half the
+    resolution (FFT 1024 vs 2048), trimming always-on cost with no visible change
+    to the scope. Medium and Strong are unchanged.
+
 - **Double-tap reset returns to the loaded sound** — double-tapping a knob (or the
   drum panel's per-track Reset) now snaps it back to the value the current preset
   or song set for that control, instead of the factory default. Load *acid* and
@@ -60,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   makes the saved values the new reset target.
 
 ### Fixed
+
+- **Editing drums no longer slows the app down (crackle that got worse over time)**
+  — clicking drum steps and track labels rebuilt the per-track tuning knobs on
+  every click without cleaning up the old ones, so a long session gradually piled
+  up dead event handlers that starved the audio thread and caused crackle that
+  only worsened and never recovered. Knobs and faders now remove their drag
+  handlers when they're done, and the drum tuning strip only rebuilds when you
+  actually switch to a different track.
 
 - **Step Input inserted two steps per computer key** — with the Sequencer's Step
   Input armed, pressing a single key on the computer keyboard (e.g. `x` for D)

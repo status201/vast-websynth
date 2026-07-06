@@ -152,7 +152,12 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const tuningKnobs = document.createElement('div');
   tuningKnobs.className = styles.tuningKnobs!;
   let tuningCells: Knob[] = [];
+  let tuningTrack = -1;
   const renderTuning = (): void => {
+    // The knobs bind per-track paramIds, so the strip only needs rebuilding when
+    // the selected track changes — not on every step click (drum-machine.md REQ-10).
+    if (selTrack === tuningTrack) return;
+    tuningTrack = selTrack;
     for (const k of tuningCells) k.destroy();
     tuningCells = [];
     tuningKnobs.innerHTML = '';

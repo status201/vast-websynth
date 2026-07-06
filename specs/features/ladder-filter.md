@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
@@ -87,6 +87,24 @@ frequencies. The on-screen value is still shown in Hz for the user.
   never silence a note. The worklet **defaults to active** for the same
   reason. Any activation step is inaudible by construction: the downstream
   ampVCA is already closed whenever the flag flips (masking invariant).
+- **REQ-11** — **Block-constant coefficient hoist** (v5): the cutoff→Hz→pole
+  coefficient `g` costs a `Math.pow` + `Math.exp` per sample. When every
+  `cutoffNote` sample in a render quantum is equal, `g` is computed **once per
+  block** (and cached across blocks — recomputed only when the block's constant
+  cutoff value changes), reusing it for both the loop and channels; a block
+  whose samples differ still gets a **per-sample** (a-rate) coefficient. Output
+  is **bit-identical** to the per-sample path in both cases (same expression,
+  same order). This matters because the old `cutoffArr.length === 1` fast path
+  is *dead code*: the filter envelope (`voice.ts`) and the global LFO
+  (`engine.ts`) are permanently connected to the `cutoffNote` `AudioParam`, so
+  the host always delivers a full 128-length array — usually all-equal (a held
+  or unmodulated cutoff), the common case this hoist now covers. Detecting
+  constancy is a full scan with early exit (`~1` compare when modulated), run
+  **after** the REQ-10 idle early-out so a silent voice still does no work. This
+  is the "cheap" half of *musical, stable, cheap*
+  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) — the single
+  biggest per-sample saving for the common held-cutoff case, with no audible
+  change.
 
 ## Technical design
 
@@ -202,6 +220,21 @@ Scenario: Idle gating skips the DSP and restarts clean (perf)
   Then the output is all zeros and the internal state is zeroed
   When an active message arrives and blocks are processed again
   Then the filter behaves like a freshly constructed one (bounded, filtering)
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: A block-constant cutoff hoist is bit-identical to per-sample (REQ-11, perf)
+  Given the same input and cutoff value
+  When one processor receives a full 128-length all-equal cutoffNote array
+  And another receives a length-1 cutoffNote array
+  Then their outputs are equal sample-for-sample
+  And changing the constant cutoff across later blocks stays equal (cache invalidates)
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: A varying cutoff block stays per-sample accurate (REQ-11, edge)
+  Given a cutoffNote array that steps low→high partway through a block
+  When the block is processed
+  Then the coefficient tracks the value per sample (the hoist does not fire)
+  And the high-cutoff half passes energy the all-low run does not
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
 Scenario: A lost deactivate can only cost CPU, never a note (safety edge)

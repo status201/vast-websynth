@@ -64,6 +64,12 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       }
       this.active = on;
     };
+    // Block-constant cutoff cache (REQ-11): the pole coefficient `g` only
+    // depends on the cutoff value, so when a block is all-equal we compute it
+    // once and reuse it across blocks until the value changes. NaN forces the
+    // first compute.
+    this.lastCutoff = NaN;
+    this.lastG = 0;
   }
 
   process(inputs, outputs, params) {
@@ -81,8 +87,32 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     const drive = params.drive[0];
     const cutoffArr = params.cutoffNote;
     const resArr = params.resonance;
-    const cutoffStatic = cutoffArr.length === 1;
     const resStatic = resArr.length === 1;
+
+    // Block-constant cutoff hoist (REQ-11): env + LFO are always wired to
+    // cutoffNote, so the host hands us a full 128-length array — but it is
+    // all-equal whenever the cutoff is held/unmodulated (the common case). Then
+    // the pole coefficient `g` (a Math.pow + Math.exp) is computed once per
+    // block and cached across blocks, instead of per sample × channel. Full
+    // scan with early exit, so a genuinely modulated block pays ~1 compare and
+    // falls back to the per-sample path below.
+    const c0 = cutoffArr[0];
+    let cutoffConst = true;
+    for (let i = 1; i < cutoffArr.length; i++) {
+      if (cutoffArr[i] !== c0) { cutoffConst = false; break; }
+    }
+    let gBlock = 0;
+    if (cutoffConst) {
+      if (c0 !== this.lastCutoff) {
+        this.lastCutoff = c0;
+        // MIDI note → Hz (clamped < Nyquist) → one-pole coefficient. Identical
+        // expression to the per-sample path, so a constant block is bit-exact.
+        const freq = 440 * Math.pow(2, (c0 - 69) / 12);
+        const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+        this.lastG = 1 - Math.exp(-2 * Math.PI * fNorm);
+      }
+      gBlock = this.lastG;
+    }
 
     for (let ch = 0; ch < channels; ch++) {
       const inCh = input && input[ch] ? input[ch] : null;
@@ -94,14 +124,18 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       }
 
       for (let i = 0; i < outCh.length; i++) {
-        const cutoffNote = cutoffStatic ? cutoffArr[0] : cutoffArr[i];
         const res = resStatic ? resArr[0] : resArr[i];
 
-        // MIDI note → Hz, clamped just under Nyquist
-        const freq = 440 * Math.pow(2, (cutoffNote - 69) / 12);
-        const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
-        // One-pole coefficient (bilinear-style)
-        const g = 1 - Math.exp(-2 * Math.PI * fNorm);
+        // One-pole coefficient: hoisted (constant block) or per-sample. MIDI
+        // note → Hz, clamped just under Nyquist. Same math either way.
+        let g;
+        if (cutoffConst) {
+          g = gBlock;
+        } else {
+          const freq = 440 * Math.pow(2, (cutoffArr[i] - 69) / 12);
+          const fNorm = Math.min(Math.max(freq / sr, 0.0001), 0.49);
+          g = 1 - Math.exp(-2 * Math.PI * fNorm);
+        }
 
         const x = inCh ? inCh[i] : 0;
 

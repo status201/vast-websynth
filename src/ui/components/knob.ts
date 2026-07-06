@@ -81,10 +81,12 @@ export class Knob {
     this.valueLabel.className = styles.num!;
     this.el.appendChild(this.valueLabel);
 
+    // Drag listeners are attached to `window` on pointerdown and removed on
+    // pointerup/destroy (see specs/recipes/add-a-ui-component.md) — a
+    // constructor-attached window listener would leak on every rebuilt Knob
+    // (the drum tuning strip rebuilds on track change) and run on every page
+    // pointer move.
     dial.addEventListener('pointerdown', this.onPointerDown);
-    window.addEventListener('pointermove', this.onPointerMove);
-    window.addEventListener('pointerup', this.onPointerUp);
-    window.addEventListener('pointercancel', this.onPointerUp);
 
     this.unsubscribe = bus.subscribe(opts.paramId, (v) => this.render(v));
   }
@@ -139,6 +141,9 @@ export class Knob {
     this.startValue = this.opts.bus.get(this.opts.paramId);
     this.fine = e.shiftKey;
     this.el.classList.add('dragging');
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
   };
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -152,12 +157,20 @@ export class Knob {
   };
 
   private onPointerUp = (_: PointerEvent): void => {
+    this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;
     this.el.classList.remove('dragging');
   };
 
+  private detachDragListeners(): void {
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+  }
+
   destroy(): void {
     this.unsubscribe();
+    this.detachDragListeners();
   }
 }

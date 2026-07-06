@@ -32,10 +32,9 @@ export class Strip {
     label.textContent = opts.label;
     this.el.appendChild(label);
 
+    // Drag-scoped window listeners (see specs/recipes/add-a-ui-component.md):
+    // attached on pointerdown, removed on pointerup/destroy.
     this.el.addEventListener('pointerdown', this.onDown);
-    window.addEventListener('pointermove', this.onMove);
-    window.addEventListener('pointerup', this.onUp);
-    window.addEventListener('pointercancel', this.onUp);
 
     this.unsub = opts.bus.subscribe(opts.paramId, (v) => {
       this.lastValue = v;
@@ -63,6 +62,9 @@ export class Strip {
     this.dragging = true;
     this.height = this.el.clientHeight;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    window.addEventListener('pointermove', this.onMove);
+    window.addEventListener('pointerup', this.onUp);
+    window.addEventListener('pointercancel', this.onUp);
     this.updateFromPointer(e.clientY);
   };
 
@@ -72,6 +74,7 @@ export class Strip {
   };
 
   private onUp = (_: PointerEvent): void => {
+    this.detachDragListeners();
     if (!this.dragging) return;
     this.dragging = false;
     if (this.opts.springBack) {
@@ -79,6 +82,12 @@ export class Strip {
       if (def) this.opts.bus.set(this.opts.paramId, def.default);
     }
   };
+
+  private detachDragListeners(): void {
+    window.removeEventListener('pointermove', this.onMove);
+    window.removeEventListener('pointerup', this.onUp);
+    window.removeEventListener('pointercancel', this.onUp);
+  }
 
   private updateFromPointer(clientY: number): void {
     const rect = this.el.getBoundingClientRect();
@@ -94,5 +103,6 @@ export class Strip {
   destroy(): void {
     this.ro.disconnect();
     this.unsub();
+    this.detachDragListeners();
   }
 }

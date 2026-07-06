@@ -20,9 +20,9 @@ async function boot() {
   // latency/polyphony/FX cost for a glitch-resistant graph on weak hardware.
   // The audio fields are read once here because they are fixed when the
   // AudioContext/graph are built (scope fps is applied live; see perf-mode.ts).
-  const { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample } =
+  const { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample, analyserFftSize } =
     PERF_PROFILES[resolveTier()];
-  const engine = new Engine(bus, { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample });
+  const engine = new Engine(bus, { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample, analyserFftSize });
   await engine.init();
 
   // The selector reflects the active sound; a patch edit flips it to dirty.

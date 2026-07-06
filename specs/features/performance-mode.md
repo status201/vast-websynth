@@ -3,7 +3,7 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -48,6 +48,16 @@ IR length, WaveShaper oversampling, and the transport look-ahead horizon. All
 three are boot-time fields, and only **weak** deviates — medium and strong keep
 sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
 
+v4 adds one more weak-only boot-time field, `analyserFftSize`. The three
+scope analysers (mono + L/R, [scope](scope.md)) sit permanently in the pulled
+master path and each runs an FFT at `fftSize` (2048); their per-draw
+`getByte*Data` copies also scale with it. Weak halves it to **1024** — still
+enough time-domain samples for a full bass cycle and enough spectrum bins for
+the bar view — cutting the always-on analyser + copy cost. It stays in the
+**audio** profile (`sameAudioProfile`) because `fftSize` is fixed when the
+analysers are built, so a change applies on reload; medium and strong keep 2048
+and still share one audio profile.
+
 ## Requirements
 
 - **REQ-1** — A preference `auto | weak | medium | strong`, persisted under
@@ -55,10 +65,11 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
   and is never captured by presets/songs. Legacy values migrate on read: `on → weak`,
   `off → strong`, anything unrecognised → `auto`.
 - **REQ-2** — `PERF_PROFILES: Record<PerfTier, PerfProfile>` is the single source of
-  truth for every tier-dependent knob (v3 adds the last three fields):
-  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false }`,
-  `medium = { 'interactive', 8, 30, 0.1, 4, true }`,
-  `strong = { 'interactive', 8, 60, 0.1, 4, true }`.
+  truth for every tier-dependent knob (v3 added three FX-cost fields; v4 adds
+  `analyserFftSize`):
+  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:1024 }`,
+  `medium = { 'interactive', 8, 30, 0.1, 4, true, 2048 }`,
+  `strong = { 'interactive', 8, 60, 0.1, 4, true, 2048 }`.
   Strong and medium share the same **audio** profile; they differ only by scope fps.
 - **REQ-3** — `detectTier()` errs toward **medium** (the safe, normal-latency default).
   Weak only on a genuinely low signal: `hardwareConcurrency <= 2`, **or**
@@ -70,7 +81,7 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
 - **REQ-4** — `resolveTier(pref)` returns the effective tier: a concrete tier passes
   through; `auto` → `detectTier()`. `sameAudioProfile(a, b)` is true iff two tiers share
   **every boot-time field**: `latencyHint`, `voiceCount`, `scheduleAheadS`,
-  `reverbIrMaxS`, `fxOversample` (v3).
+  `reverbIrMaxS`, `fxOversample` (v3), `analyserFftSize` (v4).
 - **REQ-5** — The **audio** profile (buffer, voice count, and the v3 FX-cost fields)
   is tuned **at boot** only (chosen when the `AudioContext`/graph are built): boot
   reads `PERF_PROFILES[resolveTier()]` and passes all boot-time fields to the Engine.
@@ -92,6 +103,13 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
     `'2x'` when drive > 0 — oversampling an identity curve is pure waste.
   Presets/songs are untouched by construction: none of these are `ParamBus`
   params, and every param's range/default is unchanged.
+- **REQ-12** — (v4) `analyserFftSize` sets the `fftSize` of all three scope
+  analysers (mono `analyser` + `analyserL`/`analyserR`) when the Engine builds
+  them, threaded via `EngineOptions`. Weak = 1024, medium/strong = 2048
+  (the `EngineOptions` default when the field is absent, so nothing else
+  changes). All three keep the **same** value so the scope's per-channel buffers
+  stay uniform ([scope](scope.md) REQ-2). It is a boot-time field
+  (`sameAudioProfile`) — a live change would need the analysers rebuilt.
 - **REQ-6** — Scope **fps** is applied **live**: `Scope` takes `{ fps }` and exposes
   `setFps(fps)`. Changing tiers updates the scope frame rate immediately (no reload).
   Throttling is timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw
@@ -127,7 +145,8 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
 PerfTier: 'weak' | 'medium' | 'strong'
 PerfPref: 'auto' | PerfTier
 PerfProfile: { latencyHint: AudioContextLatencyCategory; voiceCount: number; fps: number;
-               scheduleAheadS: number; reverbIrMaxS: number; fxOversample: boolean }  # v3
+               scheduleAheadS: number; reverbIrMaxS: number; fxOversample: boolean;  # v3
+               analyserFftSize: number }                                             # v4
 PERF_PROFILES: Record<PerfTier, PerfProfile>   # single source of truth
 readPerfPref(): PerfPref                        # validates + migrates legacy on/off
 writePerfPref(pref: PerfPref): void
@@ -138,10 +157,11 @@ PerfDiagnostics: { cores; memoryGb; mobile; pref; detected; tier; profile }
 perfDiagnostics(): PerfDiagnostics
 
 # src/audio/engine.ts
-EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample? }
+EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample?; analyserFftSize? }
 new Engine(bus, opts?: EngineOptions)
   # latencyHint→AudioContext, voiceCount→pool, scheduleAheadS→Clock,
-  # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3)
+  # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3),
+  # analyserFftSize→the 3 scope analysers (default 2048) (v4)
 
 # src/ui/components/scope.ts
 new Scope(analysers, opts?: { fps?: number })   # default 60
@@ -164,7 +184,8 @@ boot (main.ts):
   new Engine(bus, profile-fields)                # read once — all boot-time knobs fixed thereafter
 engine: opts.latencyHint -> new AudioContext({ latencyHint }); opts.voiceCount -> init() voice loop;
   opts.scheduleAheadS -> new Clock(ctx, { scheduleAheadS }); opts.reverbIrMaxS -> new Reverb(ctx, { maxIrS });
-  opts.fxOversample -> new Distortion(ctx, { oversample }) + DrumMachine's per-track shapers
+  opts.fxOversample -> new Distortion(ctx, { oversample }) + DrumMachine's per-track shapers;
+  opts.analyserFftSize -> analyser.fftSize on analyser / analyserL / analyserR (v4)
 ui (app.ts):
   buildHeader mounts createPerfSettingsButton({ onTierPreview: t -> setScopeFps(PERF_PROFILES[t].fps) })
   buildBottom builds Scope({ fps: PERF_PROFILES[resolveTier()].fps }) and returns it; mountApp
@@ -206,6 +227,12 @@ Scenario: Explicit tier overrides detection
 Scenario: Medium and strong share an audio profile
   Then sameAudioProfile('medium','strong') is true
   And sameAudioProfile('weak','medium') is false
+# pinned by: tests/state/perf-mode.test.ts
+
+Scenario: Weak halves the analyser fftSize (v4)
+  Then PERF_PROFILES.weak.analyserFftSize is 1024
+  And PERF_PROFILES.medium and .strong analyserFftSize are 2048
+  And sameAudioProfile('medium','strong') stays true (both 2048)
 # pinned by: tests/state/perf-mode.test.ts
 
 Scenario: Changing fps applies live; only audio boundaries need a reload
@@ -253,10 +280,11 @@ Scenario: Drum-track shapers only oversample when driven (all tiers, v3)
   (4-way control, tier colour, live-fps callback, reload hint only across audio
   boundaries) — `npm test`
 - Typecheck: `npm run typecheck`
-- Manual: force **Weak**, reload, check `window.__synth.engine.voices.length === 5` and
-  a larger `ctx.baseLatency`; switch **Medium↔Strong** and confirm the scope fps changes
-  with no reload prompt; open **About → Debug** and confirm the tier/cores/memory rows;
-  background the tab and confirm the scope stops redrawing.
+- Manual: force **Weak**, reload, check `window.__synth.engine.voices.length === 5`,
+  `window.__synth.engine.analyser.fftSize === 1024` (v4), and a larger `ctx.baseLatency`;
+  switch **Medium↔Strong** and confirm the scope fps changes with no reload prompt; open
+  **About → Debug** and confirm the tier/cores/memory rows; background the tab and confirm
+  the scope stops redrawing.
 
 ## Open questions / future
 

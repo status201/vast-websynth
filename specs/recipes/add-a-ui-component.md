@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-ui-component
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -12,6 +12,8 @@ source:
   - src/ui/components/switch.ts          # reference component
   - src/ui/styles/switch.module.css
   - tests/ui/switch.test.ts
+  - src/ui/components/knob.ts             # drag-scoped window listeners
+  - src/ui/components/strip.ts
 ```
 
 How to add a hand-built DOM component (no framework, no virtual DOM), following the
@@ -69,6 +71,19 @@ descendant selectors target children (`className: 'switch-label ' + styles.label
   specs (capitalised text collides case-insensitively under Playwright).
 - `bus.subscribe` fires immediately with the current value (so the control paints
   correctly on mount) and returns an unsubscribe — store it for `destroy()`.
+- **`destroy()` must undo everything wired outside the component's own subtree** —
+  bus subscriptions, `ResizeObserver`s, and window/document listeners. A listener
+  added to `window`/`document` in the constructor leaks for any component that is
+  ever rebuilt (e.g. the drum tuning strip rebuilds its `Knob`s on track change),
+  and it keeps the (now-detached) instance alive.
+- **Drag handlers on `window` must be drag-scoped.** Attach `pointermove`/
+  `pointerup`/`pointercancel` on `pointerdown`; remove them on `pointerup`/
+  `pointercancel` **and** in `destroy()` (removing a never-added listener is a
+  no-op, so this is safe even when `destroy()` runs mid-drag). This both prevents
+  the leak above and stops *every* live instance from running its move handler on
+  every page pointer move — only the one being dragged listens. `knob.ts` and
+  `strip.ts` are the reference implementations (`record-sound-modal.ts` and
+  `floating-window.ts` follow the same shape).
 
 ## Scenarios (BDD)
 

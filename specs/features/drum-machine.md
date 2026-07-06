@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -64,6 +64,16 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   `output` gain, built in the constructor and wired into the track channel once,
   survives. This bounds the live graph: a long song must not accumulate
   stopped-but-connected nodes (which crackle/distort the audio over time).
+- **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
+  track changes**, not on every step click (its knobs bind per-track paramIds that
+  depend on the track alone; their displayed values already track the bus via
+  subscription). Each rebuilt `Knob` is `destroy()`ed, and a destroyed Knob leaves
+  **no window pointer listeners** behind — its drag listeners are attached on
+  `pointerdown` and removed on `pointerup`/`destroy()` (the drag-scoped-listener
+  rule in [add-a-ui-component](../recipes/add-a-ui-component.md)). This bounds the
+  main-thread cost of drum editing: repeated step/track clicks must not accumulate
+  dead window listeners or detached DOM, which otherwise starve the audio callback
+  and crackle the audio *over time*.
 
 ## Technical design
 
@@ -166,6 +176,13 @@ Scenario: A hit disconnects its one-shot nodes once it ends (REQ-9, regression)
   Then every per-hit node it created is disconnected, including the choke gain when choked
   And the persistent per-synth output gain is never disconnected
 # pinned by: tests/audio/drums/drum-synths.test.ts
+
+Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-10, regression)
+  Given the drum tuning strip shows track T's knobs
+  When the user clicks steps within track T repeatedly
+  Then the tuning knobs are not rebuilt (a rebuild happens only when the selected track changes)
+  And a destroyed Knob has removed every window pointer listener it added
+# pinned by: tests/ui/knob.test.ts
 ```
 
 ## Tests & verification

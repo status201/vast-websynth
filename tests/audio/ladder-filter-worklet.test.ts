@@ -154,4 +154,45 @@ describe('ladder-filter worklet DSP', () => {
     expect(after).toEqual(fresh);
     expect(allFinite(after)).toBe(true);
   });
+
+  // REQ-11: env + LFO are always connected to cutoffNote, so the host hands a
+  // full 128-length array. When it is all-equal, the coefficient is hoisted
+  // once per block (cached across blocks) — must be bit-identical to feeding a
+  // length-1 array, and the cache must invalidate when the value changes.
+  const mkParams = (cutoff: Float32Array, res: number): Record<string, Float32Array> => ({
+    cutoffNote: cutoff,
+    resonance: new Float32Array([res]),
+    drive: new Float32Array([1]),
+  });
+
+  it('hoists a block-constant cutoff bit-identically to a length-1 array (REQ-11)', () => {
+    const gen = (n: number) => 0.3 * Math.sin((2 * Math.PI * 300 * n) / SR);
+    const procFull = new Processor();
+    const procOne = new Processor();
+
+    const full = run(procFull, mkParams(new Float32Array(BLOCK).fill(90), 1), gen, 10);
+    const one = run(procOne, mkParams(new Float32Array([90]), 1), gen, 10);
+    expect(full).toEqual(one);
+
+    // Change the constant cutoff → the per-block cache must recompute; the two
+    // array shapes must still agree sample-for-sample on the following blocks.
+    const full60 = run(procFull, mkParams(new Float32Array(BLOCK).fill(60), 1), gen, 10);
+    const one60 = run(procOne, mkParams(new Float32Array([60]), 1), gen, 10);
+    expect(full60).toEqual(one60);
+  });
+
+  it('keeps a varying cutoff block per-sample accurate — the hoist does not fire (REQ-11)', () => {
+    const tone = (n: number) => 0.5 * Math.sin((2 * Math.PI * 6000 * n) / SR);
+    // Low cutoff for the first half of each block, high for the second half.
+    const varying = new Float32Array(BLOCK);
+    for (let i = 0; i < BLOCK; i++) varying[i] = i < BLOCK / 2 ? 36 : 120;
+
+    const out = run(new Processor(), mkParams(varying, 0), tone, 8);
+    const low = run(new Processor(), mkParams(new Float32Array([36]), 0), tone, 8);
+
+    // Opening to note 120 for half of every block passes 6 kHz energy the
+    // all-note-36 (heavily low-passed) run cannot. If the hoist wrongly fired it
+    // would use cutoffArr[0]=36 for the whole block and the peaks would match.
+    expect(peak(out)).toBeGreaterThan(peak(low) * 3);
+  });
 });

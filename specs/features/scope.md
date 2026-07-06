@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 3   # v3: spectrum gradient cached per region (no per-frame allocation)
+version: 4   # v4: analyser fftSize is perf-tier-dependent (1024 on weak)
 owner: status201
 related:
   - architecture
@@ -51,9 +51,13 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   `analyser` (post-`masterComp`, pre-`master`), so all three stay independent of the
   volume knob. The audio path to `master`/destination is unchanged (lossless
   split→merge), so every analyser sits in the live render path and is pulled.
-- **REQ-2** — `analyserL`/`analyserR` use the **same** `fftSize` (2048) and
-  `smoothingTimeConstant` (0.2) as `analyser`, so per-channel buffers are uniform
-  and the three views are visually comparable.
+- **REQ-2** — All three analysers use the **same** `fftSize` and
+  `smoothingTimeConstant` (0.2), so per-channel buffers are uniform and the three
+  views are visually comparable. `fftSize` is **perf-tier-dependent** (v4): 2048
+  by default, **1024 on weak** (`EngineOptions.analyserFftSize`, from
+  `PERF_PROFILES`; see [performance-mode](performance-mode.md) REQ-12). The Scope
+  sizes its buffers from `analyser.fftSize`/`frequencyBinCount` at runtime, so it
+  adapts with no Scope-side change.
 - **REQ-3** — `StudioApi` exposes `analyserL`/`analyserR` alongside `analyser`
   (the UI's narrow view of the engine, ADR-009).
 - **REQ-4** — `Scope` gains a channel mode `'mono' | 'stereo'` (default `'mono'`,

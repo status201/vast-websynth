@@ -45,6 +45,8 @@ export interface EngineOptions {
   reverbIrMaxS?: number;
   /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
   fxOversample?: boolean;
+  /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 2048). */
+  analyserFftSize?: number;
 }
 
 export class Engine {
@@ -145,8 +147,12 @@ export class Engine {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
 
+    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): weak halves it
+    // to cut the always-pulled analyser FFT + per-draw copy cost. All three share
+    // one value so the scope's per-channel buffers stay uniform (scope.md REQ-2).
+    const fft = opts.analyserFftSize ?? 2048;
     this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 2048;
+    this.analyser.fftSize = fft;
     this.analyser.smoothingTimeConstant = 0.2;
 
     // Per-channel analysers for the scope's stereo view. Same fftSize/smoothing
@@ -154,7 +160,7 @@ export class Engine {
     this.analyserL = this.ctx.createAnalyser();
     this.analyserR = this.ctx.createAnalyser();
     for (const a of [this.analyserL, this.analyserR]) {
-      a.fftSize = 2048;
+      a.fftSize = fft;
       a.smoothingTimeConstant = 0.2;
     }
 
