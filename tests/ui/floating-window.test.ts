@@ -98,6 +98,24 @@ describe('FloatingWindow', () => {
     expect(w.isOpen).toBe(false);
   });
 
+  it('renders a leading control as the title bar first child and never drags from it', () => {
+    const gear = document.createElement('button');
+    gear.textContent = '⚙';
+    const w = mk({ title: 'X', leading: gear, initial: { left: 100, top: 100 } });
+    w.open();
+    const bar = inDoc()!.querySelector(`.${FloatingWindow.titleBarClass}`)! as HTMLElement;
+
+    // Inserted before the title, as the first child of the title bar.
+    expect(bar.firstElementChild).toBe(gear);
+
+    // A pointer-drag starting on the leading control must NOT move the window.
+    gear.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 100, bubbles: true }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 160, clientY: 140 }));
+    const root = inDoc()!;
+    expect(root.style.left).toBe('100px');
+    expect(root.style.top).toBe('100px');
+  });
+
   it('dragging the title bar moves the window', () => {
     const w = mk({ title: 'X', initial: { left: 100, top: 100 } });
     w.open();

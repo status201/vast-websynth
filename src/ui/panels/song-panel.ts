@@ -58,12 +58,15 @@ function buildXyPadLauncher(bus: ParamBus, xy: XyPadStore): HTMLButtonElement {
   b.addEventListener('click', () => {
     if (win?.isOpen) { win.close(); return; }
     if (!win) {
+      // Build the pad first so its gear can seed the window's title-bar slot.
+      const pad = createXyPad(bus, xy);
       win = new FloatingWindow({
         title: 'XY Pad',
         testId: 'xypad-window',
+        leading: pad.gear,
         onClose: () => b.classList.remove('on'),
       });
-      win.body.appendChild(createXyPad(bus, xy).el);
+      win.body.appendChild(pad.el);
     }
     win.open();
     b.classList.add('on');

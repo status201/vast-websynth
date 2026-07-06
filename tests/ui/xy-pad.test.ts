@@ -54,6 +54,32 @@ describe('createXyPad', () => {
     expect(pad.el.querySelector('[data-testid="xypad-assign-y"]')).not.toBeNull();
   });
 
+  it('starts with the assign dropdowns collapsed and the gear toggles them', () => {
+    const bus = mkBus();
+    const pad = createXyPad(bus, new XyPadStore());
+    pads.push(pad);
+    document.body.appendChild(pad.el);
+    document.body.appendChild(pad.gear); // the caller mounts the gear in the title bar
+
+    // The .assign row wraps each dropdown in a <label>: dd.el -> label -> .assign.
+    const assign = (pad.el.querySelector('[data-testid="xypad-assign-x"]') as HTMLElement)
+      .parentElement!.parentElement!;
+
+    // Starts collapsed.
+    expect(assign.classList.contains('collapsed')).toBe(true);
+    expect(pad.gear.getAttribute('aria-expanded')).toBe('false');
+
+    // Click reveals.
+    pad.gear.click();
+    expect(assign.classList.contains('collapsed')).toBe(false);
+    expect(pad.gear.getAttribute('aria-expanded')).toBe('true');
+
+    // Click again hides.
+    pad.gear.click();
+    expect(assign.classList.contains('collapsed')).toBe(true);
+    expect(pad.gear.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('labels each axis with the assigned param short name and updates on reassign', () => {
     const bus = mkBus();
     const xy = new XyPadStore();

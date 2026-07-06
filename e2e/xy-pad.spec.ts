@@ -43,6 +43,26 @@ test.describe('XY Pad', () => {
     await expect(page.getByTestId('xypad-axis-x')).toHaveText('rate');
   });
 
+  test('the title-bar gear toggles the assign dropdowns (collapsed by default)', async ({ page }) => {
+    await page.getByTestId('perf-xypad').click();
+    const gear = page.getByTestId('xypad-gear');
+    await expect(gear).toBeVisible();
+
+    // Collapsed on open: the X dropdown is hidden, the gear is not expanded.
+    await expect(page.getByTestId('xypad-assign-x')).toBeHidden();
+    await expect(gear).toHaveAttribute('aria-expanded', 'false');
+
+    // Click reveals the dropdowns and rotates the gear.
+    await gear.click();
+    await expect(page.getByTestId('xypad-assign-x')).toBeVisible();
+    await expect(gear).toHaveAttribute('aria-expanded', 'true');
+
+    // Click again hides them.
+    await gear.click();
+    await expect(page.getByTestId('xypad-assign-x')).toBeHidden();
+    await expect(gear).toHaveAttribute('aria-expanded', 'false');
+  });
+
   test('dragging the pad sweeps a param, which springs back on release', async ({ page }) => {
     await page.getByTestId('perf-xypad').click();
     const surface = page.getByTestId('xypad-surface');

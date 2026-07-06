@@ -70,6 +70,26 @@ function buildToolLauncher(bus: ParamBus, store: ToolStore): HTMLButtonElement {
 }
 ```
 
+**Optional — a title-bar control (`leading`).** To put a caller-owned button in
+the **top-left of the title bar** (e.g. a settings/gear toggle), have the tool
+component expose that element and pass it as `leading`. Build the content
+**before** the window so the element exists:
+
+```ts
+const tool = createTool(bus, store);          // exposes { el, gear, destroy }
+win = new FloatingWindow({
+  title: 'Tool', testId: 'tool-window',
+  leading: tool.gear,                         // inserted before the title
+  onClose: () => b.classList.remove('on'),
+});
+win.body.appendChild(tool.el);
+```
+
+`FloatingWindow` stops the leading control's `pointerdown` so clicking it never
+starts a window drag (same guard as the ✕ button). The worked instance is the XY
+Pad's gear, which collapses its axis dropdowns — see
+[`xy-pad`](../features/xy-pad.md).
+
 ### 3. Verify
 
 ```bash
@@ -91,6 +111,9 @@ npm run e2e         # e2e/xy-pad.spec.ts drives the toggle end-to-end
 - The title-bar drag is **viewport-clamped**; the ✕ button stops propagation so
   clicking it never starts a drag. Both are handled by the component — you don't
   wire them.
+- A **`leading`** control (optional) renders as the title bar's first child, left
+  of the title; its `pointerdown` is stopped for you. Build your content before
+  the window so the element exists to pass in.
 
 ## Scenarios (BDD)
 

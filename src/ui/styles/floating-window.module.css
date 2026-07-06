@@ -25,7 +25,7 @@
 .titleBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   padding: 6px 6px 6px 12px;
   cursor: move;
@@ -46,6 +46,7 @@
 
 .closeBtn {
   flex: none;
+  margin-left: auto;
   width: 22px;
   height: 22px;
   display: inline-flex;

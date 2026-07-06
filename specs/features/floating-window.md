@@ -43,6 +43,12 @@ matrix) reuse it.
 - **REQ-5** — Fades like `Modal`: `close()` adds the global `.hidden` class and
   removes the node after the 200 ms transition; a re-`open()` before removal cancels
   the pending removal and reveals it again.
+- **REQ-6** — Optional **leading title-bar slot**: `opts.leading` (an
+  `HTMLElement`) is inserted as the **first child** of the title bar, left of the
+  title, for a caller-owned control (e.g. the XY Pad's gear toggle). Its
+  `pointerdown` is stopped so dragging never starts from it (same guard as the
+  close button). Layout keeps the leading control + title on the left and the
+  close button on the right regardless of child count.
 
 ## Technical design
 
@@ -63,17 +69,21 @@ FloatingWindowOptions:
   testId?: string                     # data-testid on the root (default none)
   initial?: { left: number; top: number }   # start position (px); defaults centred-ish near the top
   windowClass?: string                # extra class on the root (width/layout variant)
+  leading?: HTMLElement               # caller control inserted as the title bar's first child (pointerdown stopped)
   onClose?: () => void                # caller cleanup, once per close
 ```
 
 ### Layer touchpoints & ordering
 
 ```yaml
-DOM: root (.root, position:fixed, z-index 950) > [ .titleBar (.title + .closeBtn), .body ]
+DOM: root (.root, position:fixed, z-index 950) > [ .titleBar ([leading?] + .title + .closeBtn), .body ]
 drag: pointerdown on .titleBar -> record start pointer + window pos; window-level
       pointermove updates clamped left/top; pointerup/leave ends. setPointerCapture
       on the title bar retargets moves to it (optional-chained for jsdom).
 close button: click stops propagation so it never starts a drag; calls close().
+leading slot: opts.leading is inserted before .title; its pointerdown is stopped so
+      a drag never starts from it. .titleBar is justify-content:flex-start with
+      .closeBtn margin-left:auto so title stays left, close stays right.
 no backdrop: the root is appended straight to document.body — there is no overlay.
 ```
 
@@ -126,6 +136,13 @@ Scenario: close() is idempotent
   Given an open FloatingWindow with onClose
   When close() is called twice
   Then onClose fires exactly once
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: A leading control renders in the title bar and never starts a drag
+  Given a FloatingWindow created with a leading button
+  Then the button is the first child of the title bar
+  When the user pointer-drags starting on the leading button
+  Then the window does not move (the drag never starts)
 # pinned by: tests/ui/floating-window.test.ts
 ```
 

@@ -33,7 +33,8 @@
 }
 
 .caret {
-  font-size: 8px;
+  font-size: 13px;
+  line-height: 1;
   color: var(--text-dim);
   transition: transform 120ms ease;
 }

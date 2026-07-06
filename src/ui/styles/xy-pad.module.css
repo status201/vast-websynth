@@ -13,6 +13,40 @@
   gap: 6px;
 }
 
+/* Collapsed behind the title-bar gear (global .collapsed state class). */
+.assign:global(.collapsed) {
+  display: none;
+}
+
+/* Gear toggle — lives in the FloatingWindow title bar; mirrors .closeBtn there,
+   and rotates when the assign row is open (driven by its own aria-expanded). */
+.gearBtn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transform: rotate(0deg);
+  transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
+}
+.gearBtn:hover {
+  color: var(--text);
+  background: rgba(232, 116, 46, 0.18);
+}
+.gearBtn[aria-expanded='true'] {
+  color: var(--accent-secondary);
+  transform: rotate(90deg);
+}
+
 .field {
   display: flex;
   align-items: center;

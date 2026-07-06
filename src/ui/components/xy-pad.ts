@@ -21,7 +21,10 @@ const SPRING_MS = 180;
 
 type GestureState = 'idle' | 'drag' | 'wheel';
 
-export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; destroy(): void } {
+export function createXyPad(
+  bus: ParamBus,
+  xy: XyPadStore,
+): { el: HTMLElement; gear: HTMLElement; destroy(): void } {
   const ids = bus.ids().slice().sort();
   const initial = xy.get();
   let ax = initial.x;
@@ -30,7 +33,7 @@ export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; d
   const el = document.createElement('div');
   el.className = styles.root!;
 
-  // --- Assign dropdowns ---
+  // --- Assign dropdowns (collapsed behind the title-bar gear to save space) ---
   const assignRow = document.createElement('div');
   assignRow.className = styles.assign!;
 
@@ -42,6 +45,28 @@ export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; d
   assignRow.appendChild(labeled('X', ddX.el));
   assignRow.appendChild(labeled('Y', ddY.el));
   el.appendChild(assignRow);
+
+  // --- Gear: toggles the assign row. Lives in the FloatingWindow title bar
+  // (the caller places it via the window's `leading` slot). Starts collapsed so
+  // the pad is compact; the on-surface axis labels keep the assignment visible.
+  const gear = document.createElement('button');
+  gear.type = 'button';
+  gear.className = styles.gearBtn!;
+  gear.textContent = '⚙'; // ⚙
+  gear.dataset.testid = 'xypad-gear';
+  gear.setAttribute('aria-label', 'Axis assignment');
+  // Stop the pointerdown so a click on the gear never starts a window drag.
+  gear.addEventListener('pointerdown', (e) => e.stopPropagation());
+  let assignOpen = false;
+  function renderAssign(): void {
+    assignRow.classList.toggle('collapsed', !assignOpen);
+    gear.setAttribute('aria-expanded', String(assignOpen));
+  }
+  gear.addEventListener('click', () => {
+    assignOpen = !assignOpen;
+    renderAssign();
+  });
+  renderAssign();
 
   // --- Surface + dot ---
   const surface = document.createElement('div');
@@ -261,7 +286,7 @@ export function createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; d
     ddY.destroy();
   }
 
-  return { el, destroy };
+  return { el, gear, destroy };
 }
 
 function labeled(text: string, control: HTMLElement): HTMLElement {

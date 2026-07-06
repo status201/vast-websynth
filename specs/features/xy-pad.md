@@ -3,7 +3,7 @@
 ```yaml
 id: xy-pad
 status: draft
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -68,6 +68,17 @@ same way `fx.djfilter` already does.
   at 25% and 75% on both axes, so each existing quadrant is itself divided into
   quarters (a 4×4 reference grid). Labels and grid are non-interactive
   (`pointer-events: none`) and never intercept a drag/wheel gesture.
+- **REQ-8** — **Collapsible assign row behind a gear** (saves window real estate):
+  a **gear** glyph button (`⚙`, `xypad-gear`) sits in the **top-left of the
+  floating window** (the title bar, via the window's `leading` slot). It toggles
+  the visibility of the X/Y assign dropdown row (`.assign`, hidden with the global
+  `collapsed` class). The row **starts collapsed** — the on-surface axis labels
+  (REQ-7) keep the assignment visible, so the dropdowns are only needed when
+  reassigning. The gear **rotates** (90°, CSS transition driven by its
+  `aria-expanded`) when toggled, and its `pointerdown` is stopped so clicking it
+  never starts a window drag. The collapse state is in-memory only (not persisted,
+  not in songs) but survives close/reopen because the pad instance is kept alive
+  across closes.
 
 ## Technical design
 
@@ -81,9 +92,10 @@ XyPadStore:   # src/state/xy-pad.ts (pure — no DOM, no bus, no localStorage)
 XyAssign: { x: string; y: string }     # ParamBus ids
 XY_DEFAULT_ASSIGN: { x: 'filter.cutoff', y: 'filter.resonance' }
 
-createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; destroy(): void }
-  # builds the window content; destroy() aborts any gesture (snap to pre),
-  # unsubscribes the bus + store, and destroys the dropdowns.
+createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; gear: HTMLElement; destroy(): void }
+  # builds the window content; `gear` is the assign-row toggle button the caller
+  # places in the window's title bar (`leading` slot). destroy() aborts any
+  # gesture (snap to pre), unsubscribes the bus + store, and destroys the dropdowns.
 ```
 
 ### Gesture state machine
@@ -154,8 +166,8 @@ the window may be closed during a save/load, so the store stands alone.
 ```
 FloatingWindow "XY Pad"
  ┌───────────────────────────┐
- │ X: [filter.cutoff  ▾]     │   two assign dropdowns (bus.ids())
- │ Y: [filter.resonance ▾]   │
+ │ ⚙  XY PAD               ✕ │   gear (xypad-gear) in the title bar toggles ↓
+ │ ┄┄┄ (collapsed by default) │   X/Y dropdowns hidden until the gear is clicked
  │ ┌───────────────────────┐ │   surface (~220px square); dot = toNorm(value)
  │ │r ┆   ┆ • ┆   ┆        │ │   drag / two-finger scroll -> bus.set(fromNorm)
  │ │e ┄┄┄┄┄┼┄┄┄┼┄┄┄┄┄┄┄┄┄┄ │ │   faint dotted 4x4 grid (25/50/75% both axes)
@@ -164,11 +176,15 @@ FloatingWindow "XY Pad"
  │ └───────────────────────┘ │
  │ two-finger scroll to nudge│   hint (xypad-hint)
  └───────────────────────────┘
+
+ gear expanded (⚙ rotated 90°) reveals the assign row above the surface:
+ │ X: [filter.cutoff  ▾]     │   two assign dropdowns (bus.ids())
+ │ Y: [filter.resonance ▾]   │
 ```
 
-Testids: `xypad-window` (the FloatingWindow root), `xypad-assign-x`,
-`xypad-assign-y`, `xypad-surface`, `xypad-dot`, `xypad-axis-x`, `xypad-axis-y`,
-`xypad-hint`, launch `perf-xypad`.
+Testids: `xypad-window` (the FloatingWindow root), `xypad-gear` (title-bar assign
+toggle), `xypad-assign-x`, `xypad-assign-y`, `xypad-surface`, `xypad-dot`,
+`xypad-axis-x`, `xypad-axis-y`, `xypad-hint`, launch `perf-xypad`.
 
 ## Scenarios (BDD)
 
@@ -223,6 +239,15 @@ Scenario: A v2 file loads with the default XY axes (backward compat)
   When apply() runs with the XyPadStore
   Then the store holds { x: filter.cutoff, y: filter.resonance }
 # pinned by: tests/state/song.test.ts
+
+Scenario: The gear toggles the axis dropdowns and rotates
+  Given the pad is open
+  Then the X/Y assign dropdown row starts collapsed and the gear reads aria-expanded="false"
+  When the user clicks the gear (xypad-gear)
+  Then the assign dropdowns become visible and the gear reads aria-expanded="true" (rotated)
+  When the user clicks the gear again
+  Then the dropdowns hide again and the gear reads aria-expanded="false"
+# pinned by: tests/ui/xy-pad.test.ts
 
 Scenario: The surface labels each axis with the assigned param's short name
   Given the pad is open with the default assignment

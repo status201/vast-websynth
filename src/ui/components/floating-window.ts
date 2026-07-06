@@ -16,6 +16,9 @@ export interface FloatingWindowOptions {
   initial?: { left: number; top: number };
   /** Extra class on the root (a width/layout variant). */
   windowClass?: string;
+  /** Caller-owned control inserted as the title bar's first child (left of the
+   *  title). Its pointerdown is stopped so a window drag never starts from it. */
+  leading?: HTMLElement;
   /** Called once per close transition (caller cleanup). */
   onClose?: () => void;
 }
@@ -76,6 +79,11 @@ export class FloatingWindow {
     closeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
     closeBtn.addEventListener('click', () => this.close());
 
+    if (opts.leading) {
+      // Stop the pointerdown so the title-bar drag never starts from the control.
+      opts.leading.addEventListener('pointerdown', (e) => e.stopPropagation());
+      bar.appendChild(opts.leading);
+    }
     bar.appendChild(title);
     bar.appendChild(closeBtn);
 
