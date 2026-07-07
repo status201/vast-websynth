@@ -1,0 +1,58 @@
+/* Confirm / prompt / alert dialog layout, layered inside a shared Modal card
+   (src/ui/components/dialog.ts). Only the message paragraph, the prompt input,
+   the actions row, and the destructive-button variant live here — the backdrop
+   / card / fade / Escape come from modal.module.css via the Modal component. */
+
+.message {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+  /* Honour the \n line breaks the import-error alert builds. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  background: #0a0805;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 9px 11px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-secondary);
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+/* Destructive affirmative button (Clear / New) — composed with switch `.root`,
+   so it keeps the base button styling and only recolours the edge/label red. */
+.danger {
+  border-color: rgba(255, 58, 32, 0.55);
+  color: #ff6a52;
+}
+
+.danger:hover {
+  color: #ff8a76;
+  border-color: rgba(255, 58, 32, 0.85);
+}

@@ -20,8 +20,10 @@ test.describe('presets', () => {
 
   test('saving a preset persists to localStorage and the dropdown', async ({ page }) => {
     await gotoAndStart(page);
-    page.once('dialog', (d) => d.accept('e2e-preset')); // prompt('Preset name:')
+    // Save names the preset via the custom prompt dialog (no native prompt).
     await page.getByTestId('preset-save').click();
+    await page.getByTestId('dialog-input').fill('e2e-preset');
+    await page.getByTestId('dialog-confirm').click();
 
     const stored = await page.evaluate(() => localStorage.getItem('websynth.preset.e2e-preset'));
     expect(stored).not.toBeNull();

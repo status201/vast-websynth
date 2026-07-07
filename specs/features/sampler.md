@@ -12,6 +12,7 @@ related:
   - banks
   - sample-recorder
   - song-mode
+  - dialog
 source:
   - src/audio/transport/sampler-machine.ts
   - src/state/patterns.ts
@@ -76,6 +77,7 @@ engine (subscribeParams):
 graph: slotGain -> samplerBus (+ sampler dist/phaser/delay/reverb) -> preMaster
 ui: src/ui/panels/sampler-panel.ts
   sampler-step-<slot>-<s> grid; sampler-load/name/edit/file-<slot>; per-slot mute
+  Load decode failure reports via the custom alertDialog (see dialog.md), not alert()
 ```
 
 ## Scenarios (BDD)

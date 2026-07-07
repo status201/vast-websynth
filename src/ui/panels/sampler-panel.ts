@@ -7,6 +7,7 @@ import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
 import { openRecordSoundModal } from '../components/record-sound-modal';
+import { alertDialog } from '../components/dialog';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH, type SamplerStep } from '../../state/patterns';
@@ -131,7 +132,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
         engine.sampler.setBuffer(slot, buf);
         engine.patterns.setSampleName(slot, f.name);
       } catch {
-        alert('Unsupported or corrupt audio file.');
+        await alertDialog({ title: 'Load failed', message: 'Unsupported or corrupt audio file.' });
       }
       fileInput.value = '';
     });

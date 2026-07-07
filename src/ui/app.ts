@@ -16,6 +16,7 @@ import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
+import { promptDialog } from './components/dialog';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
@@ -170,8 +171,13 @@ function buildHeader(
   const saveBtn = createButton({
     label: 'Save',
     testId: 'preset-save',
-    onClick: () => {
-      const name = prompt('Preset name:', session.label);
+    onClick: async () => {
+      const name = await promptDialog({
+        title: 'Save preset',
+        message: 'Preset name:',
+        defaultValue: session.label,
+        confirmLabel: 'Save',
+      });
       if (!name) return;
       const snap = Presets.capture(bus);
       Presets.save(name, snap);

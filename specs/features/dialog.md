@@ -1,0 +1,198 @@
+# Dialog (confirm / prompt / alert)
+
+```yaml
+id: dialog
+status: draft
+version: 1
+owner: core
+related:
+  - architecture
+  - ../recipes/add-a-modal-dialog.md
+source:
+  - src/ui/components/dialog.ts
+  - src/ui/styles/dialog.module.css
+```
+
+## Background / Why
+
+The app used the browser's native `prompt()` / `confirm()` / `alert()` for
+naming a preset/song, confirming a destructive wipe, and reporting an import
+error. Native dialogs are unstyled, inconsistent with the instrument's look, and
+un-testable through the component surface. Worse, several destructive actions had
+**no** guard at all — the Song tab's per-lane **Clear** button reset an
+arrangement chain on a single mis-click. This facility replaces every native
+dialog with one styled, promise-returning helper set, and gives destructive
+actions a "You sure?" step. It is a thin layer over the existing
+[`Modal`](../recipes/add-a-modal-dialog.md) (`src/ui/components/modal.ts`) — it
+reuses that lifecycle (backdrop, centred card, fade, Escape-to-close,
+backdrop-click-to-close) rather than reinventing it.
+
+## Requirements
+
+- **REQ-1** — Three `async` helpers replace the native dialogs, each **composing
+  `Modal`** (no re-implementation of backdrop / fade / Escape / backdrop-click):
+  `confirmDialog → Promise<boolean>`, `promptDialog → Promise<string | null>`,
+  `alertDialog → Promise<void>`. Each builds a fresh single-use `Modal`, appends
+  a message paragraph (reusing `Modal.metaClass`), an optional single-line input
+  (prompt only), and an actions row of `createButton`s
+  (`src/ui/components/button.ts`), then `open()`s it.
+- **REQ-2** — The returned promise **settles exactly once**. The affirmative
+  action resolves the *confirm* value; **any** dismissal — the Cancel button,
+  Escape, or a backdrop click — resolves the *cancel* value. A `settled` latch
+  makes double-close (e.g. affirmative → `modal.close()` → `onClose`) resolve a
+  single time, mirroring `Modal.onClose` firing once.
+- **REQ-3** — Cancel semantics mirror the natives they replace so callers are a
+  drop-in: `confirmDialog` cancel → `false`; `promptDialog` cancel → `null`;
+  `promptDialog` confirm → the input's current string (which **may be empty**, so
+  callers keep their existing `if (!name) return` empty-guard, exactly like
+  native `prompt`); `alertDialog` resolves `undefined` on OK/dismiss.
+- **REQ-4** — `confirmDialog`'s `danger?` option renders the affirmative button
+  in a destructive (red) style for wipes (the per-lane Clear, Song New). Default
+  is the neutral style.
+- **REQ-5** — Focus + keyboard: on open, `confirmDialog`/`alertDialog` autofocus
+  the affirmative button; `promptDialog` focuses the input and selects its text.
+  **Enter** confirms (prompt: an input keydown handler; confirm/alert: the
+  focused affirmative button activates on Enter). **Escape** cancels (owned by
+  `Modal`, which beats the global panic handler).
+- **REQ-6** — Stable `data-testid`s for E2E (a single dialog is open at a time):
+  the affirmative button is `dialog-confirm`, the dismiss button is
+  `dialog-cancel`, the prompt field is `dialog-input`.
+
+## Technical design
+
+### Contract / public interface
+
+```yaml
+dialog:   # src/ui/components/dialog.ts — three functions over Modal, not a class
+  confirmDialog(opts: ConfirmOptions): Promise<boolean>       # true=affirmative, false=cancel
+  promptDialog(opts: PromptOptions): Promise<string | null>   # value=affirmative, null=cancel
+  alertDialog(opts: AlertOptions): Promise<void>              # resolves on OK / dismiss
+
+ConfirmOptions:
+  title: string
+  message: string
+  confirmLabel?: string        # default 'OK'
+  cancelLabel?: string         # default 'Cancel'
+  danger?: boolean             # red affirmative button (default false)
+
+PromptOptions:
+  title: string
+  message?: string             # optional label line above the input
+  defaultValue?: string        # pre-filled + text-selected on open
+  placeholder?: string
+  confirmLabel?: string        # default 'OK'
+  cancelLabel?: string         # default 'Cancel'
+
+AlertOptions:
+  title: string
+  message: string
+  okLabel?: string             # default 'OK'
+```
+
+### Layer touchpoints & ordering
+
+```yaml
+DOM (inside Modal.body): [ <p .meta message>, (prompt only) <input .input dialog-input>,
+                           <div .actions> [ dialog-cancel?, dialog-confirm ] ]
+lifecycle: new Modal({ title, onClose: () => resolveOnce(cancelValue) }); modal.open()
+resolve:
+  affirmative btn -> resolveOnce(confirmValue); modal.close()
+  cancel btn      -> modal.close()   # its onClose resolves cancelValue
+  Escape / backdrop -> Modal.close() -> onClose -> resolveOnce(cancelValue)
+  settled latch   -> resolveOnce ignores all calls after the first
+focus/keys: after open(), affirmative btn.focus() (confirm/alert) or input.focus()+select()
+            (prompt); prompt input keydown Enter -> affirmative path
+alert:      single full-width affirmative button (reuse Modal.closeBtnClass); no cancel btn
+```
+
+Callers that adopt this facility (native → helper):
+
+```yaml
+src/ui/panels/song-panel.ts:
+  per-lane Clear  -> confirmDialog({ danger:true, confirmLabel:'Clear' })  # NEW guard;
+                     skipped when the chain is already just [0] (nothing to lose)
+  Song Save       -> promptDialog   (was prompt('Song name:'))
+  Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
+  Import errors   -> alertDialog    (was alert(...))
+src/ui/app.ts:            Preset Save  -> promptDialog   (was prompt('Preset name:'))
+src/ui/panels/sampler-panel.ts: decode error -> alertDialog (was alert('Unsupported…'))
+src/main.ts:              boot-failure alert() stays NATIVE (app graph never
+                          initialised — must not depend on healthy app DOM/CSS)
+```
+
+### Why this composes `Modal` (and is not a new modal)
+
+`Modal` already owns the *modal-ness* — backdrop that captures clicks, the fade,
+and the Escape handler that `stopImmediatePropagation`s to beat the panic
+handler. `dialog.ts` adds only the confirm/prompt/alert **layout + a resolved
+promise**. Contrast [`FloatingWindow`](floating-window.md), which is non-modal and
+deliberately leaves Escape alone.
+
+## Scenarios (BDD)
+
+```gherkin
+Scenario: Confirm resolves true on the affirmative button
+  Given a confirmDialog is open
+  When the user clicks the confirm button
+  Then the promise resolves true and the dialog closes
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Confirm resolves false on cancel, Escape, or backdrop click
+  Given a confirmDialog is open
+  When the user cancels (Cancel button, Escape, or backdrop click)
+  Then the promise resolves false and the dialog closes
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Prompt returns the entered text, or null on cancel
+  Given a promptDialog is open with a default value
+  When the user edits the field and clicks confirm
+  Then the promise resolves the field's current string
+  And cancelling instead resolves null
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Enter confirms a prompt
+  Given a promptDialog is open
+  When the user presses Enter in the input
+  Then the promise resolves the field's value
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: The promise settles exactly once
+  Given any dialog is open
+  When it is confirmed and then closed again
+  Then the promise resolves a single time
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: The Song tab Clear button asks before wiping a chain
+  Given a lane chain with several steps
+  When the user clicks Clear and confirms
+  Then the chain resets to a single step; cancelling leaves it unchanged
+# pinned by: e2e/song.spec.ts
+
+Scenario: Save (song/preset) names via the custom prompt, not a native dialog
+  Given the Song or Preset Save button
+  When the user clicks it, types a name in dialog-input, and clicks dialog-confirm
+  Then the song/preset is saved under that name
+# pinned by: e2e/song.spec.ts, e2e/presets.spec.ts, e2e/xy-pad.spec.ts
+
+Scenario: Song New confirms via the custom dialog before clearing
+  Given an edited song
+  When the user clicks New and clicks dialog-confirm
+  Then all banks and chains are cleared
+# pinned by: e2e/song.spec.ts
+```
+
+## Tests & verification
+
+- Unit: `tests/ui/dialog.test.ts` — `npm test` (mirrors `tests/ui/modal.test.ts`:
+  reset `document.body` per test, `vi.useFakeTimers()` for the 200 ms fade).
+- E2E: `e2e/song.spec.ts`, `e2e/presets.spec.ts`, `e2e/xy-pad.spec.ts` — the Save
+  flows fill `dialog-input` + click `dialog-confirm`; Song New clicks
+  `dialog-confirm` — `npm run e2e`.
+- Typecheck: `npm run typecheck`.
+
+## Open questions / future
+
+- Scope is intentionally tight (per the change that introduced this): guard the
+  Clear button + convert the existing native dialogs only. Other unguarded
+  destructive actions (Load / Import / Demo whole-session replace, the ✕
+  chain-step remove, same-name overwrite) could adopt `confirmDialog` later.

@@ -13,6 +13,7 @@ import { GrMeter } from '../components/gr-meter';
 import { createXyPadWindowController } from '../components/xy-pad-window';
 import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
+import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
 import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
@@ -130,8 +131,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
   saveBtn.dataset.testid = 'song-save';
-  saveBtn.addEventListener('click', () => {
-    const name = prompt('Song name:', dropdown.value || 'My Song');
+  saveBtn.addEventListener('click', async () => {
+    const name = await promptDialog({
+      title: 'Save song',
+      message: 'Song name:',
+      defaultValue: dropdown.value || 'My Song',
+      confirmLabel: 'Save',
+    });
     if (!name) return;
     const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
     Song.saveSlot(name, file);
@@ -154,7 +160,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (!res.ok) {
       const shown = res.errors.slice(0, 8);
       const more = res.errors.length - shown.length;
-      alert('Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''));
+      await alertDialog({
+        title: 'Import failed',
+        message: 'Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''),
+      });
       fileInput.value = '';
       return;
     }
@@ -162,7 +171,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     try {
       applySong(song);
     } catch (e) {
-      alert('Song imported but failed to apply: ' + (e as Error).message);
+      await alertDialog({
+        title: 'Import failed',
+        message: 'Song imported but failed to apply: ' + (e as Error).message,
+      });
       fileInput.value = '';
       return;
     }
@@ -184,8 +196,14 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
   newBtn.dataset.testid = 'song-new';
-  newBtn.addEventListener('click', () => {
-    if (!confirm('Clear all banks and chains?')) return;
+  newBtn.addEventListener('click', async () => {
+    const ok = await confirmDialog({
+      title: 'New song',
+      message: 'Clear all banks and chains? This starts a blank song.',
+      confirmLabel: 'Clear',
+      danger: true,
+    });
+    if (!ok) return;
     engine.patterns.restore({
       seqBanks: emptySeqBanks(),
       drumBanks: emptyDrumBanks(),
@@ -328,7 +346,22 @@ function buildChainLane(
   controls.appendChild(mk('✕', () => {
     if (sel >= 0) { const s = [...lane.steps]; s.splice(sel, 1); sel = -1; setChain(s, lane.enabled); }
   }));
-  controls.appendChild(mk('Clear', () => { sel = -1; setChain([0], lane.enabled); }));
+  const clearBtn = mk('Clear', async () => {
+    // Nothing to lose if the chain is already a single step — reset silently.
+    if (lane.steps.length > 1) {
+      const ok = await confirmDialog({
+        title: 'Clear chain',
+        message: `Clear the ${title} arrangement chain? It resets to a single bank.`,
+        confirmLabel: 'Clear',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    sel = -1;
+    setChain([0], lane.enabled);
+  });
+  clearBtn.dataset.testid = `chain-clear-${prefix}`;
+  controls.appendChild(clearBtn);
   root.appendChild(controls);
 
   // Split rendering: the chip DOM is rebuilt only when the step list actually

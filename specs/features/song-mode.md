@@ -11,6 +11,7 @@ related:
   - presets
   - param-reset-baseline
   - xy-pad
+  - dialog
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -172,7 +173,8 @@ lenient (additive — do NOT require):
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
   parse(text) / parseFile(File): SongValidation # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
-  song-panel Import: alerts the first N errors; applySong wrapped in try/catch
+  song-panel Import: shows the first N errors via alertDialog (see dialog.md);
+                     applySong wrapped in try/catch
 ```
 
 The published JSON Schema (`public/schema/websynth-song.schema.json`, draft
@@ -233,6 +235,10 @@ why: Arrangement's clock.onTick runs first, so seq/drum/samplerPlayBank are
 edit-vs-play bank: a DISABLED lane's play bank tracks that machine's EDIT bank
 lane mix: audibleLanes(mute, solo) — solo wins; shared by LaneMixer
           (cuts bus gain / StepSequencer.setMuted) and the panel's dim visual
+ui dialogs (song-panel): Save/New/Import + the per-lane Clear route through the
+          shared confirm/prompt/alert helpers (see dialog.md), NOT native
+          prompt/confirm/alert. The per-lane Clear (testid chain-clear-<lane>)
+          gains a "You sure?" confirm, skipped when the chain is already just [0].
 ```
 
 ## Visual aids
@@ -259,6 +265,20 @@ Scenario: Round-trip a song through a slot
   When the user saves it to a slot, starts a new song, then loads the slot
   Then params, all banks, and all three chains match the saved song
 # pinned by: tests/state/song.test.ts, e2e/song.spec.ts
+
+Scenario: Save/New use the custom dialog, not a native prompt/confirm
+  Given the Song tab
+  When the user clicks Save, types a name in dialog-input and clicks dialog-confirm
+  Then the song is saved under that name
+  And clicking New then dialog-confirm clears all banks and chains
+# pinned by: e2e/song.spec.ts
+
+Scenario: Clearing a lane chain asks for confirmation first
+  Given a lane chain with several steps
+  When the user clicks that lane's Clear button
+  Then a confirm dialog appears; confirming resets the chain to a single step and
+    cancelling leaves it unchanged
+# pinned by: e2e/song.spec.ts
 
 Scenario: Export is the canonical compact form (round + default-sparse)
   Given a song with high-precision params and default-valued step cells

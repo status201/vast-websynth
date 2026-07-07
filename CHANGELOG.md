@@ -62,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   self-oscillation pitch, the envelope sweep's top, the unison spread in cents,
   and so on) so mutually-dependent controls make sense at a glance.
 
+  **Dialogue Windows** — new type of modal for themed alerts, prompts and confirms.
+  Applied to all existing dialogs. Added a confirm dialog to clearing arrangement
+  lanes.
+
 ### Changed
 
 - **Lower steady-state CPU (less crackle on weak devices)** — two engine

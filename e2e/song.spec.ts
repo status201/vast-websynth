@@ -17,22 +17,47 @@ test.describe('song mode', () => {
 
     await page.getByTestId('tab-song').click();
 
-    // Save prompts for a name and also downloads a JSON copy.
-    page.once('dialog', (d) => d.accept('e2e-song'));
+    // Save names the song via the custom prompt dialog and also downloads a JSON copy.
     const jsonDownload = page.waitForEvent('download');
     await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('e2e-song');
+    await page.getByTestId('dialog-confirm').click();
     await jsonDownload; // consume the JSON download so it doesn't dangle
     const stored = await page.evaluate(() => localStorage.getItem('websynth.song.e2e-song'));
     expect(stored).not.toBeNull();
 
-    // New clears all banks/chains (confirm dialog). The slot dropdown keeps the
-    // saved name selected, so Load reloads it.
-    page.once('dialog', (d) => d.accept());
+    // New clears all banks/chains (custom confirm dialog). The slot dropdown keeps
+    // the saved name selected, so Load reloads it.
     await page.getByTestId('song-new').click();
-    expect(await seqOn(page, 5)).toBe(false);
+    await page.getByTestId('dialog-confirm').click();
+    await expect.poll(() => seqOn(page, 5)).toBe(false);
 
     await page.getByTestId('song-load').click();
     await expect.poll(() => seqOn(page, 5)).toBe(true);
+  });
+
+  test('per-lane Clear confirms before wiping the arrangement chain', async ({ page }) => {
+    await gotoAndStart(page);
+    const seqSteps = () =>
+      page.evaluate(() => (window as any).__synth.engine.arrangement.seq.steps.length);
+
+    // Build a multi-step chain so Clear has something to lose.
+    await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0, 1, 2, 3], false));
+    await page.getByTestId('tab-song').click();
+    expect(await seqSteps()).toBe(4);
+
+    // Cancelling the confirm leaves the chain intact.
+    await page.getByTestId('chain-clear-seq').click();
+    await page.getByTestId('dialog-cancel').click();
+    // Wait for the dialog to fully detach (200ms fade) before re-opening, so the
+    // next getByTestId('dialog-confirm') is unambiguous.
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    expect(await seqSteps()).toBe(4);
+
+    // Confirming resets it to a single bank.
+    await page.getByTestId('chain-clear-seq').click();
+    await page.getByTestId('dialog-confirm').click();
+    await expect.poll(seqSteps).toBe(1);
   });
 
   test('loading a demo labels the preset selector with the song name', async ({ page }) => {

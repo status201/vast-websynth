@@ -9,6 +9,7 @@ related:
   - architecture
   - song-mode
   - param-reset-baseline
+  - dialog
 source:
   - src/state/preset.ts
   - src/state/serialize.ts              # roundParams (export precision)
@@ -82,7 +83,8 @@ NOT in a preset: patterns / banks / chains (those belong to a SongFile)
 ```yaml
 boot: ensureFactoryPresets() runs on startup (main.ts)
 load: bus.restore(snapshot)  # suppresses the onChange "edit" signal
-ui: preset-select dropdown (testid preset-select); save via prompt
+ui: preset-select dropdown (testid preset-select); Save names via the custom
+    promptDialog (see dialog.md), not a native prompt()
 ```
 
 ## Scenarios (BDD)
@@ -93,6 +95,12 @@ Scenario: Saving then loading a preset round-trips the sound
   When they load another preset then reload "MyLead"
   Then bus values match the saved snapshot
 # pinned by: tests/state/preset.test.ts, e2e/presets.spec.ts
+
+Scenario: Save names the preset via the custom prompt dialog
+  Given the header Preset Save button
+  When the user clicks it, types a name in dialog-input, and clicks dialog-confirm
+  Then the preset persists under that name (no native prompt is used)
+# pinned by: e2e/presets.spec.ts
 
 Scenario: Factory presets seed once (edge)
   Given a fresh localStorage

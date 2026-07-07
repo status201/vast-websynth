@@ -89,10 +89,11 @@ test.describe('XY Pad', () => {
     await page.evaluate(() => (window as any).__synth.xy.set({ x: 'lfo.rate' }));
     expect(await xyX(page)).toBe('lfo.rate');
 
-    // Save persists it (prompts a name; also downloads a JSON copy).
-    page.once('dialog', (d) => d.accept('e2e-xy'));
+    // Save persists it (custom prompt dialog; also downloads a JSON copy).
     const dl = page.waitForEvent('download');
     await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('e2e-xy');
+    await page.getByTestId('dialog-confirm').click();
     await dl; // consume the download so it doesn't dangle
 
     // Move X somewhere else, then Load the slot: the saved v3 assignment wins.
