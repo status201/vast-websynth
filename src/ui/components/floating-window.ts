@@ -123,12 +123,19 @@ export class FloatingWindow {
     // Force reflow so the opacity transition runs from the .hidden state.
     void this.root.offsetWidth;
     this.root.classList.remove('hidden');
+    // Re-clamp a possibly stale position into the current viewport, then keep it
+    // there across resize/orientation changes while open (REQ-8).
+    this.clampIntoView();
+    window.addEventListener('resize', this.onViewportResize);
+    window.addEventListener('orientationchange', this.onViewportResize);
   }
 
   close(): void {
     if (!this._isOpen) return;
     this._isOpen = false;
     this.endDrag();
+    window.removeEventListener('resize', this.onViewportResize);
+    window.removeEventListener('orientationchange', this.onViewportResize);
     this.root.classList.add('hidden');
     const el = this.root;
     this.closeTimer = window.setTimeout(() => el.remove(), 200);
@@ -137,6 +144,9 @@ export class FloatingWindow {
 
   private toggleCollapsed(): void {
     this.setCollapsed(!this._collapsed);
+    // Restoring re-grows the body (offsetHeight), which could push it past the
+    // bottom edge — re-clamp so a restored window stays in view (REQ-8).
+    if (this._isOpen) this.clampIntoView();
   }
 
   private setCollapsed(collapsed: boolean): void {
@@ -167,14 +177,28 @@ export class FloatingWindow {
 
   private readonly onDragMove = (e: PointerEvent): void => {
     if (!this.dragging) return;
-    const w = this.root.offsetWidth;
-    const h = this.root.offsetHeight;
-    const maxLeft = Math.max(0, window.innerWidth - w);
-    const maxTop = Math.max(0, window.innerHeight - h);
-    this.pos.left = clamp(this.startLeft + (e.clientX - this.startX), 0, maxLeft);
-    this.pos.top = clamp(this.startTop + (e.clientY - this.startY), 0, maxTop);
+    this.applyClampedPos(this.startLeft + (e.clientX - this.startX), this.startTop + (e.clientY - this.startY));
+  };
+
+  /** Store `left`/`top` clamped to the current viewport and write them to the
+   *  root. Shared by drag and by the open/resize re-clamp (REQ-8) so the bounds
+   *  are identical. */
+  private applyClampedPos(left: number, top: number): void {
+    const maxLeft = Math.max(0, window.innerWidth - this.root.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - this.root.offsetHeight);
+    this.pos.left = clamp(left, 0, maxLeft);
+    this.pos.top = clamp(top, 0, maxTop);
     this.root.style.left = `${this.pos.left}px`;
     this.root.style.top = `${this.pos.top}px`;
+  }
+
+  /** Re-clamp the current position against the live viewport (REQ-8). */
+  private clampIntoView(): void {
+    this.applyClampedPos(this.pos.left, this.pos.top);
+  }
+
+  private readonly onViewportResize = (): void => {
+    if (this._isOpen) this.clampIntoView();
   };
 
   private readonly onDragEnd = (): void => { this.endDrag(); };

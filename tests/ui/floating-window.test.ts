@@ -6,6 +6,12 @@ const inDoc = () => document.querySelector(rootSel) as HTMLElement | null;
 
 describe('FloatingWindow', () => {
   let wins: FloatingWindow[] = [];
+  const ORIG_W = window.innerWidth;
+  const ORIG_H = window.innerHeight;
+  const setViewport = (w: number, h = window.innerHeight) => {
+    Object.defineProperty(window, 'innerWidth', { value: w, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: h, configurable: true, writable: true });
+  };
   const mk = (opts: ConstructorParameters<typeof FloatingWindow>[0]) => {
     const w = new FloatingWindow(opts);
     wins.push(w);
@@ -13,7 +19,7 @@ describe('FloatingWindow', () => {
   };
 
   beforeEach(() => { document.body.innerHTML = ''; });
-  afterEach(() => { wins.forEach((w) => w.close()); wins = []; });
+  afterEach(() => { wins.forEach((w) => w.close()); wins = []; setViewport(ORIG_W, ORIG_H); });
 
   it('mounts a titled card and accepts content in its body', () => {
     const w = mk({ title: 'XY Pad', testId: 'xypad-window' });
@@ -184,5 +190,48 @@ describe('FloatingWindow', () => {
     window.dispatchEvent(new MouseEvent('pointerup', {}));
     window.dispatchEvent(new MouseEvent('pointermove', { clientX: 500, clientY: 500 }));
     expect(root.style.left).toBe('150px');
+  });
+
+  it('opening re-clamps a stale off-screen position into the viewport', () => {
+    // A position saved for a wider/taller viewport must not survive off-screen.
+    const w = mk({ title: 'X', initial: { left: 5000, top: 5000 } });
+    w.open();
+    const root = inDoc()!;
+    // jsdom reports offsetWidth/Height as 0, so the bound is the viewport itself.
+    expect(root.style.left).not.toBe('5000px');
+    expect(root.style.top).not.toBe('5000px');
+    expect(parseInt(root.style.left, 10)).toBeLessThanOrEqual(window.innerWidth);
+    expect(parseInt(root.style.top, 10)).toBeLessThanOrEqual(window.innerHeight);
+  });
+
+  it('a resize / orientation change pulls an off-screen window back into view', () => {
+    const w = mk({ title: 'X', initial: { left: 100, top: 100 } });
+    w.open();
+    const root = inDoc()!;
+    expect(root.style.left).toBe('100px');
+
+    // Shrink the viewport (portrait→landscape or a narrowed window) and fire resize.
+    setViewport(50);
+    window.dispatchEvent(new Event('resize'));
+    expect(root.style.left).toBe('50px');
+
+    // orientationchange re-clamps too.
+    setViewport(30);
+    window.dispatchEvent(new Event('orientationchange'));
+    expect(root.style.left).toBe('30px');
+  });
+
+  it('stops re-clamping on resize once closed (listener removed)', () => {
+    vi.useFakeTimers();
+    const w = mk({ title: 'X', initial: { left: 100, top: 100 } });
+    w.open();
+    w.close();
+    const root = inDoc()!;
+    // The node lingers during the fade; a resize now must NOT move it.
+    setViewport(50);
+    window.dispatchEvent(new Event('resize'));
+    expect(root.style.left).toBe('100px');
+    vi.advanceTimersByTime(200);
+    vi.useRealTimers();
   });
 });

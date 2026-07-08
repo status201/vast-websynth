@@ -3,7 +3,7 @@
 ```yaml
 id: floating-window
 status: draft
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -59,6 +59,17 @@ matrix) reuse it.
   **ephemeral**: it is not persisted, and `open()` always reveals the window
   **expanded** (predictable re-open), even for an instance kept alive across
   closes. `isCollapsed` reflects the current state.
+- **REQ-8** — Stays inside the viewport across viewport changes: because a
+  window is positioned with fixed `left`/`top` (px) and an instance is kept alive
+  across closes, a position computed for one viewport must not leave the window
+  (and its drag-handle title bar) unreachable in a smaller/rotated one.
+  `open()` re-clamps the current position to the live viewport (using the same
+  max-`left`/`top` math as the drag, REQ-3). While open, a `resize` **and**
+  `orientationchange` listener re-clamps on every viewport change (added on
+  `open()`, removed on `close()`, mirroring `Dropdown`'s reposition listeners).
+  Restoring from minimised also re-clamps (the body re-grows `offsetHeight`, which
+  could otherwise overflow the bottom edge). All clamping shares one helper with
+  the drag so the bounds are identical.
 
 ## Technical design
 
@@ -91,6 +102,9 @@ DOM: root (.root, position:fixed, z-index 950) > [ .titleBar (.minBtn + [leading
 drag: pointerdown on .titleBar -> record start pointer + window pos; window-level
       pointermove updates clamped left/top; pointerup/leave ends. setPointerCapture
       on the title bar retargets moves to it (optional-chained for jsdom).
+      The clamp (against window.innerWidth/innerHeight minus the window size) is a
+      single shared helper, also invoked on open(), on resize/orientationchange
+      while open, and on restore-from-minimised (REQ-8).
 minimise button: far-left child; click stops propagation (no drag) and toggles the
       global `collapsed` class on the root + the glyph/aria; open() clears it.
 close button: click stops propagation so it never starts a drag; calls close().
@@ -180,6 +194,18 @@ Scenario: Dragging never starts from the minimise button
   Given an open FloatingWindow at a known position
   When the user pointer-drags starting on the minimise button
   Then the window does not move
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: Opening re-clamps a stale off-screen position into the viewport
+  Given a FloatingWindow whose stored position is outside the current viewport
+  When it is opened
+  Then its left/top are clamped back inside the viewport (title bar reachable)
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: A resize / orientation change pulls an off-screen window back into view
+  Given an open FloatingWindow near the bottom/right of the viewport
+  When the viewport shrinks (a resize or orientationchange fires)
+  Then its left/top are re-clamped inside the new viewport
 # pinned by: tests/ui/floating-window.test.ts
 ```
 
