@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, REST } from '../../../src/state/patterns';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import { TestClock } from './test-clock';
+
+const playBar = (clock: TestClock, bar: number): void => {
+  for (let i = bar * SEQ_LENGTH; i < (bar + 1) * SEQ_LENGTH; i++) clock.fireTick(i);
+};
 
 describe('Arrangement', () => {
   it('play banks track edit banks on start when lanes are disabled', () => {
@@ -158,6 +162,51 @@ describe('Arrangement', () => {
     // recompute() runs on the next bar boundary
     for (let i = 0; i < SEQ_LENGTH; i++) clock.fireTick(i);
     expect(arr.drumPlayBank).toBe(3);
+  });
+
+  it('a REST chain slot marks the lane resting for that bar only', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, REST, 1], true);
+    clock.fireStart();
+
+    // Bar 0 → bank A, not resting
+    playBar(clock, 0);
+    expect(arr.seqResting).toBe(false);
+    expect(arr.seqPlayBank).toBe(0);
+
+    // Bar 1 → REST → resting; play bank is a safe real index (never triggered)
+    playBar(clock, 1);
+    expect(arr.seqResting).toBe(true);
+    expect(arr.seqPlayBank).toBe(0);
+
+    // Bar 2 → bank B → resting clears
+    playBar(clock, 2);
+    expect(arr.seqResting).toBe(false);
+    expect(arr.seqPlayBank).toBe(1);
+  });
+
+  it('setSeqChain preserves the REST sentinel', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+    arr.setSeqChain([0, REST, 5], true); // 5 clamps to 3, REST survives
+    expect(arr.seq.steps).toEqual([0, REST, 3]);
+  });
+
+  it('a disabled lane is never resting even with a REST step', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setDrumChain([REST], false);
+    patterns.setDrumEditBank(2);
+    clock.fireStart();
+    playBar(clock, 0);
+    expect(arr.drumResting).toBe(false);
+    expect(arr.drumPlayBank).toBe(2); // follows edit bank
   });
 
   it('onChange unsubscribe works', () => {

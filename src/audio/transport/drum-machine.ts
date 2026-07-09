@@ -144,6 +144,9 @@ export class DrumMachine {
     const idx = this.perf.mapStep(step) % SEQ_LENGTH;
     for (const l of this.stepListeners) l(idx);
 
+    // Arrangement rest bar: keep the playhead moving but trigger nothing.
+    if (this.arrangement.drumResting) return;
+
     if (this.perf.fillActive) {
       this.playFill(step % SEQ_LENGTH, when);
       return;

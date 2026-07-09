@@ -204,6 +204,7 @@ specs/
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
     arrangement.md     ·  the three chain lanes
+    arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —

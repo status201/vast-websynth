@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, type SeqStep, type DrumCell } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, type SeqStep, type DrumCell } from '../../src/state/patterns';
+
+describe('clampChainStep', () => {
+  it('passes the REST sentinel through untouched', () => {
+    expect(clampChainStep(REST)).toBe(REST);
+  });
+  it('clamps out-of-range indices to a real bank', () => {
+    expect(clampChainStep(9)).toBe(BANK_COUNT - 1);
+    expect(clampChainStep(-5)).toBe(0); // not REST → clamped to 0
+    expect(clampChainStep(2)).toBe(2);
+  });
+});
 
 describe('PatternStore', () => {
   it('seeds a default groove into drum bank A only', () => {

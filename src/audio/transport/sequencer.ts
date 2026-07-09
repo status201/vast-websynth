@@ -71,6 +71,16 @@ export class StepSequencer {
     if (!this.enabled) return;
     const idx = this.perf.mapStep(step) % SEQ_LENGTH;
     for (const l of this.stepListeners) l(idx);
+    // Arrangement rest bar: play nothing this bar, but release a note tied into
+    // the rest so it doesn't ring forever (mirrors the per-step rest path below).
+    if (this.arrangement.seqResting) {
+      if (this.prevTied && this.lastPlayedNote >= 0) {
+        this.output.releaseNote(this.lastPlayedNote, when);
+        this.lastPlayedNote = -1;
+      }
+      this.prevTied = false;
+      return;
+    }
     // Muted: keep the playhead moving (above) but trigger nothing. setMuted has
     // already released any held note, so just bail before scheduling.
     if (this.muted) return;

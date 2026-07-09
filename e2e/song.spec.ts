@@ -26,6 +26,10 @@ test.describe('song mode', () => {
     const stored = await page.evaluate(() => localStorage.getItem('websynth.song.e2e-song'));
     expect(stored).not.toBeNull();
 
+    // Wait for the Save dialog to fully detach (200ms fade) before opening New, so
+    // the next getByTestId('dialog-confirm') isn't ambiguous between the two dialogs.
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
     // New clears all banks/chains (custom confirm dialog). The slot dropdown keeps
     // the saved name selected, so Load reloads it.
     await page.getByTestId('song-new').click();

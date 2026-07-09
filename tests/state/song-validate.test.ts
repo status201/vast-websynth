@@ -91,6 +91,12 @@ describe('validateSongFile — accepts', () => {
     f.futureField = { anything: true };
     expect(validateSongFile(f).ok).toBe(true);
   });
+
+  it('a chain containing the REST sentinel (an empty bar)', () => {
+    const f = clone(captureValid());
+    f.seqChain = { enabled: true, steps: [0, -1, 1] };
+    expect(validateSongFile(f).ok).toBe(true);
+  });
 });
 
 describe('validateSongFile — rejects', () => {
@@ -165,6 +171,12 @@ describe('validateSongFile — rejects', () => {
   it('a chain bank index out of range', () => {
     const f = clone(captureValid());
     f.seqChain = { enabled: true, steps: [7] };
+    expectReject(f, 'seqChain.steps[0]');
+  });
+
+  it('a chain index below the REST sentinel', () => {
+    const f = clone(captureValid());
+    f.seqChain = { enabled: true, steps: [-2] };
     expectReject(f, 'seqChain.steps[0]');
   });
 

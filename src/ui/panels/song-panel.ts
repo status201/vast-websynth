@@ -14,7 +14,8 @@ import { createXyPadWindowController } from '../components/xy-pad-window';
 import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
-import { BANK_LABELS, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
+import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
+import { restIcon } from '../components/rest-glyph';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -326,10 +327,20 @@ function buildChainLane(
   const addRow = el('div', styles.addRow!);
   BANK_LABELS.forEach((label, i) => {
     const a = el('button', `${bankStyles.btn!} ${styles.add!}`, '') as HTMLButtonElement;
+    a.dataset.testid = `chain-add-${prefix}-${i}`;
+    a.title = `Add bank ${label}`;
     a.innerHTML = `<span class="${bankStyles.letter!}">${label}</span>`;
     a.addEventListener('click', () => { setChain([...lane.steps, i], lane.enabled); });
     addRow.appendChild(a);
   });
+  // Rest: an always-empty bar. Appends the REST sentinel instead of a bank index,
+  // so a lane can sit out a bar without spending one of the four banks.
+  const rest = el('button', `${bankStyles.btn!} ${styles.add!} ${styles.addRest!}`, '') as HTMLButtonElement;
+  rest.dataset.testid = `chain-add-rest-${prefix}`;
+  rest.title = 'Add a rest (an empty bar)';
+  rest.innerHTML = restIcon();
+  rest.addEventListener('click', () => { setChain([...lane.steps, REST], lane.enabled); });
+  addRow.appendChild(rest);
   controls.appendChild(addRow);
 
   const mk = (label: string, fn: () => void) => {
@@ -384,7 +395,16 @@ function buildChainLane(
   const renderStructure = () => {
     chips.innerHTML = '';
     chipEls = lane.steps.map((b, idx) => {
-      const c = el('button', styles.chip!, BANK_LABELS[b] ?? '?') as HTMLButtonElement;
+      const isRest = b === REST;
+      const c = el('button', isRest ? `${styles.chip!} ${styles.rest!}` : styles.chip!) as HTMLButtonElement;
+      c.dataset.testid = `chain-chip-${prefix}-${idx}`;
+      if (isRest) {
+        c.dataset.rest = 'true';
+        c.title = 'Rest (empty bar)';
+        c.innerHTML = restIcon();
+      } else {
+        c.textContent = BANK_LABELS[b] ?? '?';
+      }
       c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; renderPlayState(); });
       chips.appendChild(c);
       return c;

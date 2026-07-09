@@ -1,5 +1,5 @@
 import type { PatternStore } from '../../state/patterns';
-import { SEQ_LENGTH, BANK_COUNT } from '../../state/patterns';
+import { SEQ_LENGTH, REST, clampChainStep } from '../../state/patterns';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -19,10 +19,6 @@ export interface ChainLane {
   steps: number[]; // bank indices
 }
 
-function clampBank(i: number): number {
-  return Math.max(0, Math.min(BANK_COUNT - 1, Math.round(i)));
-}
-
 export class Arrangement {
   readonly seq: ChainLane = { enabled: false, steps: [0] };
   readonly drum: ChainLane = { enabled: false, steps: [0] };
@@ -31,6 +27,12 @@ export class Arrangement {
   seqPlayBank = 0;
   drumPlayBank = 0;
   samplerPlayBank = 0;
+
+  // True while an enabled lane's current slot is a REST (an empty bar): the
+  // machine plays silence this bar. See arrangement-rest.md.
+  seqResting = false;
+  drumResting = false;
+  samplerResting = false;
 
   private seqPos = 0;
   private drumPos = 0;
@@ -78,7 +80,7 @@ export class Arrangement {
   get samplerChainPos(): number { return this.samplerPos; }
 
   setSeqChain(steps: number[], enabled: boolean): void {
-    this.seq.steps = steps.length ? steps.map(clampBank) : [0];
+    this.seq.steps = steps.length ? steps.map(clampChainStep) : [0];
     this.seq.enabled = enabled;
     this.seqPos = 0;
     this.recompute();
@@ -86,7 +88,7 @@ export class Arrangement {
   }
 
   setDrumChain(steps: number[], enabled: boolean): void {
-    this.drum.steps = steps.length ? steps.map(clampBank) : [0];
+    this.drum.steps = steps.length ? steps.map(clampChainStep) : [0];
     this.drum.enabled = enabled;
     this.drumPos = 0;
     this.recompute();
@@ -94,7 +96,7 @@ export class Arrangement {
   }
 
   setSamplerChain(steps: number[], enabled: boolean): void {
-    this.sampler.steps = steps.length ? steps.map(clampBank) : [0];
+    this.sampler.steps = steps.length ? steps.map(clampChainStep) : [0];
     this.sampler.enabled = enabled;
     this.samplerPos = 0;
     this.recompute();
@@ -111,14 +113,31 @@ export class Arrangement {
   }
 
   private recompute(): void {
-    this.seqPlayBank = this.seq.enabled && this.seq.steps.length
-      ? clampBank(this.seq.steps[this.seqPos % this.seq.steps.length] ?? 0)
-      : this.patterns.seqEditBank;
-    this.drumPlayBank = this.drum.enabled && this.drum.steps.length
-      ? clampBank(this.drum.steps[this.drumPos % this.drum.steps.length] ?? 0)
-      : this.patterns.drumEditBank;
-    this.samplerPlayBank = this.sampler.enabled && this.sampler.steps.length
-      ? clampBank(this.sampler.steps[this.samplerPos % this.sampler.steps.length] ?? 0)
-      : this.patterns.samplerEditBank;
+    const seq = resolveLane(this.seq, this.seqPos, this.patterns.seqEditBank);
+    this.seqPlayBank = seq.playBank;
+    this.seqResting = seq.resting;
+    const drum = resolveLane(this.drum, this.drumPos, this.patterns.drumEditBank);
+    this.drumPlayBank = drum.playBank;
+    this.drumResting = drum.resting;
+    const sampler = resolveLane(this.sampler, this.samplerPos, this.patterns.samplerEditBank);
+    this.samplerPlayBank = sampler.playBank;
+    this.samplerResting = sampler.resting;
   }
+}
+
+/**
+ * Resolve a lane's play bank + resting state for the current bar. An enabled lane
+ * plays its current slot; a REST slot yields `resting` (silence — the play bank is
+ * a safe real index never read for triggering). A disabled lane follows the
+ * machine's edit bank and never rests.
+ */
+function resolveLane(
+  lane: ChainLane,
+  pos: number,
+  editBank: number,
+): { playBank: number; resting: boolean } {
+  if (!lane.enabled || !lane.steps.length) return { playBank: editBank, resting: false };
+  const step = lane.steps[pos % lane.steps.length] ?? 0;
+  if (step === REST) return { playBank: 0, resting: true };
+  return { playBank: clampChainStep(step), resting: false };
 }

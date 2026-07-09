@@ -3,13 +3,14 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - transport
   - banks
   - song-mode
+  - arrangement-rest
 source:
   - src/audio/transport/arrangement.ts
   - src/state/patterns.ts
@@ -37,6 +38,9 @@ tick listener settles the play banks first.
 - **REQ-4** — Reset positions on `clock.onStart`; the first bar plays slot 0.
 - **REQ-5** — Constructed before the step machines so play banks are settled before
   the machines read them on the same tick.
+- **REQ-6** — A chain step may be the `REST` sentinel (an always-empty bar); an
+  enabled lane whose current step is `REST` exposes `*Resting = true` and its machine
+  plays silence for that bar. See [arrangement-rest.md](arrangement-rest.md).
 
 ## Technical design
 
@@ -46,10 +50,11 @@ tick listener settles the play banks first.
 Arrangement:  # src/audio/transport/arrangement.ts
   seq / drum / sampler: ChainLane { enabled, steps: number[] }
   seqPlayBank / drumPlayBank / samplerPlayBank: number   # read by the machines
+  seqResting / drumResting / samplerResting: boolean      # rest slot -> silence (arrangement-rest.md)
   setSeqChain(steps, enabled) / setDrumChain(...) / setSamplerChain(...)
   onChange(fn) -> unsubscribe
   # subscribes clock.onStart (reset) + clock.onTick (advance per bar)
-ChainLane: { enabled: boolean, steps: number[] }
+ChainLane: { enabled: boolean, steps: number[] }   # steps ∈ { REST, 0..BANK_COUNT-1 }
 ```
 
 ### Layer touchpoints & ordering

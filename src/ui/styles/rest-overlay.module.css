@@ -1,0 +1,33 @@
+/* Machine-tab overlay shown while an arrangement lane is playing a rest bar. */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none; /* the step grid underneath stays clickable */
+  background: rgba(6, 4, 2, 0.62);
+  border-radius: 6px;
+  color: var(--accent-secondary);
+  z-index: 5;
+}
+
+.overlay.on { display: flex; }
+
+.glyph svg {
+  width: 46px;
+  height: 46px;
+  display: block;
+  filter: drop-shadow(0 0 10px rgba(232, 116, 46, 0.45));
+}
+
+.caption {
+  font-family: var(--serif);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}

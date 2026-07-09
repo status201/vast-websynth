@@ -54,6 +54,14 @@ export const SAMPLER_SLOT_LABELS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S
 export const BANK_COUNT = 4;
 export const BANK_LABELS = ['A', 'B', 'C', 'D'];
 
+/**
+ * Sentinel for an arrangement-chain "rest" slot: an always-empty bar. It lives
+ * only in `ChainLane.steps` (never as an edit/play bank), so it is a value < 0
+ * that `clampChainStep` preserves while `clampBank` still squashes it to a real
+ * bank. See specs/features/arrangement-rest.md.
+ */
+export const REST = -1;
+
 export interface PatternSnapshot {
   seqBanks: SeqStep[][];
   drumBanks: DrumCell[][][];
@@ -67,6 +75,15 @@ export interface PatternSnapshot {
 
 function clampBank(i: number): number {
   return Math.max(0, Math.min(BANK_COUNT - 1, Math.round(i)));
+}
+
+/**
+ * Clamp an arrangement-chain step: the `REST` sentinel passes through untouched,
+ * any other value is clamped to a real bank index. Used when ingesting chains
+ * (arrangement setters, song import) so a rest survives while bad indices don't.
+ */
+export function clampChainStep(i: number): number {
+  return i === REST ? REST : clampBank(i);
 }
 
 function makeSeqBank(): SeqStep[] {

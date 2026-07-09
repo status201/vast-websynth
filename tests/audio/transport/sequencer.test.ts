@@ -231,4 +231,24 @@ describe('StepSequencer', () => {
     expect(notes[0]![1]).toBe(0);
     expect(notes[0]![2]).toBeCloseTo(0.03125, 5); // 0.125 * 0.25
   });
+
+  it('plays nothing during an arrangement rest bar', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arrangement = new Arrangement(patterns, clock);
+    const perf = createPerfStub();
+    const playNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote: vi.fn() };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    // A lit step in the play bank, but the only chain slot is a rest.
+    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8 });
+    arrangement.setSeqChain([-1], true); // REST
+
+    clock.fireStart();
+    clock.fireTick(0); // bar boundary → arrangement resting → seq skips
+    expect(arrangement.seqResting).toBe(true);
+    expect(playNote).not.toHaveBeenCalled();
+  });
 });

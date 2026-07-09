@@ -144,6 +144,24 @@ describe('Song', () => {
     expect(edits).toEqual([]);
   });
 
+  it('a chain REST slot round-trips through capture / toJSON / fromJSON / apply', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArr();
+    arr.setDrumChain([0, -1, 1], true); // REST in the middle
+
+    const file = Song.capture(bus, patterns, arr as never, 'Rest song');
+    expect(file.drumChain).toEqual({ enabled: true, steps: [0, -1, 1] });
+
+    // Survives serialization, and apply() (via set*Chain / clampChainStep) preserves it.
+    const parsed = Song.fromJSON(Song.toJSON(file));
+    expect(parsed!.drumChain.steps).toEqual([0, -1, 1]);
+    const arr2 = fakeArr();
+    Song.apply(parsed!, bus, new PatternStore(), arr2 as never);
+    expect(arr2.drum.steps).toEqual([0, -1, 1]);
+  });
+
   it('capture() snapshots params, banks and both chain lanes', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

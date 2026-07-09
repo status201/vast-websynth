@@ -6,6 +6,7 @@ import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
+import { buildRestOverlay } from '../components/rest-overlay';
 import { openRecordSoundModal } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
@@ -78,7 +79,14 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
   // ---- Slot rows ----
   const grid = document.createElement('div');
   grid.className = drumStyles.grid!;
-  root.appendChild(grid);
+  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
+  // rest bar (arrangement-rest.md REQ-6).
+  const gridWrap = document.createElement('div');
+  gridWrap.style.position = 'relative';
+  gridWrap.appendChild(grid);
+  const restOverlay = buildRestOverlay(engine, 'sampler');
+  gridWrap.appendChild(restOverlay.el);
+  root.appendChild(gridWrap);
 
   const stepBtns: StepButton[][] = [];
   const labels: HTMLButtonElement[] = [];
@@ -217,6 +225,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
   engine.sampler.onStep((idx) => {
     const match = engine.patterns.samplerEditBank === engine.arrangement.samplerPlayBank;
     highlighter.update(idx, match);
+    restOverlay.refresh();
   });
 
   // Full bank repaint (bank switch / song restore)

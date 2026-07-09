@@ -84,6 +84,9 @@ export class SamplerMachine {
     const idx = this.perf.mapStep(step) % SEQ_LENGTH;
     for (const l of this.stepListeners) l(idx);
 
+    // Arrangement rest bar: keep the playhead moving but trigger nothing.
+    if (this.arrangement.samplerResting) return;
+
     // Sampler plays through drum fills (no fill behaviour of its own).
     const bank = this.patterns.samplerBank(this.arrangement.samplerPlayBank);
     const stepDur = this.clock.sixteenthDuration();

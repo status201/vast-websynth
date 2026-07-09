@@ -15,7 +15,7 @@
  * tests (every demo must pass `validateSongFile`).
  */
 import type { SongFile } from './song';
-import { BANK_COUNT, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import { BANK_COUNT, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 
 export type SongValidation =
   | { ok: true; file: SongFile }
@@ -128,8 +128,10 @@ function checkChain(path: string, v: unknown, optional: boolean, add: AddError):
   if (!Array.isArray(steps)) { add(`${path}.steps must be an array (got ${describe(steps)})`); return; }
   if (steps.length < 1) add(`${path}.steps must have at least 1 entry`);
   steps.forEach((s: unknown, i) => {
-    if (typeof s !== 'number' || !Number.isInteger(s) || s < 0 || s > BANK_COUNT - 1) {
-      add(`${path}.steps[${i}] must be an integer 0..${BANK_COUNT - 1} (got ${describe(s)})`);
+    // A step is a bank index 0..BANK_COUNT-1 or the REST sentinel (an empty bar).
+    const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= BANK_COUNT - 1));
+    if (!ok) {
+      add(`${path}.steps[${i}] must be an integer 0..${BANK_COUNT - 1} or ${REST} (rest) (got ${describe(s)})`);
     }
   });
 }

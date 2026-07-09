@@ -7,6 +7,7 @@ import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { BankBar } from '../components/bank-bar';
+import { buildRestOverlay } from '../components/rest-overlay';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
@@ -132,7 +133,14 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     row.appendChild(cells);
     grid.appendChild(row);
   }
-  root.appendChild(grid);
+  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
+  // rest bar (arrangement-rest.md REQ-6).
+  const gridWrap = document.createElement('div');
+  gridWrap.style.position = 'relative';
+  gridWrap.appendChild(grid);
+  const restOverlay = buildRestOverlay(engine, 'drum');
+  gridWrap.appendChild(restOverlay.el);
+  root.appendChild(gridWrap);
 
   // ---- Selected-drum tuning strip (sound design for the selected track) ----
   // Mirrors the per-step editor: one shared row driven by the selection cursor.
@@ -221,6 +229,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   engine.drums.onStep((idx) => {
     const match = engine.patterns.drumEditBank === engine.arrangement.drumPlayBank;
     highlighter.update(idx, match);
+    restOverlay.refresh();
   });
 
   // Full bank repaint (bank switch / song restore)

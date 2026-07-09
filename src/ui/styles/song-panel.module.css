@@ -91,6 +91,21 @@
   box-shadow: 0 0 8px rgba(232, 116, 46, 0.5);
 }
 
+/* Rest chip: an empty bar — a rest glyph on a muted, dashed slot instead of a letter. */
+.chip.rest {
+  border-style: dashed;
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.chip.rest svg { width: 16px; height: 16px; display: block; }
+.chip.rest:global(.playing) svg { color: #f4e4c2; }
+
+/* Rest add-button: matches the A/B/C/D add-buttons but carries the rest glyph. */
+.addRest { display: inline-flex; align-items: center; justify-content: center; }
+.addRest svg { width: 15px; height: 15px; display: block; }
+
 .controls {
   display: flex;
   align-items: center;

@@ -10,6 +10,7 @@ import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { Knob } from '../components/knob';
 import { BankBar } from '../components/bank-bar';
+import { buildRestOverlay } from '../components/rest-overlay';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { SEQ_LENGTH, type SeqStep } from '../../state/patterns';
@@ -109,7 +110,14 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     steps.push(sb);
     stepRow.appendChild(sb.el);
   }
-  root.appendChild(stepRow);
+  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
+  // rest bar (arrangement-rest.md REQ-6).
+  const gridWrap = document.createElement('div');
+  gridWrap.style.position = 'relative';
+  gridWrap.appendChild(stepRow);
+  const restOverlay = buildRestOverlay(engine, 'seq');
+  gridWrap.appendChild(restOverlay.el);
+  root.appendChild(gridWrap);
 
   // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
   // selected step and the cursor advances. Audition is automatic — bus.onNote also
@@ -126,6 +134,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   engine.seq.onStep((idx) => {
     const match = engine.patterns.seqEditBank === engine.arrangement.seqPlayBank;
     highlighter.update(idx, match);
+    restOverlay.refresh();
   });
 
   // Full bank repaint (bank switch / song restore)
