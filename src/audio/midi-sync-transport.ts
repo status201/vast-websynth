@@ -1,0 +1,75 @@
+import type { SyncMessage, SyncTransport } from './transport/sync/sync-types';
+
+/**
+ * Web MIDI implementation of `SyncTransport` — a dumb byte↔message mapper.
+ * All timing math lives in the transport-agnostic sync core; this class only
+ * turns `SyncMessage`s into MIDI System Real-Time bytes and back.
+ *
+ * Ownership: `midi.ts` is the sole owner of the shared `MIDIAccess`
+ * (`onmidimessage`/`onstatechange` are single-assignment properties — a second
+ * owner would silently clobber it). It *feeds* this transport:
+ * real-time bytes via `handleRealtimeByte`, port changes via `refreshPorts`.
+ *
+ * Sending broadcasts to **every** output (no port picker in v1); `atMs` is a
+ * performance.now()-domain timestamp — `MIDIOutput.send` schedules future
+ * timestamps with hardware timing, and a past/omitted one sends immediately.
+ */
+
+const BYTE_FOR: Record<SyncMessage['type'], number> = {
+  pulse: 0xf8,
+  start: 0xfa,
+  continue: 0xfb,
+  stop: 0xfc,
+};
+
+const MSG_FOR: Record<number, SyncMessage> = {
+  0xf8: { type: 'pulse' },
+  0xfa: { type: 'start' },
+  0xfb: { type: 'continue' },
+  0xfc: { type: 'stop' },
+};
+
+export class MidiSyncTransport implements SyncTransport {
+  private readonly messageListeners = new Set<(msg: SyncMessage, receivedAtMs: number) => void>();
+  private readonly portListeners = new Set<() => void>();
+
+  constructor(private readonly access: MIDIAccess) {}
+
+  send(msg: SyncMessage, atMs?: number): void {
+    const data = [BYTE_FOR[msg.type]];
+    this.access.outputs.forEach((out) => {
+      try {
+        out.send(data, atMs);
+      } catch {
+        /* a port can disconnect between statechange events — non-fatal */
+      }
+    });
+  }
+
+  onMessage(cb: (msg: SyncMessage, receivedAtMs: number) => void): () => void {
+    this.messageListeners.add(cb);
+    return () => { this.messageListeners.delete(cb); };
+  }
+
+  /** Fed by midi.ts with any status byte >= 0xF8. Unknown ones (clock tick
+   *  request 0xF9, active sensing 0xFE, reset 0xFF) are ignored. */
+  handleRealtimeByte(byte: number, timeStampMs: number): void {
+    const msg = MSG_FOR[byte];
+    if (!msg) return;
+    for (const l of this.messageListeners) l(msg, timeStampMs);
+  }
+
+  /** Fed by midi.ts on `statechange` — port counts feed the status line. */
+  refreshPorts(): void {
+    for (const l of this.portListeners) l();
+  }
+
+  ports(): { ins: number; outs: number } {
+    return { ins: this.access.inputs.size, outs: this.access.outputs.size };
+  }
+
+  onPortsChange(cb: () => void): () => void {
+    this.portListeners.add(cb);
+    return () => { this.portListeners.delete(cb); };
+  }
+}

@@ -6,6 +6,7 @@ import type { StepSequencer } from '../audio/transport/sequencer';
 import type { DrumMachine } from '../audio/transport/drum-machine';
 import type { SamplerMachine } from '../audio/transport/sampler-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
+import type { SyncController } from '../audio/transport/sync/sync-controller';
 import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 
@@ -39,6 +40,8 @@ export interface StudioApi {
   readonly sampler: SamplerMachine;
   /** Audio export (exportSong / toggleManual / onState). */
   readonly recorder: RecorderController;
+  /** MIDI clock sync master/slave (mode / setMode / status / onStatus). */
+  readonly sync: SyncController;
   /** Pre-master analyser tap for the scope (mono down-mix). */
   readonly analyser: AnalyserNode;
   /** Per-channel pre-master analyser taps for the scope's stereo view. */

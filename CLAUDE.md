@@ -83,7 +83,9 @@ stable testids minted at the factory level: `knob-<paramId>`,
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume),
-`song-save`/`song-load`/…, `transport-play`, `preset-select`). Prefer testids
+`song-save`/`song-load`/…, `transport-play`, `preset-select`,
+`sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
+section)). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
@@ -100,8 +102,11 @@ transport auto-start/stop + ownership), `song-fx` (the Song panel's live DJ FX �
 DJ-filter sweep, Filter Drop, Tape Stop pitch-bend, Stutter/Fill), `compressor`
 (the drum/master bus compressors — switch, knobs, `grmeter-<prefix>` presence,
 help badges),
-and `mic`
-(the record-sound modal — record from the fake device, edit, load into a slot).
+`mic`
+(the record-sound modal — record from the fake device, edit, load into a slot),
+and `sync` (the Song panel's MIDI clock-sync section — presence + mode
+persistence only, since headless Chromium has no MIDI ports; the timing math is
+unit-tested under `tests/audio/transport/sync/`).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
@@ -216,6 +221,21 @@ listener mechanism.
   `fillActive` makes the drum machine play a roll; Filter Drop / manual DJ
   Filter drive `engine.djFilter` (a BiquadFilter inserted `preMaster →
   djFilter → analyser`); Tape Stop ramps `Clock` BPM + pitch-bend via rAF.
+- **MIDI clock sync** (`audio/transport/sync/`) — master/slave transport sync
+  between two instances (or hardware) over Web MIDI real-time messages
+  (0xFA/0xFB/0xFC/0xF8 @ 24 PPQN). `SyncController` (on `Engine.sync` +
+  `StudioApi`) owns the mode — `off|master|slave`, device-scoped under
+  `localStorage['websynth.midisync']` (perf-mode precedent, **not** a bus
+  param) — and gates everything. The core is transport-agnostic
+  (`SyncTransport` interface; `MidiSyncTransport` is the Web MIDI impl, fed
+  real-time bytes by `midi.ts`, which stays sole owner of `MIDIAccess`).
+  Master hooks `clock.onStart/onStop/onTick` and schedules 12 timestamped
+  pulses per *even* 16th (unswung grid — MIDI clock is straight). Slave
+  estimates BPM (`PulseBpmEstimator`, 24-interval window + EMA), writes
+  `clock.setBpm` directly (never the bus; engine's `transport.bpm`
+  subscription is gated while slaved), and phase-corrects via `Clock.nudge`
+  (≤±10 ms, ≤1/beat). UI: the Song panel's Sync section
+  (`ui/components/sync-section.ts`). See `specs/features/midi-clock-sync.md`.
 - **Lane mixer** — Song-tab mute/solo/volume per lane (`<lane>.mute`/
   `.solo`/`.master` params). The audibility rule is the pure `audibleLanes`
   (`audio/transport/lane-mix.ts`, solo wins over mute), shared by

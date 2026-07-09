@@ -32,6 +32,47 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('Clock nudge (MIDI clock sync phase correction)', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125s
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    return { ctx, clock, ev };
+  }
+
+  it('shifts only the future step grid', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start(); // step 0 at 0.05
+    clock.nudge(0.02);
+    ctx.currentTime += 0.125;
+    vi.advanceTimersByTime(25);
+    expect(ev[0]!.when).toBeCloseTo(0.05, 6); // already emitted — untouched
+    expect(ev[1]!.when).toBeCloseTo(0.175 + 0.02, 6); // future grid moved
+    clock.stop();
+  });
+
+  it('clamps a correction to ±0.05 s', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();
+    clock.nudge(0.5); // way past the clamp
+    ctx.currentTime += 0.25;
+    vi.advanceTimersByTime(25);
+    expect(ev[1]!.when).toBeCloseTo(0.175 + 0.05, 6);
+    clock.stop();
+  });
+
+  it('is a no-op while stopped', () => {
+    const { clock, ev } = startedClock();
+    clock.nudge(0.04);
+    clock.start();
+    expect(ev[0]!.when).toBeCloseTo(0.05, 6); // grid starts fresh, unshifted
+    clock.stop();
+  });
+});
+
 describe('Clock swing', () => {
   it('emits a straight grid when swing is 0', () => {
     const ev = collectTicks(0);

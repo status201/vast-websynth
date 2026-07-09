@@ -1,7 +1,8 @@
 import type { Engine } from './engine';
 import type { ParamBus } from '../state/params';
+import { MidiSyncTransport } from './midi-sync-transport';
 
-export async function initMIDI(_engine: Engine, bus: ParamBus): Promise<void> {
+export async function initMIDI(engine: Engine, bus: ParamBus): Promise<void> {
   const nav = navigator as unknown as {
     requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
   };
@@ -13,19 +14,33 @@ export async function initMIDI(_engine: Engine, bus: ParamBus): Promise<void> {
     // Explicit non-sysex request; the browser may still show a permission
     // prompt (Chrome ≥124 gates all MIDI access) — denial lands in the catch.
     const access = await nav.requestMIDIAccess({ sysex: false });
+    // This module is the sole owner of the MIDIAccess handler properties
+    // (onmidimessage/onstatechange are single-assignment); the sync transport
+    // is *fed* from here rather than wiring its own handlers.
+    const sync = new MidiSyncTransport(access);
+    engine.sync.attachTransport(sync);
     const wire = (input: MIDIInput) => {
-      input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, bus);
+      input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, bus, sync);
     };
     access.inputs.forEach(wire);
-    access.onstatechange = () => access.inputs.forEach(wire);
+    access.onstatechange = () => {
+      access.inputs.forEach(wire);
+      sync.refreshPorts();
+    };
   } catch (err) {
     console.warn('[MIDI] requestMIDIAccess failed:', err);
   }
 }
 
-function handleMessage(ev: MIDIMessageEvent, bus: ParamBus): void {
+function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransport): void {
   const data = ev.data;
   if (!data || data.length < 1) return;
+  // System Real-Time (0xF8..0xFF) first: single-byte messages that must never
+  // reach the channel-voice mask below (0xF8 & 0xF0 = 0xF0 would mis-dispatch).
+  if (data[0]! >= 0xf8) {
+    sync.handleRealtimeByte(data[0]!, ev.timeStamp);
+    return;
+  }
   const status = data[0]! & 0xf0;
   const d1 = data[1] ?? 0;
   const d2 = data[2] ?? 0;
@@ -59,4 +74,3 @@ function handleCC(cc: number, value: number, bus: ParamBus): void {
     case 74: bus.set('filter.cutoff', 30 + n * 100); break;
   }
 }
-

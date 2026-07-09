@@ -112,4 +112,15 @@ export class Clock implements TickSubscriber {
   sixteenthDuration(): number {
     return 60 / this.bpm / 4;
   }
+
+  /**
+   * Shift the future step grid by `seconds` (positive = later). Used by MIDI
+   * clock-sync slaving for gentle phase correction: only *future* ticks move,
+   * so swing, the drain loop and `_step` are untouched. Clamped to ±0.05 s per
+   * call (a correction should be inaudible); no-op while stopped.
+   */
+  nudge(seconds: number): void {
+    if (!this._playing) return;
+    this.nextStepTime += Math.max(-0.05, Math.min(0.05, seconds));
+  }
 }

@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **MIDI clock sync (master/slave)** — sync the transport of two VAST
+  instances (or hardware gear) over MIDI: a new **Sync** section in the Song
+  tab sets the instance to **Master** (broadcasts MIDI Start/Stop + 24 PPQN
+  clock to every MIDI output — any local start, including the arpeggiator,
+  is mirrored) or **Slave** (follows Start/Stop from any MIDI input and
+  locks onto the incoming tempo, riding out short dropouts by free-running
+  at the last tempo). Works over USB — e.g. an Android tablet in USB-MIDI
+  mode plugged into a laptop — or any virtual/hardware MIDI cable. The
+  status line shows the connected port counts and, while slaved, the
+  followed BPM. The setting is per-device (never saved into presets/songs).
+
 - **Rest bars in the arrangement** — each Song-tab chain lane (seq / drum /
   sampler) gains a fifth build option, a **rest**: an always-empty bar you can
   drop into the chain without spending one of the four banks (A/B/C/D). It shows

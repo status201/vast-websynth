@@ -3,11 +3,12 @@
 ```yaml
 id: input-control
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
   - voicing
+  - midi-clock-sync
 source:
   - src/ui/components/keyboard.ts
   - src/ui/shortcuts.ts
@@ -50,6 +51,14 @@ MIDI when available and degrades silently when not.
   `{ sysex: false }`; a denied prompt degrades exactly like absence of Web
   MIDI (logged, no error). Note: Chrome's DevTools deprecation line ("Web MIDI
   will ask a permission…") is informational and cannot be silenced from code.
+- **REQ-7** — `midi.ts` is the **sole owner** of the shared `MIDIAccess`
+  handler properties (`onmidimessage`/`onstatechange` are single-assignment —
+  a second owner would silently clobber them). System Real-Time bytes
+  (status ≥ 0xF8) are dispatched **before** the `& 0xf0` channel-voice mask
+  (0xF8 & 0xF0 = 0xF0 would mis-dispatch) and routed to the clock-sync
+  transport (see [midi-clock-sync](midi-clock-sync.md)); they never reach
+  note/CC handling. `onstatechange` additionally refreshes the sync
+  transport's port counts.
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -69,7 +78,9 @@ UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboar
   # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-2)
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
+  status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-7, before the mask
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
+  builds MidiSyncTransport(access) -> engine.sync.attachTransport(...)  # midi-clock-sync
 note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppressed)
 ```
 
@@ -109,6 +120,13 @@ Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Given a MIDI device sends 0x90 note 60 velocity 0
   Then bus.noteOff(60) is called
 # pinned by: midi.ts handleMessage contract
+
+Scenario: A MIDI clock pulse never reaches note handling (edge)
+  Given a MIDI device interleaves 0xF8 clock bytes with note messages
+  When a single-byte 0xF8 message arrives
+  Then it is routed to the sync transport before the 0xf0 status mask
+  And no note or CC handler runs for it
+# pinned by: tests/audio/midi-sync-transport.test.ts; midi.ts handleMessage guard
 
 Scenario: No Web MIDI is a silent no-op
   Given navigator.requestMIDIAccess is undefined

@@ -206,6 +206,7 @@ specs/
     arrangement.md     ·  the three chain lanes
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
+    midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature

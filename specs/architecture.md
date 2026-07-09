@@ -132,9 +132,9 @@ Engine:          # src/audio/engine.ts
   # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
-  # patterns, arrangement, clock, perf, seq, drums, sampler, recorder, analyser,
-  # analyserL, analyserR, ctx, drumComp, masterComp + panic()/resume(). Engine
-  # satisfies it structurally;
+  # patterns, arrangement, clock, perf, seq, drums, sampler, recorder, sync,
+  # analyser, analyserL, analyserR, ctx, drumComp, masterComp + panic()/resume().
+  # Engine satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
 PatternStore:    # src/state/patterns.ts

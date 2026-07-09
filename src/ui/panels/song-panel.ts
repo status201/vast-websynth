@@ -13,6 +13,7 @@ import { GrMeter } from '../components/gr-meter';
 import { createXyPadWindowController } from '../components/xy-pad-window';
 import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
+import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
 import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
@@ -274,6 +275,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   aio.appendChild(expSongBtn);
   aio.appendChild(recBtn);
   root.appendChild(aio);
+
+  // ---- MIDI clock sync (master/slave) ----
+  root.appendChild(buildSyncSection(engine.sync));
 
   return { el: root, loadDemo };
 }

@@ -21,6 +21,7 @@ import { DrumMachine } from './transport/drum-machine';
 import { SamplerMachine } from './transport/sampler-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
+import { SyncController } from './transport/sync/sync-controller';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
@@ -90,6 +91,7 @@ export class Engine {
   arrangement!: Arrangement;
   perf!: Performance;
   recorder!: RecorderController;
+  sync!: SyncController;
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
@@ -284,6 +286,17 @@ export class Engine {
     this.master.connect(this.recorderNode.input);
     this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
 
+    // MIDI clock sync (master/slave). Built before subscribeParams() so the
+    // gated transport.bpm subscription can read `this.sync.mode`. The Web MIDI
+    // transport is attached later by initMIDI (post-gesture); until then the
+    // controller is inert. Converters bridge the two time domains: Clock
+    // schedules in AudioContext seconds, MIDI timestamps are performance.now() ms.
+    this.sync = new SyncController(this.clock, {
+      toPerfMs: (t) => performance.now() + (t - this.ctx.currentTime) * 1000,
+      toAudioTime: (ms) => this.ctx.currentTime + (ms - performance.now()) / 1000,
+      localBpm: () => this.bus.get('transport.bpm'),
+    });
+
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => {
       if (this.arpPassthroughSuppressed) return;
@@ -453,7 +466,11 @@ export class Engine {
     bus.subscribe('master.modWheel', () => updateLfoAmount());
 
     // ----- Transport -----
-    bus.subscribe('transport.bpm', (b) => this.clock.setBpm(b));
+    // Gated while slaved: incoming MIDI clock owns the tempo then; the knob's
+    // bus value is the restore target when slave mode ends (midi-clock-sync REQ-4).
+    bus.subscribe('transport.bpm', (b) => {
+      if (this.sync.mode !== 'slave') this.clock.setBpm(b);
+    });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 
     // ----- Arpeggiator -----
