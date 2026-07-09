@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Rest bars in the arrangement** — each Song-tab chain lane (seq / drum /
+  sampler) gains a fifth build option, a **rest**: an always-empty bar you can
+  drop into the chain without spending one of the four banks (A/B/C/D). It shows
+  as a rest glyph instead of a letter. While a rest bar plays, its machine tab
+  dims the step grid under a large rest symbol so the empty bar is obvious. Rests
+  save with the song; older songs are unaffected.
+
 ## [1.9.0] - 2026-07-07
 
 ### Added
