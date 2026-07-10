@@ -3,7 +3,7 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - midi-clock-sync
@@ -15,6 +15,7 @@ source:
   - src/audio/transport/sync/clock-offset.ts
   - src/audio/webrtc-sync-transport.ts
   - src/audio/webrtc-signaling.ts
+  - src/audio/webrtc-diagnostics.ts
   - src/audio/transport/sync/sync-controller.ts
   - src/audio/engine.ts
   - src/ui/clipboard.ts
@@ -115,7 +116,13 @@ follows whichever delivers.
   - Every step has **Back** (`sync-pair-back`) and a persistent **Close**
     (`sync-pair-close`); on link the body swaps to a "Linked ✓" success and
     self-closes. Textareas are **half** the shared modal height (QR + Copy are the
-    primary transfer; the text blob is a fallback).
+    primary transfer; the text blob is a fallback). Close is a **fully-styled
+    button** (base button style + full-width layout — not a bare text label).
+  - **Typography rule** (applies app-wide): only the modal **title**, step
+    **headings/subtitles**, and **taglines** are serif (`--serif`); all
+    body/intro/instruction text is **sans-serif** (`--sans`). Intro text carries a
+    small top margin off its heading. (`Modal.tagClass` is serif, so body copy
+    must not reuse it.)
 
   Copy-paste always works; QR **display** uses the vendored encoder; QR
   **scan** is offered on **any device with a camera** (`navigator.mediaDevices
@@ -136,13 +143,18 @@ follows whichever delivers.
   display size, so the modules stay crisp with ≥ 3 px each. Drawing a big bitmap
   and CSS-clamping it *down* to a fixed 180 px (the v1 bug) left ~2 px/module and
   nearest-neighbour-dropped modules — undecodable by **any** reader.
-- **REQ-6** — Lifecycle. A DataChannel close or a
-  `connectionstatechange ∈ {failed, closed, disconnected}` tears the link down:
-  `ports()` returns `{ins:0, outs:0}`, `onPortsChange` fires (status "WiFi: not
-  linked"), and a **playing slave keeps playing** via the existing > 1 s stall
-  free-run (midi-clock-sync REQ-6). Re-pairing closes the previous peer first.
-  A page reload **never** resumes a link (the sync *mode* persists; the link
-  does not) — the user re-pairs.
+- **REQ-6** — Lifecycle. A DataChannel close or a `connectionstatechange ∈
+  {failed, closed}` tears the link down **immediately**. `disconnected` is
+  **transient/recoverable** per the WebRTC spec, so it is **not** an immediate
+  teardown: the transport starts a grace timer (`DISCONNECT_GRACE_MS`) and tears
+  down only if the state is still `disconnected`/`failed` when it elapses;
+  a recovery to `connected` cancels it. (Tearing down on `disconnected` — the v1
+  behaviour — killed connections that were still completing their ICE checks or
+  briefly flapping.) On teardown: `ports()` returns `{ins:0, outs:0}`,
+  `onPortsChange` fires (status "WiFi: not linked"), and a **playing slave keeps
+  playing** via the existing > 1 s stall free-run (midi-clock-sync REQ-6).
+  Re-pairing closes the previous peer first. A page reload **never** resumes a
+  link (the sync *mode* persists; the link does not) — the user re-pairs.
 - **REQ-8** — **Secure-context notice.** WebRTC pairing, `navigator.clipboard`,
   and the QR camera all require a secure origin. When `window.isSecureContext`
   is false the modal shows a **non-blocking** banner (`sync-pair-insecure`)
@@ -155,14 +167,31 @@ follows whichever delivers.
   **"Connecting…"** state instead of sitting silently at "Not linked". If the
   DataChannels open, `onPortsChange` flips the status to "Linked ✓" and the modal
   self-closes; if the link tears down (`onPortsChange` fires with `linked`
-  false — a `connectionstatechange ∈ {failed,disconnected,closed}` or a channel
-  close) **or** a watchdog elapses without a link, the modal surfaces
-  **actionable** guidance on `sync-pair-error`, rendered **readably** (sentence
-  case — not the uppercase/letter-spaced label style). The guidance names the real
-  causes: same Wi-Fi + router client/AP isolation off, **and** that a VPN or a
-  **virtual network adapter (WSL / Docker / Hyper-V / VirtualBox)** on a laptop
-  commonly blocks LAN peer-to-peer, with a pointer to `edge://webrtc-internals`
-  (or `chrome://`) to diagnose. Switching step or closing the modal cancels the wait.
+  false — a `connectionstatechange ∈ {failed,closed}` or a channel close, or the
+  `disconnected` grace period elapsing) **or** a watchdog elapses without a link,
+  the modal surfaces **actionable** guidance on `sync-pair-error`, rendered
+  **readably** (sentence case — not the uppercase/letter-spaced label style). The
+  guidance names the real causes, most-common first: a **firewall** blocking the
+  browser (Windows Defender Firewall — allow the browser / set the network to
+  Private), a **VPN or virtual network adapter (WSL / Docker / Hyper-V /
+  VirtualBox)**, and both devices on the same Wi-Fi with client/AP isolation off.
+  Switching step or closing the modal cancels the wait.
+- **REQ-11** — **Diagnostics panel.** Every connection attempt is recorded and
+  surfaced in a collapsible **debug panel** (`sync-pair-debug`) under the error,
+  so a failing pair can be self-diagnosed. The transport exposes a
+  `WebRtcDiagnostics` snapshot (`diagnostics` getter + `onDiagnostics(cb)`),
+  accumulated from the peer's ICE/candidate events and `getStats`:
+  the **ICE + connection state history** (e.g. `checking → disconnected`), the
+  **local ICE candidates** gathered (type/protocol/address — this is what exposes
+  virtual-adapter subnets), the **remote-candidate count**, the **selected
+  candidate pair** (or none), and any `icecandidateerror`s. A pure
+  `summarizeDiagnostics()` turns the snapshot into plain-language **hints**
+  (multiple adapter subnets → "a VPN/virtual adapter may be advertising
+  unreachable addresses"; reached `checking` but no pair → "no path found — a
+  firewall or different subnets"; zero remote candidates → "the other device's
+  reply wasn't received — re-do the code exchange"). Pure parse/summarize logic
+  lives in `src/audio/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
+  directly.
 - **REQ-10** — **No accidental dismissal.** The pair modal is a multi-step flow, so
   it opts out of `Modal`'s backdrop-click close (`dismissOnBackdrop: false`) — an
   outside click while fiddling to scan a QR must not discard the in-progress
@@ -214,6 +243,15 @@ WebRtcSyncTransport(opts?: { rtc?; timer?; nowMs? }) implements SyncTransport:
   acceptAnswer(blob): Promise<void> # host: completes the link
   closeLink(): void
   get linked(): boolean
+  get diagnostics(): WebRtcDiagnostics       # live snapshot of the current/last attempt
+  onDiagnostics(cb): unsubscribe             # fires as the attempt progresses
+
+# src/audio/webrtc-diagnostics.ts (pure — no DOM/RTC)
+WebRtcDiagnostics: "{ iceHistory[], connHistory[], gathering, localCandidates: CandInfo[], remoteCandidateCount, selectedPair: {local,remote}|null, candidateErrors[] }"
+CandInfo: "{ type, protocol, address }"
+emptyDiagnostics(): WebRtcDiagnostics
+parseCandidate(line): CandInfo | null      # parse an SDP a=candidate line
+summarizeDiagnostics(d): string[]          # plain-language hints for the debug panel
 
 # src/audio/transport/sync/sync-controller.ts (changed)
 addTransport(id: TransportId, t: SyncTransport): void   # replaces attachTransport
@@ -253,6 +291,7 @@ pingBurstCount: 8
 pingBurstMs: 150
 pingSteadyMs: 1000
 iceCompleteTimeoutMs: 3000
+disconnectGraceMs: 5000     # 'disconnected' recovery window before teardown (REQ-6)
 
 # Signal blob: "WS2." <codec> "." <base64url payload>
 #   codec 'c' = CompressionStream('deflate-raw') available (feature-detected on globalThis)
@@ -349,6 +388,27 @@ Scenario: Channel close degrades status; a playing slave keeps playing
   Then ports() reads 0/0 and onPortsChange fires ("WiFi: not linked")
    And the slave keeps playing at the last tempo (stall free-run)
 # pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: 'disconnected' gets a grace window before teardown (regression)
+  Given a linked transport whose connectionState flaps to 'disconnected'
+  When it returns to 'connected' within the grace window
+  Then the link is NOT torn down (no onPortsChange to unlinked)
+   And if it stays disconnected past the grace window, it tears down
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: Diagnostics summarize a failing attempt into plain-language hints
+  Given a WebRtcDiagnostics with local candidates on two different subnets
+   And an ICE history that reached 'checking' but no selected pair
+  Then summarizeDiagnostics names a likely VPN/virtual-adapter cause
+   And names a firewall / different-subnet cause when checking never connects
+   And parseCandidate extracts type/protocol/address from an a=candidate line
+# pinned by: tests/audio/webrtc-diagnostics.test.ts
+
+Scenario: The pair modal shows a debug panel from a diagnostics snapshot
+  Given diagnostics with local candidate addresses and a summary
+  When the debug panel renders them
+  Then sync-pair-debug lists the candidate addresses and the hint text
+# pinned by: tests/ui/sync-pair-modal.test.ts
 
 Scenario: WiFi link opens mid-play → announce to the new link only
   Given a master playing with a MIDI slave already locked

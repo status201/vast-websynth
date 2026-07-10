@@ -13,6 +13,7 @@ import { qrcode } from '../../vendor/qr';
 import { SignalDecodeError } from '../../audio/webrtc-signaling';
 import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
+import { type WebRtcDiagnostics, summarizeDiagnostics } from '../../audio/webrtc-diagnostics';
 import modalStyles from '../styles/modal.module.css';
 
 type El = HTMLElement;
@@ -28,19 +29,31 @@ const QR_MAX_PX = 420;
 const READONLY_TA_PX = 160;
 const INPUT_TA_PX = 42;
 
-// Connection-feedback tuning (REQ-9).
+// Connection-feedback tuning (REQ-9). Causes ordered most-common-first — a
+// firewall is the usual laptop culprit (confirmed in the field).
 const CONNECT_WATCHDOG_MS = 12_000;
 const CONNECT_FAIL_MSG =
-  "Couldn't connect. Both devices must be on the same Wi-Fi with the router's "
-  + 'client isolation ("AP isolation") off. On a laptop, a VPN or a virtual network '
-  + 'adapter (WSL, Docker, Hyper-V, VirtualBox) often blocks this — disable them and '
-  + 'try again. Open edge://webrtc-internals (or chrome://webrtc-internals) to diagnose.';
+  "Couldn't connect. On a laptop this is usually a firewall blocking the browser — allow it "
+  + 'through Windows Defender Firewall, or set the Wi-Fi network to Private. A VPN or a virtual '
+  + 'network adapter (WSL, Docker, Hyper-V, VirtualBox) can also block it. Make sure both devices '
+  + 'are on the same Wi-Fi with client isolation ("AP isolation") off. See the connection details below.';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (className) e.className = className;
   if (text !== undefined) e.textContent = text;
   return e;
+}
+
+/** Sans-serif body/intro/instruction text — the type rule reserves serif for
+ *  titles, subtitles and taglines (webrtc-sync REQ-5). */
+function bodyText(text: string): HTMLDivElement {
+  const p = el('div', undefined, text);
+  p.style.fontFamily = 'var(--sans)';
+  p.style.fontSize = '12.5px';
+  p.style.lineHeight = '1.55';
+  p.style.color = 'var(--text-dim)';
+  return p;
 }
 
 /**
@@ -85,6 +98,7 @@ function showConnectFailure(target: El): void {
 export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncController, 'setMode'>): void {
   let stopScan: (() => void) | null = null;
   let unsub: () => void = () => {};
+  let unsubDiag: () => void = () => {};
 
   // Connection-feedback state (REQ-9): once a peer completes its half we wait for
   // the DataChannels to open. `currentErr` is the active step's inline message.
@@ -111,7 +125,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
     title: 'WiFi sync — pair two devices',
     cardClass: Modal.cardWideClass,
     dismissOnBackdrop: false, // multi-step flow — an outside click must not discard it (REQ-10)
-    onClose: () => { stopScan?.(); stopScan = null; disarmAwaiting(); unsub(); },
+    onClose: () => { stopScan?.(); stopScan = null; disarmAwaiting(); unsub(); unsubDiag(); },
   });
 
   const content = el('div'); // the step area — replaced per wizard step
@@ -164,9 +178,9 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
     btn.style.justifyContent = 'center';
     btn.style.padding = '13px';
     btn.style.fontSize = '15px';
-    const cap = el('div', Modal.tagClass, caption);
+    const cap = bodyText(caption);
     cap.style.textAlign = 'center';
-    cap.style.marginTop = '5px';
+    cap.style.marginTop = '6px';
     wrap.appendChild(btn);
     wrap.appendChild(cap);
     return wrap;
@@ -294,14 +308,18 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   function stepFrame(o: { step?: string; heading: string; hints?: string[]; body: El; nav?: El }): El {
     const frame = el('div');
     if (o.step) frame.appendChild(el('div', modalStyles.aiLabel, o.step));
-    const h = el('div', undefined, o.heading);
+    const h = el('div', undefined, o.heading); // subtitle → serif (per the type rule)
     h.style.fontFamily = 'var(--serif)';
     h.style.fontSize = '16px';
     h.style.fontWeight = '700';
     h.style.color = 'var(--text)';
     h.style.marginTop = o.step ? '6px' : '2px';
     frame.appendChild(h);
-    for (const hint of o.hints ?? []) frame.appendChild(el('div', Modal.tagClass, hint));
+    (o.hints ?? []).forEach((hint, i) => {
+      const p = bodyText(hint); // intro/instruction → sans-serif
+      p.style.marginTop = i === 0 ? '8px' : '3px';
+      frame.appendChild(p);
+    });
     const bodyWrap = el('div');
     bodyWrap.style.marginTop = '14px';
     bodyWrap.appendChild(o.body);
@@ -443,12 +461,80 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   }
   modal.body.appendChild(content);
   modal.body.appendChild(status);
-  modal.body.appendChild(createButton({
-    label: 'Close', testId: 'sync-pair-close', className: Modal.closeBtnClass,
-    onClick: () => modal.close(),
-  }));
+
+  // Live per-attempt diagnostics under the status/error (REQ-11).
+  const debug = buildDebugPanel();
+  unsubDiag = rtc.onDiagnostics(() => debug.update(rtc.diagnostics));
+  modal.body.appendChild(debug.el);
+
+  // Default (base) button styling + full-width layout — Modal.closeBtnClass is
+  // layout-only and would drop the button chrome (createButton replaces the class).
+  const closeBtn = createButton({ label: 'Close', testId: 'sync-pair-close', onClick: () => modal.close() });
+  closeBtn.style.width = '100%';
+  closeBtn.style.justifyContent = 'center';
+  closeBtn.style.marginTop = '20px';
+  modal.body.appendChild(closeBtn);
   modal.open();
   showChoose();
+}
+
+/** A collapsible "Connection details" panel fed by the transport's diagnostics
+ *  (REQ-11); hidden until a pairing attempt produces data. */
+function buildDebugPanel(): { el: HTMLElement; update: (d: WebRtcDiagnostics) => void } {
+  const details = document.createElement('details');
+  details.dataset.testid = 'sync-pair-debug';
+  details.style.marginTop = '10px';
+  details.style.display = 'none';
+  const summary = el('summary', undefined, 'Connection details');
+  summary.style.cursor = 'pointer';
+  summary.style.fontSize = '11px';
+  summary.style.letterSpacing = '0.06em';
+  summary.style.color = 'var(--text-dim)';
+  const body = el('div');
+  body.style.marginTop = '6px';
+  details.appendChild(summary);
+  details.appendChild(body);
+  return {
+    el: details,
+    update: (d) => { renderDiagnosticsInto(body, d); details.style.display = 'block'; },
+  };
+}
+
+/** Render a diagnostics snapshot (raw facts + plain-language hints) into `body`.
+ *  Exported for the unit test. */
+export function renderDiagnosticsInto(body: HTMLElement, d: WebRtcDiagnostics): void {
+  const lines: string[] = [];
+  if (d.iceHistory.length) lines.push('ICE: ' + d.iceHistory.join(' → '));
+  if (d.connHistory.length) lines.push('Connection: ' + d.connHistory.join(' → '));
+  lines.push('Gathering: ' + d.gathering);
+  if (d.localCandidates.length) {
+    lines.push('Local candidates:');
+    for (const c of d.localCandidates) lines.push(`  ${c.type} ${c.protocol} ${c.address}`);
+  }
+  lines.push('Remote candidates received: ' + d.remoteCandidateCount);
+  lines.push('Selected pair: ' + (d.selectedPair
+    ? `${d.selectedPair.local.address} ↔ ${d.selectedPair.remote.address}`
+    : 'none'));
+  if (d.candidateErrors.length) lines.push('Candidate errors: ' + d.candidateErrors.join('; '));
+
+  body.replaceChildren();
+  const facts = el('div', undefined, lines.join('\n'));
+  facts.style.fontFamily = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace';
+  facts.style.fontSize = '10.5px';
+  facts.style.lineHeight = '1.5';
+  facts.style.color = 'var(--text-dim)';
+  facts.style.whiteSpace = 'pre-wrap';
+  facts.style.wordBreak = 'break-all';
+  body.appendChild(facts);
+
+  for (const hint of summarizeDiagnostics(d)) {
+    const h = el('div', undefined, '💡 ' + hint);
+    h.style.color = 'var(--accent)';
+    h.style.fontSize = '11.5px';
+    h.style.lineHeight = '1.5';
+    h.style.marginTop = '8px';
+    body.appendChild(h);
+  }
 }
 
 /** Longest side (px) the jsQR fallback samples a camera frame at — enough to

@@ -2,6 +2,7 @@ import type { SyncMessage, SyncTransport } from './transport/sync/sync-types';
 import { type TickTimer, defaultTickTimer } from './transport/tick-timer';
 import { ClockOffsetEstimator } from './transport/sync/clock-offset';
 import { encodeSignal, decodeSignal } from './webrtc-signaling';
+import { type WebRtcDiagnostics, type CandInfo, emptyDiagnostics, parseCandidate } from './webrtc-diagnostics';
 
 /**
  * WebRTC DataChannel implementation of `SyncTransport` — the WiFi sibling of
@@ -29,6 +30,8 @@ const PING_BURST_COUNT = 8;
 const PING_BURST_MS = 150;
 const PING_STEADY_MS = 1000;
 const ICE_TIMEOUT_MS = 3000;
+const DISCONNECT_GRACE_MS = 5000; // 'disconnected' recovery window before teardown (REQ-6)
+const STATS_POLL_MS = 800;        // diagnostics getStats cadence (REQ-11)
 
 /** Wire envelope (keyed `t`) — kept distinct from the semantic `SyncMessage`. */
 type Wire =
@@ -60,6 +63,10 @@ export class WebRtcSyncTransport implements SyncTransport {
 
   private readonly messageListeners = new Set<(msg: SyncMessage, receivedAtMs: number) => void>();
   private readonly portListeners = new Set<() => void>();
+  private readonly diagListeners = new Set<() => void>();
+  private diag: WebRtcDiagnostics = emptyDiagnostics();
+  private disconnectTimer = 0;
+  private statsTimer = 0;
 
   constructor(opts?: WebRtcSyncTransportOptions) {
     this.RtcCtor = opts?.rtc ?? (globalThis as { RTCPeerConnection: typeof RTCPeerConnection }).RTCPeerConnection;
@@ -101,6 +108,16 @@ export class WebRtcSyncTransport implements SyncTransport {
   onPortsChange(cb: () => void): () => void {
     this.portListeners.add(cb);
     return () => { this.portListeners.delete(cb); };
+  }
+
+  /** Live diagnostics for the current/last pairing attempt (REQ-11). */
+  get diagnostics(): WebRtcDiagnostics {
+    return this.diag;
+  }
+
+  onDiagnostics(cb: () => void): () => void {
+    this.diagListeners.add(cb);
+    return () => { this.diagListeners.delete(cb); };
   }
 
   get linked(): boolean {
@@ -148,12 +165,84 @@ export class WebRtcSyncTransport implements SyncTransport {
 
   private newConnection(): RTCPeerConnection {
     const pc = new this.RtcCtor({ iceServers: [] });
+    this.diag = emptyDiagnostics(); // fresh diagnostics per attempt (REQ-11)
+    this.disconnectTimer = 0;
+
     pc.onconnectionstatechange = () => {
       const s = pc.connectionState;
-      if (s === 'failed' || s === 'closed' || s === 'disconnected') this.teardownLink();
+      this.diag.connHistory.push(s);
+      this.fireDiag();
+      if (s === 'failed' || s === 'closed') { this.teardownLink(); return; }
+      if (s === 'disconnected') {
+        // Transient/recoverable per spec (REQ-6): give it a grace window rather
+        // than killing a connection that's still completing ICE checks / flapping.
+        window.clearTimeout(this.disconnectTimer);
+        this.disconnectTimer = window.setTimeout(() => {
+          const cur = this.pc?.connectionState;
+          if (cur === 'disconnected' || cur === 'failed') this.teardownLink();
+        }, DISCONNECT_GRACE_MS);
+        return;
+      }
+      if (s === 'connected') { window.clearTimeout(this.disconnectTimer); this.disconnectTimer = 0; }
     };
+
+    // Diagnostics wiring (REQ-11) — a no-op on the test double (its addEventListener
+    // never dispatches); the real peer feeds the debug panel.
+    pc.addEventListener('iceconnectionstatechange', () => {
+      this.diag.iceHistory.push(pc.iceConnectionState);
+      this.fireDiag();
+    });
+    pc.addEventListener('icegatheringstatechange', () => {
+      this.diag.gathering = pc.iceGatheringState;
+      this.fireDiag();
+    });
+    pc.addEventListener('icecandidate', (e) => {
+      const cand = (e as RTCPeerConnectionIceEvent).candidate;
+      if (!cand?.candidate) return;
+      const c = parseCandidate(cand.candidate);
+      if (c) { this.diag.localCandidates.push(c); this.fireDiag(); }
+    });
+    pc.addEventListener('icecandidateerror', (e) => {
+      const err = e as RTCPeerConnectionIceErrorEvent;
+      this.diag.candidateErrors.push(`${err.errorCode} ${err.errorText ?? ''}`.trim());
+      this.fireDiag();
+    });
+
+    this.startStatsPoll(pc);
     this.pc = pc;
     return pc;
+  }
+
+  /** Poll getStats for the selected candidate pair + remote count (REQ-11). */
+  private startStatsPoll(pc: RTCPeerConnection): void {
+    window.clearInterval(this.statsTimer);
+    if (typeof pc.getStats !== 'function') return; // test double / unsupported
+    const tick = async (): Promise<void> => {
+      if (this.pc !== pc) return;
+      try {
+        const stats = await pc.getStats();
+        const cands = new Map<string, RTCStats>();
+        let remote = 0;
+        let best: RTCStats | null = null;
+        stats.forEach((r) => {
+          if (r.type === 'local-candidate' || r.type === 'remote-candidate') cands.set(r.id, r);
+          if (r.type === 'remote-candidate') remote++;
+          if (r.type === 'candidate-pair') {
+            const p = r as unknown as { nominated?: boolean; state?: string };
+            if (p.nominated || p.state === 'succeeded') best = r;
+          }
+        });
+        this.diag.remoteCandidateCount = remote;
+        if (best) {
+          const p = best as unknown as { localCandidateId?: string; remoteCandidateId?: string };
+          const L = p.localCandidateId ? cands.get(p.localCandidateId) : undefined;
+          const R = p.remoteCandidateId ? cands.get(p.remoteCandidateId) : undefined;
+          if (L && R) this.diag.selectedPair = { local: candFromStat(L), remote: candFromStat(R) };
+        }
+        this.fireDiag();
+      } catch { /* getStats hiccup — keep polling */ }
+    };
+    this.statsTimer = window.setInterval(() => void tick(), STATS_POLL_MS);
   }
 
   private createChannels(pc: RTCPeerConnection): void {
@@ -179,6 +268,10 @@ export class WebRtcSyncTransport implements SyncTransport {
   private teardownLink(): void {
     const was = this._linked || this.pc !== null;
     this._linked = false;
+    window.clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = 0;
+    window.clearInterval(this.statsTimer);
+    this.statsTimer = 0;
     this.timer.stop();
     this.pingCount = 0;
     this.offset.reset();
@@ -273,6 +366,16 @@ export class WebRtcSyncTransport implements SyncTransport {
   private firePortsChange(): void {
     for (const l of this.portListeners) l();
   }
+
+  private fireDiag(): void {
+    for (const l of this.diagListeners) l();
+  }
+}
+
+/** Map an RTCStats candidate row to the pure CandInfo shape. */
+function candFromStat(r: RTCStats): CandInfo {
+  const c = r as unknown as { candidateType?: string; protocol?: string; address?: string; ip?: string };
+  return { type: c.candidateType ?? '?', protocol: c.protocol ?? '?', address: c.address ?? c.ip ?? '?' };
 }
 
 function parse(data: unknown): Wire | null {

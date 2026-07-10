@@ -104,6 +104,13 @@ class FakePeerConnection {
     this.onconnectionstatechange?.();
   }
 
+  /** Test helper: drive an arbitrary connectionState transition (e.g. the
+   *  transient 'disconnected' → 'connected' recovery path). */
+  setConnectionState(s: RTCPeerConnectionState): void {
+    this.connectionState = s;
+    this.onconnectionstatechange?.();
+  }
+
   channel(id: number): FakeDataChannel | undefined {
     return this.channels.get(id);
   }

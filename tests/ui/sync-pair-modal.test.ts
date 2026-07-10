@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { openSyncPairModal, renderQr } from '../../src/ui/components/sync-pair-modal';
+import { openSyncPairModal, renderQr, renderDiagnosticsInto } from '../../src/ui/components/sync-pair-modal';
+import { emptyDiagnostics } from '../../src/audio/webrtc-diagnostics';
 import { Modal } from '../../src/ui/components/modal';
 import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
@@ -156,6 +157,27 @@ describe('sync-pair-modal (wizard)', () => {
 
   // Regression (webrtc-sync REQ-5): the QR must be drawn 1px/module and upscaled,
   // never a big bitmap CSS-clamped down (the v1 ~2px/module unscannable bug).
+  it('has a (hidden) debug panel wired on open', () => {
+    openSyncPairModal(transport(), syncStub());
+    expect(byId('sync-pair-debug')).toBeTruthy(); // present, revealed once an attempt has data
+  });
+
+  it('renders diagnostics (candidates + hint) into the debug panel (REQ-11)', () => {
+    const body = document.createElement('div');
+    const d = emptyDiagnostics();
+    d.iceHistory = ['checking', 'disconnected'];
+    d.remoteCandidateCount = 2;
+    d.localCandidates = [
+      { type: 'host', protocol: 'udp', address: '192.168.68.112' },
+      { type: 'host', protocol: 'udp', address: '192.168.56.1' },
+    ];
+    renderDiagnosticsInto(body, d);
+    expect(body.textContent).toContain('ICE: checking → disconnected');
+    expect(body.textContent).toContain('192.168.68.112');
+    expect(body.textContent).toContain('192.168.56.1');
+    expect(body.textContent).toMatch(/virtual adapter|VPN/i); // plain-language hint
+  });
+
   it('renders the QR upscaled (1px/module + quiet zone), never downscaled', () => {
     const canvas = document.createElement('canvas');
     const payload = 'WS2.r.' + 'A'.repeat(1200); // ~ a real (dense) SDP blob

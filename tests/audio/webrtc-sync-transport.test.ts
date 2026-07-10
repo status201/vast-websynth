@@ -117,4 +117,28 @@ describe('WebRtcSyncTransport', () => {
     expect(host.linked).toBe(false);
     expect(host.ports()).toEqual({ ins: 0, outs: 0 });
   });
+
+  it("'disconnected' is transient — a recovery within the grace window keeps the link (REQ-6)", async () => {
+    const { host, rtc } = await linkPair();
+    expect(host.linked).toBe(true);
+    vi.useFakeTimers();
+    try {
+      rtc.peers[0]!.setConnectionState('disconnected');
+      expect(host.linked).toBe(true);                 // grace — not torn down
+      rtc.peers[0]!.setConnectionState('connected');  // recovered
+      vi.advanceTimersByTime(10_000);
+      expect(host.linked).toBe(true);                 // recovery cancelled the teardown
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("'disconnected' that persists past the grace window tears down (REQ-6)", async () => {
+    const { host, rtc } = await linkPair();
+    vi.useFakeTimers();
+    try {
+      rtc.peers[0]!.setConnectionState('disconnected');
+      expect(host.linked).toBe(true);                 // still within grace
+      vi.advanceTimersByTime(10_000);
+      expect(host.linked).toBe(false);                // grace elapsed, still disconnected → torn down
+    } finally { vi.useRealTimers(); }
+  });
 });
