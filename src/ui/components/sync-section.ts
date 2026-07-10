@@ -1,6 +1,10 @@
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import type { SyncMode, SyncStatus } from '../../audio/transport/sync/sync-types';
+import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
+import { openSyncPairModal } from './sync-pair-modal';
+import { createButton } from './button';
 import segmentedStyles from '../styles/segmented.module.css';
+import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/song-panel.module.css';
 
 /**
@@ -16,7 +20,7 @@ const MODES: Array<[label: string, mode: SyncMode]> = [
   ['Slave', 'slave'],
 ];
 
-export function buildSyncSection(sync: SyncController): HTMLElement {
+export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement {
   const root = document.createElement('div');
   root.className = styles.io!;
 
@@ -57,6 +61,16 @@ export function buildSyncSection(sync: SyncController): HTMLElement {
   status.dataset.testid = 'sync-status';
   root.appendChild(status);
 
+  // WiFi pairing (WebRTC) — coexists with MIDI; opens the serverless pair modal.
+  const wifiBtn = createButton({
+    label: 'WiFi link…',
+    className: switchStyles.root!,
+    testId: 'sync-wifi-link',
+    onClick: () => openSyncPairModal(rtc),
+  });
+  wifiBtn.title = 'Pair another device over WiFi (same network, client isolation off)';
+  root.appendChild(wifiBtn);
+
   const paintMode = (mode: SyncMode): void => {
     for (const [m, b] of btns) b.classList.toggle('active', m === mode);
   };
@@ -76,12 +90,19 @@ export function buildSyncSection(sync: SyncController): HTMLElement {
 }
 
 function statusText(s: SyncStatus): string {
-  if (s.ports === null) return 'MIDI unavailable';
-  if (s.ports.ins === 0 && s.ports.outs === 0) return 'No MIDI ports';
-  let text = `${s.ports.ins} in · ${s.ports.outs} out`;
+  const midi = s.links.find((l) => l.id === 'midi');
+  const wifi = s.links.find((l) => l.id === 'wifi');
+
+  let text: string;
+  if (!midi) text = 'MIDI unavailable';
+  else if (midi.ins === 0 && midi.outs === 0) text = 'No MIDI ports';
+  else text = `${midi.ins} in · ${midi.outs} out`;
+
   if (s.mode === 'slave') {
     if (s.stalled) text += ' · stalled (free-running)';
     else if (s.followedBpm !== null) text += ` · following ${s.followedBpm.toFixed(1)} BPM`;
   }
+
+  if (wifi) text += wifi.ins > 0 || wifi.outs > 0 ? ' · WiFi: linked' : ' · WiFi: not linked';
   return text;
 }

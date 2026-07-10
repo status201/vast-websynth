@@ -3,13 +3,15 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 1
+version: 2
 owner: ui
 related:
   - song-mode
   - architecture
+  - webrtc-sync
 source:
   - src/ui/components/ai-prompt.ts        # createAiPromptButton, buildModal, buildSongPrompt
+  - src/ui/clipboard.ts                   # copyText / flashCopied (shared clipboard util)
   - src/ui/styles/modal.module.css        # .aiText / .aiBrief / .aiActions
   - src/ui/panels/song-panel.ts           # mounts the ✨ AI Prompt button in the io row
 ```
@@ -96,7 +98,10 @@ EXAMPLE SHAPE       <- abbreviated skeleton with … (REQ-4)
 
 - `src/ui/components/ai-prompt.ts` — all behaviour. Imports `Song`/`DEMO_SONGS`
   (state/song), `DRUM_TRACK_LABELS` (state/params), and `SEQ_LENGTH`/`BANK_COUNT`/
-  `BANK_LABELS`/`DRUM_TRACK_COUNT`/`SAMPLER_SLOT_COUNT` (state/patterns).
+  `BANK_LABELS`/`DRUM_TRACK_COUNT`/`SAMPLER_SLOT_COUNT` (state/patterns). The
+  clipboard helpers `copyText` / `flashCopied` are imported from the shared
+  `src/ui/clipboard.ts` (extracted verbatim so the WiFi pair modal can reuse
+  them — see [webrtc-sync.md](webrtc-sync.md)); behaviour is unchanged.
 - `src/ui/styles/modal.module.css` — `.aiBrief` (small editable textarea) + a small
   label, matching `.aiText` tokens.
 - `src/ui/panels/song-panel.ts` — appends `createAiPromptButton(bus)` to the io row

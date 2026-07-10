@@ -22,6 +22,7 @@ import { SamplerMachine } from './transport/sampler-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
+import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
@@ -92,6 +93,7 @@ export class Engine {
   perf!: Performance;
   recorder!: RecorderController;
   sync!: SyncController;
+  rtcSync!: WebRtcSyncTransport;
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
@@ -296,6 +298,15 @@ export class Engine {
       toAudioTime: (ms) => this.ctx.currentTime + (ms - performance.now()) / 1000,
       localBpm: () => this.bus.get('transport.bpm'),
     });
+
+    // WiFi sync (WebRTC DataChannel) coexists with the MIDI transport; no RTC
+    // objects until the user pairs (webrtc-sync.md). initMIDI adds 'midi' later.
+    this.rtcSync = new WebRtcSyncTransport();
+    this.sync.addTransport('wifi', this.rtcSync);
+
+    // While slaved, Tape Stop skips its clock-BPM ramp (pitch ramp still sounds)
+    // so incoming clock keeps driving the tempo (midi-clock-sync REQ-13).
+    this.perf.clockRampAllowed = () => this.sync.mode !== 'slave';
 
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => {

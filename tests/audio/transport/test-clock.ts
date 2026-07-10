@@ -47,9 +47,9 @@ export class TestClock implements TickSubscriber {
     for (let i = 0; i < n; i++) this.fireTick(when + i * 0.125);
   }
 
-  fireStart(): void {
+  fireStart(fromStep = 0): void {
     this.playing = true;
-    this.step = 0;
+    this.step = fromStep & 0xffff; // mirrors Clock.start(fromStep) (transport.md REQ-5)
     for (const l of this.startListeners) l();
   }
 
@@ -58,6 +58,6 @@ export class TestClock implements TickSubscriber {
     for (const l of this.stopListeners) l();
   }
 
-  start(): void { this.fireStart(); }
+  start(fromStep = 0): void { this.fireStart(fromStep); }
   stop(): void { this.fireStop(); }
 }

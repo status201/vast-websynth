@@ -72,6 +72,9 @@ const ANCHORS: Anchor[] = [
   { topic: 'song.new', find: () => byTestId('song-new') },
   { topic: 'song.exportAudio', find: () => byTestId('song-export-audio') },
   { topic: 'song.record', find: () => byTestId('song-record') },
+  // Transport-sync section (Song tab): the mode control + the WiFi pairing button.
+  { topic: 'sync', find: () => byTestId('sync-mode-master') },
+  { topic: 'sync.wifi', find: () => byTestId('sync-wifi-link') },
   { topic: 'keyboard', find: () => byTestId('keyboard') },
   { topic: 'pitchBend', find: () => byTestId('strip-master.pitchBend') },
   { topic: 'transpose', find: () => byTestId('strip-keyboard.transpose') },

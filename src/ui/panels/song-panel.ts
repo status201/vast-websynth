@@ -276,8 +276,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   aio.appendChild(recBtn);
   root.appendChild(aio);
 
-  // ---- MIDI clock sync (master/slave) ----
-  root.appendChild(buildSyncSection(engine.sync));
+  // ---- Transport sync (MIDI master/slave + WiFi) ----
+  root.appendChild(buildSyncSection(engine.sync, engine.rtcSync));
 
   return { el: root, loadDemo };
 }

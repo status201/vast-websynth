@@ -169,4 +169,20 @@ describe('Performance.setTapeStop', () => {
     expect(setBpm).toHaveBeenLastCalledWith(120); // back to the original BPM
     expect(bus.get('master.pitchBend')).toBe(0);
   });
+
+  it('gates the clock ramp while slaved: pitch bends but the clock is never set', () => {
+    now = 1000;
+    stubRaf();
+    const { perf, clock, bus } = makePerf();
+    perf.clockRampAllowed = () => false; // as the Engine sets it while slaved
+    const setBpm = vi.spyOn(clock, 'setBpm');
+
+    perf.setTapeStop(true);
+    expect(setBpm).not.toHaveBeenCalled();        // per-frame ramp skipped
+    expect(bus.get('master.pitchBend')).toBe(-1); // pitch still bends fully down
+
+    perf.setTapeStop(false);
+    expect(setBpm).not.toHaveBeenCalled();        // the restore is skipped too
+    expect(bus.get('master.pitchBend')).toBe(0);  // pitch still recovers
+  });
 });

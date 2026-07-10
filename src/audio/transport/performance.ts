@@ -17,6 +17,14 @@ const DJ_OPEN_HZ = 20000;
 export class Performance {
   fillActive = false;
 
+  /**
+   * Gate for Tape Stop's clock-BPM ramp (per-frame *and* the final restore).
+   * Default allows it; the Engine sets it to `() => sync.mode !== 'slave'` so a
+   * slaved instance's Tape Stop bends pitch only and never fights the followed
+   * clock (midi-clock-sync REQ-13). The pitch-bend ramp is unaffected.
+   */
+  clockRampAllowed: () => boolean = () => true;
+
   private stutterOn = false;
   private stutterSize = 2; // sixteenths
   private anchor = 0;
@@ -130,14 +138,16 @@ export class Performance {
     const tick = (): void => {
       const k = Math.min(1, (performance.now() - t0) / durMs);
       const e = on ? k * k : 1 - (1 - k) * (1 - k); // ease
-      this.clock.setBpm(startBpm + (endBpm - startBpm) * e);
+      // Skip the clock ramp while slaved — an incoming clock owns the tempo.
+      if (this.clockRampAllowed()) this.clock.setBpm(startBpm + (endBpm - startBpm) * e);
       this.bus.set('master.pitchBend', startBend + (endBend - startBend) * e);
       if (k < 1) {
         this.tapeRaf = requestAnimationFrame(tick);
       } else {
         this.tapeRaf = 0;
         if (!on) {
-          this.clock.setBpm(origBpm);
+          // An ungated restore would stomp the followed tempo with the knob value.
+          if (this.clockRampAllowed()) this.clock.setBpm(origBpm);
           this.bus.set('master.pitchBend', 0);
         }
       }

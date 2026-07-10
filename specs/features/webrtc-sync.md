@@ -1,0 +1,320 @@
+# WebRTC WiFi sync (serverless DataChannel transport)
+
+```yaml
+id: webrtc-sync
+status: implemented
+version: 1
+owner: core
+related:
+  - midi-clock-sync
+  - architecture
+  - performance
+  - onboarding
+source:
+  - src/audio/transport/sync/sync-types.ts
+  - src/audio/transport/sync/clock-offset.ts
+  - src/audio/webrtc-sync-transport.ts
+  - src/audio/webrtc-signaling.ts
+  - src/audio/transport/sync/sync-controller.ts
+  - src/audio/engine.ts
+  - src/ui/clipboard.ts
+  - src/ui/components/sync-pair-modal.ts
+  - src/ui/components/sync-section.ts
+  - src/ui/panels/song-panel.ts
+  - src/vendor/qr/index.ts
+```
+
+## Background / Why
+
+MIDI clock sync (`midi-clock-sync.md`) locks two instances together over a
+transport-agnostic `SyncTransport`. Web MIDI is the v1 transport (USB / hardware
+gear). This spec adds the second transport promised in that spec's open
+questions: a **WebRTC DataChannel** wire that pairs two instances **over the
+LAN, with no signaling server and no npm dependencies**. Two people on the same
+WiFi (a phone and a laptop, two phones) create/join a link by swapping a
+copy-pasteable code — or scanning a QR — and thereafter one drives the other's
+transport exactly as MIDI does.
+
+The sync **core is untouched** by the new transport: `WebRtcSyncTransport`
+implements the same `SyncTransport` interface, so `SyncMaster`/`SyncSlave`'s
+timing math never learns it exists. The only genuinely new machinery is (a) a
+pure NTP-style **clock-offset estimator** that converts the sender's
+`performance.now()` timestamps into the receiver's domain (WebRTC peers do not
+share a clock the way two ends of one MIDI cable effectively do), and (b) the
+**serverless pairing** UI (offer/answer blob exchange + QR).
+
+**LAN-only, empty `iceServers`** is a deliberate decision (see REQ-7): no STUN,
+no TURN, fully offline-capable. It pairs two devices on the same network via
+mDNS/host candidates; it does *not* traverse NAT to the public internet. The
+help topic documents the "same network, client isolation off" requirement.
+
+Scope: transport-only, exactly like MIDI (no note forwarding — a v3 candidate).
+MIDI and WiFi transports **coexist**: the master broadcasts to both, and a slave
+follows whichever delivers.
+
+## Requirements
+
+- **REQ-1** — `WebRtcSyncTransport implements SyncTransport`. It opens **two
+  negotiated DataChannels** on one `RTCPeerConnection`: `sync-control` (id 0,
+  ordered + reliable) carries semantic state (`start`/`continue`/`stop`/
+  `songposition`/`tempo`) where loss or reorder is a correctness bug;
+  `sync-timing` (id 1, `{ordered:false, maxRetransmits:0}`) carries `pulse`/
+  `ping`/`pong` where a *late-retransmitted* pulse is worse than a dropped one
+  (a 24-interval estimator window + 1 s stall tolerance absorb loss) and
+  head-of-line blocking of 96 msg/s pulses must be avoided. Both channels are
+  created by the **offerer** with `negotiated: true` + explicit ids so both
+  peers construct symmetric channels without an `ondatachannel` handshake.
+  Messages are JSON, one object per message.
+- **REQ-2** — All timestamps on the wire are the **sender's**
+  `performance.now()`. The receiver converts a message's `at` to its own domain
+  via `ClockOffsetEstimator.toLocal(at)` **before** invoking the `onMessage`
+  callback, so `SyncSlave` receives receiver-domain timestamps and its timing
+  math is byte-for-byte identical to the MIDI path. Before the offset is warm
+  (or a message carries no `at`), the transport falls back to local receipt
+  time (`performance.now()`).
+- **REQ-3** — Offset estimation is a pure `ClockOffsetEstimator` (no clocks, no
+  `performance`, no RTC). NTP-style: for a `{a, b, now}` sample (`a` = local
+  send time of the ping, `b` = remote receive/reply time echoed in the pong,
+  `now` = local receive time of the pong), `rtt = now − a`, raw
+  `offset = b − (a + rtt/2)`. Keep the last 16 samples; accept a sample into an
+  EMA (α 0.25) **only** when `rtt ≤ 1.5 × min(rtt)` (lowest-RTT filtering
+  rejects samples delayed by scheduling jitter). The transport owns cadence:
+  a burst of **8 pings at 150 ms** on channel open, then **1 Hz** thereafter
+  (a `TickTimer`); both peers ping, and a `ping` is answered with a `pong`
+  unconditionally. 1 Hz keeps the EMA tracking cross-device `performance.now()`
+  drift over long sessions.
+- **REQ-4** — The controller is **multi-transport**:
+  `SyncController.addTransport(id: TransportId, t)` manages a `Map`
+  (`TransportId = 'midi' | 'wifi'`); adding the same id replaces + unsubscribes
+  the old one. Broadcasting loops over **every** transport; incoming messages
+  from **any** transport are gated by mode exactly as before. `attachTransport`
+  (replace-single) is removed. `SyncStatus.ports` is replaced by
+  `links: Array<{id, ins, outs}>`. When a transport's `outs` goes **0 → >0
+  while master**, the controller calls `master.announceTo` targeting **only that
+  transport's `send`** (a broadcast would audibly restart already-locked MIDI
+  slaves — see midi-clock-sync REQ-10).
+- **REQ-5** — Pairing is **non-trickle** and serverless. The transport gathers
+  ICE to completion (`icegatheringstate === 'complete'`, 3 s timeout fallback)
+  then encodes the full SDP into a `WS2.` blob (`webrtc-signaling.ts`). The
+  `sync-pair-modal.ts` (built on `Modal`) offers a **Create link** (host) and
+  **Join** (guest) flow: the host shows an offer blob (copy + QR), pastes back
+  the guest's answer; the guest pastes the offer, shows an answer blob (copy +
+  QR). Copy-paste always works; QR **display** uses the vendored encoder; QR
+  **scan** is offered only when a working `BarcodeDetector` (with `qr_code`
+  support) is feature-detected. Testids: `sync-wifi-link` (launch button),
+  `sync-pair-offer`/`sync-pair-answer`/`sync-pair-qr`/`sync-pair-status`.
+- **REQ-6** — Lifecycle. A DataChannel close or a
+  `connectionstatechange ∈ {failed, closed, disconnected}` tears the link down:
+  `ports()` returns `{ins:0, outs:0}`, `onPortsChange` fires (status "WiFi: not
+  linked"), and a **playing slave keeps playing** via the existing > 1 s stall
+  free-run (midi-clock-sync REQ-6). Re-pairing closes the previous peer first.
+  A page reload **never** resumes a link (the sync *mode* persists; the link
+  does not) — the user re-pairs.
+- **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
+  `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
+  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The
+  `RTCPeerConnection` is created with **empty `iceServers`** — LAN-only, no STUN
+  — an accepted trade-off: it is offline-capable and needs no third party, but
+  fails where the network blocks mDNS/host candidates or enables AP client
+  isolation. A configurable STUN server is a documented future option.
+
+## Technical design
+
+### Contract / public interface
+
+```yaml
+# src/audio/transport/sync/sync-types.ts (extended — see midi-clock-sync v2)
+TransportId: "'midi' | 'wifi'"
+SyncMessage: "... | {type:'tempo', bpm} | {type:'songposition', beat}"
+SyncStatus.links: "Array<{ id: TransportId; ins: number; outs: number }>"  # replaces `ports`
+
+# src/audio/transport/sync/clock-offset.ts (pure)
+ClockOffsetEstimator(opts?):
+  addSample({a, b, now}): void      # a=local send, b=remote reply, now=local receive
+  offsetMs: "number | null"         # EMA of accepted raw offsets; null until first accept
+  toLocal(remoteAtMs): number       # remoteAtMs - offsetMs (identity when null)
+  reset(): void
+
+# src/audio/webrtc-signaling.ts (pure)
+SignalKind: "'offer' | 'answer'"
+encodeSignal(kind, sdp): Promise<string>   # -> "WS2.<c|r>.<base64url>"
+decodeSignal(blob): Promise<{ kind, sdp }> # throws SignalDecodeError on bad input
+
+# src/audio/webrtc-sync-transport.ts
+WebRtcSyncTransport(opts?: { rtc?; timer?; nowMs? }) implements SyncTransport:
+  send(msg, atMs?): void            # stamps sender time; routes by type; no-op unlinked
+  onMessage(cb): unsubscribe        # receiver-domain timestamps (offset-converted)
+  ports(): "{ ins: number; outs: number }"     # linked ? 1/1 : 0/0
+  onPortsChange(cb): unsubscribe
+  createLink(): Promise<string>     # host: returns offer blob (awaits ICE complete)
+  acceptOffer(blob): Promise<string> # guest: returns answer blob
+  acceptAnswer(blob): Promise<void> # host: completes the link
+  closeLink(): void
+  get linked(): boolean
+
+# src/audio/transport/sync/sync-controller.ts (changed)
+addTransport(id: TransportId, t: SyncTransport): void   # replaces attachTransport
+
+# src/ui/clipboard.ts (extracted from ai-prompt.ts)
+copyText(text): Promise<boolean>
+flashCopied(btn, original, done): void
+
+# src/ui/components/sync-pair-modal.ts
+openSyncPairModal(rtc: WebRtcSyncTransport): void
+
+# src/ui/components/sync-section.ts (changed)
+buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement
+
+# src/vendor/qr/index.ts
+qrcode(typeNumber, ecLevel): { addData; make; getModuleCount; isDark }
+```
+
+### Data shapes
+
+```yaml
+# JSON envelope on the wire (one object per message); at = sender performance.now() ms
+control channel (sync-control): "{t:'start'} | {t:'continue'} | {t:'stop'} | {t:'songposition', beat} | {t:'tempo', bpm}"
+timing channel (sync-timing):   "{t:'pulse', at} | {t:'ping', a} | {t:'pong', a, b}"
+
+# Estimator tuning (const block in clock-offset.ts)
+sampleWindow: 16
+emaAlpha: 0.25
+rttGate: 1.5             # accept only when rtt <= rttGate * min(rtt in window)
+
+# Transport tuning (const block in webrtc-sync-transport.ts)
+pingBurstCount: 8
+pingBurstMs: 150
+pingSteadyMs: 1000
+iceCompleteTimeoutMs: 3000
+
+# Signal blob: "WS2." <codec> "." <base64url payload>
+#   codec 'c' = CompressionStream('deflate-raw') available (feature-detected on globalThis)
+#   codec 'r' = raw UTF-8 fallback; decode handles both
+```
+
+### Layer touchpoints & ordering
+
+- `Engine.init()` constructs `this.rtcSync = new WebRtcSyncTransport()`
+  immediately after `SyncController` and calls
+  `this.sync.addTransport('wifi', this.rtcSync)`. No `RTCPeerConnection` objects
+  exist until the user starts pairing. `rtcSync` is exposed on `StudioApi` as
+  `readonly rtcSync` (drives the pair modal + the E2E bridge).
+- `midi.ts` calls `engine.sync.addTransport('midi', sync)` (was
+  `attachTransport`).
+- The Song panel's `buildSyncSection(engine.sync, engine.rtcSync)` adds a
+  **WiFi link…** button (`sync-wifi-link`) that opens `openSyncPairModal(rtc)`
+  and a WiFi suffix on the status line.
+- `ai-prompt.ts` imports `copyText`/`flashCopied` from the new
+  `src/ui/clipboard.ts` (pure DRY extraction — behaviour identical).
+
+### Persistence
+
+Nothing new persists. The sync **mode** persists (`websynth.midisync`, owned by
+midi-clock-sync). The **link** is intentionally ephemeral: SDP blobs, ICE
+candidates, and the live peer connection are never stored, so a reload always
+starts unpaired.
+
+## Visual aids
+
+Pairing handshake (non-trickle, serverless):
+
+```
+Host (Create)                         Guest (Join)
+  createLink() ──offer blob──▶ (copy/paste or QR) ──▶ acceptOffer(blob)
+  acceptAnswer(blob) ◀── (copy/paste or QR) ◀──answer blob── returns
+        └── both DataChannels open → ports 1/1 → status "WiFi: linked" ──┘
+```
+
+Libraries / platform APIs (all built-in, no npm):
+
+- `RTCPeerConnection` / `RTCDataChannel` (WebRTC) — `iceServers: []`.
+- `CompressionStream('deflate-raw')` where available (blob shrink; feature-detected).
+- `BarcodeDetector` (QR scan) — feature-detected; absent → paste-only.
+- Vendored `qrcode-generator` (Kazuhiko Arase, **MIT**), encoder-only, in
+  `src/vendor/qr/`.
+
+## Scenarios (BDD)
+
+```gherkin
+Scenario: Signal blob round-trips through both codecs
+  Given an SDP string
+  When encodeSignal('offer', sdp) runs with CompressionStream available (codec 'c')
+   And again with it absent (codec 'r' fallback)
+  Then decodeSignal(blob) returns {kind:'offer', sdp} for both
+   And a corrupt blob rejects with SignalDecodeError
+# pinned by: tests/audio/webrtc-signaling.test.ts
+
+Scenario: Offset estimator converges and gates high-RTT samples
+  Given ping/pong samples with a stable true offset and one delayed (high-rtt) pong
+  Then offsetMs converges near the true offset
+   And the delayed sample is rejected by the 1.5x-min-rtt gate
+   And toLocal(remoteAt) maps a remote timestamp into the local domain
+# pinned by: tests/audio/transport/sync/clock-offset.test.ts
+
+Scenario: Transport routes messages to the right channel and stamps time
+  Given a linked WebRtcSyncTransport (fake RTC)
+  When send({type:'stop'}) and send({type:'pulse'}, 42) are called
+  Then 'stop' goes over sync-control and 'pulse' over sync-timing
+   And each JSON carries the sender's performance.now() (pulse carries at)
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: Receiver converts sender time before onMessage
+  Given a warm offset estimator on the receiving transport
+  When a pulse arrives with the sender's at
+  Then onMessage is invoked with a receiver-domain timestamp (offset-applied)
+   And with a cold estimator it falls back to local receipt time
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: Channel close degrades status; a playing slave keeps playing
+  Given a linked slave following the master
+  When the data channel closes (or connectionstate → failed)
+  Then ports() reads 0/0 and onPortsChange fires ("WiFi: not linked")
+   And the slave keeps playing at the last tempo (stall free-run)
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: WiFi link opens mid-play → announce to the new link only
+  Given a master playing with a MIDI slave already locked
+  When a WiFi transport's outs go 0 → >0 (link opens)
+  Then announceTo targets only the WiFi transport (tempo + songposition + continue)
+   And the MIDI transport receives no new start/continue (no audible restart)
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: Pair modal flows and QR gating (jsdom)
+  Given the sync-pair modal on a fake transport
+  Then Create shows an offer blob + Copy; Join accepts an offer and shows an answer
+   And the status line flips to "Linked ✓" on onPortsChange
+   And no Scan button renders when BarcodeDetector is absent
+# pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: Two real pages link and follow (E2E loopback)
+  Given two pages in one headless-Chromium context, roles set via UI
+  When A's offer/answer are exchanged with B via the rtcSync bridge
+  Then both status lines read "WiFi: linked"
+   And Play on A starts B; a BPM change on A is followed by B; Stop on A stops B
+# pinned by: e2e/webrtc-sync.spec.ts
+```
+
+## Tests & verification
+
+- Unit: `tests/audio/transport/sync/clock-offset.test.ts`,
+  `tests/audio/webrtc-signaling.test.ts`,
+  `tests/audio/webrtc-sync-transport.test.ts` (fake RTC in
+  `tests/audio/fake-rtc.ts`), `tests/audio/transport/sync/sync-controller.test.ts`
+  (multi-transport + targeted announce), `tests/ui/sync-pair-modal.test.ts` —
+  `npm test`
+- E2E: `e2e/webrtc-sync.spec.ts` (real two-page RTC loopback),
+  `e2e/sync.spec.ts` (WiFi status + link button present) — `npm run e2e`
+- Typecheck: `npm run typecheck`
+- Manual: two `localhost` tabs pair on one machine; cross-device WiFi needs
+  HTTPS in production (WebRTC on a secure origin, same constraint as mic/MIDI);
+  QR scan needs a camera + `BarcodeDetector` (Android Chrome).
+
+## Open questions / future
+
+- **Configurable STUN**: a single opt-in STUN server would let the link cross
+  simple NATs (still no TURN, still no signaling server). Kept out of v2 to hold
+  the offline-capable, zero-config promise.
+- **Note forwarding (v3)**: the `SyncMessage` union can grow note-on/off
+  variants; the control channel is already reliable+ordered for it.
+- **Pulse batching**: JSON parse at ≤96 msg/s is negligible; batching several
+  pulses per frame is possible if a very high pulse rate is ever needed.

@@ -156,6 +156,8 @@ export type TopicId =
   | 'song.new'
   | 'song.exportAudio'
   | 'song.record'
+  | 'sync'
+  | 'sync.wifi'
   | 'keyboard'
   | 'pitchBend'
   | 'transpose'
@@ -571,6 +573,39 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>Stop</strong> to finish and download.</p>' +
       '<p>Use it to grab a jam or a take; use <strong>Export Song</strong> for a clean, automatic ' +
       'render of the whole arrangement.</p>',
+  },
+  sync: {
+    title: 'Sync (Master / Slave)',
+    body:
+      '<p>Lock this synth to another one so they play in step. One is the ' +
+      '<strong>Master</strong> — its Play/Stop and tempo drive the other — and the other is the ' +
+      '<strong>Slave</strong>, which follows. It speaks standard MIDI clock, so it also syncs ' +
+      'with hardware gear.</p>' +
+      '<ul>' +
+      '<li><strong>USB-MIDI</strong> — connect the two over USB. On Android, put the device in ' +
+      'its built-in <em>USB-MIDI peripheral</em> mode; on Windows, a virtual MIDI cable such as ' +
+      '<strong>loopMIDI</strong> bridges two apps on one machine.</li>' +
+      '<li>Pick <strong>Master</strong> on one instrument and <strong>Slave</strong> on the other. ' +
+      'The status line shows the port count and the followed tempo.</li>' +
+      '</ul>' +
+      '<p>No cable? Use <strong>WiFi link…</strong> instead (see its own badge).</p>',
+  },
+  'sync.wifi': {
+    title: 'WiFi sync (no cable)',
+    body:
+      '<p>Pair two devices over the same WiFi — no server, no account. It works when both are on ' +
+      'the same network with <strong>client isolation off</strong> (some guest/public WiFi blocks ' +
+      'device-to-device traffic).</p>' +
+      '<ol>' +
+      '<li>On one device press <strong>WiFi link…</strong> → <strong>Create link</strong>.</li>' +
+      '<li>On the other press <strong>WiFi link…</strong> → <strong>Join a link</strong>, and give ' +
+      'it the first device’s code (paste it, or <strong>scan the QR</strong> where your camera ' +
+      'supports it).</li>' +
+      '<li>Send the answer code back to the first device to finish. When both show ' +
+      '<strong>Linked ✓</strong> you’re synced — set one to Master and the other to Slave.</li>' +
+      '</ol>' +
+      '<p>Cross-device WiFi needs the secure (HTTPS) site; two tabs on one computer work on ' +
+      '<em>localhost</em>.</p>',
   },
   keyboard: {
     title: 'Keyboard',

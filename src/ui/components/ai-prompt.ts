@@ -14,7 +14,8 @@ import {
 } from '../../state/patterns';
 import { Song, DEMO_SONGS } from '../../state/song';
 import switchStyles from '../styles/switch.module.css';
-import { createButton, setButtonLabel } from './button';
+import { createButton } from './button';
+import { copyText, flashCopied } from '../clipboard';
 import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
@@ -127,11 +128,11 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
 
   const copyPrompt = createButton({
     label: 'Copy Prompt',
-    onClick: () => flash(copyPrompt, 'Copy Prompt', copyText(ta.value)),
+    onClick: () => flashCopied(copyPrompt, 'Copy Prompt', copyText(ta.value)),
   });
   const copyExample = createButton({
     label: 'Copy Example JSON',
-    onClick: () => flash(copyExample, 'Copy Example JSON', copyText(example)),
+    onClick: () => flashCopied(copyExample, 'Copy Example JSON', copyText(example)),
   });
   const downloadExample = createButton({
     label: 'Download Example',
@@ -156,40 +157,6 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   card.appendChild(actions);
   backdrop.appendChild(card);
   return backdrop;
-}
-
-/** Swap a button label to "Copied!" / "Failed" briefly after a copy. */
-function flash(
-  btn: HTMLButtonElement,
-  original: string,
-  done: Promise<boolean>,
-): void {
-  void done.then((ok) => {
-    setButtonLabel(btn, ok ? 'Copied!' : 'Press Ctrl+C');
-    window.setTimeout(() => setButtonLabel(btn, original), 1200);
-  });
-}
-
-/** Clipboard write with a legacy fallback. No util exists in the codebase. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      const t = document.createElement('textarea');
-      t.value = text;
-      t.style.position = 'fixed';
-      t.style.opacity = '0';
-      document.body.appendChild(t);
-      t.select();
-      const ok = document.execCommand('copy');
-      t.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
 }
 
 /**

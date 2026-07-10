@@ -96,6 +96,50 @@ describe('SyncSlave', () => {
     expect(slave.followedBpm!).toBeCloseTo(150, 0);
   });
 
+  it('continue after a song position starts from that beat (mid-song join)', () => {
+    const { clock, slave } = setup();
+    const steps: number[] = [];
+    clock.onTick((step) => steps.push(step));
+    slave.handleMessage({ type: 'songposition', beat: 32 }, 0);
+    slave.handleMessage({ type: 'continue' }, 0);
+    expect(clock.playing).toBe(true);
+    expect(steps[0]!).toBe(32); // seeded step, not 0
+  });
+
+  it('start ignores a stale pending beat and begins at 0 (v1 behaviour)', () => {
+    const { clock, slave } = setup();
+    const steps: number[] = [];
+    clock.onTick((step) => steps.push(step));
+    slave.handleMessage({ type: 'songposition', beat: 32 }, 0);
+    slave.handleMessage({ type: 'start' }, 0);
+    expect(steps[0]!).toBe(0);
+  });
+
+  it('follows an explicit tempo message directly', () => {
+    const { clock, slave } = setup(120);
+    slave.handleMessage({ type: 'tempo', bpm: 145 }, 0);
+    expect(clockBpm(clock)).toBeCloseTo(145, 1);
+  });
+
+  it('prefers a fresh tempo message over pulse estimation, then falls back when stale', () => {
+    const { clock, slave } = setup(120);
+    const setBpm = vi.spyOn(clock, 'setBpm');
+    slave.handleMessage({ type: 'tempo', bpm: 100 }, 0); // locks 100
+    setBpm.mockClear();
+
+    // Pulses at 140 while the tempo message is still fresh (< 2500 ms) must not
+    // rewrite the clock — the explicit tempo wins.
+    const dt = intervalMs(140);
+    for (let i = 0; i < 48; i++) slave.handleMessage({ type: 'pulse' }, i * dt);
+    expect(setBpm).not.toHaveBeenCalled();
+
+    // After the tempo message goes stale (> 2500 ms), pulse estimation resumes.
+    setBpm.mockClear();
+    const base = 3000;
+    for (let i = 0; i < 48; i++) slave.handleMessage({ type: 'pulse' }, base + i * dt);
+    expect(setBpm).toHaveBeenCalled();
+  });
+
   it('disable restores the local (knob) tempo', () => {
     const { clock, slave } = setup(100);
     slave.handleMessage({ type: 'start' }, 0);

@@ -3,11 +3,13 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - input-control
+  - midi-clock-sync
+  - webrtc-sync
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/help-mode.ts
@@ -44,6 +46,13 @@ never reads DEV-only globals.
   badges (e.g. `seq.prob`).
 - **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
   on-screen.
+- **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
+  `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
+  USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
+  `sync-mode-master`, and `sync.wifi` (WiFi pairing steps: same network + client
+  isolation off → Create on one device, Join on the other, swap codes via QR or
+  copy-paste) anchored to `sync-wifi-link`. See
+  [midi-clock-sync.md](midi-clock-sync.md) / [webrtc-sync.md](webrtc-sync.md).
 
 ## Technical design
 
@@ -90,6 +99,12 @@ Scenario: Song file buttons each explain themselves
   When the user clicks the Save badge, then the Export badge
   Then each opens its own modal whose copy distinguishes the two
 # pinned by: e2e/onboarding.spec.ts
+
+Scenario: Sync section carries USB + WiFi help badges (v2)
+  Given help mode is on and the Song tab is open
+  Then a `sync` badge anchors to the Master mode button and a `sync.wifi` badge
+    anchors to the WiFi link button, each opening its connection-steps modal
+# pinned by: tests/ui/help-content.test.ts (topic presence)
 ```
 
 ## Tests & verification

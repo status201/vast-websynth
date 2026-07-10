@@ -3,7 +3,7 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -11,6 +11,7 @@ related:
   - banks
   - song-mode
   - arrangement-rest
+  - midi-clock-sync
 source:
   - src/audio/transport/arrangement.ts
   - src/state/patterns.ts
@@ -35,7 +36,17 @@ tick listener settles the play banks first.
 - **REQ-2** — Advance one slot per bar (`step % SEQ_LENGTH === 0`); wrap on the
   lane length.
 - **REQ-3** — A disabled lane's play bank follows that machine's edit bank.
-- **REQ-4** — Reset positions on `clock.onStart`; the first bar plays slot 0.
+- **REQ-4** (v3) — On `clock.onStart`, **seek** each lane to the bar implied by
+  `clock.step` rather than always zeroing: `bar = floor(clock.step /
+  SEQ_LENGTH)`, `pos = enabled && steps.length ? bar % steps.length : 0`, and
+  `expectFirstBar = clock.step % SEQ_LENGTH === 0` (so a bar-aligned start
+  suppresses the first boundary's increment, and a mid-bar start lets the next
+  boundary — genuinely the next bar — increment). The `expectFirstBar` branch in
+  `onTick` no longer re-zeros positions (onStart already set them). With a plain
+  `start()` (`clock.step === 0`) this is **bit-identical to v2**: bar 0, pos 0,
+  first bar plays slot 0. The nonzero case supports MIDI/WiFi clock-sync's
+  Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md) REQ-10). The
+  Arrangement stores its ctor's `clock` to read `clock.step` in `onStart`.
 - **REQ-5** — Constructed before the step machines so play banks are settled before
   the machines read them on the same tick.
 - **REQ-6** — A chain step may be the `REST` sentinel (an always-empty bar); an
@@ -83,9 +94,16 @@ Scenario: A disabled lane follows the edit bank (edge)
   Then drumPlayBank tracks C (bar-quantised)
 # pinned by: tests/audio/transport/arrangement.test.ts
 
-Scenario: Positions reset on start
-  When the transport restarts
-  Then every lane plays its slot 0 on the first bar
+Scenario: Positions reset on a plain start (v3 regression)
+  When the transport restarts from step 0
+  Then every lane plays its slot 0 on the first bar (bit-identical to v2)
+# pinned by: tests/audio/transport/arrangement.test.ts
+
+Scenario: A nonzero start seeks to the implied bar (v3)
+  Given seqChain = { enabled: true, steps: [0,1,2] }
+  When the clock starts from a bar-aligned nonzero step (bar 2)
+  Then the seq lane plays slot 2 immediately and advances to slot 0 (wrap) next bar
+  And a mid-bar nonzero start seeks to that bar and increments on the next boundary
 # pinned by: tests/audio/transport/arrangement.test.ts
 ```
 

@@ -1,0 +1,39 @@
+// Shared clipboard helpers, extracted verbatim from ai-prompt.ts so the WiFi
+// pair modal can reuse them (ai-prompt.md / webrtc-sync.md). Behaviour is
+// unchanged: a navigator.clipboard write with a legacy execCommand fallback,
+// plus a button "Copied!" flash.
+import { setButtonLabel } from './components/button';
+
+/** Clipboard write with a legacy fallback. Resolves to whether it succeeded. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const t = document.createElement('textarea');
+      t.value = text;
+      t.style.position = 'fixed';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+      t.select();
+      const ok = document.execCommand('copy');
+      t.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Swap a button label to "Copied!" / "Press Ctrl+C" briefly after a copy. */
+export function flashCopied(
+  btn: HTMLButtonElement,
+  original: string,
+  done: Promise<boolean>,
+): void {
+  void done.then((ok) => {
+    setButtonLabel(btn, ok ? 'Copied!' : 'Press Ctrl+C');
+    window.setTimeout(() => setButtonLabel(btn, original), 1200);
+  });
+}

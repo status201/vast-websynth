@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
@@ -57,8 +57,12 @@ MIDI when available and degrades silently when not.
   (status ≥ 0xF8) are dispatched **before** the `& 0xf0` channel-voice mask
   (0xF8 & 0xF0 = 0xF0 would mis-dispatch) and routed to the clock-sync
   transport (see [midi-clock-sync](midi-clock-sync.md)); they never reach
-  note/CC handling. `onstatechange` additionally refreshes the sync
-  transport's port counts.
+  note/CC handling. A leading **`0xF2` Song Position Pointer** (System Common,
+  3 bytes, < 0xF8) is routed on its own explicit branch — after the ≥0xF8 branch
+  and before the mask — to `MidiSyncTransport.handleSongPosition(((d2)<<7)|d1,
+  ts)` (v2; midi-clock-sync REQ-10). `midi.ts` registers the transport via
+  `engine.sync.addTransport('midi', sync)` (v2; was `attachTransport`);
+  `onstatechange` additionally refreshes the sync transport's port counts.
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -79,8 +83,9 @@ UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboar
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
   status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-7, before the mask
+  data[0] === 0xF2 -> MidiSyncTransport.handleSongPosition(((d2)<<7)|d1, ev.timeStamp)  # REQ-7 (v2), before the mask
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
-  builds MidiSyncTransport(access) -> engine.sync.attachTransport(...)  # midi-clock-sync
+  builds MidiSyncTransport(access) -> engine.sync.addTransport('midi', ...)  # midi-clock-sync v2
 note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppressed)
 ```
 
@@ -125,6 +130,13 @@ Scenario: A MIDI clock pulse never reaches note handling (edge)
   Given a MIDI device interleaves 0xF8 clock bytes with note messages
   When a single-byte 0xF8 message arrives
   Then it is routed to the sync transport before the 0xf0 status mask
+  And no note or CC handler runs for it
+# pinned by: tests/audio/midi-sync-transport.test.ts; midi.ts handleMessage guard
+
+Scenario: A Song Position Pointer routes to the sync transport (edge)
+  Given a MIDI master sends 0xF2 lsb msb (beat position)
+  When the 3-byte message arrives
+  Then it routes to handleSongPosition(((msb)<<7)|lsb, ts) before the 0xf0 mask
   And no note or CC handler runs for it
 # pinned by: tests/audio/midi-sync-transport.test.ts; midi.ts handleMessage guard
 

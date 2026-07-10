@@ -40,12 +40,19 @@ export class Arrangement {
   private expectFirstBar = true;
   private readonly changeListeners = new Set<() => void>();
 
-  constructor(private readonly patterns: PatternStore, clock: TickSubscriber) {
+  constructor(private readonly patterns: PatternStore, private readonly clock: TickSubscriber) {
     clock.onStart(() => {
-      this.seqPos = 0;
-      this.drumPos = 0;
-      this.samplerPos = 0;
-      this.expectFirstBar = true;
+      // Seek to the bar implied by the start step (0 for a plain start, nonzero
+      // for a clock-sync Song-Position join — arrangement.md REQ-4). Reading
+      // clock.step here is safe: Clock.start seeds _step before firing onStart.
+      const bar = Math.floor(this.clock.step / SEQ_LENGTH);
+      this.seqPos = laneSeek(this.seq, bar);
+      this.drumPos = laneSeek(this.drum, bar);
+      this.samplerPos = laneSeek(this.sampler, bar);
+      // A bar-aligned start suppresses the first boundary's increment (that
+      // boundary IS this bar); a mid-bar start lets the next boundary — the
+      // genuine next bar — advance.
+      this.expectFirstBar = this.clock.step % SEQ_LENGTH === 0;
       this.recompute();
       this.notify();
     });
@@ -53,10 +60,8 @@ export class Arrangement {
     clock.onTick((step) => {
       if (step % SEQ_LENGTH !== 0) return;
       if (this.expectFirstBar) {
+        // Positions were set by onStart; just consume the flag (don't re-zero).
         this.expectFirstBar = false;
-        this.seqPos = 0;
-        this.drumPos = 0;
-        this.samplerPos = 0;
       } else {
         if (this.seq.enabled && this.seq.steps.length) {
           this.seqPos = (this.seqPos + 1) % this.seq.steps.length;
@@ -123,6 +128,12 @@ export class Arrangement {
     this.samplerPlayBank = sampler.playBank;
     this.samplerResting = sampler.resting;
   }
+}
+
+/** Chain position for a lane at absolute bar `bar` — the wrapped slot index,
+ *  or 0 for a disabled/empty lane (which just tracks its edit bank). */
+function laneSeek(lane: ChainLane, bar: number): number {
+  return lane.enabled && lane.steps.length ? bar % lane.steps.length : 0;
 }
 
 /**

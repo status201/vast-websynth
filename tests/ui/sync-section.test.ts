@@ -2,7 +2,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildSyncSection } from '../../src/ui/components/sync-section';
 import type { SyncController } from '../../src/audio/transport/sync/sync-controller';
-import type { SyncMode, SyncStatus } from '../../src/audio/transport/sync/sync-types';
+import type { SyncMode, SyncStatus, SyncLink } from '../../src/audio/transport/sync/sync-types';
+import type { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 
 /** Structural stub — buildSyncSection only touches mode/setMode/status/onStatus. */
 function stubController(status: Partial<SyncStatus> = {}) {
@@ -10,7 +11,7 @@ function stubController(status: Partial<SyncStatus> = {}) {
   const state = {
     mode: 'off' as SyncMode,
     status: {
-      mode: 'off', ports: null, playing: false, followedBpm: null, stalled: false,
+      mode: 'off', links: [] as SyncLink[], playing: false, followedBpm: null, stalled: false,
       ...status,
     } as SyncStatus,
   };
@@ -24,43 +25,65 @@ function stubController(status: Partial<SyncStatus> = {}) {
   return { ctrl: ctrl as unknown as SyncController, setMode: ctrl.setMode, push };
 }
 
+/** WiFi transport stub — only `onPortsChange`/`linked` are touched on open. */
+const rtcStub = { linked: false, onPortsChange: () => () => {} } as unknown as WebRtcSyncTransport;
+
 const q = (root: HTMLElement, testid: string) =>
   root.querySelector(`[data-testid="${testid}"]`) as HTMLElement;
 
 describe('sync-section', () => {
   it('renders the three mode buttons and marks the current mode active', () => {
     const { ctrl } = stubController();
-    const el = buildSyncSection(ctrl);
+    const el = buildSyncSection(ctrl, rtcStub);
     for (const m of ['off', 'master', 'slave']) expect(q(el, `sync-mode-${m}`)).toBeTruthy();
     expect(q(el, 'sync-mode-off').classList.contains('active')).toBe(true);
   });
 
   it('clicking a mode calls setMode and moves the active class', () => {
     const { ctrl, setMode } = stubController();
-    const el = buildSyncSection(ctrl);
+    const el = buildSyncSection(ctrl, rtcStub);
     q(el, 'sync-mode-master').click();
     expect(setMode).toHaveBeenCalledWith('master');
     expect(q(el, 'sync-mode-master').classList.contains('active')).toBe(true);
     expect(q(el, 'sync-mode-off').classList.contains('active')).toBe(false);
   });
 
-  it('shows "MIDI unavailable" when no transport is attached', () => {
-    const { ctrl } = stubController({ ports: null });
-    const el = buildSyncSection(ctrl);
+  it('renders a WiFi link button (opens the pair modal)', () => {
+    const { ctrl } = stubController();
+    const el = buildSyncSection(ctrl, rtcStub);
+    expect(q(el, 'sync-wifi-link')).toBeTruthy();
+  });
+
+  it('shows "MIDI unavailable" when no transport has links', () => {
+    const { ctrl } = stubController({ links: [] });
+    const el = buildSyncSection(ctrl, rtcStub);
     expect(q(el, 'sync-status').textContent).toBe('MIDI unavailable');
   });
 
-  it('shows "No MIDI ports" when the transport has none', () => {
-    const { ctrl } = stubController({ ports: { ins: 0, outs: 0 } });
-    const el = buildSyncSection(ctrl);
+  it('shows "No MIDI ports" when the MIDI transport has none', () => {
+    const { ctrl } = stubController({ links: [{ id: 'midi', ins: 0, outs: 0 }] });
+    const el = buildSyncSection(ctrl, rtcStub);
     expect(q(el, 'sync-status').textContent).toBe('No MIDI ports');
+  });
+
+  it('appends the WiFi link state to the status line', () => {
+    const { ctrl } = stubController({
+      links: [{ id: 'midi', ins: 1, outs: 1 }, { id: 'wifi', ins: 0, outs: 0 }],
+    });
+    const el = buildSyncSection(ctrl, rtcStub);
+    expect(q(el, 'sync-status').textContent).toContain('WiFi: not linked');
+
+    const { ctrl: linked } = stubController({
+      links: [{ id: 'midi', ins: 1, outs: 1 }, { id: 'wifi', ins: 1, outs: 1 }],
+    });
+    expect(q(buildSyncSection(linked, rtcStub), 'sync-status').textContent).toContain('WiFi: linked');
   });
 
   it('re-renders on status pushes: ports, followed BPM, stall', () => {
     const { ctrl, push } = stubController();
-    const el = buildSyncSection(ctrl);
+    const el = buildSyncSection(ctrl, rtcStub);
     const base: SyncStatus = {
-      mode: 'slave', ports: { ins: 2, outs: 1 }, playing: true,
+      mode: 'slave', links: [{ id: 'midi', ins: 2, outs: 1 }], playing: true,
       followedBpm: 120.44, stalled: false,
     };
     push(base);

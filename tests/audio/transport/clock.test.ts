@@ -73,6 +73,46 @@ describe('Clock nudge (MIDI clock sync phase correction)', () => {
   });
 });
 
+describe('Clock start(fromStep) (Song-Position seek)', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120);
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    return { ctx, clock, ev };
+  }
+
+  it('seeds the step before onStart and on the first tick', () => {
+    const { clock, ev } = startedClock();
+    let seenAtStart = -1;
+    clock.onStart(() => { seenAtStart = clock.step; });
+    clock.start(96);
+    expect(seenAtStart).toBe(96);   // step visible to onStart subscribers
+    expect(ev[0]!.step).toBe(96);   // first drained tick
+    clock.stop();
+  });
+
+  it('masks fromStep to 16 bits', () => {
+    const { clock, ev } = startedClock();
+    clock.start(0x1_0002); // wraps to 2
+    expect(ev[0]!.step).toBe(2); // first drained tick fires at the masked seed
+    clock.stop();
+  });
+
+  it('plain start() / start(0) begins at step 0 (regression)', () => {
+    const { clock: a, ev: eva } = startedClock();
+    a.start();
+    expect(eva[0]!.step).toBe(0);
+    a.stop();
+    const { clock: b, ev: evb } = startedClock();
+    b.start(0);
+    expect(evb[0]!.step).toBe(0);
+    b.stop();
+  });
+});
+
 describe('Clock swing', () => {
   it('emits a straight grid when swing is 0', () => {
     const ev = collectTicks(0);

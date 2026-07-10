@@ -23,6 +23,7 @@ export class Knob {
   private startValue = 0;
   private fine = false;
   private lastTap = 0;
+  private disabled = false;
   private circumference: number;
 
   constructor(private readonly opts: KnobOptions) {
@@ -122,7 +123,19 @@ export class Knob {
     return id.split('.').pop()!.toUpperCase();
   }
 
+  /**
+   * Disable input (e.g. the BPM knob while slaved — midi-clock-sync REQ-14):
+   * dims the control and blocks both dragging and the double-tap reset. The bus
+   * value still repaints, so the dial keeps reflecting the (external) value.
+   */
+  setDisabled(on: boolean): void {
+    this.disabled = on;
+    this.el.classList.toggle(styles.disabled!, on);
+    this.el.setAttribute('aria-disabled', String(on));
+  }
+
   private onPointerDown = (e: PointerEvent): void => {
+    if (this.disabled) return; // blocks drag AND double-tap reset
     e.preventDefault();
     (e.target as Element).setPointerCapture?.(e.pointerId);
 

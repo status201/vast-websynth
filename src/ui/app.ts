@@ -254,7 +254,17 @@ function buildHeader(
 
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
-  transport.appendChild(new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' }).el);
+  // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
+  // is then driven by the sync master (midi-clock-sync REQ-14).
+  const bpmKnob = new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' });
+  const applySlaved = (mode: string): void => {
+    const slaved = mode === 'slave';
+    bpmKnob.setDisabled(slaved);
+    bpmKnob.el.title = slaved ? 'Tempo follows the sync master while slaved' : '';
+  };
+  applySlaved(engine.sync.mode);
+  engine.sync.onStatus((s) => applySlaved(s.mode));
+  transport.appendChild(bpmKnob.el);
   transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
 
   el.appendChild(transport);

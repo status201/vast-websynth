@@ -207,6 +207,7 @@ specs/
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)
+    webrtc-sync.md     ·  serverless WebRTC DataChannel WiFi sync (LAN, QR/paste pairing)
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature

@@ -3,7 +3,7 @@
 ```yaml
 id: transport
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -11,6 +11,7 @@ related:
   - sequencer
   - arrangement
   - performance-mode
+  - midi-clock-sync
 source:
   - src/audio/transport/clock.ts
   - src/audio/transport/tick-timer.ts
@@ -52,6 +53,13 @@ untouched.
   and background-tab timer throttling. A main-thread `setTimeout` loop is the
   fallback (and the injectable test double). A wakeup that arrives after
   `stop()` must not emit ticks.
+- **REQ-5** (v3) — `start(fromStep = 0)` seeds `_step = fromStep & 0xffff`
+  **before** firing `onStart`, so a subscriber (the [arrangement](arrangement.md))
+  can read `clock.step` in `onStart` and seek to the implied bar. Plain
+  `start()` / `start(0)` is bit-identical to v2 (step 0). Used by MIDI/WiFi
+  clock-sync's Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md)
+  REQ-10). `TickSubscriber.start(): void` keeps its no-arg signature (the
+  concrete `Clock` accepts the optional param).
 
 ## Technical design
 
@@ -64,7 +72,8 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   get step: number
   setBpm(b)            # clamped 20..400 internally
   setSwing(s)          # 0 (straight) .. 1
-  start() / stop()
+  start(fromStep = 0) / stop()   # v3: fromStep seeds _step (& 0xffff) before onStart
+  nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
   onTick(fn) / onStart(fn) / onStop(fn) -> unsubscribe
 constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1 (default; perf tier may widen it)
 TickListener: (step, when) => void        # tick-source.ts
@@ -120,6 +129,14 @@ Scenario: No ticks after stop, even from an in-flight wakeup (edge)
   When the clock is stopped and the timer fires once more
   Then no tick is emitted and the timer has been told to stop
 # pinned by: tests/audio/transport/tick-timer.test.ts
+
+Scenario: start(fromStep) seeds the step before onStart (v3)
+  Given the clock is stopped
+  When start(96) is called
+  Then an onStart subscriber reads clock.step === 96
+   And the first tick fires for step 96
+   And start() / start(0) still begins at step 0 (regression)
+# pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: Transport survives a backgrounded tab (device)
   Given the transport is playing on a phone

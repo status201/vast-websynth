@@ -18,7 +18,7 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<void> {
     // (onmidimessage/onstatechange are single-assignment); the sync transport
     // is *fed* from here rather than wiring its own handlers.
     const sync = new MidiSyncTransport(access);
-    engine.sync.attachTransport(sync);
+    engine.sync.addTransport('midi', sync);
     const wire = (input: MIDIInput) => {
       input.onmidimessage = (ev: MIDIMessageEvent) => handleMessage(ev, bus, sync);
     };
@@ -39,6 +39,13 @@ function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransp
   // reach the channel-voice mask below (0xF8 & 0xF0 = 0xF0 would mis-dispatch).
   if (data[0]! >= 0xf8) {
     sync.handleRealtimeByte(data[0]!, ev.timeStamp);
+    return;
+  }
+  // Song Position Pointer (0xF2, System Common, 3 bytes): a slave joining
+  // mid-song seeks to this beat. Routed before the & 0xf0 mask (midi-clock-sync
+  // REQ-10); 14-bit beat = (msb << 7) | lsb, one beat = 6 clocks = one 16th.
+  if (data[0] === 0xf2) {
+    sync.handleSongPosition(((data[2] ?? 0) << 7) | (data[1] ?? 0), ev.timeStamp);
     return;
   }
   const status = data[0]! & 0xf0;

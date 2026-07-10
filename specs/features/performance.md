@@ -3,7 +3,7 @@
 ```yaml
 id: performance
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -11,6 +11,7 @@ related:
   - song-mode
   - xy-pad
   - live-fx-window
+  - midi-clock-sync
 source:
   - src/audio/transport/performance.ts
   - src/state/params.ts                 # fx.djfilter
@@ -40,6 +41,14 @@ so the Song panel can drive momentary controls without reaching into the machine
   LP ← 0 → HP).
 - **REQ-5** — **Tape Stop**: ramp `Clock` BPM down + pitch-bend down via rAF, then
   recover on release.
+- **REQ-6** (v3) — **Clock-ramp gate**: a public settable predicate
+  `clockRampAllowed: () => boolean` (default `() => true`) guards *both* the
+  per-frame `clock.setBpm(...)` and the final `clock.setBpm(origBpm)` restore in
+  Tape Stop's rAF tick — an ungated restore would stomp an externally-followed
+  tempo with the local knob value. The pitch-bend ramp is unaffected. Engine
+  wires `perf.clockRampAllowed = () => sync.mode !== 'slave'`, so a slaved
+  instance's Tape Stop bends pitch only and never fights the followed clock
+  ([midi-clock-sync.md](midi-clock-sync.md) REQ-13).
 
 ## Technical design
 
@@ -54,6 +63,7 @@ Performance:  # src/audio/transport/performance.ts
   setDrop(on)                       # momentary lowpass dive on djFilter
   setDjFilter(x)                    # manual sweep, -1..1 (LP..HP)
   setTapeStop(on)                   # BPM + pitch ramp via rAF
+  clockRampAllowed: () => boolean   # v3: default () => true; gates Tape Stop's clock ramp + restore
 ctor deps: (ctx, clock, bus, djFilter: BiquadFilterNode)
 ```
 
@@ -96,6 +106,13 @@ Scenario: Tape Stop bends BPM and pitch down then recovers
   When the user holds then releases Tape Stop
   Then BPM + pitch ramp down (rAF) and recover on release
 # pinned by: e2e/song-fx.spec.ts
+
+Scenario: Tape Stop gated while slaved ramps pitch only (v3)
+  Given clockRampAllowed() returns false (slave mode)
+  When the user holds then releases Tape Stop
+  Then clock.setBpm is never called (per-frame nor the restore)
+   And the pitch-bend ramp still runs
+# pinned by: tests/audio/transport/performance.test.ts
 ```
 
 ## Tests & verification

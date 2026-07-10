@@ -40,7 +40,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that fully describes the JSON format (and links the live schema URL); paste it into any AI agent and import the song it returns
 - **Presets**: a 16-sound factory bank — basses (bass, upright, pbass, reese, acid), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass), leads/plucks (basic, lead, pluck) and wobble — + user presets saved to `localStorage`
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI
-- **MIDI clock sync**: lock two VAST instances (or hardware gear) together over MIDI — set one **Master** (broadcasts MIDI Start/Stop + 24 PPQN clock) and one **Slave** (follows start/stop and tempo, riding out dropouts by free-running at the last tempo) from the Song tab's Sync section. Works over USB (e.g. an Android tablet in USB-MIDI mode plugged into a laptop) or any virtual/hardware MIDI cable
+- **Transport sync (MIDI + WiFi)**: lock two VAST instances (or hardware gear) together — set one **Master** and one **Slave** from the Song tab's Sync section. Over **MIDI** (Start/Stop + 24 PPQN clock) via USB (e.g. an Android tablet in USB-MIDI mode plugged into a laptop) or any virtual/hardware cable; or over **WiFi** with no cable and no server — pair two devices on the same network by scanning a QR code or swapping a copy-pasted link (serverless WebRTC, LAN-only). A slave joins mid-song at the right bar, follows tempo, and rides out dropouts by free-running at the last tempo; while slaved, the BPM knob dims because the tempo is external
 - Oscilloscope / spectrum display (mono or stereo, with a max-dB peak-hold readout), pitch-bend and mod wheels
 - **Performance mode**: three tiers (Weak / Medium / Strong, or Auto) that scale latency, polyphony, effect cost (reverb tail length, distortion oversampling, transport look-ahead) and the visualiser's frame rate to your device — keeping audio glitch-free on slow hardware while keeping latency low on fast machines
 
@@ -94,13 +94,14 @@ src/
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → ladder filter → amp
     oscillator.ts, envelope.ts, lfo.ts, midi.ts
+    midi-sync-transport.ts, webrtc-sync-transport.ts, webrtc-signaling.ts
     ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
     effects/         distortion, wah, phaser, delay, reverb, compressor
     drums/           drum synthesis
     transport/       clock, arpeggiator, sequencer, drum-machine, sampler,
                      arrangement (chain lanes), performance (live DJ FX),
-                     sync/ (MIDI clock master/slave)
+                     sync/ (transport sync core: MIDI + WiFi master/slave)
     recorder/        mic capture, pure sample DSP, WAV/MP3 encode,
                      AudioWorklet sink (song export + record-a-sound)
   state/

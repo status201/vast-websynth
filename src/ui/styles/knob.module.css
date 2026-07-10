@@ -77,3 +77,12 @@
   color: var(--accent);
   text-shadow: 0 0 6px var(--accent-glow);
 }
+
+/* Disabled (e.g. BPM knob while slaved) — dims + shows it's not draggable. */
+.disabled {
+  opacity: 0.45;
+}
+
+.disabled .dial {
+  cursor: default;
+}

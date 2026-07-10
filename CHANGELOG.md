@@ -18,16 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **MIDI clock sync (master/slave)** — sync the transport of two VAST
-  instances (or hardware gear) over MIDI: a new **Sync** section in the Song
-  tab sets the instance to **Master** (broadcasts MIDI Start/Stop + 24 PPQN
-  clock to every MIDI output — any local start, including the arpeggiator,
-  is mirrored) or **Slave** (follows Start/Stop from any MIDI input and
-  locks onto the incoming tempo, riding out short dropouts by free-running
-  at the last tempo). Works over USB — e.g. an Android tablet in USB-MIDI
-  mode plugged into a laptop — or any virtual/hardware MIDI cable. The
-  status line shows the connected port counts and, while slaved, the
-  followed BPM. The setting is per-device (never saved into presets/songs).
+- **Transport sync (master/slave)** — sync the transport of two VAST
+  instances (or hardware gear): a **Sync** section in the Song tab sets the
+  instance to **Master** (broadcasts Start/Stop + 24 PPQN clock — any local
+  start, including the arpeggiator, is mirrored) or **Slave** (follows
+  Start/Stop and locks onto the incoming tempo, riding out short dropouts by
+  free-running at the last tempo). The status line shows the connection and,
+  while slaved, the followed BPM; the BPM knob dims because the tempo is
+  external. A slave that joins mid-song jumps to the right bar (Song Position)
+  instead of restarting from the top. The setting is per-device (never saved
+  into presets/songs).
+  - **Over MIDI** — works over USB (e.g. an Android tablet in USB-MIDI mode
+    plugged into a laptop) or any virtual/hardware MIDI cable.
+  - **Over WiFi** — pair two devices on the same network with **no cable and
+    no server**: press **WiFi link…**, then **Create** on one device and
+    **Join** on the other, swapping the code by scanning a **QR** or pasting
+    it. (Same network with client isolation off; cross-device needs the
+    secure HTTPS site, two tabs on one computer work on localhost.)
 
 - **Rest bars in the arrangement** — each Song-tab chain lane (seq / drum /
   sampler) gains a fifth build option, a **rest**: an always-empty bar you can

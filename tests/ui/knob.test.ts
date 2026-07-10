@@ -39,6 +39,42 @@ describe('Knob double-tap reset', () => {
   });
 });
 
+// The BPM knob dims + refuses input while slaved (midi-clock-sync REQ-14):
+// setDisabled(true) blocks both a drag and the double-tap reset, and marks the
+// control (opacity + aria-disabled); the bus value still repaints the dial.
+describe('Knob setDisabled (slaved BPM knob)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('blocks drag and double-tap while disabled, then restores when re-enabled', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000); // > 300 ms since lastTap=0 → drag branch
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'transport.bpm' });
+    const start = b.get('transport.bpm');
+
+    knob.setDisabled(true);
+    expect(knob.el.classList.contains(styles.disabled!)).toBe(true);
+    expect(knob.el.getAttribute('aria-disabled')).toBe('true');
+
+    // A drag does nothing.
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+    dial.dispatchEvent(new MouseEvent('pointerdown', { clientY: 100 }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 40 }));
+    expect(b.get('transport.bpm')).toBe(start);
+
+    // A double-tap reset is blocked too.
+    b.set('transport.bpm', start + 10);
+    doubleTap(knob);
+    expect(b.get('transport.bpm')).toBe(start + 10);
+
+    // Re-enabling restores input (double-tap now resets to the default).
+    knob.setDisabled(false);
+    expect(knob.el.classList.contains(styles.disabled!)).toBe(false);
+    expect(knob.el.getAttribute('aria-disabled')).toBe('false');
+    doubleTap(knob);
+    expect(b.get('transport.bpm')).toBe(b.def('transport.bpm')!.default);
+  });
+});
+
 // The drum tuning strip destroys + recreates Knobs on track change, so a Knob
 // that leaks window listeners accumulates dead handlers over a session — the
 // degrade-over-time crackle (drum-machine.md REQ-10). Drag listeners must be

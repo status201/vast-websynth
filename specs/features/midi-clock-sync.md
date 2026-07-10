@@ -3,13 +3,15 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - input-control
   - transport
   - performance
+  - arrangement
+  - webrtc-sync
 source:
   - src/state/sync-mode.ts
   - src/audio/transport/sync/sync-types.ts
@@ -19,9 +21,13 @@ source:
   - src/audio/transport/sync/sync-controller.ts
   - src/audio/midi-sync-transport.ts
   - src/audio/transport/clock.ts
+  - src/audio/transport/arrangement.ts
+  - src/audio/transport/performance.ts
   - src/audio/engine.ts
   - src/audio/midi.ts
   - src/ui/components/sync-section.ts
+  - src/ui/components/knob.ts
+  - src/ui/app.ts
   - src/ui/panels/song-panel.ts
 ```
 
@@ -89,7 +95,77 @@ the timing code.
   `sync-status`.
 - **REQ-9** — Graceful degradation: no Web MIDI (or a denied permission) shows
   "MIDI unavailable" in the status; mode switching stays allowed but inert
-  (`SyncController` works before/without `attachTransport`); zero errors.
+  (`SyncController` works before/without any transport added); zero errors.
+
+## v2 additions
+
+v2 ticks off v1's open questions and adds the WiFi transport
+(`webrtc-sync.md`). The requirements below **extend or supersede** the v1
+clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
+`songposition`); MIDI drops both to the wire only where a byte exists.
+
+- **REQ-10 — Song Position Pointer (0xF2).** A slave joining mid-song jumps to
+  the right bar instead of restarting at 0. `SyncMessage` grows
+  `{type:'songposition', beat}` where `beat = clock.step & 0x3fff` (1 MIDI beat
+  = 6 clocks = one 16th). MIDI both directions: `midi.ts` routes a leading
+  `0xF2` (System Common, 3 bytes, before the `& 0xf0` mask) to
+  `MidiSyncTransport.handleSongPosition(((d2)<<7)|d1, ts)`; `send` maps
+  `songposition → [0xf2, beat & 0x7f, (beat>>7) & 0x7f]`. **Master:**
+  `announceTo(send)` sends `tempo` while stopped, and `tempo` + `songposition` +
+  `continue` while playing; `enable()` mid-play calls `announceTo(broadcast)`
+  instead of v1's bare `start` (supersedes REQ-2's mid-play `start`).
+  **Slave:** `songposition` stores `pendingBeat`; `start` sets `pendingBeat = 0`
+  and starts at 0 (v1 behaviour); `continue` calls `clock.start(pendingBeat)`.
+  `resetFollowState(startStep)` records `startStep`, and the phase-step mapping
+  becomes `(startStep + pulse/6) & 0xffff` (v1 hardcoded pulse 0 ↔ step 0).
+  **Clock:** `start(fromStep = 0)` seeds `_step = fromStep & 0xffff` before
+  firing start listeners (see transport.md). **Arrangement** seeks to the bar
+  implied by `clock.step` on start (see arrangement.md). **Regression: plain
+  `start()` / `Clock.start(0)` behaves exactly as v1** (bar 0, pos 0).
+- **REQ-11 — Idle clock.** While enabled and **stopped**, the master keeps
+  sending timestamped `pulse`s so slaves' tempo estimates stay warm before the
+  first Start (supersedes REQ-2's "no pulses while stopped"). `SyncMaster`'s
+  ctor gains `opts?: { timer?: TickTimer; nowMs?: () => number }` (defaults
+  `defaultTickTimer()` / `performance.now`, injectable for tests). The idle
+  timer fires every **100 ms**; each wakeup schedules pulses covering
+  `(lastScheduledMs, nowMs + 200]` at `sixteenthDuration()/6 × 1000` ms spacing,
+  plus a **2 s** `tempo` heartbeat. It starts on `enable()`-while-stopped and on
+  `onStop`, and stops on `onStart` and `disable()`. The idle grid is
+  discontinuous with the played grid at Start — accepted (slave phase counting
+  restarts on Start; only the estimator benefits). Idle `0xF8` also reaches MIDI
+  hardware — standard behaviour.
+- **REQ-12 — Explicit tempo message.** `SyncMessage` grows `{type:'tempo',
+  bpm}`. The master emits it on `enable()`, on every `onStart`, on even ticks
+  when `|bpm − lastSent| ≥ 0.1`, every 2 s while stopped (idle heartbeat), and
+  in `announceTo`. `MidiSyncTransport.send` **early-returns for `'tempo'`** (no
+  MIDI byte). The slave, on `'tempo'`, calls `clock.setBpm(bpm)` (skips if
+  `|Δ| < 0.05`) and records `lastTempoMsgAtMs`; while a tempo message is fresh
+  (`TEMPO_MSG_FRESH_MS = 2500`) the pulse estimator keeps running but its
+  BPM-write path is suppressed — so an explicit-tempo (WiFi) master wins and a
+  pulse-only (MIDI) master automatically falls back when tempo messages stop.
+- **REQ-13 — Tape-stop gate.** While slaved, Tape Stop skips its clock-BPM ramp
+  (the pitch-bend ramp still sounds). `Performance` gains a public settable
+  predicate `clockRampAllowed: () => boolean` (default `() => true`); both the
+  per-frame `clock.setBpm(...)` and the final restore `clock.setBpm(origBpm)`
+  are wrapped in `if (this.clockRampAllowed())` (an ungated restore would stomp
+  the followed tempo with the knob value). Engine wires
+  `perf.clockRampAllowed = () => this.sync.mode !== 'slave'` right after sync
+  construction (see performance.md).
+- **REQ-14 — BPM-knob slaved indicator.** `Knob.setDisabled(on)` toggles a
+  `disabled` style class + `aria-disabled` and early-returns in `onPointerDown`
+  (blocks drag **and** double-tap reset). `app.ts` captures the BPM knob and
+  subscribes `engine.sync.onStatus` → `setDisabled(mode === 'slave')` with a
+  tooltip "Tempo follows the sync master while slaved".
+- **REQ-15 — Multi-transport + links status.** MIDI and WiFi coexist:
+  `SyncController.addTransport(id, t)` replaces `attachTransport` (a `Map` keyed
+  by `TransportId = 'midi' | 'wifi'`; same id replaces + unsubscribes). Sends
+  broadcast to every transport; incoming from any is gated as before. When a
+  transport's `outs` goes 0 → >0 while master, the controller calls
+  `master.announceTo` targeting **only that transport** (REQ-10). `SyncStatus`
+  replaces `ports` with `links: Array<{id, ins, outs}>`. The status line reads
+  `MIDI unavailable` / `No MIDI ports` / `N in · M out`, plus ` · WiFi: linked`
+  / ` · WiFi: not linked`; slave suffixes (following/stalled) unchanged. See
+  `webrtc-sync.md` for the WiFi transport itself.
 
 ## Technical design
 
@@ -102,7 +178,8 @@ readSyncMode(): SyncMode          # default 'off'; bad stored values -> 'off'
 writeSyncMode(m): void            # try/catch, non-fatal (perf-mode pattern)
 
 # src/audio/transport/sync/sync-types.ts
-SyncMessage: "{type:'start'} | {type:'continue'} | {type:'stop'} | {type:'pulse'}"
+TransportId: "'midi' | 'wifi'"
+SyncMessage: "{type:'start'} | {type:'continue'} | {type:'stop'} | {type:'pulse'} | {type:'tempo', bpm} | {type:'songposition', beat}"
 SyncTransport:
   send(msg, atMs?): void          # atMs in the performance.now() domain
   onMessage(cb(msg, receivedAtMs)): unsubscribe
@@ -110,7 +187,7 @@ SyncTransport:
   onPortsChange(cb): unsubscribe
 SyncStatus:
   mode: SyncMode
-  ports: "{ins, outs} | null"     # null = no transport attached
+  links: "Array<{ id: TransportId; ins: number; outs: number }>"   # v2: replaces `ports`; [] = no transport added
   playing: boolean
   followedBpm: "number | null"    # slave only
   stalled: boolean                # slave only
@@ -122,14 +199,15 @@ PulseBpmEstimator:
   reset(): void
 
 # src/audio/transport/sync/sync-master.ts
-SyncMaster(clock, send, toPerfMs):
-  enable(): void                  # hooks onStart/onStop/onTick; start now if playing
-  disable(): void                 # unhooks; sends stop if playing
+SyncMaster(clock, send, toPerfMs, opts?: { timer?, nowMs? }):
+  enable(): void                  # hooks onStart/onStop/onTick; announceTo now if playing; idle clock if stopped
+  disable(): void                 # unhooks; stops idle clock; sends stop if playing
+  announceTo(send): void          # v2: targeted join — tempo (+songposition+continue while playing)
 
 # src/audio/transport/sync/sync-slave.ts
 SyncSlave(clock, { localBpm, toAudioTime }):
   enable() / disable(): void      # disable restores clock.setBpm(localBpm())
-  handleMessage(msg, receivedAtMs): void
+  handleMessage(msg, receivedAtMs): void   # v2: adds 'tempo' + 'songposition'; 'continue' -> start(pendingBeat)
   followedBpm: "number | null"
   stalled: boolean
   onChange(cb): unsubscribe       # status repaint hook
@@ -138,21 +216,26 @@ SyncSlave(clock, { localBpm, toAudioTime }):
 SyncController(clock, { toPerfMs, toAudioTime, localBpm, persist? }):
   mode: SyncMode
   setMode(m): void                # tear down old role, build new, persist, emit
-  attachTransport(t): void        # late-called by initMIDI; re-applies mode
+  addTransport(id, t): void       # v2: replaces attachTransport; Map keyed by TransportId (same id replaces)
   status: SyncStatus
   onStatus(cb): unsubscribe
 
 # src/audio/midi-sync-transport.ts
 MidiSyncTransport(access) implements SyncTransport:
-  handleRealtimeByte(byte, timeStampMs): void   # fed by midi.ts
+  handleRealtimeByte(byte, timeStampMs): void   # fed by midi.ts (>= 0xF8)
+  handleSongPosition(beat, timeStampMs): void   # v2: fed by midi.ts for 0xF2
   refreshPorts(): void                          # fed by midi.ts onstatechange
-  # send: one status byte ([0xFA|0xFB|0xFC|0xF8]) to EVERY output, output.send([b], atMs)
+  # send: [0xFA|0xFB|0xFC|0xF8] to EVERY output; songposition -> [0xF2,lsb,msb]; 'tempo' early-returns (no byte)
 
-# src/audio/transport/clock.ts (addition)
+# src/audio/transport/clock.ts (additions)
 Clock.nudge(seconds): void        # nextStepTime += clamp(s, ±0.05); no-op stopped
+Clock.start(fromStep = 0): void   # v2: seeds _step = fromStep & 0xffff before firing onStart
 
 # src/ui/components/sync-section.ts
-buildSyncSection(sync: SyncController): HTMLElement
+buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement  # v2: WiFi link button + links status
+
+# src/ui/components/knob.ts (addition)
+Knob.setDisabled(on): void        # v2: dims + aria-disabled + blocks drag/double-tap (BPM knob while slaved)
 ```
 
 ### Data shapes
@@ -169,6 +252,16 @@ nudgeMaxS: 0.010                  # per correction
 nudgeMinIntervalBeats: 1
 nudgeDeadbandS: 0.005
 stallMs: 1000                     # checked inside a clock.onTick subscription
+tempoMsgFreshMs: 2500             # v2: while a 'tempo' msg is this fresh, suppress pulse-estimate writes
+```
+
+Master idle-clock + tempo constants (`sync-master.ts`, v2):
+
+```yaml
+idleWakeMs: 100                   # idle timer wakeup cadence while stopped
+idleHorizonMs: 200                # schedule pulses covering (lastScheduled, now + 200]
+tempoHeartbeatMs: 2000            # idle 'tempo' emission spacing
+tempoSendMinDelta: 0.1            # emit 'tempo' on even ticks when |bpm - lastSent| >= this
 ```
 
 Time domains: MIDI timestamps (`MIDIOutput.send`, `MIDIMessageEvent.timeStamp`)
@@ -181,14 +274,18 @@ inverse — the core never touches `performance`/`ctx` directly (unit-testable).
 
 - `Engine.init()` constructs `SyncController` immediately **before**
   `subscribeParams()` so the gated `transport.bpm` subscription
-  (`if (this.sync.mode !== 'slave')`) can read it safely.
-- `main.ts` is unchanged: `initMIDI(engine, bus)` still runs post-gesture
-  (input-control REQ-6); it builds `MidiSyncTransport(access)` and calls
-  `engine.sync.attachTransport(t)`. `onstatechange` also calls
-  `t.refreshPorts()`.
+  (`if (this.sync.mode !== 'slave')`) can read it safely. Immediately after, it
+  constructs `this.rtcSync = new WebRtcSyncTransport()` and calls
+  `this.sync.addTransport('wifi', this.rtcSync)` (v2; see webrtc-sync.md), and
+  wires the tape-stop gate `this.perf.clockRampAllowed = () => this.sync.mode
+  !== 'slave'`.
+- `initMIDI(engine, bus)` runs post-gesture (input-control REQ-6); it builds
+  `MidiSyncTransport(access)` and calls `engine.sync.addTransport('midi', sync)`
+  (v2; was `attachTransport`). `onstatechange` also calls `sync.refreshPorts()`.
 - `midi.ts handleMessage`: `data[0]! >= 0xf8` branch **before** the `& 0xf0`
   mask (0xF8 & 0xF0 = 0xF0 would mis-dispatch) forwards to the transport and
-  returns.
+  returns. v2 adds an explicit `data[0] === 0xf2` route **after** the ≥0xF8
+  branch and before the mask → `sync.handleSongPosition(((d2)<<7)|d1, ts)`.
 - The Song panel appends `buildSyncSection(engine.sync)` after its Audio
   section; the UI reaches the controller via `StudioApi.sync` (ADR-009).
 - Master/Performance interplay: Tape Stop ramps the clock BPM — the master's
@@ -255,15 +352,87 @@ Scenario: Sync UI is present and the mode persists (no MIDI ports in CI)
 # pinned by: e2e/sync.spec.ts
 ```
 
+v2 scenarios:
+
+```gherkin
+Scenario: Plain start() regression — bit-identical to v1
+  Given a master and a slave
+  When the master starts from step 0 (Clock.start(), no fromStep)
+  Then the slave starts at step 0 and the Arrangement seeks to bar 0 / pos 0
+# pinned by: tests/audio/transport/clock.test.ts, tests/audio/transport/arrangement.test.ts, tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: Master announce mid-play sends tempo + song position + continue
+  Given a master playing mid-arrangement at bar N
+  When it becomes master (enable while playing) or a new transport link opens
+  Then announceTo sends 'tempo', 'songposition' (beat = step & 0x3fff), then 'continue'
+   And it does NOT send a bare 'start' (no restart to bar 0)
+# pinned by: tests/audio/transport/sync/sync-master.test.ts, sync-controller.test.ts
+
+Scenario: Slave continue starts at beat N and phase-locks
+  Given a slave that received songposition beat N then continue
+  Then clock.start(N * 6) seeds the step and the Arrangement seeks to bar N
+   And offset pulses phase-lock against (startStep + pulse/6)
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: Idle pulses warm a stopped slave's estimator
+  Given a master enabled while stopped
+  Then it emits timestamped pulses on a 100 ms idle timer + a 2 s tempo heartbeat
+   And a slave receiving them reports a followedBpm before any start
+# pinned by: tests/audio/transport/sync/sync-master.test.ts, sync-slave.test.ts
+
+Scenario: Tempo message beats pulse estimation, falls back when stale
+  Given a slave receiving explicit 'tempo' messages
+  Then clock BPM tracks the tempo message (pulse-estimate writes suppressed while fresh)
+  When tempo messages stop for over TEMPO_MSG_FRESH_MS
+  Then pulse-estimate BPM writes resume (MIDI-only fallback)
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: MIDI transport carries song position but drops tempo
+  Given a MidiSyncTransport
+  When send({type:'songposition', beat}) and send({type:'tempo', bpm}) are called
+  Then songposition emits [0xF2, lsb, msb] to every output and tempo emits no byte
+   And an incoming 0xF2 (via handleSongPosition) surfaces a 'songposition' message
+# pinned by: tests/audio/midi-sync-transport.test.ts
+
+Scenario: Tape stop while slaved ramps pitch only; release keeps the followed tempo
+  Given a slaved instance following a master tempo
+  When Tape Stop is engaged and released (clockRampAllowed() === false)
+  Then the clock BPM is never ramped or restored by Performance
+   And the pitch-bend ramp still runs
+# pinned by: tests/audio/transport/performance.test.ts
+
+Scenario: BPM knob refuses input while slaved
+  Given the BPM knob
+  When setDisabled(true) is applied (slave mode)
+  Then a pointer-drag and a double-tap both leave the value unchanged
+# pinned by: tests/ui/knob.test.ts
+
+Scenario: WiFi link opens mid-play announces to the new link only
+  Given a master playing with a MIDI slave locked
+  When a second transport's outs go 0 → >0
+  Then announceTo targets only the newly opened transport (MIDI slave hears nothing new)
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: Links status replaces ports (WiFi suffix)
+  Given MIDI + WiFi transports added
+  Then status.links lists both, and the status line appends "WiFi: linked/not linked"
+# pinned by: tests/ui/sync-section.test.ts, e2e/sync.spec.ts
+```
+
 ## Tests & verification
 
 - Unit: `tests/state/sync-mode.test.ts`,
   `tests/audio/transport/sync/{bpm-estimator,sync-master,sync-slave,sync-controller}.test.ts`,
   `tests/audio/midi-sync-transport.test.ts` (fake `MIDIAccess` in
   `tests/audio/fake-midi-access.ts`), `tests/audio/transport/clock.test.ts`
-  (nudge), `tests/ui/sync-section.test.ts` — `npm test`
-- E2E: `e2e/sync.spec.ts` (UI presence + persistence only; headless Chromium
-  has no MIDI ports) — `npm run e2e`
+  (nudge + `start(fromStep)`), `tests/audio/transport/arrangement.test.ts`
+  (nonzero-start seek + start(0) regression),
+  `tests/audio/transport/performance.test.ts` (tape-stop gate),
+  `tests/ui/{sync-section,knob}.test.ts` — `npm test`. The v2 WiFi transport,
+  offset estimator, signaling codec and pair modal are tested under
+  `webrtc-sync.md`.
+- E2E: `e2e/sync.spec.ts` (UI presence + persistence + WiFi status/link button;
+  headless Chromium has no MIDI ports) — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Manual: two `localhost:5173` tabs + a virtual MIDI loopback (e.g. loopMIDI);
   cross-device needs HTTPS (Web MIDI is secure-context-only; same constraint
@@ -271,19 +440,18 @@ Scenario: Sync UI is present and the mode persists (no MIDI ports in CI)
 
 ## Open questions / future
 
-- **WiFi transport (v2)**: a WebRTC DataChannel `SyncTransport` sending the
-  same 4-variant messages as JSON; signaling (QR / copy-paste offer-answer) is
-  the real work. The `SyncMessage` union can grow variants (e.g. song position)
-  without breaking the interface.
-- **Song Position Pointer (0xF2)**: enabling master mid-play sends 0xFA
-  immediately — the slave joins at bar 0 while the master may be mid-arrangement.
-- **Idle clock**: some hardware sends 0xF8 continuously while stopped; the
-  master doesn't (v1) — a second idle timer's grid wouldn't match the real
-  clock at start. The slave copes (starts at the local knob tempo, converges
-  in ~1–2 beats) and benefits from continuous-clock hardware masters.
-- **Slave + local Tape Stop**: incoming pulses re-assert the followed tempo
-  within ~250 ms, effectively overriding Tape Stop's clock ramp while slaved
-  (the pitch ramp still sounds). Option: gate the Performance clock ramp when
-  slaved.
-- **BPM knob while slaved** shows the local (restore) value, not the audible
-  tempo; the status line disambiguates.
+v2 resolved every v1 open question: **WiFi transport** shipped as
+`webrtc-sync.md` (WebRTC DataChannel `SyncTransport`, coexisting with MIDI);
+**Song Position Pointer** (REQ-10) so a mid-play join seeks to the right bar;
+**idle clock** (REQ-11) so a stopped master keeps warming slaves;
+**Tape-stop gate** (REQ-13) so a slaved Tape Stop ramps pitch only; and the
+**BPM-knob slaved indicator** (REQ-14) so the disabled knob signals the tempo is
+external. Remaining future ideas:
+
+- **Note forwarding (v3)**: forward note-on/off over the wire so a slave voices
+  the master's keyboard/pattern, not just its transport. The `SyncMessage` union
+  can grow variants without breaking the transport interface.
+- **Configurable STUN (WiFi)**: opt-in STUN to cross simple NATs while keeping
+  the serverless promise (see `webrtc-sync.md`).
+- **BPM knob while slaved** still holds the local (restore) value under the
+  disabled dim; the status line's followed-BPM disambiguates.

@@ -17,6 +17,31 @@ describe('MidiSyncTransport', () => {
     }
   });
 
+  it('maps a song position to a 0xF2 3-byte message on every output', () => {
+    const { access, outputs } = makeFakeMidiAccess(0, 2);
+    const t = new MidiSyncTransport(access);
+    t.send({ type: 'songposition', beat: 300 }, 5); // 300 = (msb 2 << 7) | lsb 44
+    for (const out of outputs) {
+      expect(out.send).toHaveBeenCalledWith([0xf2, 300 & 0x7f, (300 >> 7) & 0x7f], 5);
+    }
+  });
+
+  it('drops tempo (no MIDI byte — MIDI carries tempo implicitly in pulse spacing)', () => {
+    const { access, outputs } = makeFakeMidiAccess(0, 2);
+    const t = new MidiSyncTransport(access);
+    t.send({ type: 'tempo', bpm: 128 });
+    for (const out of outputs) expect(out.send).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an incoming song position (handleSongPosition) with its timestamp', () => {
+    const { access } = makeFakeMidiAccess();
+    const t = new MidiSyncTransport(access);
+    const seen: Array<{ msg: SyncMessage; at: number }> = [];
+    t.onMessage((msg, at) => seen.push({ msg, at }));
+    t.handleSongPosition(300, 9);
+    expect(seen).toEqual([{ msg: { type: 'songposition', beat: 300 }, at: 9 }]);
+  });
+
   it('survives an output whose send throws (port unplugged mid-send)', () => {
     const { access, outputs } = makeFakeMidiAccess(0, 2);
     outputs[0]!.send.mockImplementation(() => { throw new Error('disconnected'); });

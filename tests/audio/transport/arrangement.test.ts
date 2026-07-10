@@ -79,6 +79,51 @@ describe('Arrangement', () => {
     expect(arr.seqPlayBank).toBe(3);
   });
 
+  it('a plain start (step 0) seeks to bar 0 (v3 regression, bit-identical to v2)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1, 2], true);
+    clock.fireStart(); // step 0
+    expect(arr.seqChainPos).toBe(0);
+    playBar(clock, 0);
+    expect(arr.seqPlayBank).toBe(0);
+    playBar(clock, 1);
+    expect(arr.seqPlayBank).toBe(1); // advances on the next boundary
+  });
+
+  it('a bar-aligned nonzero start seeks straight to the implied bar (v3)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1, 2], true);
+    // Start at bar 2 (like a Song-Position join). onStart runs after step is seeded.
+    clock.fireStart(SEQ_LENGTH * 2);
+    expect(arr.seqChainPos).toBe(2);
+    playBar(clock, 2); // this bar plays slot 2, first boundary is suppressed
+    expect(arr.seqPlayBank).toBe(2);
+    playBar(clock, 3); // next boundary wraps 2 -> 0
+    expect(arr.seqPlayBank).toBe(0);
+  });
+
+  it('a mid-bar nonzero start seeks to that bar and increments on the next boundary (v3)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1, 2], true);
+    clock.fireStart(SEQ_LENGTH * 1 + 4); // bar 1, offset 4 into the bar
+    expect(arr.seqChainPos).toBe(1);
+    // Remaining ticks of bar 1 (steps 20..31) do nothing (not on a boundary).
+    for (let i = 0; i < SEQ_LENGTH - 4; i++) clock.fireTick();
+    expect(arr.seqPlayBank).toBe(1);
+    // Step 32 is the next boundary → increments to slot 2 (not suppressed).
+    playBar(clock, 2);
+    expect(arr.seqPlayBank).toBe(2);
+  });
+
   it('notifies onChange when chain is set', () => {
     const clock = new TestClock();
     const patterns = new PatternStore();

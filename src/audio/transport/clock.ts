@@ -54,11 +54,17 @@ export class Clock implements TickSubscriber {
     this.swing = Math.max(0, Math.min(1, s));
   }
 
-  start(): void {
+  /**
+   * Start the transport. `fromStep` seeds the step counter *before* start
+   * listeners fire, so a subscriber (the Arrangement) can read `clock.step` in
+   * `onStart` and seek to the implied bar — used by clock-sync's Song-Position
+   * join (midi-clock-sync REQ-10). Plain `start()` / `start(0)` is unchanged.
+   */
+  start(fromStep = 0): void {
     if (this._playing) return;
     this._playing = true;
     this.nextStepTime = this.ctx.currentTime + 0.05;
-    this._step = 0;
+    this._step = fromStep & 0xffff;
     for (const l of this.startListeners) l();
     this.tick(); // schedule the first horizon synchronously
     this.timer.start(this.tick, LOOKAHEAD_MS);

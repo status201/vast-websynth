@@ -6,17 +6,22 @@ import { gotoAndStart } from './helpers';
  * MIDI ports, so the status line reads "No MIDI ports" (access granted, empty
  * port maps) or "MIDI unavailable" (permission denied); nothing timing-related
  * can run here — the follow/broadcast math is unit-tested
- * (tests/audio/transport/sync/*).
+ * (tests/audio/transport/sync/*). The real WiFi loopback lives in
+ * webrtc-sync.spec.ts.
  */
 test('Song tab shows the Sync section; mode persists across reload', async ({ page }) => {
   await gotoAndStart(page);
 
   await page.getByRole('button', { name: 'Song', exact: true }).click();
 
-  // Section present, with the degraded-gracefully status (REQ-9).
+  // Section present, with the degraded-gracefully status (REQ-9). The WiFi
+  // transport is always added, so the status line carries its (unlinked) suffix.
   const status = page.getByTestId('sync-status');
   await expect(status).toBeVisible();
-  await expect(status).toHaveText(/No MIDI ports|MIDI unavailable/);
+  await expect(status).toHaveText(/(No MIDI ports|MIDI unavailable).*WiFi: not linked/);
+
+  // The WiFi pairing entry point is present (opens the serverless pair modal).
+  await expect(page.getByTestId('sync-wifi-link')).toBeVisible();
 
   // Off is the default mode.
   await expect(page.getByTestId('sync-mode-off')).toHaveClass(/\bactive\b/);

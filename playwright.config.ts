@@ -47,6 +47,10 @@ export default defineConfig({
             // Future-proofs the mic-record phase; harmless for the smoke test.
             '--use-fake-ui-for-media-stream',
             '--use-fake-device-for-media-stream',
+            // WebRTC WiFi-sync loopback (webrtc-sync.spec): expose raw 127.0.0.1
+            // host candidates instead of unresolvable mDNS .local names, so two
+            // pages in one context can connect with empty iceServers.
+            '--disable-features=WebRtcHideLocalIpsWithMdns',
           ],
         },
       },
