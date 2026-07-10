@@ -3,7 +3,7 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - midi-clock-sync
@@ -22,6 +22,7 @@ source:
   - src/ui/components/sync-section.ts
   - src/ui/panels/song-panel.ts
   - src/vendor/qr/index.ts
+  - src/vendor/jsqr/index.ts
 ```
 
 ## Background / Why
@@ -100,9 +101,15 @@ follows whichever delivers.
   **Join** (guest) flow: the host shows an offer blob (copy + QR), pastes back
   the guest's answer; the guest pastes the offer, shows an answer blob (copy +
   QR). Copy-paste always works; QR **display** uses the vendored encoder; QR
-  **scan** is offered only when a working `BarcodeDetector` (with `qr_code`
-  support) is feature-detected. Testids: `sync-wifi-link` (launch button),
-  `sync-pair-offer`/`sync-pair-answer`/`sync-pair-qr`/`sync-pair-status`.
+  **scan** is offered on **any device with a camera** (`navigator.mediaDevices
+  .getUserMedia`) — the decode uses the platform `BarcodeDetector` where present
+  (fast path) and **falls back to the vendored jsQR decoder** (canvas
+  `getImageData` frames) where it is absent (Windows desktop Chrome/Edge, iOS
+  Safari). This makes the **return leg symmetric**: the host can scan the guest's
+  answer QR even on a laptop, instead of hand-transferring the blob. Testids:
+  `sync-wifi-link` (launch button),
+  `sync-pair-offer`/`sync-pair-answer`/`sync-pair-qr`/`sync-pair-status`/
+  `sync-pair-scan`.
   **QR rendering must stay camera-scannable**: a full non-trickle SDP blob is a
   dense code (a deflated offer ≈ 700 chars → QR **version 18, 89×89 modules**;
   more network interfaces push it to v24+, 113×113). It is drawn **one
@@ -136,7 +143,11 @@ follows whichever delivers.
   on `sync-pair-error`. Switching mode or closing the modal cancels the wait.
 - **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
   `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
-  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The
+  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The QR **decoder**
+  is vendored the same way under `src/vendor/jsqr/` (jsQR, **Apache-2.0**;
+  jsqr@1.4.0 `dist/jsQR.js` with its webpack-UMD wrapper mechanically replaced by
+  an ESM `export default`). Apache-2.0 is permissive and license-compatible with
+  the MIT-vendored libs; its `NOTICE`/`LICENSE` are kept alongside. The
   `RTCPeerConnection` is created with **empty `iceServers`** — LAN-only, no STUN
   — an accepted trade-off: it is offline-capable and needs no third party, but
   fails where the network blocks mDNS/host candidates or enables AP client
@@ -191,6 +202,9 @@ buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement
 
 # src/vendor/qr/index.ts
 qrcode(typeNumber, ecLevel): { addData; make; getModuleCount; isDark }
+
+# src/vendor/jsqr/index.ts
+jsQR(data: Uint8ClampedArray, width, height, opts?): { data: string } | null
 ```
 
 ### Data shapes
@@ -227,7 +241,14 @@ iceCompleteTimeoutMs: 3000
   `attachTransport`).
 - The Song panel's `buildSyncSection(engine.sync, engine.rtcSync)` adds a
   **WiFi link…** button (`sync-wifi-link`) that opens `openSyncPairModal(rtc)`
-  and a WiFi suffix on the status line.
+  and a WiFi suffix on the status line. `sync-section.ts` **`import()`s**
+  `sync-pair-modal.ts` lazily inside the button's click handler — pairing is a
+  rarely-used flow, so the modal (and, transitively, the vendored QR *encoder*)
+  is code-split out of the initial bundle. The modal in turn **`import()`s**
+  `src/vendor/jsqr` only inside its scan fallback, so the ~large decoder is its
+  own on-demand chunk fetched only when a device without `BarcodeDetector`
+  actually scans. Neither dynamic import is on a critical path (a first open /
+  first fallback-scan pays a one-time chunk fetch).
 - `ai-prompt.ts` imports `copyText`/`flashCopied` from the new
   `src/ui/clipboard.ts` (pure DRY extraction — behaviour identical).
 
@@ -253,9 +274,13 @@ Libraries / platform APIs (all built-in, no npm):
 
 - `RTCPeerConnection` / `RTCDataChannel` (WebRTC) — `iceServers: []`.
 - `CompressionStream('deflate-raw')` where available (blob shrink; feature-detected).
-- `BarcodeDetector` (QR scan) — feature-detected; absent → paste-only.
+- `BarcodeDetector` (QR scan, fast path) — feature-detected; absent → jsQR.
+- `getUserMedia` + a `<canvas>` `getImageData` frame → the jsQR decoder is the
+  scan path wherever `BarcodeDetector` is missing (Windows desktop, iOS Safari).
 - Vendored `qrcode-generator` (Kazuhiko Arase, **MIT**), encoder-only, in
   `src/vendor/qr/`.
+- Vendored `jsQR` (Cosmo Wolfe, **Apache-2.0**), decoder-only, in
+  `src/vendor/jsqr/`.
 
 ## Scenarios (BDD)
 
@@ -316,6 +341,13 @@ Scenario: QR is rendered upscaled (never downscaled) so it stays scannable (regr
    And the CSS display size is larger than the bitmap (upscaled) with pixelated rendering
    And the bitmap is never CSS-clamped down to a fixed 180 px
 # pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: A QR from the encoder round-trips through the vendored jsQR decoder
+  Given a dense SDP-sized blob encoded to a QR by the vendored qrcode encoder
+  When it is rasterized (1px/module + quiet zone, upscaled) and decoded by jsQR
+  Then jsQR returns the exact original blob string
+   And the Scan button is offered whenever a camera is present, with or without BarcodeDetector
+# pinned by: tests/vendor/jsqr.test.ts, tests/ui/sync-pair-modal.test.ts
 
 Scenario: Insecure origin shows a non-blocking HTTPS banner (edge)
   Given window.isSecureContext is false

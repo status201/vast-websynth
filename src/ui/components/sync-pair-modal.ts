@@ -1,7 +1,9 @@
 // WiFi sync pairing modal (webrtc-sync.md REQ-5). Serverless: two devices swap
 // an offer↔answer blob by copy-paste or QR. Built on the reusable Modal, like
 // record-sound-modal.ts. Copy-paste always works; QR display uses the vendored
-// encoder; QR scan is offered only when a BarcodeDetector is available.
+// encoder; QR scan works on any device with a camera — via the platform
+// BarcodeDetector where present, else the vendored jsQR decoder (Windows
+// desktop, iOS Safari lack BarcodeDetector).
 import { Modal } from './modal';
 import { createButton } from './button';
 import { copyText, flashCopied } from '../clipboard';
@@ -31,8 +33,18 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return e;
 }
 
-/** Feature-detect the QR scanner (absent → paste-only; no Scan button). */
+/**
+ * Whether to offer QR scan: we can scan on any device with a **camera** — the
+ * decoder is always available (BarcodeDetector fast path, else vendored jsQR),
+ * so the only gate is `getUserMedia`. (Absent in jsdom + non-camera devices →
+ * no Scan button; paste always works.)
+ */
 function scanSupported(): boolean {
+  return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+}
+
+/** True when the platform QR reader is available (fast path); else jsQR is used. */
+function hasBarcodeDetector(): boolean {
   return typeof (window as { BarcodeDetector?: unknown }).BarcodeDetector !== 'undefined';
 }
 
@@ -258,8 +270,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
       video.style.display = 'block';
       content.appendChild(video);
       await video.play().catch(() => {});
-      const Detector = (window as unknown as { BarcodeDetector: new (o: { formats: string[] }) => { detect(src: unknown): Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
-      const detector = new Detector({ formats: ['qr_code'] });
+      const detect = await makeFrameDetector(); // BarcodeDetector fast path, else jsQR
       let timer = 0;
       const stop = (): void => {
         window.clearTimeout(timer);
@@ -270,8 +281,8 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
       stopScan = stop;
       const poll = async (): Promise<void> => {
         try {
-          const codes = await detector.detect(video);
-          if (codes.length && codes[0]) { onResult(codes[0].rawValue); stop(); return; }
+          const text = await detect(video);
+          if (text) { onResult(text); stop(); return; }
         } catch { /* transient decode error — keep polling */ }
         timer = window.setTimeout(() => void poll(), 300);
       };
@@ -298,6 +309,47 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   modal.body.appendChild(status);
   modal.open();
   showCreate();
+}
+
+/** Longest side (px) the jsQR fallback samples a camera frame at — enough to
+ *  resolve a dense QR held to fill the frame, cheap enough to run a few times/s. */
+const SCAN_SAMPLE_MAX = 640;
+
+/**
+ * A per-frame QR reader (webrtc-sync REQ-5): the platform `BarcodeDetector`
+ * where available (fast, hardware-accelerated), else the vendored jsQR decoder
+ * driven off a `<canvas>` frame — so scanning works on Windows desktop and iOS
+ * Safari, which ship no BarcodeDetector. Returns the decoded text or null.
+ *
+ * The jsQR decoder is `import()`ed lazily here (REQ-7), so the ~large bundle is
+ * fetched only when a device without `BarcodeDetector` actually starts a scan.
+ */
+async function makeFrameDetector(): Promise<(video: HTMLVideoElement) => Promise<string | null>> {
+  if (hasBarcodeDetector()) {
+    const Detector = (window as unknown as {
+      BarcodeDetector: new (o: { formats: string[] }) => { detect(src: unknown): Promise<Array<{ rawValue: string }>> };
+    }).BarcodeDetector;
+    const detector = new Detector({ formats: ['qr_code'] });
+    return async (video) => {
+      const codes = await detector.detect(video);
+      return codes.length && codes[0] ? codes[0].rawValue : null;
+    };
+  }
+  // jsQR fallback: sample the frame through a scratch canvas, capped in size.
+  const { jsQR } = await import('../../vendor/jsqr');
+  const scratch = document.createElement('canvas');
+  const ctx = scratch.getContext('2d', { willReadFrequently: true });
+  return async (video) => {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh || !ctx) return null;
+    const scale = Math.min(1, SCAN_SAMPLE_MAX / Math.max(vw, vh));
+    const w = Math.round(vw * scale), h = Math.round(vh * scale);
+    scratch.width = w;
+    scratch.height = h;
+    ctx.drawImage(video, 0, 0, w, h);
+    const res = jsQR(ctx.getImageData(0, 0, w, h).data, w, h);
+    return res ? res.data : null;
+  };
 }
 
 /**

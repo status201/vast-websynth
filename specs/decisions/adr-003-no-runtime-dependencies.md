@@ -27,10 +27,19 @@ and a steady stream of upgrade work that a solo project can't absorb.
 We take **no npm runtime dependencies**: `package.json` has no `dependencies`
 block; build tooling is Vite + `tsc` only. The UI is hand-built DOM
 (`document.createElement`, components in `src/ui/components/`), and the audio is
-raw Web Audio nodes + our own AudioWorklets. The one third-party runtime
-component, the MIT **`lamejs`** MP3 encoder, is **vendored** as source under
-`src/vendor/lamejs/` (with a hand-written `lame.min.d.ts`) — pinned and in-tree,
-explicitly *not* an npm dependency.
+raw Web Audio nodes + our own AudioWorklets. The few third-party runtime
+components are **vendored** as source under `src/vendor/` (each with a
+hand-written or shipped `.d.ts` + `LICENSE`) — pinned and in-tree, explicitly
+*not* npm dependencies:
+
+- **`lamejs`** (MIT) — MP3 encoder for audio export (`src/vendor/lamejs/`).
+- **`qrcode-generator`** (MIT) — QR *encoder* for WiFi-sync pairing
+  (`src/vendor/qr/`).
+- **`jsQR`** (**Apache-2.0**) — QR *decoder* for the WiFi-sync scan fallback
+  where the platform `BarcodeDetector` is absent (`src/vendor/jsqr/`).
+
+Apache-2.0 is permissive and license-compatible with the MIT-vendored code; each
+vendored library keeps its own `LICENSE` in-tree.
 
 ## Alternatives considered
 

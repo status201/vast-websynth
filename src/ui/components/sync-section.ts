@@ -1,7 +1,6 @@
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import type { SyncMode, SyncStatus } from '../../audio/transport/sync/sync-types';
 import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
-import { openSyncPairModal } from './sync-pair-modal';
 import { createButton } from './button';
 import segmentedStyles from '../styles/segmented.module.css';
 import switchStyles from '../styles/switch.module.css';
@@ -62,11 +61,13 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
   root.appendChild(status);
 
   // WiFi pairing (WebRTC) — coexists with MIDI; opens the serverless pair modal.
+  // Lazy-loaded: pairing is rare, so the modal (+ vendored QR encoder) is
+  // code-split out of the initial bundle (webrtc-sync REQ-7).
   const wifiBtn = createButton({
     label: 'WiFi link…',
     className: switchStyles.root!,
     testId: 'sync-wifi-link',
-    onClick: () => openSyncPairModal(rtc),
+    onClick: () => { void import('./sync-pair-modal').then((m) => m.openSyncPairModal(rtc)); },
   });
   wifiBtn.title = 'Pair another device over WiFi (same network, client isolation off)';
   root.appendChild(wifiBtn);

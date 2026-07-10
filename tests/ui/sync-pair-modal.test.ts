@@ -52,19 +52,26 @@ describe('sync-pair-modal', () => {
     expect(byId('sync-pair-generate')).toBeTruthy();
   });
 
-  it('does not render a Scan button when BarcodeDetector is absent', () => {
+  it('does not render a Scan button without a camera (no getUserMedia)', () => {
+    // jsdom has no navigator.mediaDevices → nothing to scan with.
     openSyncPairModal(transport());
     expect(byId('sync-pair-scan')).toBeNull();
   });
 
-  it('renders a Scan button when BarcodeDetector is available', () => {
-    const g = globalThis as Record<string, unknown>;
-    g.BarcodeDetector = class {};
+  it('renders a Scan button when a camera is present, even without BarcodeDetector', () => {
+    // The decoder falls back to vendored jsQR, so a camera alone is enough.
+    const orig = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: () => Promise.reject(new Error('not in jsdom')) },
+    });
     try {
+      expect((globalThis as Record<string, unknown>).BarcodeDetector).toBeUndefined();
       openSyncPairModal(transport());
       expect(byId('sync-pair-scan')).toBeTruthy();
     } finally {
-      delete g.BarcodeDetector;
+      if (orig) Object.defineProperty(navigator, 'mediaDevices', orig);
+      else delete (navigator as unknown as { mediaDevices?: unknown }).mediaDevices;
     }
   });
 

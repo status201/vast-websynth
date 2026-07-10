@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pair dialog also warns when the app isn't on a secure (HTTPS) origin and, if a
   link fails to connect, explains what to check (same Wi-Fi, router client/AP
   isolation off) instead of sitting silently.
+- **WiFi sync: scan the answer QR on any device** — QR scanning previously
+  needed the platform QR reader, which Windows desktop browsers and iOS Safari
+  don't have, so the return code had to be moved by hand. Scanning now works on
+  any device with a camera (falls back to a built-in decoder), making the QR
+  handshake symmetric in both directions.
 
 ## [1.9.0] - 2026-07-07
 
