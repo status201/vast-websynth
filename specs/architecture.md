@@ -47,9 +47,9 @@ means a UI control and its audio effect can be reasoned about independently.
 
 ```yaml
 language: TypeScript            # ^6.0.3, strict + noUncheckedIndexedAccess
-build:      Vite                # ^8.0.16  (vite build) + tsc --noEmit
-unit_tests: Vitest              # ^4.1.9   (jsdom env)
-e2e_tests:  "@playwright/test"  # ^1.61.0  (headless Chromium)
+build:      Vite                # ^8.1.3   (vite build) + tsc --noEmit
+unit_tests: Vitest              # ^4.1.10  (jsdom env)
+e2e_tests:  "@playwright/test"  # ^1.61.1  (headless Chromium)
 dom_env:    jsdom               # ^29.1.1  (unit-test DOM)
 runtime_deps: none              # zero — no `dependencies` block in package.json
 vendored:
@@ -97,6 +97,7 @@ never call each other directly.
     ├─ FX          — insert chain + drum/master compressors
     ├─ Transport   — Clock, Arrangement, Performance, Sequencer,
     │                DrumMachine, SamplerMachine, Arpeggiator
+    ├─ Sync        — SyncController (+ MidiSyncTransport / WebRtcSyncTransport)
     └─ Recorder    — RecorderController (audio export), taps master
 ```
 
@@ -263,6 +264,10 @@ localStorage:
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
   websynth.perf       : performance-mode pref (auto|weak|medium|strong)  # state/perf-mode.ts — device-scoped, NOT a patch param
+  websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
+  websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
+  websynth.debug.about     : About-modal Debug section open    # ui/components/about.ts
+  websynth.ui.collapsed.*  : panel collapse state (pattern/fx) # ui/app.ts
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded
 ```

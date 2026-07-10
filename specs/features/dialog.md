@@ -2,7 +2,7 @@
 
 ```yaml
 id: dialog
-status: draft
+status: implemented
 version: 1
 owner: core
 related:

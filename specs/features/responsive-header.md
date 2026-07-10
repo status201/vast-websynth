@@ -2,7 +2,7 @@
 
 ```yaml
 id: responsive-header
-status: active
+status: implemented
 version: 1
 owner: ui
 related:

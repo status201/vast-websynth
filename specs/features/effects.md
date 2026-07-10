@@ -12,7 +12,11 @@ related:
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
 source:
   - src/audio/effects/effect.ts        # Effect interface + BypassWrapper
-  - src/audio/effects/{distortion,wah,phaser,delay,reverb}.ts
+  - src/audio/effects/distortion.ts
+  - src/audio/effects/wah.ts
+  - src/audio/effects/phaser.ts
+  - src/audio/effects/delay.ts
+  - src/audio/effects/reverb.ts
   - src/state/params.ts
   - src/audio/engine.ts                 # calls each Effect.bind(bus, prefix)
   - src/ui/app.ts / src/ui/panels/*

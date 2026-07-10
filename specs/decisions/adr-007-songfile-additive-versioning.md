@@ -51,3 +51,7 @@ new files degrade gracefully. The procedure is captured in
 - **Trade-off:** new structural fields must always be **optional + defaulted**,
   never required — the format can only grow, and a removed/renamed field needs a
   new version that still reads the old one (see the recipe).
+
+> **Follow-up (2026-07-07):** v3 applied this same contract — the optional `xy`
+> field (XY Pad axis assignment, [`features/xy-pad`](../features/xy-pad.md));
+> v1/v2 files keep loading with default axes. The decision is unchanged.

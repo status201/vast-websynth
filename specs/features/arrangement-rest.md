@@ -2,7 +2,7 @@
 
 ```yaml
 id: arrangement-rest
-status: draft
+status: implemented
 version: 1
 owner: core
 related:

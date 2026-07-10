@@ -2,7 +2,7 @@
 
 ```yaml
 id: live-fx-window
-status: draft
+status: implemented
 version: 1
 owner: core
 related:
@@ -162,4 +162,3 @@ Scenario: The LIVE FX window stays usable after switching tabs
 
 - A header entry point (always-visible button) could complement the Song-panel
   launcher; deferred — the window persists across tabs once opened.
-```

@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 4   # v4: analyser fftSize is perf-tier-dependent (1024 on weak)
+version: 5   # v4: analyser fftSize perf-tier-dependent; v5: 512/1024/2048 tiers, applied LIVE via setFftSize
 owner: status201
 related:
   - architecture
@@ -53,11 +53,14 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   split→merge), so every analyser sits in the live render path and is pulled.
 - **REQ-2** — All three analysers use the **same** `fftSize` and
   `smoothingTimeConstant` (0.2), so per-channel buffers are uniform and the three
-  views are visually comparable. `fftSize` is **perf-tier-dependent** (v4): 2048
-  by default, **1024 on weak** (`EngineOptions.analyserFftSize`, from
-  `PERF_PROFILES`; see [performance-mode](performance-mode.md) REQ-12). The Scope
-  sizes its buffers from `analyser.fftSize`/`frequencyBinCount` at runtime, so it
-  adapts with no Scope-side change.
+  views are visually comparable. `fftSize` is **perf-tier-dependent** (v4/v5):
+  **512 / 1024 / 2048** for weak / medium / strong (`EngineOptions.analyserFftSize`
+  seeds the boot value, default 2048; from `PERF_PROFILES` — see
+  [performance-mode](performance-mode.md) REQ-12). Because `AnalyserNode.fftSize`
+  is settable at runtime, a tier change applies it **live** (v5) via
+  `Scope.setFftSize(n)`, which sets `fftSize` on all three analysers and
+  **reallocates** each channel's time-domain + frequency read buffers to match —
+  no reload, exactly like `setFps`.
 - **REQ-3** — `StudioApi` exposes `analyserL`/`analyserR` alongside `analyser`
   (the UI's narrow view of the engine, ADR-009).
 - **REQ-4** — `Scope` gains a channel mode `'mono' | 'stereo'` (default `'mono'`,
@@ -157,6 +160,7 @@ class Scope {
   get channelMode(): ScopeChannels;     // effective layout (mono unless stereo set with both)
   resetPeak(): void;                     // clear the spectrum peak-hold (also bound to canvas click)
   setFps(fps: number): void;             // change the target redraw rate live (perf-mode tier switch)
+  setFftSize(fftSize: number): void;     // v5: set all three analysers' fftSize live + reallocate read buffers
   destroy(): void;
 }
 
@@ -228,15 +232,16 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
   three analysers are pulled (see Visual aids):
   `masterComp.output → splitter` ; `splitter[0] → analyserL`, `splitter[1] →
   analyserR` ; `analyserL → merger[0]`, `analyserR → merger[1]` ; `merger →
-  analyser → master → destination`. `analyserL/R` are configured (fftSize 2048,
-  smoothing 0.2) before use. `ChannelSplitterNode`/`ChannelMergerNode` are created
+  analyser → master → destination`. `analyserL/R` are configured (the resolved
+  tier's `analyserFftSize`, smoothing 0.2) before use. `ChannelSplitterNode`/`ChannelMergerNode` are created
   with 2 ports.
 - **`main.ts`** passes the concrete `Engine` (which now structurally satisfies the
   widened `StudioApi`) to `mountApp`; `window.__synth.engine` therefore exposes
   `analyserL`/`analyserR` (DEV only) for E2E assertions.
 - **`app.ts` `buildBottom`** constructs `new Scope({ mono: engine.analyser, left:
   engine.analyserL, right: engine.analyserR }, { fps: PERF_PROFILES[resolveTier()].fps })`,
-  returns the scope so `mountApp` can bind a live `setFps` hook (perf-mode), and adds the
+  returns the scope so `mountApp` can bind the live `setFps` + `setFftSize` hooks
+  (perf-mode), and adds the
   `scope-channels-toggle` button beside the existing `scope-toggle`.
 - **`help-content.ts`** `scope` topic text mentions the Mono/Stereo split and the
   peak-hold (click to reset). CSS for the new button lives in `layout.module.css`

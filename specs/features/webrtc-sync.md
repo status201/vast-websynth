@@ -308,7 +308,7 @@ disconnectGraceMs: 5000     # 'disconnected' recovery window before teardown (RE
 - `midi.ts` calls `engine.sync.addTransport('midi', sync)` (was
   `attachTransport`).
 - The Song panel's `buildSyncSection(engine.sync, engine.rtcSync)` adds a
-  **WiFi link…** button (`sync-wifi-link`) that opens `openSyncPairModal(rtc)`
+  **WiFi link…** button (`sync-wifi-link`) that opens `openSyncPairModal(rtc, sync)`
   and a WiFi suffix on the status line. `sync-section.ts` **`import()`s**
   `sync-pair-modal.ts` lazily inside the button's click handler — pairing is a
   rarely-used flow, so the modal (and, transitively, the vendored QR *encoder*)
@@ -481,7 +481,8 @@ Scenario: Two real pages link and follow (E2E loopback)
 - Typecheck: `npm run typecheck`
 - Manual: two `localhost` tabs pair on one machine; cross-device WiFi needs
   HTTPS in production (WebRTC on a secure origin, same constraint as mic/MIDI);
-  QR scan needs a camera + `BarcodeDetector` (Android Chrome).
+  QR scan needs a camera — `BarcodeDetector` is the fast path where present
+  (Android Chrome), the vendored jsQR decoder covers the rest (REQ-5/REQ-7).
 
 ## Open questions / future
 

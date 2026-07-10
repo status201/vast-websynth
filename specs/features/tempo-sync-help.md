@@ -2,7 +2,7 @@
 
 ```yaml
 id: tempo-sync-help
-status: active
+status: implemented
 version: 1
 owner: ui/onboarding
 related:

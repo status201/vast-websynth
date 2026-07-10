@@ -2,7 +2,7 @@
 
 ```yaml
 id: xy-pad
-status: draft
+status: implemented
 version: 3
 owner: core
 related:

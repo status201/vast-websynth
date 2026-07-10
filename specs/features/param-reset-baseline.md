@@ -50,7 +50,10 @@ default, exactly as before.
   live values, so **saving** a preset/song makes the just-saved state the new
   reset target. Called by the Save-preset and Save-song handlers.
 - **REQ-6** — The knob double-tap and the drum per-track Reset button both go
-  through `bus.reset(id)`, so they share one baseline.
+  through `bus.reset(id)`, so they share one baseline. A **disabled** knob
+  (`Knob.setDisabled(true)`, e.g. the BPM knob while sync-slaved) blocks the
+  double-tap along with dragging — no reset fires (see
+  [midi-clock-sync](midi-clock-sync.md) REQ-14).
 - **REQ-7** — Setting a baseline never fires per-param listeners or the global
   `onChange` signal (it is not an edit); `reset()` fires them like any `set()`.
 - **REQ-8** — Boot emergent behaviour: `main.ts` applies the `basic` preset via

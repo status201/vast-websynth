@@ -139,6 +139,7 @@ Audio graph:
 ```
 voices → voiceBus → distortion → wah → phaser → delay → reverb ─┐
                 drumBus → drumComp → drumPhaser → drumDelay → drumReverb ─┤
+     samplerBus → samplerDist → samplerPhaser → samplerDelay → samplerReverb ─┤
                                                           preMaster → djFilter → masterComp → analyser → master → destination
 ```
 
@@ -253,14 +254,15 @@ listener mechanism.
   Slots are filled by **Load** (WAV/MP3 file) or the record-sound modal
   (mic-record or re-edit a loaded buffer; see *Sample recorder/editor*).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
-  + all banks + all three chains). `SongFile` is now `version: 1 | 2`; v2 adds
-  optional `samplerBanks`/`samplerChain`/`sampleNames`. `fromJSON` is unchanged
-  and accepts both; v1 files (incl. `DEMO_SONGS`) load with empty sampler
-  state. JSON file export/import **and** localStorage slots under
-  `websynth.song.*`. `DEMO_SONGS` (Apex Twin, Zombie Nation, I Feel Love, plus
-  any drop-ins). Demos are the two hand-authored `SongFile` literals **plus**
-  any `*.json` SongFile in `src/state/demos/`, auto-registered at build time via
-  an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
+  + all banks + all three chains). `SongFile` is now `version: 1 | 2 | 3`; v2
+  adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
+  `xy` axis assignment (XY Pad). `fromJSON` is unchanged and accepts all
+  versions; v1 files (incl. `DEMO_SONGS`) load with empty sampler state and
+  default XY axes. JSON file export/import **and** localStorage slots under
+  `websynth.song.*`. Demos (`DEMO_SONGS`) are the two hand-authored `SongFile`
+  literals (Zombie Nation, I Feel Love) **plus** any `*.json` SongFile in
+  `src/state/demos/` (Apex Twin lives there now), auto-registered at build time
+  via an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
   *before* the built-ins, so they lead the demo button row (`Object.keys` order).
 - **Song/preset serialization** (`state/serialize.ts`) — `Song.toJSON` and
   `Presets.save` optimize **only at the boundary** (live state stays full-precision):

@@ -315,4 +315,3 @@ Scenario: Drum-track shapers only oversample when driven (all tiers, v3)
   gating / true bypass have been validated on device — medium may now be viable
   on such phones; if not, tighten the phone rule rather than forcing all phones
   weak.
-```
