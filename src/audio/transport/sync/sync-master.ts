@@ -40,12 +40,17 @@ export interface SyncMasterOptions {
   timer?: TickTimer;
   /** performance.now() (injectable for tests). */
   nowMs?: () => number;
+  /** Best-effort cancel of scheduled-but-unsent messages (REQ-18): called
+   *  before the start/stop sends so a stale queued pulse tail cannot trail
+   *  them on a scheduled-send transport (Web MIDI). */
+  flush?: () => void;
 }
 
 export class SyncMaster {
   private unsubs: Array<() => void> = [];
   private readonly timer: TickTimer;
   private readonly nowMs: () => number;
+  private readonly flush: (() => void) | undefined;
 
   private lastSentBpm: number | null = null;
   private idleRunning = false;
@@ -60,6 +65,7 @@ export class SyncMaster {
   ) {
     this.timer = opts?.timer ?? defaultTickTimer();
     this.nowMs = opts?.nowMs ?? (() => performance.now());
+    this.flush = opts?.flush;
   }
 
   enable(): void {
@@ -103,11 +109,13 @@ export class SyncMaster {
 
   private onLocalStart = (): void => {
     this.stopIdle();
+    this.flush?.(); // drop the queued idle-pulse tail so it can't trail 'start' (REQ-18)
     this.send({ type: 'start' }); // slaves realign to bar 0 (v1 behaviour)
     this.sendTempo();
   };
 
   private onLocalStop = (): void => {
+    this.flush?.(); // drop the queued run-pulse tail so it can't trail 'stop' (REQ-18)
     this.send({ type: 'stop' });
     this.startIdle(); // keep warming slaves while stopped
   };

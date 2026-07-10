@@ -61,6 +61,30 @@ describe('PulseBpmEstimator', () => {
     expect(est.bpm!).toBeCloseTo(90, 1);
   });
 
+  it('stays burst-immune: bunched delivery of a single stream reads the true tempo', () => {
+    // Real Web MIDI delivery bunches pulses on the event loop. The window-span
+    // math must cancel that out — a per-interval duplicate heuristic would
+    // reject burst-followers and read low (the v3 field regression: a 111 BPM
+    // master read as ~76).
+    const est = new PulseBpmEstimator();
+    const dt = intervalMs(111);
+    for (let i = 0; i < 120; i++) {
+      // Pairs arrive together: even pulses ~a full interval late, odd on time.
+      const burst = i % 2 === 0 ? dt * 0.9 : 0;
+      est.addPulse(i * dt + burst);
+      if (est.bpm !== null) expect(Math.abs(est.bpm - 111)).toBeLessThan(2);
+    }
+  });
+
+  it('re-locks after a hard tempo jump (tape-stop release shape)', () => {
+    const est = new PulseBpmEstimator();
+    let t = 0;
+    for (let i = 0; i < 30; i++) { est.addPulse(t); t += intervalMs(60); } // lock at 60
+    // Instant jump to 200 BPM: the window slides through and the EMA re-locks.
+    for (let i = 0; i < 200; i++) { est.addPulse(t); t += intervalMs(200); }
+    expect(est.bpm!).toBeGreaterThan(190);
+  });
+
   it('reset() clears both window and smoothing', () => {
     const est = new PulseBpmEstimator();
     const dt = intervalMs(120);

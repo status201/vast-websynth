@@ -56,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   don't have, so the return code had to be moved by hand. Scanning now works on
   any device with a camera (falls back to a built-in decoder), making the QR
   handshake symmetric in both directions.
+- **MIDI sync now actually locks** — a slave following over MIDI drifted a
+  beat ahead of the master and could lose the tempo entirely. Cause: MIDI
+  clock pulses are scheduled ahead with timestamps, so the Start message
+  (sent immediately) overtook pulses already queued on the wire; the slave
+  counted that stale tail into the new run, skewing both its tempo estimate
+  and its beat position. The slave now ignores the possible in-flight span
+  right after a Start/Continue and re-derives its beat position from pulse
+  arrival times, and the master cancels its queued pulses around Start/Stop
+  where the browser allows. Tempo estimation also stays reliable on bursty
+  MIDI delivery (pulses arriving bunched together). WiFi sync was unaffected.
 
 ## [1.9.0] - 2026-07-07
 

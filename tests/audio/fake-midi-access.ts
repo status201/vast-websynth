@@ -10,6 +10,7 @@ import { vi } from 'vitest';
 export interface FakeMidiOutput {
   id: string;
   send: ReturnType<typeof vi.fn>;
+  clear: ReturnType<typeof vi.fn>;
 }
 
 export interface FakeMidiAccess {
@@ -24,7 +25,7 @@ export function makeFakeMidiAccess(ins = 1, outs = 2): FakeMidiAccess {
   const outputs: FakeMidiOutput[] = [];
   const outputMap = new Map<string, FakeMidiOutput>();
   for (let i = 0; i < outs; i++) {
-    const out: FakeMidiOutput = { id: `out-${i}`, send: vi.fn() };
+    const out: FakeMidiOutput = { id: `out-${i}`, send: vi.fn(), clear: vi.fn() };
     outputs.push(out);
     outputMap.set(out.id, out);
   }

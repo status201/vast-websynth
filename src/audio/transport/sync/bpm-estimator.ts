@@ -7,6 +7,14 @@
  * span of a rolling window of intervals (default 24 = one beat, so the window
  * itself averages a beat's worth of jitter), then EMA-smooth successive window
  * readings so tempo changes glide instead of stepping.
+ *
+ * Deliberately NOT interval-gated (midi-clock-sync REQ-16): real Web MIDI
+ * delivery is bursty (pulses bunch on the event loop), and a "too close to
+ * the last pulse" duplicate heuristic mistakes burst-followers for duplicates
+ * and biases the tempo low. The window-*span* math is burst-immune — bunching
+ * inside the window cancels out — so contaminated spans (reordered stale
+ * pulses after a Start) are excluded upstream by SyncSlave's time-based
+ * settle window instead of per-pulse filtering here.
  */
 
 export interface PulseBpmEstimatorOptions {

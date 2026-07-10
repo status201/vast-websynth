@@ -42,6 +42,15 @@ describe('MidiSyncTransport', () => {
     expect(seen).toEqual([{ msg: { type: 'songposition', beat: 300 }, at: 9 }]);
   });
 
+  it('flush clears every output, tolerating an unsupported/throwing clear()', () => {
+    const { access, outputs } = makeFakeMidiAccess(0, 2);
+    outputs[0]!.clear.mockImplementation(() => { throw new Error('not implemented'); });
+    const t = new MidiSyncTransport(access);
+    expect(() => t.flush()).not.toThrow();
+    expect(outputs[0]!.clear).toHaveBeenCalled();
+    expect(outputs[1]!.clear).toHaveBeenCalled(); // others still reached
+  });
+
   it('survives an output whose send throws (port unplugged mid-send)', () => {
     const { access, outputs } = makeFakeMidiAccess(0, 2);
     outputs[0]!.send.mockImplementation(() => { throw new Error('disconnected'); });

@@ -43,6 +43,21 @@ export class MidiSyncTransport implements SyncTransport {
     });
   }
 
+  /** Best-effort cancel of queued future-timestamped sends (midi-clock-sync
+   *  REQ-18): without it, a stale idle/run pulse tail can trail an immediate
+   *  0xFA/0xFC on the wire. `MIDIOutput.clear()` may be unimplemented
+   *  (Chromium) or the port gone — both non-fatal. */
+  flush(): void {
+    this.access.outputs.forEach((out) => {
+      try {
+        // Not yet in TS's DOM lib (nor implemented everywhere) — hence the cast.
+        (out as MIDIOutput & { clear?: () => void }).clear?.();
+      } catch {
+        /* clear() unsupported / port disconnected — best-effort only */
+      }
+    });
+  }
+
   onMessage(cb: (msg: SyncMessage, receivedAtMs: number) => void): () => void {
     this.messageListeners.add(cb);
     return () => { this.messageListeners.delete(cb); };

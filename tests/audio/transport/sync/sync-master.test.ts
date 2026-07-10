@@ -22,11 +22,13 @@ function setup(swing = 0) {
   const sent: Sent = [];
   const idleTimer = new TimeoutTimer();
   let now = 0;
+  // `wire` logs sends and flushes in call order so REQ-18 ordering is assertable.
+  const wire: string[] = [];
   const master = new SyncMaster(
     clock,
-    (msg, atMs) => sent.push({ msg, atMs }),
+    (msg, atMs) => { sent.push({ msg, atMs }); wire.push(msg.type); },
     (t) => t * 1000,
-    { timer: idleTimer, nowMs: () => now },
+    { timer: idleTimer, nowMs: () => now, flush: () => wire.push('flush') },
   );
   const advance = (audioS: number) => {
     (ctx as unknown as { currentTime: number }).currentTime += audioS;
@@ -34,7 +36,7 @@ function setup(swing = 0) {
   };
   // Advance the idle clock one wakeup (100 ms) at a time, bumping the injected now.
   const idleStep = () => { now += 100; vi.advanceTimersByTime(100); };
-  return { clock, master, sent, advance, idleStep };
+  return { clock, master, sent, wire, advance, idleStep };
 }
 
 afterEach(() => {
@@ -146,6 +148,29 @@ describe('SyncMaster', () => {
     sent.length = 0;
     idleStep(); // idle timer is stopped — nothing scheduled
     expect(sent.length).toBe(0);
+    clock.stop();
+  });
+
+  it('flushes scheduled sends before start and stop, never around announceTo (REQ-18)', () => {
+    const { clock, master, wire, idleStep } = setup();
+    master.enable(); // stopped -> idle clock queues future-timestamped pulses
+    idleStep();
+    wire.length = 0;
+    clock.start();
+    // The queued idle tail is dropped before 0xFA hits the wire.
+    expect(wire.indexOf('flush')).toBeGreaterThanOrEqual(0);
+    expect(wire.indexOf('flush')).toBeLessThan(wire.indexOf('start'));
+    wire.length = 0;
+    clock.stop();
+    // Same for the queued run tail vs 0xFC.
+    expect(wire.indexOf('flush')).toBeGreaterThanOrEqual(0);
+    expect(wire.indexOf('flush')).toBeLessThan(wire.indexOf('stop'));
+    // announceTo must NOT flush — a global clear would cancel in-flight run
+    // pulses that already-locked slaves still need.
+    clock.start();
+    wire.length = 0;
+    master.announceTo((msg) => wire.push(msg.type));
+    expect(wire).not.toContain('flush');
     clock.stop();
   });
 

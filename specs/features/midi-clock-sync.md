@@ -3,7 +3,7 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -131,9 +131,10 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   `(lastScheduledMs, nowMs + 200]` at `sixteenthDuration()/6 × 1000` ms spacing,
   plus a **2 s** `tempo` heartbeat. It starts on `enable()`-while-stopped and on
   `onStop`, and stops on `onStart` and `disable()`. The idle grid is
-  discontinuous with the played grid at Start — accepted (slave phase counting
-  restarts on Start; only the estimator benefits). Idle `0xF8` also reaches MIDI
-  hardware — standard behaviour.
+  discontinuous with the played grid at Start; because idle pulses are queued
+  as *future-timestamped* scheduled sends, the tail still in the OS queue at
+  Start is a reordering hazard — see the v3 fix (REQ-16..18). Idle `0xF8` also
+  reaches MIDI hardware — standard behaviour.
 - **REQ-12 — Explicit tempo message.** `SyncMessage` grows `{type:'tempo',
   bpm}`. The master emits it on `enable()`, on every `onStart`, on even ticks
   when `|bpm − lastSent| ≥ 0.1`, every 2 s while stopped (idle heartbeat), and
@@ -167,6 +168,81 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   / ` · WiFi: not linked`; slave suffixes (following/stalled) unchanged. See
   `webrtc-sync.md` for the WiFi transport itself.
 
+## v3 fix — scheduled-send reordering at Start
+
+A field bug (a MIDI slave settled ~a beat **ahead** of the master; the WiFi
+path was fine) traced to **scheduled-send reordering**: `MIDIOutput.send(data,
+atMs)` queues future-timestamped bytes inside the browser/OS, and an
+untimestamped byte sent later *overtakes* them. At Start the master's 0xFA
+(sent immediately) overtook up to `idleHorizonMs` of already-queued idle
+pulses, so the slave received Start first, then the stale idle tail
+**interleaved** with the real run pulses. Two failures compounded:
+
+1. the interleaved double stream halves the apparent inter-pulse interval, so
+   the estimator wrote ~2× tempo — and on a MIDI-only wire there is no `tempo`
+   message (REQ-12) to suppress it — making the slave sprint ahead;
+2. the stale pulses inflated the slave's run pulse counter, so the
+   `(startStep + pulse/6)` phase mapping was skewed K pulses early and the
+   phase corrector then *held* the slave ahead instead of pulling it back.
+
+The WebRTC transport is immune: it transmits immediately, in send-call order,
+with the timestamp in-band. v2's REQ-11 note ("discontinuous grid at Start —
+accepted") wrongly assumed wire order matches send-call order. The same hazard
+exists at Stop and at a mid-play `announceTo` (queued *run* pulses overtaken by
+0xFC / 0xFB). Deliberately rejected: timestamping 0xFA past the queued tail —
+that delays the slave's start by up to `idleHorizonMs`, a worse initial phase
+error than the one being fixed.
+
+- **REQ-16 — Post-start settle window.** After a slave (re)start
+  (`start`/`continue`), pulses are **ignored wholesale** for
+  `startSettleBaseMs (300) + 12 pulse intervals` past the message's arrival —
+  covering the possible in-flight scheduled span (`idleHorizonMs` after a
+  Start; look-ahead + one 12-pulse batch after a continue-join) plus delivery
+  jitter. Only stall bookkeeping still runs (a settling pulse proves the wire
+  is alive). Stale reordered pulses therefore never reach the estimator or the
+  pulse counter while playing. The estimator is deliberately **not**
+  interval-gated: real Web MIDI delivery is bursty (pulses bunch on the event
+  loop), so a "too close to the last pulse" heuristic mistakes burst-followers
+  for duplicates and biases the tempo low (field-tested: a 111 BPM master read
+  as ~76, flapping) — the rolling window-*span* math is inherently
+  burst-immune, so contamination is excluded by *time* instead. After the
+  settle, the estimator's own `gapResetMs` clears its window (the EMA — and
+  with it the idle warm-up lock — survives), and the first pulse **anchors**
+  the pulse counter from arrival time (REQ-17), since an unknown number of run
+  pulses fell inside the settle. Cost: after a Start from a *cold, pulse-only*
+  master (no idle clock, no `tempo` message), tempo lock is delayed by the
+  settle (~0.5–0.8 s); with the idle clock (REQ-11) or a `tempo`-carrying
+  transport (REQ-12) the tempo is already locked before the Start, so the
+  settle costs nothing.
+- **REQ-17 — Phase re-anchor.** `SyncSlave.trackPhase` (extends REQ-5/REQ-10):
+  the pulse numbering is provably skewed (stale, lost, or reordered pulses)
+  when either signal fires — (a) the smoothed phase error exceeds
+  `max(reanchorRatio (0.75) × pulse interval, reanchorMinS (0.015))` (a healthy
+  corrector never sees errors beyond jitter), or (b) **2 consecutive**
+  measurable pulses map to a step with no recorded tick time
+  (`phaseMissReanchor`): the look-ahead guarantees a tick precedes its own
+  pulse, so persistent misses mean the mapped step lies beyond the look-ahead —
+  a skew too large to even measure. The slave then **re-anchors**: it
+  recomputes the pulse counter from the pulse's arrival time against the
+  nearest recorded local grid step (`round((t − rec.when) / pulseS)` pulses
+  from `(rec.step − startStep) × 6`), clears `phaseErr` and the nudge budget,
+  and resumes normal counting. The **first pulse after a settle window always
+  anchors** (the settle hid an unknown number of run pulses, so counting from
+  the Start is meaningless). Count-based mapping stays primary (exact,
+  BPM-independent); the re-anchor is the bounded self-heal. Residual accuracy
+  after a re-anchor is ± half a pulse interval — at Start the true error is
+  milliseconds, so the anchor lands on the true grid.
+- **REQ-18 — Master flush (best-effort).** `SyncTransport` gains optional
+  `flush?(): void` — cancel scheduled-but-unsent messages. `MidiSyncTransport`
+  implements it as `output.clear()` on every output inside `try/catch`
+  (Chromium may not implement `clear()`; a disconnected port may throw — both
+  non-fatal). `SyncMaster` calls an injected `opts.flush` **before** sending
+  `start` (kills the stale idle tail) and **before** sending `stop` (kills the
+  queued run tail), never around `announceTo` (a global clear would cancel
+  in-flight run pulses that other, already-locked slaves still need).
+  `SyncController` fans the flush out to every transport. The WebRTC transport
+  omits `flush` (nothing is queued — it sends immediately).
+
 ## Technical design
 
 ### Contract / public interface
@@ -185,6 +261,7 @@ SyncTransport:
   onMessage(cb(msg, receivedAtMs)): unsubscribe
   ports(): "{ ins: number; outs: number }"
   onPortsChange(cb): unsubscribe
+  flush?(): void                  # v3: best-effort cancel of scheduled-but-unsent messages
 SyncStatus:
   mode: SyncMode
   links: "Array<{ id: TransportId; ins: number; outs: number }>"   # v2: replaces `ports`; [] = no transport added
@@ -199,7 +276,7 @@ PulseBpmEstimator:
   reset(): void
 
 # src/audio/transport/sync/sync-master.ts
-SyncMaster(clock, send, toPerfMs, opts?: { timer?, nowMs? }):
+SyncMaster(clock, send, toPerfMs, opts?: { timer?, nowMs?, flush? }):   # v3: flush called before start/stop sends (REQ-18)
   enable(): void                  # hooks onStart/onStop/onTick; announceTo now if playing; idle clock if stopped
   disable(): void                 # unhooks; stops idle clock; sends stop if playing
   announceTo(send): void          # v2: targeted join — tempo (+songposition+continue while playing)
@@ -253,6 +330,10 @@ nudgeMinIntervalBeats: 1
 nudgeDeadbandS: 0.005
 stallMs: 1000                     # checked inside a clock.onTick subscription
 tempoMsgFreshMs: 2500             # v2: while a 'tempo' msg is this fresh, suppress pulse-estimate writes
+startSettleBaseMs: 300            # v3: + 12 pulse intervals — post-(re)start pulse-ignore span (REQ-16)
+reanchorRatio: 0.75               # v3: |phaseErr| beyond this × pulse interval -> re-anchor (REQ-17)
+reanchorMinS: 0.015               # v3: re-anchor floor so jitter spikes can't trigger it
+phaseMissReanchor: 2              # v3: consecutive unmeasurable pulses -> re-anchor (REQ-17)
 ```
 
 Master idle-clock + tempo constants (`sync-master.ts`, v2):
@@ -309,13 +390,13 @@ Scenario: Master start emits Start then evenly spaced clock pulses
 
 Scenario: Slave converges on the master tempo
   Given sync mode is slave and steady pulses arrive at 140 BPM
-  When two beats of pulses have arrived
+  When two beats of pulses have arrived after the post-start settle window (REQ-16; pulses while stopped need no settle)
   Then the local clock BPM is within 0.5 of 140
 # pinned by: tests/audio/transport/sync/sync-slave.test.ts
 
 Scenario: Jittered pulses do not make the tempo flap (edge)
   Given pulses at 120 BPM with up to ±3 ms of jitter
-  Then the estimated BPM stays within 120 ± 1
+  Then the smoothed estimate stays within 120 ± 1; a single first-window write may reach ±1.5 (2·jitter over a one-beat span)
   And BPM writes are throttled (>= 250 ms apart, >= 0.5 BPM delta)
 # pinned by: tests/audio/transport/sync/bpm-estimator.test.ts, sync-slave.test.ts
 
@@ -417,6 +498,43 @@ Scenario: Links status replaces ports (WiFi suffix)
   Given MIDI + WiFi transports added
   Then status.links lists both, and the status line appends "WiFi: linked/not linked"
 # pinned by: tests/ui/sync-section.test.ts, e2e/sync.spec.ts
+```
+
+v3 regression scenarios (scheduled-send reordering — the "MIDI slave runs a
+beat ahead" bug):
+
+```gherkin
+Scenario: Stale in-flight pulses after Start do not skew tempo or phase (regression)
+  Given a slave warmed by idle pulses at 120 BPM
+  When 'start' arrives followed by ~200 ms of stale idle-grid pulses interleaved with the real run pulses
+  Then the settle window drops the whole contaminated span: no post-start BPM write strays from 120 (pre-fix: ~2x writes)
+  And the summed phase nudges stay within ±30 ms (pre-fix: dragged ahead ~10 ms every beat, indefinitely)
+  And the first pulse after the settle re-anchors the counter from arrival time
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: Estimator re-locks after a hard tempo jump (edge)
+  Given an estimator locked at 60 BPM
+  When the pulse spacing jumps instantly to 200 BPM (tape-stop release shape)
+  Then the window slides through and the estimate re-locks near 200
+# pinned by: tests/audio/transport/sync/bpm-estimator.test.ts
+
+Scenario: Skewed pulse numbering self-heals by re-anchoring (edge)
+  Given a playing slave whose measured phase error exceeds 0.75 pulse intervals (stale or lost pulses)
+  Then the pulse counter is re-derived from arrival time against the recorded local grid
+  And subsequent corrections are jitter-sized (no persistent early/late hold)
+# pinned by: tests/audio/transport/sync/sync-slave.test.ts
+
+Scenario: Master flushes scheduled sends around start/stop
+  Given a master with an idle clock running
+  When the local transport starts (or stops)
+  Then flush is invoked before the 'start' (or 'stop') send, and never around announceTo
+# pinned by: tests/audio/transport/sync/sync-master.test.ts
+
+Scenario: MIDI transport flush clears every output, tolerating unsupported clear()
+  Given a MidiSyncTransport with two outputs, one whose clear() throws
+  When flush() is called
+  Then the other output's clear() is still invoked and nothing propagates
+# pinned by: tests/audio/midi-sync-transport.test.ts
 ```
 
 ## Tests & verification

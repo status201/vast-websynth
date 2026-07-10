@@ -10,7 +10,11 @@ import { PulseBpmEstimator } from './bpm-estimator';
  *   beat and 'continue' starts **from that beat** (REQ-10) — a slave joining
  *   mid-song lands on the right bar instead of restarting at 0.
  * - 'stop' stops it.
- * - 'pulse' (24 PPQN) feeds tempo estimation and phase correction.
+ * - 'pulse' (24 PPQN) feeds tempo estimation and phase correction. After a
+ *   (re)start, pulses are ignored for a settle window (REQ-16): a
+ *   scheduled-send transport (Web MIDI) can reorder, so a stale in-flight
+ *   tail may trail the start/continue; the first post-settle pulse re-anchors
+ *   the counter from arrival time.
  * - 'tempo' (v2) sets the clock BPM explicitly; while a tempo message is fresh
  *   the pulse-estimate write path is suppressed (an explicit-tempo WiFi master
  *   wins), falling back to pulse estimation automatically when tempo messages
@@ -22,7 +26,9 @@ import { PulseBpmEstimator } from './bpm-estimator';
  * bounded `clock.nudge()` calls (REQ-5) — the local grid's tick times are
  * recorded per step, each 12th pulse is matched to its step's grid time
  * (offset by the join `startStep`), and the EMA-smoothed error is nudged away
- * at most once per beat.
+ * at most once per beat. An error past ~a pulse interval means the numbering
+ * is skewed (reordered/stale/lost pulses) — the counter re-anchors from
+ * arrival time instead of chasing it (REQ-17).
  *
  * On pulse silence > STALL_S while playing, the slave keeps playing at the
  * last tempo and reports `stalled` (REQ-6) — a USB hiccup must not kill a
@@ -41,6 +47,10 @@ const NUDGE_MAX_S = 0.010;       // per phase correction
 const NUDGE_DEADBAND_S = 0.005;  // corrections below this are transport-latency noise
 const NUDGE_MIN_PULSES = 24;     // at most one nudge per beat
 const PHASE_ALPHA = 0.25;        // phase-error smoothing
+const REANCHOR_RATIO = 0.75;     // |phaseErr| beyond this × pulse interval -> re-anchor
+const REANCHOR_MIN_S = 0.015;    // re-anchor floor so delivery-jitter spikes can't trigger it
+const PHASE_MISS_REANCHOR = 2;   // consecutive unmeasurable pulses -> re-anchor
+const START_SETTLE_BASE_MS = 300; // + 12 pulse intervals: post-(re)start pulse-ignore span (REQ-16)
 const STALL_S = 1.0;             // pulse silence -> stalled
 const TICK_MEMORY = 16;          // recorded grid times (steps)
 const TEMPO_MSG_FRESH_MS = 2500; // while a 'tempo' msg is this fresh, suppress pulse-estimate writes
@@ -70,7 +80,10 @@ export class SyncSlave {
   private lastWrittenBpm: number | null = null;
   private lastTempoMsgAtMs = -Infinity;
   private phaseErr: number | null = null;
+  private phaseMisses = 0;
   private pulsesSinceNudge = 0;
+  private settleUntilMs = -Infinity; // pulses before this are a reordered in-flight tail
+  private needsAnchor = false;       // first post-settle pulse derives the counter from time
   private _stalled = false;
 
   constructor(private readonly clock: Clock, private readonly opts: SyncSlaveOptions) {}
@@ -96,10 +109,10 @@ export class SyncSlave {
     switch (msg.type) {
       case 'start':
         this.pendingBeat = 0;
-        this.restart(0);
+        this.restart(0, receivedAtMs);
         break;
       case 'continue':
-        this.restart(this.pendingBeat);
+        this.restart(this.pendingBeat, receivedAtMs);
         break;
       case 'songposition':
         this.pendingBeat = msg.beat & 0xffff;
@@ -133,9 +146,17 @@ export class SyncSlave {
 
   /** (Re)start the local clock from `fromStep`; the clock seeds its step before
    *  onStart so the Arrangement seeks to the right bar (midi-clock-sync REQ-10). */
-  private restart(fromStep: number): void {
+  private restart(fromStep: number, atMs: number): void {
     if (this.clock.playing) this.clock.stop();
     this.resetFollowState(fromStep);
+    // Scheduled-send transports reorder: pulses already queued with future
+    // timestamps arrive *after* this message. Ignore the whole possible
+    // in-flight span (idle horizon / look-ahead + one 12-pulse batch, in
+    // current-tempo terms) rather than trying to tell streams apart —
+    // burst-jitter makes per-pulse filtering unreliable (REQ-16). The first
+    // pulse after the settle re-anchors the counter (REQ-17).
+    this.settleUntilMs = atMs + START_SETTLE_BASE_MS + 2000 * this.clock.sixteenthDuration();
+    this.needsAnchor = true;
     this.clock.start(fromStep);
     this.emitChange();
   }
@@ -152,13 +173,27 @@ export class SyncSlave {
   }
 
   private onPulse(receivedAtMs: number): void {
-    // The estimator is always fed — even while stopped — so hardware masters
-    // that send continuous clock warm the tempo before the first start (REQ-4).
-    this.estimator.addPulse(receivedAtMs);
+    // Stall bookkeeping always runs — a settling pulse still proves the wire
+    // is alive.
     this.lastPulseAudioT = this.opts.toAudioTime(receivedAtMs);
     this.setStalled(false);
+    // Post-(re)start settle (REQ-16): a reordered stale tail may trail the
+    // start/continue — drop the whole span so it can neither spike the
+    // estimator nor skew the pulse counter.
+    if (this.clock.playing && receivedAtMs < this.settleUntilMs) return;
+    // The estimator is fed otherwise — even while stopped — so hardware
+    // masters that send continuous clock warm the tempo before the first
+    // start (REQ-4).
+    this.estimator.addPulse(receivedAtMs);
     this.maybeWriteBpm(receivedAtMs);
-    if (this.clock.playing) this.trackPhase(this.pulseCount++, receivedAtMs);
+    if (!this.clock.playing) return;
+    if (this.needsAnchor) {
+      // An unknown number of run pulses fell inside the settle — derive the
+      // counter from arrival time before measuring anything (REQ-17).
+      if (this.reanchor(receivedAtMs, this.clock.sixteenthDuration() / 6)) this.needsAnchor = false;
+      return;
+    }
+    this.trackPhase(this.pulseCount++, receivedAtMs);
   }
 
   private maybeWriteBpm(nowMs: number): void {
@@ -182,20 +217,64 @@ export class SyncSlave {
    * means the tick has always fired by the time its pulse arrives). Error =
    * arrival − local grid time; positive = master runs late relative to us, so
    * future steps shift later.
+   *
+   * Re-anchor (midi-clock-sync REQ-17): a healthy corrector never sees errors
+   * beyond delivery jitter, so a smoothed error past ~a pulse interval means
+   * the numbering itself is skewed (stale in-flight pulses reordered past a
+   * Start, or lost pulses). Chasing it with ±10 ms nudges would *hold* the
+   * skew forever — instead re-derive the counter from this pulse's arrival
+   * time against the recorded local grid and start measuring afresh.
    */
   private trackPhase(pulse: number, receivedAtMs: number): void {
     this.pulsesSinceNudge++;
     if (pulse % 12 !== 0) return;
+    const pulseS = this.clock.sixteenthDuration() / 6;
     const step = (this.startStep + pulse / 6) & 0xffff;
     const rec = this.tickTimes.find((t) => t.step === step);
-    if (!rec) return;
+    if (!rec) {
+      // The look-ahead guarantees a tick precedes its own pulse, so persistent
+      // misses mean the mapped step lies beyond the look-ahead — a skew too
+      // large to even measure. Re-anchor instead of going silent (REQ-17).
+      if (this.tickTimes.length > 0 && ++this.phaseMisses >= PHASE_MISS_REANCHOR) {
+        this.reanchor(receivedAtMs, pulseS);
+      }
+      return;
+    }
+    this.phaseMisses = 0;
     const err = this.opts.toAudioTime(receivedAtMs) - rec.when;
     this.phaseErr = this.phaseErr === null ? err : this.phaseErr + PHASE_ALPHA * (err - this.phaseErr);
+    if (Math.abs(this.phaseErr) > Math.max(REANCHOR_RATIO * pulseS, REANCHOR_MIN_S)) {
+      this.reanchor(receivedAtMs, pulseS);
+      return;
+    }
     if (this.pulsesSinceNudge < NUDGE_MIN_PULSES) return;
     if (Math.abs(this.phaseErr) < NUDGE_DEADBAND_S) return;
     this.clock.nudge(Math.max(-NUDGE_MAX_S, Math.min(NUDGE_MAX_S, this.phaseErr)));
     this.pulsesSinceNudge = 0;
     this.phaseErr = null; // pre-nudge measurements are stale now
+  }
+
+  /** Re-derive the pulse counter from arrival time vs. the recorded local grid
+   *  (nearest even step, then rounded pulse offset). Residual accuracy is
+   *  ± half a pulse interval — at Start the true error is milliseconds, so the
+   *  anchor lands on the true grid. Returns false when no usable grid record
+   *  exists yet (caller retries on the next pulse). */
+  private reanchor(receivedAtMs: number, pulseS: number): boolean {
+    const t = this.opts.toAudioTime(receivedAtMs);
+    let nearest: { step: number; when: number } | null = null;
+    for (const rec of this.tickTimes) {
+      if (nearest === null || Math.abs(t - rec.when) < Math.abs(t - nearest.when)) nearest = rec;
+    }
+    if (!nearest) return false;
+    const stepDelta = (nearest.step - this.startStep) & 0xffff;
+    if (stepDelta > 0x8000) return false; // wrapped negative — grid memory predates the run
+    const idx = stepDelta * 6 + Math.round((t - nearest.when) / pulseS);
+    if (idx < 0) return false;
+    this.pulseCount = idx + 1; // this pulse was idx; the next one continues from there
+    this.phaseErr = null;      // pre-anchor measurements are meaningless now
+    this.phaseMisses = 0;
+    this.pulsesSinceNudge = 0; // demand a fresh beat of clean measurements before nudging
+    return true;
   }
 
   private onTick = (step: number, when: number): void => {
@@ -215,7 +294,10 @@ export class SyncSlave {
     this.tickTimes = [];
     this.pulseCount = 0;
     this.phaseErr = null;
+    this.phaseMisses = 0;
     this.pulsesSinceNudge = 0;
+    this.settleUntilMs = -Infinity;
+    this.needsAnchor = false;
   }
 
   private setStalled(v: boolean): void {

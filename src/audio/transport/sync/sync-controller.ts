@@ -141,6 +141,9 @@ export class SyncController {
         this.clock,
         (msg, atMs) => this.broadcast(msg, atMs),
         this.opts.toPerfMs,
+        // Fan the start/stop flush out to every transport that can cancel
+        // scheduled sends (REQ-18); transports without flush are untouched.
+        { flush: () => { for (const { t } of this.transports.values()) t.flush?.(); } },
       );
       this.master.enable();
     } else if (this._mode === 'slave') {

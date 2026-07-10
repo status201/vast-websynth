@@ -158,7 +158,7 @@ describe('SyncController', () => {
     ctrl.setMode('slave');
     transport.emit({ type: 'start' });
     const dt = intervalMs(140);
-    for (let i = 0; i < 48; i++) transport.emit({ type: 'pulse' }, i * dt);
+    for (let i = 0; i < 96; i++) transport.emit({ type: 'pulse' }, i * dt); // settle + 2 beats
     expect(Math.abs(clockBpm(clock) - 140)).toBeLessThan(0.5);
     ctrl.setMode('off');
     expect(clockBpm(clock)).toBeCloseTo(120, 6);

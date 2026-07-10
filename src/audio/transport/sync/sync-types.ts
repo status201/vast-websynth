@@ -34,6 +34,13 @@ export type SyncMessage =
 export interface SyncTransport {
   /** Send a message, optionally scheduled at `atMs` (performance.now() domain). */
   send(msg: SyncMessage, atMs?: number): void;
+  /**
+   * Best-effort cancel of scheduled-but-unsent messages (midi-clock-sync
+   * REQ-18). A transport that queues future-timestamped sends (Web MIDI)
+   * implements it so the master can drop a stale pulse tail before a
+   * start/stop; a transport that sends immediately (WebRTC) omits it.
+   */
+  flush?(): void;
   /** Subscribe to incoming messages. Returns an unsubscribe function. */
   onMessage(cb: (msg: SyncMessage, receivedAtMs: number) => void): () => void;
   ports(): { ins: number; outs: number };
