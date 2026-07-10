@@ -43,6 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   dims the step grid under a large rest symbol so the empty bar is obvious. Rests
   save with the song; older songs are unaffected.
 
+### Fixed
+
+- **WiFi sync QR is now scannable** — the pairing QR was rendered too small and
+  downscaled, so a full link code was unreadable by any camera. It is now drawn
+  crisp and upscaled (never shrunk), large enough to scan across devices. The
+  pair dialog also warns when the app isn't on a secure (HTTPS) origin and, if a
+  link fails to connect, explains what to check (same Wi-Fi, router client/AP
+  isolation off) instead of sitting silently.
+
 ## [1.9.0] - 2026-07-07
 
 ### Added

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { openSyncPairModal } from '../../src/ui/components/sync-pair-modal';
+import { openSyncPairModal, renderQr } from '../../src/ui/components/sync-pair-modal';
 import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
+import { qrcode } from '../../src/vendor/qr';
 import { makeFakeRtc } from '../audio/fake-rtc';
 
 const noopTimer: TickTimer = { start() {}, stop() {} };
@@ -93,5 +94,58 @@ describe('sync-pair-modal', () => {
     (byId('sync-pair-generate') as HTMLElement).click();
     await waitFor(() => Boolean(byId('sync-pair-error')?.textContent));
     expect(byId('sync-pair-error')!.textContent).toBeTruthy();
+  });
+
+  // Regression (webrtc-sync REQ-5): the v1 modal drew a big bitmap and
+  // CSS-clamped it *down* to 180px, leaving ~2px/module — unscannable by any
+  // reader. The QR must be drawn 1px/module and upscaled, never downscaled.
+  it('renders the QR upscaled (1px/module + quiet zone), never downscaled', () => {
+    const canvas = document.createElement('canvas');
+    const payload = 'WS2.r.' + 'A'.repeat(1200); // ~ a real (dense) SDP blob
+    renderQr(canvas, payload);
+
+    const q = qrcode(0, 'L');
+    q.addData(payload);
+    q.make();
+    const dim = q.getModuleCount() + 8; // 1px/module + a 4-module quiet zone per side
+
+    expect(canvas.width).toBe(dim);
+    expect(canvas.height).toBe(dim);
+    const displayPx = parseInt(canvas.style.width, 10);
+    expect(displayPx).toBeGreaterThan(180);       // not clamped to the old 180px
+    expect(displayPx).toBeGreaterThanOrEqual(dim); // upscaled — bitmap never shrunk
+  });
+
+  it('shows a non-blocking HTTPS banner on an insecure origin, flows still render', () => {
+    const orig = Object.getOwnPropertyDescriptor(window, 'isSecureContext');
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, get: () => false });
+    try {
+      openSyncPairModal(transport());
+      expect(byId('sync-pair-insecure')).toBeTruthy();
+      expect(byId('sync-pair-create')).toBeTruthy(); // copy-paste flow still there
+      expect(byId('sync-pair-offer')).toBeTruthy();
+    } finally {
+      if (orig) Object.defineProperty(window, 'isSecureContext', orig);
+      else delete (window as unknown as { isSecureContext?: boolean }).isSecureContext;
+    }
+  });
+
+  it('surfaces actionable guidance when the link never opens (REQ-9)', async () => {
+    const fake = makeFakeRtc();
+    const host = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
+    const guest = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
+    const offer = await host.createLink();
+
+    openSyncPairModal(guest);
+    await waitFor(() => valueOf('sync-pair-offer').startsWith('WS2.'));
+    (byId('sync-pair-join') as HTMLElement).click();
+    (byId('sync-pair-offer') as HTMLTextAreaElement).value = offer;
+    (byId('sync-pair-generate') as HTMLElement).click();
+    await waitFor(() => valueOf('sync-pair-answer').startsWith('WS2.'));
+
+    // The host never accepts the answer; the guest's peer connection fails.
+    fake.peers.at(-1)!.fail();
+    expect(guest.linked).toBe(false);
+    expect(byId('sync-pair-error')!.textContent).toContain("Couldn't connect");
   });
 });

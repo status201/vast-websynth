@@ -12,6 +12,18 @@ import modalStyles from '../styles/modal.module.css';
 
 type El = HTMLElement;
 
+// QR render tuning (webrtc-sync REQ-5): 1 device-px per module + a 4-module
+// quiet zone, then CSS-upscaled to QR_MAX_PX (never downscaled) so a dense
+// full-SDP code stays camera-scannable.
+const QR_QUIET = 4;
+const QR_MAX_PX = 420;
+
+// Connection-feedback tuning (REQ-9).
+const CONNECT_WATCHDOG_MS = 12_000;
+const CONNECT_FAIL_MSG =
+  "Couldn't connect. Make sure both devices are on the same Wi-Fi and the router's " +
+  'client isolation ("AP isolation") is off, then try again.';
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (className) e.className = className;
@@ -24,14 +36,44 @@ function scanSupported(): boolean {
   return typeof (window as { BarcodeDetector?: unknown }).BarcodeDetector !== 'undefined';
 }
 
+/** A non-blocking reason WiFi pairing may misbehave here (REQ-8); null = fine. */
+function insecureWarning(): string | null {
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
+    return 'WiFi sync needs a secure connection. Open the app over https:// on both devices — '
+      + 'plain http://<ip> blocks WebRTC, the clipboard and the QR camera.';
+  }
+  return null;
+}
+
 export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   let stopScan: (() => void) | null = null;
   let unsub: () => void = () => {};
 
+  // Connection-feedback state (REQ-9): once a peer completes its half we wait for
+  // the DataChannels to open. `currentErr` is the active flow's inline message.
+  let currentErr: El | null = null;
+  let awaiting = false;
+  let connectWatchdog = 0;
+
+  const disarmAwaiting = (): void => {
+    awaiting = false;
+    window.clearTimeout(connectWatchdog);
+    connectWatchdog = 0;
+  };
+
+  const armAwaiting = (msg: string): void => {
+    awaiting = true;
+    if (currentErr) currentErr.textContent = msg;
+    window.clearTimeout(connectWatchdog);
+    connectWatchdog = window.setTimeout(() => {
+      if (awaiting && !rtc.linked && currentErr) currentErr.textContent = CONNECT_FAIL_MSG;
+    }, CONNECT_WATCHDOG_MS);
+  };
+
   const modal = new Modal({
     title: 'WiFi sync — pair two devices',
     cardClass: Modal.cardWideClass,
-    onClose: () => { stopScan?.(); stopScan = null; unsub(); },
+    onClose: () => { stopScan?.(); stopScan = null; disarmAwaiting(); unsub(); },
   });
 
   const tag = el('div', Modal.tagClass,
@@ -53,9 +95,15 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   unsub = rtc.onPortsChange(() => {
     if (rtc.linked) {
       status.textContent = 'Linked ✓';
+      disarmAwaiting();
       window.setTimeout(() => modal.close(), 1000);
     } else {
       status.textContent = 'Not linked';
+      // A teardown while we were waiting means the link failed to open (REQ-9).
+      if (awaiting) {
+        disarmAwaiting();
+        if (currentErr) currentErr.textContent = CONNECT_FAIL_MSG;
+      }
     }
   });
 
@@ -65,13 +113,17 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     const offer = readonlyField('Your link (send to the other device)', 'sync-pair-offer');
     const qr = qrCanvas();
     const err = errorLine();
+    currentErr = err;
     const answer = inputField('Paste the answer from the other device', 'sync-pair-answer');
     const actions = el('div', modalStyles.aiActions);
 
     const apply = createButton({
       label: 'Complete link',
       testId: 'sync-pair-apply',
-      onClick: () => runGuarded(err, () => rtc.acceptAnswer(answer.textarea.value.trim())),
+      onClick: () => runGuarded(err, async () => {
+        await rtc.acceptAnswer(answer.textarea.value.trim());
+        armAwaiting('Connecting… keep both devices on this screen.');
+      }),
     });
     actions.appendChild(apply);
     maybeScanButton(actions, err, answer);
@@ -96,6 +148,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     resetContent();
     const offer = inputField('Paste the link from the other device', 'sync-pair-offer');
     const err = errorLine();
+    currentErr = err;
     const answer = readonlyField('Your answer (send back to the other device)', 'sync-pair-answer');
     const qr = qrCanvas();
     const actions = el('div', modalStyles.aiActions);
@@ -107,6 +160,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
         const blob = await rtc.acceptOffer(offer.textarea.value.trim());
         answer.textarea.value = blob;
         renderQr(qr.canvas, blob);
+        armAwaiting('Answer ready — send it back. Waiting for the other device to connect…');
       }),
     });
     actions.appendChild(generate);
@@ -124,6 +178,8 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   function resetContent(): void {
     stopScan?.();
     stopScan = null;
+    disarmAwaiting();
+    currentErr = null;
     content.replaceChildren();
   }
 
@@ -157,10 +213,9 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     const wrap = el('div');
     const canvas = el('canvas');
     canvas.dataset.testid = 'sync-pair-qr';
-    canvas.style.width = '180px';
-    canvas.style.height = '180px';
-    canvas.style.imageRendering = 'pixelated';
-    canvas.style.display = 'none'; // shown once a blob is rendered
+    canvas.style.display = 'none'; // sizing + reveal happen in renderQr
+    canvas.style.margin = '12px auto 0';
+    canvas.style.maxWidth = '100%';
     wrap.appendChild(canvas);
     return { wrap, canvas };
   }
@@ -227,6 +282,17 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   }
 
   modal.body.appendChild(tag);
+  const warning = insecureWarning();
+  if (warning) {
+    const line = el('div', modalStyles.aiLabel, warning);
+    line.dataset.testid = 'sync-pair-insecure';
+    line.style.color = 'var(--accent)';
+    line.style.textTransform = 'none';
+    line.style.letterSpacing = 'normal';
+    line.style.lineHeight = '1.5';
+    line.style.marginTop = '10px';
+    modal.body.appendChild(line);
+  }
   modal.body.appendChild(modeRow);
   modal.body.appendChild(content);
   modal.body.appendChild(status);
@@ -234,26 +300,40 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
   showCreate();
 }
 
-/** Paint a QR of `text` onto `canvas` (auto version, EC level L). Hidden on overflow. */
-function renderQr(canvas: HTMLCanvasElement, text: string): void {
+/**
+ * Paint a QR of `text` onto `canvas` (auto version, EC level L) so it is
+ * **camera-scannable** (webrtc-sync REQ-5). The bitmap is drawn at **one
+ * device-pixel per module** plus a 4-module quiet zone, then CSS-**upscaled**
+ * (never downscaled) with `image-rendering: pixelated` to a viewport-responsive
+ * display size — crisp, square modules with plenty of pixels each. Exported for
+ * the regression test. Hidden on overflow (blob too large for any version).
+ */
+export function renderQr(canvas: HTMLCanvasElement, text: string): void {
   try {
     const qr = qrcode(0, 'L');
     qr.addData(text);
     qr.make();
     const count = qr.getModuleCount();
-    const cell = 4;
-    const margin = cell * 4;
-    const size = count * cell + margin * 2;
-    canvas.width = size;
-    canvas.height = size;
+    const dim = count + QR_QUIET * 2; // 1px/module + quiet zone on all sides
+    canvas.width = dim;
+    canvas.height = dim;
+
+    // Upscale a small crisp bitmap to a large display box — do NOT draw a big
+    // bitmap and clamp it down (the v1 bug: ~2 px/module, unscannable).
+    const vw = typeof window !== 'undefined' ? window.innerWidth : QR_MAX_PX;
+    const displayPx = Math.min(QR_MAX_PX, Math.round(vw * 0.92));
+    canvas.style.width = `${displayPx}px`;
+    canvas.style.height = `${displayPx}px`;
+    canvas.style.imageRendering = 'pixelated';
+
     const ctx = canvas.getContext('2d');
-    if (!ctx) return; // jsdom / no 2d context — paste still works
+    if (!ctx) return; // jsdom / no 2d context — paste still works, sizing already set
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, dim, dim);
     ctx.fillStyle = '#000000';
     for (let r = 0; r < count; r++) {
       for (let c = 0; c < count; c++) {
-        if (qr.isDark(r, c)) ctx.fillRect(margin + c * cell, margin + r * cell, cell, cell);
+        if (qr.isDark(r, c)) ctx.fillRect(QR_QUIET + c, QR_QUIET + r, 1, 1);
       }
     }
     canvas.style.display = 'block';

@@ -3,7 +3,7 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - midi-clock-sync
@@ -103,6 +103,14 @@ follows whichever delivers.
   **scan** is offered only when a working `BarcodeDetector` (with `qr_code`
   support) is feature-detected. Testids: `sync-wifi-link` (launch button),
   `sync-pair-offer`/`sync-pair-answer`/`sync-pair-qr`/`sync-pair-status`.
+  **QR rendering must stay camera-scannable**: a full non-trickle SDP blob is a
+  dense code (a deflated offer ≈ 700 chars → QR **version 18, 89×89 modules**;
+  more network interfaces push it to v24+, 113×113). It is drawn **one
+  device-pixel per module** plus a 4-module quiet zone, then **upscaled** (never
+  downscaled) with `image-rendering: pixelated` to a large, viewport-responsive
+  display size, so the modules stay crisp with ≥ 3 px each. Drawing a big bitmap
+  and CSS-clamping it *down* to a fixed 180 px (the v1 bug) left ~2 px/module and
+  nearest-neighbour-dropped modules — undecodable by **any** reader.
 - **REQ-6** — Lifecycle. A DataChannel close or a
   `connectionstatechange ∈ {failed, closed, disconnected}` tears the link down:
   `ports()` returns `{ins:0, outs:0}`, `onPortsChange` fires (status "WiFi: not
@@ -110,6 +118,22 @@ follows whichever delivers.
   free-run (midi-clock-sync REQ-6). Re-pairing closes the previous peer first.
   A page reload **never** resumes a link (the sync *mode* persists; the link
   does not) — the user re-pairs.
+- **REQ-8** — **Secure-context notice.** WebRTC pairing, `navigator.clipboard`,
+  and the QR camera all require a secure origin. When `window.isSecureContext`
+  is false the modal shows a **non-blocking** banner (`sync-pair-insecure`)
+  telling the user to open the app over `https://` on **both** devices; the
+  copy-paste flows still render (best-effort) rather than the modal failing in
+  silence. (Cross-device pairing over plain `http://<lan-ip>` is the common
+  first-time trap — same constraint the mic modal already guards.)
+- **REQ-9** — **Connection feedback.** After a peer completes its half — host
+  accepts the guest's answer, or guest generates its answer — the modal enters a
+  **"Connecting…"** state instead of sitting silently at "Not linked". If the
+  DataChannels open, `onPortsChange` flips the status to "Linked ✓" and the modal
+  self-closes; if the link tears down (`onPortsChange` fires with `linked`
+  false — a `connectionstatechange ∈ {failed,disconnected,closed}` or a channel
+  close) **or** a watchdog elapses without a link, the modal surfaces
+  **actionable** guidance (same Wi-Fi, router client/AP isolation off, try again)
+  on `sync-pair-error`. Switching mode or closing the modal cancels the wait.
 - **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
   `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
   4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The
@@ -284,6 +308,26 @@ Scenario: Pair modal flows and QR gating (jsdom)
   Then Create shows an offer blob + Copy; Join accepts an offer and shows an answer
    And the status line flips to "Linked ✓" on onPortsChange
    And no Scan button renders when BarcodeDetector is absent
+# pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: QR is rendered upscaled (never downscaled) so it stays scannable (regression)
+  Given a large SDP-sized blob rendered by renderQr onto a canvas
+  Then the canvas bitmap is one device-pixel per module plus a 4-module quiet zone
+   And the CSS display size is larger than the bitmap (upscaled) with pixelated rendering
+   And the bitmap is never CSS-clamped down to a fixed 180 px
+# pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: Insecure origin shows a non-blocking HTTPS banner (edge)
+  Given window.isSecureContext is false
+  When the pair modal opens
+  Then a sync-pair-insecure banner is shown
+   And the Create/Join copy-paste flow still renders
+# pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: A link that never opens surfaces guidance instead of silence
+  Given the guest generated its answer and is awaiting the link
+  When the peer connection fails (or the watchdog elapses) without linking
+  Then sync-pair-error shows actionable guidance (same Wi-Fi, client isolation off)
 # pinned by: tests/ui/sync-pair-modal.test.ts
 
 Scenario: Two real pages link and follow (E2E loopback)
