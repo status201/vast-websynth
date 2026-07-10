@@ -3,7 +3,7 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - midi-clock-sync
@@ -97,10 +97,27 @@ follows whichever delivers.
 - **REQ-5** — Pairing is **non-trickle** and serverless. The transport gathers
   ICE to completion (`icegatheringstate === 'complete'`, 3 s timeout fallback)
   then encodes the full SDP into a `WS2.` blob (`webrtc-signaling.ts`). The
-  `sync-pair-modal.ts` (built on `Modal`) offers a **Create link** (host) and
-  **Join** (guest) flow: the host shows an offer blob (copy + QR), pastes back
-  the guest's answer; the guest pastes the offer, shows an answer blob (copy +
-  QR). Copy-paste always works; QR **display** uses the vendored encoder; QR
+  `sync-pair-modal.ts` (built on `Modal`) is a **linear, foolproof wizard**
+  — `openSyncPairModal(rtc, sync)`, where `sync` is a `Pick<SyncController,
+  'setMode'>` — presenting **one step at a time**, never the whole exchange at
+  once:
+  - **Choose** — the entry step: two buttons, **Create Link** (`sync-pair-create`)
+    and **Join a Link** (`sync-pair-join`). Choosing a role **also sets the
+    transport mode** so the pairing UI and the Sync section's Off/Master/Slave
+    control agree: Create → `sync.setMode('master')`, Join → `sync.setMode('slave')`.
+  - **Create → Master** — *Step 1 of 2*: show the offer (QR + Copy + a
+    half-height readonly text fallback), with a hint to Join+scan on the other
+    device; **Next** (`sync-pair-next`, disabled until the offer resolves) →
+    *Step 2 of 2*: scan/paste the answer, then **Complete link** (`sync-pair-apply`).
+  - **Join → Slave** — *Step 1 of 2*: scan/paste the offer, then **Generate reply**
+    (`sync-pair-generate`) → *Step 2 of 2*: show the answer (QR + Copy + half-height
+    text) with a "waiting to connect" status.
+  - Every step has **Back** (`sync-pair-back`) and a persistent **Close**
+    (`sync-pair-close`); on link the body swaps to a "Linked ✓" success and
+    self-closes. Textareas are **half** the shared modal height (QR + Copy are the
+    primary transfer; the text blob is a fallback).
+
+  Copy-paste always works; QR **display** uses the vendored encoder; QR
   **scan** is offered on **any device with a camera** (`navigator.mediaDevices
   .getUserMedia`) — the decode uses the platform `BarcodeDetector` where present
   (fast path) and **falls back to the vendored jsQR decoder** (canvas
@@ -108,8 +125,9 @@ follows whichever delivers.
   Safari). This makes the **return leg symmetric**: the host can scan the guest's
   answer QR even on a laptop, instead of hand-transferring the blob. Testids:
   `sync-wifi-link` (launch button),
-  `sync-pair-offer`/`sync-pair-answer`/`sync-pair-qr`/`sync-pair-status`/
-  `sync-pair-scan`.
+  `sync-pair-create`/`sync-pair-join`/`sync-pair-offer`/`sync-pair-answer`/
+  `sync-pair-qr`/`sync-pair-status`/`sync-pair-scan`/`sync-pair-apply`/
+  `sync-pair-generate`/`sync-pair-next`/`sync-pair-back`/`sync-pair-close`.
   **QR rendering must stay camera-scannable**: a full non-trickle SDP blob is a
   dense code (a deflated offer ≈ 700 chars → QR **version 18, 89×89 modules**;
   more network interfaces push it to v24+, 113×113). It is drawn **one
@@ -139,8 +157,18 @@ follows whichever delivers.
   self-closes; if the link tears down (`onPortsChange` fires with `linked`
   false — a `connectionstatechange ∈ {failed,disconnected,closed}` or a channel
   close) **or** a watchdog elapses without a link, the modal surfaces
-  **actionable** guidance (same Wi-Fi, router client/AP isolation off, try again)
-  on `sync-pair-error`. Switching mode or closing the modal cancels the wait.
+  **actionable** guidance on `sync-pair-error`, rendered **readably** (sentence
+  case — not the uppercase/letter-spaced label style). The guidance names the real
+  causes: same Wi-Fi + router client/AP isolation off, **and** that a VPN or a
+  **virtual network adapter (WSL / Docker / Hyper-V / VirtualBox)** on a laptop
+  commonly blocks LAN peer-to-peer, with a pointer to `edge://webrtc-internals`
+  (or `chrome://`) to diagnose. Switching step or closing the modal cancels the wait.
+- **REQ-10** — **No accidental dismissal.** The pair modal is a multi-step flow, so
+  it opts out of `Modal`'s backdrop-click close (`dismissOnBackdrop: false`) — an
+  outside click while fiddling to scan a QR must not discard the in-progress
+  handshake. It provides an explicit **Close** button (`sync-pair-close`); **Escape
+  still closes** (owned by `Modal`). The opt-out is a general `ModalOptions` flag
+  (default `true`, so every other dialog keeps backdrop-close).
 - **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
   `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
   4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The QR **decoder**
@@ -195,7 +223,8 @@ copyText(text): Promise<boolean>
 flashCopied(btn, original, done): void
 
 # src/ui/components/sync-pair-modal.ts
-openSyncPairModal(rtc: WebRtcSyncTransport): void
+openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncController, 'setMode'>): void
+#   wizard: Choose(role→setMode) → Master(show offer → get answer) | Slave(get offer → show answer) → Linked
 
 # src/ui/components/sync-section.ts (changed)
 buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement
@@ -328,12 +357,20 @@ Scenario: WiFi link opens mid-play → announce to the new link only
    And the MIDI transport receives no new start/continue (no audible restart)
 # pinned by: tests/audio/transport/sync/sync-controller.test.ts
 
-Scenario: Pair modal flows and QR gating (jsdom)
-  Given the sync-pair modal on a fake transport
-  Then Create shows an offer blob + Copy; Join accepts an offer and shows an answer
-   And the status line flips to "Linked ✓" on onPortsChange
-   And no Scan button renders when BarcodeDetector is absent
+Scenario: Pairing wizard steps and role→mode (jsdom)
+  Given the sync-pair modal on a fake transport with a setMode spy
+  Then it opens on the Choose step (Create + Join, no offer field yet)
+   And clicking Create calls setMode('master') and reaches the offer QR + Copy
+   And clicking Join calls setMode('slave') and shows the offer input + Generate
+   And a full exchange drives the wizard to "Linked ✓" on onPortsChange
 # pinned by: tests/ui/sync-pair-modal.test.ts
+
+Scenario: An outside click does not dismiss the pair modal; Close/Escape do
+  Given the pair modal is open (dismissOnBackdrop: false)
+  When the backdrop is clicked
+  Then the modal stays open
+   And the Close button (or Escape) closes it
+# pinned by: tests/ui/sync-pair-modal.test.ts, tests/ui/modal.test.ts
 
 Scenario: QR is rendered upscaled (never downscaled) so it stays scannable (regression)
   Given a large SDP-sized blob rendered by renderQr onto a canvas
@@ -359,7 +396,8 @@ Scenario: Insecure origin shows a non-blocking HTTPS banner (edge)
 Scenario: A link that never opens surfaces guidance instead of silence
   Given the guest generated its answer and is awaiting the link
   When the peer connection fails (or the watchdog elapses) without linking
-  Then sync-pair-error shows actionable guidance (same Wi-Fi, client isolation off)
+  Then sync-pair-error shows readable, actionable guidance
+   And it names the real causes (same Wi-Fi; a VPN / virtual adapter on a laptop)
 # pinned by: tests/ui/sync-pair-modal.test.ts
 
 Scenario: Two real pages link and follow (E2E loopback)

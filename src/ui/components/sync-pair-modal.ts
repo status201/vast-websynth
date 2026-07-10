@@ -1,15 +1,18 @@
-// WiFi sync pairing modal (webrtc-sync.md REQ-5). Serverless: two devices swap
-// an offer↔answer blob by copy-paste or QR. Built on the reusable Modal, like
-// record-sound-modal.ts. Copy-paste always works; QR display uses the vendored
-// encoder; QR scan works on any device with a camera — via the platform
-// BarcodeDetector where present, else the vendored jsQR decoder (Windows
-// desktop, iOS Safari lack BarcodeDetector).
+// WiFi sync pairing wizard (webrtc-sync.md REQ-5/REQ-9/REQ-10). Serverless: two
+// devices swap an offer↔answer blob by QR or copy-paste. A **linear wizard** —
+// Choose a role → (Master: show offer → get answer | Slave: get offer → show
+// answer) → Linked — presenting one step at a time so the two-way handshake is
+// foolproof. Built on the reusable Modal (backdrop-dismiss disabled so a stray
+// outside click can't discard progress). QR display uses the vendored encoder;
+// QR scan uses the platform BarcodeDetector where present, else the vendored
+// jsQR decoder (Windows desktop, iOS Safari lack BarcodeDetector).
 import { Modal } from './modal';
 import { createButton } from './button';
 import { copyText, flashCopied } from '../clipboard';
 import { qrcode } from '../../vendor/qr';
 import { SignalDecodeError } from '../../audio/webrtc-signaling';
 import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
+import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import modalStyles from '../styles/modal.module.css';
 
 type El = HTMLElement;
@@ -20,11 +23,18 @@ type El = HTMLElement;
 const QR_QUIET = 4;
 const QR_MAX_PX = 420;
 
+// Textareas are half the shared modal heights (aiText 320 / aiBrief 84) — the QR
+// + Copy are the primary transfer; the text blob is a fallback (REQ-5).
+const READONLY_TA_PX = 160;
+const INPUT_TA_PX = 42;
+
 // Connection-feedback tuning (REQ-9).
 const CONNECT_WATCHDOG_MS = 12_000;
 const CONNECT_FAIL_MSG =
-  "Couldn't connect. Make sure both devices are on the same Wi-Fi and the router's " +
-  'client isolation ("AP isolation") is off, then try again.';
+  "Couldn't connect. Both devices must be on the same Wi-Fi with the router's "
+  + 'client isolation ("AP isolation") off. On a laptop, a VPN or a virtual network '
+  + 'adapter (WSL, Docker, Hyper-V, VirtualBox) often blocks this — disable them and '
+  + 'try again. Open edge://webrtc-internals (or chrome://webrtc-internals) to diagnose.';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -57,12 +67,27 @@ function insecureWarning(): string | null {
   return null;
 }
 
-export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
+/** Render the connection-failure guidance readably (REQ-9) — the aiLabel style is
+ *  uppercase + letter-spaced, an unreadable wall for a full sentence. */
+function showConnectFailure(target: El): void {
+  target.textContent = CONNECT_FAIL_MSG;
+  target.style.textTransform = 'none';
+  target.style.letterSpacing = 'normal';
+  target.style.lineHeight = '1.5';
+  target.style.color = 'var(--accent)';
+}
+
+/**
+ * Open the WiFi-sync pairing wizard. `sync` is narrowed to `setMode` (ISP): the
+ * role choice sets Master/Slave so the pairing UI and the Sync section's
+ * Off/Master/Slave control agree (REQ-5).
+ */
+export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncController, 'setMode'>): void {
   let stopScan: (() => void) | null = null;
   let unsub: () => void = () => {};
 
   // Connection-feedback state (REQ-9): once a peer completes its half we wait for
-  // the DataChannels to open. `currentErr` is the active flow's inline message.
+  // the DataChannels to open. `currentErr` is the active step's inline message.
   let currentErr: El | null = null;
   let awaiting = false;
   let connectWatchdog = 0;
@@ -78,28 +103,18 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     if (currentErr) currentErr.textContent = msg;
     window.clearTimeout(connectWatchdog);
     connectWatchdog = window.setTimeout(() => {
-      if (awaiting && !rtc.linked && currentErr) currentErr.textContent = CONNECT_FAIL_MSG;
+      if (awaiting && !rtc.linked && currentErr) showConnectFailure(currentErr);
     }, CONNECT_WATCHDOG_MS);
   };
 
   const modal = new Modal({
     title: 'WiFi sync — pair two devices',
     cardClass: Modal.cardWideClass,
+    dismissOnBackdrop: false, // multi-step flow — an outside click must not discard it (REQ-10)
     onClose: () => { stopScan?.(); stopScan = null; disarmAwaiting(); unsub(); },
   });
 
-  const tag = el('div', Modal.tagClass,
-    'Same WiFi, client isolation off. Create on one device and Join on the other, ' +
-    'then swap the codes (copy-paste or scan the QR).');
-
-  // ---- mode toggle ----
-  const modeRow = el('div', modalStyles.aiActions);
-  const createBtn = createButton({ label: 'Create link', testId: 'sync-pair-create', onClick: () => showCreate() });
-  const joinBtn = createButton({ label: 'Join a link', testId: 'sync-pair-join', onClick: () => showJoin() });
-  modeRow.appendChild(createBtn);
-  modeRow.appendChild(joinBtn);
-
-  const content = el('div');
+  const content = el('div'); // the step area — replaced per wizard step
 
   const status = el('div', modalStyles.aiLabel, rtc.linked ? 'Linked ✓' : 'Not linked');
   status.dataset.testid = 'sync-pair-status';
@@ -108,84 +123,164 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     if (rtc.linked) {
       status.textContent = 'Linked ✓';
       disarmAwaiting();
-      window.setTimeout(() => modal.close(), 1000);
+      showLinked();
+      window.setTimeout(() => modal.close(), 1200);
     } else {
       status.textContent = 'Not linked';
       // A teardown while we were waiting means the link failed to open (REQ-9).
       if (awaiting) {
         disarmAwaiting();
-        if (currentErr) currentErr.textContent = CONNECT_FAIL_MSG;
+        if (currentErr) showConnectFailure(currentErr);
       }
     }
   });
 
-  // ---- Create (host): offer out → paste answer in ----
-  function showCreate(): void {
+  // ---- steps ----
+
+  /** Entry: pick a role. Create → Master, Join → Slave (also sets the mode). */
+  function showChoose(): void {
     resetContent();
-    const offer = readonlyField('Your link (send to the other device)', 'sync-pair-offer');
-    const qr = qrCanvas();
+    const box = el('div');
+    box.appendChild(roleChoice('Create Link', 'sync-pair-create', 'This device leads · becomes Master',
+      () => { sync.setMode('master'); showMasterShow(); }));
+    box.appendChild(roleChoice('Join a Link', 'sync-pair-join', 'This device follows · becomes Slave',
+      () => { sync.setMode('slave'); showSlaveEnter(); }));
+    content.appendChild(stepFrame({
+      heading: 'Pair over Wi-Fi',
+      hints: [
+        'One device creates the link and leads (Master); the other joins and follows (Slave).',
+        'Both must be on the same Wi-Fi.',
+      ],
+      body: box,
+    }));
+  }
+
+  /** A big, prominent role button with a centred caption beneath it. */
+  function roleChoice(label: string, testId: string, caption: string, onClick: () => void): El {
+    const wrap = el('div');
+    wrap.style.marginTop = '18px';
+    const btn = createButton({ label, testId, onClick });
+    btn.style.width = '100%';
+    btn.style.justifyContent = 'center';
+    btn.style.padding = '13px';
+    btn.style.fontSize = '15px';
+    const cap = el('div', Modal.tagClass, caption);
+    cap.style.textAlign = 'center';
+    cap.style.marginTop = '5px';
+    wrap.appendChild(btn);
+    wrap.appendChild(cap);
+    return wrap;
+  }
+
+  /** Master step 1: show the offer, generate it, gate Next until it's ready. */
+  function showMasterShow(): void {
+    resetContent();
     const err = errorLine();
     currentErr = err;
-    const answer = inputField('Paste the answer from the other device', 'sync-pair-answer');
-    const actions = el('div', modalStyles.aiActions);
-
-    const apply = createButton({
-      label: 'Complete link',
-      testId: 'sync-pair-apply',
-      onClick: () => runGuarded(err, async () => {
-        await rtc.acceptAnswer(answer.textarea.value.trim());
-        armAwaiting('Connecting… keep both devices on this screen.');
-      }),
+    const panel = qrPanel('sync-pair-offer');
+    const nav = navRow({
+      back: () => showChoose(),
+      primary: { label: 'Next →', testId: 'sync-pair-next', disabled: true, onClick: () => showMasterReply() },
     });
-    actions.appendChild(apply);
-    maybeScanButton(actions, err, answer);
-
-    content.appendChild(offer.wrap);
-    content.appendChild(qr.wrap);
+    content.appendChild(stepFrame({
+      step: 'Step 1 of 2 · Create Link',
+      heading: 'Show this to the other device',
+      hints: ['On the other device, tap "Join a Link", then scan this code (or paste the text).'],
+      body: panel.wrap,
+      nav: nav.row,
+    }));
     content.appendChild(err);
-    content.appendChild(answer.wrap);
-    content.appendChild(actions);
 
-    // Kick off offer generation.
     err.textContent = 'Generating link…';
     void rtc.createLink().then((blob) => {
       err.textContent = '';
-      offer.textarea.value = blob;
-      renderQr(qr.canvas, blob);
+      panel.setBlob(blob);
+      if (nav.primaryBtn) nav.primaryBtn.disabled = false;
     }).catch(() => { err.textContent = 'Could not create a link on this network.'; });
   }
 
-  // ---- Join (guest): paste offer in → answer out ----
-  function showJoin(): void {
+  /** Master step 2: scan/paste the answer, then complete the link. */
+  function showMasterReply(): void {
     resetContent();
-    const offer = inputField('Paste the link from the other device', 'sync-pair-offer');
     const err = errorLine();
     currentErr = err;
-    const answer = readonlyField('Your answer (send back to the other device)', 'sync-pair-answer');
-    const qr = qrCanvas();
-    const actions = el('div', modalStyles.aiActions);
-
-    const generate = createButton({
-      label: 'Generate answer',
-      testId: 'sync-pair-generate',
-      onClick: () => runGuarded(err, async () => {
-        const blob = await rtc.acceptOffer(offer.textarea.value.trim());
-        answer.textarea.value = blob;
-        renderQr(qr.canvas, blob);
-        armAwaiting('Answer ready — send it back. Waiting for the other device to connect…');
-      }),
+    const panel = scanPanel('sync-pair-answer', err);
+    const nav = navRow({
+      back: () => showMasterShow(),
+      primary: {
+        label: 'Complete link', testId: 'sync-pair-apply',
+        onClick: () => runGuarded(err, async () => {
+          await rtc.acceptAnswer(panel.getValue());
+          armAwaiting('Connecting… keep both devices on this screen.');
+        }),
+      },
     });
-    actions.appendChild(generate);
-    maybeScanButton(actions, err, offer);
-
-    content.appendChild(offer.wrap);
-    content.appendChild(actions);
+    content.appendChild(stepFrame({
+      step: 'Step 2 of 2 · Create Link',
+      heading: 'Enter the reply',
+      hints: ['Scan the reply the other device now shows — or paste it below.'],
+      body: panel.wrap,
+      nav: nav.row,
+    }));
     content.appendChild(err);
-    content.appendChild(answer.wrap);
-    content.appendChild(qr.wrap);
   }
 
-  // ---- small builders ----
+  /** Slave step 1: scan/paste the offer, then generate the answer. */
+  function showSlaveEnter(): void {
+    resetContent();
+    const err = errorLine();
+    currentErr = err;
+    const panel = scanPanel('sync-pair-offer', err);
+    const nav = navRow({
+      back: () => showChoose(),
+      primary: {
+        label: 'Generate reply', testId: 'sync-pair-generate',
+        onClick: () => runGuarded(err, async () => {
+          const blob = await rtc.acceptOffer(panel.getValue());
+          showSlaveReply(blob);
+        }),
+      },
+    });
+    content.appendChild(stepFrame({
+      step: 'Step 1 of 2 · Join a Link',
+      heading: "Enter the other device's link",
+      hints: ['Scan the code on the other device — or paste it below.'],
+      body: panel.wrap,
+      nav: nav.row,
+    }));
+    content.appendChild(err);
+  }
+
+  /** Slave step 2: show the answer back; wait for the master to connect. */
+  function showSlaveReply(answerBlob: string): void {
+    resetContent();
+    const err = errorLine();
+    currentErr = err;
+    const panel = qrPanel('sync-pair-answer');
+    panel.setBlob(answerBlob);
+    const nav = navRow({ back: () => showSlaveEnter() });
+    content.appendChild(stepFrame({
+      step: 'Step 2 of 2 · Join a Link',
+      heading: 'Show this reply back',
+      hints: ['On the first device, tap "Complete link" and scan this (or paste the text).'],
+      body: panel.wrap,
+      nav: nav.row,
+    }));
+    content.appendChild(err);
+    armAwaiting('Waiting for the other device to connect…');
+  }
+
+  /** Success: swap in a confirmation; the modal self-closes shortly after. */
+  function showLinked(): void {
+    resetContent();
+    content.appendChild(stepFrame({
+      heading: 'Linked ✓',
+      hints: ['The two devices are synced. This will close automatically.'],
+      body: el('div'),
+    }));
+  }
+
+  // ---- reusable builders (DRY) ----
 
   function resetContent(): void {
     stopScan?.();
@@ -195,57 +290,98 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     content.replaceChildren();
   }
 
-  function field(labelText: string, testId: string, readOnly: boolean): { wrap: El; textarea: HTMLTextAreaElement } {
-    const wrap = el('div');
-    const label = el('label', modalStyles.aiLabel, labelText);
-    const textarea = el('textarea', readOnly ? modalStyles.aiText : modalStyles.aiBrief);
-    textarea.dataset.testid = testId;
-    textarea.readOnly = readOnly;
-    if (readOnly) {
-      textarea.addEventListener('focus', () => textarea.select());
-      const copy = createButton({
-        label: 'Copy',
-        testId: `${testId}-copy`,
-        onClick: () => flashCopied(copy, 'Copy', copyText(textarea.value)),
-      });
-      wrap.appendChild(label);
-      wrap.appendChild(textarea);
-      wrap.appendChild(copy);
-    } else {
-      wrap.appendChild(label);
-      wrap.appendChild(textarea);
-    }
-    return { wrap, textarea };
+  /** Consistent wizard chrome: step label, heading, instruction lines, body, nav. */
+  function stepFrame(o: { step?: string; heading: string; hints?: string[]; body: El; nav?: El }): El {
+    const frame = el('div');
+    if (o.step) frame.appendChild(el('div', modalStyles.aiLabel, o.step));
+    const h = el('div', undefined, o.heading);
+    h.style.fontFamily = 'var(--serif)';
+    h.style.fontSize = '16px';
+    h.style.fontWeight = '700';
+    h.style.color = 'var(--text)';
+    h.style.marginTop = o.step ? '6px' : '2px';
+    frame.appendChild(h);
+    for (const hint of o.hints ?? []) frame.appendChild(el('div', Modal.tagClass, hint));
+    const bodyWrap = el('div');
+    bodyWrap.style.marginTop = '14px';
+    bodyWrap.appendChild(o.body);
+    frame.appendChild(bodyWrap);
+    if (o.nav) { o.nav.style.marginTop = '16px'; frame.appendChild(o.nav); }
+    return frame;
   }
 
-  const readonlyField = (l: string, id: string) => field(l, id, true);
-  const inputField = (l: string, id: string) => field(l, id, false);
+  function navRow(o: {
+    back?: () => void;
+    primary?: { label: string; testId: string; onClick: () => void; disabled?: boolean };
+  }): { row: El; primaryBtn: HTMLButtonElement | null } {
+    const row = el('div', modalStyles.aiActions);
+    let primaryBtn: HTMLButtonElement | null = null;
+    if (o.back) row.appendChild(createButton({ label: '← Back', testId: 'sync-pair-back', onClick: o.back }));
+    if (o.primary) {
+      primaryBtn = createButton({ label: o.primary.label, testId: o.primary.testId, onClick: o.primary.onClick });
+      if (o.primary.disabled) primaryBtn.disabled = true;
+      row.appendChild(primaryBtn);
+    }
+    return { row, primaryBtn };
+  }
 
-  function qrCanvas(): { wrap: El; canvas: HTMLCanvasElement } {
+  /** QR + Copy + a half-height readonly text fallback, for an outgoing blob. */
+  function qrPanel(textareaTestid: string): { wrap: El; setBlob: (blob: string) => void } {
     const wrap = el('div');
     const canvas = el('canvas');
     canvas.dataset.testid = 'sync-pair-qr';
     canvas.style.display = 'none'; // sizing + reveal happen in renderQr
-    canvas.style.margin = '12px auto 0';
+    canvas.style.margin = '0 auto 12px';
     canvas.style.maxWidth = '100%';
+    const ta = readonlyTextarea(textareaTestid);
+    const copy = createButton({
+      label: 'Copy',
+      testId: `${textareaTestid}-copy`,
+      onClick: () => flashCopied(copy, 'Copy', copyText(ta.value)),
+    });
     wrap.appendChild(canvas);
-    return { wrap, canvas };
+    wrap.appendChild(ta);
+    wrap.appendChild(copy);
+    return { wrap, setBlob: (blob) => { ta.value = blob; renderQr(canvas, blob); } };
+  }
+
+  /** Scan (where a camera exists) + a half-height paste box, for an incoming blob. */
+  function scanPanel(inputTestid: string, err: El): { wrap: El; getValue: () => string } {
+    const wrap = el('div');
+    const ta = inputTextarea(inputTestid);
+    wrap.appendChild(ta);
+    if (scanSupported()) {
+      const scan = createButton({
+        label: 'Scan QR',
+        testId: 'sync-pair-scan',
+        onClick: () => void startScan(err, wrap, (text) => { ta.value = text; }),
+      });
+      wrap.appendChild(scan);
+    }
+    return { wrap, getValue: () => ta.value.trim() };
+  }
+
+  function readonlyTextarea(testId: string): HTMLTextAreaElement {
+    const ta = el('textarea', modalStyles.aiText);
+    ta.dataset.testid = testId;
+    ta.readOnly = true;
+    ta.style.height = `${READONLY_TA_PX}px`;
+    ta.addEventListener('focus', () => ta.select());
+    return ta;
+  }
+
+  function inputTextarea(testId: string): HTMLTextAreaElement {
+    const ta = el('textarea', modalStyles.aiBrief);
+    ta.dataset.testid = testId;
+    ta.placeholder = 'Paste the code here…';
+    ta.style.height = `${INPUT_TA_PX}px`;
+    return ta;
   }
 
   function errorLine(): El {
     const e = el('div', modalStyles.aiLabel);
     e.dataset.testid = 'sync-pair-error';
     return e;
-  }
-
-  function maybeScanButton(actions: El, err: El, target: { textarea: HTMLTextAreaElement }): void {
-    if (!scanSupported()) return; // paste always works; only offer Scan where possible
-    const scan = createButton({
-      label: 'Scan QR',
-      testId: 'sync-pair-scan',
-      onClick: () => startScan(err, (text) => { target.textarea.value = text; }),
-    });
-    actions.appendChild(scan);
   }
 
   async function runGuarded(err: El, fn: () => Promise<unknown>): Promise<void> {
@@ -259,7 +395,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     }
   }
 
-  async function startScan(err: El, onResult: (text: string) => void): Promise<void> {
+  async function startScan(err: El, mount: El, onResult: (text: string) => void): Promise<void> {
     stopScan?.();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -268,7 +404,8 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
       video.srcObject = stream;
       video.style.width = '220px';
       video.style.display = 'block';
-      content.appendChild(video);
+      video.style.margin = '10px 0 0';
+      mount.appendChild(video);
       await video.play().catch(() => {});
       const detect = await makeFrameDetector(); // BarcodeDetector fast path, else jsQR
       let timer = 0;
@@ -292,7 +429,7 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     }
   }
 
-  modal.body.appendChild(tag);
+  // ---- assemble ----
   const warning = insecureWarning();
   if (warning) {
     const line = el('div', modalStyles.aiLabel, warning);
@@ -301,14 +438,17 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport): void {
     line.style.textTransform = 'none';
     line.style.letterSpacing = 'normal';
     line.style.lineHeight = '1.5';
-    line.style.marginTop = '10px';
+    line.style.marginBottom = '4px';
     modal.body.appendChild(line);
   }
-  modal.body.appendChild(modeRow);
   modal.body.appendChild(content);
   modal.body.appendChild(status);
+  modal.body.appendChild(createButton({
+    label: 'Close', testId: 'sync-pair-close', className: Modal.closeBtnClass,
+    onClick: () => modal.close(),
+  }));
   modal.open();
-  showCreate();
+  showChoose();
 }
 
 /** Longest side (px) the jsQR fallback samples a camera frame at — enough to

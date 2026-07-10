@@ -67,7 +67,7 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
     label: 'WiFi link…',
     className: switchStyles.root!,
     testId: 'sync-wifi-link',
-    onClick: () => { void import('./sync-pair-modal').then((m) => m.openSyncPairModal(rtc)); },
+    onClick: () => { void import('./sync-pair-modal').then((m) => m.openSyncPairModal(rtc, sync)); },
   });
   wifiBtn.title = 'Pair another device over WiFi (same network, client isolation off)';
   root.appendChild(wifiBtn);

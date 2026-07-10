@@ -65,6 +65,16 @@ describe('Modal', () => {
     expect(backdrop.classList.contains('hidden')).toBe(true);
   });
 
+  it('dismissOnBackdrop:false ignores a backdrop click, but Escape still closes', () => {
+    const m = mk({ title: 'X', dismissOnBackdrop: false });
+    m.open();
+    const backdrop = inDoc()!;
+    backdrop.dispatchEvent(new Event('pointerdown'));
+    expect(backdrop.classList.contains('hidden')).toBe(false); // stayed open
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(backdrop.classList.contains('hidden')).toBe(true);  // Escape still closes
+  });
+
   it('close() is idempotent — onClose fires only once', () => {
     const onClose = vi.fn();
     const m = mk({ title: 'X', onClose });

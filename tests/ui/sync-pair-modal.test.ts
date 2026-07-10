@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { openSyncPairModal, renderQr } from '../../src/ui/components/sync-pair-modal';
+import { Modal } from '../../src/ui/components/modal';
 import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';
 import { qrcode } from '../../src/vendor/qr';
@@ -8,6 +9,7 @@ import { makeFakeRtc } from '../audio/fake-rtc';
 
 const noopTimer: TickTimer = { start() {}, stop() {} };
 const byId = (id: string) => document.querySelector(`[data-testid="${id}"]`);
+const valueOf = (id: string) => (byId(id) as HTMLTextAreaElement | null)?.value ?? '';
 
 /** Poll until `cond` holds (the async offer/answer chains span many microtasks). */
 async function waitFor(cond: () => boolean, timeoutMs = 2000): Promise<void> {
@@ -17,49 +19,54 @@ async function waitFor(cond: () => boolean, timeoutMs = 2000): Promise<void> {
     await new Promise((r) => setTimeout(r, 5));
   }
 }
-const valueOf = (id: string) => (byId(id) as HTMLTextAreaElement | null)?.value ?? '';
 
 function transport() {
   return new WebRtcSyncTransport({ rtc: makeFakeRtc().ctor, timer: noopTimer, nowMs: () => 0 });
 }
+const syncStub = () => ({ setMode: vi.fn() });
 
 afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe('sync-pair-modal', () => {
-  it('opens in Create mode with the offer/answer/status fields', () => {
-    openSyncPairModal(transport());
+describe('sync-pair-modal (wizard)', () => {
+  it('opens on the Choose step (Create + Join, no offer field yet)', () => {
+    openSyncPairModal(transport(), syncStub());
     expect(byId('sync-pair-create')).toBeTruthy();
     expect(byId('sync-pair-join')).toBeTruthy();
-    expect(byId('sync-pair-offer')).toBeTruthy();
-    expect(byId('sync-pair-answer')).toBeTruthy();
     expect(byId('sync-pair-status')).toBeTruthy();
-    // Create mode: the offer field is the readonly output.
+    expect(byId('sync-pair-close')).toBeTruthy();
+    // The exchange fields appear only after a role is chosen.
+    expect(byId('sync-pair-offer')).toBeNull();
+  });
+
+  it('Create sets Master and reaches the offer QR', async () => {
+    const sync = syncStub();
+    openSyncPairModal(transport(), sync);
+    (byId('sync-pair-create') as HTMLElement).click();
+    expect(sync.setMode).toHaveBeenCalledWith('master');
+    // Offer field is the readonly output; it fills once the link is generated.
     expect((byId('sync-pair-offer') as HTMLTextAreaElement).readOnly).toBe(true);
-  });
-
-  it('generates an offer blob into the readonly field on open', async () => {
-    openSyncPairModal(transport());
     await waitFor(() => valueOf('sync-pair-offer').startsWith('WS2.'));
-    expect(valueOf('sync-pair-offer').startsWith('WS2.')).toBe(true);
+    expect(byId('sync-pair-qr')).toBeTruthy();
   });
 
-  it('switching to Join makes the offer field an input and shows Generate', () => {
-    openSyncPairModal(transport());
+  it('Join sets Slave and shows the offer input + Generate', () => {
+    const sync = syncStub();
+    openSyncPairModal(transport(), sync);
     (byId('sync-pair-join') as HTMLElement).click();
+    expect(sync.setMode).toHaveBeenCalledWith('slave');
     expect((byId('sync-pair-offer') as HTMLTextAreaElement).readOnly).toBe(false);
     expect(byId('sync-pair-generate')).toBeTruthy();
   });
 
-  it('does not render a Scan button without a camera (no getUserMedia)', () => {
-    // jsdom has no navigator.mediaDevices → nothing to scan with.
-    openSyncPairModal(transport());
+  it('does not render a Scan button without a camera', () => {
+    openSyncPairModal(transport(), syncStub());
+    (byId('sync-pair-join') as HTMLElement).click(); // slave step 1 has the scan panel
     expect(byId('sync-pair-scan')).toBeNull();
   });
 
   it('renders a Scan button when a camera is present, even without BarcodeDetector', () => {
-    // The decoder falls back to vendored jsQR, so a camera alone is enough.
     const orig = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -67,7 +74,8 @@ describe('sync-pair-modal', () => {
     });
     try {
       expect((globalThis as Record<string, unknown>).BarcodeDetector).toBeUndefined();
-      openSyncPairModal(transport());
+      openSyncPairModal(transport(), syncStub());
+      (byId('sync-pair-join') as HTMLElement).click();
       expect(byId('sync-pair-scan')).toBeTruthy();
     } finally {
       if (orig) Object.defineProperty(navigator, 'mediaDevices', orig);
@@ -75,14 +83,13 @@ describe('sync-pair-modal', () => {
     }
   });
 
-  it('a full pair flow links the transport and shows Linked', async () => {
+  it('a full Join flow links the transport and shows Linked', async () => {
     const fake = makeFakeRtc();
     const host = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
     const guest = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
     const offer = await host.createLink();
 
-    openSyncPairModal(guest);
-    await waitFor(() => valueOf('sync-pair-offer').startsWith('WS2.')); // Create-mode offer settled
+    openSyncPairModal(guest, syncStub());
     (byId('sync-pair-join') as HTMLElement).click();
     (byId('sync-pair-offer') as HTMLTextAreaElement).value = offer;
     (byId('sync-pair-generate') as HTMLElement).click();
@@ -95,7 +102,7 @@ describe('sync-pair-modal', () => {
   });
 
   it('shows an inline error for a corrupt paste in Join', async () => {
-    openSyncPairModal(transport());
+    openSyncPairModal(transport(), syncStub());
     (byId('sync-pair-join') as HTMLElement).click();
     (byId('sync-pair-offer') as HTMLTextAreaElement).value = 'not a real link';
     (byId('sync-pair-generate') as HTMLElement).click();
@@ -103,9 +110,52 @@ describe('sync-pair-modal', () => {
     expect(byId('sync-pair-error')!.textContent).toBeTruthy();
   });
 
-  // Regression (webrtc-sync REQ-5): the v1 modal drew a big bitmap and
-  // CSS-clamped it *down* to 180px, leaving ~2px/module — unscannable by any
-  // reader. The QR must be drawn 1px/module and upscaled, never downscaled.
+  it('does not close on a backdrop click; Close does (REQ-10)', () => {
+    openSyncPairModal(transport(), syncStub());
+    const backdrop = document.querySelector(`.${Modal.backdropClass}`) as HTMLElement;
+    backdrop.dispatchEvent(new Event('pointerdown')); // target === backdrop
+    expect(backdrop.classList.contains('hidden')).toBe(false); // still open
+    (byId('sync-pair-close') as HTMLElement).click();
+    expect(backdrop.classList.contains('hidden')).toBe(true);
+  });
+
+  it('surfaces readable guidance naming virtual adapters when the link never opens', async () => {
+    const fake = makeFakeRtc();
+    const host = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
+    const guest = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
+    const offer = await host.createLink();
+
+    openSyncPairModal(guest, syncStub());
+    (byId('sync-pair-join') as HTMLElement).click();
+    (byId('sync-pair-offer') as HTMLTextAreaElement).value = offer;
+    (byId('sync-pair-generate') as HTMLElement).click();
+    await waitFor(() => valueOf('sync-pair-answer').startsWith('WS2.'));
+
+    // The host never accepts the answer; the guest's peer connection fails.
+    fake.peers.at(-1)!.fail();
+    expect(guest.linked).toBe(false);
+    const err = byId('sync-pair-error')!;
+    expect(err.textContent).toContain("Couldn't connect");
+    expect(err.textContent).toContain('virtual');
+    expect((err as HTMLElement).style.textTransform).toBe('none'); // rendered readably
+  });
+
+  it('shows a non-blocking HTTPS banner on an insecure origin, choices still render', () => {
+    const orig = Object.getOwnPropertyDescriptor(window, 'isSecureContext');
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, get: () => false });
+    try {
+      openSyncPairModal(transport(), syncStub());
+      expect(byId('sync-pair-insecure')).toBeTruthy();
+      expect(byId('sync-pair-create')).toBeTruthy();
+      expect(byId('sync-pair-join')).toBeTruthy();
+    } finally {
+      if (orig) Object.defineProperty(window, 'isSecureContext', orig);
+      else Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
+    }
+  });
+
+  // Regression (webrtc-sync REQ-5): the QR must be drawn 1px/module and upscaled,
+  // never a big bitmap CSS-clamped down (the v1 ~2px/module unscannable bug).
   it('renders the QR upscaled (1px/module + quiet zone), never downscaled', () => {
     const canvas = document.createElement('canvas');
     const payload = 'WS2.r.' + 'A'.repeat(1200); // ~ a real (dense) SDP blob
@@ -121,38 +171,5 @@ describe('sync-pair-modal', () => {
     const displayPx = parseInt(canvas.style.width, 10);
     expect(displayPx).toBeGreaterThan(180);       // not clamped to the old 180px
     expect(displayPx).toBeGreaterThanOrEqual(dim); // upscaled — bitmap never shrunk
-  });
-
-  it('shows a non-blocking HTTPS banner on an insecure origin, flows still render', () => {
-    const orig = Object.getOwnPropertyDescriptor(window, 'isSecureContext');
-    Object.defineProperty(window, 'isSecureContext', { configurable: true, get: () => false });
-    try {
-      openSyncPairModal(transport());
-      expect(byId('sync-pair-insecure')).toBeTruthy();
-      expect(byId('sync-pair-create')).toBeTruthy(); // copy-paste flow still there
-      expect(byId('sync-pair-offer')).toBeTruthy();
-    } finally {
-      if (orig) Object.defineProperty(window, 'isSecureContext', orig);
-      else delete (window as unknown as { isSecureContext?: boolean }).isSecureContext;
-    }
-  });
-
-  it('surfaces actionable guidance when the link never opens (REQ-9)', async () => {
-    const fake = makeFakeRtc();
-    const host = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
-    const guest = new WebRtcSyncTransport({ rtc: fake.ctor, timer: noopTimer, nowMs: () => 0 });
-    const offer = await host.createLink();
-
-    openSyncPairModal(guest);
-    await waitFor(() => valueOf('sync-pair-offer').startsWith('WS2.'));
-    (byId('sync-pair-join') as HTMLElement).click();
-    (byId('sync-pair-offer') as HTMLTextAreaElement).value = offer;
-    (byId('sync-pair-generate') as HTMLElement).click();
-    await waitFor(() => valueOf('sync-pair-answer').startsWith('WS2.'));
-
-    // The host never accepts the answer; the guest's peer connection fails.
-    fake.peers.at(-1)!.fail();
-    expect(guest.linked).toBe(false);
-    expect(byId('sync-pair-error')!.textContent).toContain("Couldn't connect");
   });
 });

@@ -14,6 +14,13 @@ export interface ModalOptions {
   cardClass?: string;
   /** Called exactly once when the modal closes (for caller cleanup). */
   onClose?: () => void;
+  /**
+   * Whether a click on the backdrop closes the modal. Default `true`. Set
+   * `false` for multi-step flows where a stray outside click would discard
+   * progress (e.g. the WiFi pair wizard) — pair it with an explicit Close
+   * button; Escape still closes.
+   */
+  dismissOnBackdrop?: boolean;
 }
 
 export class Modal {
@@ -45,9 +52,11 @@ export class Modal {
 
     this.backdrop = document.createElement('div');
     this.backdrop.className = `${styles.backdrop!} hidden`;
-    this.backdrop.addEventListener('pointerdown', (e) => {
-      if (e.target === this.backdrop) this.close();
-    });
+    if (opts.dismissOnBackdrop !== false) {
+      this.backdrop.addEventListener('pointerdown', (e) => {
+        if (e.target === this.backdrop) this.close();
+      });
+    }
 
     const card = document.createElement('div');
     card.className = opts.cardClass ? `${styles.card!} ${opts.cardClass}` : styles.card!;

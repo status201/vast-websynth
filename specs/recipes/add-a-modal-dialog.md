@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -42,6 +42,10 @@ const modal = new Modal({
   title: 'Record a sound',
   cardClass: styles.wide,          // optional width/layout variant
   onClose: cleanup,                // fires exactly once — do teardown here
+  dismissOnBackdrop: false,        // optional; default true. false = a multi-step
+                                   // flow that must not vanish on a stray outside
+                                   // click (e.g. the WiFi pair wizard). Escape
+                                   // still closes; provide an explicit Close button.
 });
 modal.body.appendChild(buildContents());   // caller appends into modal.body
 ```
@@ -74,7 +78,9 @@ npm test            # tests/ui/modal.test.ts
   so it closes the dialog instead of triggering the global panic handler. A
   non-modal tool must *not* do this — use `FloatingWindow` for that.
 - Backdrop-click closes only when the click target *is* the backdrop (not a
-  child) — handled by the component.
+  child) — handled by the component. Opt out with `dismissOnBackdrop: false` for
+  multi-step flows where a stray click would discard progress; pair it with an
+  explicit Close button since backdrop-click is then unavailable (Escape still works).
 
 ## Scenarios (BDD)
 
