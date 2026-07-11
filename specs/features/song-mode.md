@@ -11,6 +11,7 @@ related:
   - presets
   - param-reset-baseline
   - xy-pad
+  - project-export
   - dialog
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse

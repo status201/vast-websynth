@@ -269,7 +269,8 @@ localStorage:
   websynth.debug.about     : About-modal Debug section open    # ui/components/about.ts
   websynth.ui.collapsed.*  : panel collapse state (pattern/fx) # ui/app.ts
 not_persisted:
-  decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded
+  decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded —
+                         # or carried in a project-zip download (features/project-export.md)
 ```
 
 ## Global conventions (constrain every feature)

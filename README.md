@@ -36,7 +36,8 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Song chains**: build an arrangement (e.g. `A A B A C A A D`) per machine — independent seq, drum, and sampler lanes, with an optional **rest** slot for an empty bar (a lane sits out without spending a bank)
 - **Live DJ FX**: momentary Fill, Stutter/beat-repeat (1 / 1/8 / 1/4), Filter Drop, Tape Stop, and a manual bipolar DJ Filter sweep (LP ← → HP)
 - **XY Pad**: an assignable Kaoss-pad-style controller in a movable, non-modal window (open it from the Song tab's Live FX row and keep playing while you sweep). Its two axes each drive **any** parameter (defaults X = filter cutoff, Y = filter resonance) through the correct taper; drag the square — or two-finger scroll it — to sweep both at once, and on release they **spring back** to where they were, so it colours a moment without editing the patch. The axis assignment saves with the song
-- **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable, compact `.json` files and browser slots — values are rounded to an inaudible precision and default steps omitted, so a downloaded song is ~8× smaller; sampler *audio* isn't embedded, so its files are re-loaded after import; built-in demos **Apex Twin**, **Zombie Nation**, and **I Feel Love** (drop any `.json` SongFile into `src/state/demos/` to add a demo at build time)
+- **Songs**: save/load complete songs (all settings + every seq/drum/sampler bank + all three chains) as portable, compact `.json` files and browser slots — values are rounded to an inaudible precision and default steps omitted, so a downloaded song is ~8× smaller; sampler *audio* isn't embedded in the `.json`, so its files are re-loaded after import (or use a project zip, below); built-in demos **Apex Twin**, **Zombie Nation**, and **I Feel Love** (drop any `.json` SongFile — or `.websynth.zip` project — into `src/state/demos/` to add a demo at build time)
+- **Project export (song + samples in one zip)**: Export offers **Song (.json)** or **Project (.zip)** — a `<name>.websynth.zip` bundling the song JSON with every loaded sampler clip (WAV default / MP3), so a sampled song travels as one file and re-imports in one step with no re-loading; Import auto-detects zip vs JSON, and hand-re-zipped archives (Explorer/PowerShell) still work — the zip codec is hand-written and dependency-free
 - **Documented song format**: the `.websynth.json` file format has a published [JSON Schema](public/schema/websynth-song.schema.json) (draft 2020-12, shipped in the build and served at `/schema/websynth-song.schema.json`) for external tools and AI agents, described in [`specs/features/song-mode.md`](specs/features/song-mode.md) — imports are validated and rejected with field-level error messages
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that fully describes the JSON format (and links the live schema URL); paste it into any AI agent and import the song it returns
 - **Presets**: a 16-sound factory bank — basses (bass, upright, pbass, reese, acid), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass), leads/plucks (basic, lead, pluck) and wobble — + user presets saved to `localStorage`
@@ -110,8 +111,11 @@ src/
     patterns.ts      PatternStore (seq / drum / sampler banks)
     preset.ts        factory bank + localStorage persistence
     song.ts          full-song save/load + demo songs
-    demos/           drop-in *.json SongFiles, auto-loaded at build time
+    project.ts       project-zip bundle (song.json + sampler clips) build/parse
+    demos/           drop-in *.json SongFiles / *.websynth.zip projects,
+                     auto-loaded at build time
     perf-mode.ts     performance-mode preference + device-tier detection
+  utils/             dependency-free helpers: zip codec, deflate-raw streams
   ui/                hand-built DOM components and panels (incl. song-panel:
                      chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
                      view of the Engine (see specs ADR-009)

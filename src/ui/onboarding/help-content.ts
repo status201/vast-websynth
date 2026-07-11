@@ -531,18 +531,21 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'song.import': {
     title: 'Import',
     body:
-      '<p>Opens a song <strong>.json</strong> file from your computer — one you or someone else ' +
-      '<strong>Exported</strong> or <strong>Saved</strong> — loads it, and adds it to your ' +
-      '<strong>Slot</strong> list so you can reach it again.</p>' +
+      '<p>Opens a song file from your computer — a <strong>.json</strong> song or a ' +
+      '<strong>.websynth.zip</strong> project — one you or someone else <strong>Exported</strong> ' +
+      'or <strong>Saved</strong> — loads it, and adds it to your <strong>Slot</strong> list so ' +
+      'you can reach it again. A project zip also brings its sampler audio back into the slots.</p>' +
       '<p>It is the counterpart to <strong>Export</strong>: Export writes the file, Import reads ' +
       'it back in.</p>',
   },
   'song.export': {
     title: 'Export',
     body:
-      '<p>Downloads the current song as a <strong>.json</strong> file — the editable project ' +
-      '(banks, chains, settings), <em>not</em> audio. Good for sharing a song or backing it up ' +
-      'outside the browser; bring it back with <strong>Import</strong>.</p>' +
+      '<p>Downloads the current song — the editable project (banks, chains, settings), ' +
+      '<em>not</em> rendered audio. It asks which kind: <strong>Song (.json)</strong>, a compact ' +
+      'file without sampler audio, or <strong>Project (.zip)</strong>, which bundles the song ' +
+      'with every loaded sampler clip so it re-imports in one step. Good for sharing a song or ' +
+      'backing it up outside the browser; bring either back with <strong>Import</strong>.</p>' +
       '<p>Two things it is <em>not</em>: unlike <strong>Save</strong> it does not add the song to ' +
       'your <strong>Slot</strong> list, and unlike <strong>Export Song</strong> (below) it does ' +
       'not render any sound.</p>',

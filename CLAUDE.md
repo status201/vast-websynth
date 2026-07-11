@@ -55,7 +55,8 @@ itself (attaching the zip needs the `gh` CLI authenticated). Flags: `--dry-run`
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
 that style). There is also a Vitest suite under `tests/` covering the
 pure-logic units (`ParamBus`, `PatternStore`, `Song`, `Presets`, audio `encode`,
-sample `buffer-dsp`), the transport modules (`Arpeggiator`, `Arrangement`,
+sample `buffer-dsp`, the `zip` codec + `project` bundle build/parse), the
+transport modules (`Arpeggiator`, `Arrangement`,
 `Sequencer`, `DrumMachine`, `SamplerMachine`, `Performance`) and the DOM
 components (`createButton`, `Dropdown`, `Switch`, `Segmented`, `Tabs`,
 `BankBar`, `ParamDropdown`, `Modal`, …); it runs in jsdom. Transport modules
@@ -86,7 +87,9 @@ DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
-"Import into sampler" resample section)). Prefer testids
+"Import into sampler" resample section), `export-modal`/`export-kind-<json|project>`/
+`export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`
+(the Export chooser opened by `song-export`)). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
@@ -105,9 +108,12 @@ DJ-filter sweep, Filter Drop, Tape Stop pitch-bend, Stutter/Fill), `compressor`
 help badges),
 `mic`
 (the record-sound modal — record from the fake device, edit, load into a slot),
-and `sync` (the Song panel's MIDI clock-sync section — presence + mode
+`sync` (the Song panel's MIDI clock-sync section — presence + mode
 persistence only, since headless Chromium has no MIDI ports; the timing math is
-unit-tested under `tests/audio/transport/sync/`).
+unit-tested under `tests/audio/transport/sync/`), and `export-project` (the
+Export chooser — disabled Project row on a fresh boot, and a full project-zip
+export → New → re-import round-trip via `download.path()`; WAV-only, since CI
+Chromium can't decode MP3).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
@@ -267,10 +273,12 @@ listener mechanism.
   steps, `SamplerStep`). `SamplerMachine` (`audio/transport/sampler-machine.ts`)
   mirrors `DrumMachine` but each slot plays a user-loaded `AudioBuffer`
   one-shot; the `Arrangement` has a third `sampler` chain lane. Decoded buffers
-  live in `SamplerMachine`; only filenames (`patterns.sampleNames`) persist —
-  after a song import the user re-loads the files (`.needs-reload` label hint).
-  Slots are filled by **Load** (WAV/MP3 file) or the record-sound modal
-  (mic-record or re-edit a loaded buffer; see *Sample recorder/editor*).
+  live in `SamplerMachine`; only filenames (`patterns.sampleNames`) persist in a
+  song — after a `.json` import the user re-loads the files (`.needs-reload`
+  label hint), while a **project-zip** import repopulates the buffers directly
+  (see *Project export*). Slots are filled by **Load** (WAV/MP3 file) or the
+  record-sound modal (mic-record or re-edit a loaded buffer; see *Sample
+  recorder/editor*).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
   + all banks + all three chains). `SongFile` is now `version: 1 | 2 | 3`; v2
   adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
@@ -282,6 +290,25 @@ listener mechanism.
   `src/state/demos/` (Apex Twin lives there now), auto-registered at build time
   via an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
   *before* the built-ins, so they lead the demo button row (`Object.keys` order).
+  A `*.websynth.zip` project in `src/state/demos/` registers too (`ZIP_DEMOS`,
+  a `?url` glob — fetched on click, not bundled); `Song.list()`/`loadSlot()`
+  stay sync + JSON-only, and `loadDemo` delegates zip demos fire-and-forget.
+- **Project export** (`state/project.ts` + `utils/zip.ts`/`utils/compression.ts`,
+  see `specs/features/project-export.md`) — Export opens a modal
+  (`ui/components/export-song-modal.ts`): **Song (.json)** (default, unchanged)
+  or **Project (.zip)** — `<name>.websynth.zip` containing the canonical compact
+  `song.json` (format untouched, stays v3) plus one `samples/<slot>-<name>.<ext>`
+  clip per loaded sampler slot (WAV default / MP3; the extension derives from
+  the encoded blob's MIME type — `encodeMp3` falls back to WAV at unsupported
+  rates). The zip codec is hand-written and dependency-free (ADR-003): writes
+  stored audio + deflated json, reads methods 0+8 with EOCD backward scan and
+  CRC checks, and tolerates hand-re-zipped archives (folder nesting, PowerShell's
+  backslash separators). Import sniffs PK magic bytes (extension fallback) on
+  the one `song-import` button; clips decode **sequentially** and a failed clip
+  never aborts the apply (the slot just keeps `.needs-reload`). Gotcha:
+  `decodeAudioData` **detaches** its buffer and clip bytes are subarray views of
+  the whole zip — always pass `clip.data.slice().buffer`. Save slots stay
+  JSON-only (a zip can't live in localStorage).
 - **Song/preset serialization** (`state/serialize.ts`) — `Song.toJSON` and
   `Presets.save` optimize **only at the boundary** (live state stays full-precision):
   `compactSongForExport`/`roundParams` round every number to 4 sig-figs and write

@@ -36,7 +36,8 @@ Audio graph: `voices → voiceBus → FX chain (distortion → wah → phaser �
 src/
   main.ts            boot: create Engine + ParamBus, mount UI
   audio/             AudioContext graph, voice, FX, drums, transport, recorder
-  state/             ParamBus, PatternStore, preset, song
+  state/             ParamBus, PatternStore, preset, song, project (zip bundle)
+  utils/             dependency-free helpers (zip codec, deflate-raw streams)
   ui/                hand-built DOM components + panels
   ui/styles/         CSS Modules (*.module.css)
 public/worklets/     ladder-filter.js (audio thread, no TS imports)

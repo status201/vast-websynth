@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Export Project (song + sampler audio in one zip)** — the Song tab's
+  **Export** now opens a chooser: **Song (.json)** (the unchanged format) or
+  **Project (.zip)** — a `<name>.websynth.zip` bundling the song JSON with
+  every loaded sampler clip (WAV by default, MP3 optional), so a song with
+  samples re-imports in one step with **no re-loading of audio files**. Import
+  auto-detects zip vs JSON on the same button; a hand-unzipped-and-re-zipped
+  archive (Explorer, PowerShell) still imports. When no sampler audio is
+  loaded the Project option explains itself and stays disabled. Browser save
+  slots stay JSON-only, so after a page reload the usual re-load hint returns.
+  Demo songs can now also ship as project zips (drop a `*.websynth.zip` into
+  `src/state/demos/`). The zip reader/writer is hand-written and
+  dependency-free, like everything else.
+
 - **Import into sampler (resampling)** — a new section in the Sequencer tab
   renders the current seq bank through the live synth + FX chain and drops it
   into a sampler slot of your choice: layer harmonies on top of the live synth

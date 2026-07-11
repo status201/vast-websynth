@@ -62,8 +62,11 @@ shape parses: `Song.fromJSON` requires `format === 'websynth-song'` plus
 - Demos lead the row in **filename** order (drop-ins are sorted, then spread before
   built-ins).
 - Riffs aim to be *recognisable*, not note-perfect transcriptions.
-- Sampler audio is **not** embeddable — only `sampleNames` persist; a demo that
-  references samples will show the needs-reload hint (see [sampler](../features/sampler.md)).
+- A `.json` demo cannot embed sampler audio — only `sampleNames` persist, so it
+  shows the needs-reload hint (see [sampler](../features/sampler.md)). A demo that
+  **needs its samples** ships as a `*.websynth.zip` project drop-in instead (also
+  auto-registered from `src/state/demos/`, fetched on click via a `?url` glob —
+  see [project-export](../features/project-export.md) REQ-7).
 
 ## Scenarios (BDD)
 

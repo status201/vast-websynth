@@ -85,12 +85,16 @@ compression:  # src/utils/compression.ts (extracted; feature-detected platform g
   hasCompression(): boolean
   deflateRaw(bytes) / inflateRaw(bytes): Promise<Uint8Array>
 
-project:  # src/state/project.ts (pure — no AudioContext, no DOM)
-  ProjectClipOut: { slot: number, blob: Blob, ext: 'wav' | 'mp3' }
-  ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }
-  encodeClip(a: CapturedAudio, fmt): ProjectClipOut  # ext from blob.type, not fmt
-  buildProjectZip(file: SongFile, clips): Promise<Uint8Array>
-  parseProjectZip(bytes): Promise<{ok:true,file,clips} | {ok:false,errors}>
+project:  # src/state/project.ts (pure — no AudioContext, no DOM beyond Blob)
+  ClipExt: 'wav' | 'mp3'
+  ProjectClipOut: { slot: number, data: Uint8Array, ext: ClipExt }   # input to buildProjectZip
+  ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }  # normalized '/' entryName
+  encodeClip(a: CapturedAudio, fmt: ClipExt): { blob: Blob, ext: ClipExt }
+    # ext from blob.type, not fmt; caller adds slot + materializes data
+  buildProjectZip(file: SongFile, clips: ProjectClipOut[]): Promise<Uint8Array>
+    # clip entry names derive from file.sampleNames[slot] (sanitized)
+  parseProjectZip(bytes): Promise<ProjectParse>
+    # { ok:true, file, clips: ProjectClipIn[] } | { ok:false, errors: string[] }
   projectFilename(songName): string        # Song.download's sanitize idiom + '.websynth.zip'
   sniffImportKind(head, filename): 'zip' | 'json'
 
@@ -106,7 +110,7 @@ MySong.websynth.zip:
   song.json:              Song.toJSON(file)   # deflated when CompressionStream exists, else stored
   samples/<slot>-<sanitized>.<ext>:           # stored (method 0); one per loaded slot
     slot:      0..7 — the sampler slot index (authoritative for re-assignment)
-    sanitized: name minus extension, [^a-z0-9._-]+ -> _, capped, fallback 'clip'
+    sanitized: name minus extension, [^A-Za-z0-9._-]+ -> _, capped (40), fallback 'clip'
     ext:       wav | mp3 — the encoded clip's real container (from blob.type)
 import matching (tolerates one folder level from an Explorer re-zip):
   song.json:  by basename
@@ -133,6 +137,8 @@ import (song-panel):
             zip entry name as fallback) — its meta event is what tells the sampler
             panel to drop the .needs-reload hint now the buffer is live
          per-clip decode failures collect into ONE alert; the song stays applied
+help copy (onboarding.md): the song.export / song.import topics in
+  src/ui/onboarding/help-content.ts describe the chooser and the zip import
 demo zips (song.ts + song-panel):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
   one button per entry after the DEMO_SONGS row (testid song-demo-<name>)
@@ -181,7 +187,10 @@ Scenario: A missing or undecodable clip degrades to needs-reload (failure)
   Given a project zip whose sampleNames name a slot with no clip entry
   When the project is imported
   Then the song applies, the slot keeps its name, and the needs-reload hint shows
-# pinned by: tests/state/project.test.ts, e2e/export-project.spec.ts
+# pinned by: tests/state/project.test.ts (a clip-less slot or out-of-range clip
+#   never fails the parse); the hint itself is the sampler panel's existing
+#   name-without-buffer behaviour (sampler.md REQ-4) — e2e/export-project.spec.ts
+#   asserts its absence when clips DO decode
 
 Scenario: Corrupt zips are rejected with a typed error (failure)
   Given bytes with a bad CRC, an unknown compression method, or a zip64 EOCD
