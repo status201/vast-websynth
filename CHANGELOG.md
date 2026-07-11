@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Import into sampler (resampling)** — a new section in the Sequencer tab
+  renders the current seq bank through the live synth + FX chain and drops it
+  into a sampler slot of your choice: layer harmonies on top of the live synth
+  without a second synth instance. The capture is **bar-exact** (sample-accurate
+  start and length, swing-safe) so it loops perfectly on the grid, and the bank
+  plays twice under the hood so delay/reverb tails wrap seamlessly into the
+  loop's start. Drums/sampler keep playing while you render but are never
+  captured. Like all sampler audio, the rendered buffer lives until reload —
+  re-render anytime (the seq bank is saved with the song).
+
 - **Transport sync (master/slave)** — sync the transport of two VAST
   instances (or hardware gear): a **Sync** section in the Song tab sets the
   instance to **Master** (broadcasts Start/Stop + 24 PPQN clock — any local

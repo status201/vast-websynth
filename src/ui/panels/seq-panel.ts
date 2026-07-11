@@ -13,7 +13,15 @@ import { BankBar } from '../components/bank-bar';
 import { buildRestOverlay } from '../components/rest-overlay';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
-import { SEQ_LENGTH, type SeqStep } from '../../state/patterns';
+import { Dropdown } from '../components/dropdown';
+import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
+import {
+  BANK_LABELS,
+  SAMPLER_SLOT_COUNT,
+  SAMPLER_SLOT_LABELS,
+  SEQ_LENGTH,
+  type SeqStep,
+} from '../../state/patterns';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
 // (gate/velocity/prob/ratchet/tie) and a tooltip with the exact values.
@@ -202,6 +210,87 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   }
 
   root.appendChild(edit);
+
+  // ---- Import into sampler ---- (render-to-sampler.md REQ-9)
+  // Resample the edit bank through the live synth + FX into a bar-exact buffer
+  // and drop it into a sampler slot — layering without a second synth instance.
+  const importRow = document.createElement('div');
+  importRow.className = styles.importRow!;
+  const importLabel = document.createElement('div');
+  importLabel.className = styles.importLabel!;
+  importLabel.textContent = 'Import into sampler';
+  importRow.appendChild(importLabel);
+
+  const slotOptions = (): string[] =>
+    Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
+      const name = engine.patterns.sampleNames[i] ?? null;
+      const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
+      return `${tag} — ${name ?? 'empty'}`;
+    });
+  const slotPicker = new Dropdown(slotOptions(), slotOptions()[0]);
+  slotPicker.el.dataset.testid = 'seq-import-slot';
+  const selectedSlot = (): number => {
+    const i = slotOptions().indexOf(slotPicker.value);
+    return i < 0 ? 0 : i;
+  };
+  // Keep the option labels in step with slot names without losing the pick.
+  engine.patterns.onSampleMetaChange(() => {
+    const keep = selectedSlot();
+    const opts = slotOptions();
+    slotPicker.setOptions(opts);
+    slotPicker.setValue(opts[keep] ?? opts[0]!);
+  });
+  importRow.appendChild(slotPicker.el);
+
+  const importStatus = document.createElement('span');
+  importStatus.className = styles.importStatus!;
+
+  const renderBtn = createButton({
+    label: 'Render',
+    testId: 'seq-import-render',
+    onClick: () => { void doRender(); },
+  });
+  importRow.appendChild(renderBtn);
+  importRow.appendChild(importStatus);
+  root.appendChild(importRow);
+
+  async function doRender(): Promise<void> {
+    if (renderBtn.disabled) return;
+    const slot = selectedSlot();
+    const bank = engine.patterns.seqEditBank;
+    const bpm = Math.round(bus.get('transport.bpm'));
+    importStatus.textContent = '';
+    try {
+      const captured = await engine.bankRender.render();
+      engine.sampler.setBuffer(slot, capturedToAudioBuffer(engine.ctx, captured));
+      const name = `seq-${BANK_LABELS[bank] ?? bank + 1}-${bpm}bpm`;
+      engine.patterns.setSampleName(slot, name);
+      importStatus.textContent = `${name} → ${SAMPLER_SLOT_LABELS[slot] ?? slot + 1}`;
+    } catch (err) {
+      importStatus.textContent = err instanceof Error ? err.message : 'render failed';
+    }
+  }
+
+  // Busy while rendering; otherwise gated on bank content + sync mode (REQ-6):
+  // a slave doesn't own the clock, and estimator BPM writes would break the
+  // bar-exact length.
+  let rendering = false;
+  const refreshImport = () => {
+    const empty = !engine.patterns.seq.some((s) => s.on);
+    const slaved = engine.sync.mode === 'slave';
+    renderBtn.disabled = rendering || empty || slaved;
+    renderBtn.textContent = rendering ? 'Rendering…' : 'Render';
+    renderBtn.title = slaved
+      ? 'Unavailable while slaved to MIDI clock'
+      : empty
+        ? 'Add steps to the bank first'
+        : 'Render this bank (2 bars: tails bake into the loop) into the chosen sampler slot';
+  };
+  engine.bankRender.onState((r) => { rendering = r; refreshImport(); });
+  engine.patterns.onSeqChange(() => refreshImport());
+  engine.patterns.onSeqBankChange(() => refreshImport());
+  engine.sync.onStatus(() => refreshImport());
+  refreshImport();
 
   const refresh = () => {
     const s = engine.patterns.seq[selected];

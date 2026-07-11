@@ -217,6 +217,7 @@ specs/
     # — audio I/O —
     audio-export.md    ·  WAV/MP3 capture of the master
     sample-recorder.md ·  mic record + buffer editor
+    render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab

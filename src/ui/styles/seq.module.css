@@ -24,3 +24,25 @@
   color: var(--accent-secondary);
   font-family: var(--serif);
 }
+
+/* "Import into sampler" resample section (render-to-sampler.md REQ-9). */
+.importRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.importLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.importStatus {
+  font-size: 11px;
+  color: var(--text-dim);
+}

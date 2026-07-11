@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -40,6 +40,14 @@ The same `encode.ts` is reused by the [sample recorder](sample-recorder.md).
   stops + downloads, leaving the transport running.
 - **REQ-5** — Encoding is pure (no `AudioContext`): WAV dependency-free, MP3 via
   vendored lamejs.
+- **REQ-6 (frame tagging)** — Each chunk the worklet posts carries
+  `f = currentFrame` (the absolute sample index of the chunk's first frame in
+  the context timeline). `RecorderNode` records the first chunk's tag as
+  `firstFrame` (reset by `start()`), letting consumers map a scheduled
+  `AudioContext` time to an exact offset in the captured stream —
+  `offset = round(when × sampleRate) − firstFrame`. Consumers that ignore the
+  tag (this spec's own controller) are unaffected. Consumed by
+  [render-to-sampler](render-to-sampler.md).
 
 ## Technical design
 
@@ -54,6 +62,8 @@ RecorderController:  # src/audio/recorder/recorder-controller.ts
   ExportFormat = 'wav' | 'mp3'
 RecorderNode:  # src/audio/recorder/node.ts (wraps recorder.js)
   start() ; stop(): { left, right, sampleRate }
+  firstFrame: number | null   # REQ-6; null until the first chunk arrives
+worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = currentFrame
 encode.ts (pure):
   encodeWav(left, right, sampleRate): Blob          # dependency-free
   encodeMp3(left, right, sampleRate): Blob          # vendored lamejs

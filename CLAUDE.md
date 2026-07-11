@@ -85,7 +85,8 @@ DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
-section)). Prefer testids
+section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
+"Import into sampler" resample section)). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
@@ -172,6 +173,23 @@ one full pass of the longest enabled arrangement chain then auto-stops;
 `toggleManual()` is a free-form record toggle. Encoding is **pure** and
 AudioContext-free (`audio/recorder/encode.ts` — `encodeWav` is dependency-free;
 `encodeMp3` uses the vendored lamejs) so it is unit-testable under jsdom.
+Each worklet chunk carries `f = currentFrame` (the absolute sample index);
+`RecorderNode.firstFrame` records the capture's first tag, letting consumers
+map a scheduled audio time to an exact offset in the captured stream.
+
+**Render bank → sampler** ("Import into sampler", Sequencer tab) — resamples
+the seq **edit bank** through the live synth + FX into a **bar-exact** buffer
+and loads it into a sampler slot (layering without a second synth instance).
+`BankRenderController` (`audio/recorder/bank-render.ts`) taps a second
+`RecorderNode` off `reverb.output` (synth-only; drums/sampler keep playing but
+are never captured), plays the bank **twice** and keeps bar 2 (tails bake into
+the loop start), then crops by frame arithmetic — exact start via
+`firstFrame`, exact length `round(16·sixteenthS·sampleRate)` (swing never
+moves bar boundaries). Engine's `prepareBankRender()` closure forces seq
+enabled/audible + the seq chain lane disabled (an enabled chain would switch
+banks on pass 2) and restores from bus state after. Refused while the song
+recorder captures or (in the UI) when the bank is empty / sync mode is
+`slave`. See `specs/features/render-to-sampler.md`.
 
 **Sample recorder/editor** — the Sampler's "Record a sound" modal
 (`ui/components/record-sound-modal.ts`, built on the reusable `Modal`,

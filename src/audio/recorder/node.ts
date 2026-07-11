@@ -15,6 +15,9 @@ export class RecorderNode {
 
   private chunksL: Float32Array[] = [];
   private chunksR: Float32Array[] = [];
+  /** Absolute frame index of the first captured sample (audio-export REQ-6);
+   *  null until the first chunk of the current capture arrives. */
+  private _firstFrame: number | null = null;
 
   private constructor(
     private readonly node: AudioWorkletNode,
@@ -22,13 +25,16 @@ export class RecorderNode {
   ) {
     this.input = node;
     node.port.onmessage = (e: MessageEvent) => {
-      const d = e.data as { l?: Float32Array; r?: Float32Array };
+      const d = e.data as { l?: Float32Array; r?: Float32Array; f?: number };
       if (d && d.l && d.r) {
+        if (this._firstFrame === null && typeof d.f === 'number') this._firstFrame = d.f;
         this.chunksL.push(d.l);
         this.chunksR.push(d.r);
       }
     };
   }
+
+  get firstFrame(): number | null { return this._firstFrame; }
 
   static async loadModule(ctx: AudioContext): Promise<void> {
     await ctx.audioWorklet.addModule('/worklets/recorder.js');
@@ -48,6 +54,7 @@ export class RecorderNode {
   start(): void {
     this.chunksL = [];
     this.chunksR = [];
+    this._firstFrame = null;
     this.node.port.postMessage({ cmd: 'start' });
   }
 

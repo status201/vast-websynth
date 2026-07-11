@@ -32,7 +32,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const r = new Float32Array(srcR.length);
     l.set(srcL);
     r.set(srcR);
-    this.port.postMessage({ l, r }, [l.buffer, r.buffer]);
+    // f = absolute sample index of this chunk's first frame (audio-export REQ-6):
+    // lets the main thread map a scheduled AudioContext time to an exact offset
+    // in the captured stream.
+    this.port.postMessage({ l, r, f: currentFrame }, [l.buffer, r.buffer]);
     return true;
   }
 }

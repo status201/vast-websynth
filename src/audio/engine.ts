@@ -25,6 +25,7 @@ import { SyncController } from './transport/sync/sync-controller';
 import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
+import { BankRenderController } from './recorder/bank-render';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
@@ -92,6 +93,7 @@ export class Engine {
   arrangement!: Arrangement;
   perf!: Performance;
   recorder!: RecorderController;
+  bankRender!: BankRenderController;
   sync!: SyncController;
   rtcSync!: WebRtcSyncTransport;
   private recorderNode!: RecorderNode;
@@ -288,6 +290,19 @@ export class Engine {
     this.master.connect(this.recorderNode.input);
     this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
 
+    // Bank resample (render-to-sampler.md): a second zero-output tap on the
+    // synth FX chain output (post-reverb, pre-preMaster) — the drum/sampler
+    // buses never enter it. Engine keeps the state juggling (REQ-5) in the
+    // prepare closure so LaneMixer/private state stays out of the controller.
+    const bankRenderNode = await RecorderNode.create(this.ctx);
+    this.reverb.output.connect(bankRenderNode.input);
+    this.bankRender = new BankRenderController(
+      this.clock,
+      bankRenderNode,
+      () => this.prepareBankRender(),
+      () => this.recorder.isRecording(),
+    );
+
     // MIDI clock sync (master/slave). Built before subscribeParams() so the
     // gated transport.bpm subscription can read `this.sync.mode`. The Web MIDI
     // transport is attached later by initMIDI (post-gesture); until then the
@@ -316,6 +331,37 @@ export class Engine {
     });
 
     this.installIosRearm();
+  }
+
+  /**
+   * Force the bank-render preconditions (render-to-sampler REQ-5) and return
+   * the restore. Live state is re-asserted from the bus, so a param change made
+   * *during* the ~2-bar render is overwritten by its own pre-render value —
+   * acceptable for a modal-ish action this short.
+   */
+  private prepareBankRender(): () => void {
+    const on = this.bus.get('seq.on') >= 0.5;
+    const muted = this.bus.get('seq.mute') >= 0.5;
+    const seqSolo = this.bus.get('seq.solo') >= 0.5;
+    const otherSolo = this.bus.get('drum.solo') >= 0.5 || this.bus.get('sampler.solo') >= 0.5;
+    const chainSteps = [...this.arrangement.seq.steps];
+    const chainEnabled = this.arrangement.seq.enabled;
+
+    this.seq.setEnabled(true);
+    if (muted) this.laneMixer.setMute('seq', false);
+    // A drum/sampler solo silences the un-soloed seq lane; *joining* the solo
+    // group renders seq audibly while the soloed lanes keep monitoring.
+    if (otherSolo && !seqSolo) this.laneMixer.setSolo('seq', true);
+    // An enabled chain advances banks per bar — pass 2 would render a different
+    // bank. Disabled, the play bank follows the edit bank (the one on screen).
+    this.arrangement.setSeqChain(chainSteps, false);
+
+    return () => {
+      this.seq.setEnabled(on);
+      this.laneMixer.setMute('seq', muted);
+      this.laneMixer.setSolo('seq', seqSolo);
+      this.arrangement.setSeqChain(chainSteps, chainEnabled);
+    };
   }
 
   /**
