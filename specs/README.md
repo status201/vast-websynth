@@ -211,6 +211,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     presets.md         ·  sound snapshots (param-only)
     param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file

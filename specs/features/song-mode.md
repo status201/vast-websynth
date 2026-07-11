@@ -54,8 +54,10 @@ demos, the load path **must stay backward compatible** as the format grows.
   [param-reset-baseline](param-reset-baseline.md)); Save-song marks it too.
 - **REQ-4** — Legacy step cells (plain `{on, velocity}`) must load and **sound
   unchanged** (gain defaults filled in).
-- **REQ-5** — Decoded audio is **never embedded**; only sampler filenames persist
-  and the user reloads files after import.
+- **REQ-5** — Decoded audio is **never embedded in the `.json`**; only sampler
+  filenames persist and the user reloads files after import. The
+  [project zip](project-export.md) embeds clips *alongside* an unchanged
+  `song.json` — the song format itself stays audio-free.
 - **REQ-6** — Mute/solo audibility follows one shared pure rule (solo wins over
   mute), used by both the engine and the UI.
 - **REQ-7** — Play banks must be settled **before** the machines read them on a

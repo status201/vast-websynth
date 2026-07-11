@@ -12,6 +12,7 @@ related:
   - banks
   - sample-recorder
   - song-mode
+  - project-export
   - dialog
 source:
   - src/audio/transport/sampler-machine.ts
@@ -39,7 +40,9 @@ a `.needs-reload` hint). This keeps song files small and avoids embedding audio.
   [record-sound modal](sample-recorder.md).
 - **REQ-3** — Reads `patterns.samplerBank(arrangement.samplerPlayBank)` each tick;
   buffers live in the machine, **not** in `PatternStore`.
-- **REQ-4** — Only filenames persist; buffers are reloaded after a song import.
+- **REQ-4** — Only filenames persist in a song; buffers are reloaded after a
+  song import (`.needs-reload` hint). A [project-zip](project-export.md) import
+  repopulates the buffers directly — the hint clears without a manual reload.
 - **REQ-5** — Gate < 1 chokes the per-hit velocity gain (same choke model as drums).
 
 ## Technical design

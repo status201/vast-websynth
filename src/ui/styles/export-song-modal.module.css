@@ -1,0 +1,65 @@
+/* Export-song modal: the Song(.json) / Project(.zip) chooser rows. */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.row:global(.on) {
+  border-color: var(--accent);
+  background: rgba(232, 116, 46, 0.08);
+}
+
+.row:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rowTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rowDesc {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.note {
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
+  margin: 0 0 10px;
+}
+
+.fmtRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.fmtLabel {
+  font-size: 11px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

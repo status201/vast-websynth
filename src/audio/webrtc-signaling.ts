@@ -13,6 +13,8 @@
  * `DecompressionStream` exists. The JSON is `{ k: kind, s: sdp }`.
  */
 
+import { hasCompression, deflateRaw, inflateRaw } from '../utils/compression';
+
 const PREFIX = 'WS2.';
 
 export type SignalKind = 'offer' | 'answer';
@@ -33,7 +35,7 @@ export class SignalDecodeError extends Error {
 export async function encodeSignal(kind: SignalKind, sdp: string): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify({ k: kind, s: sdp }));
   if (hasCompression()) {
-    return PREFIX + 'c.' + base64urlEncode(await deflate(bytes));
+    return PREFIX + 'c.' + base64urlEncode(await deflateRaw(bytes));
   }
   return PREFIX + 'r.' + base64urlEncode(bytes);
 }
@@ -51,7 +53,7 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
   let bytes: Uint8Array;
   try {
     const raw = base64urlDecode(rest.slice(dot + 1));
-    bytes = codec === 'c' ? await inflate(raw) : raw;
+    bytes = codec === 'c' ? await inflateRaw(raw) : raw;
   } catch {
     throw new SignalDecodeError('Corrupt sync link (bad payload).');
   }
@@ -69,44 +71,7 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
 }
 
 // ---- platform helpers ----
-
-interface CompressionCtor { new (format: string): GenericTransformStream }
-
-function hasCompression(): boolean {
-  return typeof (globalThis as { CompressionStream?: unknown }).CompressionStream !== 'undefined'
-    && typeof (globalThis as { DecompressionStream?: unknown }).DecompressionStream !== 'undefined';
-}
-
-function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const Ctor = (globalThis as unknown as { CompressionStream: CompressionCtor }).CompressionStream;
-  return streamThrough(new Ctor('deflate-raw'), bytes);
-}
-
-function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const Ctor = (globalThis as unknown as { DecompressionStream: CompressionCtor }).DecompressionStream;
-  return streamThrough(new Ctor('deflate-raw'), bytes);
-}
-
-async function streamThrough(transform: GenericTransformStream, bytes: Uint8Array): Promise<Uint8Array> {
-  // Drive the transform via its reader/writer directly — avoids Blob.stream()
-  // and Response, neither reliable under jsdom.
-  const writer = transform.writable.getWriter();
-  void writer.write(bytes);
-  void writer.close();
-  const reader = transform.readable.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value as Uint8Array);
-    total += (value as Uint8Array).length;
-  }
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) { out.set(c, off); off += c.length; }
-  return out;
-}
+// (deflate/inflate live in utils/compression.ts — shared with the zip codec)
 
 function base64urlEncode(bytes: Uint8Array): string {
   let bin = '';

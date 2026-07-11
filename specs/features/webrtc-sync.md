@@ -15,6 +15,7 @@ source:
   - src/audio/transport/sync/clock-offset.ts
   - src/audio/webrtc-sync-transport.ts
   - src/audio/webrtc-signaling.ts
+  - src/utils/compression.ts             # shared deflate-raw helpers (also used by the zip codec)
   - src/audio/webrtc-diagnostics.ts
   - src/audio/transport/sync/sync-controller.ts
   - src/audio/engine.ts

@@ -343,3 +343,22 @@ export const DEMO_SONGS: Record<string, SongFile> = {
   ...droppedDemos,
   ...BUILTIN_DEMOS,
 };
+
+// Project-zip demos (project-export.md REQ-7): any *.websynth.zip dropped into
+// ./demos registers as a demo button, fetched lazily on click (a user gesture)
+// and applied via the song-panel's project-bundle path — so a demo can ship
+// WITH its sampler audio. `?url` keeps the (potentially large) zip out of the
+// JS bundle; an empty glob (no assets committed) costs nothing.
+// Unlike DEMO_SONGS these are async by nature, so they stay out of
+// Song.list()/loadSlot(), which remain sync and JSON-only.
+const ZIP_URLS = import.meta.glob<string>('./demos/*.websynth.zip', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+export const ZIP_DEMOS: { name: string; url: string }[] = Object.keys(ZIP_URLS)
+  .sort()
+  .map((path) => ({
+    name: path.replace(/^.*\//, '').replace(/\.websynth\.zip$/i, ''),
+    url: ZIP_URLS[path]!,
+  }));

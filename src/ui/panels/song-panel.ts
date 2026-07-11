@@ -22,7 +22,14 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
-import { Song, DEMO_SONGS, type SongFile } from '../../state/song';
+import { Song, DEMO_SONGS, ZIP_DEMOS, type SongFile } from '../../state/song';
+import {
+  buildProjectZip, parseProjectZip, encodeClip, projectFilename, sniffImportKind,
+  type ProjectClipOut, type ProjectClipIn,
+} from '../../state/project';
+import { openExportSongModal } from '../components/export-song-modal';
+import { triggerDownload } from '../../audio/recorder/encode';
+import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
   const e = document.createElement(tag);
@@ -114,14 +121,79 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   dropdown.el.dataset.testid = 'song-slot-select';
   const refreshList = () => dropdown.setOptions(Song.list());
 
+  const showImportErrors = (errors: string[]): Promise<void> => {
+    const shown = errors.slice(0, 8);
+    const more = errors.length - shown.length;
+    return alertDialog({
+      title: 'Import failed',
+      message: 'Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''),
+    });
+  };
+
+  // Shared project-bundle apply (import + demo zips): apply/save the song like
+  // a JSON import, then decode the clips into the sampler — sequentially (8 ×
+  // multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
+  // slot just keeps the .needs-reload hint; failures collect into ONE alert.
+  const applyProjectBundle = async ({ file, clips }: { file: SongFile; clips: ProjectClipIn[] }): Promise<void> => {
+    applySong(file);
+    Song.saveSlot(file.name, file); // JSON only — after a reload, .needs-reload correctly reappears
+    refreshList();
+    dropdown.setValue(file.name);
+    const failures: string[] = [];
+    for (const clip of clips) {
+      try {
+        // .slice() is mandatory: clip bytes are subarray views of the whole
+        // zip buffer, and decodeAudioData detaches the buffer it is given.
+        const buf = await engine.ctx.decodeAudioData(clip.data.slice().buffer);
+        engine.sampler.setBuffer(clip.slot, buf);
+        // Prefer the song's own sampleNames entry; fall back to the zip entry
+        // name. Always re-set it: setSampleName's meta event is what tells the
+        // sampler panel to drop the .needs-reload hint now the buffer is live.
+        engine.patterns.setSampleName(
+          clip.slot,
+          engine.patterns.sampleNames[clip.slot]
+            ?? clip.entryName.replace(/^.*\//, '').replace(/^\d+-/, ''),
+        );
+      } catch {
+        failures.push(clip.entryName);
+      }
+    }
+    if (failures.length > 0) {
+      await alertDialog({
+        title: 'Some clips failed',
+        message: 'The song was imported, but these clips could not be decoded:\n• ' + failures.join('\n• '),
+      });
+    }
+  };
+
+  const loadZipDemo = async (name: string, url: string): Promise<void> => {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
+      const res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
+      if (!res.ok) throw new Error(res.errors[0] ?? 'invalid project zip');
+      await applyProjectBundle(res);
+    } catch (e) {
+      await alertDialog({
+        title: 'Demo failed to load',
+        message: `Could not load "${name}": ` + (e as Error).message,
+      });
+    }
+  };
+
   // Shared demo-load: apply the song AND sync the slot dropdown. Used by the
   // demo buttons and by the guided tour (so the dropdown reflects what loaded).
+  // Stays sync (the tour depends on it); zip demos delegate fire-and-forget.
   const loadDemo = (name: string): void => {
     const file = DEMO_SONGS[name];
-    if (!file) return;
-    applySong(file);
-    refreshList();
-    dropdown.setValue(name);
+    if (file) {
+      applySong(file);
+      refreshList();
+      dropdown.setValue(name);
+      return;
+    }
+    const zipDemo = ZIP_DEMOS.find((d) => d.name === name);
+    if (zipDemo) void loadZipDemo(zipDemo.name, zipDemo.url);
   };
 
   const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
@@ -152,48 +224,67 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.accept = '.json,application/json';
+  fileInput.accept = '.json,.zip,application/json,application/zip';
   fileInput.style.display = 'none';
   fileInput.dataset.testid = 'song-import-file';
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
-    const res = await Song.parseFile(f);
-    if (!res.ok) {
-      const shown = res.errors.slice(0, 8);
-      const more = res.errors.length - shown.length;
-      await alertDialog({
-        title: 'Import failed',
-        message: 'Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''),
-      });
-      fileInput.value = '';
-      return;
+    fileInput.value = '';
+    // One import surface for both formats: sniff the magic bytes (PK first,
+    // extension fallback) and route to the project-zip or plain-JSON parser.
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    let bundle: { file: SongFile; clips: ProjectClipIn[] };
+    if (sniffImportKind(bytes.subarray(0, 4), f.name) === 'zip') {
+      const res = await parseProjectZip(bytes);
+      if (!res.ok) { await showImportErrors(res.errors); return; }
+      bundle = { file: res.file, clips: res.clips };
+    } else {
+      const res = Song.parse(new TextDecoder().decode(bytes));
+      if (!res.ok) { await showImportErrors(res.errors); return; }
+      bundle = { file: res.file, clips: [] };
     }
-    const song = res.file;
     try {
-      applySong(song);
+      await applyProjectBundle(bundle);
     } catch (e) {
       await alertDialog({
         title: 'Import failed',
         message: 'Song imported but failed to apply: ' + (e as Error).message,
       });
-      fileInput.value = '';
-      return;
     }
-    Song.saveSlot(song.name, song);
-    refreshList();
-    dropdown.setValue(song.name);
-    fileInput.value = '';
   });
   const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
   importBtn.dataset.testid = 'song-import';
   importBtn.addEventListener('click', () => fileInput.click());
 
+  // Export: Song (.json, the unchanged path) or Project (.zip with the loaded
+  // sampler clips) — chosen in a modal (project-export.md REQ-4).
+  const doExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
+    const name = dropdown.value || 'My Song';
+    const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
+    if (kind === 'json') {
+      Song.download(file);
+      return;
+    }
+    const clips: ProjectClipOut[] = [];
+    for (let slot = 0; slot < SAMPLER_SLOT_COUNT; slot++) {
+      const buf = engine.sampler.buffers[slot];
+      if (!buf) continue;
+      // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-8).
+      const { blob, ext } = encodeClip(audioBufferToCaptured(buf), fmt);
+      clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
+    }
+    const bytes = await buildProjectZip(file, clips);
+    triggerDownload(new Blob([bytes as BlobPart], { type: 'application/zip' }), projectFilename(name));
+  };
+
   const exportBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export') as HTMLButtonElement;
   exportBtn.dataset.testid = 'song-export';
   exportBtn.addEventListener('click', () => {
-    const name = dropdown.value || 'My Song';
-    Song.download(Song.capture(bus, engine.patterns, engine.arrangement, name, xy));
+    openExportSongModal({
+      hasSamplerAudio: engine.sampler.buffers.some((b) => b != null),
+      onExport: (kind, fmt) => { void doExport(kind, fmt); },
+    });
   });
 
   const newBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'New') as HTMLButtonElement;
@@ -232,6 +323,14 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
     d.addEventListener('click', () => loadDemo(name));
+    io.appendChild(d);
+  }
+  // Project-zip demos (song + sampler audio): fetched on click — a user
+  // gesture, so decodeAudioData is unlocked (project-export.md REQ-7).
+  for (const { name, url } of ZIP_DEMOS) {
+    const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
+    d.dataset.testid = `song-demo-${name}`;
+    d.addEventListener('click', () => { void loadZipDemo(name, url); });
     io.appendChild(d);
   }
   io.appendChild(createAiPromptButton(bus));

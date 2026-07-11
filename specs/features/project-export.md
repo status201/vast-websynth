@@ -1,0 +1,214 @@
+# Project export (song + sampler audio in one zip)
+
+```yaml
+id: project-export
+status: implemented
+version: 1
+owner: core
+related:
+  - song-mode
+  - sampler
+  - audio-export
+  - sample-recorder
+  - dialog
+source:
+  - src/utils/compression.ts            # shared deflate-raw helpers (extracted from webrtc-signaling)
+  - src/utils/zip.ts                    # minimal dependency-free ZIP codec
+  - src/state/project.ts                # pure bundle build/parse (AudioContext-free)
+  - src/ui/components/export-song-modal.ts
+  - src/ui/panels/song-panel.ts         # export modal wiring + zip import + demo-zip buttons
+  - src/state/song.ts                   # ZIP_DEMOS (?url glob)
+```
+
+## Background / Why
+
+Sampler slot audio lives only in `SamplerMachine.buffers`; a saved/exported song
+persists just the filenames (`SongFile.sampleNames`), so every export/import loses
+the audio and the sampler panel falls back to the `.needs-reload` hint
+([song-mode](song-mode.md) REQ-5, [sampler](sampler.md) REQ-4). This feature adds a
+**"Project"** export: a `<name>.websynth.zip` containing the canonical compact song
+JSON plus each loaded slot's audio clip, importable in one step, and a loader path
+so future demos can ship as zips with audio. The `.json` song format is untouched.
+
+## Requirements
+
+- **REQ-1** — A project zip contains the **unmodified canonical compact** song JSON
+  (`Song.toJSON`, ADR-011) as `song.json`, plus one `samples/<slot>-<name>.<ext>`
+  entry per loaded sampler slot. `SongFile` stays version 3 — the zip is a container,
+  never a new song format. Clip slot assignment is keyed by the **slot index in the
+  entry name**; `sampleNames` in `song.json` remains the display-name source of truth.
+- **REQ-2** — The zip codec is **hand-written and dependency-free** (ADR-003):
+  writer emits method 0 (stored) for audio + method 8 (deflate, via
+  `CompressionStream('deflate-raw')` when available) for `.json`; reader accepts
+  methods 0 + 8, locates the EOCD by backward scan (tolerates trailing bytes),
+  trusts central-directory metadata, verifies CRC-32, and throws a typed `ZipError`
+  on zip64 / unknown methods / bad CRC / truncation.
+- **REQ-3** — The shared deflate helpers live in `src/utils/compression.ts`
+  (extracted from `webrtc-signaling.ts`, behaviour identical) so the zip module does
+  not depend on an audio/signaling module.
+- **REQ-4** — **Export** opens a modal offering **Song (.json)** (default) and
+  **Project (.zip)**. The Project row is **disabled with an explanation when no
+  sampler slot has audio loaded**. Project export offers a WAV (default) / MP3
+  clip-format toggle; MP3 shows a caveat that encoder padding slightly alters clip
+  length. Clip extension derives from the encoded blob's MIME type — `encodeMp3`'s
+  unsupported-rate WAV fallback must yield `.wav`.
+- **REQ-5** — **Import** auto-detects zip vs JSON by magic bytes (`PK` first,
+  extension fallback). The JSON path is unchanged. The zip path validates
+  `song.json` via `Song.parse` (reused), tolerates one level of folder nesting
+  (Explorer re-zip), and **degrades gracefully**: a missing or undecodable clip
+  never aborts the apply — the slot just keeps the existing `.needs-reload` hint;
+  out-of-range slots are skipped.
+- **REQ-6** — **Save (slots) stays JSON-only** — a zip cannot live in localStorage.
+  After importing a project then reloading the page, `.needs-reload` correctly
+  reappears (the buffers were session-only, as before).
+- **REQ-7** — Demo projects: any `src/state/demos/*.websynth.zip` is auto-registered
+  at build time via an `import.meta.glob` `?url` (fetched lazily on click, which is a
+  user gesture). No zip assets are committed yet — an empty glob costs nothing.
+- **REQ-8** — Decode/encode is memory-aware: clips are encoded/decoded
+  **sequentially** (8 × multi-MB WAVs), and `decodeAudioData` gets a **copy** of the
+  clip bytes (`.slice()`) because entries are subarray views of the whole zip buffer
+  and `decodeAudioData` detaches its input.
+
+## Technical design
+
+### Contract / public interface
+
+```yaml
+zip:  # src/utils/zip.ts (pure; async only for the Compression/DecompressionStream hops)
+  ZipEntry: { name: string, data: Uint8Array }
+  zipWrite(entries): Promise<Uint8Array>   # UTF-8 names (bit 11), fixed DOS timestamp (deterministic)
+  zipRead(bytes): Promise<ZipEntry[]>      # skips directory entries; CRC-verified
+  crc32(bytes): number                     # table-based; exported for tests
+  ZipError extends Error                   # mirrors SignalDecodeError idiom
+
+compression:  # src/utils/compression.ts (extracted; feature-detected platform globals)
+  hasCompression(): boolean
+  deflateRaw(bytes) / inflateRaw(bytes): Promise<Uint8Array>
+
+project:  # src/state/project.ts (pure — no AudioContext, no DOM)
+  ProjectClipOut: { slot: number, blob: Blob, ext: 'wav' | 'mp3' }
+  ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }
+  encodeClip(a: CapturedAudio, fmt): ProjectClipOut  # ext from blob.type, not fmt
+  buildProjectZip(file: SongFile, clips): Promise<Uint8Array>
+  parseProjectZip(bytes): Promise<{ok:true,file,clips} | {ok:false,errors}>
+  projectFilename(songName): string        # Song.download's sanitize idiom + '.websynth.zip'
+  sniffImportKind(head, filename): 'zip' | 'json'
+
+ui:  # src/ui/components/export-song-modal.ts
+  openExportSongModal({ hasSamplerAudio, onExport }): void
+  # onExport(kind: 'json' | 'project', fmt: 'wav' | 'mp3')
+```
+
+### Data shapes (the zip layout)
+
+```yaml
+MySong.websynth.zip:
+  song.json:              Song.toJSON(file)   # deflated when CompressionStream exists, else stored
+  samples/<slot>-<sanitized>.<ext>:           # stored (method 0); one per loaded slot
+    slot:      0..7 — the sampler slot index (authoritative for re-assignment)
+    sanitized: name minus extension, [^a-z0-9._-]+ -> _, capped, fallback 'clip'
+    ext:       wav | mp3 — the encoded clip's real container (from blob.type)
+import matching (tolerates one folder level from an Explorer re-zip):
+  song.json:  by basename
+  clips:      /(?:^|\/)samples\/(\d+)-[^/]*\.(wav|mp3)$/i
+  separators: entry names are '\'->'/' normalized first — PowerShell's
+              Compress-Archive writes backslash separators (verified on Win11)
+```
+
+### Layer touchpoints & ordering
+
+```yaml
+export (song-panel):
+  song-export click -> openExportSongModal({ hasSamplerAudio: sampler.buffers.some(b => b != null) })
+  kind json    -> Song.download(Song.capture(...))            # unchanged path
+  kind project -> capture; per loaded slot audioBufferToCaptured -> encodeClip(fmt)
+                  -> await blob.arrayBuffer()  (sequentially — REQ-8)
+                  -> buildProjectZip -> triggerDownload(application/zip, projectFilename)
+import (song-panel):
+  fileInput accepts .json,.zip; sniff first 4 bytes (sniffImportKind)
+  zip -> parseProjectZip; errors reuse the alertDialog bullet-list idiom
+      -> applyProjectBundle: applySong -> Song.saveSlot (JSON only — REQ-6)
+         -> decode clips sequentially with ctx.decodeAudioData(clip.data.slice().buffer)
+         -> sampler.setBuffer, then ALWAYS setSampleName (the song's own name, or the
+            zip entry name as fallback) — its meta event is what tells the sampler
+            panel to drop the .needs-reload hint now the buffer is live
+         per-clip decode failures collect into ONE alert; the song stays applied
+demo zips (song.ts + song-panel):
+  ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
+  one button per entry after the DEMO_SONGS row (testid song-demo-<name>)
+  click -> fetch(url) -> parseProjectZip -> applyProjectBundle
+  Song.list()/loadSlot()/DEMO_SONGS stay sync + JSON-only; loadDemo(name) keeps its
+  sync signature and delegates fire-and-forget for zip demos (guided tour depends on it)
+```
+
+### Persistence
+
+```yaml
+file:  "<name>.websynth.zip" (download only)
+NOT persisted: the zip itself — localStorage slots stay JSON (REQ-6); decoded
+               buffers stay session-only exactly as before (sampler.md REQ-4)
+```
+
+## Scenarios (BDD)
+
+```gherkin
+Scenario: Export a project and re-import it in one step
+  Given a WAV loaded into sampler slot 0
+  When the user exports a Project (WAV) and re-imports the downloaded zip
+  Then the song applies AND slot 0 is named without the needs-reload hint
+# pinned by: e2e/export-project.spec.ts, tests/state/project.test.ts
+
+Scenario: Project row is disabled with no sampler audio
+  Given a fresh boot with no sampler slots loaded
+  When the user clicks Export
+  Then the modal's Project row is disabled and shows the explanation note,
+    and confirming exports the plain .websynth.json
+# pinned by: e2e/export-project.spec.ts
+
+Scenario: The zip embeds the canonical compact song JSON unchanged
+  Given a captured SongFile
+  When buildProjectZip runs
+  Then the song.json entry's text equals Song.toJSON(file)
+# pinned by: tests/state/project.test.ts
+
+Scenario: A hand-re-zipped project still imports (edge)
+  Given a project zip whose entries are nested one folder deep with trailing bytes
+  When parseProjectZip runs
+  Then song.json is found by basename and clips match by the samples/<slot>- pattern
+# pinned by: tests/state/project.test.ts, tests/utils/zip.test.ts
+
+Scenario: A missing or undecodable clip degrades to needs-reload (failure)
+  Given a project zip whose sampleNames name a slot with no clip entry
+  When the project is imported
+  Then the song applies, the slot keeps its name, and the needs-reload hint shows
+# pinned by: tests/state/project.test.ts, e2e/export-project.spec.ts
+
+Scenario: Corrupt zips are rejected with a typed error (failure)
+  Given bytes with a bad CRC, an unknown compression method, or a zip64 EOCD
+  When zipRead runs
+  Then it throws ZipError (and the import UI shows the alertDialog bullet list)
+# pinned by: tests/utils/zip.test.ts
+
+Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)
+  Given a CapturedAudio at a sample rate lamejs cannot handle
+  When encodeClip(a, 'mp3') runs
+  Then the returned ext is 'wav' (derived from blob.type, never from the request)
+# pinned by: tests/state/project.test.ts
+```
+
+## Tests & verification
+
+- Unit: `tests/utils/zip.test.ts` (CRC vectors, stored+deflate round-trips,
+  determinism, trailing garbage, truncation/bad-CRC/unknown-method → `ZipError`),
+  `tests/state/project.test.ts` (layout, sanitization, nested folders, error paths,
+  `sniffImportKind`, `encodeClip` ext), `tests/audio/webrtc-signaling.test.ts`
+  (unchanged — guards the compression extraction) — `npm test`
+- E2E: `e2e/export-project.spec.ts` (disabled row + JSON export; WAV round-trip via
+  download.path() re-import) — `npm run e2e`
+- Typecheck: `npm run typecheck`
+
+## Open questions / future
+
+- Committing an actual demo `.websynth.zip` (REQ-7 loader is ready; assets are not).
+- Embedding slot trim/edit metadata alongside clips would need a manifest entry —
+  keep it additive if it ever lands.
