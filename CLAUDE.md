@@ -39,6 +39,7 @@ npm run typecheck  # tsc --noEmit — run this to verify changes
 npm run build      # tsc --noEmit && vite build
 npm test           # vitest run — pure-logic + component unit tests
 npm run e2e        # playwright test — browser smoke + control-surface specs
+npm run build:mcp  # bundle the pure song core for the MCP server (scripts/mcp/dist/)
 npm run release    # bump version + CHANGELOG, build, zip dist/, print publish steps
 ```
 
@@ -55,7 +56,9 @@ itself (attaching the zip needs the `gh` CLI authenticated). Flags: `--dry-run`
 `noUncheckedIndexedAccess`, so expect `arr[i]!` assertions throughout — match
 that style). There is also a Vitest suite under `tests/` covering the
 pure-logic units (`ParamBus`, `PatternStore`, `Song`, `Presets`, audio `encode`,
-sample `buffer-dsp`, the `zip` codec + `project` bundle build/parse), the
+sample `buffer-dsp`, the `zip` codec + `project` bundle build/parse, the
+`song-author` dialect expander, `song-link` share payloads, the published
+authoring docs' drift pins, and the MCP server under `tests/mcp/`), the
 transport modules (`Arpeggiator`, `Arrangement`,
 `Sequencer`, `DrumMachine`, `SamplerMachine`, `Performance`) and the DOM
 components (`createButton`, `Dropdown`, `Switch`, `Segmented`, `Tabs`,
@@ -88,8 +91,9 @@ DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 "Import into sampler" resample section), `export-modal`/`export-kind-<json|project>`/
-`export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`
-(the Export chooser opened by `song-export`)). Prefer testids
+`export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`/
+`song-share-link` (the Export chooser opened by `song-export`; `song-share-link`
+is its Copy Link action)). Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
@@ -110,10 +114,13 @@ help badges),
 (the record-sound modal — record from the fake device, edit, load into a slot),
 `sync` (the Song panel's MIDI clock-sync section — presence + mode
 persistence only, since headless Chromium has no MIDI ports; the timing math is
-unit-tested under `tests/audio/transport/sync/`), and `export-project` (the
+unit-tested under `tests/audio/transport/sync/`), `export-project` (the
 Export chooser — disabled Project row on a fresh boot, and a full project-zip
 export → New → re-import round-trip via `download.path()`; WAV-only, since CI
-Chromium can't decode MP3).
+Chromium can't decode MP3), and `song-link` (share URLs — `#song=` payloads,
+author-dialect and canonical, applied at boot with the hash cleared on success
+and left intact on failure; Copy Link verified via the clipboard with a
+Node-side `inflateRawSync` decode).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
@@ -309,6 +316,40 @@ listener mechanism.
   `decodeAudioData` **detaches** its buffer and clip bytes are subarray views of
   the whole zip — always pass `clip.data.slice().buffer`. Save slots stay
   JSON-only (a zip can't live in localStorage).
+- **Authoring dialect** (`state/song-author.ts`, ADR-013,
+  `specs/features/song-authoring-dialect.md`) — a compact **input-only** song
+  format (`format: "websynth-song-author"`) any LLM can emit in ~40 lines:
+  positional note lists (`"A2"`, `null` = rest, C4 = 60), drum/sampler hit
+  lists keyed by track name (`kick`/`chat`/`s1`…), chain strings (`"AABA"`,
+  `.`/`-` = rest). `Song.parse` detects it (`isAuthorSong`) and expands it
+  (`expandAuthorSong`) into a canonical v3 file before `validateSongFile`, so
+  **every** import surface accepts it; nothing ever exports it. The module is
+  pure and must never import `song.ts` (its `import.meta.glob` would poison the
+  MCP bundle) — same rule for `state/authoring-guide.ts`, which builds the ✨
+  AI Prompt text (`buildSongPrompt`, re-exported by `ui/components/ai-prompt.ts`)
+  and the MCP `get_song_format` guide (`buildAuthoringGuide`). Both schemas are
+  published under `public/schema/` (`websynth-song.schema.json` +
+  `websynth-song-author.schema.json`); `public/llms.txt` points crawling agents
+  at them. Format changes must touch dialect + author schema + guide (see
+  `specs/recipes/evolve-the-song-format.md`).
+- **Share links** (`state/song-link.ts`, `specs/features/song-share-link.md`) —
+  `#song=<deflate-raw+base64url>` (or `'j:'+base64url` where Compression
+  Streams are missing) embeds a song in the URL hash; `#songUrl=<https url>`
+  fetches one. A boot hook in `main.ts` (next to launchQueue) funnels both
+  through `UiBridge.importSongBytes` → `SongPanel.importBytes` (which resolves
+  to a success boolean); the hash is cleared via `history.replaceState` **only
+  on success**. The export modal's **Copy Link** (testid `song-share-link`)
+  builds the URL via `Song.capture` → `encodeSongPayload` → `buildShareUrl`.
+- **MCP server** (`scripts/mcp/`, `specs/features/mcp-server.md`) — zero-dep
+  stdio JSON-RPC 2.0 server (newline-delimited frames; stdout is protocol-pure,
+  logs on stderr). Registered by the committed `.mcp.json`. Self-builds a Vite
+  lib bundle of the pure song core (`song-core-entry.ts` →
+  `scripts/mcp/dist/song-core.mjs`, gitignored) when missing/stale. Tools:
+  `get_song_format`, `validate_song` (a failed validation is a *successful*
+  call returning `{ok:false, errors}`), `expand_song`, `save_song`,
+  `make_share_link` (`WEBSYNTH_BASE_URL`, default `http://localhost:5173`).
+  `rpc.mjs`/`tools.mjs` are pure (core injected) and unit-tested under
+  `tests/mcp/` alongside a spawn-the-server stdio integration test.
 - **Song/preset serialization** (`state/serialize.ts`) — `Song.toJSON` and
   `Presets.save` optimize **only at the boundary** (live state stays full-precision):
   `compactSongForExport`/`roundParams` round every number to 4 sig-figs and write

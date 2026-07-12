@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "websynth-song-author.schema.json",
+  "title": "VAST G1-J5 song authoring dialect (input-only)",
+  "description": "Compact, AI-friendly authoring format for the VAST G1-J5 web synthesizer (package name: websynth). On import the app expands this into the full canonical 'websynth-song' format (see websynth-song.schema.json) — the dialect is INPUT-ONLY and is never exported or persisted. Melody banks are positional note lists (rest-padded to 16 steps), drum/sampler banks are hit lists keyed by track name, and chains are strings like 'AABA'. Canonical runtime validation is src/state/song-author.ts (expandAuthorSong); this schema is the published machine-readable mirror. Note: the runtime normalizes drum-track keys (case/punctuation-insensitive, e.g. 'C.Hat' == 'chat'), which JSON Schema cannot express — this schema documents keys via additionalProperties and the runtime enforces them.",
+  "type": "object",
+  "required": ["format", "version", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": {
+      "const": "websynth-song-author",
+      "description": "Required discriminator. Always the literal string 'websynth-song-author'."
+    },
+    "version": {
+      "const": 1,
+      "description": "Authoring-dialect version. Always 1."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable song name."
+    },
+    "params": {
+      "type": "object",
+      "description": "SPARSE ParamBus snapshot: dotted parameter id -> scalar value (e.g. 'transport.bpm', 'filter.cutoff'). Set only what matters; every omitted param keeps its default.",
+      "additionalProperties": { "type": "number" }
+    },
+    "seq": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "0..4 melody banks (A/B/C/D). A missing bank is empty.",
+      "items": { "$ref": "#/$defs/seqBank" }
+    },
+    "drums": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "0..4 drum banks. Track keys: kick, snare, chat/hat/hihat/closedhat, ohat/openhat, ltom/lowtom, mtom/midtom, htom/hightom, clap, or '0'..'7'.",
+      "items": { "$ref": "#/$defs/hitBank" }
+    },
+    "sampler": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "0..4 sampler banks. Slot keys: 's1'..'s8' or '0'..'7'. Slots play user-loaded audio; audio is never embedded.",
+      "items": { "$ref": "#/$defs/hitBank" }
+    },
+    "seqChain": { "$ref": "#/$defs/chain", "description": "Sequencer arrangement lane. Omitted = play bank A (chain disabled)." },
+    "drumChain": { "$ref": "#/$defs/chain", "description": "Drum arrangement lane." },
+    "samplerChain": { "$ref": "#/$defs/chain", "description": "Sampler arrangement lane." },
+    "sampleNames": {
+      "type": "array",
+      "maxItems": 8,
+      "description": "Display name per sampler slot (padded to 8 with null). Filenames only — the user loads the audio by hand.",
+      "items": { "type": ["string", "null"] }
+    },
+    "xy": {
+      "type": "object",
+      "required": ["x", "y"],
+      "description": "XY-pad axis assignment: which param each pad axis drives.",
+      "properties": {
+        "x": { "type": "string", "minLength": 1 },
+        "y": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "note": {
+      "description": "A pitch: MIDI number 0..127 or a note name like 'A2'/'C#4'/'Db3' (C4 = 60).",
+      "oneOf": [
+        { "type": "number", "minimum": 0, "maximum": 127 },
+        { "type": "string", "pattern": "^[A-Ga-g][#b]?-?\\d+$" }
+      ]
+    },
+    "stepSettings": {
+      "velocity": { "type": "number", "minimum": 0, "maximum": 1 },
+      "gate": { "type": "number", "minimum": 0, "maximum": 1 },
+      "prob": { "type": "number", "minimum": 0, "maximum": 1 },
+      "ratchet": { "type": "integer", "minimum": 1, "maximum": 4 },
+      "tie": { "type": "boolean" }
+    },
+    "seqEntry": {
+      "description": "One melody step: null = rest, a note, or a note object with per-step settings. Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/note" },
+        {
+          "type": "object",
+          "required": ["note"],
+          "properties": {
+            "note": { "$ref": "#/$defs/note" },
+            "velocity": { "$ref": "#/$defs/stepSettings/velocity" },
+            "gate": { "$ref": "#/$defs/stepSettings/gate" },
+            "prob": { "$ref": "#/$defs/stepSettings/prob" },
+            "ratchet": { "$ref": "#/$defs/stepSettings/ratchet" },
+            "tie": { "$ref": "#/$defs/stepSettings/tie" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "seqBank": {
+      "description": "One bar of melody (16 sixteenth-note steps): a positional entry array (short arrays are rest-padded) or the bank-defaults form {notes, ...settings} where the settings apply to every sounded step.",
+      "oneOf": [
+        {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/seqEntry" }
+        },
+        {
+          "type": "object",
+          "required": ["notes"],
+          "properties": {
+            "notes": {
+              "type": "array",
+              "maxItems": 16,
+              "items": { "$ref": "#/$defs/seqEntry" }
+            },
+            "velocity": { "$ref": "#/$defs/stepSettings/velocity" },
+            "gate": { "$ref": "#/$defs/stepSettings/gate" },
+            "prob": { "$ref": "#/$defs/stepSettings/prob" },
+            "ratchet": { "$ref": "#/$defs/stepSettings/ratchet" },
+            "tie": { "$ref": "#/$defs/stepSettings/tie" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hit": {
+      "description": "One trigger: a step index 0..15 or a step object with per-step settings.",
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "maximum": 15 },
+        {
+          "type": "object",
+          "required": ["step"],
+          "properties": {
+            "step": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "velocity": { "$ref": "#/$defs/stepSettings/velocity" },
+            "gate": { "$ref": "#/$defs/stepSettings/gate" },
+            "prob": { "$ref": "#/$defs/stepSettings/prob" },
+            "ratchet": { "$ref": "#/$defs/stepSettings/ratchet" },
+            "tie": { "$ref": "#/$defs/stepSettings/tie" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "hitBank": {
+      "type": "object",
+      "description": "One bar of triggers: track/slot key -> hit list. The runtime validates the keys (drum aliases or 's1'..'s8'/'0'..'7').",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/hit" }
+      }
+    },
+    "chain": {
+      "description": "Arrangement lane, one bank per bar, looped: a bank-letter string ('.'/'-' = silent bar, spaces ignored), an index array (-1 = silent bar), or the full {enabled, steps} object. String/array shorthands imply enabled: true.",
+      "oneOf": [
+        { "type": "string", "pattern": "^[A-Da-d.\\s-]+$", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": -1, "maximum": 3 }
+        },
+        {
+          "type": "object",
+          "required": ["enabled", "steps"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "integer", "minimum": -1, "maximum": 3 }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

@@ -211,6 +211,9 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
+    song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
+    mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     presets.md         ·  sound snapshots (param-only)
     param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
@@ -263,6 +266,7 @@ specs/
     adr-010-musical-stable-cheap-dsp.md        ·  DSP worklets: musical, stable, cheap
     adr-011-export-precision-and-default-sparse-serialization.md ·  compact export at the boundary
     adr-012-true-bypass-disconnects.md         ·  bypassed FX disconnect their processed path
+    adr-013-authoring-dialect-input-only.md    ·  the authoring dialect is input-only
 ```
 
 > Coverage note: the feature set above documents the current system. New features

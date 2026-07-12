@@ -25,10 +25,14 @@ export function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
 
 async function streamThrough(transform: GenericTransformStream, bytes: Uint8Array): Promise<Uint8Array> {
   // Drive the transform via its reader/writer directly — avoids Blob.stream()
-  // and Response, neither reliable under jsdom.
+  // and Response, neither reliable under jsdom. The write/close promises are
+  // deliberately floating, but they must swallow rejections: on corrupt input
+  // (e.g. a bad share-link payload) the transform errors BOTH sides, and the
+  // reader below already surfaces that error — an uncaught writer rejection
+  // would crash the process as an unhandled rejection.
   const writer = transform.writable.getWriter();
-  void writer.write(bytes);
-  void writer.close();
+  writer.write(bytes).catch(() => {});
+  writer.close().catch(() => {});
   const reader = transform.readable.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;

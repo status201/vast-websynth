@@ -8,6 +8,7 @@ import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
 import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
+import { parseSongLink, decodeSongPayload } from './state/song-link';
 import { Modal } from './ui/components/modal';
 import { WakeLockManager } from './utils/wake-lock';
 import type { Onboarding } from './ui/onboarding';
@@ -85,6 +86,37 @@ async function boot() {
         }
       })();
     });
+  }
+
+  // Shareable song links (song-share-link.md): #song=<payload> embeds the
+  // song, #songUrl=<https url> points at a hosted song/project file. Both
+  // funnel through the same import path as the Import button / launchQueue,
+  // so parse errors surface in the normal import dialog. Applying is pure
+  // state, so it works behind the start modal — like launchQueue above. The
+  // hash is consumed only on success (REQ-4), so a bad link stays visible in
+  // the address bar for the user to inspect/copy.
+  const link = parseSongLink(window.location.hash);
+  if (link) {
+    void (async () => {
+      try {
+        let bytes: Uint8Array;
+        let name = 'shared-song.json';
+        if (link.kind === 'data') {
+          bytes = new TextEncoder().encode(await decodeSongPayload(link.payload));
+        } else {
+          const resp = await fetch(link.url);
+          if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
+          bytes = new Uint8Array(await resp.arrayBuffer());
+          // Keep the URL's filename tail so a .zip project routes through the
+          // magic-byte sniff with its extension fallback intact.
+          name = link.url.replace(/[?#].*$/, '').replace(/^.*\//, '') || name;
+        }
+        const ok = await bridge.importSongBytes(bytes, name);
+        if (ok) history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) {
+        alert('Could not load the shared song: ' + (e as Error).message);
+      }
+    })();
   }
 
   // MIDI is initialized from the start gesture, not at boot: Chrome ≥124

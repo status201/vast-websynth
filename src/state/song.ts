@@ -10,6 +10,7 @@ import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
 import { validateSongFile } from './song-validate';
+import { isAuthorSong, expandAuthorSong } from './song-author';
 import { compactSongForExport } from './serialize';
 export type { SongValidation } from './song-validate';
 
@@ -97,6 +98,10 @@ export const Song = {
     } catch (e) {
       return { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] };
     }
+    // The compact authoring dialect expands to a canonical v3 file here, so
+    // every ingest surface (Import, launchQueue, project zips, share links,
+    // MCP) accepts it automatically. Input-only — see ADR-013.
+    if (isAuthorSong(parsed)) return expandAuthorSong(parsed);
     return validateSongFile(parsed);
   },
 

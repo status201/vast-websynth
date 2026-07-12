@@ -28,6 +28,7 @@ import {
   type ProjectClipOut, type ProjectClipIn,
 } from '../../state/project';
 import { openExportSongModal } from '../components/export-song-modal';
+import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 
@@ -45,9 +46,11 @@ export interface SongPanel {
   /**
    * Import raw song/project bytes exactly like the Import button (sniff →
    * parse → apply, errors shown in the same dialogs). Driven by the installed
-   * PWA's launchQueue via `UiBridge.importSongBytes` (pwa-install.md REQ-5/7).
+   * PWA's launchQueue and by share links via `UiBridge.importSongBytes`
+   * (pwa-install.md REQ-5/7, song-share-link.md REQ-3). Resolves to whether
+   * the song applied (share links clear their hash only on success).
    */
-  importBytes: (bytes: Uint8Array, name: string) => Promise<void>;
+  importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 }
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore): SongPanel {
@@ -237,16 +240,18 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // magic bytes (PK first, extension fallback) and route to the project-zip
   // or plain-JSON parser — shared verbatim by the file input and the
   // installed-PWA file-launch path (SongPanel.importBytes).
-  const importBytes = async (bytes: Uint8Array, name: string): Promise<void> => {
+  const importBytes = async (bytes: Uint8Array, name: string): Promise<boolean> => {
     const res = await parseSongOrProject(bytes, name);
-    if (!res.ok) { await showImportErrors(res.errors); return; }
+    if (!res.ok) { await showImportErrors(res.errors); return false; }
     try {
       await applyProjectBundle(res);
+      return true;
     } catch (e) {
       await alertDialog({
         title: 'Import failed',
         message: 'Song imported but failed to apply: ' + (e as Error).message,
       });
+      return false;
     }
   };
   fileInput.addEventListener('change', async () => {
@@ -286,6 +291,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     openExportSongModal({
       hasSamplerAudio: engine.sampler.buffers.some((b) => b != null),
       onExport: (kind, fmt) => { void doExport(kind, fmt); },
+      // Copy Link: the current song as a #song= URL (song-share-link.md REQ-5).
+      makeShareUrl: async () => {
+        const name = dropdown.value || 'My Song';
+        const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
+        return buildShareUrl(window.location.origin, await encodeSongPayload(Song.toJSON(file)));
+      },
     });
   });
 

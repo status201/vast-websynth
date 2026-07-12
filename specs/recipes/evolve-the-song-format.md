@@ -3,14 +3,16 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - song-mode
   - step-settings
+  - song-authoring-dialect
 source:
   - src/state/song.ts                    # SongFile, capture/apply/fromJSON
   - src/state/patterns.ts                # PatternStore.restore, TRIGGER_CELL_DEFAULTS
+  - src/state/song-author.ts             # the authoring dialect expands to the latest version
 ```
 
 How to add fields / a new `version` to the song format **without breaking existing
@@ -68,7 +70,20 @@ Three more places must learn the field or it is silently dropped / rejected:
   files still pass.
 - `public/schema/websynth-song.schema.json` — bump `version.enum` and add the
   optional property (docs/tooling mirror). Also update the version literals in the
-  `buildSongPrompt` copy (`src/ui/components/ai-prompt.ts`).
+  authoring guide (`src/state/authoring-guide.ts`, which `buildSongPrompt` and the
+  MCP `get_song_format` tool both serve).
+
+### 4c. Teach the authoring dialect the new field
+
+The compact author format ([song-authoring-dialect.md](../features/song-authoring-dialect.md))
+expands to the **latest** canonical version, so a format change usually touches it too:
+
+- `src/state/song-author.ts` — accept/expand the new field (or deliberately leave
+  it canonical-only and reject it with a clear error).
+- `public/schema/websynth-song-author.schema.json` — mirror the dialect change;
+  `tests/state/authoring-docs.test.ts` pins its dimensions against `patterns.ts`.
+- `src/state/authoring-guide.ts` — document it in the COMPACT AUTHOR FORMAT
+  section (the prompt + MCP guide come from here).
 
 ### 5. New step-cell fields → defaults under
 

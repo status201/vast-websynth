@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-v*
+# MCP server's self-built song-core bundle (covered by `dist` above; explicit for clarity)
+scripts/mcp/dist/
 .tokensave
 .vite
 *.log

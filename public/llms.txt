@@ -1,0 +1,44 @@
+# VAST G1-J5 (websynth)
+
+> A browser-based virtual-analog synthesizer studio: 8-voice poly synth with a
+> ladder filter, a 16-step sequencer, an 8-track drum machine, an 8-slot
+> sampler, per-bar arrangement chains, live DJ FX, and WAV/MP3 audio export.
+> Runs entirely client-side (vanilla TypeScript + Web Audio, no backend).
+
+AI agents can author songs for this synth as a single JSON file, which the
+user imports via Song panel -> Import (or opens via a share link).
+
+## Song formats
+
+Two JSON formats are accepted on import:
+
+- `websynth-song-author` (v1) — the compact AUTHORING dialect, recommended for
+  AI output (~40-80 lines). Melody banks are positional note lists ("A2",
+  "C#4", null = rest, C4 = 60), drums/sampler are hit lists keyed by track
+  name (kick, snare, chat, ohat, ltom, mtom, htom, clap / s1..s8), and song
+  structure is a chain string like "AABA". Input-only: the app expands it to
+  the canonical format on import.
+  Schema: /schema/websynth-song-author.schema.json
+- `websynth-song` (v3) — the canonical full format the app exports. Requires
+  literal grids: seqBanks[4][16], drumBanks[4][8][16], optional
+  samplerBanks[4][8][16].
+  Schema: /schema/websynth-song.schema.json
+
+Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note steps per bar;
+8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap);
+8 sampler slots. Per-step settings: velocity/gate/prob 0..1, ratchet 1..4,
+tie boolean. `filter.cutoff` is a MIDI note number, not Hz.
+
+## The live parameter table
+
+Synth parameters (ids, ranges, defaults, discrete value maps) are generated
+from the running app and are NOT duplicated here — open the app's Song panel
+-> "✨ AI Prompt" for the complete, always-current authoring prompt including
+the PARAMS table.
+
+## For developers
+
+- The repository's `specs/` folder is the architectural source of truth
+  (specs/features/song-authoring-dialect.md documents the author dialect).
+- An MCP server for song authoring/validation ships in the repo under
+  `scripts/mcp/` (see the README).

@@ -106,6 +106,22 @@ describe('parseProjectZip', () => {
     expect(res.clips[0]!.entryName).toBe('samples/1-hat.wav'); // normalized
   });
 
+  it('accepts an authoring-dialect song.json (expanded through Song.parse)', async () => {
+    const zip = await zipWrite([{
+      name: 'song.json',
+      data: bytesOf(JSON.stringify({
+        format: 'websynth-song-author', version: 1, name: 'Zip Author',
+        drums: [{ kick: [0, 8] }],
+      })),
+    }]);
+    const res = await parseProjectZip(zip);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.format).toBe('websynth-song');
+    expect(res.file.version).toBe(3);
+    expect(res.file.drumBanks[0]![0]![8]!.on).toBe(true);
+  });
+
   it('rejects a zip without song.json', async () => {
     const zip = await zipWrite([{ name: 'samples/0-kick.wav', data: bytesOf('K') }]);
     const res = await parseProjectZip(zip);

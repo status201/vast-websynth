@@ -68,6 +68,48 @@ describe('Song', () => {
     expect(Song.fromJSON(JSON.stringify({ hello: 'world' }))).toBeNull();
   });
 
+  describe('authoring-dialect routing (parse)', () => {
+    it('parse() expands an author-format file to a canonical v3 SongFile', () => {
+      const author = JSON.stringify({
+        format: 'websynth-song-author',
+        version: 1,
+        name: 'Author Song',
+        params: { 'transport.bpm': 124 },
+        seq: [['A2', null, 'C3']],
+        drums: [{ kick: [0, 4, 8, 12] }],
+        seqChain: 'AABA',
+      });
+      const res = Song.parse(author);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.file.format).toBe('websynth-song');
+      expect(res.file.version).toBe(3);
+      expect(res.file.name).toBe('Author Song');
+      expect(res.file.seqBanks[0]![0]!.note).toBe(45);
+      expect(res.file.drumBanks[0]![0]![4]!.on).toBe(true);
+      expect(res.file.seqChain).toEqual({ enabled: true, steps: [0, 0, 1, 0] });
+      // The expanded file applies like any canonical file.
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      Song.apply(res.file, bus, new PatternStore(), fakeArr() as never);
+      expect(bus.get('transport.bpm')).toBe(124);
+    });
+
+    it('parse() reports author-dialect errors in authoring terms', () => {
+      const res = Song.parse(JSON.stringify({
+        format: 'websynth-song-author', version: 1, name: 'X', seq: [['H4']],
+      }));
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.errors[0]).toMatch(/seq\[0\]\[0\]/);
+    });
+
+    it('parse() of a canonical file is unchanged by the routing branch', () => {
+      const res = Song.parse(Song.toJSON(demo()));
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.file).toEqual(compactSongForExport(demo()));
+    });
+  });
+
   it('list() includes the demo songs', () => {
     expect(Song.list()).toEqual(
       expect.arrayContaining(['Zombie Nation', 'I Feel Love']),

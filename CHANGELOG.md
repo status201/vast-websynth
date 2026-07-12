@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Songs from any AI agent** — a compact, input-only **authoring dialect**
+  (`websynth-song-author`, ~40 lines instead of 576+ grid cells: note names
+  like `"A2"`, drum hit-lists like `"kick": [0,4,8,12]`, chain strings like
+  `"AABA"`) that import expands into a full song. Every import surface accepts
+  it (Import button, OS file launch, project zips, share links); it is never
+  exported. Published JSON Schema at `/schema/websynth-song-author.schema.json`
+  plus an `llms.txt` for crawling agents.
+- **✨ AI Prompt upgrade** — the prompt now teaches the compact dialect first
+  (complete quickstart example, anti-truncation output rules, both schema
+  URLs), with the full canonical format as an appendix — so weaker LLMs stop
+  truncating mid-song.
+- **Share links** — Export → **Copy Link** puts the whole song in a URL
+  (`#song=…`, compressed into the hash; it never reaches a server). Opening
+  the link loads the song; `#songUrl=<https url>` loads a hosted song/project
+  file.
+- **MCP server** — `scripts/mcp/` ships a zero-dependency MCP server (auto
+  set-up in Claude Code via `.mcp.json`) giving tool-using AI agents a full
+  authoring loop: `get_song_format`, `validate_song`, `expand_song`,
+  `save_song`, `make_share_link`.
+
 - **Install it as an app (PWA upgrades)** — added to your homescreen /
   installed from the browser menu, VAST now behaves like a native instrument:
   - **Works offline** after the first revisit (a hand-written, dependency-free

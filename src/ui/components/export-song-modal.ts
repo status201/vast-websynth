@@ -1,5 +1,6 @@
 import { Modal } from './modal';
 import { createButton } from './button';
+import { copyText, flashCopied } from '../clipboard';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -21,6 +22,12 @@ export interface ExportSongModalOptions {
   hasSamplerAudio: boolean;
   /** Called once on confirm, after the modal closes. Never called on cancel. */
   onExport: (kind: ExportKind, fmt: ClipFormat) => void;
+  /**
+   * When provided, renders a "Copy Link" action (testid `song-share-link`)
+   * that copies a shareable URL for the current song (song-share-link.md
+   * REQ-5). Independent of the export-kind rows; does not close the modal.
+   */
+  makeShareUrl?: () => Promise<string>;
 }
 
 export function openExportSongModal(opts: ExportSongModalOptions): void {
@@ -104,6 +111,21 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
   // ---- actions ----
   const actions = document.createElement('div');
   actions.className = dialogStyles.actions!;
+  if (opts.makeShareUrl) {
+    const makeShareUrl = opts.makeShareUrl;
+    const shareBtn = createButton({
+      label: 'Copy Link',
+      className: switchStyles.root!,
+      testId: 'song-share-link',
+      onClick: () => flashCopied(
+        shareBtn,
+        'Copy Link',
+        makeShareUrl().then((url) => copyText(url)),
+      ),
+    });
+    shareBtn.title = 'Copy a shareable URL that opens this song';
+    actions.appendChild(shareBtn);
+  }
   actions.appendChild(createButton({
     label: 'Cancel',
     className: switchStyles.root!,

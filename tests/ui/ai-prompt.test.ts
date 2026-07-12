@@ -16,13 +16,41 @@ function bus() {
 }
 
 describe('buildSongPrompt', () => {
-  it('cites the schema as an absolute, host-resolved URL', () => {
+  it('cites both schemas as absolute, host-resolved URLs', () => {
     const prompt = buildSongPrompt(bus());
-    // jsdom serves an http(s) origin, so the link is absolute (not "/schema/…").
+    // jsdom serves an http(s) origin, so the links are absolute (not "/schema/…").
     expect(window.location.origin).toMatch(/^https?:\/\//);
     expect(prompt).toContain(
       `${window.location.origin}/schema/websynth-song.schema.json`,
     );
+    expect(prompt).toContain(
+      `${window.location.origin}/schema/websynth-song-author.schema.json`,
+    );
+  });
+
+  it('teaches the authoring dialect first, canonical as appendix', () => {
+    const prompt = buildSongPrompt(bus());
+    // The QUICKSTART example is a complete author-dialect song.
+    expect(prompt).toContain('QUICKSTART');
+    expect(prompt).toContain('"format": "websynth-song-author"');
+    expect(prompt).toContain('COMPACT AUTHOR FORMAT');
+    // The canonical full form is demoted to an appendix, after the dialect.
+    const appendix = prompt.indexOf('APPENDIX');
+    expect(appendix).toBeGreaterThan(prompt.indexOf('COMPACT AUTHOR FORMAT'));
+    expect(prompt.indexOf('"format": "websynth-song"', appendix)).toBeGreaterThan(-1);
+  });
+
+  it('carries the anti-give-up guardrails', () => {
+    const prompt = buildSongPrompt(bus());
+    expect(prompt).toContain('exactly ONE JSON object');
+    expect(prompt).toContain('NEVER truncate');
+    expect(prompt).toMatch(/under ~80 lines/);
+    expect(prompt).toMatch(/1-2 banks/);
+  });
+
+  it('re-exports buildSongPrompt from the pure authoring guide', async () => {
+    const guide = await import('../../src/state/authoring-guide');
+    expect(buildSongPrompt).toBe(guide.buildSongPrompt);
   });
 
   it('injects a creative brief into the SONG REQUEST section', () => {

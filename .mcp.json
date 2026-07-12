@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "websynth": {
+      "command": "node",
+      "args": ["scripts/mcp/websynth-mcp.mjs"]
+    }
+  }
+}

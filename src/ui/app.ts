@@ -298,7 +298,7 @@ function buildPatternRow(
 ): {
   el: HTMLElement;
   loadDemo: (name: string) => void;
-  importSongBytes: (bytes: Uint8Array, name: string) => Promise<void>;
+  importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 } {
   const song = buildSongPanel(bus, engine, session, xy);
   const tabs = new TabContainer([
