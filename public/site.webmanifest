@@ -5,18 +5,53 @@
   "categories": ["music", "entertainment", "productivity"],
   "lang": "en",
   "dir": "ltr",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "any",
   "background_color": "#050302",
   "theme_color": "#1a1a1a",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".json"],
+        "application/zip": [".zip"]
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-card.png",
+      "sizes": "2400x1260",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "VAST G1-J5 synthesizer"
+    }
+  ],
   "icons": [
     {
       "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ]
 }

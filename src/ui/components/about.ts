@@ -208,7 +208,9 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
       `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
       `oversample ${p.fxOversample ? 'on' : 'off'}`;
     const ios = engine.iosAudio;
-    unlockVal.textContent = ios.status + (ios.routed ? ' · routed' : '');
+    unlockVal.textContent = ios.status
+      + (ios.routed ? ' · routed' : '')
+      + (ios.audioSessionSet ? ' · session:playback' : '');
     loopVal.textContent = ios.paused === null
       ? (ios.active ? 'idle' : 'n/a')
       : (ios.paused ? 'paused' : `playing t=${(ios.currentTime ?? 0).toFixed(1)}`);

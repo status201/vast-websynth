@@ -48,6 +48,10 @@ calls, Siri, and app-switching, after which `Engine.resume()` (which only checke
 
 These are device-specific runtime quirks, so — like [`performance-mode`](performance-mode.md)
 — they are gated on a device check and never touch `ParamBus`, presets, or songs.
+On Safari 17+ `unlock()` additionally sets `navigator.audioSession.type =
+'playback'` (the standardized fix for the same problem — feature-detected, and
+additive to the silent loop, which Safari <17 still needs); see
+[`pwa-install`](pwa-install.md) REQ-4.
 Because the failure only reproduces on real iOS hardware (no console on a remote
 rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-panel.md).
 

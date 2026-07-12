@@ -228,6 +228,7 @@ specs/
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
+    pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks

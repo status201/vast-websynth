@@ -104,4 +104,35 @@ describe('IosAudioSession', () => {
     session.rearm();
     expect(playSpy).not.toHaveBeenCalled();
   });
+
+  it('sets navigator.audioSession.type to playback on unlock when the API exists', () => {
+    asIOS();
+    const audioSession = { type: 'auto' };
+    (navigator as unknown as { audioSession: unknown }).audioSession = audioSession;
+    const { ctx } = fakeCtx();
+    const session = new IosAudioSession(ctx);
+    session.unlock();
+    expect(audioSession.type).toBe('playback');
+    expect(session.diagnostics.audioSessionSet).toBe(true);
+  });
+
+  it('sets audioSession even off iOS (feature-detect, not platform gate)', () => {
+    asDesktop();
+    const audioSession = { type: 'auto' };
+    (navigator as unknown as { audioSession: unknown }).audioSession = audioSession;
+    const { ctx } = fakeCtx();
+    const session = new IosAudioSession(ctx);
+    session.unlock();
+    expect(audioSession.type).toBe('playback');
+    // The silent-loop workaround stays iOS-only.
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('unlock without the audioSession API neither throws nor sets the flag', () => {
+    asIOS();
+    const { ctx } = fakeCtx();
+    const session = new IosAudioSession(ctx);
+    expect(() => session.unlock()).not.toThrow();
+    expect(session.diagnostics.audioSessionSet).toBe(false);
+  });
 });

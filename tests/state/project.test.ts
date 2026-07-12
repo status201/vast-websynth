@@ -3,6 +3,7 @@ import {
   encodeClip,
   buildProjectZip,
   parseProjectZip,
+  parseSongOrProject,
   projectFilename,
   sniffImportKind,
   type ProjectClipOut,
@@ -153,6 +154,41 @@ describe('sniffImportKind', () => {
   it('falls back to the extension when the magic is absent', () => {
     expect(sniffImportKind(bytesOf('{"fo'), 'song.websynth.json')).toBe('json');
     expect(sniffImportKind(new Uint8Array(0), 'song.websynth.zip')).toBe('zip');
+  });
+});
+
+describe('parseSongOrProject', () => {
+  it('routes plain-JSON song bytes to Song.parse with no clips', async () => {
+    const file = captureValid();
+    const res = await parseSongOrProject(bytesOf(Song.toJSON(file)), 'song.json');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(Song.toJSON(res.file)).toBe(Song.toJSON(file));
+    expect(res.clips).toEqual([]);
+  });
+
+  it('routes project-zip bytes to parseProjectZip (clips included)', async () => {
+    const file = captureValid({ 0: 'kick.wav' });
+    const zip = await buildProjectZip(file, [clip(0, 'K')]);
+    const res = await parseSongOrProject(zip, 'proj.websynth.zip');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.clips).toHaveLength(1);
+    expect(res.clips[0]!.slot).toBe(0);
+  });
+
+  it('trusts the PK magic over a misleading .json extension', async () => {
+    const file = captureValid();
+    const zip = await buildProjectZip(file, []);
+    const res = await parseSongOrProject(zip, 'renamed.json');
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(Song.toJSON(res.file)).toBe(Song.toJSON(file));
+  });
+
+  it('returns the validator errors for malformed JSON', async () => {
+    const res = await parseSongOrProject(bytesOf('{"format":"nope"}'), 'bad.json');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.errors.length).toBeGreaterThan(0);
   });
 });
 

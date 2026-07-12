@@ -109,3 +109,18 @@ export function sniffImportKind(head: Uint8Array, filename: string): 'zip' | 'js
   if (head.length >= 2 && head[0] === 0x50 && head[1] === 0x4b) return 'zip';
   return filename.toLowerCase().endsWith('.zip') ? 'zip' : 'json';
 }
+
+/**
+ * The one import parse path (pwa-install.md REQ-7): sniff raw import bytes
+ * and route to the project-zip or plain-JSON song parser. Pure — shared by
+ * the Song panel's file input and the installed-PWA launchQueue consumer,
+ * so an OS-opened song file behaves exactly like an Import-button import.
+ * The JSON branch carries no clips.
+ */
+export async function parseSongOrProject(bytes: Uint8Array, filename: string): Promise<ProjectParse> {
+  if (sniffImportKind(bytes.subarray(0, 4), filename) === 'zip') {
+    return parseProjectZip(bytes);
+  }
+  const res = Song.parse(new TextDecoder().decode(bytes));
+  return res.ok ? { ok: true, file: res.file, clips: [] } : res;
+}

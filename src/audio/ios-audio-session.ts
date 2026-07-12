@@ -38,6 +38,8 @@ export interface IosAudioDiagnostics {
   paused: boolean | null;
   /** Silent element `currentTime` (advances while playing), or null before built. */
   currentTime: number | null;
+  /** Whether `navigator.audioSession.type = 'playback'` was set (Safari 17+). */
+  audioSessionSet: boolean;
 }
 
 /** ~0.5 s of silence is plenty for a robust loop without churning the file size. */
@@ -51,6 +53,7 @@ export class IosAudioSession {
   private el: HTMLAudioElement | null = null;
   private srcNode: MediaElementAudioSourceNode | null = null;
   private status: string = this.active ? 'idle' : 'n/a';
+  private audioSessionSet = false;
 
   constructor(private readonly ctx: AudioContext) {}
 
@@ -60,6 +63,18 @@ export class IosAudioSession {
    * No-op off iOS; never throws (play rejection is swallowed into `status`).
    */
   unlock(): void {
+    // Audio Session API (Safari 17+): declare the session as *playback* so the
+    // synth stays audible with the ring/silent switch on silent. Additive to —
+    // never a replacement for — the silent-loop workaround below (Safari <17
+    // still needs it). Feature-detected rather than iOS-gated: the API is
+    // Safari-only anyway and harmless wherever it appears.
+    // See pwa-install.md REQ-4.
+    if (typeof navigator !== 'undefined' && navigator.audioSession) {
+      try {
+        navigator.audioSession.type = 'playback';
+        this.audioSessionSet = true;
+      } catch { /* older Safari exposes the object but not the setter */ }
+    }
     if (!this.active) return;
     this.ensureElement();
     this.play();
@@ -78,6 +93,7 @@ export class IosAudioSession {
       routed: this.srcNode !== null,
       paused: this.el ? this.el.paused : null,
       currentTime: this.el ? this.el.currentTime : null,
+      audioSessionSet: this.audioSessionSet,
     };
   }
 

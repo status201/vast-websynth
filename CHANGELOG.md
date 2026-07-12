@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Install it as an app (PWA upgrades)** — added to your homescreen /
+  installed from the browser menu, VAST now behaves like a native instrument:
+  - **Works offline** after the first revisit (a hand-written, dependency-free
+    service worker caches the app — production only, versioned per release).
+  - **Keeps the screen awake while audio runs** (Screen Wake Lock, following
+    the audio engine's state; released when audio stops, re-acquired on
+    return to the tab).
+  - **Fullscreen**: the installed Android app launches with no status bar,
+    and a **Full/Exit** toggle in the header works in the browser too
+    (hidden on iPhone, which has no fullscreen API).
+  - **Opens song files directly** (desktop): `.json` and `.websynth.zip`
+    files can be opened with the installed app and import exactly like the
+    Import button.
+  - **iOS polish**: a proper homescreen icon (PNG — iOS ignores SVG icons),
+    and on iOS 17+ the synth now stays audible with the mute switch on via
+    the standard Audio Session API (older iOS keeps the silent-loop
+    workaround).
+  - A second launch focuses the running instance instead of starting a
+    second one (two instances would both make sound).
+
 - **Export Project (song + sampler audio in one zip)** — the Song tab's
   **Export** now opens a chooser: **Song (.json)** (the unchanged format) or
   **Project (.zip)** — a `<name>.websynth.zip` bundling the song JSON with

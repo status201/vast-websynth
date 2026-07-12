@@ -24,7 +24,7 @@ import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
 import { Song, DEMO_SONGS, ZIP_DEMOS, type SongFile } from '../../state/song';
 import {
-  buildProjectZip, parseProjectZip, encodeClip, projectFilename, sniffImportKind,
+  buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
 } from '../../state/project';
 import { openExportSongModal } from '../components/export-song-modal';
@@ -42,6 +42,12 @@ export interface SongPanel {
   el: HTMLElement;
   /** Load a demo by name AND sync the slot dropdown (shared with the demo buttons). */
   loadDemo: (name: string) => void;
+  /**
+   * Import raw song/project bytes exactly like the Import button (sniff →
+   * parse → apply, errors shown in the same dialogs). Driven by the installed
+   * PWA's launchQueue via `UiBridge.importSongBytes` (pwa-install.md REQ-5/7).
+   */
+  importBytes: (bytes: Uint8Array, name: string) => Promise<void>;
 }
 
 export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore): SongPanel {
@@ -227,31 +233,27 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fileInput.accept = '.json,.zip,application/json,application/zip';
   fileInput.style.display = 'none';
   fileInput.dataset.testid = 'song-import-file';
-  fileInput.addEventListener('change', async () => {
-    const f = fileInput.files?.[0];
-    if (!f) return;
-    fileInput.value = '';
-    // One import surface for both formats: sniff the magic bytes (PK first,
-    // extension fallback) and route to the project-zip or plain-JSON parser.
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    let bundle: { file: SongFile; clips: ProjectClipIn[] };
-    if (sniffImportKind(bytes.subarray(0, 4), f.name) === 'zip') {
-      const res = await parseProjectZip(bytes);
-      if (!res.ok) { await showImportErrors(res.errors); return; }
-      bundle = { file: res.file, clips: res.clips };
-    } else {
-      const res = Song.parse(new TextDecoder().decode(bytes));
-      if (!res.ok) { await showImportErrors(res.errors); return; }
-      bundle = { file: res.file, clips: [] };
-    }
+  // One import surface for both formats (pwa-install.md REQ-7): sniff the
+  // magic bytes (PK first, extension fallback) and route to the project-zip
+  // or plain-JSON parser — shared verbatim by the file input and the
+  // installed-PWA file-launch path (SongPanel.importBytes).
+  const importBytes = async (bytes: Uint8Array, name: string): Promise<void> => {
+    const res = await parseSongOrProject(bytes, name);
+    if (!res.ok) { await showImportErrors(res.errors); return; }
     try {
-      await applyProjectBundle(bundle);
+      await applyProjectBundle(res);
     } catch (e) {
       await alertDialog({
         title: 'Import failed',
         message: 'Song imported but failed to apply: ' + (e as Error).message,
       });
     }
+  };
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files?.[0];
+    if (!f) return;
+    fileInput.value = '';
+    await importBytes(new Uint8Array(await f.arrayBuffer()), f.name);
   });
   const importBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Import') as HTMLButtonElement;
   importBtn.dataset.testid = 'song-import';
@@ -378,7 +380,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // ---- Transport sync (MIDI master/slave + WiFi) ----
   root.appendChild(buildSyncSection(engine.sync, engine.rtcSync));
 
-  return { el: root, loadDemo };
+  return { el: root, loadDemo, importBytes };
 }
 
 function emptySamplerBanks() {

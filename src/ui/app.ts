@@ -21,6 +21,7 @@ import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
 import { createPerfSettingsButton } from './components/perf-settings';
+import { createFullscreenButton } from './components/fullscreen-button';
 import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
@@ -87,6 +88,9 @@ export function mountApp(
   root.appendChild(fx.el);
   const patternRow = buildPatternRow(engine, bus, session, xy);
   songLoadDemo = patternRow.loadDemo;
+  // OS-launched song files (installed-PWA file_handlers) flow through the
+  // same import path as the Song panel's Import button (pwa-install.md REQ-7).
+  bridge.importSongBytes = patternRow.importSongBytes;
   root.appendChild(patternRow.el);
   const bottom = buildBottom(engine, bus, bridge);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
@@ -196,6 +200,9 @@ function buildHeader(
   presetGroup.appendChild(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
+  // Absent (null) where the Fullscreen API is missing — iPhone Safari.
+  const fullscreenBtn = createFullscreenButton();
+  if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);
   presetGroup.appendChild(createAboutButton(engine));
   presetGroup.appendChild(
     createHelpButton({
@@ -288,7 +295,11 @@ function buildHeader(
 
 function buildPatternRow(
   engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore,
-): { el: HTMLElement; loadDemo: (name: string) => void } {
+): {
+  el: HTMLElement;
+  loadDemo: (name: string) => void;
+  importSongBytes: (bytes: Uint8Array, name: string) => Promise<void>;
+} {
   const song = buildSongPanel(bus, engine, session, xy);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
@@ -302,7 +313,7 @@ function buildPatternRow(
   });
   tabs.el.classList.add(styles.patternRow!);
   tabs.el.dataset.testid = 'pattern-row';
-  return { el: tabs.el, loadDemo: song.loadDemo };
+  return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }
 
 function buildMain(bus: ParamBus): HTMLElement {
