@@ -228,6 +228,8 @@ specs/
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
+    play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
+    empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm

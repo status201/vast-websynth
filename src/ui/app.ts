@@ -17,6 +17,8 @@ import { TabContainer } from './components/tabs';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import { promptDialog } from './components/dialog';
+import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
+import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createHelpButton } from './components/help';
@@ -81,12 +83,18 @@ export function mountApp(
   };
   const onboarding = createOnboarding(ctx);
 
-  root.appendChild(buildHeader(engine, bus, bridge, onboarding, session, previewScopeTier));
+  // The header's empty-play hint loads a demo through the same late-bound
+  // loader the tour uses (rebound to the Song panel's dropdown-syncing loader
+  // once buildPatternRow runs below).
+  root.appendChild(buildHeader(
+    engine, bus, bridge, onboarding, session, previewScopeTier,
+    (name) => songLoadDemo(name),
+  ));
   root.appendChild(buildMain(bus));
   const fx = buildFx(bus);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
-  const patternRow = buildPatternRow(engine, bus, session, xy);
+  const patternRow = buildPatternRow(engine, bus, session, xy, bridge);
   songLoadDemo = patternRow.loadDemo;
   // OS-launched song files (installed-PWA file_handlers) flow through the
   // same import path as the Song panel's Import button (pwa-install.md REQ-7).
@@ -117,7 +125,7 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
-  previewScopeTier: (tier: PerfTier) => void,
+  previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => void,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
@@ -228,6 +236,22 @@ function buildHeader(
     led: true,
     testId: 'transport-play',
     onClick: () => {
+      // Starting an all-silent transport helps nobody — explain instead
+      // (empty-play-hint.md REQ-1). Stops are never intercepted, nor is a
+      // sync master/slave (an empty clock legitimately drives external gear).
+      if (!engine.clock.playing
+        && !emptyPlayHintDismissed()
+        && engine.sync.mode === 'off'
+        && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
+        openEmptyPlayModal({
+          onPlayDemo: () => {
+            const names = Object.keys(DEMO_SONGS);
+            loadDemo(names[Math.floor(Math.random() * names.length)]!);
+            playBtn.click(); // re-entry: the demo gives the check something to play
+          },
+        });
+        return;
+      }
       engine.clock.toggle();
       syncPlay();
     },
@@ -243,7 +267,10 @@ function buildHeader(
   engine.clock.onStart(syncPlay);
   engine.clock.onStop(syncPlay);
 
-  // --- Play-button LED blink ---
+  // --- Play-button LED blink (specs/features/play-button-blink.md) ---
+  // Playing: red, blinking with the beat. Stopped: a slow orange "attract"
+  // pulse so the transport is discoverable; loading a demo escalates it to a
+  // fast green cue until playback starts.
   let blinkVisible = true;
 
   const setBlink = (v: boolean) => {
@@ -256,8 +283,27 @@ function buildHeader(
     if (nb !== blinkVisible) setBlink(nb);
   });
 
-  engine.clock.onStart(() => setBlink(true));
-  engine.clock.onStop(() => setBlink(true));
+  let cueArmed = false;
+  const refreshIdleBlink = () => {
+    const stopped = !engine.clock.playing;
+    playBtn.classList.toggle('attract', stopped && !cueArmed);
+    playBtn.classList.toggle('cue', stopped && cueArmed);
+  };
+  engine.clock.onStart(() => { setBlink(true); cueArmed = false; refreshIdleBlink(); });
+  engine.clock.onStop(() => { setBlink(true); refreshIdleBlink(); });
+  bridge.cuePlay = () => {
+    if (engine.clock.playing) return; // already audible — nothing to nudge
+    cueArmed = true;
+    refreshIdleBlink();
+  };
+  // Turning a step machine on is silent until Play, so it cues too (REQ-3).
+  // Listening on the bus catches every surface (panel switch, song apply,
+  // author-dialect auto-enable). The arp is excluded: it auto-starts the
+  // transport on a held key, so there is no silent dead-end.
+  for (const id of ['seq.on', 'drum.on', 'sampler.on']) {
+    bus.subscribe(id, (v) => { if (v >= 0.5) bridge.cuePlay(); });
+  }
+  refreshIdleBlink();
 
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
@@ -294,13 +340,13 @@ function buildHeader(
 }
 
 function buildPatternRow(
-  engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore,
+  engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore, bridge: UiBridge,
 ): {
   el: HTMLElement;
   loadDemo: (name: string) => void;
   importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 } {
-  const song = buildSongPanel(bus, engine, session, xy);
+  const song = buildSongPanel(bus, engine, session, xy, bridge);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },

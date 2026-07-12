@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 5
+version: 6
 owner: core
 related:
   - architecture
@@ -75,6 +75,15 @@ demos, the load path **must stay backward compatible** as the format grows.
   **default-sparse**, producing the *canonical compact* form. The output must still
   `apply()` to identical-sounding state (rounding is inaudible; sparse cells re-expand
   via `restore`). See [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
+- **REQ-10 (demo row overflow, v6)** — The Song panel's demo row shows at most
+  `DEMO_ROW_LIMIT` (6) demo buttons inline; any further demos (JSON drop-ins,
+  built-ins and zip demos alike, in their usual order) hide behind an
+  **"All Demos"** toggle button (testid `song-demo-more`) that expands/collapses
+  them in place (label flips to "Less" while open). With ≤ 6 demos the toggle is
+  absent. `SongPanel.loadDemo(name)` (used by the guided tour) keeps working for
+  hidden demos — visibility only affects the buttons. Loading a demo — like
+  every song load/import — also fires `UiBridge.cuePlay`
+  (see [play-button-blink](play-button-blink.md)).
 
 ## Technical design
 
@@ -354,6 +363,14 @@ Scenario: Every shipped demo conforms to the validator (schema↔reality)
   When validateSongFile runs on it
   Then it returns { ok: true }
 # pinned by: tests/state/song-validate.test.ts
+
+Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6)
+  Given more than DEMO_ROW_LIMIT (6) demos are registered
+  When the Song panel renders
+  Then only the first 6 demo buttons are visible plus an "All Demos" toggle
+   And clicking the toggle reveals the remaining demo buttons (and flips to "Less")
+   And a hidden demo button, once revealed, loads its demo like any other
+# pinned by: e2e/song.spec.ts
 ```
 
 ## Tests & verification

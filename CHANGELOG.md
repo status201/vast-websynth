@@ -111,7 +111,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   sustained key never cuts the new note short. With the arpeggiator on, the
   pedal doubles as an arp latch (held notes keep arpeggiating).
 
+- **"Nothing to play yet" helper** — pressing Play when no machine is switched
+  on with steps to play (a fresh boot, say) no longer starts a silent
+  transport: a modal explains why nothing would be heard, what to do about it,
+  and offers a one-click **▶ Play a demo**. A "Don't show this again" checkbox
+  remembers your choice across sessions. Sync master/slave modes are exempt
+  (an empty clock legitimately drives external gear).
+
+- **Play button attention blinks** — the header Play button was easy to miss:
+  while the transport is stopped its LED now pulses orange slowly, and any
+  action that stays silent until you press Play — loading a demo or song,
+  importing, turning a machine on, enabling a chain — switches it to a fast
+  green "press play" blink until playback starts (playing keeps the familiar
+  red beat blink). Honours reduced-motion.
+
+### Changed
+
+- **MP3 quality raised to 192 kbps** (from 128) — the high-quality sweet spot,
+  applied to every MP3 the app writes: audio export, recordings, project-zip
+  clips, and sample-editor saves.
+- **Demo row de-cluttered** — the Song tab shows the first 6 demos inline; the
+  rest tuck behind an **All Demos** toggle.
+
 ### Fixed
+
+- **Disabled buttons now look disabled** — every switch-styled button gets a
+  shared dimmed/not-allowed style when disabled (the Export modal's Copy Link
+  on the Project row, the render-to-sampler button, wizard steps).
 
 - **WiFi sync QR is now scannable** — the pairing QR was rendered too small and
   downscaled, so a full link code was unreadable by any camera. It is now drawn

@@ -48,7 +48,15 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
   // Transport toggles label + the global `.on` state class, then back.
   // `exact` (case-sensitive) distinguishes the header "Play" from the
   // Arpeggiator's lowercase "play" segmented option (ARP_PATTERN_LABELS).
+  // A virgin boot has nothing to play, so the first click opens the
+  // empty-play hint (empty-play-hint.md) — opt out like a knowing user,
+  // then the transport toggles bare.
   const play = page.getByRole('button', { name: 'Play', exact: true });
+  await play.click();
+  await expect(page.getByTestId('empty-play-modal')).toBeVisible();
+  await page.getByTestId('empty-play-dismiss').check();
+  await page.getByTestId('empty-play-close').click();
+  await expect(page.getByTestId('empty-play-modal')).toHaveCount(0);
   await play.click();
   const stop = page.getByRole('button', { name: 'Stop', exact: true });
   await expect(stop).toBeVisible();

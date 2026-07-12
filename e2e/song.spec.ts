@@ -68,11 +68,34 @@ test.describe('song mode', () => {
     await gotoAndStart(page);
     expect(await sessionDisplay(page)).toBe('basic');
 
+    // Stopped transport: the Play LED runs the idle attract pulse
+    // (play-button-blink.md REQ-2).
+    await expect(page.getByTestId('transport-play')).toHaveClass(/\battract\b/);
+
     await page.getByTestId('tab-song').click();
+    // Only the first 6 demos are inline; Zombie Nation (a built-in, after the
+    // drop-ins) hides behind the "All Demos" toggle (song-mode.md REQ-10).
+    await expect(page.getByTestId('song-demo-Zombie Nation')).toBeHidden();
+    await page.getByTestId('song-demo-more').click();
     await page.getByTestId('song-demo-Zombie Nation').click();
 
     await expect.poll(() => sessionDisplay(page)).toBe('Zombie Nation');
     await expect(page.getByTestId('preset-select')).toContainText('Zombie Nation');
+
+    // The demo load arms the fast green "press play" cue while stopped
+    // (play-button-blink.md REQ-3); starting the transport consumes it (REQ-4).
+    await expect(page.getByTestId('transport-play')).toHaveClass(/\bcue\b/);
+    await page.getByTestId('transport-play').click();
+    await expect(page.getByTestId('transport-play')).not.toHaveClass(/\bcue\b/);
+    await expect(page.getByTestId('transport-play')).not.toHaveClass(/\battract\b/);
+    await page.getByTestId('transport-play').click();
+    await expect(page.getByTestId('transport-play')).toHaveClass(/\battract\b/);
+
+    // Any silent-while-stopped action re-arms the cue — here, enabling a
+    // machine via the bus (play-button-blink.md REQ-3). The sampler is the
+    // one machine this demo leaves off, so the set is a real 0 → 1 edge.
+    await page.evaluate(() => (window as any).__synth.bus.set('sampler.on', 1));
+    await expect(page.getByTestId('transport-play')).toHaveClass(/\bcue\b/);
   });
 
   test('Export Song renders and downloads a WAV', async ({ page }) => {

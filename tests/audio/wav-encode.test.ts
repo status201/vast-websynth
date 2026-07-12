@@ -69,7 +69,7 @@ describe('encodeMp3', () => {
     warn.mockRestore();
   });
 
-  it('encodes an audio/mpeg Blob for a supported sample rate', () => {
+  it('encodes an audio/mpeg Blob at 192 kbps CBR for a supported sample rate', async () => {
     const n = 4096;
     const left = new Float32Array(n);
     const right = new Float32Array(n);
@@ -80,5 +80,14 @@ describe('encodeMp3', () => {
     const blob = encodeMp3(left, right, 44100);
     expect(blob.type).toBe('audio/mpeg');
     expect(blob.size).toBeGreaterThan(0);
+
+    // Pin the bitrate (audio-export.md REQ-5): find the first frame sync
+    // (11 set bits), then read the bitrate index from the header's third
+    // byte — MPEG-1 Layer III index 0xB = 192 kbps.
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let i = 0;
+    while (i < bytes.length - 4 && !(bytes[i] === 0xff && (bytes[i + 1]! & 0xe0) === 0xe0)) i++;
+    expect(i).toBeLessThan(bytes.length - 4);
+    expect(bytes[i + 2]! >> 4).toBe(0xb);
   });
 });

@@ -7,4 +7,9 @@ export class UiBridge {
    * (pwa-install.md REQ-7, song-share-link.md REQ-3). Resolves to whether the
    * song applied, so a share link only consumes its hash on success. */
   importSongBytes = async (_bytes: Uint8Array, _name: string): Promise<boolean> => false;
+  /** Something just happened that stays silent until the transport runs —
+   * a demo/song load, an import, a machine or chain enable — so the header
+   * fast-blinks the Play LED green while stopped (play-button-blink.md
+   * REQ-3). Assigned in buildHeader; the default is a safe no-op. */
+  cuePlay = (): void => {};
 }

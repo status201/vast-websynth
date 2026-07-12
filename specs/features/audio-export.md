@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 2
+version: 3
 owner: core
 related:
   - architecture
@@ -39,7 +39,11 @@ The same `encode.ts` is reused by the [sample recorder](sample-recorder.md).
 - **REQ-4** — `toggleManual(fmt)` is a free-form record toggle; the second call
   stops + downloads, leaving the transport running.
 - **REQ-5** — Encoding is pure (no `AudioContext`): WAV dependency-free, MP3 via
-  vendored lamejs.
+  vendored lamejs. MP3 encodes at **`MP3_KBPS` = 192 kbps CBR** (v3; the LAME
+  "high quality" sweet spot, ≈ `-V2`) — every MP3 surface (song export, project
+  clips, sample-editor saves) goes through this one `encodeMp3`, so they all
+  inherit the bitrate. A sample rate lamejs cannot handle still falls back to
+  WAV with a console warning.
 - **REQ-6 (frame tagging)** — Each chunk the worklet posts carries
   `f = currentFrame` (the absolute sample index of the chunk's first frame in
   the context timeline). `RecorderNode` records the first chunk's tag as
@@ -66,9 +70,9 @@ RecorderNode:  # src/audio/recorder/node.ts (wraps recorder.js)
 worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = currentFrame
 encode.ts (pure):
   encodeWav(left, right, sampleRate): Blob          # dependency-free
-  encodeMp3(left, right, sampleRate): Blob          # vendored lamejs
+  encodeMp3(left, right, sampleRate): Blob          # vendored lamejs, MP3_KBPS CBR; unsupported rate -> WAV
   triggerDownload(blob, filename): void
-constants: FALLBACK_BARS = 4, TAIL_MS = 350
+constants: FALLBACK_BARS = 4, TAIL_MS = 350, MP3_KBPS = 192
 ```
 
 ### Layer touchpoints
@@ -99,6 +103,11 @@ Scenario: Manual record leaves the transport running
   When the user toggles manual record off
   Then the file downloads but playback continues
 # pinned by: recorder-controller contract
+
+Scenario: MP3 encodes at the high-quality bitrate (v3)
+  When encodeMp3 runs at a supported sample rate
+  Then the first MP3 frame header carries the 192 kbps bitrate index (0xB)
+# pinned by: tests/audio/wav-encode.test.ts
 ```
 
 ## Tests & verification

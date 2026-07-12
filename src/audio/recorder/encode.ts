@@ -8,6 +8,9 @@ import { Mp3Encoder } from '../../vendor/lamejs';
 /** lamejs supports these PCM sample rates; others fall back to WAV. */
 const MP3_RATES = new Set([8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000]);
 
+/** CBR bitrate for every MP3 encode — LAME's "high quality" sweet spot (≈ -V2). */
+const MP3_KBPS = 192;
+
 function clampSample(s: number): number {
   return s < -1 ? -1 : s > 1 ? 1 : s;
 }
@@ -75,7 +78,7 @@ function floatToInt16Array(samples: Float32Array): Int16Array {
 }
 
 /**
- * Stereo MP3 (128 kbps). Falls back to WAV (with a warning) if the sample
+ * Stereo MP3 (MP3_KBPS CBR). Falls back to WAV (with a warning) if the sample
  * rate is one lamejs cannot handle — we never resample.
  */
 export function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Blob {
@@ -83,7 +86,7 @@ export function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: n
     console.warn(`encodeMp3: sample rate ${sampleRate} unsupported by lamejs — exporting WAV instead.`);
     return encodeWav(left, right, sampleRate);
   }
-  const enc = new Mp3Encoder(2, sampleRate, 128);
+  const enc = new Mp3Encoder(2, sampleRate, MP3_KBPS);
   const l16 = floatToInt16Array(left);
   const r16 = floatToInt16Array(right);
   const numSamples = Math.min(l16.length, r16.length);

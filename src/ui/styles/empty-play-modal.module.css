@@ -1,0 +1,86 @@
+/* "Nothing to play yet" hint (empty-play-hint.md): the explanation list and
+   the don't-show-again footer. The message paragraph reuses dialog.module.css;
+   backdrop / card / title / fade come from the shared Modal. */
+
+.list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+}
+
+.list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+.aside {
+  margin: 14px 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.dismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dismiss input {
+  accent-color: var(--accent-secondary);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.btns {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* The affirmative action glows like the Song tab's demo buttons. */
+.demoBtn {
+  color: var(--accent-secondary);
+  border-color: rgba(244, 205, 94, 0.45);
+  text-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+.demoBtn:hover {
+  border-color: var(--accent-secondary);
+}

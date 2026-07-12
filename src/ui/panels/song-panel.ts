@@ -2,6 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
 import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
+import type { UiBridge } from '../ui-bridge';
 import type { ChainLane } from '../../audio/transport/arrangement';
 import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
@@ -32,6 +33,9 @@ import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 
+/** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10). */
+const DEMO_ROW_LIMIT = 6;
+
 function el(tag: string, cls?: string, text?: string): HTMLElement {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -53,7 +57,7 @@ export interface SongPanel {
   importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
@@ -69,15 +73,15 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     seq: buildChainLane(
       'Sequencer', 'seq', bus, engine.arrangement.seq,
       (s, en) => engine.arrangement.setSeqChain(s, en),
-      () => engine.arrangement.seqChainPos, engine),
+      () => engine.arrangement.seqChainPos, engine, bridge),
     drum: buildChainLane(
       'Drums', 'drum', bus, engine.arrangement.drum,
       (s, en) => engine.arrangement.setDrumChain(s, en),
-      () => engine.arrangement.drumChainPos, engine),
+      () => engine.arrangement.drumChainPos, engine, bridge),
     sampler: buildChainLane(
       'Sampler', 'sampler', bus, engine.arrangement.sampler,
       (s, en) => engine.arrangement.setSamplerChain(s, en),
-      () => engine.arrangement.samplerChainPos, engine),
+      () => engine.arrangement.samplerChainPos, engine, bridge),
   };
   for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
   root.appendChild(chains);
@@ -148,6 +152,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     Song.saveSlot(file.name, file); // JSON only — after a reload, .needs-reload correctly reappears
     refreshList();
     dropdown.setValue(file.name);
+    bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-3)
     const failures: string[] = [];
     for (const clip of clips) {
       try {
@@ -199,6 +204,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       applySong(file);
       refreshList();
       dropdown.setValue(name);
+      bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
       return;
     }
     const zipDemo = ZIP_DEMOS.find((d) => d.name === name);
@@ -209,7 +215,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   loadBtn.dataset.testid = 'song-load';
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
-    if (f) applySong(f);
+    if (f) {
+      applySong(f);
+      bridge.cuePlay(); // a loaded song is silent until Play (play-button-blink.md REQ-3)
+    }
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
@@ -332,19 +341,35 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   io.appendChild(fileInput);
 
   io.appendChild(el('span', styles.ioLabel!, 'Demos:'));
-  for (const name of Object.keys(DEMO_SONGS)) {
+  const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
-    d.addEventListener('click', () => loadDemo(name));
-    io.appendChild(d);
-  }
-  // Project-zip demos (song + sampler audio): fetched on click — a user
-  // gesture, so decodeAudioData is unlocked (project-export.md REQ-7).
-  for (const { name, url } of ZIP_DEMOS) {
-    const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
-    d.dataset.testid = `song-demo-${name}`;
-    d.addEventListener('click', () => { void loadZipDemo(name, url); });
-    io.appendChild(d);
+    d.addEventListener('click', onClick);
+    return d;
+  };
+  // JSON demos first, then project-zip demos (the latter fetched on click — a
+  // user gesture, so decodeAudioData is unlocked, project-export.md REQ-7).
+  const demoButtons = [
+    ...Object.keys(DEMO_SONGS).map((name) => mkDemoBtn(name, () => loadDemo(name))),
+    ...ZIP_DEMOS.map(({ name, url }) => mkDemoBtn(name, () => { void loadZipDemo(name, url); })),
+  ];
+  // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
+  // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-10).
+  for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) io.appendChild(d);
+  const overflowDemos = demoButtons.slice(DEMO_ROW_LIMIT);
+  if (overflowDemos.length > 0) {
+    const moreBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'All Demos') as HTMLButtonElement;
+    moreBtn.dataset.testid = 'song-demo-more';
+    // display: contents while open, so the revealed buttons flow in the same row.
+    const overflow = el('span', styles.demoOverflow!);
+    for (const d of overflowDemos) overflow.appendChild(d);
+    moreBtn.addEventListener('click', () => {
+      const open = overflow.classList.toggle(styles.demoOpen!);
+      moreBtn.classList.toggle('on', open);
+      moreBtn.textContent = open ? 'Less' : 'All Demos';
+    });
+    io.appendChild(moreBtn);
+    io.appendChild(overflow);
   }
   io.appendChild(createAiPromptButton(bus));
   root.appendChild(io);
@@ -408,6 +433,7 @@ function buildChainLane(
   setChain: (steps: number[], enabled: boolean) => void,
   getPos: () => number,
   engine: StudioApi,
+  bridge: UiBridge,
 ): HTMLElement {
   const root = el('div', styles.lane!);
   root.dataset.testid = `song-lane-${prefix}`;
@@ -419,7 +445,10 @@ function buildChainLane(
   enableBtn.type = 'button';
   enableBtn.className = `${switchStyles.root!} ${styles.ctl!}`;
   enableBtn.innerHTML = `<span class="${switchStyles.led!}"></span><span class="${switchStyles.label!}">Chain</span>`;
-  enableBtn.addEventListener('click', () => setChain([...lane.steps], !lane.enabled));
+  enableBtn.addEventListener('click', () => {
+    if (!lane.enabled) bridge.cuePlay(); // enabling is silent until Play (play-button-blink.md REQ-3)
+    setChain([...lane.steps], !lane.enabled);
+  });
   head.appendChild(enableBtn);
   root.appendChild(head);
 

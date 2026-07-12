@@ -187,3 +187,8 @@
 }
 
 .demo { color: var(--accent-secondary); }
+
+/* Demos past the first 6 hide behind the "All Demos" toggle; display: contents
+   keeps the revealed buttons flowing in the io row's flex wrap (song-mode.md REQ-10). */
+.demoOverflow { display: none; }
+.demoOverflow.demoOpen { display: contents; }
