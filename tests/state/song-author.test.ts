@@ -313,3 +313,36 @@ describe('property: expanded output always passes validateSongFile', () => {
     expect(res.ok, res.ok ? '' : (res as { errors: string[] }).errors.join('\n')).toBe(true);
   });
 });
+
+describe('expandAuthorSong — machines with hits auto-enable (REQ-11)', () => {
+  it('sets seq.on/drum.on when banks have hits and params omit them', () => {
+    const file = expandOk(base({
+      seq: [['A2', null, 'C3']],
+      drums: [{ kick: [0, 4, 8, 12] }],
+    }));
+    expect(file.params['seq.on']).toBe(1);
+    expect(file.params['drum.on']).toBe(1);
+    expect(file.params['sampler.on']).toBeUndefined(); // no sampler content
+  });
+
+  it('sets sampler.on only when sampler content has hits', () => {
+    const withHits = expandOk(base({ sampler: [{ s1: [0, 8] }] }));
+    expect(withHits.params['sampler.on']).toBe(1);
+    // Sampler fields present (sampleNames) but every bank empty → no injection.
+    const noHits = expandOk(base({ sampleNames: ['kick.wav'] }));
+    expect(noHits.params['sampler.on']).toBeUndefined();
+  });
+
+  it('never overrides an explicit author value', () => {
+    const file = expandOk(base({
+      drums: [{ kick: [0] }],
+      params: { 'drum.on': 0 },
+    }));
+    expect(file.params['drum.on']).toBe(0);
+  });
+
+  it('injects nothing for machines without hits', () => {
+    const file = expandOk(base({ params: { 'transport.bpm': 124 } }));
+    expect(file.params).toEqual({ 'transport.bpm': 124 });
+  });
+});

@@ -111,20 +111,21 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
   // ---- actions ----
   const actions = document.createElement('div');
   actions.className = dialogStyles.actions!;
+  let shareBtn: HTMLButtonElement | null = null;
   if (opts.makeShareUrl) {
     const makeShareUrl = opts.makeShareUrl;
-    const shareBtn = createButton({
+    const btn = createButton({
       label: 'Copy Link',
       className: switchStyles.root!,
       testId: 'song-share-link',
       onClick: () => flashCopied(
-        shareBtn,
+        btn,
         'Copy Link',
         makeShareUrl().then((url) => copyText(url)),
       ),
     });
-    shareBtn.title = 'Copy a shareable URL that opens this song';
-    actions.appendChild(shareBtn);
+    actions.appendChild(btn);
+    shareBtn = btn;
   }
   actions.appendChild(createButton({
     label: 'Cancel',
@@ -148,6 +149,14 @@ export function openExportSongModal(opts: ExportSongModalOptions): void {
     projectNote.style.display = opts.hasSamplerAudio ? 'none' : '';
     fmtRow.style.display = kind === 'project' ? '' : 'none';
     mp3Note.style.display = kind === 'project' && fmt === 'mp3' ? '' : 'none';
+    if (shareBtn) {
+      // A share URL embeds only the song JSON — it can never carry the
+      // project's sampler audio (song-share-link.md REQ-5).
+      shareBtn.disabled = kind === 'project';
+      shareBtn.title = kind === 'project'
+        ? "Share links can't include sampler audio — choose Song (.json) to copy a link."
+        : 'Copy a shareable URL that opens this song';
+    }
   };
 
   jsonRow.addEventListener('click', () => { kind = 'json'; render(); });

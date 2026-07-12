@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 5
+version: 6
 owner: core
 related:
   - architecture
@@ -14,6 +14,7 @@ source:
   - src/ui/shortcuts.ts
   - src/ui/ui-bridge.ts
   - src/audio/midi.ts
+  - src/audio/sustain-pedal.ts
   - src/main.ts
 ```
 
@@ -63,6 +64,16 @@ MIDI when available and degrades silently when not.
   ts)` (v2; midi-clock-sync REQ-10). `midi.ts` registers the transport via
   `engine.sync.addTransport('midi', sync)` (v2; was `attachTransport`);
   `onstatechange` additionally refreshes the sync transport's port counts.
+- **REQ-8** — **Sustain pedal (CC64)**, MIDI-layer (v6): while the pedal is down
+  (CC64 value ≥ 64) a MIDI note-off (0x80, or 0x90 vel 0) is **deferred** — it
+  never reaches `bus.noteOff`; the note is remembered as *sustained*. Pedal
+  release (value < 64) flushes `bus.noteOff` for every sustained note. A note
+  re-pressed while sustained is live again (its later note-off obeys the pedal
+  state at that moment — no stuck note, no double note-off). The pedal sits
+  **before** the bus funnel, so it applies to MIDI input only (on-screen /
+  computer keys are unaffected) and every bus consumer sees the deferral — with
+  the arpeggiator on, the pedal behaves as an arp latch (accepted behaviour).
+  State lives in the pure `SustainPedal` helper (`src/audio/sustain-pedal.ts`).
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -85,7 +96,12 @@ initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-7, before the mask
   data[0] === 0xF2 -> MidiSyncTransport.handleSongPosition(((d2)<<7)|d1, ev.timeStamp)  # REQ-7 (v2), before the mask
   0x90 Note On (d2==0 -> noteOff) ; 0x80 Note Off  -> bus.noteOn/noteOff
+  note on/off route through SustainPedal first (REQ-8); CC64 -> pedal.setPedal(v>=64)
   builds MidiSyncTransport(access) -> engine.sync.addTransport('midi', ...)  # midi-clock-sync v2
+SustainPedal                                            # src/audio/sustain-pedal.ts (pure, REQ-8)
+  noteOn(note): void          # marks held; un-sustains a retriggered note
+  noteOff(note): boolean      # false = deferred (pedal down); true = pass to bus.noteOff
+  setPedal(down): number[]    # on release: the sustained notes to flush via bus.noteOff
 note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppressed)
 ```
 
@@ -154,6 +170,34 @@ Scenario: MIDI permission is not requested before the start gesture
   And a denied prompt is a logged no-op, like absence of Web MIDI
 # pinned by: main.ts showStartModal onStart -> initMIDI; midi.ts try/catch
 
+Scenario: Sustain pedal defers note-offs until release
+  Given a MIDI device sends CC64 value 127 (pedal down)
+  And note-on 60 then note-off 60 arrive
+  Then bus.noteOff(60) is NOT called (the voice keeps ringing)
+  When CC64 value 0 arrives (pedal up)
+  Then bus.noteOff(60) is called exactly once
+# pinned by: tests/audio/sustain-pedal.test.ts
+
+Scenario: A note retriggered while sustained does not get a stale note-off (edge)
+  Given the pedal is down and note 60 was released (sustained)
+  When note-on 60 arrives again and the pedal is then released
+  Then no bus.noteOff(60) fires from the flush (the new press is still held)
+  And the note's own later note-off passes through normally
+# pinned by: tests/audio/sustain-pedal.test.ts
+
+Scenario: Velocity-0 note-on obeys the pedal (edge)
+  Given the pedal is down and note 60 is playing
+  When 0x90 note 60 velocity 0 arrives (a note-off in disguise, REQ-4)
+  Then it is deferred exactly like an 0x80 note-off
+# pinned by: tests/audio/sustain-pedal.test.ts (helper contract; midi.ts routes both paths through it)
+
+Scenario: CC64 63/64 boundary (edge)
+  Given CC64 value 64 arrives, then a note-off
+  Then the note-off is deferred (64 is "down")
+  Given CC64 value 63 arrives instead
+  Then sustained notes flush and later note-offs pass through (63 is "up")
+# pinned by: tests/audio/sustain-pedal.test.ts
+
 Scenario: Typing in a text field does not play notes
   Given a textarea is focused (e.g. the AI Prompt "Describe your song" field)
   When the user presses 'z'
@@ -168,9 +212,12 @@ Scenario: Typing in a text field does not play notes
   `window.__synth.bus`).
 - `e2e/patterns.spec.ts` (one key = one Step-Input step, the no-double-trigger
   regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only).
+- `tests/audio/sustain-pedal.test.ts` (the CC64 deferral state machine, REQ-8).
 - `npm run e2e` / `npm test` / `npm run typecheck`.
 
 ## Open questions / future
 
-- MIDI CC mapping (mod wheel, pitch bend) could route to `master.modWheel` /
-  `master.pitchBend` through the same bus funnel.
+- ~~MIDI CC mapping (mod wheel, pitch bend)~~ — done: CC1/7/71/74 + pitch bend
+  map to bus params, CC64 is the sustain pedal (REQ-8). Still unmapped: channel
+  aftertouch, CC11 expression, CC64 half-pedalling (we treat it as a switch),
+  program change, per-channel filtering.

@@ -114,7 +114,8 @@ Chain — the song structure, one bank per bar, looped:
 
 NOTES
 - "filter.cutoff" is a MIDI NOTE NUMBER, not Hz. Filter env/LFO modulate it additively in semitones.
-- Turn the machines on: "seq.on" 1 when you author seq banks, "drum.on" 1 for drums (both default 1).
+- Machines with hits turn on automatically ("seq.on"/"drum.on"/"sampler.on" are set to 1 when a bank
+  has steps and you didn't set the param yourself); set e.g. "seq.on": 0 to keep one silent on load.
 - For a resonant, moving filter (acid/disco bass), use high "filter.resonance", a fast "env.fil.decay",
   positive "filter.envAmount", and route the LFO to cutoff with "lfo.dest": 1.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"

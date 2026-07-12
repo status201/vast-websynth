@@ -106,6 +106,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   dims the step grid under a large rest symbol so the empty bar is obvious. Rests
   save with the song; older songs are unaffected.
 
+- **Sustain pedal** — a MIDI sustain pedal (CC64) now works: releasing keys
+  with the pedal down lets notes ring until the pedal lifts, and re-pressing a
+  sustained key never cuts the new note short. With the arpeggiator on, the
+  pedal doubles as an arp latch (held notes keep arpeggiating).
+
 ### Fixed
 
 - **WiFi sync QR is now scannable** — the pairing QR was rendered too small and
@@ -129,6 +134,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   arrival times, and the master cancels its queued pulses around Start/Stop
   where the browser allows. Tempo estimation also stays reliable on bursty
   MIDI delivery (pulses arriving bunched together). WiFi sync was unaffected.
+- **AI-authored songs play on import** — a compact authoring-dialect song
+  imported silent unless it explicitly set `seq.on`/`drum.on`, even with banks
+  full of notes (and the authoring guide wrongly claimed they defaulted on).
+  Machines with hits now enable automatically on expansion — across every
+  import surface (Import button, share links, OS file launch, MCP tools);
+  an explicit `"seq.on": 0` still keeps one silent.
+- **Copy Link is disabled for Project (.zip) exports** — a share URL embeds
+  only the song JSON and can never carry sampler audio, so the button now
+  disables with an explanatory tooltip while Project is selected instead of
+  offering a link that would silently drop the samples.
 
 ## [1.9.0] - 2026-07-07
 

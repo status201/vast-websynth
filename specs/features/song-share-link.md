@@ -3,7 +3,7 @@
 ```yaml
 id: song-share-link
 status: implemented
-version: 1
+version: 2
 owner: state
 related:
   - song-mode
@@ -53,8 +53,12 @@ the Import button, so canonical files, authoring-dialect files, and (via
 - **REQ-5** — The export modal gains a **Copy Link** action (testid
   `song-share-link`): `Song.capture` → `toJSON` → `encodeSongPayload` →
   `buildShareUrl(origin, payload)` → clipboard via the shared
-  `copyText`/`flashCopied`. The action is independent of the export-kind
-  selection and does not close the modal.
+  `copyText`/`flashCopied`. The action does not close the modal. It is
+  **disabled while the Project (.zip) kind is selected** (v2): a share URL
+  embeds only the song JSON and can never carry the project's sampler audio,
+  so offering it there would mislead — the disabled button's `title` explains
+  why and points back to Song (.json). Selecting Song (.json) re-enables it
+  and restores its normal tooltip.
 - **REQ-6** — `buildShareUrl` produces `<origin>/#song=<payload>`. Payloads are
   base64url so they never need percent-encoding.
 
@@ -112,6 +116,15 @@ Scenario: Copy Link puts a share URL on the clipboard
   Then the clipboard holds "<origin>/#song=<payload>"
   And decoding that payload round-trips the captured song JSON
 
+Scenario: Copy Link is disabled for a Project (.zip) export (v2)
+  Given the export modal is open with sampler audio loaded
+  When the user selects the Project (.zip) kind
+  Then the Copy Link button is disabled
+  And its title explains a link cannot include sampler audio
+  When the user selects Song (.json) again
+  Then Copy Link is enabled with its normal tooltip
+# pinned by: tests/ui/export-song-modal.test.ts
+
 Scenario: Round-trip encode/decode
   Given any JSON string
   When encodeSongPayload then decodeSongPayload run
@@ -124,7 +137,8 @@ Scenario: Round-trip encode/decode
 - Unit: `tests/state/song-link.test.ts` (the `'j:'` fallback path, pinned by
   stubbing Compression Streams away — modern jsdom/Vitest environments expose
   them), `tests/state/song-link.node.test.ts` (`@vitest-environment node` —
-  real deflate round-trip) — `npm test`
+  real deflate round-trip), `tests/ui/export-song-modal.test.ts` (Copy Link
+  disabled for the Project kind, v2) — `npm test`
 - E2E: `e2e/song-link.spec.ts` (payload built with `node:zlib.deflateRawSync`,
   `page.goto('/#song=…')`, asserts via `window.__synth.bus.get` + hash cleared;
   author-dialect payload; Copy Link with clipboard permissions) — `npm run e2e`

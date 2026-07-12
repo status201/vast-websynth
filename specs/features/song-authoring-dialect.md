@@ -3,7 +3,7 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 1
+version: 2
 owner: state
 related:
   - song-mode
@@ -81,6 +81,16 @@ It is never persisted or exported — see ADR-013.
   `patterns.ts` + `song-validate.ts` (+ *type-only* `song.ts`), so the MCP
   server's Node bundle can include it without dragging in `import.meta.glob`
   demo registration from `song.ts`.
+- **REQ-11** — **Machines with content auto-enable** (v2): `seq.on`, `drum.on`
+  and `sampler.on` are ParamBus params that default to **0**, and `Song.apply`
+  resets to defaults before restoring a song's params — so an expanded author
+  file whose `params` lacks them would import silent despite filled banks
+  (the original bug). Expansion therefore sets `params["<machine>.on"] = 1`
+  when (a) the author did not set that param explicitly **and** (b) the
+  machine's expanded banks contain at least one ON step/cell. An explicit
+  author value always wins (e.g. `"seq.on": 0` keeps the sequencer off), and a
+  machine with no hits keeps the default. `sampler.on` is considered only when
+  sampler content is present (REQ-7).
 
 ## Technical design
 
@@ -172,6 +182,18 @@ Scenario: Unknown drum track key
   Given drums:[{cowbell:[0]}]
   When expandAuthorSong runs
   Then the error lists the valid track names
+
+Scenario: Machines with hits play after import (regression — REQ-11)
+  Given an author file with seq notes and drum hits and NO params
+  When it expands and Song.apply loads the result
+  Then params carry seq.on = 1 and drum.on = 1 (the machines actually play)
+  And sampler.on appears only when the file has sampler content with hits
+
+Scenario: An explicit machine on/off param is respected (edge — REQ-11)
+  Given an author file with drum hits and params {"drum.on": 0}
+  When it expands
+  Then params.drum.on stays 0 (auto-enable never overrides the author)
+  And a machine whose banks have no ON steps gets no param injected
 
 Scenario: Expanded output always passes the canonical validator
   Given any author file that expandAuthorSong accepts

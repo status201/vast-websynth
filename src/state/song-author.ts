@@ -497,6 +497,18 @@ export function expandAuthorSong(value: unknown): SongValidation {
 
   if (errors.length > 0) return { ok: false, errors };
 
+  // REQ-11: a machine whose banks carry hits auto-enables, unless the author
+  // set its on/off param explicitly — seq.on/drum.on/sampler.on default to 0
+  // and Song.apply resets params first, so the song would import silent.
+  const hasHits = (banks: { on: boolean }[][]): boolean =>
+    banks.some((row) => row.some((step) => step.on));
+  const autoEnable = (id: string, on: boolean) => {
+    if (params[id] === undefined && on) params[id] = 1;
+  };
+  autoEnable('seq.on', hasHits(seqBanks));
+  autoEnable('drum.on', hasHits(drumBanks.flat()));
+  if (samplerBanks) autoEnable('sampler.on', hasHits(samplerBanks.flat()));
+
   const file: SongFile = {
     format: 'websynth-song',
     version: 3,
