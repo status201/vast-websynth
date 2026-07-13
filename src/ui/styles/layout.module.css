@@ -469,6 +469,12 @@
     display: flex;
     flex-basis: 100%; /* reveal as its own full-width row below the brand */
   }
+  /* Cap the preset dropdown on phones: the 120px min-width becomes a 90px
+     max-width; the label ellipsizes (dropdown.module.css .label). */
+  .presetGroup :global(.dropdown) > button {
+    min-width: 0;
+    max-width: 90px;
+  }
   /* Active (open) state — the gold "on" look shared by the Play button + the
      segmented controls, so the hamburger reads as toggled on. The descendant
      compound outranks switch.module's base `.root`. */

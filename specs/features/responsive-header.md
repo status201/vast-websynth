@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 3
+version: 4
 owner: ui
 related:
   - architecture
@@ -12,6 +12,7 @@ related:
 source:
   - src/ui/app.ts                      # buildHeader: hamburger toggle + preset cluster
   - src/ui/styles/layout.module.css    # .menuToggle / .presetGroup / .menuOpen rules
+  - src/ui/styles/dropdown.module.css  # .label ellipsis truncation
   - src/ui/components/header-icons.ts  # inline-SVG glyphs for the utility buttons
   - src/ui/components/button.ts        # createButton icon/title/ariaLabel options
   - src/ui/styles/switch.module.css    # svg.hdr-icon sizing/stroke rules
@@ -88,6 +89,12 @@ end of the row.
   to fill the remaining first-row width). The same split applies to the
   expanded hamburger row below 720px. At ≥1141px the cluster stays a single
   content-sized run, unchanged.
+- **REQ-11** — Below **720px** the preset dropdown drops its 120px min-width
+  and is capped at `max-width: 90px`; a longer selected name truncates with an
+  ellipsis. The clipping is visual only — the label's `textContent` stays the
+  full name (test assertions on the text keep passing). This applies inside
+  the expanded hamburger row (the only place the dropdown is visible ≤720px);
+  every other `Dropdown` instance and every width ≥721px is unchanged.
 
 ## Technical design
 
@@ -137,8 +144,13 @@ addition to the shared `headerGroup` class.
 - `src/ui/styles/layout.module.css` — `.menuToggle { display: none }` and
   `.headerBreak { display: none }` by default; an `@media (max-width: 720px)`
   block (placed **after** the existing `≤992px` block so it wins at narrow
-  widths) shows the toggle, hides `.presetGroup`, and reveals it via
-  `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`. The
+  widths) shows the toggle, hides `.presetGroup`, reveals it via
+  `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`, and
+  caps the preset dropdown (REQ-11): `.presetGroup :global(.dropdown) >
+  button { min-width: 0; max-width: 90px }` — scoped via the global
+  `dropdown` bridge class so no other `Dropdown` instance is affected; the
+  ellipsis itself lives on `dropdown.module.css` `.label` (component-level,
+  inert until something constrains the toggle's width). The
   `≤1140px` block (REQ-7) holds the header/cluster `flex-wrap: wrap` rules,
   `.presetLabel { display: none }` (REQ-8), the two-row layout (REQ-9):
   `.headerBreak { display: block; flex-basis: 100%; height: 0 }` +
@@ -196,6 +208,13 @@ Scenario: Hamburger expands the preset cluster inline
   Given the app is open at a 390px-wide viewport
   When I click the header menu toggle
   Then the preset selector becomes visible
+
+Scenario: Preset dropdown is width-capped on a phone
+  Given the app is open at a 390px-wide viewport
+  And the hamburger menu is expanded
+  Then the preset selector is at most 90px wide
+  And a long selected preset name truncates with an ellipsis
+# pinned by: e2e/responsive-header.spec.ts
 
 Scenario: No hamburger on a wide screen
   Given the app is open at a 1280px-wide viewport

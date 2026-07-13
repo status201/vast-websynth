@@ -41,6 +41,11 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(preset).toBeVisible();
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
 
+    // REQ-11: the dropdown is width-capped at 90px on phones (the name
+    // ellipsizes visually; textContent stays the full name).
+    const presetBox = (await preset.boundingBox())!;
+    expect(presetBox.width).toBeLessThanOrEqual(91);
+
     // Tap again → collapses.
     await menu.click();
     await expect(preset).toBeHidden();

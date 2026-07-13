@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   push to the far right, and the `Preset:` text label is dropped to save
   width. On phones (≤720px) the ☰ menu toggle parks at the far right of the
   brand row.
+- **Compact preset dropdown on phones** — below 720px the preset dropdown no
+  longer grows as wide as the selected preset/demo name: it is capped at 90px
+  and a longer name truncates with an ellipsis. Wider screens are unchanged.
 
 ### Fixed
 
