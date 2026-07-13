@@ -81,6 +81,13 @@ end of the row.
   cluster forces it to **lead the second row** (far left), and the voicing
   cluster right-aligns on that row via `margin-left: auto`. Row 1 holds the
   brand + preset cluster (or brand + ☰ below 720px).
+- **REQ-10** — From **≤1140px** the preset cluster splits: the preset dropdown
+  + Save stay left-aligned while the four utility icon buttons (Perf / About /
+  Help / Fullscreen) push to the **far right** of the cluster's row — an inner
+  spacer between Save and Perf grows to fill the row (the cluster itself grows
+  to fill the remaining first-row width). The same split applies to the
+  expanded hamburger row below 720px. At ≥1141px the cluster stays a single
+  content-sized run, unchanged.
 
 ## Technical design
 
@@ -106,6 +113,13 @@ addition to the shared `headerGroup` class.
   `flex-basis: 100%` row) sits between the brand row and the transport row.
 - The `Preset:` label span carries the `presetLabel` module class, hidden in
   the ≤1140px media block (REQ-8).
+- Inside the preset cluster the child order is `presetLabel, dropdown, save,
+  presetSpacer, perf, about, help, fullscreen`. `presetSpacer` is an empty
+  `div` (`display: none` by default, the `headerSpacer` precedent); at ≤1140px
+  it becomes a `flex: 1` filler and the cluster gets `flex: 1`, splitting the
+  row left/right (REQ-10). The menu-open rule's `flex-basis: 100%` outranks
+  the cluster's `flex: 1` basis below 720px, so the expanded row still spans
+  full width.
 - Icon buttons (REQ-5/6): `createButton` grows optional `icon` (inline SVG
   markup rendered instead of the text label), `title`, and `ariaLabel` options;
   `setButtonIcon` is the icon counterpart of `setButtonLabel` (used by the
@@ -126,11 +140,13 @@ addition to the shared `headerGroup` class.
   widths) shows the toggle, hides `.presetGroup`, and reveals it via
   `.header.menuOpen .presetGroup { display: flex; flex-basis: 100% }`. The
   `≤1140px` block (REQ-7) holds the header/cluster `flex-wrap: wrap` rules,
-  `.presetLabel { display: none }` (REQ-8), and the two-row layout (REQ-9):
+  `.presetLabel { display: none }` (REQ-8), the two-row layout (REQ-9):
   `.headerBreak { display: block; flex-basis: 100%; height: 0 }` +
-  `.voicingGroup { margin-left: auto }` — so the revealed cluster wraps its
-  buttons at every narrower width; the `≤992px` block keeps only the tighter
-  gap/padding. Breakpoint cascade order in the file: 1280 → 1140 → 992 → 720.
+  `.voicingGroup { margin-left: auto }`, and the preset-cluster split
+  (REQ-10): `.presetGroup { flex: 1 }` + `.presetSpacer { display: block;
+  flex: 1 }` — so the revealed cluster wraps its buttons at every narrower
+  width; the `≤992px` block keeps only the tighter gap/padding. Breakpoint
+  cascade order in the file: 1280 → 1140 → 992 → 720.
 - `src/styles/layout.css` — the `.app` grid's first row is a fixed `80px`
   track; a matching `≤1140px` block relaxes it to `auto` (all-auto rows), or
   the wrapped second header row would paint *over* the panel grid instead of
@@ -168,6 +184,12 @@ Scenario: Two-row layout below the 1140px wrap step
   Given the app is open at a 1024px-wide viewport
   Then the Play transport button leads the second row at the far left
   And the voicing cluster (Panic / master volume) sits at the far right of that row
+# pinned by: e2e/responsive-header.spec.ts
+
+Scenario: Preset cluster splits left/right below the 1140px wrap step
+  Given the app is open at a 1024px-wide viewport
+  Then the preset dropdown and Save stay left-aligned on the first row
+  And the utility icon buttons sit at the far right of that row
 # pinned by: e2e/responsive-header.spec.ts
 
 Scenario: Hamburger expands the preset cluster inline

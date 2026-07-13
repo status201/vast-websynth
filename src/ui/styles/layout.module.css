@@ -151,6 +151,11 @@
    breakpoint, where it pushes Play/BPM/Swing below the brand/☰ row. */
 .headerBreak { display: none; }
 
+/* Inner preset-cluster spacer (headerSpacer precedent). Inert until the
+   ≤1140px wrap step, where it splits the cluster: dropdown + Save left,
+   utility icon buttons far right. */
+.presetSpacer { display: none; }
+
 .playBtn:global(.on) :global(.switch-label) {
   color: var(--accent-secondary);
 }
@@ -421,6 +426,15 @@
     height: 0;
   }
   .voicingGroup { margin-left: auto; }
+  /* Preset-cluster split: the cluster fills the rest of row 1 and its inner
+     spacer pushes the utility icon buttons to the far right; dropdown + Save
+     stay left. (The menu-open flex-basis:100% row outranks the basis below
+     720px, so the expanded row keeps its full width.) */
+  .presetGroup { flex: 1; }
+  .presetSpacer {
+    display: block;
+    flex: 1;
+  }
 }
 
 @media (max-width: 992px) {

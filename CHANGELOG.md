@@ -31,9 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Tidier wrapped header** — when the header wraps to two rows (≤1140px) the
   layout is now deterministic: the transport cluster (Play / BPM / Swing)
   leads the second row at the far left with the voicing cluster (Mono-Poly /
-  Panic / Vol) at the far right, the `Preset:` text label is dropped to save
-  width, and on phones (≤720px) the ☰ menu toggle parks at the far right of
-  the brand row.
+  Panic / Vol) at the far right; on the first row the preset dropdown + Save
+  stay left while the utility icon buttons (Perf / About / Help / Fullscreen)
+  push to the far right, and the `Preset:` text label is dropped to save
+  width. On phones (≤720px) the ☰ menu toggle parks at the far right of the
+  brand row.
 
 ### Fixed
 

@@ -96,6 +96,16 @@ test.describe('responsive header (mobile menu)', () => {
     // Same row: transport and voicing overlap vertically.
     expect(volBox.y).toBeLessThan(playBox.y + playBox.height);
 
+    // Preset-cluster split (REQ-10): dropdown + Save left, the utility icon
+    // buttons far right of the first row (Fullscreen is the last of them).
+    const saveBox = (await page.getByTestId('preset-save').boundingBox())!;
+    const fullBox = (await page.getByTestId('fullscreen').boundingBox())!;
+    expect(fullBox.x + fullBox.width).toBeGreaterThan(headerBox.x + headerBox.width - 32);
+    // Same row as the dropdown, with a real gap between Save and the icons.
+    expect(fullBox.y).toBeLessThan(presetBox.y + presetBox.height);
+    expect((await page.getByTestId('perf-settings').boundingBox())!.x)
+      .toBeGreaterThan(saveBox.x + saveBox.width + 100);
+
     // The wrapped header row pushes the panel grid down rather than painting
     // over it (the .app grid's fixed 80px header track must go auto ≤1140px).
     const panic = (await page.getByTestId('panic').boundingBox())!;

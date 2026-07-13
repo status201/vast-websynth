@@ -209,6 +209,11 @@ function buildHeader(
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
   presetGroup.appendChild(saveBtn);
+  // Inner spacer, active at the ≤1140px wrap step: keeps the dropdown + Save
+  // left-aligned while pushing the utility icon buttons to the far right.
+  const presetSpacer = document.createElement('div');
+  presetSpacer.className = styles.presetSpacer!;
+  presetGroup.appendChild(presetSpacer);
   presetGroup.appendChild(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
