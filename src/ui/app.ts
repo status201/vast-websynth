@@ -204,6 +204,7 @@ function buildHeader(
   });
 
   const presetLabel = document.createElement('span');
+  presetLabel.className = styles.presetLabel!;
   presetLabel.textContent = 'Preset:';
   presetGroup.appendChild(presetLabel);
   presetGroup.appendChild(dropdown.el);
@@ -228,6 +229,13 @@ function buildHeader(
   const spacer = document.createElement('div');
   spacer.className = styles.headerSpacer!;
   el.appendChild(spacer);
+
+  // Zero-height flex line break, active whenever the header wraps (≤1140px):
+  // the transport cluster always starts the second row (voicing right-aligns
+  // via auto margin), and below 720px the hamburger's auto margin owns row 1.
+  const headerBreak = document.createElement('div');
+  headerBreak.className = styles.headerBreak!;
+  el.appendChild(headerBreak);
 
   // Transport group
   const transport = document.createElement('div');
@@ -326,7 +334,7 @@ function buildHeader(
   el.appendChild(transport);
 
   const right = document.createElement('div');
-  right.className = styles.headerGroup!;
+  right.className = `${styles.headerGroup!} ${styles.voicingGroup!}`;
 
   const voicing = new Segmented(bus, 'voicing.mode', VOICING_LABELS);
   right.appendChild(voicing.el);

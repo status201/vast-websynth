@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   XY Pad axis pickers, drum kit, song/seq slots, mic device) now scrolls the
   selected option into view and focuses it on open, instead of opening at the
   top of the list; closing returns focus to the dropdown button.
+- **Tidier wrapped header** — when the header wraps to two rows (≤1140px) the
+  layout is now deterministic: the transport cluster (Play / BPM / Swing)
+  leads the second row at the far left with the voicing cluster (Mono-Poly /
+  Panic / Vol) at the far right, the `Preset:` text label is dropped to save
+  width, and on phones (≤720px) the ☰ menu toggle parks at the far right of
+  the brand row.
 
 ### Fixed
 

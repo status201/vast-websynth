@@ -147,6 +147,10 @@
 /* Mobile preset-cluster toggle (hamburger). Hidden until the phone breakpoint. */
 .menuToggle { display: none; }
 
+/* Flex line break before the transport cluster. Inert until the phone
+   breakpoint, where it pushes Play/BPM/Swing below the brand/☰ row. */
+.headerBreak { display: none; }
+
 .playBtn:global(.on) :global(.switch-label) {
   color: var(--accent-secondary);
 }
@@ -407,6 +411,16 @@
   .header { flex-wrap: wrap; }
   .headerSpacer { display: none; }
   .headerGroup { flex-wrap: wrap; }
+  /* The dropdown is self-explanatory; drop the label to save header width. */
+  .presetLabel { display: none; }
+  /* Deterministic two-row layout: the break forces the transport cluster to
+     lead the second row (far left); the voicing cluster right-aligns on it. */
+  .headerBreak {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+  .voicingGroup { margin-left: auto; }
 }
 
 @media (max-width: 992px) {

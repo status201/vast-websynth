@@ -28,6 +28,14 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
+    // The toggle is parked at the far right of the brand row, and the header
+    // line break pushes the transport cluster to the row below (REQ-1/REQ-4).
+    const menuBox = (await menu.boundingBox())!;
+    const headerBox = (await page.getByTestId('app-header').boundingBox())!;
+    const playBox = (await page.getByTestId('transport-play').boundingBox())!;
+    expect(menuBox.x + menuBox.width).toBeGreaterThan(headerBox.x + headerBox.width - 24);
+    expect(playBox.y).toBeGreaterThanOrEqual(menuBox.y + menuBox.height);
+
     // Tap ☰ → cluster expands inline.
     await menu.click();
     await expect(preset).toBeVisible();
@@ -71,6 +79,22 @@ test.describe('responsive header (mobile menu)', () => {
     await expect(page.getByTestId('panic')).toBeInViewport({ ratio: 1 });
     await expect(page.getByTestId('knob-master.volume')).toBeInViewport({ ratio: 1 });
     await expect(page.getByText('MIXER', { exact: true })).toBeInViewport();
+
+    // ≤1140px drops the "Preset:" text label; the dropdown itself stays (REQ-8).
+    await expect(page.getByText('Preset:', { exact: true })).toBeHidden();
+    await expect(page.getByTestId('preset-select')).toBeVisible();
+
+    // Two-row layout (REQ-9): the transport cluster leads the second row at
+    // the far left; the voicing cluster right-aligns on it.
+    const headerBox = (await page.getByTestId('app-header').boundingBox())!;
+    const presetBox = (await page.getByTestId('preset-select').boundingBox())!;
+    const playBox = (await page.getByTestId('transport-play').boundingBox())!;
+    const volBox = (await page.getByTestId('knob-master.volume').boundingBox())!;
+    expect(playBox.y).toBeGreaterThanOrEqual(presetBox.y + presetBox.height);
+    expect(playBox.x).toBeLessThan(headerBox.x + 32);
+    expect(volBox.x + volBox.width).toBeGreaterThan(headerBox.x + headerBox.width - 32);
+    // Same row: transport and voicing overlap vertically.
+    expect(volBox.y).toBeLessThan(playBox.y + playBox.height);
 
     // The wrapped header row pushes the panel grid down rather than painting
     // over it (the .app grid's fixed 80px header track must go auto ≤1140px).
