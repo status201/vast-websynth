@@ -291,22 +291,26 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
       // Dirty: saw + detuned square, fat unison beating, a little noise,
       // a driven resonant ladder and a distortion stage on top.
       'osc1.wave': 2, 'osc1.octave': 0, 'osc1.level': 0.85,
-      'osc2.wave': 3, 'osc2.octave': 0, 'osc2.detune': 12, 'osc2.level': 0.65,
+      'osc2.wave': 3, 'osc2.octave': -1, 'osc2.detune': 12, 'osc2.level': 0.4,
       'unison.voices': 3, 'unison.detune': 24,
       'mixer.noise': 0.06, 'mixer.glide': 0, 'glide.mode': 0,
-      'filter.cutoff': 98, 'filter.resonance': 1.6, 'filter.drive': 2.8, 'filter.envAmount': 16,
-      'env.amp.attack': 0.004, 'env.amp.decay': 0.25, 'env.amp.sustain': 0.65, 'env.amp.release': 0.14,
+      'filter.cutoff': 70, 'filter.resonance': 0.6, 'filter.drive': 2.0, 'filter.envAmount': 16,
+      'env.amp.attack': 0.004, 'env.amp.decay': 0.15, 'env.amp.sustain': 0.16, 'env.amp.release': 0.14,
       'env.fil.attack': 0.004, 'env.fil.decay': 0.3, 'env.fil.sustain': 0.4, 'env.fil.release': 0.2,
       'fx.dist.on': 1, 'fx.dist.drive': 0.55, 'fx.dist.tone': 3000, 'fx.dist.mix': 0.85,
       'fx.delay.on': 1, 'fx.delay.time': 0.21, 'fx.delay.feedback': 0.3, 'fx.delay.mix': 0.22,
       'fx.reverb.on': 1, 'fx.reverb.size': 0.45, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.12,
-      'analog.drift': 0.2,
+      'analog.drift': 0.1,
       'transport.bpm': 130,
     },
     seqBanks: [ZN_1, ZN_2, ZN_3, ZN_4],
     drumBanks: pad4Drum(ZN_DRUM_A, ZN_DRUM_B),
     seqChain: { enabled: true, steps: [0, 1, 2, 3] },   // four distinct bars
     drumChain: { enabled: true, steps: [0, 0, 0, 1] },  // fill on bar 4
+    xy: {
+      'x': 'osc1.octave',
+      'y': 'osc2.octave'
+    },
   },
 
   'I Feel Love': {
