@@ -10,6 +10,7 @@
 // the concrete tier it picks.
 import { Modal } from './modal';
 import { createButton } from './button';
+import { HEADER_ICONS } from './header-icons';
 import {
   readPerfPref,
   writePerfPref,
@@ -56,7 +57,13 @@ export interface PerfSettingsOptions {
 }
 
 export function createPerfSettingsButton(opts: PerfSettingsOptions = {}): HTMLButtonElement {
-  const btn = createButton({ label: 'Perf', testId: 'perf-settings', onClick: open });
+  const btn = createButton({
+    label: 'Performance settings',
+    icon: HEADER_ICONS.perf,
+    title: 'Performance settings',
+    testId: 'perf-settings',
+    onClick: open,
+  });
 
   // The tier the running engine was actually built with (buffer/voices are fixed at
   // AudioContext build). Captured once: the stored pref hasn't changed since boot, so

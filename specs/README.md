@@ -223,6 +223,7 @@ specs/
     sample-recorder.md ·  mic record + buffer editor
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
+    dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     responsive-header.md ·  mobile hamburger menu + header cluster reflow

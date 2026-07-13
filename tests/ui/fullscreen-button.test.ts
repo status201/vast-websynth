@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFullscreenButton } from '../../src/ui/components/fullscreen-button';
+import { HEADER_ICONS } from '../../src/ui/components/header-icons';
 
 /**
  * jsdom has no Fullscreen API, so the supported path runs against a stub
@@ -44,20 +45,29 @@ describe('createFullscreenButton', () => {
     expect(doc.exitFullscreen).toHaveBeenCalledTimes(1);
   });
 
-  it('reflects fullscreen state (on class + label) from fullscreenchange', () => {
+  it('reflects fullscreen state (on class + icon) from fullscreenchange', () => {
+    // innerHTML re-serializes the parsed SVG, so normalize the expected
+    // string through the same parser before comparing.
+    const norm = (svg: string) => {
+      const d = document.createElement('div');
+      d.innerHTML = svg;
+      return d.innerHTML;
+    };
     const doc = makeFullscreenDoc();
     const btn = createFullscreenButton(doc as unknown as Document)!;
     expect(btn.classList.contains('on')).toBe(false);
-    expect(btn.textContent).toBe('Full');
+    expect(btn.innerHTML).toBe(norm(HEADER_ICONS.expand));
+    expect(btn.title).toBe('Toggle fullscreen');
+    expect(btn.getAttribute('aria-label')).toBe('Toggle fullscreen');
 
     doc.fullscreenElement = document.createElement('div');
     doc.fire('fullscreenchange');
     expect(btn.classList.contains('on')).toBe(true);
-    expect(btn.textContent).toBe('Exit');
+    expect(btn.innerHTML).toBe(norm(HEADER_ICONS.compress));
 
     doc.fullscreenElement = null;
     doc.fire('fullscreenchange');
     expect(btn.classList.contains('on')).toBe(false);
-    expect(btn.textContent).toBe('Full');
+    expect(btn.innerHTML).toBe(norm(HEADER_ICONS.expand));
   });
 });

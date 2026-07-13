@@ -61,13 +61,20 @@
   }
 }
 
+/* The header wraps onto extra rows from 1140px down (layout.module.css), so
+   its fixed 80px track must size to content or the wrapped row paints over
+   the panels below. */
+@media (max-width: 1140px) {
+  .app {
+    grid-template-rows: auto auto auto auto 1fr;
+  }
+}
+
 @media (max-width: 992px) {
   .app {
     --knob-size: 36px;
     --side-margin: 8px;
     --cheek-w: 6px;
-    /* header wraps to 2-3 rows here, so its track must size to content */
-    grid-template-rows: auto auto auto auto 1fr;
     gap: 8px;
     padding: 12px;
     padding-left: max(8px, env(safe-area-inset-left));

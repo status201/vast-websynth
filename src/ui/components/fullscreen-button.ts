@@ -1,4 +1,5 @@
-import { createButton, setButtonLabel } from './button';
+import { createButton, setButtonIcon } from './button';
+import { HEADER_ICONS } from './header-icons';
 
 /**
  * Header fullscreen toggle (specs/features/pwa-install.md REQ-2).
@@ -13,19 +14,20 @@ export function createFullscreenButton(doc: Document = document): HTMLButtonElem
   if (!doc.fullscreenEnabled) return null;
 
   const btn = createButton({
-    label: 'Full',
+    label: 'Toggle fullscreen',
+    icon: HEADER_ICONS.expand,
+    title: 'Toggle fullscreen',
     testId: 'fullscreen',
     onClick: () => {
       if (doc.fullscreenElement) void doc.exitFullscreen().catch(() => {});
       else void doc.documentElement.requestFullscreen().catch(() => {});
     },
   });
-  btn.title = 'Toggle fullscreen';
 
   doc.addEventListener('fullscreenchange', () => {
     const on = !!doc.fullscreenElement;
     btn.classList.toggle('on', on);
-    setButtonLabel(btn, on ? 'Exit' : 'Full');
+    setButtonIcon(btn, on ? HEADER_ICONS.compress : HEADER_ICONS.expand);
   });
 
   return btn;

@@ -398,17 +398,24 @@
   .patternRow { min-height: 200px; }
 }
 
+/* The header's four clusters have a min-content width of ~1140px — wider than
+   the viewport well before the 992px reflow. Without this step the header can
+   neither shrink nor wrap in the 993–1140px range, so it (and the .app grid
+   column it widens) overflows right and is clipped by the page's
+   overflow-x:hidden. Let it wrap onto a second row instead. */
+@media (max-width: 1140px) {
+  .header { flex-wrap: wrap; }
+  .headerSpacer { display: none; }
+  .headerGroup { flex-wrap: wrap; }
+}
+
 @media (max-width: 992px) {
   .header {
-    flex-wrap: wrap;
     gap: 8px 10px;
     padding: 8px 10px;
     min-height: 0;
   }
-  .headerSpacer { display: none; }
-  /* Let each cluster's buttons reflow onto a new line instead of overflowing
-     (and getting clipped by the page's overflow-x:hidden) on narrow screens. */
-  .headerGroup { flex-wrap: wrap; gap: 8px 10px; }
+  .headerGroup { gap: 8px 10px; }
   .main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;

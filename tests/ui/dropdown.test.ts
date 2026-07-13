@@ -58,6 +58,22 @@ describe('Dropdown', () => {
     expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
   });
 
+  it('focuses the active option on open, and the first option without one', () => {
+    dd = new Dropdown(['A', 'B', 'C'], 'B');
+    document.body.appendChild(dd.el);
+    toggleOf(dd).click();
+    expect(document.activeElement?.textContent).toBe('B');
+    expect(document.activeElement?.classList.contains('active')).toBe(true);
+  });
+
+  it('returns focus to the toggle when the menu closes', () => {
+    dd = new Dropdown(['A', 'B'], 'A');
+    document.body.appendChild(dd.el);
+    toggleOf(dd).click(); // open → focus moves to the active option
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.activeElement).toBe(toggleOf(dd));
+  });
+
   it('closes on outside click and on Escape', () => {
     dd = new Dropdown(['A', 'B']);
     document.body.appendChild(dd.el);

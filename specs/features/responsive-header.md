@@ -3,27 +3,38 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 1
+version: 2
 owner: ui
 related:
   - architecture
   - performance-mode
+  - dropdown
 source:
   - src/ui/app.ts                      # buildHeader: hamburger toggle + preset cluster
   - src/ui/styles/layout.module.css    # .menuToggle / .presetGroup / .menuOpen rules
+  - src/ui/components/header-icons.ts  # inline-SVG glyphs for the utility buttons
+  - src/ui/components/button.ts        # createButton icon/title/ariaLabel options
+  - src/ui/styles/switch.module.css    # svg.hdr-icon sizing/stroke rules
 ```
 
 ## Background / Why
 
 The header is a single sticky flex row holding four clusters: brand, the preset
-cluster (`Preset:` + preset dropdown + **Save / Perf / About / Help**), the
-transport cluster (Play / BPM / Swing) and the voicing cluster (Mono-Poly /
-Panic / Vol). On a phone (~390px) the preset cluster alone is wider than the
-viewport, so it was clipped by the page's `overflow-x: hidden`. Simply letting
-it wrap fixes the clipping but adds a permanent extra row to a **sticky** header,
-stealing vertical space from the synth. Instead, below a phone breakpoint the
-preset cluster collapses behind a mobile-style hamburger (☰) and expands inline
-only on demand. Wider screens are unchanged.
+cluster (`Preset:` + preset dropdown + the utility buttons **Save / Perf /
+About / Help / Full**), the transport cluster (Play / BPM / Swing) and the
+voicing cluster (Mono-Poly / Panic / Vol). On a phone (~390px) the preset
+cluster alone is wider than the viewport, so it was clipped by the page's
+`overflow-x: hidden`. Simply letting it wrap fixes the clipping but adds a
+permanent extra row to a **sticky** header, stealing vertical space from the
+synth. Instead, below a phone breakpoint the preset cluster collapses behind a
+mobile-style hamburger (☰) and expands inline only on demand. Wider screens are
+unchanged.
+
+Even on desktop the cluster grew crowded as buttons accrued (v2): the five
+utility buttons are now compact **icon buttons** — inline SVG glyphs in the
+synth's `currentColor` style (the `wave-icons.ts` precedent) — each with a
+descriptive `title` tooltip and an `aria-label`, with fullscreen moved to the
+end of the row.
 
 ## Requirements
 
@@ -39,6 +50,25 @@ only on demand. Wider screens are unchanged.
 - **REQ-4** — Only the preset cluster collapses. The transport cluster
   (Play/BPM/Swing) and the voicing cluster (Mono-Poly/Panic/Vol) stay visible at
   every width.
+- **REQ-5** — The cluster's utility buttons are **icon-only**: Save (floppy),
+  Perf (gauge), About (ⓘ), Help (?-in-circle), Fullscreen (expand corners,
+  swapping to compress corners while fullscreen), appended **in that order** —
+  fullscreen last, still omitted entirely where `document.fullscreenEnabled`
+  is false. Icons are inline SVG strings coloured via CSS `currentColor`
+  (never Unicode emoji, which render coloured on some platforms), so the Perf
+  button's tier classes tint its glyph automatically.
+- **REQ-6** — Every icon button carries a descriptive `title` (hover tooltip)
+  **and** an `aria-label`, so accessible names survive the loss of text labels
+  (`createButton` defaults `aria-label` to the `label` option when an icon is
+  set). Stable testids: `preset-save`, `perf-settings`, `about-button`,
+  `help-button`, `fullscreen`.
+- **REQ-7** — The header must never clip content off the right edge at any
+  width. Its clusters' combined min-content width (~1140px) exceeds the
+  viewport well before the 992px reflow, so from **≤1140px** the header row
+  wraps (`flex-wrap`, spacer hidden) instead of overflowing — otherwise the
+  page's `overflow-x: hidden` cuts off the voicing cluster *and*, because the
+  over-wide header widens the single `.app` grid column, the `.main` panel
+  grid's right column (MIXER) with it.
 
 ## Technical design
 
@@ -55,6 +85,15 @@ addition to the shared `headerGroup` class.
 - DOM order in the header: `brand, menuToggle, presetGroup, spacer, transport,
   right`. The toggle sits right after `brand` so, on a narrow screen, CSS
   `margin-left: auto` parks it at the right end of the first wrapped line.
+- Icon buttons (REQ-5/6): `createButton` grows optional `icon` (inline SVG
+  markup rendered instead of the text label), `title`, and `ariaLabel` options;
+  `setButtonIcon` is the icon counterpart of `setButtonLabel` (used by the
+  fullscreen expand↔compress swap on `fullscreenchange`). The glyph strings
+  live in `src/ui/components/header-icons.ts` (`HEADER_ICONS`), modeled on
+  `wave-icons.ts`: `class="hdr-icon"`, `aria-hidden="true"`, no inline colour.
+  `switch.module.css` sizes/strokes `svg.hdr-icon` inside any switch-styled
+  button (`stroke: currentColor; fill: none`, with a `.fill` escape hatch for
+  solid dots).
 
 ### Layer touchpoints & ordering
 
@@ -64,8 +103,15 @@ addition to the shared `headerGroup` class.
   default; an `@media (max-width: 720px)` block (placed **after** the existing
   `≤992px` block so it wins at narrow widths) shows the toggle, hides
   `.presetGroup`, and reveals it via `.header.menuOpen .presetGroup { display:
-  flex; flex-basis: 100% }`. The `≤992px` `.headerGroup { flex-wrap: wrap }` rule
-  is retained so the revealed cluster wraps its buttons.
+  flex; flex-basis: 100% }`. The header/cluster `flex-wrap: wrap` rules live in
+  the `≤1140px` block (REQ-7), so the revealed cluster wraps its buttons at
+  every narrower width; the `≤992px` block keeps only the tighter gap/padding.
+  Breakpoint cascade order in the file: 1280 → 1140 → 992 → 720.
+- `src/styles/layout.css` — the `.app` grid's first row is a fixed `80px`
+  track; a matching `≤1140px` block relaxes it to `auto` (all-auto rows), or
+  the wrapped second header row would paint *over* the panel grid instead of
+  pushing it down. Any width at which the header can wrap must also have the
+  auto row track.
 
 ### Persistence
 
@@ -92,6 +138,20 @@ Scenario: No hamburger on a wide screen
   Then the header menu toggle is hidden
   And the preset selector is visible
 # pinned by: e2e/responsive-header.spec.ts
+
+Scenario: No right-edge clipping in the 993-1140px dead zone
+  Given the app is open at a 1024px-wide viewport (iPad Pro)
+  Then neither the page nor the header overflows horizontally
+  And the Panic button and master volume knob are fully within the viewport
+  And the MIXER panel is visible
+# pinned by: e2e/responsive-header.spec.ts
+
+Scenario: Utility buttons are icon buttons with accessible names
+  Given the app header is built
+  Then Save, Perf, About, Help and Fullscreen render an svg.hdr-icon glyph
+  And each has a descriptive title and aria-label
+  And Fullscreen is the last button of the preset cluster
+# pinned by: tests/ui/button.test.ts (icon/title/ariaLabel options)
 ```
 
 ## Tests & verification

@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Header icon buttons** — the Save / Perf / About / Help / Fullscreen
+  buttons are now compact SVG icon buttons (floppy, gauge, ⓘ, ?, expand
+  corners) with descriptive hover tooltips and accessible labels, decluttering
+  the header; Fullscreen moved to the end of the row and swaps to a
+  compress-corners icon while active. The Perf gauge still tints red / amber /
+  green with the resolved performance tier.
+- **Dropdowns open at the current value** — every dropdown (preset selector,
+  XY Pad axis pickers, drum kit, song/seq slots, mic device) now scrolls the
+  selected option into view and focuses it on open, instead of opening at the
+  top of the list; closing returns focus to the dropdown button.
+
+### Fixed
+
+- **Right edge clipped between ~993 and 1140px** (e.g. iPad Pro landscape,
+  1024px): the header could neither shrink nor wrap in that range, cutting off
+  the Panic button and volume knob — and, on some setups, the MIXER panel
+  column. The header now wraps onto a second row from 1140px down, and the
+  layout grid gives it room instead of letting the wrapped row paint over the
+  panels.
+
 ## [2.0.0] - 2026-07-12
 
 ### Added

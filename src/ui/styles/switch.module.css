@@ -70,3 +70,27 @@
   font-size: 10px;
   letter-spacing: 0.1em;
 }
+
+/* Icon-only buttons (the header's Save/Perf/About/Help/Full): glyphs from
+   header-icons.ts, drawn in currentColor so state classes (Perf tier colours,
+   .on) tint them. `.fill` marks solid sub-shapes (the ⓘ / ? dots). */
+.root :global(svg.hdr-icon),
+:global(.switch svg.hdr-icon) {
+  display: block;
+  width: 20px;
+  height: 20px;
+  /* Paint at 20px but occupy a 15px layout slot, so the button box
+     (padding 6px 10px, min-height 32px) stays exactly as it was. */
+  margin: -2.5px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.root :global(svg.hdr-icon .fill),
+:global(.switch svg.hdr-icon .fill) {
+  fill: currentColor;
+  stroke: none;
+}

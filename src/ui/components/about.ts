@@ -2,6 +2,7 @@
 // collapsible Debug section (live AudioContext state — see ios-audio.md).
 import { Modal } from './modal';
 import { createButton } from './button';
+import { HEADER_ICONS } from './header-icons';
 import { createCollapseToggle } from './collapse-toggle';
 import { isIOS } from '../../platform/ios';
 import { perfDiagnostics } from '../../state/perf-mode';
@@ -24,7 +25,13 @@ const SHORTCUTS: Array<[string, string]> = [
 
 export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
-  const btn = createButton({ label: 'About', onClick: open });
+  const btn = createButton({
+    label: 'About',
+    icon: HEADER_ICONS.about,
+    title: 'About VAST G1-J5',
+    testId: 'about-button',
+    onClick: open,
+  });
 
   let backdrop: HTMLElement | null = null;
   let refreshDebug: (() => void) | null = null;

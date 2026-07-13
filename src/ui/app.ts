@@ -8,6 +8,7 @@ import { Knob } from './components/knob';
 import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
 import { WAVE_ICONS } from './components/wave-icons';
+import { HEADER_ICONS } from './components/header-icons';
 import { ParamDropdown } from './components/param-dropdown';
 import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
@@ -181,7 +182,9 @@ function buildHeader(
   });
 
   const saveBtn = createButton({
-    label: 'Save',
+    label: 'Save preset',
+    icon: HEADER_ICONS.save,
+    title: 'Save preset',
     testId: 'preset-save',
     onClick: async () => {
       const name = await promptDialog({
@@ -208,9 +211,6 @@ function buildHeader(
   presetGroup.appendChild(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
-  // Absent (null) where the Fullscreen API is missing — iPhone Safari.
-  const fullscreenBtn = createFullscreenButton();
-  if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);
   presetGroup.appendChild(createAboutButton(engine));
   presetGroup.appendChild(
     createHelpButton({
@@ -220,6 +220,9 @@ function buildHeader(
       onHelpModeChange: onboarding.onHelpModeChange,
     }),
   );
+  // Last in the row; absent (null) where the Fullscreen API is missing — iPhone Safari.
+  const fullscreenBtn = createFullscreenButton();
+  if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);
   el.appendChild(presetGroup);
 
   const spacer = document.createElement('div');

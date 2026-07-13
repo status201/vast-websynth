@@ -100,9 +100,21 @@ export class Dropdown {
       this.position();
       window.addEventListener('scroll', this.onReposition, true);
       window.addEventListener('resize', this.onReposition);
+      // Land on the current selection instead of the top of a long list
+      // (specs/features/dropdown.md REQ-5). Focusing a native <button> makes
+      // Enter select it; preventScroll keeps the page itself still. The
+      // optional call guards jsdom, which lacks scrollIntoView.
+      const active =
+        this.menu.querySelector<HTMLButtonElement>(`.${styles.option!}.active`) ??
+        this.menu.querySelector<HTMLButtonElement>(`.${styles.option!}`);
+      active?.scrollIntoView?.({ block: 'nearest' });
+      active?.focus({ preventScroll: true });
     } else {
       window.removeEventListener('scroll', this.onReposition, true);
       window.removeEventListener('resize', this.onReposition);
+      // Hand focus back to the toggle so Escape/selection doesn't drop the
+      // keyboard user into a display:none menu (REQ-6).
+      if (this.el.contains(document.activeElement)) this.toggle.focus();
     }
   }
 

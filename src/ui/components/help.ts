@@ -2,6 +2,7 @@
 // tour, or switch on the contextual (i) help badges.
 import { Modal } from './modal';
 import { createButton } from './button';
+import { HEADER_ICONS } from './header-icons';
 import switchStyles from '../styles/switch.module.css';
 import tourStyles from '../styles/tour.module.css';
 
@@ -13,7 +14,13 @@ export interface HelpDeps {
 }
 
 export function createHelpButton(deps: HelpDeps): HTMLButtonElement {
-  const btn = createButton({ label: 'Help', testId: 'help-button', onClick: () => openHelpMenu(deps) });
+  const btn = createButton({
+    label: 'Help',
+    icon: HEADER_ICONS.help,
+    title: 'Keyboard shortcuts & help',
+    testId: 'help-button',
+    onClick: () => openHelpMenu(deps),
+  });
   // Light the Help button orange while the badges are showing, so it's clear
   // they can be toggled back off from here.
   deps.onHelpModeChange((active) => btn.classList.toggle(tourStyles.toggleActive!, active));

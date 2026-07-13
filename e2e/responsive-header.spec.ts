@@ -9,6 +9,10 @@ import { gotoAndStart } from './helpers';
  */
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
+// Inside the 993–1140px dead zone (iPad Pro): the header's min-content width
+// exceeds the viewport, so without the ≤1140px wrap step it overflows and the
+// page's overflow-x:hidden clips the right edge (REQ-7).
+const TABLET = { width: 1024, height: 768 };
 
 test.describe('responsive header (mobile menu)', () => {
   test('collapses the preset cluster behind a hamburger on a phone', async ({ page }) => {
@@ -41,5 +45,37 @@ test.describe('responsive header (mobile menu)', () => {
 
     await expect(page.getByTestId('header-menu')).toBeHidden();
     await expect(page.getByTestId('preset-select')).toBeVisible();
+  });
+
+  test('nothing is clipped off the right edge at 1024px (header wraps)', async ({ page }) => {
+    await page.setViewportSize(TABLET);
+    await gotoAndStart(page);
+
+    // Neither the page nor the header may overflow horizontally. The header
+    // check matters: its flex row can spill content past its own box without
+    // widening the document, so page scrollWidth alone misses the clipping.
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      const header = document.querySelector('[data-testid="app-header"]')!;
+      return {
+        page: doc.scrollWidth - doc.clientWidth,
+        header: header.scrollWidth - header.clientWidth,
+      };
+    });
+    expect(overflow.page).toBe(0);
+    expect(overflow.header).toBe(0);
+
+    // The right-most controls are FULLY visible (ratio 1 — a partially
+    // clipped Panic/Vol would still intersect the viewport and pass at the
+    // default ratio).
+    await expect(page.getByTestId('panic')).toBeInViewport({ ratio: 1 });
+    await expect(page.getByTestId('knob-master.volume')).toBeInViewport({ ratio: 1 });
+    await expect(page.getByText('MIXER', { exact: true })).toBeInViewport();
+
+    // The wrapped header row pushes the panel grid down rather than painting
+    // over it (the .app grid's fixed 80px header track must go auto ≤1140px).
+    const panic = (await page.getByTestId('panic').boundingBox())!;
+    const osc1 = (await page.getByText('OSC 1', { exact: true }).boundingBox())!;
+    expect(panic.y + panic.height).toBeLessThanOrEqual(osc1.y);
   });
 });
