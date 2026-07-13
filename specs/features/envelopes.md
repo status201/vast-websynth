@@ -3,7 +3,7 @@
 ```yaml
 id: envelopes
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -35,6 +35,14 @@ LFO.
 - **REQ-2** — Filter envelope (`env.fil.*`) modulates cutoff additively in
   semitones, scaled by `filter.envAmount` (`-48..48`, bipolar).
 - **REQ-3** — Both apply per-voice (each `Voice` owns its `ampEnv` / `filEnv`).
+- **REQ-4** — Scheduling is **future-time-safe**: `trigger`/`release_` may be
+  called with an audio time up to the transport look-ahead (0.1–0.2 s) in the
+  future (sequencer/arpeggiator schedule a step's attack *and* its `gateEnd`
+  release on the same tick). The phase change anchors at the value the curve
+  *reaches at that time* — never the live `AudioParam.value`, which is a stale
+  snapshot of *now* and steps the output discontinuously (an audible click).
+  The envelope is the **sole writer** of its gain param; `Voice.kill` cuts
+  through `Envelope.cutFast`, never by scheduling on the param directly.
 
 ## Technical design
 
@@ -51,6 +59,18 @@ env.fil.sustain: { range: 0..1,     default: 0.2 }
 env.fil.release: { range: 0.001..6, default: 0.4,   format: ms }
 filter.envAmount:{ range: -48..48,  default: 24, unit: semitones }   # filter spec
 ```
+
+### Scheduled-automation model (REQ-4)
+
+`Envelope` tracks every event it schedules (anchors `{time, value}` +
+`setTargetAtTime` segments `{time, target, tau}`) and computes `valueAt(t)`
+analytically — exact, since it only ever uses `setTargetAtTime` exponentials
+(`v = target + (v0 − target)·e^−(t−t0)/τ`, each segment truncated by the next
+event). Each phase change drops the tracked tail from `t` (mirroring
+`cancelScheduledValues(t)`) and pins the computed value with
+`setValueAtTime(valueAt(t), t)`. `cancelAndHoldAtTime` would do this natively
+but is missing in Firefox (and in the test mocks), so the model is used
+everywhere.
 
 ### Layer touchpoints
 
@@ -76,11 +96,21 @@ Scenario: Filter envelope sweeps the cutoff additively (edge)
   When a note triggers
   Then the effective cutoff peaks ~24 semitones above 60, summed at the AudioParam
 # pinned by: ladder-filter.md invariant; tests/state/params.test.ts
+
+Scenario: A sequenced gated note releases with a ramp, not a snap (regression)
+  Given the sequencer schedules a step's attack at a future `when` and its
+    release at a future `gateEnd` on the same tick (note not yet sounding)
+  When release_(gateEnd) runs
+  Then the release anchors at the sustain-level value the curve reaches at
+    gateEnd — not the pre-attack live param value (~0), which cut the note
+    instantly and clicked
+# pinned by: tests/audio/envelope.test.ts
 ```
 
 ## Tests & verification
 
-- `tests/state/params.test.ts`, `e2e/controls.spec.ts`.
+- `tests/state/params.test.ts`, `tests/audio/envelope.test.ts` (scheduled-automation
+  model, REQ-4), `e2e/controls.spec.ts`.
 - `npm test` / `npm run e2e` / `npm run typecheck`.
 
 ## Open questions / future

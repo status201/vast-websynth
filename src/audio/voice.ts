@@ -120,7 +120,11 @@ export class Voice {
     this.noteOffAt = when;
     this.ampEnv.release_(when);
     this.filEnv.release_(when);
-    const delayMs = (this.ampEnv.releaseDuration() + 0.1) * 1000;
+    // `when` may be up to the transport look-ahead in the future — count the
+    // timer from the scheduled release, not from now, so the voice isn't
+    // marked idle (stealable) while its tail is still sounding.
+    const untilRelease = Math.max(0, when - this.ctx.currentTime);
+    const delayMs = (untilRelease + this.ampEnv.releaseDuration() + 0.1) * 1000;
     this.releaseTimer = window.setTimeout(() => {
       this.releaseTimer = null;
       if (this.state === 'releasing') {
@@ -137,11 +141,9 @@ export class Voice {
       clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
     }
-    const t = Math.max(when, this.ctx.currentTime);
-    const g = this.ampEnv.out.gain;
-    g.cancelScheduledValues(t);
-    g.setValueAtTime(g.value, t);
-    g.setTargetAtTime(0, t, 0.003);
+    // Through the envelope, never on its gain param directly — the envelope's
+    // scheduled-automation model must see every write (envelopes.md REQ-4).
+    this.ampEnv.cutFast(when);
     this.state = 'idle';
     this.currentNote = -1;
     // Deactivate only after the 3 ms kill fade has passed, and only if no

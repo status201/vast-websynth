@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Sequenced synth notes clicked at note-off** — notes triggered by the
+  sequencer (and arpeggiator) were cut instantly at the gate boundary instead
+  of fading over the amp release, producing an audible click; live keyboard
+  playing was unaffected. The envelope now anchors scheduled phase changes at
+  the value the curve reaches at the scheduled time, so gated steps release
+  with the proper tail. The filter envelope is fixed the same way (its cutoff
+  snapped too).
 - **Right edge clipped between ~993 and 1140px** (e.g. iPad Pro landscape,
   1024px): the header could neither shrink nor wrap in that range, cutting off
   the Panic button and volume knob — and, on some setups, the MIXER panel
