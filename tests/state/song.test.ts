@@ -344,7 +344,8 @@ describe('Song', () => {
       const target = new XyPadStore();
       target.set({ x: 'lfo.rate', y: 'lfo.amount' }); // pre-existing assignment
 
-      const v1 = demo(); // Zombie Nation, version 1 — no xy field
+      const v1 = demo(); // Zombie Nation, version 1
+      delete v1.xy; // demos may carry an xy assignment; this test needs an xy-less file
       expect(v1.xy).toBeUndefined();
       Song.apply(v1, bus, patterns, arr as never, target);
 
