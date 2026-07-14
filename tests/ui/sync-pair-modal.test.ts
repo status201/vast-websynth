@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { openSyncPairModal, renderQr, renderDiagnosticsInto } from '../../src/ui/components/sync-pair-modal';
 import { emptyDiagnostics } from '../../src/audio/webrtc-diagnostics';
 import { Modal } from '../../src/ui/components/modal';
@@ -25,6 +25,13 @@ function transport() {
   return new WebRtcSyncTransport({ rtc: makeFakeRtc().ctor, timer: noopTimer, nowMs: () => 0 });
 }
 const syncStub = () => ({ setMode: vi.fn() });
+
+beforeAll(() => {
+  // jsdom has no canvas 2d context and logs a noisy "Not implemented" for every
+  // getContext call; renderQr tolerates a null context (sizing still applies),
+  // so stub it like scope-regions.test.ts does.
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+});
 
 afterEach(() => {
   document.body.replaceChildren();
