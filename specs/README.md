@@ -236,6 +236,7 @@ specs/
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
+    factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + reload)
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe

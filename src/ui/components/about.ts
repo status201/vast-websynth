@@ -2,12 +2,15 @@
 // collapsible Debug section (live AudioContext state — see ios-audio.md).
 import { Modal } from './modal';
 import { createButton } from './button';
+import { confirmDialog } from './dialog';
 import { HEADER_ICONS } from './header-icons';
 import { createCollapseToggle } from './collapse-toggle';
 import { isIOS } from '../../platform/ios';
 import { perfDiagnostics } from '../../state/perf-mode';
+import { restoreFactorySettings } from '../../state/factory-reset';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
+import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/modal.module.css';
 
 declare const __APP_VERSION__: string;
@@ -38,8 +41,15 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   let closeTimer: number | undefined;
   let refreshTimer: number | undefined;
 
+  // A dialog stacked on top (the factory-reset confirm) owns Escape: its own
+  // capture listener registered later would be starved by this one's
+  // stopImmediatePropagation, so yield while any other backdrop is visible.
+  const dialogOnTop = (): boolean =>
+    [...document.querySelectorAll(`.${Modal.backdropClass}`)]
+      .some((el) => el !== backdrop && !el.classList.contains('hidden'));
+
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !dialogOnTop()) {
       // Beat the global Escape→panic handler in shortcuts.ts.
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -136,6 +146,8 @@ function buildModal(close: () => void, engine: StudioApi): { backdrop: HTMLEleme
     keys.appendChild(a);
   }
 
+  const factoryReset = buildFactoryResetButton();
+
   const debug = buildDebugSection(engine);
 
   const closeBtn = createButton({
@@ -149,11 +161,35 @@ function buildModal(close: () => void, engine: StudioApi): { backdrop: HTMLEleme
   card.appendChild(meta);
   card.appendChild(sec);
   card.appendChild(keys);
+  card.appendChild(factoryReset);
   card.appendChild(debug.header);
   card.appendChild(debug.body);
   card.appendChild(closeBtn);
   backdrop.appendChild(card);
   return { backdrop, refreshDebug: debug.refresh };
+}
+
+/**
+ * Destructive "Restore to Factory Settings" — wipes all origin-local storage
+ * and reloads (specs/features/factory-reset.md). Guarded by the styled
+ * confirm, whose italic detail line is the classic Nintendo exit dialog.
+ */
+function buildFactoryResetButton(): HTMLButtonElement {
+  return createButton({
+    label: 'Restore to Factory Settings',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass} ${dialogStyles.danger!}`,
+    testId: 'factory-reset',
+    onClick: async () => {
+      const ok = await confirmDialog({
+        title: 'Restore to Factory Settings',
+        message: 'Are you sure? This erases all presets, songs, and settings saved on this device, then reloads the app.',
+        detail: '“Everything not saved will be lost.”',
+        confirmLabel: 'Restore',
+        danger: true,
+      });
+      if (ok) restoreFactorySettings();
+    },
+  });
 }
 
 /**

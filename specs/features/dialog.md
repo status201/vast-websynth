@@ -3,7 +3,7 @@
 ```yaml
 id: dialog
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -57,6 +57,11 @@ backdrop-click-to-close) rather than reinventing it.
 - **REQ-6** — Stable `data-testid`s for E2E (a single dialog is open at a time):
   the affirmative button is `dialog-confirm`, the dismiss button is
   `dialog-cancel`, the prompt field is `dialog-input`.
+- **REQ-7** *(v2)* — `confirmDialog`'s optional `detail?: string` renders a
+  second paragraph below the message, in **italics** and slightly muted
+  (`.detail`, `data-testid="dialog-detail"`) — supporting copy under the main
+  question (e.g. [factory-reset](factory-reset.md)'s “Everything not saved will
+  be lost.”). Omitted → no extra element.
 
 ## Technical design
 
@@ -71,6 +76,7 @@ dialog:   # src/ui/components/dialog.ts — three functions over Modal, not a cl
 ConfirmOptions:
   title: string
   message: string
+  detail?: string              # italic muted second paragraph below the message (v2)
   confirmLabel?: string        # default 'OK'
   cancelLabel?: string         # default 'Cancel'
   danger?: boolean             # red affirmative button (default false)
@@ -92,7 +98,8 @@ AlertOptions:
 ### Layer touchpoints & ordering
 
 ```yaml
-DOM (inside Modal.body): [ <p .meta message>, (prompt only) <input .input dialog-input>,
+DOM (inside Modal.body): [ <p .meta message>, (confirm, optional) <p .detail dialog-detail>,
+                           (prompt only) <input .input dialog-input>,
                            <div .actions> [ dialog-cancel?, dialog-confirm ] ]
 lifecycle: new Modal({ title, onClose: () => resolveOnce(cancelValue) }); modal.open()
 resolve:
@@ -160,6 +167,12 @@ Scenario: The promise settles exactly once
   Given any dialog is open
   When it is confirmed and then closed again
   Then the promise resolves a single time
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Confirm renders an optional italic detail line
+  Given a confirmDialog opened with a detail string
+  Then a second paragraph (dialog-detail) shows that text below the message
+  And a confirmDialog without detail renders no such element
 # pinned by: tests/ui/dialog.test.ts
 
 Scenario: The Song tab Clear button asks before wiping a chain

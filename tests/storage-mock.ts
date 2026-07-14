@@ -5,7 +5,7 @@ import { vi } from 'vitest';
  * it install a tiny in-memory Storage (same approach as `state/song.test.ts`).
  * Call from `beforeEach`; returns the backing map for direct inspection.
  */
-export function installLocalStorageMock(): Map<string, string> {
+function installStorageMock(globalName: 'localStorage' | 'sessionStorage'): Map<string, string> {
   const store = new Map<string, string>();
   const mock: Storage = {
     getItem: (k) => store.get(k) ?? null,
@@ -17,6 +17,14 @@ export function installLocalStorageMock(): Map<string, string> {
       return store.size;
     },
   };
-  vi.stubGlobal('localStorage', mock);
+  vi.stubGlobal(globalName, mock);
   return store;
+}
+
+export function installLocalStorageMock(): Map<string, string> {
+  return installStorageMock('localStorage');
+}
+
+export function installSessionStorageMock(): Map<string, string> {
+  return installStorageMock('sessionStorage');
 }

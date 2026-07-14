@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Restore to Factory Settings** — a new button in the About modal (below the
+  keyboard shortcuts) clears all data saved on the device (presets, songs,
+  settings) and reloads the app into its factory state. Guarded by a styled
+  confirm dialog whose fine print quotes the classic exit warning: *“Everything
+  not saved will be lost.”*
+
+### Fixed
+
+- **Escape with a dialog stacked over the About modal** closed the About modal
+  underneath instead of the dialog on top. Escape now closes only the topmost
+  layer.
+
 ## [2.0.1] - 2026-07-13
 
 ### Changed

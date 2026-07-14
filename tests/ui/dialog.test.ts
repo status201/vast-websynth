@@ -50,6 +50,23 @@ describe('dialog', () => {
     expect(confirm.textContent).toBe('Clear');
   });
 
+  it('confirmDialog renders an italic detail line when provided', async () => {
+    const p = confirmDialog({ title: 'Sure?', message: 'x', detail: 'fine print' });
+    const detail = byId('dialog-detail')!;
+    expect(detail).not.toBeNull();
+    expect(detail.textContent).toBe('fine print');
+    expect(detail.className).toMatch(/detail/);
+    clickId('dialog-cancel');
+    await p;
+  });
+
+  it('confirmDialog renders no detail element by default', async () => {
+    const p = confirmDialog({ title: 'Sure?', message: 'x' });
+    expect(byId('dialog-detail')).toBeNull();
+    clickId('dialog-cancel');
+    await p;
+  });
+
   it('promptDialog returns the edited text on confirm', async () => {
     const p = promptDialog({ title: 'Name', defaultValue: 'old' });
     const input = byId('dialog-input') as HTMLInputElement;

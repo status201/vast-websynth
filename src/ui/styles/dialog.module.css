@@ -38,6 +38,13 @@
   font-style: italic;
 }
 
+/* Optional supporting line under a confirm's message — italic and dimmer. */
+.detail {
+  margin-top: 10px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

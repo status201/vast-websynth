@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createAboutButton } from '../../src/ui/components/about';
+import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
 import type { IosAudioDiagnostics } from '../../src/audio/ios-audio-session';
+
+// The About modal wires the factory-reset button to this helper; the helper's
+// own behaviour (clear + reload) is pinned by tests/state/factory-reset.test.ts.
+vi.mock('../../src/state/factory-reset', () => ({ restoreFactorySettings: vi.fn() }));
 
 const INERT_IOS: IosAudioDiagnostics = { active: false, status: 'n/a', routed: false, paused: null, currentTime: null };
 
@@ -31,6 +36,7 @@ describe('About modal — Debug section', () => {
   beforeEach(() => {
     installLocalStorageMock();
     document.body.innerHTML = '';
+    vi.mocked(restoreFactorySettings).mockClear();
   });
   afterEach(() => closeOpenModal());
 
@@ -69,6 +75,65 @@ describe('About modal — Debug section', () => {
     btn.click();
 
     expect(unlockRow()?.textContent).toBe('playing · routed');
+  });
+
+  it('places the factory-reset button between the shortcuts grid and Debug', () => {
+    const { engine } = stubEngine();
+    document.body.appendChild(createAboutButton(engine));
+    (document.body.firstElementChild as HTMLButtonElement).click();
+
+    const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
+    expect(reset).not.toBeNull();
+    expect(reset.textContent).toBe('Restore to Factory Settings');
+    // Preceded by the shortcuts key/value grid, followed by the Debug header.
+    expect(reset.previousElementSibling?.textContent).toContain('Play / stop transport');
+    expect(reset.nextElementSibling?.textContent).toContain('Debug');
+  });
+
+  it('confirming the factory-reset dialog restores factory settings', async () => {
+    const { engine } = stubEngine();
+    document.body.appendChild(createAboutButton(engine));
+    (document.body.firstElementChild as HTMLButtonElement).click();
+
+    (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
+    // The styled confirm carries the Nintendo exit line, italic via .detail.
+    const detail = document.querySelector('[data-testid="dialog-detail"]') as HTMLElement;
+    expect(detail.textContent).toBe('“Everything not saved will be lost.”');
+
+    (document.querySelector('[data-testid="dialog-confirm"]') as HTMLButtonElement).click();
+    await Promise.resolve(); // let the awaited confirmDialog promise settle
+    expect(restoreFactorySettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('Escape closes the confirm, not the About modal beneath it', async () => {
+    const { engine } = stubEngine();
+    document.body.appendChild(createAboutButton(engine));
+    (document.body.firstElementChild as HTMLButtonElement).click();
+
+    (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await Promise.resolve();
+
+    // The confirm resolved false (no restore) and its backdrop is fading out…
+    expect(restoreFactorySettings).not.toHaveBeenCalled();
+    const dialogBackdrop = document
+      .querySelector('[data-testid="dialog-confirm"]')!
+      .closest('[class*="backdrop"]')!;
+    expect(dialogBackdrop.classList.contains('hidden')).toBe(true);
+    // …while the About modal underneath stays open.
+    const aboutBackdrop = debugSection()!.closest('[class*="backdrop"]')!;
+    expect(aboutBackdrop.classList.contains('hidden')).toBe(false);
+  });
+
+  it('cancelling the factory-reset dialog changes nothing', async () => {
+    const { engine } = stubEngine();
+    document.body.appendChild(createAboutButton(engine));
+    (document.body.firstElementChild as HTMLButtonElement).click();
+
+    (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-testid="dialog-cancel"]') as HTMLButtonElement).click();
+    await Promise.resolve();
+    expect(restoreFactorySettings).not.toHaveBeenCalled();
   });
 
   it('expands the Debug section when its header is clicked', () => {

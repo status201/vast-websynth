@@ -17,6 +17,8 @@ import styles from '../styles/dialog.module.css';
 export interface ConfirmOptions {
   title: string;
   message: string;
+  /** Italic muted second paragraph below the message (supporting copy). */
+  detail?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   /** Render the affirmative button in a destructive (red) style. */
@@ -79,6 +81,13 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
 
     const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(false) });
     modal.body.appendChild(messagePara(opts.message));
+    if (opts.detail) {
+      const detail = document.createElement('p');
+      detail.className = `${styles.message!} ${styles.detail!}`;
+      detail.dataset.testid = 'dialog-detail';
+      detail.textContent = opts.detail;
+      modal.body.appendChild(detail);
+    }
 
     const row = actionsRow();
     row.appendChild(actionButton(opts.cancelLabel ?? 'Cancel', 'dialog-cancel', () => modal.close()));
