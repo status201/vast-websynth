@@ -26,10 +26,13 @@ trivial production tweak? `touch .sdd-skip` (local) or `[skip-sdd]` in a commit 
 ## What this is
 
 A Web Audio synthesizer in vanilla TypeScript. No framework, no runtime
-dependencies. Build tooling is Vite + `tsc` only. The one exception is the
-MIT-licensed `lamejs` MP3 encoder, *vendored* (not an npm dependency) under
-`src/vendor/lamejs/` for the audio-export feature — typed via a hand-written
-`lame.min.d.ts`.
+dependencies. Build tooling is Vite + `tsc` only. The exceptions are three
+*vendored* (not npm) libraries, each typed via a hand-written used-subset
+`.d.ts` (ADR-003): the MIT `lamejs` MP3 encoder (`src/vendor/lamejs/`, for
+audio export), the MIT `qrcode-generator` QR *encoder* (`src/vendor/qr/`, for
+WiFi-sync pairing) and the Apache-2.0 `jsQR` QR *decoder* (`src/vendor/jsqr/`,
+the WiFi-sync scan fallback where `BarcodeDetector` is absent — see
+`specs/features/webrtc-sync.md`).
 
 ## Commands
 
@@ -58,7 +61,8 @@ that style). There is also a Vitest suite under `tests/` covering the
 pure-logic units (`ParamBus`, `PatternStore`, `Song`, `Presets`, audio `encode`,
 sample `buffer-dsp`, the `zip` codec + `project` bundle build/parse, the
 `song-author` dialect expander, `song-link` share payloads, the published
-authoring docs' drift pins, and the MCP server under `tests/mcp/`), the
+authoring docs' drift pins, the vendored QR encoder→jsQR decoder round-trip
+under `tests/vendor/`, and the MCP server under `tests/mcp/`), the
 transport modules (`Arpeggiator`, `Arrangement`,
 `Sequencer`, `DrumMachine`, `SamplerMachine`, `Performance`) and the DOM
 components (`createButton`, `Dropdown`, `Switch`, `Segmented`, `Tabs`,

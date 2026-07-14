@@ -17,8 +17,9 @@ npm run e2e        # playwright test — browser E2E (Chromium)
 
 ### What this is
 A Web Audio synthesizer in vanilla TypeScript. No framework, no runtime
-dependencies. Build tooling is Vite + `tsc` only. `lamejs` is vendored under
-`src/vendor/lamejs/`.
+dependencies. Build tooling is Vite + `tsc` only. Three libraries are vendored
+under `src/vendor/` (see `specs/decisions/adr-003-no-runtime-dependencies.md`):
+`lamejs` (MP3 encoder), `qr` (QR encoder) and `jsqr` (QR decoder).
 
 ### Architecture (tl;dr)
 - **`ParamBus`** (`state/params.ts`) — single source of truth for every scalar

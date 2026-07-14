@@ -21,9 +21,12 @@ specs assume the contracts and conventions defined here.
 
 VAST G1-J5 is a polyphonic Web Audio synthesizer (+ drum machine + sampler) in
 **vanilla TypeScript**. There is **no UI framework and zero runtime
-dependencies**; build tooling is Vite + `tsc` only. The one third-party runtime
-component is the MIT `lamejs` MP3 encoder, **vendored** (not an npm dependency)
-under `src/vendor/lamejs/`.
+dependencies**; build tooling is Vite + `tsc` only. The only third-party
+runtime code is three **vendored** (not npm) libraries under `src/vendor/` —
+the MIT `lamejs` MP3 encoder (`lamejs/`), the MIT `qrcode-generator` QR
+*encoder* (`qr/`, WiFi-sync pairing) and the Apache-2.0 `jsQR` QR *decoder*
+(`jsqr/`, WiFi-sync scan fallback) — see
+[ADR-003](decisions/adr-003-no-runtime-dependencies.md).
 
 The defining design choice is a hard separation between UI and audio: **they never
 call each other directly.** All scalar state flows through one bus (`ParamBus`),
@@ -52,8 +55,10 @@ unit_tests: Vitest              # ^4.1.10  (jsdom env)
 e2e_tests:  "@playwright/test"  # ^1.61.1  (headless Chromium)
 dom_env:    jsdom               # ^29.1.1  (unit-test DOM)
 runtime_deps: none              # zero — no `dependencies` block in package.json
-vendored:
-  lamejs: src/vendor/lamejs/    # MIT MP3 encoder, NOT an npm dependency
+vendored:                       # NOT npm dependencies — see ADR-003
+  lamejs: src/vendor/lamejs/    # MIT MP3 encoder (audio export)
+  qr:     src/vendor/qr/        # MIT qrcode-generator, QR encoder (WiFi-sync pairing)
+  jsqr:   src/vendor/jsqr/      # Apache-2.0 jsQR, QR decoder (WiFi-sync scan fallback)
 release: scripts/release.mjs    # zero-dep bump+build+zip; see DEPLOYMENT.md
 commands:
   dev: vite --host
@@ -317,7 +322,7 @@ load-bearing ones:
 - [ADR-002](decisions/adr-002-audioworklet-compressor.md) — a custom AudioWorklet
   compressor over the native `DynamicsCompressorNode`.
 - [ADR-003](decisions/adr-003-no-runtime-dependencies.md) — zero runtime
-  dependencies (vanilla TS + the Web platform; `lamejs` vendored).
+  dependencies (vanilla TS + the Web platform; `lamejs`/`qr`/`jsqr` vendored).
 - [ADR-004](decisions/adr-004-patternstore-separate-from-parambus.md) —
   `PatternStore` separate from `ParamBus` (REQ-5; grids aren't scalars).
 - [ADR-005](decisions/adr-005-cutoff-as-midi-note.md) — filter cutoff as a MIDI
@@ -341,6 +346,9 @@ load-bearing ones:
 - [ADR-012](decisions/adr-012-true-bypass-disconnects.md) — bypassed effects
   disconnect their processed path after the crossfade settles (true bypass), so
   idle convolvers/shapers/compressor worklets cost zero audio-thread CPU.
+- [ADR-013](decisions/adr-013-authoring-dialect-input-only.md) — the song
+  authoring dialect is **input-only** (every import surface expands it to the
+  canonical format; nothing ever exports it).
 
 ## Tests & verification
 
