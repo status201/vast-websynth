@@ -19,7 +19,8 @@ remains the canonical, exhaustive reference.
 — enforced by `scripts/sdd-guard.mjs` (Claude Code hooks in `.claude/settings.json`
 + the `sdd-check` CI job). A blocked `Edit`/`Write` or a blocked `Stop` is the gate
 working: write the spec first (`/feature`, `/fix`, `/spec`). Exempt: paths outside
-`src/`/`public/worklets/`, plus `*.md`, `*.css`/styles, and `src/vendor/`. Genuinely
+`src/`/`public/worklets/`, plus `*.md`, `*.css`/styles, `src/vendor/`, and
+`src/state/demos/` (demo songs are data drop-ins). Genuinely
 trivial production tweak? `touch .sdd-skip` (local) or `[skip-sdd]` in a commit / the
 `skip-sdd` PR label (CI). See `specs/README.md` → "Procedure by change type".
 

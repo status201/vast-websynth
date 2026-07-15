@@ -18,7 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Restore to Factory Settings** — a new button in the About modal (below the
+- **holistic1 + holistic2** — twin demo songs built for multi-synth play: each
+  is a funky, syncopated 12-bar groove on its own (112 BPM, E minor, 12-bar
+  blues form), but sync two instances (Web MIDI or WiFi) and play them together
+  and the bass and lead hocket into one composite melody while the two half-kits
+  (kick/snare/low toms vs claps/hats/high toms) merge into a full drum kit —
+  down to a bar-12 tom fill that cascades across both machines. Demo drop-ins
+  under `src/state/demos/` are now exempt from the SDD spec guard (they're data,
+  not code).
   keyboard shortcuts) clears all data saved on the device (presets, songs,
   settings) and reloads the app into its factory state. Guarded by a styled
   confirm dialog whose fine print quotes the classic exit warning: *“Everything

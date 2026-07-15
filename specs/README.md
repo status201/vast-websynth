@@ -159,7 +159,9 @@ SDD is enforced by `scripts/sdd-guard.mjs`, wired as Claude Code hooks
   commits).
 
 **Exempt automatically** (no spec needed): everything outside `src/` /
-`public/worklets/`, plus `*.md`, `*.css` / `src/ui/styles/**`, and `src/vendor/**`.
+`public/worklets/`, plus `*.md`, `*.css` / `src/ui/styles/**`, `src/vendor/**`,
+and `src/state/demos/**` (demo songs are data drop-ins, not code — see
+`recipes/add-a-demo-song.md`).
 
 **Explicit bypass** for a rare trivial *production* change: `touch .sdd-skip`
 (a gitignored sentinel) locally, or put `[skip-sdd]` in a commit message / add the

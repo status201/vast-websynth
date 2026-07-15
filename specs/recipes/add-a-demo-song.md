@@ -12,7 +12,8 @@ source:
   - src/state/song.ts                    # import.meta.glob auto-registration
 ```
 
-How to add a built-in demo song. This is a **pure data drop-in** — no code changes.
+How to add a built-in demo song. This is a **pure data drop-in** — no code changes,
+and `src/state/demos/` is allowlisted in the SDD guard, so a new demo needs no spec.
 
 ## Background / Why
 

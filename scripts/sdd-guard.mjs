@@ -49,7 +49,8 @@ function isProductionPath(rel) {
     p.endsWith('.md') ||
     p.endsWith('.css') ||
     p.includes('/styles/') ||
-    p.startsWith('src/vendor/');
+    p.startsWith('src/vendor/') ||
+    p.startsWith('src/state/demos/');
   return !allow;
 }
 
