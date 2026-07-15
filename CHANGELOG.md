@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Motion sequencer** — a new machine between Sampler and Song that automates
+  the XY Pad's two assigned params from a 16-step × 4-bank grid. Every step is
+  a mini XY pad: drag to set an anchor, double-click to clear; a graph line
+  traces the selected axis across the bar (Y/X view toggle). Slide mode ramps
+  smoothly between anchors (filter sweeps in one bar: anchor min → max → min);
+  Step mode jumps and holds (param-lock stabs). Each bank can optionally
+  override which two params it drives (e.g. bank A cutoff×resonance, bank B
+  delay time×mix), falling back to the XY Pad assignment. Motion has its own
+  arrangement chain lane and Song-panel card, respects rests, and restores
+  every automated param to its pre-play value on stop. Song files grow to v4
+  (additive — older songs load unchanged); the AI authoring dialect gains a
+  `motion` key and both published schemas document it.
+
 - **holistic1 + holistic2** — twin demo songs built for multi-synth play: each
   is a funky, syncopated 12-bar groove on its own (112 BPM, E minor, 12-bar
   blues form), but sync two instances (Web MIDI or WiFi) and play them together

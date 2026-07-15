@@ -265,3 +265,38 @@ describe('Arrangement', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 });
+
+describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6)', () => {
+  it('a disabled motion lane follows the motion edit bank', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+    patterns.setMotionEditBank(3);
+    clock.fireStart();
+    expect(arr.motionPlayBank).toBe(3);
+    expect(arr.motionResting).toBe(false);
+  });
+
+  it('an enabled motion chain advances one slot per bar and wraps', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+    arr.setMotionChain([0, 2], true);
+    clock.fireStart();
+    playBar(clock, 0);
+    expect(arr.motionPlayBank).toBe(0);
+    playBar(clock, 1);
+    expect(arr.motionPlayBank).toBe(2);
+    playBar(clock, 2);
+    expect(arr.motionPlayBank).toBe(0); // wrapped
+  });
+
+  it('a REST slot sets motionResting', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+    arr.setMotionChain([REST], true);
+    clock.fireStart();
+    expect(arr.motionResting).toBe(true);
+  });
+});

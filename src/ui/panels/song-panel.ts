@@ -11,12 +11,12 @@ import { Dropdown } from '../components/dropdown';
 import { audibleLanes, LANE_IDS, type LaneId, type LaneFlags } from '../../audio/transport/lane-mix';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
-import { createXyPadWindowController } from '../components/xy-pad-window';
+import type { XyPadWindowController } from '../components/xy-pad-window';
 import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
-import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS } from '../../state/patterns';
+import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS, MOTION_STEP_DEFAULTS, BANK_COUNT } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
@@ -57,7 +57,7 @@ export interface SongPanel {
   importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
@@ -84,6 +84,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       () => engine.arrangement.samplerChainPos, engine, bridge),
   };
   for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
+  // Motion is not an audio lane (no mute/solo/volume, outside audibleLanes) —
+  // its card is chain-only (motion-sequencer.md REQ-6).
+  chains.appendChild(buildChainLane(
+    'Motion', 'motion', bus, engine.arrangement.motion,
+    (s, en) => engine.arrangement.setMotionChain(s, en),
+    () => engine.arrangement.motionChainPos, engine, bridge, { mixer: false }));
   root.appendChild(chains);
 
   // Dim a lane card whenever it is silenced — by its own mute or by another
@@ -104,10 +110,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   }
 
   // ---- Live DJ FX ----
-  // One shared XY Pad window controller: the Song panel's launcher AND the LIVE FX
-  // window's launcher toggle the SAME window (never two).
-  const xyWin = createXyPadWindowController(bus, xy);
-
+  // The shared XY Pad window controller comes from app.ts: the Song panel's
+  // launcher, the LIVE FX window's, and the Motion panel's all toggle the SAME
+  // window (never two).
   const fx = el('div', styles.djFx!);
   // The LIVE FX launcher doubles as the section title (replaces the old text label,
   // saving space) and leads the row; it opens the floating window usable off the Song tab.
@@ -324,11 +329,14 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       drumBanks: emptyDrumBanks(),
       samplerBanks: emptySamplerBanks(),
       sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
+      motionBanks: emptyMotionBanks(),
+      motionAssigns: Array(BANK_COUNT).fill(null),
     });
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
     engine.arrangement.setSeqChain([0], false);
     engine.arrangement.setDrumChain([0], false);
     engine.arrangement.setSamplerChain([0], false);
+    engine.arrangement.setMotionChain([0], false);
   });
 
   io.appendChild(el('span', styles.ioLabel!, 'Slot:'));
@@ -425,15 +433,21 @@ function emptySamplerBanks() {
       Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))));
 }
 
+function emptyMotionBanks() {
+  return Array.from({ length: BANK_COUNT }, () =>
+    Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_STEP_DEFAULTS })));
+}
+
 function buildChainLane(
   title: string,
-  prefix: LaneId,
+  prefix: LaneId | 'motion',
   bus: ParamBus,
   lane: ChainLane,
   setChain: (steps: number[], enabled: boolean) => void,
   getPos: () => number,
   engine: StudioApi,
   bridge: UiBridge,
+  opts: { mixer?: boolean } = {},
 ): HTMLElement {
   const root = el('div', styles.lane!);
   root.dataset.testid = `song-lane-${prefix}`;
@@ -455,13 +469,16 @@ function buildChainLane(
   // DJ mixer strip: mute / solo / volume, so the lane is operable from the Song
   // tab without switching machines. All three bind straight to ParamBus, so
   // they stay in sync with the per-machine panels and persist with the song.
-  const mix = el('div', styles.mix!);
-  mix.appendChild(new Switch(bus, `${prefix}.mute`, 'Mute').el);
-  mix.appendChild(new Switch(bus, `${prefix}.solo`, 'Solo').el);
-  const vol = new Knob({ bus, paramId: `${prefix}.master`, label: 'Vol', size: 34 });
-  vol.el.classList.add(styles.vol!);
-  mix.appendChild(vol.el);
-  root.appendChild(mix);
+  // A non-audio lane (motion) opts out — it has nothing to mix.
+  if (opts.mixer !== false) {
+    const mix = el('div', styles.mix!);
+    mix.appendChild(new Switch(bus, `${prefix}.mute`, 'Mute').el);
+    mix.appendChild(new Switch(bus, `${prefix}.solo`, 'Solo').el);
+    const vol = new Knob({ bus, paramId: `${prefix}.master`, label: 'Vol', size: 34 });
+    vol.el.classList.add(styles.vol!);
+    mix.appendChild(vol.el);
+    root.appendChild(mix);
+  }
 
   const chips = el('div', styles.chips!);
   root.appendChild(chips);

@@ -155,6 +155,30 @@ function checkXy(v: unknown, add: AddError): void {
   }
 }
 
+/** v4 motion step — an optional XY anchor; x/y checked only when present. */
+const validateMotionStep: CellValidator = (path, value, add) => {
+  if (!isObject(value)) { add(`${path} must be an object (got ${describe(value)})`); return; }
+  checkBool(`${path}.on`, value.on, add, false);
+  checkUnit(`${path}.x`, value.x, add);
+  checkUnit(`${path}.y`, value.y, add);
+};
+
+/** v4 per-bank axis overrides — BANK_COUNT entries, each null or {x?, y?} of ids. */
+function checkMotionAssigns(v: unknown, add: AddError): void {
+  if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${BANK_COUNT} entries (got ${describe(v)})`); return; }
+  if (v.length !== BANK_COUNT) add(`motionAssigns must have ${BANK_COUNT} entries (got ${v.length})`);
+  v.forEach((a: unknown, i) => {
+    if (a === null) return;
+    if (!isObject(a)) { add(`motionAssigns[${i}] must be null or an object (got ${describe(a)})`); return; }
+    for (const axis of ['x', 'y'] as const) {
+      const id = a[axis];
+      if (id !== undefined && (typeof id !== 'string' || id.length === 0)) {
+        add(`motionAssigns[${i}].${axis} must be a non-empty string (got ${describe(id)})`);
+      }
+    }
+  });
+}
+
 /**
  * Validate a parsed value as a `SongFile`. Returns the (unchanged) value typed
  * as `SongFile` on success, or the list of human-readable errors on failure.
@@ -167,7 +191,7 @@ export function validateSongFile(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== 'websynth-song') add(`format must be "websynth-song" (got ${describe(o.format)})`);
-  if (o.version !== 1 && o.version !== 2 && o.version !== 3) add(`version must be 1, 2, or 3 (got ${describe(o.version)})`);
+  if (o.version !== 1 && o.version !== 2 && o.version !== 3 && o.version !== 4) add(`version must be 1, 2, 3, or 4 (got ${describe(o.version)})`);
   if (typeof o.name !== 'string') add(`name must be a string (got ${describe(o.name)})`);
 
   checkParams(o.params, add);
@@ -183,6 +207,11 @@ export function validateSongFile(value: unknown): SongValidation {
 
   // v3 (optional) — XY Pad axis assignment; only validated when present.
   if (o.xy !== undefined) checkXy(o.xy, add);
+
+  // v4 (optional) — motion sequencer; only validated when present.
+  if (o.motionBanks !== undefined) check2D('motionBanks', o.motionBanks, SEQ_LENGTH, validateMotionStep, add);
+  if (o.motionAssigns !== undefined) checkMotionAssigns(o.motionAssigns, add);
+  if (o.motionChain !== undefined) checkChain('motionChain', o.motionChain, true, add);
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, file: value as unknown as SongFile };

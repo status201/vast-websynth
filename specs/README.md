@@ -205,7 +205,8 @@ specs/
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
-    arrangement.md     ·  the three chain lanes
+    arrangement.md     ·  the four chain lanes
+    motion-sequencer.md ·  XY param automation machine (anchors, slide/step)
     arrangement-rest.md ·  the always-empty "rest" chain slot
     performance.md     ·  live DJ FX (stutter/fill/drop/tape-stop)
     midi-clock-sync.md ·  master/slave transport sync over MIDI real-time (24 PPQN)

@@ -3,7 +3,7 @@ import { SEQ_LENGTH, REST, clampChainStep } from '../../state/patterns';
 import type { TickSubscriber } from './tick-source';
 
 /**
- * Song arrangement: two independent chain lanes (sequencer and drums).
+ * Song arrangement: independent chain lanes (sequencer, drums, sampler, motion).
  *
  * Each lane is an ordered list of bank indices (e.g. A A B A → [0,0,1,0]).
  * While a lane is enabled the transport plays bank `steps[pos]`, advancing
@@ -23,20 +23,24 @@ export class Arrangement {
   readonly seq: ChainLane = { enabled: false, steps: [0] };
   readonly drum: ChainLane = { enabled: false, steps: [0] };
   readonly sampler: ChainLane = { enabled: false, steps: [0] };
+  readonly motion: ChainLane = { enabled: false, steps: [0] };
 
   seqPlayBank = 0;
   drumPlayBank = 0;
   samplerPlayBank = 0;
+  motionPlayBank = 0;
 
   // True while an enabled lane's current slot is a REST (an empty bar): the
   // machine plays silence this bar. See arrangement-rest.md.
   seqResting = false;
   drumResting = false;
   samplerResting = false;
+  motionResting = false;
 
   private seqPos = 0;
   private drumPos = 0;
   private samplerPos = 0;
+  private motionPos = 0;
   private expectFirstBar = true;
   private readonly changeListeners = new Set<() => void>();
 
@@ -49,6 +53,7 @@ export class Arrangement {
       this.seqPos = laneSeek(this.seq, bar);
       this.drumPos = laneSeek(this.drum, bar);
       this.samplerPos = laneSeek(this.sampler, bar);
+      this.motionPos = laneSeek(this.motion, bar);
       // A bar-aligned start suppresses the first boundary's increment (that
       // boundary IS this bar); a mid-bar start lets the next boundary — the
       // genuine next bar — advance.
@@ -72,6 +77,9 @@ export class Arrangement {
         if (this.sampler.enabled && this.sampler.steps.length) {
           this.samplerPos = (this.samplerPos + 1) % this.sampler.steps.length;
         }
+        if (this.motion.enabled && this.motion.steps.length) {
+          this.motionPos = (this.motionPos + 1) % this.motion.steps.length;
+        }
       }
       this.recompute();
       this.notify();
@@ -83,6 +91,7 @@ export class Arrangement {
   get seqChainPos(): number { return this.seqPos; }
   get drumChainPos(): number { return this.drumPos; }
   get samplerChainPos(): number { return this.samplerPos; }
+  get motionChainPos(): number { return this.motionPos; }
 
   setSeqChain(steps: number[], enabled: boolean): void {
     this.seq.steps = steps.length ? steps.map(clampChainStep) : [0];
@@ -108,6 +117,14 @@ export class Arrangement {
     this.notify();
   }
 
+  setMotionChain(steps: number[], enabled: boolean): void {
+    this.motion.steps = steps.length ? steps.map(clampChainStep) : [0];
+    this.motion.enabled = enabled;
+    this.motionPos = 0;
+    this.recompute();
+    this.notify();
+  }
+
   onChange(fn: () => void): () => void {
     this.changeListeners.add(fn);
     return () => { this.changeListeners.delete(fn); };
@@ -127,6 +144,9 @@ export class Arrangement {
     const sampler = resolveLane(this.sampler, this.samplerPos, this.patterns.samplerEditBank);
     this.samplerPlayBank = sampler.playBank;
     this.samplerResting = sampler.resting;
+    const motion = resolveLane(this.motion, this.motionPos, this.patterns.motionEditBank);
+    this.motionPlayBank = motion.playBank;
+    this.motionResting = motion.resting;
   }
 }
 

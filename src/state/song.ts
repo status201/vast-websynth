@@ -4,7 +4,7 @@
  * slots (mirrors the Presets pattern in `preset.ts`).
  */
 import type { ParamBus } from './params';
-import type { PatternStore, SeqStep, DrumCell, SamplerStep } from './patterns';
+import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
@@ -24,7 +24,7 @@ export interface ChainData {
 
 export interface SongFile {
   format: 'websynth-song';
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   name: string;
   params: Record<string, number>;
   seqBanks: SeqStep[][];
@@ -38,6 +38,11 @@ export interface SongFile {
   sampleNames?: (string | null)[];
   // ---- v3: XY Pad axis assignment (optional so v1/v2 files still load) ----
   xy?: XyAssign;
+  // ---- v4: motion sequencer (optional so v1-v3 files still load) ----
+  motionBanks?: MotionStep[][];
+  /** Per-bank axis override; null = inherit the song's XY Pad assignment. */
+  motionAssigns?: (MotionAssign | null)[];
+  motionChain?: ChainData;
 }
 
 export const Song = {
@@ -45,7 +50,7 @@ export const Song = {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 3,
+      version: 4,
       name,
       params: bus.snapshot(),
       seqBanks: snap.seqBanks,
@@ -56,6 +61,9 @@ export const Song = {
       samplerChain: { enabled: arr.sampler.enabled, steps: [...arr.sampler.steps] },
       sampleNames: [...patterns.sampleNames],
       xy: xy ? xy.get() : { ...XY_DEFAULT_ASSIGN },
+      motionBanks: snap.motionBanks,
+      motionAssigns: snap.motionAssigns,
+      motionChain: { enabled: arr.motion.enabled, steps: [...arr.motion.steps] },
     };
   },
 
@@ -67,10 +75,13 @@ export const Song = {
       drumBanks: file.drumBanks,
       samplerBanks: file.samplerBanks,
       sampleNames: file.sampleNames,
+      motionBanks: file.motionBanks,
+      motionAssigns: file.motionAssigns,
     });
     arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);
     arr.setSamplerChain(file.samplerChain?.steps ?? [0], file.samplerChain?.enabled ?? false);
+    arr.setMotionChain(file.motionChain?.steps ?? [0], file.motionChain?.enabled ?? false);
     xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN);
   },
 

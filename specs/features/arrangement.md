@@ -18,8 +18,10 @@ source:
   - src/ui/panels/song-panel.ts
 ```
 
-Three independent chain lanes (sequencer / drums / sampler) that sequence
-[banks](banks.md) into a song, one bank per bar.
+Four independent chain lanes (sequencer / drums / sampler / motion) that sequence
+[banks](banks.md) into a song, one bank per bar. The motion lane drives the
+[motion sequencer](motion-sequencer.md) (param automation, not audio) and behaves
+identically to the audio lanes here.
 
 ## Background / Why
 
@@ -32,7 +34,7 @@ tick listener settles the play banks first.
 
 ## Requirements
 
-- **REQ-1** — Lanes `seq`/`drum`/`sampler`, each `{ enabled, steps: bankIndex[] }`.
+- **REQ-1** — Lanes `seq`/`drum`/`sampler`/`motion`, each `{ enabled, steps: bankIndex[] }`.
 - **REQ-2** — Advance one slot per bar (`step % SEQ_LENGTH === 0`); wrap on the
   lane length.
 - **REQ-3** — A disabled lane's play bank follows that machine's edit bank.
@@ -59,10 +61,10 @@ tick listener settles the play banks first.
 
 ```yaml
 Arrangement:  # src/audio/transport/arrangement.ts
-  seq / drum / sampler: ChainLane { enabled, steps: number[] }
-  seqPlayBank / drumPlayBank / samplerPlayBank: number   # read by the machines
-  seqResting / drumResting / samplerResting: boolean      # rest slot -> silence (arrangement-rest.md)
-  setSeqChain(steps, enabled) / setDrumChain(...) / setSamplerChain(...)
+  seq / drum / sampler / motion: ChainLane { enabled, steps: number[] }
+  seqPlayBank / drumPlayBank / samplerPlayBank / motionPlayBank: number   # read by the machines
+  seqResting / drumResting / samplerResting / motionResting: boolean      # rest slot -> silence (arrangement-rest.md)
+  setSeqChain(steps, enabled) / setDrumChain(...) / setSamplerChain(...) / setMotionChain(...)
   onChange(fn) -> unsubscribe
   # subscribes clock.onStart (reset) + clock.onTick (advance per bar)
 ChainLane: { enabled: boolean, steps: number[] }   # steps ∈ { REST, 0..BANK_COUNT-1 }

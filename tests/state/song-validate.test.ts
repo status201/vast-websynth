@@ -18,6 +18,7 @@ function fakeArr() {
     seq: { enabled: false, steps: [0] as number[] },
     drum: { enabled: false, steps: [0] as number[] },
     sampler: { enabled: false, steps: [0] as number[] },
+    motion: { enabled: false, steps: [0] as number[] },
   };
 }
 
@@ -114,7 +115,7 @@ describe('validateSongFile — rejects', () => {
 
   it('an unknown version', () => {
     const f = clone(captureValid()) as Record<string, unknown>;
-    f.version = 4;
+    f.version = 5;
     expectReject(f, 'version');
   });
 
@@ -241,5 +242,53 @@ describe('published JSON Schema file', () => {
     expect(schema.properties.version.enum).toEqual(expect.arrayContaining([1, 2, 3]));
     expect(schema.properties.xy?.properties).toHaveProperty('x');
     expect(schema.properties.xy?.properties).toHaveProperty('y');
+  });
+});
+
+describe('validateSongFile — v4 motion fields', () => {
+  const withMotion = () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    // captureValid() already emits motionBanks/motionAssigns/motionChain (v4);
+    // sanity-check that here so the rejects below mutate real fields.
+    expect(f.motionBanks).toBeDefined();
+    expect(f.motionAssigns).toBeDefined();
+    expect(f.motionChain).toBeDefined();
+    return f;
+  };
+
+  it('accepts a captured v4 file and sparse {on:false} motion steps', () => {
+    const f = withMotion();
+    (f.motionBanks as unknown[][])[0]![0] = { on: false };
+    expect(validateSongFile(f).ok).toBe(true);
+  });
+
+  it('accepts a v3 file without any motion fields', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    delete f.motionBanks;
+    delete f.motionAssigns;
+    delete f.motionChain;
+    f.version = 3;
+    expect(validateSongFile(f).ok).toBe(true);
+  });
+
+  it('rejects an out-of-range coordinate, naming its path', () => {
+    const f = withMotion();
+    (f.motionBanks as unknown[][])[0]![3] = { on: true, x: 1.5, y: 0 };
+    expectReject(f, 'motionBanks[0][3].x');
+  });
+
+  it('rejects a wrong motionAssigns shape', () => {
+    const f = withMotion();
+    f.motionAssigns = [null, null, null]; // 3 entries
+    expectReject(f, 'motionAssigns must have 4 entries');
+    const g = withMotion();
+    (g.motionAssigns as unknown[])[1] = { x: '' };
+    expectReject(g, 'motionAssigns[1].x');
+  });
+
+  it('rejects a bad motionChain step', () => {
+    const f = withMotion();
+    (f.motionChain as { steps: unknown[] }).steps = [9];
+    expectReject(f, 'motionChain.steps[0]');
   });
 });

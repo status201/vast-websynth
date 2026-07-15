@@ -43,9 +43,16 @@
       "description": "0..4 sampler banks. Slot keys: 's1'..'s8' or '0'..'7'. Slots play user-loaded audio; audio is never embedded.",
       "items": { "$ref": "#/$defs/hitBank" }
     },
+    "motion": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "0..4 motion-sequencer banks: XY param automation over the bar. Each bank is an anchor list, or {assign, steps} to override which two params this bank drives (an unset axis inherits 'xy'). 'motion.slide' param: 1 (default) ramps linearly between anchors, 0 jumps and holds.",
+      "items": { "$ref": "#/$defs/motionBank" }
+    },
     "seqChain": { "$ref": "#/$defs/chain", "description": "Sequencer arrangement lane. Omitted = play bank A (chain disabled)." },
     "drumChain": { "$ref": "#/$defs/chain", "description": "Drum arrangement lane." },
     "samplerChain": { "$ref": "#/$defs/chain", "description": "Sampler arrangement lane." },
+    "motionChain": { "$ref": "#/$defs/chain", "description": "Motion arrangement lane." },
     "sampleNames": {
       "type": "array",
       "maxItems": 8,
@@ -151,6 +158,45 @@
         "type": "array",
         "items": { "$ref": "#/$defs/hit" }
       }
+    },
+    "motionAnchor": {
+      "type": "object",
+      "description": "One motion anchor: the assigned params' normalized 0..1 positions at a step (taper space, like the XY pad surface).",
+      "required": ["step", "x", "y"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "motionBank": {
+      "description": "One bar of XY automation: an anchor list, or {assign, steps} to override the driven params per bank.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/motionAnchor" }
+        },
+        {
+          "type": "object",
+          "required": ["steps"],
+          "properties": {
+            "assign": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "string", "minLength": 1 },
+                "y": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/motionAnchor" }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "chain": {
       "description": "Arrangement lane, one bank per bar, looped: a bank-letter string ('.'/'-' = silent bar, spaces ignored), an index array (-1 = silent bar), or the full {enabled, steps} object. String/array shorthands imply enabled: true.",

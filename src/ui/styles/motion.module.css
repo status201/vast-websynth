@@ -1,0 +1,99 @@
+/* Motion sequencer panel (specs/features/motion-sequencer.md). */
+
+/* One mini XY pad per step. The parent grid (drum.module.css .cells) controls
+   width; the pad keeps itself square-ish with a fixed height that reads well
+   inside the pattern row. */
+.pad {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  height: 64px;
+  padding: 0;
+  background: linear-gradient(180deg, #171310, #0e0b09);
+  border: 1px solid #3a2f26;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.pad.beat {
+  border-color: #5a3626;
+}
+
+.pad:global(.playing) {
+  border-color: #ffb051;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 6px rgba(255, 176, 81, 0.55);
+}
+
+/* Faint center crosshair so an empty pad still reads as a 2-D surface. */
+.pad::before,
+.pad::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: rgba(255, 176, 81, 0.08);
+}
+.pad::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+.pad::after { top: 50%; left: 0; right: 0; height: 1px; }
+
+.dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffb051;
+  box-shadow: 0 0 5px rgba(255, 176, 81, 0.8);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: none;
+}
+
+.pad:global(.on) .dot { display: block; }
+.pad.beat .dot { background: #ff7a4d; box-shadow: 0 0 5px rgba(255, 122, 77, 0.8); }
+
+/* The connecting graph for the selected axis, drawn over the whole grid.
+   Explicit width/height: an absolutely-positioned SVG is a replaced element,
+   so `inset: 0` alone leaves it at its intrinsic 300x150. */
+.graph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.graph polyline {
+  fill: none;
+  stroke: rgba(255, 176, 81, 0.55);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.graph circle {
+  fill: rgba(255, 176, 81, 0.9);
+}
+
+/* Axes row: which params the edit bank drives (override or inherited). */
+.axes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #b9a58f;
+}
+.axes .axisLabel {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8f7a63;
+}
+/* An axis dropdown showing an inherited (non-overridden) assignment. */
+.inheritedSel {
+  opacity: 0.62;
+  font-style: italic;
+}
+.hint {
+  font-size: 10px;
+  color: #77664f;
+}

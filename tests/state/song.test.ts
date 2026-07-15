@@ -17,6 +17,7 @@ function fakeArr() {
     seq: { enabled: false, steps: [0] as number[] },
     drum: { enabled: false, steps: [0] as number[] },
     sampler: { enabled: false, steps: [0] as number[] },
+    motion: { enabled: false, steps: [0] as number[] },
     setSeqChain(steps: number[], enabled: boolean) {
       this.seq = { enabled, steps: [...steps] };
     },
@@ -25,6 +26,9 @@ function fakeArr() {
     },
     setSamplerChain(steps: number[], enabled: boolean) {
       this.sampler = { enabled, steps: [...steps] };
+    },
+    setMotionChain(steps: number[], enabled: boolean) {
+      this.motion = { enabled, steps: [...steps] };
     },
   };
 }
@@ -263,7 +267,7 @@ describe('Song', () => {
       arr.setSamplerChain([2, 3], true);
 
       const file = Song.capture(bus, patterns, arr as never, 'S');
-      expect(file.version).toBe(3);
+      expect(file.version).toBe(4);
       expect(file.samplerChain).toEqual({ enabled: true, steps: [2, 3] });
       expect(file.samplerBanks!.length).toBe(4);
       expect(file.samplerBanks![0]![0]![3]!.on).toBe(true);
@@ -310,7 +314,7 @@ describe('Song', () => {
       xy.set({ x: 'lfo.rate', y: 'master.volume' });
 
       const file = Song.capture(bus, patterns, fakeArr() as never, 'XY', xy);
-      expect(file.version).toBe(3);
+      expect(file.version).toBe(4);
       expect(file.xy).toEqual({ x: 'lfo.rate', y: 'master.volume' });
     });
 
@@ -318,7 +322,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'XY');
-      expect(file.version).toBe(3);
+      expect(file.version).toBe(4);
       expect(file.xy).toEqual(XY_DEFAULT_ASSIGN);
     });
 

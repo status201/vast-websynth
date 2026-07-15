@@ -1,16 +1,19 @@
-import type { StepButton } from './step-button';
+/** Anything with a playing-highlight — StepButton, MotionStepPad, … */
+export interface PlayheadCell {
+  setPlaying(p: boolean): void;
+}
 
 /**
  * Moves the playing-step highlight across a step grid as the transport
  * advances, touching only the leaving and entering columns instead of
- * rescanning every cell each tick. Shared by the sequencer, drum, and
- * sampler panels (`rows` is row-major: `rows[track][step]`; the sequencer
- * passes a single row).
+ * rescanning every cell each tick. Shared by the sequencer, drum, sampler
+ * and motion panels (`rows` is row-major: `rows[track][step]`; the sequencer
+ * and motion panels pass a single row).
  */
 export class PlayheadHighlighter {
   private prev = -1;
 
-  constructor(private readonly rows: readonly (readonly StepButton[])[]) {}
+  constructor(private readonly rows: readonly (readonly PlayheadCell[])[]) {}
 
   /** Highlight column `col` when `active`; clears the highlight otherwise. */
   update(col: number, active: boolean): void {

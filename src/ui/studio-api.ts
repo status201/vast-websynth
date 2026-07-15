@@ -5,6 +5,7 @@ import type { Performance } from '../audio/transport/performance';
 import type { StepSequencer } from '../audio/transport/sequencer';
 import type { DrumMachine } from '../audio/transport/drum-machine';
 import type { SamplerMachine } from '../audio/transport/sampler-machine';
+import type { MotionMachine } from '../audio/transport/motion-machine';
 import type { RecorderController } from '../audio/recorder/recorder-controller';
 import type { BankRenderController } from '../audio/recorder/bank-render';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
@@ -26,9 +27,9 @@ import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
  * recorder, GR meters, and sample decode/preview.
  */
 export interface StudioApi {
-  /** Step grids (4 seq + 4 drum + 4 sampler banks) and sample-name metadata. */
+  /** Step grids (4 seq + 4 drum + 4 sampler + 4 motion banks) and sample-name metadata. */
   readonly patterns: PatternStore;
-  /** Song arrangement: the three chain lanes (seq / drum / sampler). */
+  /** Song arrangement: the chain lanes (seq / drum / sampler / motion). */
   readonly arrangement: Arrangement;
   /** Look-ahead transport clock (toggle / playing / onTick / onStart / onStop). */
   readonly clock: Clock;
@@ -40,6 +41,8 @@ export interface StudioApi {
   readonly drums: DrumMachine;
   /** One-shot sampler (setBuffer / buffers / triggerSlot / onStep). */
   readonly sampler: SamplerMachine;
+  /** Motion sequencer — XY param automation (onStep for the playhead). */
+  readonly motion: MotionMachine;
   /** Audio export (exportSong / toggleManual / onState). */
   readonly recorder: RecorderController;
   /** Resample the seq edit bank into a bar-exact buffer (render / onState). */

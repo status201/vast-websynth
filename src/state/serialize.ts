@@ -22,7 +22,7 @@
  * compaction is idempotent, so re-exporting an already-compact file is a no-op.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep } from './patterns';
 import { TRIGGER_CELL_DEFAULTS, SEQ_EXTRA_DEFAULTS } from './patterns';
 
 /** Significant figures kept for every exported number. */
@@ -81,6 +81,16 @@ function compactTriggerCell(c: TriggerCell): Record<string, unknown> {
   return out;
 }
 
+/**
+ * Motion step → sparse object. `restore` spreads `MOTION_STEP_DEFAULTS`, so a
+ * dead step collapses to `{ on: false }` (its parked x/y are cosmetic and not
+ * worth the bytes); a live anchor keeps on/x/y rounded.
+ */
+function compactMotionStep(s: MotionStep): Record<string, unknown> {
+  if (!s.on) return { on: false };
+  return { on: true, x: roundNum(s.x), y: roundNum(s.y) };
+}
+
 /** Chain lane — bank indices are integers; just clone (no rounding needed). */
 function cloneChain(c: ChainData): ChainData {
   return { enabled: c.enabled, steps: [...c.steps] };
@@ -108,5 +118,12 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
   if (file.samplerChain !== undefined) out.samplerChain = cloneChain(file.samplerChain);
   if (file.sampleNames !== undefined) out.sampleNames = [...file.sampleNames];
   if (file.xy !== undefined) out.xy = { x: file.xy.x, y: file.xy.y };
+  if (file.motionBanks !== undefined) {
+    out.motionBanks = file.motionBanks.map((bank) => bank.map(compactMotionStep));
+  }
+  if (file.motionAssigns !== undefined) {
+    out.motionAssigns = file.motionAssigns.map((a) => (a ? { ...a } : null));
+  }
+  if (file.motionChain !== undefined) out.motionChain = cloneChain(file.motionChain);
   return out;
 }

@@ -32,6 +32,12 @@ and turn knobs while sweeping it. No engine/audio change is needed: assignable
 params drive the live graph through the **existing** `bus.subscribe` wiring the
 same way `fx.djfilter` already does.
 
+The axis assignment (`XyPadStore`) is also consumed by the
+[motion sequencer](motion-sequencer.md), which steps/interpolates the same two
+params from a 16-step grid during playback (a Motion bank may override the
+assignment per bank); the pad's dot tracks motion playback automatically since it
+subscribes to the assigned params.
+
 ## Requirements
 
 - **REQ-1** — A button in the Song tab's **Live FX** row (`perf-xypad`) toggles a

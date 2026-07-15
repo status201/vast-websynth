@@ -35,7 +35,9 @@ import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
 import { buildSamplerPanel } from './panels/sampler-panel';
+import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
+import { createXyPadWindowController } from './components/xy-pad-window';
 
 /**
  * True on viewports where the faceplate no longer fits one screen (≤1280px).
@@ -362,12 +364,16 @@ function buildPatternRow(
   loadDemo: (name: string) => void;
   importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 } {
-  const song = buildSongPanel(bus, engine, session, xy, bridge);
+  // One shared XY Pad window controller for every launcher (Song panel, LIVE FX
+  // window, Motion panel) — they must all toggle the SAME window (xy-pad.md).
+  const xyWin = createXyPadWindowController(bus, xy);
+  const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
     { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
+    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin) },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',

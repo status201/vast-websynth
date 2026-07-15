@@ -19,6 +19,7 @@ import { Arpeggiator } from './transport/arpeggiator';
 import { StepSequencer } from './transport/sequencer';
 import { DrumMachine } from './transport/drum-machine';
 import { SamplerMachine } from './transport/sampler-machine';
+import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
@@ -27,6 +28,7 @@ import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
 import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
+import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
 const VOICE_COUNT = 8;
@@ -50,6 +52,11 @@ export interface EngineOptions {
   fxOversample?: boolean;
   /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 2048). */
   analyserFftSize?: number;
+  /** XY Pad axis assignment (main.ts's instance, shared with the UI) — consumed
+   *  by the motion sequencer. Defaults to a private store (tests). */
+  xy?: XyPadStore;
+  /** Frame-rate cap for the motion sequencer's write loop (perf-tier fps). */
+  motionFps?: number;
 }
 
 export class Engine {
@@ -90,6 +97,7 @@ export class Engine {
   seq!: StepSequencer;
   drums!: DrumMachine;
   sampler!: SamplerMachine;
+  motion!: MotionMachine;
   arrangement!: Arrangement;
   perf!: Performance;
   recorder!: RecorderController;
@@ -114,6 +122,9 @@ export class Engine {
 
   private readonly voiceCount: number;
   private readonly fxOversample: boolean;
+  /** XY Pad axis assignment consumed by the motion sequencer (EngineOptions.xy). */
+  private readonly xyStore: XyPadStore;
+  private readonly motionFps: number | undefined;
 
   /** iOS-only audio-session workarounds; inert (no-op) on every other platform. */
   private readonly iosSession: IosAudioSession;
@@ -121,6 +132,8 @@ export class Engine {
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
     this.voiceCount = opts.voiceCount ?? VOICE_COUNT;
+    this.xyStore = opts.xy ?? new XyPadStore();
+    this.motionFps = opts.motionFps;
     this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
     // Built here (after ctx) so the silent loop can be routed through the context.
     this.iosSession = new IosAudioSession(this.ctx);
@@ -279,6 +292,11 @@ export class Engine {
     this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf);
     this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus, this.fxOversample);
     this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
+    // Motion writes params (not audio), evaluated against the audio clock's now.
+    this.motion = new MotionMachine(this.clock, this.patterns, this.arrangement, this.xyStore, this.bus, {
+      now: () => this.ctx.currentTime,
+      ...(this.motionFps !== undefined ? { fps: this.motionFps } : {}),
+    });
 
     // Lane mixer — needs the sequencer (mute = stop triggering) + the drum/
     // sampler buses (mute = cut bus gain), so it is built after the machines.
@@ -572,6 +590,10 @@ export class Engine {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
     }
+
+    // ----- Motion sequencer -----
+    bus.subscribe('motion.on', (v) => this.motion.setEnabled(v >= 0.5));
+    bus.subscribe('motion.slide', (v) => this.motion.setSlide(v >= 0.5));
   }
 
   // ---------- Noise source ----------

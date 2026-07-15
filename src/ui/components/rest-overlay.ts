@@ -2,7 +2,7 @@ import type { StudioApi } from '../studio-api';
 import { restIcon } from './rest-glyph';
 import styles from '../styles/rest-overlay.module.css';
 
-export type RestLane = 'seq' | 'drum' | 'sampler';
+export type RestLane = 'seq' | 'drum' | 'sampler' | 'motion';
 
 export interface RestOverlay {
   /** Absolutely-positioned element — place it inside a `position: relative` grid wrapper. */
@@ -37,7 +37,8 @@ export function buildRestOverlay(api: StudioApi, lane: RestLane): RestOverlay {
   const isResting = (): boolean =>
     lane === 'seq' ? api.arrangement.seqResting
       : lane === 'drum' ? api.arrangement.drumResting
-        : api.arrangement.samplerResting;
+        : lane === 'sampler' ? api.arrangement.samplerResting
+          : api.arrangement.motionResting;
 
   const refresh = (): void => {
     el.classList.toggle(styles.on!, isResting() && api.arrangement[lane].enabled);

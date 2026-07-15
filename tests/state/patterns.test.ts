@@ -271,3 +271,75 @@ describe('PatternStore', () => {
     expect(snap.seqBanks[0]![2]!.note).toBe(67);
   });
 });
+
+describe('PatternStore — motion banks (motion-sequencer.md REQ-1/REQ-4)', () => {
+  it('motion banks default empty (center coordinates, all off)', () => {
+    const p = new PatternStore();
+    for (let b = 0; b < BANK_COUNT; b++) {
+      expect(p.motionBanks[b]!.length).toBe(SEQ_LENGTH);
+      expect(p.motionBanks[b]!.every((s) => !s.on && s.x === 0.5 && s.y === 0.5)).toBe(true);
+      expect(p.motionAssign(b)).toBeNull();
+    }
+  });
+
+  it('setMotionStep mutates the edit bank and notifies', () => {
+    const p = new PatternStore();
+    let seen: unknown = null;
+    p.onMotionChange((i, s) => { seen = [i, s.on, s.x, s.y]; });
+    p.setMotionStep(3, { on: true, x: 0.2, y: 0.9 });
+    expect(seen).toEqual([3, true, 0.2, 0.9]);
+    expect(p.motion[3]).toMatchObject({ on: true, x: 0.2, y: 0.9 });
+  });
+
+  it('setMotionEditBank fires the whole-bank listener once', () => {
+    const p = new PatternStore();
+    let calls = 0;
+    p.onMotionBankChange(() => { calls++; });
+    p.setMotionEditBank(2);
+    expect(calls).toBe(1);
+  });
+
+  it('setMotionAssign stores per edit bank, normalizes empty to null, repaints', () => {
+    const p = new PatternStore();
+    let repaints = 0;
+    p.onMotionBankChange(() => { repaints++; });
+    p.setMotionAssign({ x: 'fx.delay.mix' });
+    expect(p.motionAssign(0)).toEqual({ x: 'fx.delay.mix' });
+    expect(repaints).toBe(1);
+    p.setMotionEditBank(1);
+    expect(p.motionAssign(1)).toBeNull(); // per-bank
+    p.setMotionEditBank(0);
+    p.setMotionAssign({});
+    expect(p.motionAssign(0)).toBeNull(); // empty override collapses to null
+  });
+
+  it('copyMotionBank deep-copies steps AND the assign override', () => {
+    const p = new PatternStore();
+    p.setMotionStep(0, { on: true, x: 0.1, y: 0.9 });
+    p.setMotionAssign({ x: 'lfo.rate', y: 'lfo.amount' });
+    p.copyMotionBank(0, 2);
+    expect(p.motionBanks[2]![0]).toMatchObject({ on: true, x: 0.1, y: 0.9 });
+    expect(p.motionAssign(2)).toEqual({ x: 'lfo.rate', y: 'lfo.amount' });
+    p.setMotionStep(0, { x: 0.5 });
+    expect(p.motionBanks[2]![0]!.x).toBe(0.1); // deep copy
+  });
+
+  it('motion state round-trips through snapshot/restore', () => {
+    const p = new PatternStore();
+    p.setMotionStep(5, { on: true, x: 0.3, y: 0.7 });
+    p.setMotionAssign({ y: 'master.volume' });
+    p.setMotionEditBank(0);
+    const snap = p.snapshot();
+    const q = new PatternStore();
+    q.restore(snap);
+    expect(q.motionBanks[0]![5]).toMatchObject({ on: true, x: 0.3, y: 0.7 });
+    expect(q.motionAssign(0)).toEqual({ y: 'master.volume' });
+  });
+
+  it('restores sparse motion steps ({on:false}) with the defaults spread under', () => {
+    const p = new PatternStore();
+    p.setMotionStep(0, { on: true, x: 0, y: 0 });
+    p.restore({ motionBanks: [[{ on: false } as never]] });
+    expect(p.motionBanks[0]![0]).toMatchObject({ on: false, x: 0.5, y: 0.5 });
+  });
+});

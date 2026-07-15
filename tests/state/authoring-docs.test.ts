@@ -27,7 +27,7 @@ describe('websynth-song-author.schema.json', () => {
   });
 
   it('bank/step/slot dimensions match patterns.ts', () => {
-    for (const key of ['seq', 'drums', 'sampler']) {
+    for (const key of ['seq', 'drums', 'sampler', 'motion']) {
       expect(schema.properties[key].maxItems, key).toBe(BANK_COUNT);
     }
     const [positional, defaults] = schema.$defs.seqBank.oneOf;
@@ -42,6 +42,15 @@ describe('websynth-song-author.schema.json', () => {
     expect(chainArr.items.minimum).toBe(-1);
     expect(chainArr.items.maximum).toBe(BANK_COUNT - 1);
     expect(chainObj.properties.steps.items.maximum).toBe(BANK_COUNT - 1);
+  });
+
+  it('motion anchors mirror the expander (steps 0..15, coords 0..1)', () => {
+    const anchor = schema.$defs.motionAnchor;
+    expect(anchor.required).toEqual(['step', 'x', 'y']);
+    expect(anchor.properties.step.maximum).toBe(SEQ_LENGTH - 1);
+    expect(anchor.properties.x).toMatchObject({ minimum: 0, maximum: 1 });
+    expect(anchor.properties.y).toMatchObject({ minimum: 0, maximum: 1 });
+    expect(schema.properties.motionChain.$ref).toBe('#/$defs/chain');
   });
 
   it('note names and step settings mirror the expander', () => {

@@ -12,9 +12,11 @@ function fakeArr() {
     seq: { enabled: false, steps: [0] as number[] },
     drum: { enabled: false, steps: [0] as number[] },
     sampler: { enabled: false, steps: [0] as number[] },
+    motion: { enabled: false, steps: [0] as number[] },
     setSeqChain(steps: number[], enabled: boolean) { this.seq = { enabled, steps: [...steps] }; },
     setDrumChain(steps: number[], enabled: boolean) { this.drum = { enabled, steps: [...steps] }; },
     setSamplerChain(steps: number[], enabled: boolean) { this.sampler = { enabled, steps: [...steps] }; },
+    setMotionChain(steps: number[], enabled: boolean) { this.motion = { enabled, steps: [...steps] }; },
   };
 }
 
@@ -170,5 +172,34 @@ describe('round-trip fidelity', () => {
     expect(patterns.seqBanks[0]![2]!.prob).toBe(1);
     expect(patterns.seqBanks[0]![2]!.ratchet).toBe(1);
     expect(patterns.drumBanks[0]![0]![0]!.gate).toBe(1);
+  });
+});
+
+describe('compactSongForExport — motion (v4)', () => {
+  const motionSong = () => songWith({
+    version: 4,
+    motionBanks: [[
+      { on: true, x: 0.123456, y: 1 },
+      { on: false, x: 0.5, y: 0.5 },
+    ]] as never,
+    motionAssigns: [{ x: 'fx.delay.mix' }, null, null, null],
+    motionChain: { enabled: true, steps: [0, 1] },
+  });
+
+  it('keeps live anchors (rounded) and collapses dead steps to { on: false }', () => {
+    const out = compactSongForExport(motionSong());
+    const bank = (out.motionBanks as unknown[][])[0]!;
+    expect(bank[0]).toEqual({ on: true, x: 0.1235, y: 1 });
+    expect(bank[1]).toEqual({ on: false });
+  });
+
+  it('passes assigns/chain through and omits absent motion fields', () => {
+    const out = compactSongForExport(motionSong());
+    expect(out.motionAssigns).toEqual([{ x: 'fx.delay.mix' }, null, null, null]);
+    expect(out.motionChain).toEqual({ enabled: true, steps: [0, 1] });
+    const bare = compactSongForExport(songWith({}));
+    expect(bare.motionBanks).toBeUndefined();
+    expect(bare.motionAssigns).toBeUndefined();
+    expect(bare.motionChain).toBeUndefined();
   });
 });

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "websynth-song.schema.json",
   "title": "VAST G1-J5 song file (.websynth.json)",
-  "description": "Portable song format for the VAST G1-J5 web synthesizer (package name: websynth). A song captures the full parameter snapshot plus all sequencer / drum / sampler banks and the three arrangement chain lanes. The format is additive and forward-compatible: new fields are optional and defaulted, so older files keep loading. Validation mirrors the loader contract — strict on types/structure/ranges/dimensions, lenient on the optional per-step fields (legacy v1 cells omit them). Unknown extra keys are tolerated (forward-compat); decoded audio is never embedded (only sampler filenames persist). Canonical runtime validation is the hand-written validator in src/state/song-validate.ts; this schema is the published machine-readable mirror.",
+  "description": "Portable song format for the VAST G1-J5 web synthesizer (package name: websynth). A song captures the full parameter snapshot plus all sequencer / drum / sampler / motion banks and the four arrangement chain lanes. The format is additive and forward-compatible: new fields are optional and defaulted, so older files keep loading. Validation mirrors the loader contract — strict on types/structure/ranges/dimensions, lenient on the optional per-step fields (legacy v1 cells omit them). Unknown extra keys are tolerated (forward-compat); decoded audio is never embedded (only sampler filenames persist). Canonical runtime validation is the hand-written validator in src/state/song-validate.ts; this schema is the published machine-readable mirror.",
   "type": "object",
   "required": ["format", "version", "name", "params", "seqBanks", "drumBanks", "seqChain", "drumChain"],
   "properties": {
@@ -12,8 +12,8 @@
     },
     "version": {
       "type": "integer",
-      "enum": [1, 2, 3],
-      "description": "Format version. capture() always writes 3; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment — all still load. Versions beyond those this build knows are rejected."
+      "enum": [1, 2, 3, 4],
+      "description": "Format version. capture() always writes 4; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields — all still load. Versions beyond those this build knows are rejected."
     },
     "name": {
       "type": "string",
@@ -91,7 +91,38 @@
         "x": { "type": "string", "minLength": 1, "description": "ParamBus id driven by the horizontal axis." },
         "y": { "type": "string", "minLength": 1, "description": "ParamBus id driven by the vertical axis (up = more)." }
       }
-    }
+    },
+    "motionBanks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "v4 (optional). 4 motion-sequencer banks, each exactly 16 steps of XY anchors. During playback the motion machine drives the XY-assigned params through the ON steps (slide = linear interpolation between anchors, step = jump-and-hold; 'motion.slide' param).",
+      "items": {
+        "type": "array",
+        "minItems": 16,
+        "maxItems": 16,
+        "items": { "$ref": "#/$defs/motionStep" }
+      }
+    },
+    "motionAssigns": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "v4 (optional). Per-bank axis override; null = the bank inherits the song's 'xy' assignment. An entry may override only one axis.",
+      "items": {
+        "oneOf": [
+          { "type": "null" },
+          {
+            "type": "object",
+            "properties": {
+              "x": { "type": "string", "minLength": 1, "description": "ParamBus id driven by this bank's x anchors." },
+              "y": { "type": "string", "minLength": 1, "description": "ParamBus id driven by this bank's y anchors." }
+            }
+          }
+        ]
+      }
+    },
+    "motionChain": { "$ref": "#/$defs/chainData", "description": "v4 (optional). Motion arrangement lane." }
   },
   "$comment": "additionalProperties is intentionally NOT forbidden at the root: the format is additive/forward-compatible, so a file carrying keys from a newer build still validates.",
   "$defs": {
@@ -123,6 +154,16 @@
       "allOf": [{ "$ref": "#/$defs/stepSettings" }],
       "properties": {
         "on": { "type": "boolean", "description": "Whether this cell triggers." }
+      }
+    },
+    "motionStep": {
+      "type": "object",
+      "description": "A motion-sequencer step: an optional XY anchor. x/y are the assigned params' normalized 0..1 positions (taper space, like the XY pad surface). A dead step is { on: false } (x/y optional).",
+      "required": ["on"],
+      "properties": {
+        "on": { "type": "boolean", "description": "Whether this step is an anchor." },
+        "x": { "type": "number", "minimum": 0, "maximum": 1, "description": "Normalized x 0..1." },
+        "y": { "type": "number", "minimum": 0, "maximum": 1, "description": "Normalized y 0..1 (up = more)." }
       }
     },
     "chainData": {

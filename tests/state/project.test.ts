@@ -19,6 +19,7 @@ function fakeArr() {
     seq: { enabled: false, steps: [0] as number[] },
     drum: { enabled: false, steps: [0] as number[] },
     sampler: { enabled: false, steps: [0] as number[] },
+    motion: { enabled: false, steps: [0] as number[] },
   };
 }
 

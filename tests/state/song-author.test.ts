@@ -346,3 +346,66 @@ describe('expandAuthorSong — machines with hits auto-enable (REQ-11)', () => {
     expect(file.params).toEqual({ 'transport.bpm': 124 });
   });
 });
+
+describe('motion dialect (motion-sequencer.md REQ-9)', () => {
+  it('expands anchor lists onto the bank grid and emits v4 with motion fields', () => {
+    const file = expandOk(base({
+      motion: [[{ step: 0, x: 0.5, y: 0 }, { step: 8, x: 0.5, y: 1 }]],
+      motionChain: 'AAB',
+    }));
+    expect(file.version).toBe(4);
+    expect(file.motionBanks![0]![0]).toMatchObject({ on: true, x: 0.5, y: 0 });
+    expect(file.motionBanks![0]![8]).toMatchObject({ on: true, x: 0.5, y: 1 });
+    expect(file.motionBanks![0]![1]!.on).toBe(false);
+    expect(file.motionChain).toEqual({ enabled: true, steps: [0, 0, 1] });
+    expect(file.motionAssigns).toEqual([null, null, null, null]);
+    expect(file.params['motion.on']).toBe(1); // auto-enable
+  });
+
+  it('a {assign, steps} bank carries a per-bank axis override', () => {
+    const file = expandOk(base({
+      motion: [
+        [{ step: 0, x: 0, y: 0 }],
+        { assign: { x: 'fx.delay.time', y: 'fx.delay.mix' }, steps: [{ step: 4, x: 1, y: 1 }] },
+      ],
+    }));
+    expect(file.motionAssigns![0]).toBeNull();
+    expect(file.motionAssigns![1]).toEqual({ x: 'fx.delay.time', y: 'fx.delay.mix' });
+    expect(file.motionBanks![1]![4]).toMatchObject({ on: true, x: 1, y: 1 });
+  });
+
+  it('a song without motion content stays v3 with no motion fields', () => {
+    const file = expandOk(base({ seq: [['A2']] }));
+    expect(file.version).toBe(3);
+    expect(file.motionBanks).toBeUndefined();
+    expect(file.motionAssigns).toBeUndefined();
+    expect(file.motionChain).toBeUndefined();
+    expect(file.params['motion.on']).toBeUndefined();
+  });
+
+  it('motion.on is not auto-enabled for anchor-less motion content, nor overridden', () => {
+    const empty = expandOk(base({ motion: [[]] }));
+    expect(empty.params['motion.on']).toBeUndefined();
+    const explicit = expandOk(base({
+      params: { 'motion.on': 0 },
+      motion: [[{ step: 0, x: 0.5, y: 0.5 }]],
+    }));
+    expect(explicit.params['motion.on']).toBe(0);
+  });
+
+  it('bad anchors error in authoring terms with paths', () => {
+    const errs = expandErrors(base({ motion: [[{ step: 99, x: 0, y: 0 }]] }));
+    expect(errs.join('\n')).toContain('motion[0][0].step');
+    const errs2 = expandErrors(base({ motion: [[{ step: 0, x: 2, y: 0 }]] }));
+    expect(errs2.join('\n')).toContain('motion[0][0].x');
+    const errs3 = expandErrors(base({ motion: [[{ step: 0, x: 0 }]] }));
+    expect(errs3.join('\n')).toContain('motion[0][0].y is required');
+  });
+
+  it('a bad per-bank assign errors; motionBanks is a pointed form-mixing key', () => {
+    const errs = expandErrors(base({ motion: [{ assign: { x: '' }, steps: [] }] }));
+    expect(errs.join('\n')).toContain('motion[0].assign.x');
+    const mixed = expandErrors(base({ motionBanks: [] }));
+    expect(mixed.join('\n')).toContain('"motionBanks" is a full-form websynth-song field');
+  });
+});

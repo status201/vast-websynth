@@ -387,6 +387,11 @@ export function registerDefaults(bus: ParamBus): void {
 
     // Per-slot sampler params (8 slots)
     ...samplerTrackParams(),
+
+    // ----- Motion sequencer (param automation; specs/features/motion-sequencer.md) -----
+    { id: 'motion.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // slide = linear interpolation between anchors; step = jump-and-hold.
+    { id: 'motion.slide', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['step', 'slide'] },
   ]);
 }
 

@@ -1,7 +1,8 @@
 /**
  * The compact *authoring dialect* — an input-only song format
  * (`format: "websynth-song-author"`) that `Song.parse` expands into a
- * canonical v3 `SongFile` before `validateSongFile` runs. It exists so AI
+ * canonical `SongFile` (v3, or v4 when motion content is present) before
+ * `validateSongFile` runs. It exists so AI
  * agents (and terse humans) can author a working song in ~40 lines instead
  * of the 576+ literal grid cells the canonical format requires. Nothing ever
  * serializes this dialect — see specs/features/song-authoring-dialect.md and
@@ -13,7 +14,7 @@
  * demo registration.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep, MotionAssign } from './patterns';
 import {
   BANK_COUNT,
   SEQ_LENGTH,
@@ -21,6 +22,7 @@ import {
   SAMPLER_SLOT_COUNT,
   REST,
   TRIGGER_CELL_DEFAULTS,
+  MOTION_STEP_DEFAULTS,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
 
@@ -34,14 +36,14 @@ const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: f
 
 const ALLOWED_KEYS = new Set([
   'format', 'version', 'name', 'params',
-  'seq', 'drums', 'sampler',
-  'seqChain', 'drumChain', 'samplerChain',
+  'seq', 'drums', 'sampler', 'motion',
+  'seqChain', 'drumChain', 'samplerChain', 'motionChain',
   'sampleNames', 'xy',
   '$schema', // tolerated so schema-aware editors/agents can self-reference
 ]);
 
 /** Canonical grid keys — their presence means the agent mixed the two formats. */
-const CANONICAL_KEYS = ['seqBanks', 'drumBanks', 'samplerBanks'] as const;
+const CANONICAL_KEYS = ['seqBanks', 'drumBanks', 'samplerBanks', 'motionBanks'] as const;
 
 /** Normalized drum-track aliases → track index (kick/snare/hats/toms/clap). */
 const DRUM_ALIASES: Record<string, number> = {
@@ -348,6 +350,99 @@ function expandHitBanks(
   return banks;
 }
 
+/* ---------------- motion banks ---------------- */
+
+function makeEmptyMotionBank(): MotionStep[] {
+  return Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_STEP_DEFAULTS }));
+}
+
+/** Read an optional per-bank axis override ({x?, y?} of param-id strings). */
+function readMotionAssign(path: string, v: unknown, add: AddError): MotionAssign | null {
+  if (v === undefined) return null;
+  if (!isObject(v)) {
+    add(`${path} must be an object like {"x": "<param id>", "y": "<param id>"} (got ${describe(v)})`);
+    return null;
+  }
+  const out: MotionAssign = {};
+  for (const axis of ['x', 'y'] as const) {
+    const id = v[axis];
+    if (id === undefined) continue;
+    if (typeof id !== 'string' || id.length === 0) {
+      add(`${path}.${axis} must be a non-empty param id string (got ${describe(id)})`);
+      continue;
+    }
+    out[axis] = id;
+  }
+  return out.x || out.y ? out : null;
+}
+
+/** Expand one motion anchor {step, x, y} onto the bank grid. */
+function expandMotionAnchor(path: string, v: unknown, bank: MotionStep[], add: AddError): void {
+  if (!isObject(v)) {
+    add(`${path} must be an anchor object {"step": 0..${SEQ_LENGTH - 1}, "x": 0..1, "y": 0..1} (got ${describe(v)})`);
+    return;
+  }
+  const step = v.step;
+  if (typeof step !== 'number' || !Number.isInteger(step) || step < 0 || step >= SEQ_LENGTH) {
+    add(`${path}.step must be an integer 0..${SEQ_LENGTH - 1} (got ${describe(step)})`);
+    return;
+  }
+  const x = checkUnit(`${path}.x`, v.x, add);
+  const y = checkUnit(`${path}.y`, v.y, add);
+  if (v.x === undefined) add(`${path}.x is required (0..1)`);
+  if (v.y === undefined) add(`${path}.y is required (0..1)`);
+  if (x === undefined || y === undefined) return;
+  const cell = bank[step];
+  if (cell) Object.assign(cell, { on: true, x, y });
+}
+
+/** Expand one motion bank — an anchor list, or {assign?, steps: [anchors]}. */
+function expandMotionBank(
+  path: string,
+  v: unknown,
+  add: AddError,
+): { steps: MotionStep[]; assign: MotionAssign | null } {
+  const bank = makeEmptyMotionBank();
+  let anchors: unknown = v;
+  let assign: MotionAssign | null = null;
+  if (isObject(v)) {
+    for (const k of Object.keys(v)) {
+      if (!['assign', 'steps'].includes(k)) {
+        add(`${path}.${k} is not a motion bank field (allowed: assign, steps)`);
+      }
+    }
+    assign = readMotionAssign(`${path}.assign`, v.assign, add);
+    anchors = v.steps;
+  }
+  if (anchors === undefined) return { steps: bank, assign };
+  if (!Array.isArray(anchors)) {
+    add(`${path} must be an array of anchors or {assign, steps: [...]} (got ${describe(anchors)})`);
+    return { steps: bank, assign };
+  }
+  anchors.forEach((a: unknown, i) => expandMotionAnchor(`${path}[${i}]`, a, bank, add));
+  return { steps: bank, assign };
+}
+
+function expandMotionBanks(
+  v: unknown,
+  add: AddError,
+): { banks: MotionStep[][]; assigns: (MotionAssign | null)[] } {
+  const banks: MotionStep[][] = Array.from({ length: BANK_COUNT }, makeEmptyMotionBank);
+  const assigns: (MotionAssign | null)[] = Array(BANK_COUNT).fill(null);
+  if (v === undefined) return { banks, assigns };
+  if (!Array.isArray(v)) {
+    add(`motion must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    return { banks, assigns };
+  }
+  if (v.length > BANK_COUNT) add(`motion has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
+  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+    const r = expandMotionBank(`motion[${b}]`, v[b], add);
+    banks[b] = r.steps;
+    assigns[b] = r.assign;
+  }
+  return { banks, assigns };
+}
+
 /* ---------------- chains ---------------- */
 
 const CHAIN_HELP =
@@ -439,7 +534,8 @@ function expandSampleNames(v: unknown, add: AddError): (string | null)[] {
 }
 
 /**
- * Expand an authoring-dialect value into a canonical v3 `SongFile`.
+ * Expand an authoring-dialect value into a canonical `SongFile` (v3; v4 when
+ * motion content is present).
  * Validates in authoring terms first (path-prefixed, capped errors), expands,
  * then runs `validateSongFile` as the final gate. Input-only: nothing ever
  * serializes the dialect back out (ADR-013).
@@ -481,6 +577,11 @@ export function expandAuthorSong(value: unknown): SongValidation {
   const samplerChain = hasSampler ? expandChain('samplerChain', o.samplerChain, add) : undefined;
   const sampleNames = hasSampler ? expandSampleNames(o.sampleNames, add) : undefined;
 
+  // Motion fields likewise appear only when the author supplied motion content.
+  const hasMotion = o.motion !== undefined || o.motionChain !== undefined;
+  const motion = hasMotion ? expandMotionBanks(o.motion, add) : undefined;
+  const motionChain = hasMotion ? expandChain('motionChain', o.motionChain, add) : undefined;
+
   // xy passes through; validated lightly here so the error names the author file.
   if (o.xy !== undefined) {
     if (!isObject(o.xy)) {
@@ -508,10 +609,11 @@ export function expandAuthorSong(value: unknown): SongValidation {
   autoEnable('seq.on', hasHits(seqBanks));
   autoEnable('drum.on', hasHits(drumBanks.flat()));
   if (samplerBanks) autoEnable('sampler.on', hasHits(samplerBanks.flat()));
+  if (motion) autoEnable('motion.on', hasHits([motion.banks.flat()]));
 
   const file: SongFile = {
     format: 'websynth-song',
-    version: 3,
+    version: motion ? 4 : 3,
     name: o.name as string,
     params,
     seqBanks,
@@ -525,6 +627,11 @@ export function expandAuthorSong(value: unknown): SongValidation {
     file.sampleNames = sampleNames;
   }
   if (o.xy !== undefined) file.xy = o.xy as SongFile['xy'];
+  if (motion && motionChain) {
+    file.motionBanks = motion.banks;
+    file.motionAssigns = motion.assigns;
+    file.motionChain = motionChain;
+  }
 
   // Final gate: the expansion must yield a file the canonical validator accepts.
   return validateSongFile(file);

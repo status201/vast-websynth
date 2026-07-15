@@ -42,6 +42,26 @@ export const TRIGGER_CELL_DEFAULTS: TriggerCell = {
 /** Seq fields that v1 song files may lack (on/note/velocity/gate were always present). */
 export const SEQ_EXTRA_DEFAULTS = { prob: 1, ratchet: 1, tie: false };
 
+/**
+ * Motion sequencer step — an optional XY anchor. x/y are 0..1 in *taper space*
+ * (the XY Pad surface's normalized coordinates), mapped to real param values at
+ * play time via fromNorm(def, n). A dead cell keeps its last coordinate so
+ * toggling a step off and on doesn't lose the dot position.
+ */
+export interface MotionStep {
+  on: boolean;
+  x: number; // 0..1
+  y: number; // 0..1
+}
+
+/** Per-bank axis override; an unset axis falls back to the XY Pad assignment. */
+export interface MotionAssign {
+  x?: string; // ParamBus id
+  y?: string;
+}
+
+export const MOTION_STEP_DEFAULTS: MotionStep = { on: false, x: 0.5, y: 0.5 };
+
 export const SEQ_LENGTH = 16;
 
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
@@ -71,6 +91,10 @@ export interface PatternSnapshot {
   samplerBanks?: SamplerStep[][][];
   samplerEditBank?: number;
   sampleNames?: (string | null)[];
+  /** Optional so v1-v3 song files (no motion fields) still restore cleanly. */
+  motionBanks?: MotionStep[][];
+  motionAssigns?: (MotionAssign | null)[];
+  motionEditBank?: number;
 }
 
 function clampBank(i: number): number {
@@ -110,6 +134,10 @@ function makeSamplerBank(): SamplerStep[][] {
   );
 }
 
+export function makeMotionBank(): MotionStep[] {
+  return Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_STEP_DEFAULTS }));
+}
+
 export class PatternStore {
   /** seqBanks[bank][step] */
   readonly seqBanks: SeqStep[][];
@@ -117,6 +145,10 @@ export class PatternStore {
   readonly drumBanks: DrumCell[][][];
   /** samplerBanks[bank][slot][step] */
   readonly samplerBanks: SamplerStep[][][];
+  /** motionBanks[bank][step] */
+  readonly motionBanks: MotionStep[][];
+  /** Per-bank axis override (null = inherit the XY Pad assignment). */
+  readonly motionAssigns: (MotionAssign | null)[];
 
   /** Filename per sampler slot (null = empty). Decoded audio lives in the
    *  audio layer (SamplerMachine), not here — only the name persists. */
@@ -125,6 +157,7 @@ export class PatternStore {
   private _seqEdit = 0;
   private _drumEdit = 0;
   private _samplerEdit = 0;
+  private _motionEdit = 0;
 
   private readonly seqListeners = new Set<(index: number, step: SeqStep) => void>();
   private readonly drumListeners = new Set<(track: number, step: number, cell: DrumCell) => void>();
@@ -132,6 +165,8 @@ export class PatternStore {
   private readonly seqBankListeners = new Set<(bank: readonly SeqStep[]) => void>();
   private readonly drumBankListeners = new Set<(bank: readonly (readonly DrumCell[])[]) => void>();
   private readonly samplerBankListeners = new Set<(bank: readonly (readonly SamplerStep[])[]) => void>();
+  private readonly motionListeners = new Set<(index: number, step: MotionStep) => void>();
+  private readonly motionBankListeners = new Set<(bank: readonly MotionStep[]) => void>();
   private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
 
@@ -139,6 +174,8 @@ export class PatternStore {
     this.seqBanks = Array.from({ length: BANK_COUNT }, makeSeqBank);
     this.drumBanks = Array.from({ length: BANK_COUNT }, makeDrumBank);
     this.samplerBanks = Array.from({ length: BANK_COUNT }, makeSamplerBank);
+    this.motionBanks = Array.from({ length: BANK_COUNT }, makeMotionBank);
+    this.motionAssigns = Array(BANK_COUNT).fill(null);
 
     // Seed a friendly default groove into drum bank A only
     // (basic 4-on-the-floor + offbeat hats + snare on 5/13).
@@ -153,16 +190,20 @@ export class PatternStore {
   get seqEditBank(): number { return this._seqEdit; }
   get drumEditBank(): number { return this._drumEdit; }
   get samplerEditBank(): number { return this._samplerEdit; }
+  get motionEditBank(): number { return this._motionEdit; }
 
   /** Back-compat accessors: the bank currently being edited in the UI. */
   get seq(): SeqStep[] { return this.seqBanks[this._seqEdit]!; }
   get drum(): DrumCell[][] { return this.drumBanks[this._drumEdit]!; }
   get sampler(): SamplerStep[][] { return this.samplerBanks[this._samplerEdit]!; }
+  get motion(): MotionStep[] { return this.motionBanks[this._motionEdit]!; }
 
   /** Direct bank access (used by the transport for the *playing* bank). */
   seqBank(i: number): SeqStep[] { return this.seqBanks[clampBank(i)]!; }
   drumBank(i: number): DrumCell[][] { return this.drumBanks[clampBank(i)]!; }
   samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBank(i)]!; }
+  motionBank(i: number): MotionStep[] { return this.motionBanks[clampBank(i)]!; }
+  motionAssign(i: number): MotionAssign | null { return this.motionAssigns[clampBank(i)] ?? null; }
 
   setSeqEditBank(i: number): void {
     const n = clampBank(i);
@@ -188,6 +229,14 @@ export class PatternStore {
     for (const l of this.editBankListeners) l();
   }
 
+  setMotionEditBank(i: number): void {
+    const n = clampBank(i);
+    if (n === this._motionEdit) return;
+    this._motionEdit = n;
+    this.emitBankMotion();
+    for (const l of this.editBankListeners) l();
+  }
+
   // ---- Mutations (operate on the edit bank) ----
 
   setSeqStep(index: number, patch: Partial<SeqStep>): void {
@@ -209,6 +258,19 @@ export class PatternStore {
     if (!cell) return;
     Object.assign(cell, patch);
     for (const l of this.samplerListeners) l(slot, step, cell);
+  }
+
+  setMotionStep(index: number, patch: Partial<MotionStep>): void {
+    const s = this.motionBanks[this._motionEdit]?.[index];
+    if (!s) return;
+    Object.assign(s, patch);
+    for (const l of this.motionListeners) l(index, s);
+  }
+
+  /** Set/clear the edit bank's axis override; repaints via the bank listeners. */
+  setMotionAssign(assign: MotionAssign | null): void {
+    this.motionAssigns[this._motionEdit] = assign && (assign.x || assign.y) ? { ...assign } : null;
+    this.emitBankMotion();
   }
 
   setSampleName(slot: number, name: string | null): void {
@@ -250,6 +312,17 @@ export class PatternStore {
       for (let s = 0; s < dstRow.length; s++) Object.assign(assertIndex(dstRow, s, 'samplerCells'), assertIndex(srcRow, s, 'samplerCells'));
     }
     if (b === this._samplerEdit) this.emitBankSampler();
+  }
+
+  copyMotionBank(from: number, to: number): void {
+    const a = clampBank(from), b = clampBank(to);
+    if (a === b) return;
+    const src = assertIndex(this.motionBanks, a, 'motionBanks');
+    const dst = assertIndex(this.motionBanks, b, 'motionBanks');
+    for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'motionSteps'), assertIndex(src, i, 'motionSteps'));
+    const srcAssign = this.motionAssigns[a] ?? null;
+    this.motionAssigns[b] = srcAssign ? { ...srcAssign } : null;
+    if (b === this._motionEdit) this.emitBankMotion();
   }
 
   // ---- Subscriptions ----
@@ -295,6 +368,16 @@ export class PatternStore {
     return () => { this.samplerBankListeners.delete(fn); };
   }
 
+  onMotionChange(fn: (index: number, step: MotionStep) => void): () => void {
+    this.motionListeners.add(fn);
+    return () => { this.motionListeners.delete(fn); };
+  }
+
+  onMotionBankChange(fn: (bank: readonly MotionStep[]) => void): () => void {
+    this.motionBankListeners.add(fn);
+    return () => { this.motionBankListeners.delete(fn); };
+  }
+
   private emitBankSeq(): void {
     const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
     for (const l of this.seqBankListeners) l(bank);
@@ -308,6 +391,11 @@ export class PatternStore {
   private emitBankSampler(): void {
     const bank = assertIndex(this.samplerBanks, this._samplerEdit, 'samplerBanks');
     for (const l of this.samplerBankListeners) l(bank);
+  }
+
+  private emitBankMotion(): void {
+    const bank = assertIndex(this.motionBanks, this._motionEdit, 'motionBanks');
+    for (const l of this.motionBankListeners) l(bank);
   }
 
   private emitAllSeq(): void {
@@ -348,6 +436,9 @@ export class PatternStore {
       samplerBanks: this.samplerBanks.map((bk) => bk.map((row) => row.map((c) => ({ ...c })))),
       samplerEditBank: this._samplerEdit,
       sampleNames: [...this.sampleNames],
+      motionBanks: this.motionBanks.map((b) => b.map((s) => ({ ...s }))),
+      motionAssigns: this.motionAssigns.map((a) => (a ? { ...a } : null)),
+      motionEditBank: this._motionEdit,
     };
   }
 
@@ -397,6 +488,23 @@ export class PatternStore {
         }
       }
     }
+    if (snap.motionBanks) {
+      for (let b = 0; b < BANK_COUNT; b++) {
+        const incoming = snap.motionBanks[b];
+        if (!incoming) continue;
+        const bank = assertIndex(this.motionBanks, b, 'motionBanks');
+        for (let i = 0; i < bank.length; i++) {
+          const step = incoming[i];
+          if (step) Object.assign(assertIndex(bank, i, 'motionSteps'), MOTION_STEP_DEFAULTS, step);
+        }
+      }
+    }
+    if (snap.motionAssigns) {
+      for (let b = 0; b < BANK_COUNT; b++) {
+        const a = snap.motionAssigns[b];
+        this.motionAssigns[b] = a && (a.x || a.y) ? { ...a } : null;
+      }
+    }
     if (snap.sampleNames) {
       for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
         this.sampleNames[i] = snap.sampleNames[i] ?? null;
@@ -405,10 +513,12 @@ export class PatternStore {
     if (typeof snap.seqEditBank === 'number') this._seqEdit = clampBank(snap.seqEditBank);
     if (typeof snap.drumEditBank === 'number') this._drumEdit = clampBank(snap.drumEditBank);
     if (typeof snap.samplerEditBank === 'number') this._samplerEdit = clampBank(snap.samplerEditBank);
+    if (typeof snap.motionEditBank === 'number') this._motionEdit = clampBank(snap.motionEditBank);
     // Repaint whatever bank is now selected for editing.
     this.emitBankSeq();
     this.emitBankDrum();
     this.emitBankSampler();
+    this.emitBankMotion();
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       for (const l of this.sampleMetaListeners) l(i, this.sampleNames[i] ?? null);
     }

@@ -91,7 +91,9 @@ COMPACT AUTHOR FORMAT (recommended output)
   "drumChain": Chain,
   "samplerChain": Chain,
   "sampleNames": ["kick.wav", …],      // OPTIONAL — display names per sampler slot (max ${SAMPLER_SLOT_COUNT}; audio is NEVER embedded)
-  "xy": { "x": "<param id>", "y": "<param id>" }   // OPTIONAL — XY-pad axis assignment
+  "xy": { "x": "<param id>", "y": "<param id>" },   // OPTIONAL — XY-pad axis assignment
+  "motion": [ MotionBank, … up to ${BANK_COUNT} ],  // OPTIONAL — motion sequencer (XY param automation over the bar)
+  "motionChain": Chain                 // OPTIONAL — motion bank order per bar
 }
 
 SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), either form:
@@ -107,6 +109,15 @@ HitBank — one bar of triggers: an object mapping a track to its hits.
   Sampler slots: "s1".."s${SAMPLER_SLOT_COUNT}" or "0".."${SAMPLER_SLOT_COUNT - 1}".
   Hit = step index 0-${SEQ_LENGTH - 1} | { "step": 0-${SEQ_LENGTH - 1}, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool }.
 
+MotionBank — one bar of XY param automation: anchors the synth moves through while playing.
+  Either an anchor list [ { "step": 0-${SEQ_LENGTH - 1}, "x": 0-1, "y": 0-1 }, … ] or
+  { "assign": { "x"?: "<param id>", "y"?: "<param id>" }, "steps": [ …anchors ] } to override,
+  per bank, which two params the anchors drive (an unset axis inherits the song's "xy" assignment;
+  x/y are the params' normalized 0..1 positions, like the XY pad surface).
+  "motion.slide" chooses the curve: 1 (default) ramps linearly between anchors (sweeps),
+  0 jumps at each anchor and holds (param-lock stabs). A bank with no anchors automates nothing —
+  e.g. a one-bar min→max→min cutoff sweep is [ {"step":0,"y":0,"x":0.5}, {"step":8,"y":1,"x":0.5}, {"step":15,"y":0,"x":0.5} ].
+
 Chain — the song structure, one bank per bar, looped:
 - a string of bank letters where "." or "-" is a silent bar: "AABA", "AAAB AAAC" (spaces ignored), or
 - an array of bank indices where -1 is a silent bar: [0, 0, 1, 0], or
@@ -114,8 +125,8 @@ Chain — the song structure, one bank per bar, looped:
 
 NOTES
 - "filter.cutoff" is a MIDI NOTE NUMBER, not Hz. Filter env/LFO modulate it additively in semitones.
-- Machines with hits turn on automatically ("seq.on"/"drum.on"/"sampler.on" are set to 1 when a bank
-  has steps and you didn't set the param yourself); set e.g. "seq.on": 0 to keep one silent on load.
+- Machines with hits turn on automatically ("seq.on"/"drum.on"/"sampler.on"/"motion.on" are set to 1
+  when a bank has steps and you didn't set the param yourself); set e.g. "seq.on": 0 to keep one silent on load.
 - For a resonant, moving filter (acid/disco bass), use high "filter.resonance", a fast "env.fil.decay",
   positive "filter.envAmount", and route the LFO to cutoff with "lfo.dest": 1.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
@@ -136,7 +147,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 3,                        // 3 (2 lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": 4,                        // 4 (3 lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -148,20 +159,26 @@ TOP-LEVEL SHAPE
   "samplerChain": { "enabled": boolean, "steps": number[] },
   "sampleNames":  (string | null)[${SAMPLER_SLOT_COUNT}],
   // ---- v3 XY Pad field, OPTIONAL ----
-  "xy": { "x": "<param id>", "y": "<param id>" }
+  "xy": { "x": "<param id>", "y": "<param id>" },
+  // ---- v4 motion sequencer fields, all OPTIONAL ----
+  "motionBanks": MotionStep[${BANK_COUNT}][${SEQ_LENGTH}],
+  "motionAssigns": (MotionAssign | null)[${BANK_COUNT}],   // per-bank axis override; null = inherit "xy"
+  "motionChain": { "enabled": boolean, "steps": number[] }
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
              "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */ }
 DrumCell = SamplerStep = { "on": boolean, "velocity": number /* 0..1 */, "gate": number /* 0..1; 1 = ring naturally (default) */,
              "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */ }
+MotionStep = { "on": boolean, "x": number /* 0..1 */, "y": number /* 0..1 */ }   // a dead step is { "on": false }
+MotionAssign = { "x"?: "<param id>", "y"?: "<param id>" }
 On import, any omitted "gate"/"prob"/"ratchet"/"tie" falls back to its default, so plain
 { "on", "velocity" } cells stay valid.
 
 EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)
 {
   "format": "websynth-song",
-  "version": 3,
+  "version": 4,
   "name": "My Song",
   "params": { "mixer.glide": 0, "filter.cutoff": 60, "…": 0 },
   "seqBanks": [
