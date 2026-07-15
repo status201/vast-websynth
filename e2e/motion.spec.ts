@@ -113,6 +113,11 @@ test('the Song panel Motion card has chain controls + Mute (no solo/volume)', as
   await expect(card.getByTestId('knob-motion.master')).toHaveCount(0);
   await page.getByTestId('chain-add-motion-1').click();
   await expect(page.getByTestId('chain-chip-motion-1')).toBeVisible();
+  // The cards' rows are subgrid tracks, so the Motion card's controls align
+  // vertically with the other lanes despite its knob-less mixer strip.
+  const seqBox = await page.getByTestId('chain-add-seq-0').boundingBox();
+  const motionBox = await page.getByTestId('chain-add-motion-0').boundingBox();
+  expect(Math.abs(motionBox!.y - seqBox!.y)).toBeLessThan(2);
   // Muting dims the card like the audio lanes and restores the driven params.
   await page.getByTestId('switch-motion.mute').click();
   await expect(page.getByTestId('switch-motion.mute')).toHaveClass(/\bon\b/);

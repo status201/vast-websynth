@@ -15,11 +15,15 @@
 }
 
 /* All four machine lanes on one row; 2×2 on narrower screens so the 4th card
-   never dangles alone on its own row. */
+   never dangles alone on its own row. Each card's four rows (head / mix /
+   chips / controls) are SUBGRID tracks of this grid, so the rows share one
+   height across cards and stay vertically aligned — even though the Motion
+   card's mixer strip has no VOL knob, and even when one lane's chips wrap. */
 .chains {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 8px; /* the gap between the cards' internal rows (was .lane's flex gap) */
 }
 
 @media (max-width: 992px) {
@@ -29,9 +33,9 @@
 }
 
 .lane {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-rows: subgrid; /* no-subgrid engines fall back to auto rows (unaligned, fine) */
+  grid-row: span 4;
   background: linear-gradient(180deg, #0c0905, #16100b);
   border: 1px solid var(--panel-border);
   border-radius: 6px;
