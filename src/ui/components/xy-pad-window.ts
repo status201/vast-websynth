@@ -1,5 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { XyPadStore } from '../../state/xy-pad';
+import type { EffectiveXy } from '../../state/xy-effective';
 import { FloatingWindow } from './floating-window';
 import { createXyPad } from './xy-pad';
 
@@ -19,7 +20,7 @@ export interface XyPadWindowController {
   onChange(cb: (open: boolean) => void): () => void;
 }
 
-export function createXyPadWindowController(bus: ParamBus, xy: XyPadStore): XyPadWindowController {
+export function createXyPadWindowController(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): XyPadWindowController {
   let win: FloatingWindow | null = null;
   const listeners = new Set<(open: boolean) => void>();
   const emit = (open: boolean): void => { for (const l of listeners) l(open); };
@@ -27,7 +28,7 @@ export function createXyPadWindowController(bus: ParamBus, xy: XyPadStore): XyPa
   function ensure(): FloatingWindow {
     if (win) return win;
     // Build the pad first so its gear can seed the window's title-bar slot.
-    const pad = createXyPad(bus, xy);
+    const pad = createXyPad(bus, xy, effective);
     win = new FloatingWindow({
       title: 'XY Pad',
       testId: 'xypad-window',

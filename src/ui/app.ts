@@ -38,6 +38,7 @@ import { buildSamplerPanel } from './panels/sampler-panel';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
+import { createEffectiveXy } from '../state/xy-effective';
 
 /**
  * True on viewports where the faceplate no longer fits one screen (≤1280px).
@@ -366,7 +367,10 @@ function buildPatternRow(
 } {
   // One shared XY Pad window controller for every launcher (Song panel, LIVE FX
   // window, Motion panel) — they must all toggle the SAME window (xy-pad.md).
-  const xyWin = createXyPadWindowController(bus, xy);
+  // The pad's axes follow the *effective* assignment (a motion play bank's
+  // override wins while motion is on), so its labels stay truthful per bar.
+  const effectiveXy = createEffectiveXy(xy, engine.patterns, engine.arrangement, bus);
+  const xyWin = createXyPadWindowController(bus, xy, effectiveXy);
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },

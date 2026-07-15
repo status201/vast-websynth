@@ -17,6 +17,7 @@ source:
   - src/audio/transport/arrangement.ts      # 4th chain lane
   - src/state/patterns.ts                   # motion banks + per-bank assigns
   - src/utils/taper.ts                      # norm<->value mapping (extracted from ui)
+  - src/state/xy-effective.ts               # observable effective-assignment resolver
   - src/ui/panels/motion-panel.ts
   - src/ui/components/motion-step-pad.ts
   - src/state/song.ts                       # SongFile v4 fields
@@ -83,6 +84,13 @@ The tab sits between Sampler and Song.
   document it; `motion.on` auto-enables when anchors are present.
 - **REQ-10** — Restore/`apply` spreads defaults under incoming cells so sparse and
   legacy files sound identical (mirrors the other machines).
+- **REQ-11** — The XY Pad window's **axes** (on-surface labels, dot, drag/wheel
+  targets) follow the *effective* assignment — `createEffectiveXy`
+  (`state/xy-effective.ts`) resolves the motion **play bank's** override per
+  axis while `motion.on` is set, falling back to the base `XyPadStore` — and
+  re-resolves as the chain crosses banks, on override edits, on base
+  reassignment, and on `motion.on` toggles. The pad's gear dropdowns keep
+  showing/editing the **base** assignment (the store stays its single writer).
 
 ## Technical design
 
@@ -175,6 +183,13 @@ Scenario: Per-bank assignment override with fallback
   When the chain reaches bank B
   Then motion writes fx.delay.time for x and the XY Pad's y param for y
 # pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: The XY Pad reflects the bank being driven
+  Given motion is on and the play bank overrides x to fx.delay.time
+  When the effective assignment resolves
+  Then the pad's x axis (label/dot/drag) is fx.delay.time while y stays the base param
+  And turning motion off returns both axes to the base assignment
+# pinned by: tests/state/xy-effective.test.ts, e2e/motion.spec.ts
 
 Scenario: Old songs load unchanged
   Given a v1/v2/v3 SongFile without motion fields

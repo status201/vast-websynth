@@ -14,10 +14,18 @@
   align-self: center;
 }
 
+/* All four machine lanes on one row; 2×2 on narrower screens so the 4th card
+   never dangles alone on its own row. */
 .chains {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+}
+
+@media (max-width: 992px) {
+  .chains {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .lane {

@@ -105,10 +105,16 @@ XyPadStore:   # src/state/xy-pad.ts (pure — no DOM, no bus, no localStorage)
 XyAssign: { x: string; y: string }     # ParamBus ids
 XY_DEFAULT_ASSIGN: { x: 'filter.cutoff', y: 'filter.resonance' }
 
-createXyPad(bus: ParamBus, xy: XyPadStore): { el: HTMLElement; gear: HTMLElement; destroy(): void }
+createXyPad(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): { el: HTMLElement; gear: HTMLElement; destroy(): void }
   # builds the window content; `gear` is the assign-row toggle button the caller
   # places in the window's title bar (`leading` slot). destroy() aborts any
-  # gesture (snap to pre), unsubscribes the bus + store, and destroys the dropdowns.
+  # gesture (snap to pre), unsubscribes the bus + store + axes source, and
+  # destroys the dropdowns.
+  # `effective` (state/xy-effective.ts, built in app.ts from the motion play
+  # bank — motion-sequencer.md REQ-11): when passed, the pad's AXES — labels,
+  # dot, drag/wheel targets — follow the effective assignment; the gear
+  # dropdowns still show/edit the base store. Omitted (tests) = store-only,
+  # the original behaviour.
 ```
 
 ### Gesture state machine

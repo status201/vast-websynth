@@ -184,3 +184,52 @@ describe('createXyPad', () => {
     expect(dot.style.left).toBe(leftNow);
   });
 });
+
+describe('createXyPad with an effective-axes source (motion-sequencer.md REQ-11)', () => {
+  /** Manual EffectiveXy stub the test drives directly. */
+  function stubEffective(initial: { x: string; y: string }) {
+    let value = { ...initial };
+    const listeners = new Set<(a: { x: string; y: string }) => void>();
+    return {
+      get: () => ({ ...value }),
+      onChange(cb: (a: { x: string; y: string }) => void) {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      },
+      emit(next: { x: string; y: string }) {
+        value = { ...next };
+        for (const l of listeners) l({ ...next });
+      },
+    };
+  }
+
+  it('axes labels + dot follow the effective source; the gear dropdowns keep the base', () => {
+    const bus = mkBus();
+    const xy = new XyPadStore(); // base: filter.cutoff x filter.resonance
+    const eff = stubEffective({ x: 'fx.delay.time', y: 'fx.delay.mix' });
+    const pad = createXyPad(bus, xy, eff);
+    document.body.appendChild(pad.el);
+
+    const xLabel = pad.el.querySelector('[data-testid="xypad-axis-x"]')!;
+    const yLabel = pad.el.querySelector('[data-testid="xypad-axis-y"]')!;
+    expect(xLabel.textContent).toBe('time');
+    expect(yLabel.textContent).toBe('mix');
+    // The gear dropdowns still show the BASE assignment.
+    expect(pad.el.querySelector('[data-testid="xypad-assign-x"]')!.textContent).toContain('filter.cutoff');
+
+    // The dot tracks the effective params...
+    const dot = pad.el.querySelector('[data-testid="xypad-dot"]') as HTMLElement;
+    const delayDef = bus.def('fx.delay.time')!;
+    bus.set('fx.delay.time', delayDef.max);
+    expect(dot.style.left).toBe('100%');
+
+    // ...and re-follows when the effective pair changes (bank crossed / motion off).
+    eff.emit({ x: 'filter.cutoff', y: 'filter.resonance' });
+    expect(xLabel.textContent).toBe('cutoff');
+    const cutoffDef = bus.def('filter.cutoff')!;
+    bus.set('filter.cutoff', cutoffDef.min);
+    expect(dot.style.left).toBe('0%');
+
+    pad.destroy();
+  });
+});

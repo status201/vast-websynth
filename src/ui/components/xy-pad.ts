@@ -1,5 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { XyPadStore, XyAssign } from '../../state/xy-pad';
+import type { EffectiveXy } from '../../state/xy-effective';
 import { Dropdown } from './dropdown';
 import { toNorm, fromNorm } from './taper';
 import styles from '../styles/xy-pad.module.css';
@@ -12,6 +13,12 @@ import styles from '../styles/xy-pad.module.css';
  * the pure `XyPadStore` (persisted via SongFile v3). No audio wiring here —
  * assignable params drive the live graph through the existing `bus.subscribe`.
  * See `specs/features/xy-pad.md`.
+ *
+ * When an `effective` source is passed (app.ts builds one from the motion
+ * sequencer's play bank — xy-effective.ts), the pad's *axes* — labels, dot,
+ * drag/wheel targets — follow the effective assignment so they stay truthful
+ * while motion bank overrides play; the gear dropdowns still edit the base
+ * `XyPadStore` assignment.
  */
 
 /** Wheel sensitivity: normalized units per pixel of scroll. */
@@ -24,9 +31,15 @@ type GestureState = 'idle' | 'drag' | 'wheel';
 export function createXyPad(
   bus: ParamBus,
   xy: XyPadStore,
+  effective?: EffectiveXy,
 ): { el: HTMLElement; gear: HTMLElement; destroy(): void } {
   const ids = bus.ids().slice().sort();
-  const initial = xy.get();
+  // The axes source: the effective assignment when provided, else the store.
+  const axes: EffectiveXy = effective ?? {
+    get: () => xy.get(),
+    onChange: (cb) => xy.onChange(cb),
+  };
+  const initial = axes.get();
   let ax = initial.x;
   let ay = initial.y;
 
@@ -37,9 +50,10 @@ export function createXyPad(
   const assignRow = document.createElement('div');
   assignRow.className = styles.assign!;
 
-  const ddX = new Dropdown(ids, ax);
+  const base = xy.get();
+  const ddX = new Dropdown(ids, base.x);
   ddX.el.dataset.testid = 'xypad-assign-x';
-  const ddY = new Dropdown(ids, ay);
+  const ddY = new Dropdown(ids, base.y);
   ddY.el.dataset.testid = 'xypad-assign-y';
 
   assignRow.appendChild(labeled('X', ddX.el));
@@ -259,13 +273,19 @@ export function createXyPad(
   surface.addEventListener('pointerleave', onPointerLeave);
   surface.addEventListener('wheel', onWheel, { passive: false });
 
-  // --- Axis reassignment (the store is the single writer) ---
+  // --- Axis reassignment ---
+  // The gear dropdowns show/edit the BASE assignment (the store is its single
+  // writer); the pad's live axes follow the `axes` source, which may differ
+  // while a motion bank override plays.
   ddX.onChange((v) => xy.set({ x: v }));
   ddY.onChange((v) => xy.set({ y: v }));
 
   const unsubStore = xy.onChange((a: XyAssign) => {
     ddX.setValue(a.x);
     ddY.setValue(a.y);
+  });
+
+  const unsubAxes = axes.onChange((a: XyAssign) => {
     if (a.x === ax && a.y === ay) return;
     abortGesture(); // snap the OLD axes home before switching
     ax = a.x;
@@ -282,6 +302,7 @@ export function createXyPad(
     unsubX();
     unsubY();
     unsubStore();
+    unsubAxes();
     ddX.destroy();
     ddY.destroy();
   }

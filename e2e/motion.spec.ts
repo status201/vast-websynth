@@ -111,3 +111,25 @@ test('the Song panel has a chain-only Motion card', async ({ page }) => {
   await page.getByTestId('chain-add-motion-1').click();
   await expect(page.getByTestId('chain-chip-motion-1')).toBeVisible();
 });
+
+test('the XY Pad axes follow the motion bank override (effective assignment)', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // Override this bank's x axis via the store (the dropdown UI is a 200-item
+  // list; the dev bridge is the stable way to set a specific id).
+  await page.evaluate(() => {
+    (window as any).__synth.patterns.setMotionAssign({ x: 'fx.delay.time' });
+  });
+  await page.getByTestId('switch-motion.on').click();
+
+  await page.getByTestId('motion-xypad').click();
+  const xLabel = page.getByTestId('xypad-axis-x');
+  const yLabel = page.getByTestId('xypad-axis-y');
+  await expect(xLabel).toHaveText('time');       // fx.delay.time (override)
+  await expect(yLabel).toHaveText('resonance');  // base fallback
+
+  // Turning motion off returns the pad to the base assignment.
+  await page.getByTestId('switch-motion.on').click();
+  await expect(xLabel).toHaveText('cutoff');
+});
