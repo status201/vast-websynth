@@ -39,7 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   down to a bar-12 tom fill that cascades across both machines. Demo drop-ins
   under `src/state/demos/` are now exempt from the SDD spec guard (they're data,
   not code).
-  keyboard shortcuts) clears all data saved on the device (presets, songs,
+  
+- **Restore to Factory Settings button** — (About modal, under the keyboard
+  shortcuts) clears all data saved on the device (presets, songs,
   settings) and reloads the app into its factory state. Guarded by a styled
   confirm dialog whose fine print quotes the classic exit warning: *“Everything
   not saved will be lost.”*
