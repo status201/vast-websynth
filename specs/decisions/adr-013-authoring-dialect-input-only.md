@@ -26,8 +26,9 @@ export) both reason about **one** on-disk format, and every export/save surface
 ## Decision
 
 Introduce a second, **input-only** format — `format: "websynth-song-author",
-version: 1` — that `Song.parse` detects and expands into a canonical v3
-`SongFile` (via `expandAuthorSong` in `src/state/song-author.ts`) *before*
+version: 1` — that `Song.parse` detects and expands into a canonical
+`SongFile` (v3 at the time of this decision; the expander always targets the
+current canonical version) (via `expandAuthorSong` in `src/state/song-author.ts`) *before*
 `validateSongFile` runs. The dialect is a compression of intent: positional note
 lists, drum hit-lists keyed by track name, chain strings like `"AABA"`. Nothing
 in the app ever *writes* the dialect — `Song.capture`/`toJSON`, save slots,

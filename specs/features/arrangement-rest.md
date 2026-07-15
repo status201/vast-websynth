@@ -46,16 +46,16 @@ banks stay fully usable and existing songs are unaffected.
   otherwise clamps to `0..BANK_COUNT-1`. `clampBank` (edit/play-bank access) is
   unchanged — an *edit* bank can never be a rest.
 - **REQ-2** — `Arrangement` chain steps may hold `REST`; `setSeqChain` /
-  `setDrumChain` / `setSamplerChain` map incoming steps through `clampChainStep`
-  (preserving `REST`), so `Song.apply` round-trips a rest.
+  `setDrumChain` / `setSamplerChain` / `setMotionChain` map incoming steps through
+  `clampChainStep` (preserving `REST`), so `Song.apply` round-trips a rest.
 - **REQ-3** — `Arrangement` exposes `seqResting` / `drumResting` / `samplerResting`
-  booleans recomputed each bar in `recompute()`. A lane is resting **iff** it is
+  / `motionResting` booleans recomputed each bar in `recompute()`. A lane is resting **iff** it is
   enabled and its current chain step is `REST`. A disabled lane is never resting;
   when resting the lane's `*PlayBank` is a safe real index (0) that is never read
   for triggering.
 - **REQ-4** — When a lane is resting, its machine (`StepSequencer` / `DrumMachine`
-  / `SamplerMachine`) triggers nothing for that bar; the sequencer additionally
-  releases any note tied into the rest. The transport clock advances normally
+  / `SamplerMachine` / `MotionMachine`) triggers/writes nothing for that bar; the
+  sequencer additionally releases any note tied into the rest. The transport clock advances normally
   (positions still step, the playhead still moves).
 - **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
   and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
@@ -77,12 +77,12 @@ patterns.ts:
   REST: number                       # sentinel, = -1
   clampChainStep(i: number): number  # REST passes through; else clampBank
 Arrangement:                         # src/audio/transport/arrangement.ts
-  seqResting / drumResting / samplerResting: boolean   # read by the machines + UI
+  seqResting / drumResting / samplerResting / motionResting: boolean   # read by the machines + UI
   # set*Chain now map through clampChainStep; recompute() sets *Resting alongside *PlayBank
 rest-glyph.ts:
   restIcon(): string                 # inline <svg>, colour via currentColor (like wave-icons.ts)
 rest-overlay.ts:
-  buildRestOverlay(api: StudioApi, lane: 'seq'|'drum'|'sampler'):
+  buildRestOverlay(api: StudioApi, lane: 'seq'|'drum'|'sampler'|'motion'):
     { el: HTMLElement; refresh(): void }   # el placed over a position:relative grid wrapper
 ```
 

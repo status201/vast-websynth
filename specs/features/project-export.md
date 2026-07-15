@@ -34,7 +34,8 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
 
 - **REQ-1** — A project zip contains the **unmodified canonical compact** song JSON
   (`Song.toJSON`, ADR-011) as `song.json`, plus one `samples/<slot>-<name>.<ext>`
-  entry per loaded sampler slot. `SongFile` stays version 3 — the zip is a container,
+  entry per loaded sampler slot. `SongFile` stays whatever the current canonical
+  version is (v4 as of the motion sequencer) — the zip is a container,
   never a new song format. Clip slot assignment is keyed by the **slot index in the
   entry name**; `sampleNames` in `song.json` remains the display-name source of truth.
 - **REQ-2** — The zip codec is **hand-written and dependency-free** (ADR-003):

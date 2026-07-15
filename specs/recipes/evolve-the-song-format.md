@@ -21,26 +21,27 @@ saved songs or demos**. This is the load-bearing backward-compatibility playbook
 ## Background / Why
 
 Users save song files and demos ship as data, so the load path must keep parsing
-older files forever. The format already did this twice (`version: 1 → 2` added
-optional sampler fields; `2 → 3` added the optional [XY Pad](../features/xy-pad.md)
-`xy` axis assignment). The contract: **additive, optional, defaulted** — never
-required, never repurposed.
+older files forever. The format already did this three times (`version: 1 → 2`
+added optional sampler fields; `2 → 3` the optional [XY Pad](../features/xy-pad.md)
+`xy` axis assignment; `3 → 4` the optional
+[motion sequencer](../features/motion-sequencer.md) fields). The contract:
+**additive, optional, defaulted** — never required, never repurposed.
 
-## Steps (going from v3 → v4)
+## Steps (going from v4 → v5)
 
 ### 1. Extend `SongFile` with OPTIONAL fields — `src/state/song.ts`
 
 ```ts
 export interface SongFile {
   // …
-  version: 1 | 2 | 3 | 4;
-  myNewThing?: SomeShape;     // optional, so v1/v2/v3 files still satisfy the type
+  version: 1 | 2 | 3 | 4 | 5;
+  myNewThing?: SomeShape;     // optional, so v1..v4 files still satisfy the type
 }
 ```
 
 ### 2. Bump the version `capture()` writes
 
-`Song.capture(...)` always writes the latest (`version: 4`). If the new field lives
+`Song.capture(...)` always writes the latest (`version: 5`). If the new field lives
 in its own store (like `xy`), thread it in as an optional `capture(...)` arg and
 include it only when passed, mirroring the `xy` precedent.
 

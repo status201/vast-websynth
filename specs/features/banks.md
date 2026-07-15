@@ -30,8 +30,9 @@ without the editor and the playhead fighting over one buffer.
 
 ## Requirements
 
-- **REQ-1** — 4 banks per machine; `seq`/`drum`/`sampler` getters expose the edit
-  bank; `seqBank(i)`/`drumBank(i)`/`samplerBank(i)` expose any bank for playback.
+- **REQ-1** — 4 banks per machine; `seq`/`drum`/`sampler`/`motion` getters expose
+  the edit bank; `seqBank(i)`/`drumBank(i)`/`samplerBank(i)`/`motionBank(i)`
+  expose any bank for playback.
 - **REQ-2** — `setSeqEditBank`/`setDrumEditBank`/`setSamplerEditBank` re-emit every
   step so panels repaint.
 - **REQ-3** — Banks are copyable (`copySeqBank(from, to)` etc.).
@@ -52,11 +53,11 @@ without the editor and the playhead fighting over one buffer.
 
 ```yaml
 PatternStore:  # src/state/patterns.ts
-  get seqEditBank / drumEditBank / samplerEditBank: number
-  seqBank(i) / drumBank(i) / samplerBank(i)        # any bank, for the transport
-  setSeqEditBank(i) / setDrumEditBank(i) / setSamplerEditBank(i)   # re-emit steps
-  setSeqStep(index, patch) / setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch)
-  copySeqBank(from, to) / copyDrumBank(...) / copySamplerBank(...)
+  get seqEditBank / drumEditBank / samplerEditBank / motionEditBank: number
+  seqBank(i) / drumBank(i) / samplerBank(i) / motionBank(i)   # any bank, for the transport
+  setSeqEditBank(i) / setDrumEditBank(i) / setSamplerEditBank(i) / setMotionEditBank(i)  # re-emit steps
+  setSeqStep(index, patch) / setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch) / setMotionStep(index, patch)
+  copySeqBank(from, to) / copyDrumBank(...) / copySamplerBank(...) / copyMotionBank(...)  # motion also copies its assign override
   onEditBankChange(fn) -> unsubscribe
 constant: BANK_COUNT = 4
 ```
@@ -68,7 +69,7 @@ play vs edit:
   transport reads seqBank(arrangement.seqPlayBank)  (see arrangement.md)
   a DISABLED arrangement lane's play bank follows that machine's edit bank
 ui: src/ui/components/bank-bar.ts (BankBar) — testid prefix per machine:
-    bank-<seq|drum|sampler>-<i>, bank-…-copy, bank-…-follow
+    bank-<seq|drum|sampler|motion>-<i>, bank-…-copy, bank-…-follow
 follow (REQ-5):
   lives entirely inside BankBar — its opts (getEdit/setEdit/getPlay/onPlayChange)
   already suffice; panels are unchanged. On play change while following and

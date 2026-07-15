@@ -158,9 +158,9 @@ spring-back and drag both go through `bus.set`, the dot tracks for free.
 ### Persistence (SongFile v3)
 
 ```yaml
-SongFile.version: 1 | 2 | 3
+SongFile.version: 1 | 2 | 3 | 4
 SongFile.xy?: { x: string; y: string }        # v3, optional -> v1/v2 files still load
-Song.capture(bus, patterns, arr, name, xy?): writes version 3; includes `xy` only when passed
+Song.capture(bus, patterns, arr, name, xy?): writes the current version (4); includes `xy` only when passed
 Song.apply(file, bus, patterns, arr, xyStore?): ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
 compactSongForExport: copies `xy` through verbatim when present (else omitted)
 song-validate: version ∈ {1,2,3}; if `xy` present require { x: non-empty string, y: non-empty string }

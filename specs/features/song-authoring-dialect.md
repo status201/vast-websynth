@@ -26,7 +26,8 @@ output tokens, so weaker agents truncate mid-JSON or refuse to emit the file at
 all. The **authoring dialect** is a compact, *input-only* format
 (`format: "websynth-song-author"`) that says the same thing in ~40 lines:
 positional note lists, drum hit-lists keyed by track name, chain strings like
-`"AABA"`. `Song.parse` expands it into a canonical v3 `SongFile` before
+`"AABA"`. `Song.parse` expands it into a canonical `SongFile` (v3, or v4 when
+motion content is present) before
 `validateSongFile`, so every ingest surface (Import button, OS file launch,
 project-zip `song.json`, share URLs, the MCP server) accepts it automatically.
 It is never persisted or exported — see ADR-013.
@@ -39,8 +40,9 @@ It is never persisted or exported — see ADR-013.
   unchanged. Canonical parsing behaviour is untouched.
 - **REQ-2** — `expandAuthorSong` validates in **authoring terms first**
   (path-prefixed messages like `seq[0][3]`, capped at 50 errors), expands to a
-  canonical v3 `SongFile`, then runs `validateSongFile` as the final gate. The
-  result type is the shared `SongValidation`.
+  canonical `SongFile` (v3; v4 when motion content is present), then runs
+  `validateSongFile` as the final gate. The result type is the shared
+  `SongValidation`.
 - **REQ-3** — Notes are accepted as MIDI numbers (0..127) **or** note names
   matching `^([A-Ga-g])([#b]?)(-?\d+)$` with **C4 = 60**; `null` is a rest
   (`0` is a valid MIDI note, not a rest). Out-of-range/invalid notes are
@@ -100,7 +102,7 @@ It is never persisted or exported — see ADR-013.
 // src/state/song-author.ts
 export const AUTHOR_FORMAT = 'websynth-song-author';
 export function isAuthorSong(value: unknown): boolean;
-export function expandAuthorSong(value: unknown): SongValidation; // author-term errors OR {ok:true, file: canonical v3}
+export function expandAuthorSong(value: unknown): SongValidation; // author-term errors OR {ok:true, file: canonical v3/v4}
 ```
 
 Hook (the only integration point): `Song.parse` —
@@ -118,20 +120,29 @@ AuthorSong:
   seq: 'AuthorSeqBank[] (0..4)'       # optional
   drums: 'AuthorHitBank[] (0..4)'     # optional; track-name keys
   sampler: 'AuthorHitBank[] (0..4)'   # optional; slot keys s1..s8 / "0".."7"
+  motion: 'AuthorMotionBank[] (0..4)' # optional; XY param automation (motion-sequencer.md)
   seqChain: 'string | int[] | {enabled, steps}'   # optional; default {enabled:false, steps:[0]}
   drumChain: 'same'
   samplerChain: 'same'
+  motionChain: 'same'
   sampleNames: '(string|null)[] ≤8'   # optional, padded to 8
   xy: '{x: paramId, y: paramId}'      # optional passthrough
 AuthorSeqBank: 'entry[] (≤16, rest-padded) | {notes: entry[], velocity?, gate?, prob?, ratchet?, tie?}'
 entry: 'null | midi 0..127 | "A2"-style name | {note, velocity?, gate?, prob?, ratchet?, tie?}'
 AuthorHitBank: '{ <trackKey>: (step | {step, velocity?, gate?, prob?, ratchet?, tie?})[] }'
+AuthorMotionBank: 'anchor[] | {assign?: {x?: paramId, y?: paramId}, steps: anchor[]}'
+anchor: '{step: 0..15, x: 0..1, y: 0..1}'   # normalized taper-space coordinates
 ```
 
 Expansion targets: full 4×16 `seqBanks` / 4×8×16 `drumBanks` (and 4×8×16
 `samplerBanks` when present) built from `TRIGGER_CELL_DEFAULTS` with hits
 flipped on — the `drumFrom` idiom, written via `bank[t]?.[s]` for
-`noUncheckedIndexedAccess`.
+`noUncheckedIndexedAccess`. Motion content mirrors the sampler presence rule:
+`motionBanks` (4×16 from `MOTION_STEP_DEFAULTS`) + `motionAssigns` +
+`motionChain` are emitted only when the author provided `motion`/`motionChain`,
+`motion.on` auto-enables when anchors exist (never overriding an explicit
+author value), the emitted file is then `version: 4`, and `motionBanks` joins
+the canonical-key form-mixing guard.
 
 ### Layer touchpoints & ordering
 
@@ -193,6 +204,13 @@ Scenario: An explicit machine on/off param is respected (edge — REQ-11)
   Given an author file with drum hits and params {"drum.on": 0}
   When it expands
   Then params.drum.on stays 0 (auto-enable never overrides the author)
+
+Scenario: Motion anchors expand to v4 with per-bank assign
+  Given motion:[[{step:0,x:0.5,y:0}], {assign:{x:"fx.delay.time"}, steps:[{step:4,x:1,y:1}]}]
+  When the file expands
+  Then the result is a version 4 SongFile with motionBanks anchors on and
+       motionAssigns [null-for-A, {x:"fx.delay.time"}], and motion.on = 1
+# pinned by: tests/state/song-author.test.ts (motion dialect describe)
   And a machine whose banks have no ON steps gets no param injected
 
 Scenario: Expanded output always passes the canonical validator

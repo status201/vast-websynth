@@ -121,7 +121,11 @@ differ only by live-applied scope fps + fftSize).
   the scope frame rate and FFT size immediately (no reload). fps throttling is
   timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw every
   frame), correct on high-refresh displays. The scope always pauses its redraw loop
-  while the tab is hidden (`visibilitychange`).
+  while the tab is hidden (`visibilitychange`). Note: the
+  [motion sequencer](motion-sequencer.md)'s write loop also throttles to the
+  profile `fps`, but it reads it **once at boot** (`EngineOptions.motionFps`) —
+  a tier change updates it on reload only (accepted: it is a cost cap, not a
+  visual).
 - **REQ-7** — The canvas **drop-shadow is removed for all tiers** (it was the v1
   perf-only "lightening"; now a baseline cost cut everywhere). Wave and Spectrum draw
   with no `shadowBlur`/`shadowColor`.

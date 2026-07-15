@@ -35,19 +35,21 @@ best stress test of the spec format.
 ## Background / Why
 
 Song mode turns the synth from a live instrument into an arranger: 4 banks each of
-sequencer / drum / sampler patterns, ordered into per-lane **chains**, played back
-bar-by-bar, with live DJ FX and a per-lane mixer on top. A whole song
-(params + all banks + all three chains) is captured into one portable JSON file and
+sequencer / drum / sampler / motion patterns, ordered into per-lane **chains**,
+played back bar-by-bar, with live DJ FX and a per-lane mixer on top. A whole song
+(params + all banks + all four chains) is captured into one portable JSON file and
 into `localStorage` slots. Because song files are saved by users and shipped as
 demos, the load path **must stay backward compatible** as the format grows.
 
 ## Requirements
 
-- **REQ-1** — A song captures the full bus snapshot + all seq/drum/sampler banks +
-  all three chain lanes into one `SongFile`.
-- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3`); v2 adds
+- **REQ-1** — A song captures the full bus snapshot + all seq/drum/sampler/motion
+  banks + all four chain lanes into one `SongFile`.
+- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3 | 4`); v2 adds
   optional sampler fields, v3 adds the optional [XY Pad](xy-pad.md) axis assignment
-  (`xy`). Older files (incl. built-in demos) must still load.
+  (`xy`), v4 adds the optional [motion sequencer](motion-sequencer.md) fields
+  (`motionBanks`/`motionAssigns`/`motionChain`). Older files (incl. built-in
+  demos) must still load.
 - **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**,
   then restores, so a stale param omitted by an older file reverts rather than
   lingering. `resetDefaults()`+`restore()` also replaces every knob **reset
@@ -91,7 +93,7 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 ```yaml
 Song:   # src/state/song.ts (a plain object of functions, not a class)
-  capture(bus, patterns, arr, name, xy?): SongFile   # writes version 3; xy included only when passed
+  capture(bus, patterns, arr, name, xy?): SongFile   # writes version 4; xy included only when passed
   apply(file, bus, patterns, arr, xyStore?): void    # ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
   fromJSON(text): SongFile | null                  # validate, return file|null (the sparse object; apply re-expands)
@@ -105,7 +107,7 @@ song-validate:  # src/state/song-validate.ts (pure, dependency-free)
   validateSongFile(value: unknown): SongValidation
   type SongValidation = { ok: true; file: SongFile } | { ok: false; errors: string[] }
 
-Arrangement:  # setSeqChain / setDrumChain / setSamplerChain(steps, enabled)
+Arrangement:  # setSeqChain / setDrumChain / setSamplerChain / setMotionChain(steps, enabled)
 Performance:  # setFill / setStutter / setDrop / setTapeStop  (live DJ FX)
 lane-mix:     # audibleLanes(mute, solo): LaneFlags   (pure)
 ```
@@ -117,7 +119,7 @@ Nested beyond ~3 levels, so as flat YAML:
 ```yaml
 SongFile:
   format: 'websynth-song'            # required discriminator
-  version: 1 | 2 | 3
+  version: 1 | 2 | 3 | 4
   name: string
   params: Record<string, number>     # = ParamBus.snapshot()
   seqBanks:  SeqStep[][]             # 4 banks × 16 steps
@@ -130,6 +132,10 @@ SongFile:
   sampleNames?: (string | null)[]    # filenames ONLY — audio is not embedded
   # ---- v3 addition (optional, so v1/v2 files still parse) ----
   xy?: { x: string; y: string }      # XY Pad axis assignment (ParamBus ids) — see xy-pad.md
+  # ---- v4 additions (optional, so v1-v3 files still parse) ----
+  motionBanks?: MotionStep[][]       # 4 banks × 16 steps of {on, x, y} anchors — see motion-sequencer.md
+  motionAssigns?: (MotionAssign | null)[]  # per-bank axis override; null = inherit xy
+  motionChain?: ChainData
 
 ChainData:
   enabled: boolean
@@ -142,9 +148,9 @@ ChainData:
 ### Versioning & backward-compat (the load-bearing detail)
 
 ```yaml
-capture: always writes version: 3
+capture: always writes version: 4
 fromJSON: version-agnostic — only checks format === 'websynth-song'
-          AND presence of params + seqBanks + drumBanks  -> v1, v2 and v3 all parse
+          AND presence of params + seqBanks + drumBanks  -> v1..v4 all parse
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
   2. bus.restore(file.params)
@@ -275,7 +281,7 @@ ParamBus.restore ── PatternStore.restore ── Arrangement.set*Chain
 Scenario: Round-trip a song through a slot
   Given an edited song
   When the user saves it to a slot, starts a new song, then loads the slot
-  Then params, all banks, and all three chains match the saved song
+  Then params, all banks, and all four chains match the saved song
 # pinned by: tests/state/song.test.ts, e2e/song.spec.ts
 
 Scenario: Save/New use the custom dialog, not a native prompt/confirm
@@ -390,7 +396,8 @@ Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6)
 
 ## Open questions / future
 
-- `version: 3` shipped the optional `xy` field (see [xy-pad](xy-pad.md)) following
-  the additive contract. A future `version: 4` must keep new fields **optional** and
-  extend the `apply()` defaults-fallback pattern the same way, so older files keep
-  loading.
+- `version: 3` shipped the optional `xy` field (see [xy-pad](xy-pad.md)) and
+  `version: 4` the optional motion fields (see
+  [motion-sequencer](motion-sequencer.md)), both following the additive contract.
+  A future `version: 5` must keep new fields **optional** and extend the
+  `apply()` defaults-fallback pattern the same way, so older files keep loading.

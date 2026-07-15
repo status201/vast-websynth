@@ -55,3 +55,9 @@ new files degrade gracefully. The procedure is captured in
 > **Follow-up (2026-07-07):** v3 applied this same contract — the optional `xy`
 > field (XY Pad axis assignment, [`features/xy-pad`](../features/xy-pad.md));
 > v1/v2 files keep loading with default axes. The decision is unchanged.
+
+> **Follow-up (2026-07-15):** v4 applied it again — the optional `motionBanks` /
+> `motionAssigns` / `motionChain` fields
+> ([`features/motion-sequencer`](../features/motion-sequencer.md)); v1–v3 files
+> keep loading with empty motion state (and `motion.on` defaults to 0, so
+> nothing is written). The decision is unchanged.

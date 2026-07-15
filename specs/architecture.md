@@ -19,8 +19,8 @@ specs assume the contracts and conventions defined here.
 
 ## Background / Why
 
-VAST G1-J5 is a polyphonic Web Audio synthesizer (+ drum machine + sampler) in
-**vanilla TypeScript**. There is **no UI framework and zero runtime
+VAST G1-J5 is a polyphonic Web Audio synthesizer (+ drum machine + sampler +
+motion sequencer for param automation) in **vanilla TypeScript**. There is **no UI framework and zero runtime
 dependencies**; build tooling is Vite + `tsc` only. The only third-party
 runtime code is three **vendored** (not npm) libraries under `src/vendor/` —
 the MIT `lamejs` MP3 encoder (`lamejs/`), the MIT `qrcode-generator` QR
@@ -134,17 +134,17 @@ Engine:          # src/audio/engine.ts
   subscribeParams()              # wires params to the audio graph (once); FX/comps
                                  #   self-wire via Effect.bind(bus, prefix) — ADR-008
   playNote / releaseNote         # thin delegators to Polyphony (SynthOutput surface)
-  # owns: AudioContext, voices[8], FX chain, arrangement, perf, seq, drums, sampler
+  # owns: AudioContext, voices[8], FX chain, arrangement, perf, seq, drums, sampler, motion
   # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
-  # patterns, arrangement, clock, perf, seq, drums, sampler, recorder, sync,
+  # patterns, arrangement, clock, perf, seq, drums, sampler, motion, recorder, sync,
   # analyser, analyserL, analyserR, ctx, drumComp, masterComp + panic()/resume().
   # Engine satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
 PatternStore:    # src/state/patterns.ts
-  # 4 seq + 4 drum + 4 sampler banks; edit-bank (UI) vs play-bank (transport)
+  # 4 seq + 4 drum + 4 sampler + 4 motion banks; edit-bank (UI) vs play-bank (transport)
   snapshot() / restore(...)
 
 Song:            # src/state/song.ts
@@ -152,7 +152,7 @@ Song:            # src/state/song.ts
   list / saveSlot / loadSlot / deleteSlot
 
 Arrangement / Performance:  # src/audio/transport/
-  # chain lanes (seq/drum/sampler) and live DJ FX, respectively
+  # chain lanes (seq/drum/sampler/motion) and live DJ FX, respectively
 ```
 
 ### Event flow / propagation
@@ -213,9 +213,9 @@ The arp sets `passthroughSuppressed` when it takes ownership of held notes, so
 raw key passthrough is gated while it (or the sequencer) drives the voices.
 
 **Ordering that matters**: `Arrangement` is constructed **before** the
-sequencer/drum/sampler machines in `Engine.init()`, so its `clock.onTick` runs
-first and the **play banks are settled before the machines read them on the same
-tick**. And transport modules are built **after** the voices so they can call
+sequencer/drum/sampler/motion machines in `Engine.init()`, so its `clock.onTick`
+runs first and the **play banks are settled before the machines read them on the
+same tick**. And transport modules are built **after** the voices so they can call
 back into the engine.
 
 ### Audio graph (system diagram)

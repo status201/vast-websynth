@@ -65,9 +65,10 @@ sample `buffer-dsp`, the `zip` codec + `project` bundle build/parse, the
 authoring docs' drift pins, the vendored QR encoder→jsQR decoder round-trip
 under `tests/vendor/`, and the MCP server under `tests/mcp/`), the
 transport modules (`Arpeggiator`, `Arrangement`,
-`Sequencer`, `DrumMachine`, `SamplerMachine`, `Performance`) and the DOM
+`Sequencer`, `DrumMachine`, `SamplerMachine`, `MotionMachine` + the pure
+`motion-curve`, `Performance`) and the DOM
 components (`createButton`, `Dropdown`, `Switch`, `Segmented`, `Tabs`,
-`BankBar`, `ParamDropdown`, `Modal`, …); it runs in jsdom. Transport modules
+`BankBar`, `ParamDropdown`, `Modal`, `MotionStepPad`, …); it runs in jsdom. Transport modules
 that build an audio graph in their constructor are tested against a mock
 `AudioContext` (`tests/audio/mock-audio-context.ts`) — chainable node stubs with
 `vi.fn()` `AudioParam`s, so the wiring builds but no audio runs;
@@ -84,14 +85,17 @@ specs select by **text/role** or by `data-testid`. Interactive components carry
 stable testids minted at the factory level: `knob-<paramId>`,
 `switch-<paramId>`, `seg-<paramId>`(+`-<idx>`), `strip-<paramId>`,
 `tab-<id>`/`panel-<id>`, plus per-instance ones in the panels (`seq-step-<i>`,
-`drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`,
+`drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`, `motion-step-<s>` (mini XY
+pads) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
+`motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
 `StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
-`bank-<seq|drum|sampler>-<i>`/`bank-…-copy` (the per-machine `BankBar`, via its
-`testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
+`bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
+via its `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
-`switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume),
+`switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume;
+`song-lane-motion` is chain-only — no mixer strip),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
@@ -125,7 +129,10 @@ export → New → re-import round-trip via `download.path()`; WAV-only, since C
 Chromium can't decode MP3), and `song-link` (share URLs — `#song=` payloads,
 author-dialect and canonical, applied at boot with the hash cleared on success
 and left intact on failure; Copy Link verified via the clipboard with a
-Node-side `inflateRawSync` decode).
+Node-side `inflateRawSync` decode), and `motion` (the Motion tab — anchor
+input on the mini pads, live param automation + baseline restore on stop via
+`__synth.bus.get`, the Y/X view toggle re-projecting the graph, a
+save→new→load round-trip, and the chain-only Song-panel card).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
@@ -228,15 +235,16 @@ listener mechanism.
 
 ### Song mode
 
-- **`PatternStore`** holds 4 sequencer banks + 4 drum banks. The UI edits the
-  *edit bank* (`seq`/`drum` getters; `setSeqEditBank`/`setDrumEditBank`
-  re-emit every step so panels repaint). The transport reads the *play bank*
-  (`seqBank(i)`/`drumBank(i)`) chosen by the Arrangement — which may differ.
+- **`PatternStore`** holds 4 banks per machine (seq / drum / sampler /
+  motion). The UI edits the *edit bank* (`seq`/`drum`/… getters;
+  `setSeqEditBank`/… re-emit every step so panels repaint). The transport
+  reads the *play bank* (`seqBank(i)`/`drumBank(i)`/…) chosen by the
+  Arrangement — which may differ.
 - **Per-step settings** — every machine's step carries velocity/gate/prob/
   ratchet/tie (`StepSettings` in `state/patterns.ts`; `SeqStep` adds `note`,
   `DrumCell`/`SamplerStep` are the shared `TriggerCell`). The pure hit math
   (probability roll + ratchet sub-hit timing) is
-  `audio/transport/step-hits.ts`, consumed by all three machines. The seq
+  `audio/transport/step-hits.ts`, consumed by the seq/drum/sampler machines. The seq
   releases its voice at `gateEnd`; the one-shot machines use the **choke
   model**: gate < 1 cuts the hit early via a per-hit downstream gain
   (`chokeRoute` in `drums/drum-synths.ts`; the sampler chokes its per-hit
@@ -247,11 +255,11 @@ listener mechanism.
   `PatternStore.restore` spreads defaults under incoming cells, so legacy
   v1/v2 song files (plain `{on, velocity}` drum/sampler cells) load with
   gate 1 etc. and sound unchanged.
-- **`Arrangement`** (`audio/transport/arrangement.ts`) — two independent
-  chain lanes (seq + drum), each an ordered list of bank indices. Advances
-  one slot per bar (`step % SEQ_LENGTH === 0`); a disabled lane's play bank
-  tracks that machine's edit bank. Constructed **before** the sequencer/drum
-  machine so its `clock.onTick` runs first and play banks are settled before
+- **`Arrangement`** (`audio/transport/arrangement.ts`) — four independent
+  chain lanes (seq / drum / sampler / motion), each an ordered list of bank
+  indices. Advances one slot per bar (`step % SEQ_LENGTH === 0`); a disabled
+  lane's play bank tracks that machine's edit bank. Constructed **before** the
+  machines so its `clock.onTick` runs first and play banks are settled before
   the machines read them on the same tick. Resets on `Clock.onStart`.
 - **`Performance`** (`audio/transport/performance.ts`) — live DJ FX, owned by
   Engine. `mapStep()` (stutter) is consulted by both machines each tick;
@@ -291,12 +299,28 @@ listener mechanism.
   (see *Project export*). Slots are filled by **Load** (WAV/MP3 file) or the
   record-sound modal (mic-record or re-edit a loaded buffer; see *Sample
   recorder/editor*).
+- **Motion sequencer** (`specs/features/motion-sequencer.md`) — the 4th
+  machine (tab between Sampler and Song): 4 banks × 16 steps of optional XY
+  anchors (`MotionStep {on,x,y}`, normalized taper space) that drive the XY
+  Pad's two assigned params during playback. `MotionMachine`
+  (`audio/transport/motion-machine.ts`) evaluates the pure curve math
+  (`motion-curve.ts` — slide = linear breakpoints across gaps + last→first
+  wrap; step = jump-and-hold) on a perf-fps-throttled rAF loop against the
+  audio clock's *now* (tick `when`s are scheduled ahead), writing via
+  `bus.set` with taper-correct `fromNorm` (`utils/taper.ts`, extracted from
+  `ui/components/taper.ts` which re-exports). Baseline discipline: first
+  write per param records its prior value; stop / `motion.on→0` restores all.
+  Per-bank axis override `motionAssigns` falls back per-axis to `XyPadStore`.
+  Not an audio lane: no LaneMixer/audibleLanes entry; its Song-panel card is
+  chain-only (`buildChainLane` `{mixer:false}`). Params: `motion.on`,
+  `motion.slide` (0=step 1=slide).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
-  + all banks + all three chains). `SongFile` is now `version: 1 | 2 | 3`; v2
-  adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
-  `xy` axis assignment (XY Pad). `fromJSON` is unchanged and accepts all
-  versions; v1 files (incl. `DEMO_SONGS`) load with empty sampler state and
-  default XY axes. JSON file export/import **and** localStorage slots under
+  + all banks + all four chains). `SongFile` is now `version: 1 | 2 | 3 | 4`;
+  v2 adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
+  `xy` axis assignment (XY Pad), v4 the optional
+  `motionBanks`/`motionAssigns`/`motionChain` (motion sequencer). `fromJSON` is
+  unchanged and accepts all versions; v1 files (incl. `DEMO_SONGS`) load with
+  empty sampler state and default XY axes. JSON file export/import **and** localStorage slots under
   `websynth.song.*`. Demos (`DEMO_SONGS`) are the two hand-authored `SongFile`
   literals (Zombie Nation, I Feel Love) **plus** any `*.json` SongFile in
   `src/state/demos/` (Apex Twin lives there now), auto-registered at build time
@@ -309,7 +333,8 @@ listener mechanism.
   see `specs/features/project-export.md`) — Export opens a modal
   (`ui/components/export-song-modal.ts`): **Song (.json)** (default, unchanged)
   or **Project (.zip)** — `<name>.websynth.zip` containing the canonical compact
-  `song.json` (format untouched, stays v3) plus one `samples/<slot>-<name>.<ext>`
+  `song.json` (format untouched — the current canonical version; the zip is
+  just a container) plus one `samples/<slot>-<name>.<ext>`
   clip per loaded sampler slot (WAV default / MP3; the extension derives from
   the encoded blob's MIME type — `encodeMp3` falls back to WAV at unsupported
   rates). The zip codec is hand-written and dependency-free (ADR-003): writes
@@ -327,7 +352,8 @@ listener mechanism.
   positional note lists (`"A2"`, `null` = rest, C4 = 60), drum/sampler hit
   lists keyed by track name (`kick`/`chat`/`s1`…), chain strings (`"AABA"`,
   `.`/`-` = rest). `Song.parse` detects it (`isAuthorSong`) and expands it
-  (`expandAuthorSong`) into a canonical v3 file before `validateSongFile`, so
+  (`expandAuthorSong`) into a canonical file (v3; v4 with motion content)
+  before `validateSongFile`, so
   **every** import surface accepts it; nothing ever exports it. The module is
   pure and must never import `song.ts` (its `import.meta.glob` would poison the
   MCP bundle) — same rule for `state/authoring-guide.ts`, which builds the ✨
@@ -470,7 +496,7 @@ listener mechanism.
   - Bridge global classes (e.g. `switch-label`) are kept alongside module classes where global descendant selectors still target children: `className: 'switch-label ' + styles.label!`.
   - Use `:global()` when a module selector targets an element with only a global class: `.icons button :global(svg.wave-icon)`.
   - Step buttons: `.root` is `min-width: 0; width: 100%; height: 32px`. `.drum-cell` overrides height to 22px and font-size to 8px but does NOT set width — parent grid controls sizing.
-  - Step buttons (all three machines) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by inline custom props (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. `.red .fill` keeps the drum/sampler beat columns red when lit; `.drum-cell.tie .fill` shortens the tie bridge to the drum grid's 3px gap.
+  - Step buttons (seq/drum/sampler) visualize per-step settings via `StepButton.setViz()`: a lazily-created `.fill` layer driven by inline custom props (`--sb-gate` width, `--sb-vel` brightness, `--sb-ratchet` top ticks) plus `tie`/`prob`/`ratchet` classes; the label lives in a `.label` span so `setLabel` can't wipe the layer. `.red .fill` keeps the drum/sampler beat columns red when lit; `.drum-cell.tie .fill` shortens the tie bridge to the drum grid's 3px gap.
   - The drum module's `.cells` uses `display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px` — both `drum-panel.ts` and `sampler-panel.ts` import this via `drumStyles.cells`.
   - Sampler action buttons (`.load`, `.edit`, `.rec`) need full base button styling (background, border, border-radius, cursor, font-family, box-shadow, transition) in their module class — they are standalone classes with no shared base class to inherit from.
   - Panel builder functions must explicitly `appendChild` every sub-container to the root element. Orphaned DOM subtrees (built but never appended) are a common source of blank panels — previously tripped on `drum-panel.ts` where the grid was constructed but `root.appendChild(grid)` was missing.

@@ -59,7 +59,8 @@ first run and imports that.
   - `validate_song` — `{ok, errors[]}` for either format. A validation failure
     is a **successful** call (`isError: false`) so the model reads the errors
     and fixes the song rather than treating the call as crashed.
-  - `expand_song` — author dialect → canonical compact v3 JSON.
+  - `expand_song` — author dialect → canonical compact JSON (v3, or v4 when
+    motion content is present).
   - `save_song` — validate (either format), write
     `<safe-name>.websynth.json` (canonical compact), return the absolute path.
   - `make_share_link` — canonical compact JSON → `node:zlib.deflateRawSync` →
