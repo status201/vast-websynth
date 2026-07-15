@@ -66,6 +66,19 @@ describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
     expect(cb).toHaveBeenLastCalledWith({ x: XY_DEFAULT_ASSIGN.x, y: 'lfo.amount' });
   });
 
+  it('muting falls back to the base assignment; unmuting restores the override (REQ-12)', () => {
+    const { bus, patterns, eff } = build();
+    bus.set('motion.on', 1);
+    patterns.setMotionAssign({ x: 'fx.delay.time' });
+    const cb = vi.fn();
+    eff.onChange(cb);
+    bus.set('motion.mute', 1); // muted machine is inactive -> base axes
+    expect(cb).toHaveBeenLastCalledWith(XY_DEFAULT_ASSIGN);
+    expect(eff.get()).toEqual(XY_DEFAULT_ASSIGN);
+    bus.set('motion.mute', 0);
+    expect(cb).toHaveBeenLastCalledWith({ x: 'fx.delay.time', y: XY_DEFAULT_ASSIGN.y });
+  });
+
   it('does not emit when a change leaves the effective pair identical', () => {
     const { lane, eff } = build();
     const cb = vi.fn();

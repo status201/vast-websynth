@@ -148,6 +148,7 @@ export type TopicId =
   | 'seq.tie'
   | 'drums'
   | 'sampler'
+  | 'motion'
   | 'song'
   | 'song.load'
   | 'song.save'
@@ -497,6 +498,21 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'capture from your mic and edit it. The ✎ button re-opens a loaded sound in the editor.</p>' +
       '<p>Plays while the transport runs, with its own master and effects. Note: after loading a ' +
       'saved song you re-load the audio files (only their names are stored).</p>',
+  },
+  motion: {
+    title: 'Motion sequencer',
+    body:
+      '<p>Automates the two knobs assigned to the <strong>XY Pad</strong> while the transport ' +
+      'plays. Each of the 16 mini pads is an optional <em>anchor</em>: drag inside one to set an ' +
+      'X/Y position for that step, double-click to clear it. <strong>SLIDE</strong> ramps ' +
+      'smoothly between anchors; <strong>STEP</strong> jumps at each anchor and holds.</p>' +
+      '<p><strong>Reading the graph:</strong> every dot stores <em>two</em> values (X and Y), but ' +
+      'the overlay line can only trace one at a time. The <strong>Y / X</strong> toggle picks ' +
+      'which one it shows — <strong>Y</strong> (the default) draws each anchor’s vertical ' +
+      'position, <strong>X</strong> its horizontal position. The dots themselves never move; only ' +
+      'the line is re-projected. The axes row below shows which parameter each axis drives.</p>' +
+      '<p>In Song mode the Motion card chains banks like the other machines, and its ' +
+      '<strong>Mute</strong> pauses automation — every driven knob returns to its resting value.</p>',
   },
   song: {
     title: 'Song mode',

@@ -139,15 +139,15 @@ describe('PERF_PROFILES v3 FX-cost fields', () => {
   });
 });
 
-describe('PERF_PROFILES v4/v5 analyser fftSize (applied live)', () => {
-  it('scales the analyser fftSize per tier (512 / 1024 / 2048)', () => {
-    expect(PERF_PROFILES.weak.analyserFftSize).toBe(512);
-    expect(PERF_PROFILES.medium.analyserFftSize).toBe(1024);
-    expect(PERF_PROFILES.strong.analyserFftSize).toBe(2048);
+describe('PERF_PROFILES v4/v5 analyser fftSize (applied live, halved in v6)', () => {
+  it('scales the analyser fftSize per tier (256 / 512 / 1024)', () => {
+    expect(PERF_PROFILES.weak.analyserFftSize).toBe(256);
+    expect(PERF_PROFILES.medium.analyserFftSize).toBe(512);
+    expect(PERF_PROFILES.strong.analyserFftSize).toBe(1024);
   });
 
   it('is excluded from sameAudioProfile (live), so medium/strong still share one profile', () => {
-    // fftSize differs (1024 vs 2048) yet the audio profile is identical.
+    // fftSize differs (512 vs 1024) yet the audio profile is identical.
     expect(sameAudioProfile('medium', 'strong')).toBe(true);
     expect(sameAudioProfile('weak', 'medium')).toBe(false);
   });

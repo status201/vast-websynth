@@ -95,7 +95,7 @@ via its `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume;
-`song-lane-motion` is chain-only — no mixer strip),
+`song-lane-motion` carries chain controls + `switch-motion.mute` only — no solo/volume),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
@@ -132,7 +132,7 @@ and left intact on failure; Copy Link verified via the clipboard with a
 Node-side `inflateRawSync` decode), and `motion` (the Motion tab — anchor
 input on the mini pads, live param automation + baseline restore on stop via
 `__synth.bus.get`, the Y/X view toggle re-projecting the graph, a
-save→new→load round-trip, and the chain-only Song-panel card).
+save→new→load round-trip, and the chain + Mute Song-panel card).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
@@ -309,10 +309,13 @@ listener mechanism.
   audio clock's *now* (tick `when`s are scheduled ahead), writing via
   `bus.set` with taper-correct `fromNorm` (`utils/taper.ts`, extracted from
   `ui/components/taper.ts` which re-exports). Baseline discipline: first
-  write per param records its prior value; stop / `motion.on→0` restores all.
+  write per param records its prior value; stop / `motion.on→0` /
+  `motion.mute→1` restores all.
   Per-bank axis override `motionAssigns` falls back per-axis to `XyPadStore`.
   Not an audio lane: no LaneMixer/audibleLanes entry; its Song-panel card is
-  chain-only (`buildChainLane` `{mixer:false}`). Params: `motion.on`,
+  chain + Mute (`buildChainLane` `{mixer:'mute'}` — no solo/volume). The panel
+  graph is mode-aware (`ui/components/motion-graph.ts`: slide = anchor
+  polyline, step = wrap-aware staircase). Params: `motion.on`, `motion.mute`,
   `motion.slide` (0=step 1=slide).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
   + all banks + all four chains). `SongFile` is now `version: 1 | 2 | 3 | 4`;

@@ -55,7 +55,7 @@ test.describe('scope mono/stereo', () => {
     expect(info.allAnalysers).toBe(true);
     expect(info.distinct).toBe(true);
     expect(info.fftMatches).toBe(true);
-    expect(info.bufLen).toBe(2048);
+    expect(info.bufLen).toBe(1024);
   });
 
   test('Spectrum peak-hold rises with sound and resets on a graph click', async ({ page }) => {

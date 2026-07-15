@@ -3,7 +3,7 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 5
+version: 6   # v6: analyser fftSize halved per tier (256/512/1024)
 owner: core
 related:
   - architecture
@@ -51,9 +51,10 @@ sharing one audio profile, so the v2 "Medium↔Strong needs no reload" UX holds.
 v4/v5 scale `analyserFftSize` per tier. The three scope analysers (mono + L/R,
 [scope](scope.md)) sit permanently in the pulled master path and each runs an FFT
 at `fftSize`; their per-draw `getByte*Data` copies also scale with it. The tiers
-run **512 / 1024 / 2048** (weak / medium / strong) — weak still keeps enough
-time-domain samples for a full bass cycle and enough spectrum bins for the bar
-view, cutting the always-on analyser + copy cost. Unlike a buffer/voice change,
+run **256 / 512 / 1024** (weak / medium / strong; v6 halved every tier — the
+spectrum's bar view reads better with fewer, wider bars and the FFT cost drops
+with it) — weak still keeps enough time-domain samples for a full bass cycle and
+enough spectrum bins for the bar view, cutting the always-on analyser + copy cost. Unlike a buffer/voice change,
 `AnalyserNode.fftSize` is settable at runtime, so `analyserFftSize` is applied
 **live** (like scope `fps`, v5): changing tiers reallocates the scope's read
 buffers immediately, no reload. It is therefore **not** part of the audio profile
@@ -69,9 +70,9 @@ differ only by live-applied scope fps + fftSize).
 - **REQ-2** — `PERF_PROFILES: Record<PerfTier, PerfProfile>` is the single source of
   truth for every tier-dependent knob (v3 added three FX-cost fields; v4 added
   `analyserFftSize`):
-  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:512 }`,
-  `medium = { 'interactive', 8, 30, 0.1, 4, true, 1024 }`,
-  `strong = { 'interactive', 8, 60, 0.1, 4, true, 2048 }`.
+  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:256 }`,
+  `medium = { 'interactive', 8, 30, 0.1, 4, true, 512 }`,
+  `strong = { 'interactive', 8, 60, 0.1, 4, true, 1024 }`.
   Strong and medium share the same **audio** profile; they differ only by the
   live-applied scope fps + analyser fftSize.
 - **REQ-3** — `detectTier()` errs toward **medium** (the safe, normal-latency default).
@@ -107,10 +108,10 @@ differ only by live-applied scope fps + fftSize).
     `'2x'` when drive > 0 — oversampling an identity curve is pure waste.
   Presets/songs are untouched by construction: none of these are `ParamBus`
   params, and every param's range/default is unchanged.
-- **REQ-12** — (v4/v5) `analyserFftSize` sets the `fftSize` of all three scope
-  analysers (mono `analyser` + `analyserL`/`analyserR`). Tiers run **512 / 1024 /
-  2048** (weak / medium / strong; 2048 is the `EngineOptions` default when the
-  field is absent). Boot seeds the analysers with the resolved tier's value
+- **REQ-12** — (v4/v5, halved in v6) `analyserFftSize` sets the `fftSize` of all
+  three scope analysers (mono `analyser` + `analyserL`/`analyserR`). Tiers run
+  **256 / 512 / 1024** (weak / medium / strong; 1024 is the `EngineOptions`
+  default when the field is absent). Boot seeds the analysers with the resolved tier's value
   (threaded via `EngineOptions`); thereafter it is applied **live** (v5) via
   `Scope.setFftSize(n)`, which sets `analyser.fftSize` on all three and reallocates
   each channel's time-domain + frequency read buffers to match ([scope](scope.md)
@@ -172,7 +173,7 @@ EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOv
 new Engine(bus, opts?: EngineOptions)
   # latencyHint→AudioContext, voiceCount→pool, scheduleAheadS→Clock,
   # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3),
-  # analyserFftSize→initial fftSize of the 3 scope analysers (default 2048) (v4)
+  # analyserFftSize→initial fftSize of the 3 scope analysers (default 1024) (v4/v6)
 
 # src/ui/components/scope.ts
 new Scope(analysers, opts?: { fps?: number })   # default 60
@@ -242,8 +243,8 @@ Scenario: Medium and strong share an audio profile
   And sameAudioProfile('weak','medium') is false
 # pinned by: tests/state/perf-mode.test.ts
 
-Scenario: Each tier scales the analyser fftSize (v4/v5)
-  Then PERF_PROFILES analyserFftSize is 512 / 1024 / 2048 for weak / medium / strong
+Scenario: Each tier scales the analyser fftSize (v4/v5, halved in v6)
+  Then PERF_PROFILES analyserFftSize is 256 / 512 / 1024 for weak / medium / strong
   And analyserFftSize is excluded from sameAudioProfile (applied live)
   And sameAudioProfile('medium','strong') stays true
 # pinned by: tests/state/perf-mode.test.ts
@@ -300,7 +301,7 @@ Scenario: Drum-track shapers only oversample when driven (all tiers, v3)
   boundaries) — `npm test`
 - Typecheck: `npm run typecheck`
 - Manual: force **Weak**, reload, check `window.__synth.engine.voices.length === 5`,
-  `window.__synth.engine.analyser.fftSize === 512` (v4/v5), and a larger `ctx.baseLatency`;
+  `window.__synth.engine.analyser.fftSize === 256` (v4/v6), and a larger `ctx.baseLatency`;
   switch **Medium↔Strong** and confirm the scope fps changes with no reload prompt; open
   **About → Debug** and confirm the tier/cores/memory rows; background the tab and confirm
   the scope stops redrawing.

@@ -3,13 +3,14 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 2
+version: 3   # v3: `motion` help topic (the Motion tab's Y/X graph view)
 owner: core
 related:
   - architecture
   - input-control
   - midi-clock-sync
   - webrtc-sync
+  - motion-sequencer
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/help-mode.ts
@@ -46,6 +47,12 @@ never reads DEV-only globals.
   badges (e.g. `seq.prob`).
 - **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
   on-screen.
+- **REQ-7** (v3) — A `motion` help topic anchors to the Motion machine's tab
+  (`tab-motion`, like the other machine tabs). Its copy explains the mini-pad
+  anchors and, above all, the **Y/X graph view**: the overlay line projects one
+  axis at a time (the toggle picks which assigned param it traces; the dots
+  never move) and its shape follows Step/Slide mode. See
+  [motion-sequencer.md](motion-sequencer.md) REQ-8.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to

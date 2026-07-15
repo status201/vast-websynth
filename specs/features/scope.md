@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 5   # v4: analyser fftSize perf-tier-dependent; v5: 512/1024/2048 tiers, applied LIVE via setFftSize
+version: 6   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024
 owner: status201
 related:
   - architecture
@@ -53,9 +53,10 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   split→merge), so every analyser sits in the live render path and is pulled.
 - **REQ-2** — All three analysers use the **same** `fftSize` and
   `smoothingTimeConstant` (0.2), so per-channel buffers are uniform and the three
-  views are visually comparable. `fftSize` is **perf-tier-dependent** (v4/v5):
-  **512 / 1024 / 2048** for weak / medium / strong (`EngineOptions.analyserFftSize`
-  seeds the boot value, default 2048; from `PERF_PROFILES` — see
+  views are visually comparable. `fftSize` is **perf-tier-dependent** (v4/v5,
+  halved in v6): **256 / 512 / 1024** for weak / medium / strong
+  (`EngineOptions.analyserFftSize`
+  seeds the boot value, default 1024; from `PERF_PROFILES` — see
   [performance-mode](performance-mode.md) REQ-12). Because `AnalyserNode.fftSize`
   is settable at runtime, a tier change applies it **live** (v5) via
   `Scope.setFftSize(n)`, which sets `fftSize` on all three analysers and

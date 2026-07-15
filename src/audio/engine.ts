@@ -50,7 +50,7 @@ export interface EngineOptions {
   reverbIrMaxS?: number;
   /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
   fxOversample?: boolean;
-  /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 2048). */
+  /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 1024). */
   analyserFftSize?: number;
   /** XY Pad axis assignment (main.ts's instance, shared with the UI) — consumed
    *  by the motion sequencer. Defaults to a private store (tests). */
@@ -166,12 +166,12 @@ export class Engine {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
 
-    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): 512/1024/2048 for
+    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): 256/512/1024 for
     // weak/medium/strong, cutting the always-pulled analyser FFT + per-draw copy cost
     // on weaker tiers. This is the BOOT seed only — the scope applies later tier
     // changes live via setFftSize. All three share one value so the scope's
     // per-channel buffers stay uniform (scope.md REQ-2).
-    const fft = opts.analyserFftSize ?? 2048;
+    const fft = opts.analyserFftSize ?? 1024;
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = fft;
     this.analyser.smoothingTimeConstant = 0.2;
@@ -593,6 +593,7 @@ export class Engine {
 
     // ----- Motion sequencer -----
     bus.subscribe('motion.on', (v) => this.motion.setEnabled(v >= 0.5));
+    bus.subscribe('motion.mute', (v) => this.motion.setMuted(v >= 0.5));
     bus.subscribe('motion.slide', (v) => this.motion.setSlide(v >= 0.5));
   }
 

@@ -390,6 +390,8 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Motion sequencer (param automation; specs/features/motion-sequencer.md) -----
     { id: 'motion.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // Song-tab mute: active = motion.on && !motion.mute (motion-sequencer.md REQ-12).
+    { id: 'motion.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     // slide = linear interpolation between anchors; step = jump-and-hold.
     { id: 'motion.slide', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['step', 'slide'] },
   ]);

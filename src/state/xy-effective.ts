@@ -33,7 +33,8 @@ export function createEffectiveXy(
 ): EffectiveXy {
   const resolve = (): XyAssign => {
     const base = xy.get();
-    if (bus.get('motion.on') < 0.5) return base;
+    // A muted machine is inactive (motion-sequencer.md REQ-12) — base axes apply.
+    if (bus.get('motion.on') < 0.5 || bus.get('motion.mute') >= 0.5) return base;
     const ov = patterns.motionAssign(arrangement.motionPlayBank);
     return { x: ov?.x ?? base.x, y: ov?.y ?? base.y };
   };
@@ -50,11 +51,12 @@ export function createEffectiveXy(
   // Every input the resolution depends on: the base assignment, the play bank
   // (advances per bar / chain edits), the per-bank overrides (setMotionAssign
   // and song restore both fire the motion bank listeners), and the machine
-  // on/off param.
+  // on/off + mute params.
   xy.onChange(refresh);
   arrangement.onChange(refresh);
   patterns.onMotionBankChange(refresh);
   bus.subscribe('motion.on', refresh);
+  bus.subscribe('motion.mute', refresh);
 
   return {
     get: () => ({ ...resolve() }),

@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Motion Mute on the Song tab** — the Motion card now has a Mute switch like
+  the other machines: muting pauses the automation and returns every driven
+  knob (and the XY Pad's axes, assignments and values) to its resting state;
+  unmuting resumes mid-play.
+
+- **Motion help badge** — help mode now pins an (i) badge to the Motion tab
+  explaining the machine and, in particular, the Y/X graph view (the line
+  projects one axis at a time; the dots never move).
+
 - **Motion sequencer** — a new machine between Sampler and Song that automates
   the XY Pad's two assigned params from a 16-step × 4-bank grid. Every step is
   a mini XY pad: drag to set an anchor, double-click to clear; a graph line
@@ -45,6 +54,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   settings) and reloads the app into its factory state. Guarded by a styled
   confirm dialog whose fine print quotes the classic exit warning: *“Everything
   not saved will be lost.”*
+
+### Changed
+
+- **Motion graph matches Step mode** — with STEP selected the graph draws the
+  true jump-and-hold staircase (including the wrap-around hold before the
+  first anchor) instead of a slanted line; SLIDE keeps the ramp.
+
+- **Leaner spectrum analyser** — the scope's FFT size halved on every
+  performance tier (weak/medium/strong now 256/512/1024): fewer, wider
+  spectrum bars that read better, at half the always-on analysis cost.
 
 ### Fixed
 

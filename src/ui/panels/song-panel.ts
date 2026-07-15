@@ -84,12 +84,14 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       () => engine.arrangement.samplerChainPos, engine, bridge),
   };
   for (const id of LANE_IDS) chains.appendChild(laneEls[id]);
-  // Motion is not an audio lane (no mute/solo/volume, outside audibleLanes) —
-  // its card is chain-only (motion-sequencer.md REQ-6).
-  chains.appendChild(buildChainLane(
+  // Motion is not an audio lane (no solo/volume, outside audibleLanes) — its
+  // card is chain + Mute (motion-sequencer.md REQ-6/REQ-12): muting deactivates
+  // the machine and restores every driven param's baseline.
+  const motionEl = buildChainLane(
     'Motion', 'motion', bus, engine.arrangement.motion,
     (s, en) => engine.arrangement.setMotionChain(s, en),
-    () => engine.arrangement.motionChainPos, engine, bridge, { mixer: false }));
+    () => engine.arrangement.motionChainPos, engine, bridge, { mixer: 'mute' });
+  chains.appendChild(motionEl);
   root.appendChild(chains);
 
   // Dim a lane card whenever it is silenced — by its own mute or by another
@@ -108,6 +110,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     bus.subscribe(`${id}.mute`, refreshSilenced);
     bus.subscribe(`${id}.solo`, refreshSilenced);
   }
+  // Motion sits outside audibleLanes (it makes no sound) — its dim visual is
+  // driven straight off its own mute param.
+  bus.subscribe('motion.mute', (v) => motionEl.classList.toggle(styles.silenced!, v >= 0.5));
 
   // ---- Live DJ FX ----
   // The shared XY Pad window controller comes from app.ts: the Song panel's
@@ -447,7 +452,7 @@ function buildChainLane(
   getPos: () => number,
   engine: StudioApi,
   bridge: UiBridge,
-  opts: { mixer?: boolean } = {},
+  opts: { mixer?: 'full' | 'mute' | 'none' } = {},
 ): HTMLElement {
   const root = el('div', styles.lane!);
   root.dataset.testid = `song-lane-${prefix}`;
@@ -467,16 +472,19 @@ function buildChainLane(
   root.appendChild(head);
 
   // DJ mixer strip: mute / solo / volume, so the lane is operable from the Song
-  // tab without switching machines. All three bind straight to ParamBus, so
+  // tab without switching machines. All controls bind straight to ParamBus, so
   // they stay in sync with the per-machine panels and persist with the song.
-  // A non-audio lane (motion) opts out — it has nothing to mix.
-  if (opts.mixer !== false) {
+  // The non-audio motion lane gets 'mute' — a Mute switch only (nothing to mix).
+  const mixer = opts.mixer ?? 'full';
+  if (mixer !== 'none') {
     const mix = el('div', styles.mix!);
     mix.appendChild(new Switch(bus, `${prefix}.mute`, 'Mute').el);
-    mix.appendChild(new Switch(bus, `${prefix}.solo`, 'Solo').el);
-    const vol = new Knob({ bus, paramId: `${prefix}.master`, label: 'Vol', size: 34 });
-    vol.el.classList.add(styles.vol!);
-    mix.appendChild(vol.el);
+    if (mixer === 'full') {
+      mix.appendChild(new Switch(bus, `${prefix}.solo`, 'Solo').el);
+      const vol = new Knob({ bus, paramId: `${prefix}.master`, label: 'Vol', size: 34 });
+      vol.el.classList.add(styles.vol!);
+      mix.appendChild(vol.el);
+    }
     root.appendChild(mix);
   }
 

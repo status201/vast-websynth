@@ -25,3 +25,18 @@ describe('help-content sync topics', () => {
     expect(body).toContain('Join');
   });
 });
+
+/** The Motion machine topic (onboarding.md REQ-7 / motion-sequencer.md REQ-8). */
+describe('help-content motion topic', () => {
+  it('has a `motion` topic explaining the Y/X graph view', () => {
+    const t = HELP_TOPICS['motion'];
+    expect(t).toBeTruthy();
+    expect(t.title).toContain('Motion');
+    expect(typeof t.body).toBe('string');
+    const body = t.body as string;
+    // The confusing bit the badge exists for: the one-axis-at-a-time graph.
+    expect(body).toMatch(/Y \/ X/);
+    expect(body).toContain('one at a time');
+    expect(body).toContain('never move');
+  });
+});

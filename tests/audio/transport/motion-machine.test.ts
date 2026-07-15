@@ -156,6 +156,41 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).not.toBe(cutoff0);
   });
 
+  it('muting mid-play stops writes and restores baselines; unmuting resumes (REQ-12)', () => {
+    const { bus, patterns, clock, machine } = build();
+    machine.setEnabled(true);
+    const cutoff0 = bus.get('filter.cutoff');
+    anchor(patterns, 0, 1, 1);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('filter.cutoff')).not.toBe(cutoff0);
+    machine.setMuted(true);
+    expect(bus.get('filter.cutoff')).toBe(cutoff0); // baseline restored
+    machine.frame(STEP_DUR);                        // frames are inert while muted
+    expect(bus.get('filter.cutoff')).toBe(cutoff0);
+    machine.setMuted(false);
+    machine.frame(2 * STEP_DUR);                    // automation resumes
+    expect(bus.get('filter.cutoff')).not.toBe(cutoff0);
+  });
+
+  it('mute + disable never double-restores or loses the baseline', () => {
+    const { bus, patterns, clock, machine } = build();
+    machine.setEnabled(true);
+    const cutoff0 = bus.get('filter.cutoff');
+    anchor(patterns, 0, 1, 1);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    machine.setMuted(true);      // restores
+    machine.setEnabled(false);   // already inactive — a no-op flip
+    expect(bus.get('filter.cutoff')).toBe(cutoff0);
+    // Re-enabling while still muted must NOT start writing.
+    machine.setEnabled(true);
+    machine.frame(STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(cutoff0);
+  });
+
   it('notifies step listeners with the raw step only while enabled', () => {
     const { clock, machine } = build();
     const seen: number[] = [];

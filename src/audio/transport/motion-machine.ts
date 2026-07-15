@@ -38,6 +38,7 @@ interface MotionMachineOpts {
  */
 export class MotionMachine {
   private enabled = false;
+  private muted = false;
   private mode: MotionMode = 'slide';
   private lastTick: { idx: number; when: number; dur: number } | null = null;
   private readonly baselines = new Map<string, number>();
@@ -72,7 +73,7 @@ export class MotionMachine {
     });
     clock.onStart(() => {
       this.lastTick = null;
-      if (this.enabled) this.startLoop();
+      if (this.active) this.startLoop();
     });
     clock.onStop(() => {
       this.stopLoop();
@@ -80,10 +81,30 @@ export class MotionMachine {
     });
   }
 
+  /** Effective-active: enabled (motion.on) and not muted (motion.mute, REQ-12). */
+  private get active(): boolean {
+    return this.enabled && !this.muted;
+  }
+
   setEnabled(on: boolean): void {
     if (on === this.enabled) return;
+    const was = this.active;
     this.enabled = on;
-    if (on) {
+    this.applyActive(was);
+  }
+
+  /** Song-tab mute — deactivates like setEnabled(false) but keeps motion.on. */
+  setMuted(m: boolean): void {
+    if (m === this.muted) return;
+    const was = this.active;
+    this.muted = m;
+    this.applyActive(was);
+  }
+
+  /** React to an active-state flip: deactivating restores every baseline. */
+  private applyActive(was: boolean): void {
+    if (this.active === was) return;
+    if (this.active) {
       if (this.clock.playing) this.startLoop();
     } else {
       this.stopLoop();
@@ -105,7 +126,7 @@ export class MotionMachine {
    * so tests can drive it deterministically without a real rAF.
    */
   frame(nowS: number): void {
-    if (!this.enabled || !this.clock.playing) return;
+    if (!this.active || !this.clock.playing) return;
     const tick = this.lastTick;
     if (!tick || tick.dur <= 0) return;
     if (this.arrangement.motionResting) return;

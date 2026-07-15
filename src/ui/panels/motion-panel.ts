@@ -7,6 +7,7 @@ import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
 import { BankBar } from '../components/bank-bar';
 import { MotionStepPad } from '../components/motion-step-pad';
+import { motionGraphPoints } from '../components/motion-graph';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
 import { buildRestOverlay } from '../components/rest-overlay';
 import { xyPadLaunchButton } from '../components/live-fx';
@@ -114,19 +115,16 @@ export function buildMotionPanel(
 
   const redrawGraph = (): void => {
     graph.innerHTML = '';
-    const bank = patterns.motion;
-    const pts: Array<[number, number]> = [];
-    for (let s = 0; s < SEQ_LENGTH; s++) {
-      const step = bank[s]!;
-      if (!step.on) continue;
-      pts.push([((s + 0.5) / SEQ_LENGTH) * 100, (1 - step[view]) * 100]);
+    // Mode-aware line (REQ-8): slide = anchor polyline; step = the true
+    // jump-and-hold staircase, so the graph matches what valueAt will play.
+    const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
+    const { line, dots } = motionGraphPoints(patterns.motion, view, mode);
+    if (line.length > 1) {
+      const poly = document.createElementNS(SVG_NS, 'polyline');
+      poly.setAttribute('points', line.map(([px, py]) => `${px},${py}`).join(' '));
+      graph.appendChild(poly);
     }
-    if (pts.length > 1) {
-      const line = document.createElementNS(SVG_NS, 'polyline');
-      line.setAttribute('points', pts.map(([px, py]) => `${px},${py}`).join(' '));
-      graph.appendChild(line);
-    }
-    for (const [px, py] of pts) {
+    for (const [px, py] of dots) {
       const c = document.createElementNS(SVG_NS, 'circle');
       c.setAttribute('cx', String(px));
       c.setAttribute('cy', String(py));
@@ -208,6 +206,8 @@ export function buildMotionPanel(
     redrawGraph();
   });
   xy.onChange(refreshAxes);
+  // STEP/SLIDE changes the line's shape (staircase vs ramp) — re-project live.
+  bus.subscribe('motion.slide', redrawGraph);
 
   redrawGraph();
   refreshAxes();

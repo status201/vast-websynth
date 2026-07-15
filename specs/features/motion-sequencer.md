@@ -3,7 +3,7 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 1
+version: 2   # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
 owner: core
 related:
   - xy-pad
@@ -20,6 +20,9 @@ source:
   - src/state/xy-effective.ts               # observable effective-assignment resolver
   - src/ui/panels/motion-panel.ts
   - src/ui/components/motion-step-pad.ts
+  - src/ui/components/motion-graph.ts       # pure graph-polyline geometry (v2)
+  - src/ui/panels/song-panel.ts             # Motion card: chain + Mute (v2)
+  - src/ui/onboarding/help-content.ts       # `motion` help topic (v2)
   - src/state/song.ts                       # SongFile v4 fields
   - src/state/song-author.ts                # dialect `motion` key
 ```
@@ -59,8 +62,10 @@ The tab sits between Sampler and Song.
 - **REQ-6** — Motion has the 4th `Arrangement` chain lane (`motionPlayBank`,
   `motionResting`, `setMotionChain`); it respects rests (no writes) and a disabled
   lane follows the edit bank. It is **not** an audio lane: excluded from
-  `LaneId`/`LaneMixer`/`audibleLanes`; its Song-panel card is chain-only (no
-  mute/solo/volume).
+  `LaneId`/`LaneMixer`/`audibleLanes`; its Song-panel card carries the chain
+  controls plus a **Mute** switch (v2, REQ-12) but no solo/volume (nothing to
+  mix). The card dims (the same `silenced` visual as the audio lanes) while
+  muted.
 - **REQ-7** — Both modes evaluate on **one rAF frame loop** (active only while
   playing ∧ enabled, throttled to the perf-tier fps) against the **audio clock's
   now** — clock ticks arrive with `when` scheduled ahead, so tick-time writes would
@@ -70,11 +75,19 @@ The tab sits between Sampler and Song.
   `motion-curve.ts` (`valueAt(bank, barPos, mode)`), fully unit-testable.
 - **REQ-8** — UI: each step is a **mini XY pad** square — drag sets `(x,y)` in one
   gesture, double-click/double-tap clears; the dot sits at the literal coordinate.
-  An SVG polyline overlay connects the **selected axis** across the 16 squares
+  An SVG polyline overlay traces the **selected axis** across the 16 squares
   (view toggle Y/X, default Y — a local view state, not a param; dots never move).
-  Header: `motion.on` switch, Slide/Step segmented, view toggle, BankBar
-  (`bank-motion-*`), and an axes row showing the edit bank's *effective* assignment
-  with override dropdowns + an inherit/reset button.
+  The line is **mode-aware** (v2): in Slide mode it is the anchor-to-anchor
+  polyline; in Step mode it is a full-width **staircase** (jump-and-hold at each
+  anchor, including the last→first wrap hold before the first anchor — a single
+  anchor draws a flat line), mirroring `valueAt`'s semantics. The geometry is the
+  pure `motionGraphPoints(bank, view, mode)` (`ui/components/motion-graph.ts`);
+  the panel redraws on `motion.slide` changes. Header: `motion.on` switch,
+  Slide/Step segmented, view toggle, BankBar (`bank-motion-*`), and an axes row
+  showing the edit bank's *effective* assignment with override dropdowns + an
+  inherit/reset button. A help-mode badge (`motion` topic, anchored to
+  `tab-motion` — [onboarding](onboarding.md) REQ-3) explains the Y/X graph
+  projection.
 - **REQ-9** — SongFile **v4** adds optional `motionBanks` (4×16 `MotionStep`),
   `motionAssigns` (4 × `MotionAssign|null`) and `motionChain` (`ChainData`) —
   additive per ADR-007; old files load with empty motion state. Export is
@@ -87,19 +100,32 @@ The tab sits between Sampler and Song.
 - **REQ-11** — The XY Pad window's **axes** (on-surface labels, dot, drag/wheel
   targets) follow the *effective* assignment — `createEffectiveXy`
   (`state/xy-effective.ts`) resolves the motion **play bank's** override per
-  axis while `motion.on` is set, falling back to the base `XyPadStore` — and
-  re-resolves as the chain crosses banks, on override edits, on base
-  reassignment, and on `motion.on` toggles. The pad's gear dropdowns keep
-  showing/editing the **base** assignment (the store stays its single writer).
+  axis while the machine is active (`motion.on` set and not muted, v2), falling
+  back to the base `XyPadStore` — and re-resolves as the chain crosses banks, on
+  override edits, on base reassignment, and on `motion.on`/`motion.mute` toggles.
+  The pad's gear dropdowns keep showing/editing the **base** assignment (the
+  store stays its single writer).
+- **REQ-12** — (v2) **Mute**: an ordinary param `motion.mute` (default 0, persists
+  with songs like the audio lanes' `<lane>.mute`), toggled from the Song-tab
+  Motion card (`switch-motion.mute`). The machine is effective-active only while
+  `motion.on ≥ 0.5 && motion.mute < 0.5` (`MotionMachine.setMuted`, the
+  `StepSequencer.setMuted` precedent): muting stops the write loop and
+  **restores every recorded baseline** (REQ-5), so the driven params — and the
+  XY Pad's dot, assignments and values — return to their pre-play state;
+  unmuting mid-play resumes on the next frame. Motion stays outside
+  `audibleLanes` (it makes no sound); the card's dim visual is driven directly
+  off `motion.mute`.
 
 ## Technical design
 
 ### Contract / public interface
 
 - `MotionMachine` (`src/audio/transport/motion-machine.ts`):
-  `setEnabled(on)`, `setSlide(on)`, `onStep(cb)` (playhead), `stop()` restore hook
-  via `clock.onStop`. Constructed by `Engine.init()` after the sampler (Arrangement
-  first, as for all machines); exposed on `StudioApi` as `motion`.
+  `setEnabled(on)`, `setMuted(m)` (v2 — effective-active = enabled ∧ ¬muted; either
+  deactivation restores baselines), `setSlide(on)`, `onStep(cb)` (playhead),
+  `stop()` restore hook via `clock.onStop`. Constructed by `Engine.init()` after
+  the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
+  `motion`.
 - `motion-curve.ts` (pure): `anchorIndices(bank)`, `valueAt(bank, barPos, mode)
   → {x,y} | null` — all interpolation/wrap math, no AudioContext.
 - `PatternStore`: `motionEditBank`, `motion`, `motionBank(i)`, `setMotionEditBank`,
@@ -110,6 +136,10 @@ The tab sits between Sampler and Song.
 - `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of
   `ui/components/taper.ts` (which re-exports) so the audio layer can map
   taper-correctly without importing UI code.
+- `src/ui/components/motion-graph.ts` (pure, v2):
+  `motionGraphPoints(bank, view, mode) → { line: [x,y][]; dots: [x,y][] }` in the
+  graph SVG's 0–100 viewBox space (dots at anchor centres; step mode's line is
+  the wrap-aware staircase). No DOM — unit-testable like `motion-curve.ts`.
 
 ### Data shapes
 
@@ -138,9 +168,10 @@ Author dialect:
   to the UI (song-panel capture/apply is unchanged).
 - Engine construction order unchanged: Arrangement → Performance → machines; Motion
   is created after the sampler. Engine subscribes `motion.on` → `setEnabled`,
-  `motion.slide` → `setSlide`.
-- The Song panel's Motion card reuses `buildChainLane` with a `{ mixer: false }`
-  opt (chain + enable only).
+  `motion.mute` → `setMuted` (v2), `motion.slide` → `setSlide`.
+- The Song panel's Motion card reuses `buildChainLane` with a `{ mixer: 'mute' }`
+  opt (v2) — the mixer strip renders only the `motion.mute` Switch (the audio
+  lanes use the default `'full'`: mute + solo + volume).
 
 ### Persistence
 
@@ -165,6 +196,22 @@ Scenario: Step mode jumps and holds
   When the bar plays
   Then the param jumps at step 0, holds, jumps at step 8, holds
 # pinned by: tests/audio/transport/motion-curve.test.ts
+
+Scenario: Step mode graphs as a square line (v2)
+  Given anchors at steps 2 and 10 and step mode
+  When the graph is drawn
+  Then the line is a full-width staircase: the last anchor's value holds from the
+    bar start to step 2 (wrap), jumps there, holds to step 10, jumps, holds to the end
+  And in slide mode the same anchors draw the plain anchor-to-anchor polyline
+# pinned by: tests/ui/motion-graph.test.ts
+
+Scenario: Muting from the Song tab restores baselines and the pad's base axes (v2)
+  Given motion is on and driving params away from their baselines
+  When motion.mute is set from the Song panel's Motion card
+  Then the write loop stops, every driven param returns to its baseline
+  And the XY Pad's axes fall back to the base assignment while muted
+  And unmuting mid-play resumes automation
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/xy-effective.test.ts, e2e/motion.spec.ts
 
 Scenario: Empty bank writes nothing
   Given the play bank has no anchors
@@ -209,7 +256,8 @@ Scenario: Dialect motion bank expands
 - Unit: `tests/audio/transport/motion-curve.test.ts`,
   `tests/audio/transport/motion-machine.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/state/{patterns,song-validate,serialize,song-author,authoring-docs}.test.ts`,
-  `tests/ui/motion-step-pad.test.ts` — `npm test`
+  `tests/ui/motion-step-pad.test.ts`, `tests/ui/motion-graph.test.ts`,
+  `tests/ui/help-content.test.ts` (the `motion` topic) — `npm test`
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.

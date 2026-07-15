@@ -100,16 +100,23 @@ test('motion state survives a save → new → load round-trip', async ({ page }
   expect(parsed.motionBanks).toHaveLength(4);
 });
 
-test('the Song panel has a chain-only Motion card', async ({ page }) => {
+test('the Song panel Motion card has chain controls + Mute (no solo/volume)', async ({ page }) => {
   await gotoAndStart(page);
   await page.getByTestId('tab-song').click();
   const card = page.getByTestId('song-lane-motion');
   await expect(card).toBeVisible();
-  // Chain controls present; no mute/solo mixer strip (motion is not an audio lane).
+  // Chain controls + the Mute switch; no solo/volume (motion is not an audio
+  // lane — motion-sequencer.md REQ-6/REQ-12).
   await expect(page.getByTestId('chain-add-motion-0')).toBeVisible();
-  await expect(card.getByText('Mute')).toHaveCount(0);
+  await expect(page.getByTestId('switch-motion.mute')).toBeVisible();
+  await expect(card.getByTestId('switch-motion.solo')).toHaveCount(0);
+  await expect(card.getByTestId('knob-motion.master')).toHaveCount(0);
   await page.getByTestId('chain-add-motion-1').click();
   await expect(page.getByTestId('chain-chip-motion-1')).toBeVisible();
+  // Muting dims the card like the audio lanes and restores the driven params.
+  await page.getByTestId('switch-motion.mute').click();
+  await expect(page.getByTestId('switch-motion.mute')).toHaveClass(/\bon\b/);
+  await page.getByTestId('switch-motion.mute').click();
 });
 
 test('the XY Pad axes follow the motion bank override (effective assignment)', async ({ page }) => {
