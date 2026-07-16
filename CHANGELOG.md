@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-16
+
 ### Added
 
 - **Motion Mute on the Song tab** — the Motion card now has a Mute switch like
@@ -574,7 +576,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/status201/vast-websynth/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/status201/vast-websynth/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/status201/vast-websynth/compare/v1.9.0...v2.0.0
 [1.9.0]: https://github.com/status201/vast-websynth/compare/v1.8.0...v1.9.0
