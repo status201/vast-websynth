@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFullscreenButton } from '../../src/ui/components/fullscreen-button';
 import { HEADER_ICONS } from '../../src/ui/components/header-icons';
+import tourStyles from '../../src/ui/styles/tour.module.css';
 
 /**
  * jsdom has no Fullscreen API, so the supported path runs against a stub
@@ -56,6 +57,7 @@ describe('createFullscreenButton', () => {
     const doc = makeFullscreenDoc();
     const btn = createFullscreenButton(doc as unknown as Document)!;
     expect(btn.classList.contains('on')).toBe(false);
+    expect(btn.classList.contains(tourStyles.toggleActive!)).toBe(false);
     expect(btn.innerHTML).toBe(norm(HEADER_ICONS.expand));
     expect(btn.title).toBe('Toggle fullscreen');
     expect(btn.getAttribute('aria-label')).toBe('Toggle fullscreen');
@@ -63,11 +65,14 @@ describe('createFullscreenButton', () => {
     doc.fullscreenElement = document.createElement('div');
     doc.fire('fullscreenchange');
     expect(btn.classList.contains('on')).toBe(true);
+    // The orange active glow — same treatment as the Help button's badge state.
+    expect(btn.classList.contains(tourStyles.toggleActive!)).toBe(true);
     expect(btn.innerHTML).toBe(norm(HEADER_ICONS.compress));
 
     doc.fullscreenElement = null;
     doc.fire('fullscreenchange');
     expect(btn.classList.contains('on')).toBe(false);
+    expect(btn.classList.contains(tourStyles.toggleActive!)).toBe(false);
     expect(btn.innerHTML).toBe(norm(HEADER_ICONS.expand));
   });
 });

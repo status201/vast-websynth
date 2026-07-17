@@ -1,5 +1,6 @@
 import { createButton, setButtonIcon } from './button';
 import { HEADER_ICONS } from './header-icons';
+import tourStyles from '../styles/tour.module.css';
 
 /**
  * Header fullscreen toggle (specs/features/pwa-install.md REQ-2).
@@ -27,6 +28,9 @@ export function createFullscreenButton(doc: Document = document): HTMLButtonElem
   doc.addEventListener('fullscreenchange', () => {
     const on = !!doc.fullscreenElement;
     btn.classList.toggle('on', on);
+    // Light the button orange while fullscreen is engaged — the same active
+    // treatment the Help button gets while help badges are showing.
+    btn.classList.toggle(tourStyles.toggleActive!, on);
     setButtonIcon(btn, on ? HEADER_ICONS.compress : HEADER_ICONS.expand);
   });
 

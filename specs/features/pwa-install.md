@@ -53,8 +53,11 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   `display_override: ["fullscreen", "standalone"]` (installed Android launches
   with no status bar; `display: standalone` remains the fallback). The header
   carries a fullscreen toggle button driving the Fullscreen API, its `on` state
-  synced from `fullscreenchange`. The button is **absent** (not disabled) when
-  `document.fullscreenEnabled` is falsy (iPhone Safari).
+  synced from `fullscreenchange`. While fullscreen is engaged the button also
+  carries the orange active glow (`tour.module.css` `toggleActive` — the same
+  treatment the Help button gets while help badges are showing). The button is
+  **absent** (not disabled) when `document.fullscreenEnabled` is falsy
+  (iPhone Safari).
 - **REQ-3 (icons)** — A 180×180 PNG `apple-touch-icon` with an opaque `#050302`
   background (iOS composites transparency onto black) is linked from
   `index.html`; 192/512 PNG icons join the manifest alongside the SVG (which
@@ -187,7 +190,7 @@ Scenario: wake lock unsupported
 Scenario: fullscreen toggle
   Given document.fullscreenEnabled is true
   When the header fullscreen button is clicked
-  Then documentElement.requestFullscreen() is called and the button gains "on" after fullscreenchange
+  Then documentElement.requestFullscreen() is called and the button gains "on" plus the orange toggleActive glow after fullscreenchange
 # pinned by: tests/ui/fullscreen-button.test.ts, e2e/pwa.spec.ts
 
 Scenario: fullscreen button absent without the API
