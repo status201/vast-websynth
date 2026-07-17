@@ -650,8 +650,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   modWheel: {
     title: 'Mod wheel',
     body:
-      '<p>A general-purpose modulation control, like the mod wheel on a real synth. Push it up to ' +
-      'dial in extra movement or expression as you play.</p>',
+      '<p>Boosts the LFO on top of its Amount knob — pushing the wheel up deepens whatever ' +
+      'the LFO is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
+      '(pitch), <strong>tremolo</strong> (amp) or <strong>PWM movement</strong> (pulse).</p>' +
+      '<p>If the LFO destination is off, the wheel does nothing — pick a destination first.</p>',
   },
   scope: {
     title: 'Wave / Spectrum view',

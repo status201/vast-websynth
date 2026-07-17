@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Kick, Snare, HiHat, Clap, makeNoiseBuffer } from '../../../src/audio/drums/drum-synths';
+import { Kick, Snare, HiHat, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../../../src/audio/drums/drum-synths';
 import { makeMockAudioContext } from '../mock-audio-context';
 
 /**
@@ -180,5 +180,77 @@ describe('drum synth node cleanup', () => {
     expect(noiseEnv.disconnect).toHaveBeenCalled();
     expect(toneEnv.disconnect).toHaveBeenCalled();
     expect(output.disconnect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Percussion voices (drum-machine.md REQ-11): each honours the full DrumSynth
+ * contract — unchoked + choked triggers build/tear down their one-shot graphs
+ * like the classic voices do.
+ */
+describe('percussion voices', () => {
+  const build = (name: string): { mock: ReturnType<typeof makeMockAudioContext>; synth: DrumSynth } => {
+    const { mock, ctx, noise } = setup();
+    const synth: DrumSynth =
+      name === 'Conga' ? new Conga(ctx) :
+      name === 'Bongo' ? new Bongo(ctx, noise) :
+      name === 'Cowbell' ? new Cowbell(ctx) :
+      name === 'Clave' ? new Clave(ctx) :
+      new Shaker(ctx, noise);
+    mock.createGain.mockClear();
+    mock.createOscillator.mockClear();
+    mock.createBufferSource.mockClear();
+    return { mock, synth };
+  };
+
+  for (const name of ['Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker']) {
+    it(`${name} triggers unchoked and cleans up on ended`, () => {
+      const { mock, synth } = build(name);
+      synth.setTune(3);
+      synth.setDecay(0.2);
+      synth.trigger(0.5, 0.9);
+      const sources = [
+        ...mock.createOscillator.mock.results.map((r) => r.value),
+        ...mock.createBufferSource.mock.results.map((r) => r.value),
+      ];
+      expect(sources.length).toBeGreaterThan(0);
+      for (const s of sources) {
+        expect(s.start).toHaveBeenCalled();
+        expect(s.stop).toHaveBeenCalled();
+        s.onended();
+      }
+      // Every per-hit node is disconnected after the last source ends.
+      for (const r of mock.createGain.mock.results) {
+        expect(r.value.disconnect).toHaveBeenCalled();
+      }
+    });
+
+    it(`${name} choked routes through a choke gain that cuts at chokeAt`, () => {
+      const { mock, synth } = build(name);
+      const cut = 0.56;
+      synth.trigger(0.5, 0.9, cut);
+      const choke = mock.createGain.mock.results[0]!.value;
+      expect(choke.gain.setValueAtTime).toHaveBeenCalledWith(1, cut);
+      expect(choke.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, cut + 0.005);
+    });
+  }
+
+  it('Shaker swells in over ~12 ms instead of snapping like a hat', () => {
+    const { mock, synth } = build('Shaker');
+    synth.trigger(1, 1);
+    const env = mock.createGain.mock.results[0]!.value;
+    expect(env.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.55, 1 + 0.012);
+  });
+
+  it('Cowbell tune shifts both square oscillators and the bandpass', () => {
+    const { mock, synth } = build('Cowbell');
+    synth.setTune(12); // +1 octave → 2x
+    synth.trigger(0, 1);
+    const o1 = mock.createOscillator.mock.results[0]!.value;
+    const o2 = mock.createOscillator.mock.results[1]!.value;
+    expect(o1.frequency.value).toBeCloseTo(1120);
+    expect(o2.frequency.value).toBeCloseTo(1690);
+    const bp = mock.createBiquadFilter.mock.results[0]!.value;
+    expect(bp.frequency.value).toBeCloseTo(1400);
   });
 });

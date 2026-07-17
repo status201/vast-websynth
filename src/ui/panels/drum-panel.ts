@@ -12,7 +12,8 @@ import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
-import { DRUM_TRACK_LABELS } from '../../state/params';
+import { ParamDropdown } from '../components/param-dropdown';
+import { DRUM_TRACK_LABELS, DRUM_MODEL_LABELS } from '../../state/params';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH, type DrumCell } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
@@ -77,6 +78,12 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const grid = document.createElement('div');
   grid.className = styles.grid!;
   const stepBtns: StepButton[][] = [];
+  const trackLabels: HTMLButtonElement[] = [];
+
+  // A row's display name follows its selected voice model (drum-machine.md
+  // REQ-11); DRUM_TRACK_LABELS stays the canonical slot naming.
+  const modelName = (t: number): string =>
+    DRUM_MODEL_LABELS[Math.round(bus.get(`drum.t${t}.model`))] ?? DRUM_TRACK_LABELS[t] ?? `T${t}`;
 
   // Selection cursor for the per-step edit row (one cell across the grid).
   let selTrack = 0;
@@ -107,6 +114,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
       engine.drums.triggerTrack(t, 0.9);
     });
     ctrls.appendChild(label);
+    trackLabels.push(label);
 
     const mute = new Switch(bus, `drum.t${t}.mute`, 'mute');
     mute.el.classList.add(styles.mute!);
@@ -163,6 +171,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   tuningKnobs.className = styles.tuningKnobs!;
   let tuningCells: Knob[] = [];
   let tuningTrack = -1;
+  let modelDd: ParamDropdown | null = null;
   const renderTuning = (): void => {
     // The knobs bind per-track paramIds, so the strip only needs rebuilding when
     // the selected track changes — not on every step click (drum-machine.md REQ-10).
@@ -170,8 +179,13 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     tuningTrack = selTrack;
     for (const k of tuningCells) k.destroy();
     tuningCells = [];
+    modelDd?.destroy();
     tuningKnobs.innerHTML = '';
-    tuningLabel.textContent = `${DRUM_TRACK_LABELS[selTrack] ?? `T${selTrack}`} — sound`;
+    tuningLabel.textContent = `${modelName(selTrack)} — sound`;
+    // Voice model picker leads the strip (drum-machine.md REQ-11).
+    modelDd = new ParamDropdown(bus, `drum.t${selTrack}.model`, DRUM_MODEL_LABELS);
+    modelDd.el.dataset.testid = 'drum-model';
+    tuningKnobs.appendChild(modelDd.el);
     for (const { suffix, label } of TUNING_PARAMS) {
       const knob = new Knob({ bus, paramId: `drum.t${selTrack}.${suffix}`, label, size: 34 });
       tuningCells.push(knob);
@@ -220,11 +234,25 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const selectedLabel = document.createElement('div');
   selectedLabel.className = editStyles.selectedLabel!;
   const renderSelected = () => {
-    selectedLabel.textContent = `${DRUM_TRACK_LABELS[selTrack] ?? `T${selTrack}`} · step ${selStep + 1}`;
+    selectedLabel.textContent = `${modelName(selTrack)} · step ${selStep + 1}`;
   };
   editor.el.insertBefore(selectedLabel, editor.el.firstChild);
   root.appendChild(editor.el);
   setSelected(0, 0);
+
+  // Row + strip labels follow the voice model live (kit switches, song loads).
+  for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
+    const track = t;
+    bus.subscribe(`drum.t${t}.model`, () => {
+      const name = modelName(track);
+      const l = trackLabels[track];
+      if (l) l.textContent = name;
+      if (track === selTrack) {
+        tuningLabel.textContent = `${name} — sound`;
+        renderSelected();
+      }
+    });
+  }
 
   // Highlight playback position — only when viewing the bank that's playing
   const highlighter = new PlayheadHighlighter(stepBtns);

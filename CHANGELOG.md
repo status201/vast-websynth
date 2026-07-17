@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Drum voice models** — every drum track can now swap its voice algorithm
+  via a model dropdown in the Drum tab's sound-design strip: the 8 classic
+  voices plus five new percussion synths (**Conga, Bongo, Cowbell, Clave,
+  Shaker**). The grid row label follows the chosen voice, the choice is saved
+  in songs/presets like any knob, and existing files keep their classic
+  voices untouched.
+
+- **Percussion kit** — a new factory kit in the KIT dropdown that turns the
+  drum machine into a percussion section (congas, bongo, clave, shakers,
+  cowbell) in one click. Randomize still shuffles timbre only — it never
+  changes the selected voices.
+
+- **Demo pair: 1985-1 & 1985-2** — a two-instance jam built from a Hands On
+  demo MIDI: 1985-1 (bass + drums) and its companion 1985-2 (staggered string
+  chords + syncopated percussion on the new voices), made to run together
+  over MIDI clock sync (Master/Slave).
+
+### Changed
+
+- **Mod wheel help badge tells the truth** — it now explains that the wheel
+  boosts the LFO amount toward whatever destination is selected (wobble /
+  vibrato / tremolo / PWM), and that it does nothing while the LFO
+  destination is off.
+
+- **Help button tooltip** — reads "Help & Demo Tour" while help badges are
+  off (it opens the Help chooser, not a shortcuts list).
+
 ## [2.1.1] - 2026-07-17
 
 ### Changed

@@ -9,9 +9,12 @@
 import type { ParamBus } from '../../state/params';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 
-/** The per-track scalar params a kit / randomize / reset addresses. */
-export const KIT_PARAMS = ['tune', 'decay', 'tone', 'drive', 'pan', 'vol'] as const;
+/** The per-track scalar params a kit addresses (model swaps the voice — REQ-6). */
+export const KIT_PARAMS = ['tune', 'decay', 'tone', 'drive', 'pan', 'vol', 'model'] as const;
 export type KitParam = (typeof KIT_PARAMS)[number];
+/** The subset randomize shuffles — timbre only, never the voice models. */
+export const RANDOM_PARAMS = ['tune', 'decay', 'tone', 'drive', 'pan', 'vol'] as const;
+type RandomParam = (typeof RANDOM_PARAMS)[number];
 
 /**
  * Sparse per-track override table. Each array is indexed by track
@@ -56,6 +59,17 @@ export const DRUM_KITS: Record<string, KitDef> = {
     drive: [0.4, 0.3, 0.2, 0.25, 0.35, 0.35, 0.35, 0.3],
     pan: [0, 0, -0.25, 0.25, -0.3, 0, 0.3, -0.15],
   },
+  // A percussion section over the same 8 slots (drum-kits.md REQ-6): kick stays
+  // for a foundation; the rest become cowbell / shakers / congas / bongo / clave.
+  // Models: 8=Conga 9=Bongo 10=Cowbell 11=Clave 12=Shaker (DRUM_MODEL_LABELS).
+  Percussion: {
+    model: [0, 10, 12, 12, 8, 8, 9, 11],
+    //     kick cowbl shkr shkr conga conga bongo clave
+    tune: [0, 0, 0, -3, -5, 0, 2, 0],       // low/high conga pair; darker 2nd shaker
+    decay: [0.4, 0.2, 0.06, 0.14, 0.24, 0.2, 0.09, 0.06],
+    pan: [0, 0.25, -0.35, 0.35, -0.25, 0.2, 0.45, -0.15],
+    vol: [0.85, 0.7, 0.75, 0.7, 0.9, 0.9, 0.85, 0.8],
+  },
 };
 
 /** Apply a named kit: every per-track param gets the kit value or its default. */
@@ -73,7 +87,7 @@ export function applyKit(bus: ParamBus, name: string): void {
 }
 
 /** Musical sub-ranges for randomize — narrower than each param's full range. */
-const RANDOM_RANGES: Record<KitParam, (r: number) => number> = {
+const RANDOM_RANGES: Record<RandomParam, (r: number) => number> = {
   tune: (r) => Math.round((r * 2 - 1) * 7), // ±7 semitones
   decay: (r) => 0.1 + r * 0.5, // 0.1..0.6 s
   tone: (r) => 0.4 + r * 0.6, // 0.4..1
@@ -89,7 +103,7 @@ const RANDOM_RANGES: Record<KitParam, (r: number) => number> = {
 export function randomKitValues(rand: () => number = Math.random): Record<string, number> {
   const out: Record<string, number> = {};
   for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
-    for (const p of KIT_PARAMS) out[`drum.t${i}.${p}`] = RANDOM_RANGES[p](rand());
+    for (const p of RANDOM_PARAMS) out[`drum.t${i}.${p}`] = RANDOM_RANGES[p](rand());
   }
   return out;
 }

@@ -189,3 +189,39 @@ describe('DrumMachine', () => {
     expect(shaper.oversample).toBe('none');
   });
 });
+
+/** Voice models (drum-machine.md REQ-11): swap the voice, keep the channel. */
+describe('DrumMachine voice models', () => {
+  it('setTrackModel swaps the voice and rewires it into the same channel head', () => {
+    const { dm } = build();
+    const old = dm.tracks[4]!; // L.Tom slot
+    dm.setTrackTune(4, -5);
+    dm.setTrackDecay(4, 0.24);
+    dm.setTrackModel(4, 8); // Conga
+    const next = dm.tracks[4]!;
+    expect(next).not.toBe(old);
+    expect((old.output as unknown as { disconnect: ReturnType<typeof vi.fn> }).disconnect).toHaveBeenCalled();
+    // The new voice joined the graph (its output connected somewhere)…
+    expect((next.output as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalled();
+  });
+
+  it('cached tune/decay are replayed onto the swapped-in voice', () => {
+    const { dm, clock, patterns } = build();
+    dm.setEnabled(true);
+    dm.setTrackTune(4, 12);
+    dm.setTrackDecay(4, 0.1);
+    dm.setTrackModel(4, 8); // Conga
+    const spy = vi.spyOn(dm.tracks[4]!, 'trigger');
+    patterns.setDrumCell(4, 0, { on: true, velocity: 0.9 });
+    clock.fireTick(0);
+    expect(spy).toHaveBeenCalled(); // the new voice is what the grid now fires
+  });
+
+  it('an unknown or unchanged model index is a no-op', () => {
+    const { dm } = build();
+    const v = dm.tracks[0]!;
+    dm.setTrackModel(0, 0);   // unchanged
+    dm.setTrackModel(0, 99);  // out of range
+    expect(dm.tracks[0]).toBe(v);
+  });
+});

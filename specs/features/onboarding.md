@@ -3,7 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 4   # v4: active Help button toggles badges off directly (one-click exit)
+version: 5   # v5: mod-wheel badge explains the LFO-boost routing; idle Help tooltip "Help & Demo Tour"
 owner: core
 related:
   - architecture
@@ -59,6 +59,15 @@ never reads DEV-only globals.
   directly — no modal round-trip. While inactive, the click opens the Help
   chooser modal as before. The active styling is what licenses the shortcut:
   an orange toggle reads as "click to switch off".
+- **REQ-9** (v5) — Help copy tells the truth about what a control does:
+  - The `modWheel` topic explains the wheel's actual routing — it **adds to the
+    LFO Amount** (engine clamps the sum to 1), so it deepens whatever the LFO
+    destination is aimed at: wobble (cutoff), vibrato (pitch), tremolo (amp) or
+    PWM movement (pulse) — and that it does nothing while the LFO destination
+    is off.
+  - The Help button's tooltip while help mode is **inactive** is
+    "Help & Demo Tour" (it opens the tour/badges chooser, not a shortcuts
+    list); the active-state tooltip stays "Turn off help badges" (REQ-8).
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to

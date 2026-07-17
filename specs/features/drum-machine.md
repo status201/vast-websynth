@@ -3,7 +3,7 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 4
+version: 5   # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
 owner: core
 related:
   - architecture
@@ -64,6 +64,27 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   `output` gain, built in the constructor and wired into the track channel once,
   survives. This bounds the live graph: a long song must not accumulate
   stopped-but-connected nodes (which crackle/distort the audio over time).
+- **REQ-11** (v5) — Each track's voice **algorithm is selectable** via a
+  per-track discrete param `drum.t{i}.model`. The model list is the 8 classic
+  voices (Kick, Snare, C.Hat, O.Hat, L/M/H Tom, Clap — indices 0–7, matching
+  the track order) plus the percussion voices **Conga (8), Bongo (9),
+  Cowbell (10), Clave (11), Shaker (12)**. Rules:
+  - The **default is the track's own index**, so a song/preset that omits the
+    param (every pre-v5 file) reproduces the classic kit exactly.
+  - Switching models swaps only the voice instance: the old voice's `output` is
+    disconnected and the new voice wired into the **same** per-track channel
+    (drive→tone→gain→pan, REQ-7); cached tune/decay are replayed onto the new
+    voice. Tone/drive/pan/vol/mute and the step grid are untouched.
+  - Every model honours the full `DrumSynth` contract: tune (REQ-6), decay,
+    choke (REQ-3), one-shot node teardown (REQ-9).
+  - Percussion voices follow ADR-010 (musical, stable, cheap): small one-shot
+    graphs, constants dialled by ear.
+  - The author dialect's track names (`kick`/`chat`/`ltom`…) keep naming the
+    **slot**, not the current model; `drum.t{i}.model` travels in `params` like
+    any scalar.
+  - UI: the sound-design row's tuning strip gains a per-track **model dropdown**
+    (testid `drum-model`), and the grid's row label follows the selected model's
+    name (the classic `DRUM_TRACK_LABELS` remain the slot names).
 - **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
   track changes**, not on every step click (its knobs bind per-track paramIds that
   depend on the track alone; their displayed values already track the bus via
@@ -85,8 +106,10 @@ DrumMachine:  # src/audio/transport/drum-machine.ts
   setEnabled(on)
   setTrackVolume(i, v) / setTrackTune(i, semis) / setTrackDecay(i, s) / setTrackMute(i, b)
   setTrackTone(i, amt) / setTrackDrive(i, amt) / setTrackPan(i, p)
+  setTrackModel(i, model)              # swap the voice algorithm (REQ-11)
   triggerTrack(i, velocity)            # UI audition
   onStep(fn) -> unsubscribe
+DRUM_VOICE_MODELS: string[]  # dropdown labels, index = model value (drum-machine.ts)
 DrumSynth:    # src/audio/drums/drum-synths.ts
   output: AudioNode
   trigger(when, velocity, chokeAt?)   # chokeAt cuts the hit with a fast fade
@@ -108,6 +131,8 @@ drum.t{i}.tone:  { range: 0..1, default: 1, format: pct }   # 1 = open (no-op), 
 drum.t{i}.drive: { range: 0..1, default: 0, format: pct }   # 0 = clean (no-op)
 drum.t{i}.pan:   { range: -1..1, default: 0, format: L/C/R } # 0 = centre (no-op)
 drum.t{i}.mute:  { discrete, labels: [on, mute], default: 0 }
+drum.t{i}.model: { range: 0..12, default: i, step: 1, taper: discrete,
+                   labels: DRUM_VOICE_MODELS }   # default = the classic voice (REQ-11)
 # step grid: DrumCell[track][step] in PatternStore — see step-settings.md
 ```
 
@@ -116,7 +141,7 @@ drum.t{i}.mute:  { discrete, labels: [on, mute], default: 0 }
 ```yaml
 engine (subscribeParams):
   drum.on -> setEnabled; drum.master -> laneMixer.setDrumVol
-  drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute
+  drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute/ Model
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)
 graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(lowpass biquad)
@@ -170,6 +195,19 @@ Scenario: Fill plays a roll instead of the pattern (edge)
   Then the drum machine plays a roll rather than the programmed cells
 # pinned by: tests/audio/transport/drum-machine.test.ts, e2e/song-fx.spec.ts
 
+Scenario: Switching a voice model swaps the voice, not the channel (REQ-11)
+  Given track 4 (L.Tom slot) with a tuned channel (pan/drive set)
+  When drum.t4.model is set to Conga
+  Then the old voice's output is disconnected, a Conga instance is wired into the
+       same channel, cached tune/decay are replayed, and pan/drive are unchanged
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: Old songs keep the classic voices (REQ-11, no-op default)
+  Given a song file that never mentions drum.t{i}.model
+  When it is applied
+  Then every track's model equals its own index (the classic voice)
+# pinned by: tests/state/params.test.ts
+
 Scenario: A hit disconnects its one-shot nodes once it ends (REQ-9, regression)
   Given a drum voice is triggered
   When the hit's source(s) finish (onended fires; the last one for a multi-source voice)
@@ -197,6 +235,7 @@ Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-10, 
 - Track count/order is fixed (`DRUM_TRACK_COUNT`); adding a track touches the
   voice list, `DRUM_TRACK_LABELS`, the per-track params, and the grid UI
   (see `specs/recipes/add-a-drum-voice.md`).
-- Voice *algorithms* are still fixed; swappable per-track voice models (e.g.
-  808 vs 909 kick) remain a future option beyond parameterisation.
+- Per-track voice models shipped in v5 (REQ-11) with five percussion voices;
+  further models (e.g. 808 vs 909 kick variants) can extend
+  `DRUM_VOICE_MODELS` without another schema change.
 ```

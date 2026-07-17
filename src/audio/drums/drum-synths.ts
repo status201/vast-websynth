@@ -276,6 +276,237 @@ export class Clap implements DrumSynth {
   }
 }
 
+export class Conga implements DrumSynth {
+  readonly output: GainNode;
+  private decay = 0.22;
+  private tune = 0;
+
+  constructor(private readonly ctx: AudioContext) {
+    this.output = ctx.createGain();
+    this.output.gain.value = 0.75;
+  }
+
+  setTune(semi: number): void { this.tune = semi; }
+  setDecay(s: number): void { this.decay = Math.max(0.05, s); }
+
+  trigger(when: number, velocity: number, chokeAt?: number): void {
+    const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const f = 190 * Math.pow(2, this.tune / 12);
+
+    // Skin tone: near-sine with a brief attack blip — rounder than a tom
+    // (shorter, shallower sweep) so it reads as hand drum, not fill drum.
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f * 1.35, t);
+    osc.frequency.exponentialRampToValueAtTime(f, t + 0.02);
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.003);
+    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+
+    // A faint octave overtone gives the open-tone "song" of a conga.
+    const ovt = this.ctx.createOscillator();
+    ovt.type = 'triangle';
+    ovt.frequency.setValueAtTime(f * 2, t);
+    const ovtEnv = this.ctx.createGain();
+    ovtEnv.gain.setValueAtTime(0, t);
+    ovtEnv.gain.linearRampToValueAtTime(velocity * 0.15, t + 0.003);
+    ovtEnv.gain.exponentialRampToValueAtTime(0.001, t + Math.min(this.decay, 0.09));
+
+    osc.connect(env).connect(r.dest);
+    ovt.connect(ovtEnv).connect(r.dest);
+    osc.start(t);
+    ovt.start(t);
+    osc.stop(r.stopAt(t + this.decay + 0.05));
+    ovt.stop(r.stopAt(t + 0.12));
+
+    const nodes: AudioNode[] = [osc, env, ovt, ovtEnv];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([osc, ovt], nodes);
+  }
+}
+
+export class Bongo implements DrumSynth {
+  readonly output: GainNode;
+  private decay = 0.09;
+  private tune = 0;
+
+  constructor(private readonly ctx: AudioContext, private readonly noiseBuf: AudioBuffer) {
+    this.output = ctx.createGain();
+    this.output.gain.value = 0.7;
+  }
+
+  setTune(semi: number): void { this.tune = semi; }
+  setDecay(s: number): void { this.decay = Math.max(0.03, s); }
+
+  trigger(when: number, velocity: number, chokeAt?: number): void {
+    const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const f = 400 * Math.pow(2, this.tune / 12);
+
+    // Small tight head: higher and shorter than the conga.
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f * 1.25, t);
+    osc.frequency.exponentialRampToValueAtTime(f, t + 0.012);
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(velocity * 0.85, t + 0.002);
+    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+
+    // Woody fingertip click: a short burst of band-passed noise at the head pitch.
+    const click = this.ctx.createBufferSource();
+    click.buffer = this.noiseBuf;
+    click.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = f * 4;
+    bp.Q.value = 2.5;
+    const clickEnv = this.ctx.createGain();
+    clickEnv.gain.setValueAtTime(velocity * 0.35, t);
+    clickEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+
+    osc.connect(env).connect(r.dest);
+    click.connect(bp).connect(clickEnv).connect(r.dest);
+    osc.start(t);
+    click.start(t);
+    osc.stop(r.stopAt(t + this.decay + 0.05));
+    click.stop(r.stopAt(t + 0.03));
+
+    const nodes: AudioNode[] = [osc, env, click, bp, clickEnv];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([osc, click], nodes);
+  }
+}
+
+export class Cowbell implements DrumSynth {
+  readonly output: GainNode;
+  private decay = 0.25;
+  private tune = 0;
+
+  constructor(private readonly ctx: AudioContext) {
+    this.output = ctx.createGain();
+    this.output.gain.value = 0.55;
+  }
+
+  setTune(semi: number): void { this.tune = semi; }
+  setDecay(s: number): void { this.decay = Math.max(0.05, s); }
+
+  trigger(when: number, velocity: number, chokeAt?: number): void {
+    const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const f = Math.pow(2, this.tune / 12);
+
+    // 808 recipe: two detuned squares through a bandpass — clangy, not tonal.
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 700 * f;
+    bp.Q.value = 1.1;
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(velocity * 0.8, t + 0.001);
+    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+
+    const oscs: OscillatorNode[] = [];
+    for (const hz of [560, 845]) {
+      const o = this.ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.value = hz * f;
+      o.connect(bp);
+      o.start(t);
+      o.stop(r.stopAt(t + this.decay + 0.05));
+      oscs.push(o);
+    }
+    bp.connect(env).connect(r.dest);
+
+    const nodes: AudioNode[] = [...oscs, bp, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter(oscs, nodes);
+  }
+}
+
+export class Clave implements DrumSynth {
+  readonly output: GainNode;
+  private decay = 0.06;
+  private tune = 0;
+
+  constructor(private readonly ctx: AudioContext) {
+    this.output = ctx.createGain();
+    this.output.gain.value = 0.6;
+  }
+
+  setTune(semi: number): void { this.tune = semi; }
+  setDecay(s: number): void { this.decay = Math.max(0.02, s); }
+
+  trigger(when: number, velocity: number, chokeAt?: number): void {
+    const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const f = 1200 * Math.pow(2, this.tune / 12);
+
+    // A bare high ping with the faintest pitch dip — rosewood on rosewood.
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f * 1.08, t);
+    osc.frequency.exponentialRampToValueAtTime(f, t + 0.006);
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(velocity * 0.9, t + 0.001);
+    env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
+
+    osc.connect(env).connect(r.dest);
+    osc.start(t);
+    osc.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [osc, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([osc], nodes);
+  }
+}
+
+export class Shaker implements DrumSynth {
+  readonly output: GainNode;
+  private decay = 0.09;
+  private tune = 0;
+
+  constructor(private readonly ctx: AudioContext, private readonly noiseBuf: AudioBuffer) {
+    this.output = ctx.createGain();
+    this.output.gain.value = 0.5;
+  }
+
+  setTune(semi: number): void { this.tune = semi; }
+  setDecay(s: number): void { this.decay = Math.max(0.03, s); }
+
+  trigger(when: number, velocity: number, chokeAt?: number): void {
+    const t = Math.max(when, this.ctx.currentTime);
+    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const f = Math.pow(2, this.tune / 12);
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.noiseBuf;
+    noise.loop = true;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 6500 * f;
+    bp.Q.value = 1.6;
+
+    // The soft ~10 ms swell is what separates a shaker from a closed hat —
+    // grains build up rather than snap.
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(velocity * 0.55, t + 0.012);
+    env.gain.exponentialRampToValueAtTime(0.001, t + Math.max(this.decay, 0.03));
+
+    noise.connect(bp).connect(env).connect(r.dest);
+    noise.start(t);
+    noise.stop(r.stopAt(t + this.decay + 0.05));
+
+    const nodes: AudioNode[] = [noise, bp, env];
+    if (r.choke) nodes.push(r.choke);
+    disposeAfter([noise], nodes);
+  }
+}
+
 export function makeNoiseBuffer(ctx: AudioContext, durationSec = 2): AudioBuffer {
   const sr = ctx.sampleRate;
   const len = Math.max(1, Math.floor(sr * durationSec));

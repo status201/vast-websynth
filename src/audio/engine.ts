@@ -581,6 +581,7 @@ export class Engine {
       bus.subscribe(`drum.t${i}.drive`, (v) => this.drums.setTrackDrive(track, v));
       bus.subscribe(`drum.t${i}.pan`, (v) => this.drums.setTrackPan(track, v));
       bus.subscribe(`drum.t${i}.mute`, (v) => this.drums.setTrackMute(track, v >= 0.5));
+      bus.subscribe(`drum.t${i}.model`, (v) => this.drums.setTrackModel(track, v));
     }
 
     // ----- Sampler -----

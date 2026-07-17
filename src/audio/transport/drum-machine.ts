@@ -2,12 +2,37 @@ import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
-import { Kick, Snare, HiHat, Tom, Clap, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
+import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
 import { chokeAt, rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 
 export type DrumStepListener = (step: number) => void;
+
+/**
+ * Selectable voice algorithms per track (drum-machine.md REQ-11). Indices 0-7
+ * are the classic voices in track order — a track's default model is its own
+ * index, so pre-model songs/presets reproduce the classic kit exactly.
+ * The label list lives in state (`DRUM_MODEL_LABELS`); MODEL_BUILDERS below
+ * must stay index-aligned with it.
+ */
+export { DRUM_MODEL_LABELS as DRUM_VOICE_MODELS } from '../../state/params';
+
+const MODEL_BUILDERS: readonly ((ctx: AudioContext, noise: AudioBuffer) => DrumSynth)[] = [
+  (ctx) => new Kick(ctx),
+  (ctx, noise) => new Snare(ctx, noise),
+  (ctx, noise) => new HiHat(ctx, noise, false), // closed
+  (ctx, noise) => new HiHat(ctx, noise, true),  // open
+  (ctx) => new Tom(ctx, 110),                    // low
+  (ctx) => new Tom(ctx, 165),                    // mid
+  (ctx) => new Tom(ctx, 240),                    // high
+  (ctx, noise) => new Clap(ctx, noise),
+  (ctx) => new Conga(ctx),
+  (ctx, noise) => new Bongo(ctx, noise),
+  (ctx) => new Cowbell(ctx),
+  (ctx) => new Clave(ctx),
+  (ctx, noise) => new Shaker(ctx, noise),
+];
 
 export class DrumMachine {
   readonly tracks: DrumSynth[] = [];
@@ -19,6 +44,11 @@ export class DrumMachine {
   private readonly trackDriveShapers: WaveShaperNode[] = [];
   private readonly trackDrivePost: GainNode[] = [];
   readonly muted: boolean[] = Array(DRUM_TRACK_COUNT).fill(false);
+  // Current model per track + cached tune/decay, replayed onto a swapped-in voice.
+  private readonly trackModels: number[] = Array.from({ length: DRUM_TRACK_COUNT }, (_, i) => i);
+  private readonly trackTunes: number[] = Array(DRUM_TRACK_COUNT).fill(0);
+  private readonly trackDecays: number[] = Array(DRUM_TRACK_COUNT).fill(0.3);
+  private readonly noise: AudioBuffer;
 
   private enabled = false;
   private readonly stepListeners = new Set<DrumStepListener>();
@@ -32,19 +62,11 @@ export class DrumMachine {
     private readonly drumBus: GainNode,
     private readonly fxOversample = true,
   ) {
-    const noise = makeNoiseBuffer(this.ctx, 2);
+    this.noise = makeNoiseBuffer(this.ctx, 2);
 
-    // Track order must match DRUM_TRACKS in patterns.ts
-    this.tracks = [
-      new Kick(this.ctx),
-      new Snare(this.ctx, noise),
-      new HiHat(this.ctx, noise, false), // closed
-      new HiHat(this.ctx, noise, true),  // open
-      new Tom(this.ctx, 110),             // low
-      new Tom(this.ctx, 165),             // mid
-      new Tom(this.ctx, 240),             // high
-      new Clap(this.ctx, noise),
-    ];
+    // Track order must match DRUM_TRACKS in patterns.ts; each track boots on
+    // its classic voice (model index = track index, REQ-11).
+    this.tracks = this.trackModels.map((m) => MODEL_BUILDERS[m]!(this.ctx, this.noise));
 
     for (const t of this.tracks) {
       // Per-track channel: voice → drive → tone → volume → pan → drumBus.
@@ -103,11 +125,33 @@ export class DrumMachine {
   }
 
   setTrackTune(track: number, semi: number): void {
+    this.trackTunes[track] = semi;
     this.tracks[track]?.setTune(semi);
   }
 
   setTrackDecay(track: number, sec: number): void {
+    this.trackDecays[track] = sec;
     this.tracks[track]?.setDecay(sec);
+  }
+
+  /**
+   * Swap the track's voice algorithm (REQ-11). Only the voice changes: the old
+   * voice's output is disconnected and the new one wired into the same
+   * per-track channel head (`drivePre`); cached tune/decay are replayed.
+   * In-flight one-shots keep their own `disposeAfter` teardown.
+   */
+  setTrackModel(track: number, model: number): void {
+    const m = Math.round(model);
+    const builder = MODEL_BUILDERS[m];
+    const drivePre = this.trackDrivePre[track];
+    if (!builder || !drivePre || this.trackModels[track] === m) return;
+    this.trackModels[track] = m;
+    this.tracks[track]?.output.disconnect();
+    const voice = builder(this.ctx, this.noise);
+    voice.setTune(this.trackTunes[track]!);
+    voice.setDecay(this.trackDecays[track]!);
+    voice.output.connect(drivePre);
+    this.tracks[track] = voice;
   }
 
   /** Brightness: `amt` 1 = open (no-op), lower darkens the per-track lowpass. */

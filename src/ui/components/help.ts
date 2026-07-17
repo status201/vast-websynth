@@ -17,7 +17,7 @@ export function createHelpButton(deps: HelpDeps): HTMLButtonElement {
   const btn = createButton({
     label: 'Help',
     icon: HEADER_ICONS.help,
-    title: 'Keyboard shortcuts & help',
+    title: 'Help & Demo Tour',
     testId: 'help-button',
     // While the badges are showing the button is a one-click off switch (the
     // orange active state licenses that reading); otherwise it opens the menu.
@@ -30,7 +30,7 @@ export function createHelpButton(deps: HelpDeps): HTMLButtonElement {
   // they can be toggled back off from here.
   deps.onHelpModeChange((active) => {
     btn.classList.toggle(tourStyles.toggleActive!, active);
-    btn.title = active ? 'Turn off help badges' : 'Keyboard shortcuts & help';
+    btn.title = active ? 'Turn off help badges' : 'Help & Demo Tour';
   });
   return btn;
 }

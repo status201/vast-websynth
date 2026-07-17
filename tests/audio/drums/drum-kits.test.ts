@@ -3,11 +3,13 @@ import { ParamBus, registerDefaults } from '../../../src/state/params';
 import {
   DRUM_KITS,
   KIT_PARAMS,
+  RANDOM_PARAMS,
   applyKit,
   randomKitValues,
   randomizeKit,
 } from '../../../src/audio/drums/drum-kits';
 import { DRUM_TRACK_COUNT } from '../../../src/state/patterns';
+import { DRUM_MODEL_LABELS } from '../../../src/state/params';
 
 function freshBus(): ParamBus {
   const bus = new ParamBus();
@@ -58,7 +60,7 @@ describe('drum kits', () => {
     let i = 0;
     const rand = (): number => seq[i++ % seq.length]!;
     const vals = randomKitValues(rand);
-    expect(Object.keys(vals).length).toBe(DRUM_TRACK_COUNT * KIT_PARAMS.length);
+    expect(Object.keys(vals).length).toBe(DRUM_TRACK_COUNT * RANDOM_PARAMS.length);
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       expect(Math.abs(vals[`drum.t${t}.tune`]!)).toBeLessThanOrEqual(7);
       expect(vals[`drum.t${t}.decay`]!).toBeGreaterThanOrEqual(0.1);
@@ -77,5 +79,48 @@ describe('drum kits', () => {
     randomizeKit(bus, () => 1); // top of every range
     expect(bus.get('drum.t0.drive')).toBeCloseTo(0.4);
     expect(bus.get('drum.t0.tune')).toBe(7);
+  });
+
+  // ---- Voice models (drum-kits.md REQ-6 / drum-machine.md REQ-11) ----
+
+  it('the Percussion kit selects valid voice models', () => {
+    const models = DRUM_KITS['Percussion']!.model!;
+    expect(models.length).toBe(DRUM_TRACK_COUNT);
+    for (const m of models) {
+      expect(Number.isInteger(m)).toBe(true);
+      expect(m).toBeGreaterThanOrEqual(0);
+      expect(m).toBeLessThan(DRUM_MODEL_LABELS.length);
+    }
+    // It actually swaps voices in (not just the classic kit re-tuned).
+    expect(models.some((m, i) => m !== i)).toBe(true);
+  });
+
+  it('applyKit writes the kit models; a model-less kit resets them to the classic voices', () => {
+    const bus = freshBus();
+    applyKit(bus, 'Percussion');
+    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
+      expect(bus.get(`drum.t${i}.model`)).toBe(DRUM_KITS['Percussion']!.model![i]);
+    }
+    applyKit(bus, '808'); // omits model → back to defaults (track index)
+    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
+      expect(bus.get(`drum.t${i}.model`)).toBe(i);
+    }
+  });
+
+  it('randomize never touches the voice models', () => {
+    const bus = freshBus();
+    applyKit(bus, 'Percussion');
+    randomizeKit(bus, () => 0.5);
+    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
+      expect(bus.get(`drum.t${i}.model`)).toBe(DRUM_KITS['Percussion']!.model![i]);
+    }
+    expect(Object.keys(randomKitValues(() => 0.5)).some((id) => id.endsWith('.model'))).toBe(false);
+  });
+
+  it('every track model defaults to its own index (old songs keep classic voices)', () => {
+    const bus = freshBus();
+    for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
+      expect(bus.def(`drum.t${i}.model`)!.default).toBe(i);
+    }
   });
 });

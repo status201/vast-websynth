@@ -189,6 +189,10 @@ export const UNISON_LABELS = ['off', '2', '3', '4'];
 export const ARP_PATTERN_LABELS = ['up', 'down', 'updn', 'rand', 'play'];
 export const ARP_RATE_LABELS = ['1/4', '1/8', '1/16', '1/32'];
 export const DRUM_TRACK_LABELS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'];
+// Selectable voice algorithms (drum-machine.md REQ-11). The first 8 are the
+// classic voices in track order — a track's default model is its own index —
+// and the order must match MODEL_BUILDERS in drum-machine.ts.
+export const DRUM_MODEL_LABELS = [...DRUM_TRACK_LABELS, 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'];
 
 export function registerDefaults(bus: ParamBus): void {
   bus.registerMany([
@@ -416,6 +420,9 @@ function drumTrackParams(): ParamDef[] {
     out.push({ id: `drum.t${i}.drive`, min: 0, max: 1, default: 0, format: fmtPct });
     out.push({ id: `drum.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
     out.push({ id: `drum.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
+    // Voice model — defaults to the track's own classic voice, so files that
+    // omit it (every pre-model song/preset) sound unchanged (REQ-11).
+    out.push({ id: `drum.t${i}.model`, min: 0, max: DRUM_MODEL_LABELS.length - 1, default: i, step: 1, taper: 'discrete', labels: DRUM_MODEL_LABELS });
   }
   return out;
 }
