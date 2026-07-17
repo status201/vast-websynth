@@ -136,6 +136,9 @@ NOTES
 - Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
   the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
   Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.
+- Each drum track's VOICE is swappable via "drum.t{i}.model" (see its value map in PARAMS): models 8-12
+  (Conga/Bongo/Cowbell/Clave/Shaker) turn tracks into a percussion section — great for latin/afro grooves.
+  The track keys (kick/snare/chat/...) still address the same slots whatever voice is selected.
 
 PARAMS (id, range, default, discrete value map)
 ${params}

@@ -66,7 +66,9 @@ is ~40 lines. The prompt-building logic moved to the pure
 - **REQ-5** — The PARAMS table (one line per `ParamBus` id with range/default/value
   map) and the NOTES/tips section are generated live and kept as the format
   reference; the modal's **Copy Example JSON** / **Download Example** buttons still
-  return the full built-in "I Feel Love" demo.
+  return the full built-in "I Feel Love" demo. The NOTES include a tip that
+  `drum.t{i}.model` swaps a track's voice (models 8–12 = conga/bongo/cowbell/
+  clave/shaker — a percussion section; drum-machine.md REQ-11).
 - **REQ-7** — The OUTPUT RULES are anti-give-up guardrails for weaker agents:
   respond with exactly ONE JSON object and no prose; a compact song is under
   ~80 lines; NEVER truncate or emit placeholders; if length is a concern,

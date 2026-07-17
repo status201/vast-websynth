@@ -68,6 +68,7 @@
 
 .tuningKnobs {
   display: flex;
-  align-items: flex-start;
+  /* Centre so the model dropdown sits on the knobs' midline, not the row top. */
+  align-items: center;
   gap: 12px;
 }
