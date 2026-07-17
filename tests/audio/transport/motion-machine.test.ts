@@ -141,6 +141,49 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
+  it('rest gate waits for the audible bar boundary (regression: look-ahead froze the wrong value)', () => {
+    const { bus, patterns, clock, arrangement, machine } = build();
+    machine.setEnabled(true);
+    machine.setSlide(false);
+    anchor(patterns, 12, 1, 1);   // high plateau
+    anchor(patterns, 15, 0, 0);   // the "come back down" anchor
+    arrangement.setMotionChain([0, -1], true); // bank A, then a REST bar
+    const defX = bus.def('filter.cutoff')!;
+    clock.fireStart();
+    for (let i = 0; i <= 15; i++) clock.fireTick(i * STEP_DUR);
+    machine.frame(14.5 * STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 1)); // anchor-12 hold
+    // The rest bar's first tick arrives scheduled ahead of its audible time;
+    // the arrangement flips motionResting NOW, but step 15 hasn't sounded yet.
+    clock.fireTick(16 * STEP_DUR);
+    machine.frame(15.5 * STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0)); // anchor 15 still writes
+    // From the audible boundary on, the rest holds (no further writes).
+    machine.frame(16.5 * STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
+  });
+
+  it('bank switches apply at the audible bar boundary, not at schedule time', () => {
+    const { bus, patterns, clock, arrangement, machine } = build();
+    machine.setEnabled(true);
+    machine.setSlide(false);
+    anchor(patterns, 0, 1, 1);                 // bank A: high
+    patterns.setMotionEditBank(1);
+    anchor(patterns, 0, 0, 0);                 // bank B: low
+    patterns.setMotionEditBank(0);
+    arrangement.setMotionChain([0, 1], true);
+    const defX = bus.def('filter.cutoff')!;
+    clock.fireStart();
+    for (let i = 0; i <= 15; i++) clock.fireTick(i * STEP_DUR);
+    // Bank B's first tick arrives ahead of time; frames before its `when`
+    // must still evaluate bank A.
+    clock.fireTick(16 * STEP_DUR);
+    machine.frame(15.9 * STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 1));
+    machine.frame(16 * STEP_DUR);
+    expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
+  });
+
   it('reads the play bank the arrangement selects, not the edit bank', () => {
     const { bus, patterns, clock, arrangement, machine } = build();
     machine.setEnabled(true);

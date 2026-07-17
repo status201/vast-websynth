@@ -73,6 +73,13 @@ The tab sits between Sampler and Song.
   only changes value at anchor boundaries and `bus.set` early-returns unchanged
   values, so its idle frames cost nothing. The pure curve math is
   `motion-curve.ts` (`valueAt(bank, barPos, mode)`), fully unit-testable.
+  The same discipline applies to **arrangement state**: the rest gate and play
+  bank flip on the *scheduled* bar-boundary tick, up to `scheduleAheadS` before
+  it is heard — the machine latches them per tick and evaluates against the tick
+  whose **audible** window contains now, so rests and bank switches land on the
+  heard bar boundary (reading them live truncated the final `scheduleAheadS` of
+  every bar before a rest, freezing the previous anchor's value through the
+  rest — the "value never comes back down" bug).
 - **REQ-8** — UI: each step is a **mini XY pad** square — drag sets `(x,y)` in one
   gesture, double-click/double-tap clears; the dot sits at the literal coordinate.
   An SVG polyline overlay traces the **selected axis** across the 16 squares
@@ -212,6 +219,22 @@ Scenario: Muting from the Song tab restores baselines and the pad's base axes (v
   And the XY Pad's axes fall back to the base assignment while muted
   And unmuting mid-play resumes automation
 # pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/xy-effective.test.ts, e2e/motion.spec.ts
+
+Scenario: The final anchor before a rest bar still writes under look-ahead (regression)
+  Given step mode with a high anchor at step 12 and a low anchor at step 15
+  And the chain plays that bank into a REST bar
+  When the rest bar's first tick arrives scheduleAheadS ahead of its audible time
+  And frames evaluate between that tick and the audible bar boundary
+  Then the machine still writes the step-15 value (the rest gate waits for the
+    audible boundary instead of freezing the step-12 value through the rest)
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: Bank switches apply at the audible bar boundary, not at schedule time
+  Given the chain moves from bank A to bank B with different anchor values
+  When the new bar's first tick arrives ahead of its audible time
+  Then frames before the audible boundary still evaluate bank A
+  And frames from the boundary on evaluate bank B
+# pinned by: tests/audio/transport/motion-machine.test.ts
 
 Scenario: Empty bank writes nothing
   Given the play bank has no anchors
