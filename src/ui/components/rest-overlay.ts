@@ -11,6 +11,12 @@ export interface RestOverlay {
   refresh(): void;
 }
 
+export interface RestOverlayOpts {
+  /** The panel's Bank Follow state — Follow off means editing intent, so the
+   *  overlay stays hidden (REQ-6). The caller must refresh() when it flips. */
+  following?: () => boolean;
+}
+
 /**
  * A machine-tab overlay that dims the step grid and shows a large centered rest
  * glyph while its arrangement lane is playing a rest bar (arrangement-rest.md
@@ -18,7 +24,11 @@ export interface RestOverlay {
  * clickable. Subscribes to `arrangement.onChange`; the caller may also drive
  * `refresh()` from the machine's `onStep` for prompt updates on bar boundaries.
  */
-export function buildRestOverlay(api: StudioApi, lane: RestLane): RestOverlay {
+export function buildRestOverlay(
+  api: StudioApi,
+  lane: RestLane,
+  opts: RestOverlayOpts = {},
+): RestOverlay {
   const el = document.createElement('div');
   el.className = styles.overlay!;
   el.dataset.testid = `rest-overlay-${lane}`;
@@ -41,7 +51,10 @@ export function buildRestOverlay(api: StudioApi, lane: RestLane): RestOverlay {
           : api.arrangement.motionResting;
 
   const refresh = (): void => {
-    el.classList.toggle(styles.on!, isResting() && api.arrangement[lane].enabled);
+    el.classList.toggle(
+      styles.on!,
+      isResting() && api.arrangement[lane].enabled && (opts.following?.() ?? true),
+    );
   };
 
   api.arrangement.onChange(refresh);

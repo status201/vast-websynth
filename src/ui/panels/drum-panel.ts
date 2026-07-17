@@ -32,7 +32,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
-  header.appendChild(new BankBar({
+  const bankBar = new BankBar({
     getEdit: () => engine.patterns.drumEditBank,
     setEdit: (i) => engine.patterns.setDrumEditBank(i),
     copy: (f, t) => engine.patterns.copyDrumBank(f, t),
@@ -42,7 +42,8 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     hasContent: (i) => engine.patterns.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onDrumChange(fn),
     testidPrefix: 'drum',
-  }).el);
+  });
+  header.appendChild(bankBar.el);
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
   const drumGr = new GrMeter('grmeter-fx.drum.comp');
@@ -138,8 +139,9 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const gridWrap = document.createElement('div');
   gridWrap.style.position = 'relative';
   gridWrap.appendChild(grid);
-  const restOverlay = buildRestOverlay(engine, 'drum');
+  const restOverlay = buildRestOverlay(engine, 'drum', { following: () => bankBar.following });
   gridWrap.appendChild(restOverlay.el);
+  bankBar.onFollowChange(() => restOverlay.refresh());
   root.appendChild(gridWrap);
 
   // ---- Selected-drum tuning strip (sound design for the selected track) ----

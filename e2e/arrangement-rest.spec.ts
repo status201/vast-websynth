@@ -36,5 +36,12 @@ test.describe('arrangement rest slot', () => {
 
     await page.getByTestId('tab-seq').click();
     await expect(page.getByTestId('rest-overlay-seq')).toBeVisible();
+
+    // Follow off = editing intent: the overlay must clear so the grid looks
+    // editable; turning Follow back on while still resting brings it back.
+    await page.getByTestId('bank-seq-follow').click();
+    await expect(page.getByTestId('rest-overlay-seq')).toBeHidden();
+    await page.getByTestId('bank-seq-follow').click();
+    await expect(page.getByTestId('rest-overlay-seq')).toBeVisible();
   });
 });

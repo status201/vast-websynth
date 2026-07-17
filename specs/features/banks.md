@@ -45,7 +45,10 @@ without the editor and the playhead fighting over one buffer.
   turns it off (click = editing intent). Session-only UI state, never
   persisted (not in presets/songs/localStorage). Inverse of
   [arrangement](arrangement.md) REQ-3 (a *disabled* lane's play bank tracks
-  the edit bank) — Follow is a natural no-op there.
+  the edit bank) — Follow is a natural no-op there. `BankBar` exposes the state
+  read-only (`get following` + `onFollowChange(fn)`) so the panel can gate its
+  rest overlay on it ([arrangement-rest](arrangement-rest.md) REQ-6 — no
+  overlay while the user is editing).
 
 ## Technical design
 
@@ -72,7 +75,10 @@ ui: src/ui/components/bank-bar.ts (BankBar) — testid prefix per machine:
     bank-<seq|drum|sampler|motion>-<i>, bank-…-copy, bank-…-follow
 follow (REQ-5):
   lives entirely inside BankBar — its opts (getEdit/setEdit/getPlay/onPlayChange)
-  already suffice; panels are unchanged. On play change while following and
+  already suffice. Read-only surface for the panels: `get following(): boolean`
+  and `onFollowChange(fn): () => void` (fires on the button toggle AND the
+  auto-off from a manual non-playing bank click — both funnel through
+  setFollowing). On play change while following and
   getPlay() != getEdit(), BankBar calls setEdit(getPlay()); the store re-emits
   (REQ-2) and the panels' playhead match check turns true by itself.
   Timing: Arrangement is built before the machines and notifies inside its

@@ -33,7 +33,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
-  header.appendChild(new BankBar({
+  const bankBar = new BankBar({
     getEdit: () => engine.patterns.samplerEditBank,
     setEdit: (i) => engine.patterns.setSamplerEditBank(i),
     copy: (f, t) => engine.patterns.copySamplerBank(f, t),
@@ -43,7 +43,8 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
     hasContent: (i) => engine.patterns.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
     onContentChange: (fn) => engine.patterns.onSamplerChange(fn),
     testidPrefix: 'sampler',
-  }).el);
+  });
+  header.appendChild(bankBar.el);
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;
@@ -84,8 +85,9 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
   const gridWrap = document.createElement('div');
   gridWrap.style.position = 'relative';
   gridWrap.appendChild(grid);
-  const restOverlay = buildRestOverlay(engine, 'sampler');
+  const restOverlay = buildRestOverlay(engine, 'sampler', { following: () => bankBar.following });
   gridWrap.appendChild(restOverlay.el);
+  bankBar.onFollowChange(() => restOverlay.refresh());
   root.appendChild(gridWrap);
 
   const stepBtns: StepButton[][] = [];

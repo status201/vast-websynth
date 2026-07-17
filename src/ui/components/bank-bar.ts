@@ -30,8 +30,9 @@ export class BankBar {
   private readonly btns: HTMLButtonElement[] = [];
   private copyArmed = false;
   private copyBtn!: HTMLButtonElement;
-  private following = true;
+  private _following = true;
   private followBtn!: HTMLButtonElement;
+  private readonly followListeners = new Set<() => void>();
 
   constructor(private readonly opts: BankBarOpts) {
     this.el = document.createElement('div');
@@ -43,7 +44,7 @@ export class BankBar {
     if (opts.testidPrefix) this.followBtn.dataset.testid = `bank-${opts.testidPrefix}-follow`;
     this.followBtn.textContent = 'Follow';
     this.followBtn.title = 'Follow the playing bank — the view switches banks with the song';
-    this.followBtn.addEventListener('click', () => this.setFollowing(!this.following));
+    this.followBtn.addEventListener('click', () => this.setFollowing(!this._following));
     this.el.appendChild(this.followBtn);
 
     const seg = document.createElement('div');
@@ -57,7 +58,7 @@ export class BankBar {
       b.addEventListener('click', () => {
         // A manual pick of a non-playing bank means editing intent — stop
         // following so the arrangement can't yank the view back next bar.
-        if (this.following && i !== this.opts.getPlay()) this.setFollowing(false);
+        if (this._following && i !== this.opts.getPlay()) this.setFollowing(false);
         if (this.copyArmed) {
           this.opts.copy(this.opts.getEdit(), i);
           this.setArmed(false);
@@ -95,15 +96,27 @@ export class BankBar {
     this.el.classList.toggle('copy-armed', on);
   }
 
+  /** Follow state, read-only — the panels gate their rest overlay on it. */
+  get following(): boolean {
+    return this._following;
+  }
+
+  /** Fires on every Follow flip (button toggle or auto-off on a manual bank click). */
+  onFollowChange(fn: () => void): () => void {
+    this.followListeners.add(fn);
+    return () => { this.followListeners.delete(fn); };
+  }
+
   private setFollowing(on: boolean): void {
-    this.following = on;
+    this._following = on;
     this.followBtn.classList.toggle('on', on);
     if (on) this.syncToPlay(); // jump to the playing bank at once, not next bar
+    for (const l of this.followListeners) l();
   }
 
   /** While following, keep the edit bank on the play bank. */
   private syncToPlay(): void {
-    if (!this.following) return;
+    if (!this._following) return;
     const play = this.opts.getPlay();
     if (play !== this.opts.getEdit()) this.opts.setEdit(play);
   }

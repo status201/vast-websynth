@@ -67,7 +67,7 @@ export function buildMotionPanel(
   });
   header.appendChild(viewSel);
 
-  header.appendChild(new BankBar({
+  const bankBar = new BankBar({
     getEdit: () => patterns.motionEditBank,
     setEdit: (i) => patterns.setMotionEditBank(i),
     copy: (f, t) => patterns.copyMotionBank(f, t),
@@ -77,7 +77,8 @@ export function buildMotionPanel(
     hasContent: (i) => patterns.motionBanks[i]!.some((s) => s.on),
     onContentChange: (fn) => patterns.onMotionChange(fn),
     testidPrefix: 'motion',
-  }).el);
+  });
+  header.appendChild(bankBar.el);
   header.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
   root.appendChild(header);
 
@@ -109,8 +110,9 @@ export function buildMotionPanel(
   gridWrap.style.position = 'relative';
   gridWrap.appendChild(cells);
   gridWrap.appendChild(graph);
-  const restOverlay = buildRestOverlay(engine, 'motion');
+  const restOverlay = buildRestOverlay(engine, 'motion', { following: () => bankBar.following });
   gridWrap.appendChild(restOverlay.el);
+  bankBar.onFollowChange(() => restOverlay.refresh());
   root.appendChild(gridWrap);
 
   const redrawGraph = (): void => {

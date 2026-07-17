@@ -23,6 +23,8 @@ source:
   - src/ui/panels/seq-panel.ts                   # rest overlay wiring
   - src/ui/panels/drum-panel.ts                  # rest overlay wiring
   - src/ui/panels/sampler-panel.ts               # rest overlay wiring
+  - src/ui/panels/motion-panel.ts                # rest overlay wiring
+  - src/ui/components/bank-bar.ts                # Follow state read by the overlay (REQ-6)
 ```
 
 A fifth arrangement-chain option that is **always an empty bar** ("rest"), so a
@@ -60,10 +62,12 @@ banks stay fully usable and existing songs are unaffected.
 - **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
   and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
   Move / delete / clear operate on rest chips like any other slot.
-- **REQ-6** — While a lane is resting, its machine tab (Seq / Drum / Sampler)
-  overlays the step grid with a dimming backdrop + a large centered rest glyph; the
-  overlay hides when the lane stops resting or its chain is disabled. The grid stays
-  clickable underneath (overlay is `pointer-events: none`).
+- **REQ-6** — While a lane is resting, its machine tab (Seq / Drum / Sampler /
+  Motion) overlays the step grid with a dimming backdrop + a large centered rest
+  glyph; the overlay hides when the lane stops resting, its chain is disabled, or
+  the panel's Bank **Follow** toggle is off — Follow off means editing intent
+  ([banks](banks.md) REQ-5), and an overlay over the bank being edited discourages
+  edits. The grid stays clickable underneath (overlay is `pointer-events: none`).
 - **REQ-7** — A `REST` in a chain persists through save / load and passes import
   validation. Legacy songs (no `REST`) load unchanged; an older build that predates
   this feature clamps `REST` → bank A (graceful degradation, ADR-007).
@@ -82,8 +86,11 @@ Arrangement:                         # src/audio/transport/arrangement.ts
 rest-glyph.ts:
   restIcon(): string                 # inline <svg>, colour via currentColor (like wave-icons.ts)
 rest-overlay.ts:
-  buildRestOverlay(api: StudioApi, lane: 'seq'|'drum'|'sampler'|'motion'):
+  buildRestOverlay(api: StudioApi, lane: 'seq'|'drum'|'sampler'|'motion',
+                   opts?: { following?: () => boolean }):
     { el: HTMLElement; refresh(): void }   # el placed over a position:relative grid wrapper
+  # visible iff resting && chain enabled && (opts.following?.() ?? true);
+  # panels pass () => bankBar.following and refresh() on bankBar.onFollowChange
 ```
 
 ### Data shapes
@@ -159,13 +166,21 @@ Scenario: The machine tab shows the rest overlay while resting
   When the rest bar plays and the Seq tab is open
   Then the rest overlay is visible over the step grid
 # pinned by: e2e/arrangement-rest.spec.ts
+
+Scenario: Follow off hides the overlay; re-enabling Follow mid-rest brings it back
+  Given a lane is resting and its rest overlay is visible
+  When the user turns the panel's Bank Follow toggle off
+  Then the overlay hides (the user is editing — the grid must look editable)
+  And turning Follow back on while the lane still rests shows the overlay again
+# pinned by: tests/ui/rest-overlay.test.ts, e2e/arrangement-rest.spec.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/state/patterns.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/audio/transport/sequencer.test.ts` (+ drum/sampler),
-  `tests/state/song.test.ts`, `tests/state/song-validate.test.ts` — `npm test`
+  `tests/state/song.test.ts`, `tests/state/song-validate.test.ts`,
+  `tests/ui/rest-overlay.test.ts` (Follow gating, REQ-6) — `npm test`
 - E2E: `e2e/arrangement-rest.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.engine.arrangement.seqResting` (DEV only)

@@ -105,6 +105,26 @@ describe('BankBar', () => {
     expect(calls.setEdit).toEqual([1, 3]);
   });
 
+  it('exposes follow state read-only and notifies on every flip', () => {
+    const { bar, followBtn, banks, setPlay } = harness();
+    const seen: boolean[] = [];
+    const off = bar.onFollowChange(() => seen.push(bar.following));
+    expect(bar.following).toBe(true);
+    followBtn.click(); // off via the button
+    expect(bar.following).toBe(false);
+    expect(seen).toEqual([false]);
+    followBtn.click(); // back on
+    expect(seen).toEqual([false, true]);
+    // Auto-off from a manual non-playing bank click notifies too.
+    setPlay(1);
+    banks[3]?.click();
+    expect(bar.following).toBe(false);
+    expect(seen).toEqual([false, true, false]);
+    off();
+    followBtn.click();
+    expect(seen).toEqual([false, true, false]); // unsubscribed
+  });
+
   it('clicking the playing bank keeps Follow on', () => {
     const { banks, followBtn, setPlay, calls } = harness();
     setPlay(1);

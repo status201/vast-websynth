@@ -40,7 +40,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
-  header.appendChild(new BankBar({
+  const bankBar = new BankBar({
     getEdit: () => engine.patterns.seqEditBank,
     setEdit: (i) => engine.patterns.setSeqEditBank(i),
     copy: (f, t) => engine.patterns.copySeqBank(f, t),
@@ -50,7 +50,8 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     hasContent: (i) => engine.patterns.seqBanks[i]!.some((s) => s.on),
     onContentChange: (fn) => engine.patterns.onSeqChange(fn),
     testidPrefix: 'seq',
-  }).el);
+  });
+  header.appendChild(bankBar.el);
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).
   let armed = false;
@@ -123,8 +124,9 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
   const gridWrap = document.createElement('div');
   gridWrap.style.position = 'relative';
   gridWrap.appendChild(stepRow);
-  const restOverlay = buildRestOverlay(engine, 'seq');
+  const restOverlay = buildRestOverlay(engine, 'seq', { following: () => bankBar.following });
   gridWrap.appendChild(restOverlay.el);
+  bankBar.onFollowChange(() => restOverlay.refresh());
   root.appendChild(gridWrap);
 
   // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
