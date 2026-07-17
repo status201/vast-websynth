@@ -16,6 +16,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Active Help button switches badges off in one click** — while help badges
+  are showing (the Help button glows orange), clicking Help now turns them off
+  directly instead of opening the Help menu first; when inactive it opens the
+  menu as before.
+
+- **Fullscreen button shows its active state** — the header fullscreen toggle
+  now glows orange while fullscreen is engaged, the same treatment the Help
+  button gets while help badges are showing.
+
+- **Rest overlay steps aside while you edit** — a machine tab's dimming rest
+  overlay now hides while that panel's Bank **Follow** toggle is off (Follow
+  off means you're editing, and the grid should look editable); it comes back
+  as soon as Follow is switched on again while the lane is still resting.
+
+### Fixed
+
+- **Motion froze the wrong value going into a rest bar** — with look-ahead
+  scheduling, the last slice of the bar before a rest was cut off, so a final
+  low anchor never wrote and the previous (often high) value stayed frozen
+  through the rest. Rests and bank switches now land exactly on the *heard*
+  bar boundary.
+
 ## [2.1.0] - 2026-07-16
 
 ### Added

@@ -3,7 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 3   # v3: `motion` help topic (the Motion tab's Y/X graph view)
+version: 4   # v4: active Help button toggles badges off directly (one-click exit)
 owner: core
 related:
   - architecture
@@ -16,6 +16,7 @@ source:
   - src/ui/onboarding/help-mode.ts
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/index.ts
+  - src/ui/components/help.ts
 ```
 
 First-run guidance: an interactive spotlight tour and a persistent help mode that
@@ -53,6 +54,11 @@ never reads DEV-only globals.
   axis at a time (the toggle picks which assigned param it traces; the dots
   never move) and its shape follows Step/Slide mode. See
   [motion-sequencer.md](motion-sequencer.md) REQ-8.
+- **REQ-8** (v4) — While help mode is active (the header Help button shows its
+  orange active state), clicking the Help button toggles the badges **off**
+  directly — no modal round-trip. While inactive, the click opens the Help
+  chooser modal as before. The active styling is what licenses the shortcut:
+  an orange toggle reads as "click to switch off".
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -105,6 +111,18 @@ Scenario: Song file buttons each explain themselves
   Given help mode is on and the Song tab is open
   When the user clicks the Save badge, then the Export badge
   Then each opens its own modal whose copy distinguishes the two
+# pinned by: e2e/onboarding.spec.ts
+
+Scenario: Active Help button switches badges off in one click (v4)
+  Given help mode is active and the Help button shows its active state
+  When the user clicks the Help button
+  Then the badges disable immediately and no Help modal opens
+# pinned by: e2e/onboarding.spec.ts
+
+Scenario: Inactive Help button opens the chooser modal
+  Given help mode is off
+  When the user clicks the Help button
+  Then the Help chooser modal opens (tour / toggle badges)
 # pinned by: e2e/onboarding.spec.ts
 
 Scenario: Sync section carries USB + WiFi help badges (v2)

@@ -129,18 +129,15 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(exportDialog).toContainText('Save'); // Export copy cross-references Save
   await exportDialog.getByRole('button', { name: 'Close' }).click();
 
-  // Toggle badges off again → no chrome left behind. Reopening the menu shows
-  // the toggle button itself active; turning it off clears the Help button.
+  // While the badges show, the active Help button is a one-click off switch:
+  // clicking it disables the badges directly, without opening the menu.
   await page.getByTestId('help-button').click();
-  await expect(page.getByTestId('help-toggle-badges')).toHaveClass(/toggleActive/);
-  await page.getByTestId('help-toggle-badges').click();
   await expect(arpBadge).toBeHidden();
   await expect(page.getByTestId('help-button')).not.toHaveClass(/toggleActive/);
+  await expect(page.getByTestId('help-start-tour')).toHaveCount(0); // no modal opened
 
-  // Replay the tour on demand. The closed menu lingers in the DOM for its
-  // 200ms fade-out (Modal.close), so wait for it to detach before reopening —
-  // otherwise two help-start-tour buttons coexist and strict mode trips.
-  await expect(page.getByTestId('help-start-tour')).toHaveCount(0);
+  // Replay the tour on demand — with badges off, the Help button opens the
+  // chooser menu again.
   await page.getByTestId('help-button').click();
   await page.getByTestId('help-start-tour').click();
   await expect(page.getByTestId('tour-callout')).toBeVisible();
