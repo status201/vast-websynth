@@ -46,6 +46,15 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     if (e.repeat) return;
+
+    // Ctrl/Cmd+Z — undo on the active machine tab (pattern-undo.md REQ-10).
+    // Must run before the generic modifier bail-out; Shift/Alt variants
+    // (redo conventions) fall through untouched.
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
+      if (bridge.undoActiveMachine()) e.preventDefault();
+      return;
+    }
+
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
 

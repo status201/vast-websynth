@@ -82,6 +82,24 @@ export const BANK_LABELS = ['A', 'B', 'C', 'D'];
  */
 export const REST = -1;
 
+/**
+ * Pre-state of one mutation-entry-point call, emitted via `onMutate` for the
+ * undo layer (`specs/features/pattern-undo.md`). `before` is always a CLONE
+ * taken before the write — the store mutates cells in place. `bank` is the
+ * machine's edit bank at mutation time (mutations only touch the edit bank).
+ * `restore()` bypasses the setters and never emits these.
+ */
+export type PatternMutation =
+  | { kind: 'seq'; bank: number; index: number; before: SeqStep }
+  | { kind: 'drum'; bank: number; track: number; step: number; before: DrumCell }
+  | { kind: 'sampler'; bank: number; slot: number; step: number; before: SamplerStep }
+  | { kind: 'motion'; bank: number; index: number; before: MotionStep }
+  | { kind: 'motion-assign'; bank: number; before: MotionAssign | null }
+  | { kind: 'seq-copy'; bank: number; before: SeqStep[] }
+  | { kind: 'drum-copy'; bank: number; before: DrumCell[][] }
+  | { kind: 'sampler-copy'; bank: number; before: SamplerStep[][] }
+  | { kind: 'motion-copy'; bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null };
+
 export interface PatternSnapshot {
   seqBanks: SeqStep[][];
   drumBanks: DrumCell[][][];
@@ -169,6 +187,8 @@ export class PatternStore {
   private readonly motionBankListeners = new Set<(bank: readonly MotionStep[]) => void>();
   private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
+  private readonly mutateListeners = new Set<(m: PatternMutation) => void>();
+  private readonly bulkRestoreListeners = new Set<() => void>();
 
   constructor() {
     this.seqBanks = Array.from({ length: BANK_COUNT }, makeSeqBank);
@@ -242,6 +262,7 @@ export class PatternStore {
   setSeqStep(index: number, patch: Partial<SeqStep>): void {
     const s = this.seqBanks[this._seqEdit]?.[index];
     if (!s) return;
+    this.emitMutate(() => ({ kind: 'seq', bank: this._seqEdit, index, before: { ...s } }));
     Object.assign(s, patch);
     for (const l of this.seqListeners) l(index, s);
   }
@@ -249,6 +270,7 @@ export class PatternStore {
   setDrumCell(track: number, step: number, patch: Partial<DrumCell>): void {
     const cell = this.drumBanks[this._drumEdit]?.[track]?.[step];
     if (!cell) return;
+    this.emitMutate(() => ({ kind: 'drum', bank: this._drumEdit, track, step, before: { ...cell } }));
     Object.assign(cell, patch);
     for (const l of this.drumListeners) l(track, step, cell);
   }
@@ -256,6 +278,7 @@ export class PatternStore {
   setSamplerCell(slot: number, step: number, patch: Partial<SamplerStep>): void {
     const cell = this.samplerBanks[this._samplerEdit]?.[slot]?.[step];
     if (!cell) return;
+    this.emitMutate(() => ({ kind: 'sampler', bank: this._samplerEdit, slot, step, before: { ...cell } }));
     Object.assign(cell, patch);
     for (const l of this.samplerListeners) l(slot, step, cell);
   }
@@ -263,12 +286,17 @@ export class PatternStore {
   setMotionStep(index: number, patch: Partial<MotionStep>): void {
     const s = this.motionBanks[this._motionEdit]?.[index];
     if (!s) return;
+    this.emitMutate(() => ({ kind: 'motion', bank: this._motionEdit, index, before: { ...s } }));
     Object.assign(s, patch);
     for (const l of this.motionListeners) l(index, s);
   }
 
   /** Set/clear the edit bank's axis override; repaints via the bank listeners. */
   setMotionAssign(assign: MotionAssign | null): void {
+    this.emitMutate(() => {
+      const prev = this.motionAssigns[this._motionEdit] ?? null;
+      return { kind: 'motion-assign', bank: this._motionEdit, before: prev ? { ...prev } : null };
+    });
     this.motionAssigns[this._motionEdit] = assign && (assign.x || assign.y) ? { ...assign } : null;
     this.emitBankMotion();
   }
@@ -284,6 +312,7 @@ export class PatternStore {
     if (a === b) return;
     const src = assertIndex(this.seqBanks, a, 'seqBanks');
     const dst = assertIndex(this.seqBanks, b, 'seqBanks');
+    this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: dst.map((s) => ({ ...s })) }));
     for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'seqSteps'), assertIndex(src, i, 'seqSteps'));
     if (b === this._seqEdit) this.emitBankSeq();
   }
@@ -293,6 +322,7 @@ export class PatternStore {
     if (a === b) return;
     const src = assertIndex(this.drumBanks, a, 'drumBanks');
     const dst = assertIndex(this.drumBanks, b, 'drumBanks');
+    this.emitMutate(() => ({ kind: 'drum-copy', bank: b, before: dst.map((row) => row.map((c) => ({ ...c }))) }));
     for (let t = 0; t < dst.length; t++) {
       const srcRow = assertIndex(src, t, 'drumTracks');
       const dstRow = assertIndex(dst, t, 'drumTracks');
@@ -306,6 +336,7 @@ export class PatternStore {
     if (a === b) return;
     const src = assertIndex(this.samplerBanks, a, 'samplerBanks');
     const dst = assertIndex(this.samplerBanks, b, 'samplerBanks');
+    this.emitMutate(() => ({ kind: 'sampler-copy', bank: b, before: dst.map((row) => row.map((c) => ({ ...c }))) }));
     for (let t = 0; t < dst.length; t++) {
       const srcRow = assertIndex(src, t, 'samplerTracks');
       const dstRow = assertIndex(dst, t, 'samplerTracks');
@@ -319,6 +350,14 @@ export class PatternStore {
     if (a === b) return;
     const src = assertIndex(this.motionBanks, a, 'motionBanks');
     const dst = assertIndex(this.motionBanks, b, 'motionBanks');
+    this.emitMutate(() => {
+      const prevAssign = this.motionAssigns[b] ?? null;
+      return {
+        kind: 'motion-copy', bank: b,
+        before: dst.map((s) => ({ ...s })),
+        beforeAssign: prevAssign ? { ...prevAssign } : null,
+      };
+    });
     for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'motionSteps'), assertIndex(src, i, 'motionSteps'));
     const srcAssign = this.motionAssigns[a] ?? null;
     this.motionAssigns[b] = srcAssign ? { ...srcAssign } : null;
@@ -350,6 +389,28 @@ export class PatternStore {
   onEditBankChange(fn: () => void): () => void {
     this.editBankListeners.add(fn);
     return () => { this.editBankListeners.delete(fn); };
+  }
+
+  /**
+   * Pre-state of every mutation-entry-point call (the undo capture hook —
+   * pattern-undo.md REQ-2). `restore()` and `setSampleName` never emit.
+   */
+  onMutate(fn: (m: PatternMutation) => void): () => void {
+    this.mutateListeners.add(fn);
+    return () => { this.mutateListeners.delete(fn); };
+  }
+
+  /** Fires at the start of `restore()` — a whole-store overwrite (song load). */
+  onBulkRestore(fn: () => void): () => void {
+    this.bulkRestoreListeners.add(fn);
+    return () => { this.bulkRestoreListeners.delete(fn); };
+  }
+
+  /** Emit a mutation record; `make` runs (and clones) only when someone listens. */
+  private emitMutate(make: () => PatternMutation): void {
+    if (this.mutateListeners.size === 0) return;
+    const m = make();
+    for (const l of this.mutateListeners) l(m);
   }
 
   /** Fires once when the active edit bank changes (not per-cell). */
@@ -443,6 +504,9 @@ export class PatternStore {
   }
 
   restore(snap: Partial<PatternSnapshot>): void {
+    // A whole-store overwrite: undo stacks must drop their (now stale) history
+    // before the new state lands (pattern-undo.md REQ-7).
+    for (const l of this.bulkRestoreListeners) l();
     // Legacy files may lack the newer per-step fields — spread defaults first
     // so a load resets anything the incoming cell doesn't carry.
     if (snap.seqBanks) {

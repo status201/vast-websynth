@@ -343,3 +343,57 @@ describe('PatternStore — motion banks (motion-sequencer.md REQ-1/REQ-4)', () =
     expect(p.motionBanks[0]![0]).toMatchObject({ on: false, x: 0.5, y: 0.5 });
   });
 });
+
+describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', () => {
+  it('emits the pre-state clone for a cell mutation', () => {
+    const p = new PatternStore();
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    p.setDrumCell(0, 3, { on: true });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ kind: 'drum', bank: 0, track: 0, step: 3, before: { on: false } });
+  });
+
+  it('the emitted before is a clone, isolated from the in-place write', () => {
+    const p = new PatternStore();
+    let before: DrumCell | undefined;
+    p.onMutate((m) => { if (m.kind === 'drum') before = m.before; });
+    p.setDrumCell(0, 3, { on: true, velocity: 0.5 });
+    expect(before!.on).toBe(false);
+    expect(before!.velocity).not.toBe(0.5);
+    expect(before).not.toBe(p.drum[0]![3]);
+  });
+
+  it('a bank copy emits the destination bank pre-state', () => {
+    const p = new PatternStore();
+    p.setSeqStep(0, { on: true, note: 64 }); // bank 0 = copy source
+    p.setSeqEditBank(1);
+    p.setSeqStep(1, { on: true, note: 65 }); // bank 1 = destination content
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    p.copySeqBank(0, 1);
+    const copy = seen.find((m) => (m as { kind: string }).kind === 'seq-copy') as { bank: number; before: SeqStep[] };
+    expect(copy.bank).toBe(1);
+    expect(copy.before[1]!.on).toBe(true);
+    expect(copy.before[0]!.on).toBe(false);
+  });
+
+  it('restore() fires onBulkRestore and never onMutate', () => {
+    const p = new PatternStore();
+    let bulk = 0;
+    const mutations: unknown[] = [];
+    p.onBulkRestore(() => bulk++);
+    p.onMutate((m) => mutations.push(m));
+    p.restore({ seqBanks: [[{ on: true, note: 60, velocity: 1, gate: 0.5 } as never]] });
+    expect(bulk).toBe(1);
+    expect(mutations).toHaveLength(0);
+  });
+
+  it('setSampleName never emits onMutate (REQ-11)', () => {
+    const p = new PatternStore();
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    p.setSampleName(0, 'kick.wav');
+    expect(seen).toHaveLength(0);
+  });
+});

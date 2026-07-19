@@ -7,6 +7,7 @@ import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
 import { SessionAutosave } from './state/session-autosave';
+import { PatternUndo } from './state/pattern-undo';
 import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
@@ -62,8 +63,12 @@ async function boot() {
     session.setActive(restored.name);
   }
 
+  // Per-machine step-grid undo — pure state like session/xy, so it lives here
+  // (not on StudioApi) and threads into the machine panels via mountApp.
+  const patternUndo = new PatternUndo(engine.patterns);
+
   const bridge = new UiBridge();
-  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy);
+  const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy, patternUndo);
   installShortcuts(engine, bus, bridge);
 
   // Continuous autosave — attached AFTER the restore so the restore itself
@@ -93,6 +98,7 @@ async function boot() {
       patterns: engine.patterns,
       session,
       xy,
+      patternUndo,
     };
   }
 

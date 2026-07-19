@@ -4,6 +4,8 @@ import styles from '../styles/seq.module.css';
 import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
+import type { PatternUndo } from '../../state/pattern-undo';
+import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
@@ -32,7 +34,7 @@ function paintStep(sb: StepButton, s: SeqStep): void {
   sb.el.title = `${noteName(s.note)} · ${stepTitle(s)}`;
 }
 
-export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
+export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} seq-panel`;
 
@@ -52,6 +54,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     testidPrefix: 'seq',
   });
   header.appendChild(bankBar.el);
+  header.appendChild(createUndoButton(undo, 'seq'));
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).
   let armed = false;

@@ -1,5 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
+import type { PatternUndo } from '../../state/pattern-undo';
+import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
@@ -26,7 +28,7 @@ function paintCell(sb: StepButton, cell: DrumCell): void {
   sb.el.title = stepTitle(cell);
 }
 
-export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
+export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} drum-panel`;
   const header = document.createElement('div');
@@ -45,6 +47,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
     testidPrefix: 'drum',
   });
   header.appendChild(bankBar.el);
+  header.appendChild(createUndoButton(undo, 'drum'));
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
   const drumGr = new GrMeter('grmeter-fx.drum.comp');

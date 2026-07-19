@@ -1,5 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
+import type { PatternUndo } from '../../state/pattern-undo';
+import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
@@ -24,7 +26,7 @@ function paintCell(sb: StepButton, cell: SamplerStep): void {
   sb.el.title = stepTitle(cell);
 }
 
-export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement {
+export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
 
@@ -45,6 +47,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi): HTMLElement
     testidPrefix: 'sampler',
   });
   header.appendChild(bankBar.el);
+  header.appendChild(createUndoButton(undo, 'sampler'));
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;

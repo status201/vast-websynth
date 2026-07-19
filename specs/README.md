@@ -205,6 +205,7 @@ specs/
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
+    pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
     motion-sequencer.md ·  XY param automation machine (anchors, slide/step)
     arrangement-rest.md ·  the always-empty "rest" chain slot
@@ -218,6 +219,7 @@ specs/
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
     mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
+    session-autosave.md ·  working-session autosave + load-undo toast safety net
     presets.md         ·  sound snapshots (param-only)
     param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file
@@ -227,6 +229,7 @@ specs/
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
+    toast.md           ·  transient bottom-center notification with one action (Undo)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     responsive-header.md ·  mobile hamburger menu + header cluster reflow

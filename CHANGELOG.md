@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   audio. New still asks first, then offers the same Undo. Accidentally
   clicking a demo can no longer destroy your song.
 
+- **Pattern undo** — every machine (Sequencer, Drums, Sampler, Motion) has an
+  Undo button next to its bank bar, plus **Ctrl/Cmd+Z** on that machine's tab:
+  step toggles, per-step setting tweaks (a drag counts as one step), and bank
+  copies all revert one gesture at a time, up to 50 deep per machine. Loading
+  a song starts a fresh history.
+
 - **Drum voice models** — every drum track can now swap its voice algorithm
   via a model dropdown in the Drum tab's sound-design strip: the 8 classic
   voices plus five new percussion synths (**Conga, Bongo, Cowbell, Clave,

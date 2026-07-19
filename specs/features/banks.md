@@ -35,7 +35,9 @@ without the editor and the playhead fighting over one buffer.
   expose any bank for playback.
 - **REQ-2** — `setSeqEditBank`/`setDrumEditBank`/`setSamplerEditBank` re-emit every
   step so panels repaint.
-- **REQ-3** — Banks are copyable (`copySeqBank(from, to)` etc.).
+- **REQ-3** — Banks are copyable (`copySeqBank(from, to)` etc.). A copy is
+  undoable: the destination bank's prior contents restore via the per-machine
+  undo (see pattern-undo.md REQ-6).
 - **REQ-4** — Bank indices clamp to `0..BANK_COUNT-1`.
 - **REQ-5** — **Follow** toggle on the `BankBar` (`[Follow] [A|B|C|D] [Copy]`),
   default **on**. While on, the edit bank tracks the play bank on every

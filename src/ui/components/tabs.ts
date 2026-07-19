@@ -73,6 +73,11 @@ export class TabContainer {
     this.activate(initialId ?? tabs[0]?.id ?? '');
   }
 
+  /** The active tab's id (e.g. Ctrl+Z scoping — pattern-undo.md REQ-10). */
+  get activeId(): string {
+    return this.active;
+  }
+
   activate(id: string): void {
     if (this.active === id) return;
     this.active = id;

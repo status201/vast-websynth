@@ -2,6 +2,7 @@ import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { PresetSession } from '../state/preset-session';
 import type { XyPadStore } from '../state/xy-pad';
+import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
 import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
 import { Knob } from './components/knob';
@@ -54,6 +55,7 @@ const isPhone = (): boolean => window.matchMedia('(max-width: 767px)').matches;
 
 export function mountApp(
   root: HTMLElement, engine: StudioApi, bus: ParamBus, bridge: UiBridge, session: PresetSession, xy: XyPadStore,
+  patternUndo: PatternUndo,
 ): Onboarding {
   root.innerHTML = '';
 
@@ -98,7 +100,7 @@ export function mountApp(
   const fx = buildFx(bus);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
-  const patternRow = buildPatternRow(engine, bus, session, xy, bridge);
+  const patternRow = buildPatternRow(engine, bus, session, xy, bridge, patternUndo);
   songLoadDemo = patternRow.loadDemo;
   // OS-launched song files (installed-PWA file_handlers) flow through the
   // same import path as the Song panel's Import button (pwa-install.md REQ-7).
@@ -360,6 +362,7 @@ function buildHeader(
 
 function buildPatternRow(
   engine: StudioApi, bus: ParamBus, session: PresetSession, xy: XyPadStore, bridge: UiBridge,
+  patternUndo: PatternUndo,
 ): {
   el: HTMLElement;
   loadDemo: (name: string) => void;
@@ -374,10 +377,10 @@ function buildPatternRow(
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
-    { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine) },
-    { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine) },
-    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine) },
-    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin) },
+    { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine, patternUndo) },
+    { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine, patternUndo) },
+    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine, patternUndo) },
+    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo) },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
@@ -385,6 +388,19 @@ function buildPatternRow(
   });
   tabs.el.classList.add(styles.patternRow!);
   tabs.el.dataset.testid = 'pattern-row';
+
+  // Ctrl/Cmd+Z routes to the machine behind the active tab (pattern-undo.md
+  // REQ-10). Arp/Song (and empty stacks) return false so the key falls through.
+  const TAB_MACHINE: Record<string, UndoMachine> = {
+    seq: 'seq', drums: 'drum', sampler: 'sampler', motion: 'motion',
+  };
+  bridge.undoActiveMachine = () => {
+    const m = TAB_MACHINE[tabs.activeId];
+    if (!m || !patternUndo.canUndo(m)) return false;
+    patternUndo.undo(m);
+    return true;
+  };
+
   return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }
 
