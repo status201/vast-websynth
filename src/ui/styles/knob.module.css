@@ -62,7 +62,6 @@
 .value {
   stroke: var(--accent);
   filter: drop-shadow(0 0 4px var(--accent-glow));
-  transition: stroke-dashoffset 30ms linear;
 }
 
 .num {
