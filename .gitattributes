@@ -1,0 +1,3 @@
+# Demo drop-ins must stay byte-identical to `npm run clean:demos` output (LF),
+# even on Windows checkouts with core.autocrlf — see `npm run check:demos`.
+src/state/demos/*.json text eol=lf

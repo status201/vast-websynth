@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import { gotoAndStart, makeWavBuffer } from './helpers';
 
@@ -23,6 +24,13 @@ test.describe('project export', () => {
     await page.getByTestId('export-confirm').click();
     const download = await jsonDownload;
     expect(download.suggestedFilename()).toMatch(/\.websynth\.json$/);
+
+    // The download is pretty-printed + newline-terminated — byte-identical to
+    // `npm run clean:demos` output, so drop-ins to src/state/demos/ diff cleanly.
+    const text = readFileSync((await download.path())!, 'utf8');
+    expect(text.startsWith('{\n  "format"')).toBe(true);
+    expect(text.endsWith('}\n')).toBe(true);
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2) + '\n');
   });
 
   test('project round-trip: export a zip, New, re-import — slot repopulates without needs-reload', async ({ page }) => {

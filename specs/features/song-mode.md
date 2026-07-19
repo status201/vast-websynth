@@ -219,7 +219,10 @@ sparse cells (drop fields equal to the cell's restore default):
            # apply() does not reset the store first, so velocity/gate must be present
 params:  ALL params kept (rounded) — not default-omitted (forward-compat: a future
          default change must not silently move old songs)
-whitespace: download()/saveSlot() -> compact (no indent); clean:demos -> pretty (readable diffs)
+whitespace: download() -> pretty (2-space indent + trailing \n) — byte-identical to
+            clean:demos output, so an export dropped into src/state/demos/ diffs
+            cleanly with no later churn; saveSlot()/project-zip/share-link/AI-prompt
+            example -> compact (no indent)
 round-trip: fromJSON(toJSON(x)) === compactSongForExport(x)   # canonical inverse, NOT raw x
             full fidelity is restored by apply()/restore re-expanding defaults
 reuse:   compare-to-default happens AFTER rounding (0.8500001 -> 0.85 -> dropped);
@@ -238,7 +241,9 @@ NOT persisted: decoded AudioBuffers — only sampleNames (user reloads files;
                the UI shows a .needs-reload hint)
 demos:       DEMO_SONGS = drop-in src/state/demos/*.json (import.meta.glob, eager,
              build-time) spread BEFORE two hand-authored built-ins
-             stored in canonical compact form; re-canonicalize via `npm run clean:demos`
+             stored canonical + pretty-printed; re-canonicalize via `npm run clean:demos`
+             (auto-run by `npm run build` via prebuild); CI runs `npm run check:demos`,
+             the same script's non-mutating drift check (CLEAN_DEMOS_CHECK=1)
 ```
 
 ### Layer touchpoints & ordering (the tick constraint)
@@ -305,7 +310,10 @@ Scenario: Export is the canonical compact form (round + default-sparse)
     and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie
   And fromJSON(toJSON(file)) deep-equals compactSongForExport(file)
   And applying it reproduces the original-sounding state (defaults re-expanded)
-# pinned by: tests/state/serialize.test.ts, tests/state/song.test.ts
+  And download() writes it pretty-printed (2-space + trailing newline), matching
+    `npm run clean:demos` byte-for-byte so demo drop-ins produce readable git diffs
+# pinned by: tests/state/serialize.test.ts, tests/state/song.test.ts,
+#            e2e/export-project.spec.ts (download formatting)
 
 Scenario: Loading a song repaints the UI without marking it edited
   Given a per-param subscriber on transport.bpm and a global onChange listener

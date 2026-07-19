@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Song export is pretty-printed** — the downloaded `.websynth.json` is now
+  indented (matching `npm run clean:demos` byte-for-byte), so exported songs
+  dropped into `src/state/demos/` produce readable git diffs. Save slots,
+  project zips and share links stay compact. `npm run build` re-canonicalizes
+  the demos automatically and CI's new `check:demos` fails on drift; all
+  previously single-line demos were unfolded once.
+
 - **Mod wheel help badge tells the truth** — it now explains that the wheel
   boosts the LFO amount toward whatever destination is selected (wobble /
   vibrato / tremolo / PWM), and that it does nothing while the LFO

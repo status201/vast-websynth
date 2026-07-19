@@ -45,9 +45,10 @@ how `restore` re-expands each machine: drum/sampler cells spread the full
 `TRIGGER_CELL_DEFAULTS`, so they keep only `on` and drop every other default field;
 seq `restore` spreads only `SEQ_EXTRA_DEFAULTS = {prob,ratchet,tie}` and `apply`
 does not reset the store first, so a seq step must always keep `on`/`note`/
-`velocity`/`gate` and may drop only default `prob`/`ratchet`/`tie`. Runtime
-downloads + localStorage write compact whitespace; committed demos are rewritten
-pretty (readable diffs) by `npm run clean:demos`, reusing the same helper. Preset
+`velocity`/`gate` and may drop only default `prob`/`ratchet`/`tie`. The
+`download()` file is pretty-printed (2-space + trailing newline), byte-identical
+to `npm run clean:demos` output so exports drop into `src/state/demos/` with
+readable diffs; localStorage/project-zip/share-link stay compact whitespace. Preset
 `save` reuses `roundParams` (presets have no cells).
 
 ## Alternatives considered

@@ -88,8 +88,9 @@ export const Song = {
   /**
    * Serialize to the *canonical compact* form: numbers rounded to 4 significant
    * figures and step cells written default-sparse (`compactSongForExport`).
-   * Runtime files (`download`/`saveSlot`) are whitespace-compact; `pretty` is for
-   * the committed demos (`npm run clean:demos`) so their diffs stay readable.
+   * `saveSlot`/project zips/share links are whitespace-compact; `download` passes
+   * `pretty` (matching `npm run clean:demos` byte-for-byte) so an exported file
+   * dropped into `src/state/demos/` keeps readable git diffs.
    * `apply()`/`restore` re-expand the defaults on load — sound is unchanged.
    */
   toJSON(file: SongFile, pretty = false): string {
@@ -117,7 +118,7 @@ export const Song = {
   },
 
   download(file: SongFile): void {
-    const blob = new Blob([Song.toJSON(file)], { type: 'application/json' });
+    const blob = new Blob([Song.toJSON(file, true) + '\n'], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
