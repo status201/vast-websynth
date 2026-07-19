@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Toast notifications** — a small bottom-center toast component (one at a
+  time, optional action button, 8 s auto-dismiss) for non-blocking feedback.
+  First consumer: the upcoming "Loaded … — Undo" safety net.
+
 - **Drum voice models** — every drum track can now swap its voice algorithm
   via a model dropdown in the Drum tab's sound-design strip: the 8 classic
   voices plus five new percussion synths (**Conga, Bongo, Cowbell, Clave,

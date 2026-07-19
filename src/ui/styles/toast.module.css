@@ -1,0 +1,72 @@
+/* Bottom-center toast (src/ui/components/toast.ts). The host is a fixed,
+   pointer-transparent slot holding at most one toast; the toast itself is a
+   compact panel-styled bar re-enabling pointer events. Layered above panels
+   and floating windows (950) but below the Modal backdrop (1000) and the tour
+   overlay (1100), so alerts/tours cover a live toast. */
+
+.host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  display: flex;
+  justify-content: center;
+  z-index: 980;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(92vw, 480px);
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  animation: toast-in 180ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message {
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Action button — composed with switch `.root`; recoloured to the secondary
+   accent so it reads as the highlighted choice ("Undo"). */
+.action {
+  flex-shrink: 0;
+  color: var(--accent-secondary);
+  border-color: rgba(244, 205, 94, 0.55);
+}
+
+.action:hover {
+  border-color: rgba(244, 205, 94, 0.85);
+}
+
+/* Dismiss ✕ — quiet by default, legible on hover. */
+.dismiss {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  color: var(--text-dim);
+}
+
+.dismiss:hover {
+  color: var(--text);
+}
