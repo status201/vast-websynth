@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
@@ -13,6 +13,8 @@ related:
   - xy-pad
   - project-export
   - dialog
+  - session-autosave
+  - toast
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -262,6 +264,12 @@ ui dialogs (song-panel): Save/New/Import + the per-lane Clear route through the
           shared confirm/prompt/alert helpers (see dialog.md), NOT native
           prompt/confirm/alert. The per-lane Clear (testid chain-clear-<lane>)
           gains a "You sure?" confirm, skipped when the chain is already just [0].
+load-undo safety net (see session-autosave.md): every destructive apply —
+          demo buttons, Load, Import/share-link/launchQueue, and New (after its
+          confirm) — stashes the outgoing session (SongFile + sampler
+          AudioBuffer refs) and shows an Undo toast (song-undo-toast, toast.md).
+          Loads themselves stay confirm-free by design; New keeps its danger
+          confirm because it also nulls the sampler buffers.
 ```
 
 ## Visual aids
@@ -295,6 +303,14 @@ Scenario: Save/New use the custom dialog, not a native prompt/confirm
   Then the song is saved under that name
   And clicking New then dialog-confirm clears all banks and chains
 # pinned by: e2e/song.spec.ts
+
+Scenario: Destructive applies offer a toast Undo (session-autosave.md REQ-7)
+  Given an in-progress session
+  When the user clicks a demo button, Load, Import, or confirms New
+  Then the new state applies without any extra prompt (New's confirm excepted)
+  And a toast (song-undo-toast) offers Undo, which restores the prior session
+    including the sampler's decoded buffers
+# pinned by: e2e/session.spec.ts
 
 Scenario: Clearing a lane chain asks for confirmation first
   Given a lane chain with several steps

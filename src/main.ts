@@ -6,6 +6,8 @@ import { installShortcuts } from './ui/shortcuts';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
+import { SessionAutosave } from './state/session-autosave';
+import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
 import { parseSongLink, decodeSongPayload } from './state/song-link';
@@ -50,9 +52,26 @@ async function boot() {
   if (basic) Presets.apply(bus, basic);
   session.setActive('basic');
 
+  // Silent session recovery (session-autosave.md REQ-5): restore the autosaved
+  // working session over the boot patch, BEFORE the UI mounts so every control
+  // constructs already reading the restored values. Sampler audio doesn't
+  // survive a reload (names only — slots show their .needs-reload hint).
+  const restored = SessionAutosave.load();
+  if (restored) {
+    Song.apply(restored, bus, engine.patterns, engine.arrangement, xy);
+    session.setActive(restored.name);
+  }
+
   const bridge = new UiBridge();
   const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy);
   installShortcuts(engine, bus, bridge);
+
+  // Continuous autosave — attached AFTER the restore so the restore itself
+  // doesn't schedule a redundant rewrite. From here on, every param/pattern/
+  // chain/xy edit re-arms a debounced full-session capture.
+  const autosave = new SessionAutosave(() =>
+    Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy));
+  autosave.attach({ bus, patterns: engine.patterns, arr: engine.arrangement, xy });
 
   // Keep the display awake exactly while the synth can make sound: the wake
   // lock follows the AudioContext state (running from the Tap-to-start resume;

@@ -20,7 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Toast notifications** — a small bottom-center toast component (one at a
   time, optional action button, 8 s auto-dismiss) for non-blocking feedback.
-  First consumer: the upcoming "Loaded … — Undo" safety net.
+  First consumer: the "Loaded … — Undo" safety net.
+
+- **Session safety net** — your working session now autosaves continuously
+  (closing or reloading the tab loses nothing; it restores silently on the
+  next visit), and loading a demo/song/import over your work shows an
+  **Undo** toast that brings everything back — including loaded sampler
+  audio. New still asks first, then offers the same Undo. Accidentally
+  clicking a demo can no longer destroy your song.
 
 - **Drum voice models** — every drum track can now swap its voice algorithm
   via a model dropdown in the Drum tab's sound-design strip: the 8 classic

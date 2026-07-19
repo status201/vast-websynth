@@ -16,6 +16,7 @@ import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } fr
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
+import { showToast } from '../components/toast';
 import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS, MOTION_STEP_DEFAULTS, BANK_COUNT } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import switchStyles from '../styles/switch.module.css';
@@ -61,10 +62,55 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
-  // through here so the header reflects the loaded song).
+  // through here so the header reflects the loaded song). Each apply bumps the
+  // token so async work from a superseded apply (project-zip clip decodes)
+  // can detect it lost the session (session-autosave.md REQ-9).
+  let applyToken = 0;
   const applySong = (file: SongFile): void => {
+    applyToken++;
     Song.apply(file, bus, engine.patterns, engine.arrangement, xy);
     session.setActive(file.name);
+  };
+
+  // ---- Load-undo safety net (session-autosave.md REQ-7/REQ-8) ----
+  // Every destructive apply stashes the session it overwrites — the captured
+  // SongFile PLUS the live sampler AudioBuffer refs (a SongFile only carries
+  // names) — and offers Undo via a toast. The stash lives solely in the
+  // toast's closure, so dismissal/replacement releases the buffers.
+  interface SessionStash {
+    file: SongFile;
+    buffers: (AudioBuffer | null)[];
+    slot: string;
+  }
+  // Only ever called from click handlers, so `dropdown` (built below) exists.
+  const stashCurrent = (): SessionStash => ({
+    file: Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy),
+    buffers: [...engine.sampler.buffers],
+    slot: dropdown.value,
+  });
+  const restoreStash = (stash: SessionStash): void => {
+    applySong(stash.file);
+    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
+      engine.sampler.setBuffer(i, stash.buffers[i] ?? null);
+      // Re-fire the meta event AFTER the buffer lands — that's what clears
+      // .needs-reload in the sampler panel (same idiom as the zip import).
+      engine.patterns.setSampleName(i, stash.file.sampleNames?.[i] ?? null);
+    }
+    refreshList();
+    dropdown.setValue(stash.slot);
+  };
+  const showUndoToast = (message: string, stash: SessionStash): void => {
+    showToast({
+      message,
+      actionLabel: 'Undo',
+      testId: 'song-undo-toast',
+      onAction: () => restoreStash(stash),
+    });
+  };
+  const applySongWithUndo = (file: SongFile, verb = 'Loaded'): void => {
+    const stash = stashCurrent();
+    applySong(file);
+    showUndoToast(`${verb} "${file.name}"`, stash);
   };
 
   // ---- Chain lanes (each with DJ mute / solo / volume) ----
@@ -158,13 +204,17 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
   // slot just keeps the .needs-reload hint; failures collect into ONE alert.
   const applyProjectBundle = async ({ file, clips }: { file: SongFile; clips: ProjectClipIn[] }): Promise<void> => {
-    applySong(file);
+    applySongWithUndo(file, 'Imported');
+    // Undo (or any newer apply) during the sequential decodes below must win:
+    // a late clip may not touch the restored session's slots (REQ-9).
+    const token = applyToken;
     Song.saveSlot(file.name, file); // JSON only — after a reload, .needs-reload correctly reappears
     refreshList();
     dropdown.setValue(file.name);
     bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-3)
     const failures: string[] = [];
     for (const clip of clips) {
+      if (token !== applyToken) return;
       try {
         // .slice() is mandatory: clip bytes are subarray views of the whole
         // zip buffer, and decodeAudioData detaches the buffer it is given.
@@ -211,7 +261,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const loadDemo = (name: string): void => {
     const file = DEMO_SONGS[name];
     if (file) {
-      applySong(file);
+      applySongWithUndo(file);
       refreshList();
       dropdown.setValue(name);
       bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
@@ -226,7 +276,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) {
-      applySong(f);
+      applySongWithUndo(f);
       bridge.cuePlay(); // a loaded song is silent until Play (play-button-blink.md REQ-3)
     }
   });
@@ -329,6 +379,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       danger: true,
     });
     if (!ok) return;
+    // Confirmed — but still stash + toast (session-autosave.md REQ-7): New is
+    // the one path that also nulls the sampler buffers, so Undo is the only
+    // way back to a stash with its audio intact.
+    const stash = stashCurrent();
+    applyToken++; // a confirmed New also supersedes any in-flight clip decodes
     engine.patterns.restore({
       seqBanks: emptySeqBanks(),
       drumBanks: emptyDrumBanks(),
@@ -342,6 +397,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     engine.arrangement.setDrumChain([0], false);
     engine.arrangement.setSamplerChain([0], false);
     engine.arrangement.setMotionChain([0], false);
+    showUndoToast('Started a new song', stash);
   });
 
   io.appendChild(el('span', styles.ioLabel!, 'Slot:'));
