@@ -69,6 +69,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Help button tooltip** — reads "Help & Demo Tour" while help badges are
   off (it opens the Help chooser, not a shortcuts list).
 
+- **Snappier step grids and knobs** — dropped the CSS fade transitions on the
+  seq/drum/sampler step buttons (background + per-step viz fill) and the knob
+  arc. During chained playback every bank switch restarted hundreds of these
+  transitions at once for pure style/paint overhead; states now snap instantly.
+
+### Fixed
+
+- **Zip demo names** — project-zip demo buttons prettify the filename
+  (underscores → spaces), so `Run_Away_2.websynth.zip` shows as "Run Away 2".
+
 ## [2.1.1] - 2026-07-17
 
 ### Changed

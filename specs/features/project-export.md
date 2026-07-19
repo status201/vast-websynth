@@ -64,7 +64,11 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   reappears (the buffers were session-only, as before).
 - **REQ-7** — Demo projects: any `src/state/demos/*.websynth.zip` is auto-registered
   at build time via an `import.meta.glob` `?url` (fetched lazily on click, which is a
-  user gesture). No zip assets are committed yet — an empty glob costs nothing.
+  user gesture). The demo's display name is the filename minus the extension with
+  underscores prettified to spaces (`Run_Away_2.websynth.zip` → "Run Away 2") — the
+  zip can't be opened at build time to read the song's own `name`, and export
+  filenames are underscore-sanitized (`projectFilename`), so this round-trips the
+  common case. An empty glob (no zip assets) costs nothing.
 - **REQ-8** — Decode/encode is memory-aware: clips are encoded/decoded
   **sequentially** (8 × multi-MB WAVs), and `decodeAudioData` gets a **copy** of the
   clip bytes (`.slice()`) because entries are subarray views of the whole zip buffer
@@ -142,6 +146,7 @@ help copy (onboarding.md): the song.export / song.import topics in
   src/ui/onboarding/help-content.ts describe the chooser and the zip import
 demo zips (song.ts + song-panel):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
+  name = basename minus .websynth.zip, underscores -> spaces (REQ-7)
   one button per entry after the DEMO_SONGS row (testid song-demo-<name>)
   click -> fetch(url) -> parseProjectZip -> applyProjectBundle
   Song.list()/loadSlot()/DEMO_SONGS stay sync + JSON-only; loadDemo(name) keeps its

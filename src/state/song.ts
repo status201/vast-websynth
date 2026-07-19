@@ -380,6 +380,9 @@ const ZIP_URLS = import.meta.glob<string>('./demos/*.websynth.zip', {
 export const ZIP_DEMOS: { name: string; url: string }[] = Object.keys(ZIP_URLS)
   .sort()
   .map((path) => ({
-    name: path.replace(/^.*\//, '').replace(/\.websynth\.zip$/i, ''),
+    // Display name: filename minus extension, underscores → spaces — the zip
+    // can't be opened at build time, and export filenames underscore-sanitize
+    // (projectFilename), so "Run_Away_2" round-trips to "Run Away 2".
+    name: path.replace(/^.*\//, '').replace(/\.websynth\.zip$/i, '').replace(/_+/g, ' '),
     url: ZIP_URLS[path]!,
   }));
