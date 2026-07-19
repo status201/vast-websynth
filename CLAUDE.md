@@ -107,7 +107,8 @@ over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
 assertions, `main.ts` exposes a **dev-only** bridge `window.__synth =
-{ engine, bus, patterns, session }` (gated on `import.meta.env.DEV`, absent in
+{ engine, bus, patterns, session, xy, patternUndo }` (gated on
+`import.meta.env.DEV`, absent in
 production) — e.g. `window.__synth.bus.get('filter.cutoff')`. Specs cover boot
 (`smoke`), the control surface (`controls`), and the deeper flows — `presets`
 (select/save + localStorage), `patterns` (seq/drum/sampler grid edits,
@@ -132,7 +133,10 @@ and left intact on failure; Copy Link verified via the clipboard with a
 Node-side `inflateRawSync` decode), and `motion` (the Motion tab — anchor
 input on the mini pads, live param automation + baseline restore on stop via
 `__synth.bus.get`, the Y/X view toggle re-projecting the graph, a
-save→new→load round-trip, and the chain + Mute Song-panel card).
+save→new→load round-trip, and the chain + Mute Song-panel card), and
+`session` + `pattern-undo` (the safety net — autosave restore across
+`page.reload()`, the `song-undo-toast` Undo after demo/New, and the
+per-machine `undo-<seq|drum|sampler|motion>` buttons + tab-scoped Ctrl+Z).
 `prompt`/`confirm`
 are handled with `page.once('dialog', …)`; blob downloads via
 `page.waitForEvent('download')`. The mic spec relies on the
