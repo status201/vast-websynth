@@ -6,6 +6,7 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import { createButton, setButtonLabel } from '../components/button';
+import { clamp } from '../../utils/math';
 import styles from '../styles/tour.module.css';
 
 export type Placement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
@@ -56,10 +57,6 @@ interface RectLike {
 export interface CalloutPos {
   left: number;
   top: number;
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(Math.max(v, lo), hi);
 }
 
 /**

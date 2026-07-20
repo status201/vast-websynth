@@ -1,4 +1,5 @@
-import { BypassWrapper, type Effect } from './effect';
+import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { clamp01 } from '../../utils/math';
 import type { ParamBus } from '../../state/params';
 
 const STAGES = 4;
@@ -70,7 +71,7 @@ export class Phaser implements Effect {
     this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
   }
   setDepth(d: number): void {
-    this.depthOct = Math.max(0, Math.min(1, d)) * 2;
+    this.depthOct = clamp01(d) * 2;
     this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, 0.02);
   }
   setFeedback(f: number): void {
@@ -78,11 +79,10 @@ export class Phaser implements Effect {
   }
 
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.rate`, (x) => this.setRate(x));
     bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
     bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
-    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 
   private depthHz(): number {

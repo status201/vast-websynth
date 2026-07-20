@@ -1,4 +1,4 @@
-import { BypassWrapper, type Effect } from './effect';
+import { BypassWrapper, bindBypassMix, type Effect } from './effect';
 import type { ParamBus } from '../../state/params';
 
 function tanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
@@ -61,9 +61,8 @@ export class Distortion implements Effect {
   }
 
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.drive`, (x) => this.setDrive(x));
     bus.subscribe(`${prefix}.tone`, (x) => this.setTone(x));
-    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }

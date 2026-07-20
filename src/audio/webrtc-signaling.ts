@@ -14,6 +14,7 @@
  */
 
 import { hasCompression, deflateRaw, inflateRaw } from '../utils/compression';
+import { toBase64Url, fromBase64Url } from '../utils/base64url';
 
 const PREFIX = 'WS2.';
 
@@ -35,9 +36,9 @@ export class SignalDecodeError extends Error {
 export async function encodeSignal(kind: SignalKind, sdp: string): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify({ k: kind, s: sdp }));
   if (hasCompression()) {
-    return PREFIX + 'c.' + base64urlEncode(await deflateRaw(bytes));
+    return PREFIX + 'c.' + toBase64Url(await deflateRaw(bytes));
   }
-  return PREFIX + 'r.' + base64urlEncode(bytes);
+  return PREFIX + 'r.' + toBase64Url(bytes);
 }
 
 export async function decodeSignal(blob: string): Promise<DecodedSignal> {
@@ -52,7 +53,7 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
   }
   let bytes: Uint8Array;
   try {
-    const raw = base64urlDecode(rest.slice(dot + 1));
+    const raw = fromBase64Url(rest.slice(dot + 1));
     bytes = codec === 'c' ? await inflateRaw(raw) : raw;
   } catch {
     throw new SignalDecodeError('Corrupt sync link (bad payload).');
@@ -72,18 +73,3 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
 
 // ---- platform helpers ----
 // (deflate/inflate live in utils/compression.ts — shared with the zip codec)
-
-function base64urlEncode(bytes: Uint8Array): string {
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function base64urlDecode(s: string): Uint8Array {
-  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
-  const bin = atob(b64 + pad);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}

@@ -1,4 +1,5 @@
 import type { ParamDef } from '../state/params';
+import { clamp01 } from './math';
 
 // Pure value ↔ normalized-position mappings for the parameter tapers. Lives in
 // utils (not ui/) because both the UI (Knob, XY Pad) and the audio layer (the
@@ -26,7 +27,7 @@ export function toNorm(def: ParamDef, v: number): number {
 
 /** Normalized position → value (clamped to [0, 1], then snapped to step). */
 export function fromNorm(def: ParamDef, n: number): number {
-  const c = Math.max(0, Math.min(1, n));
+  const c = clamp01(n);
   let v: number;
   if (def.taper === 'exp' && def.min > 0) {
     v = def.min * Math.pow(def.max / def.min, c);

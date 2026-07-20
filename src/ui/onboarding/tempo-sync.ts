@@ -77,6 +77,4 @@ export function sweetSpotsInRange(
 }
 
 /** MIDI note number → frequency in Hz (A4 = note 69 = 440 Hz). */
-export function noteToHz(note: number): number {
-  return 440 * Math.pow(2, (note - 69) / 12);
-}
+export { midiToHz as noteToHz } from '../../utils/math';

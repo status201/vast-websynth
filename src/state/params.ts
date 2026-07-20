@@ -1,4 +1,5 @@
 import { DRUM_TRACK_COUNT } from './patterns';
+import { clamp, midiToHz } from '../utils/math';
 
 export type ParamId = string;
 
@@ -163,10 +164,6 @@ export class ParamBus {
   }
 }
 
-function clamp(v: number, min: number, max: number): number {
-  return v < min ? min : v > max ? max : v;
-}
-
 /* ---------- Default parameter definitions ---------- */
 
 const fmtHz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(2)}k` : v.toFixed(0)) + 'Hz';
@@ -179,7 +176,7 @@ const fmtCent = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}c`;
 const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)}dB`;
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
 const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
-const fmtNoteFromCutoff = (note: number) => fmtHz(440 * Math.pow(2, (note - 69) / 12));
+const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse'];

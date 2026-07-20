@@ -1,3 +1,5 @@
+import { clamp01 } from '../../utils/math';
+import type { ParamBus } from '../../state/params';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
 
 /**
@@ -13,6 +15,21 @@ export interface Effect {
   readonly input: AudioNode;
   readonly output: AudioNode;
   setBypass(b: boolean): void;
+}
+
+/**
+ * The two subscriptions every insert effect's `bind` opens: `${prefix}.on`
+ * drives bypass (a switch param, so < 0.5 is off) and `${prefix}.mix` the
+ * dry/wet. Effects without a mix (Wah) simply omit `setMix`. `Compressor.bind`
+ * does not use this — it has no mix and takes index tables (ADR-008).
+ */
+export function bindBypassMix(
+  bus: ParamBus,
+  prefix: string,
+  fx: { setBypass(b: boolean): void; setMix?(m: number): void },
+): void {
+  bus.subscribe(`${prefix}.on`, (x) => fx.setBypass(x < 0.5));
+  if (fx.setMix) bus.subscribe(`${prefix}.mix`, (x) => fx.setMix!(x));
 }
 
 /** Series-wire `input → fx[0] → fx[1] → … → output`. */
@@ -89,7 +106,7 @@ export class BypassWrapper {
   }
 
   setMix(m: number): void {
-    this.mix = Math.max(0, Math.min(1, m));
+    this.mix = clamp01(m);
     this.update(); // a bypassed (disconnected) wrapper stays disconnected
   }
 

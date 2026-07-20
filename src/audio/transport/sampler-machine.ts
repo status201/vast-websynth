@@ -3,6 +3,7 @@ import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
 import { SAMPLER_SLOT_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import { chokeAt, rollProb, stepHits } from './step-hits';
+import { clamp01 } from '../../utils/math';
 import type { TickSubscriber } from './tick-source';
 
 export type SamplerStepListener = (step: number) => void;
@@ -66,7 +67,7 @@ export class SamplerMachine {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    const vel = Math.max(0, Math.min(1, velocity));
+    const vel = clamp01(velocity);
     g.gain.value = vel;
     src.connect(g).connect(out);
     src.start(Math.max(when, this.ctx.currentTime));

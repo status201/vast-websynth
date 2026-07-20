@@ -1,5 +1,6 @@
 import type { MotionStep } from '../../state/patterns';
 import styles from '../styles/motion.module.css';
+import { clamp01 } from '../../utils/math';
 
 export interface MotionStepPadOpts {
   /** Beat-column accent (steps 0/4/8/12), like the drum grid's red columns. */
@@ -77,8 +78,4 @@ export class MotionStepPad {
   setPlaying(p: boolean): void {
     this.el.classList.toggle('playing', p);
   }
-}
-
-function clamp01(n: number): number {
-  return n < 0 ? 0 : n > 1 ? 1 : n;
 }

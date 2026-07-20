@@ -1,4 +1,5 @@
 import styles from '../styles/floating-window.module.css';
+import { clamp } from '../../utils/math';
 
 /**
  * Reusable **non-modal** floating window — a titled, draggable panel that hovers
@@ -210,8 +211,4 @@ export class FloatingWindow {
     window.removeEventListener('pointerup', this.onDragEnd);
     window.removeEventListener('pointercancel', this.onDragEnd);
   }
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
 }

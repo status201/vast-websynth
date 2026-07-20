@@ -1,4 +1,4 @@
-import { BypassWrapper, type Effect } from './effect';
+import { BypassWrapper, bindBypassMix, type Effect } from './effect';
 import type { ParamBus } from '../../state/params';
 
 export class Delay implements Effect {
@@ -44,9 +44,8 @@ export class Delay implements Effect {
   }
 
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.time`, (x) => this.setTime(x));
     bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
-    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }

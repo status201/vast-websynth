@@ -3,6 +3,7 @@ import type { XyPadStore, XyAssign } from '../../state/xy-pad';
 import type { EffectiveXy } from '../../state/xy-effective';
 import { Dropdown } from './dropdown';
 import { toNorm, fromNorm } from '../../utils/taper';
+import { clamp01 } from '../../utils/math';
 import styles from '../styles/xy-pad.module.css';
 
 /**
@@ -319,10 +320,6 @@ function labeled(text: string, control: HTMLElement): HTMLElement {
   wrap.appendChild(span);
   wrap.appendChild(control);
   return wrap;
-}
-
-function clamp01(n: number): number {
-  return n < 0 ? 0 : n > 1 ? 1 : n;
 }
 
 /** Short display name for a param id: its last dotted segment, lowercased

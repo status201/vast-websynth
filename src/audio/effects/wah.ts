@@ -1,4 +1,5 @@
-import { BypassWrapper, type Effect } from './effect';
+import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { clamp01, midiToHz } from '../../utils/math';
 import type { ParamBus } from '../../state/params';
 
 export class Wah implements Effect {
@@ -19,7 +20,7 @@ export class Wah implements Effect {
 
     this.bp = ctx.createBiquadFilter();
     this.bp.type = 'bandpass';
-    this.bp.frequency.value = this.noteToHz(this.centerNote);
+    this.bp.frequency.value = midiToHz(this.centerNote);
     this.bp.Q.value = 4;
 
     this.lfo = ctx.createOscillator();
@@ -39,7 +40,7 @@ export class Wah implements Effect {
     this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
   }
   setDepth(d: number): void {
-    this.depth = Math.max(0, Math.min(1, d));
+    this.depth = clamp01(d);
     this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, 0.02);
   }
   setQ(q: number): void {
@@ -47,7 +48,7 @@ export class Wah implements Effect {
   }
 
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bindBypassMix(bus, prefix, this); // no setMix — the wah has no dry/wet
     bus.subscribe(`${prefix}.rate`, (x) => this.setRate(x));
     bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
     bus.subscribe(`${prefix}.q`, (x) => this.setQ(x));
@@ -57,5 +58,4 @@ export class Wah implements Effect {
     // Sweep over a roughly 2-octave window around the center
     return this.depth * 1500;
   }
-  private noteToHz(n: number): number { return 440 * Math.pow(2, (n - 69) / 12); }
 }

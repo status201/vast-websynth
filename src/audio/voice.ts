@@ -1,6 +1,7 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
+import { midiToHz } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
@@ -176,8 +177,4 @@ export class Voice {
   setFilterEnvAmount(semi: number): void {
     rampTo(this.filEnvScale.gain, semi, this.ctx, RAMP_MEDIUM);
   }
-}
-
-function midiToHz(note: number): number {
-  return 440 * Math.pow(2, (note - 69) / 12);
 }

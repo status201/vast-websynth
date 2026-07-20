@@ -156,6 +156,28 @@ Arrangement / Performance:  # src/audio/transport/
   # chain lanes (seq/drum/sampler/motion) and live DJ FX, respectively
 ```
 
+### Shared utilities
+
+Pure, dependency-free helpers under `src/utils/` — importable from **any** layer
+(they must never import from `audio/`, `state/` or `ui/`, so the audio layer can
+use them without dragging in UI code). Each replaced a helper that had been
+copy-pasted across modules.
+
+```yaml
+utils/math.ts:       clamp(v,min,max) · clamp01(v) · midiToHz(note)   # A4 = 69 = 440 Hz
+utils/taper.ts:      toNorm(def,v) · fromNorm(def,n)                  # param taper mapping
+utils/base64url.ts:  toBase64Url(bytes) · fromBase64Url(s)            # RFC 4648 §5, unpadded
+utils/array.ts:      assertIndex(arr,i,name) · IndexError
+utils/compression.ts: deflateRaw / inflateRaw                          # zip codec + share links
+utils/zip.ts:        the hand-written zip reader/writer (ADR-003)
+utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
+```
+
+Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
+(`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and
+`${prefix}.mix` → `setMix` subscriptions every `Effect.bind` opened by hand.
+`Compressor.bind` does not use it (discrete ratio/release index tables, no mix).
+
 ### Event flow / propagation
 
 The dependency graph above is the *static* view (who owns whom). This is the

@@ -8,6 +8,7 @@
  * builds share links with node:zlib instead — same wire format).
  */
 import { deflateRaw, inflateRaw, hasCompression } from '../utils/compression';
+import { toBase64Url, fromBase64Url } from '../utils/base64url';
 
 export type SongLink =
   | { kind: 'data'; payload: string }
@@ -54,26 +55,4 @@ export async function decodeSongPayload(payload: string): Promise<string> {
 /** `<origin>/#song=<payload>` — base64url payloads never need percent-encoding. */
 export function buildShareUrl(origin: string, payload: string): string {
   return `${origin}/#song=${payload}`;
-}
-
-/* ---------------- base64url ---------------- */
-
-/** Keep String.fromCharCode argument counts sane (no spread on large arrays). */
-const CHUNK = 0x8000;
-
-function toBase64Url(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(s: string): Uint8Array {
-  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-  const bin = atob(padded); // throws on malformed input — caller surfaces it
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
 }

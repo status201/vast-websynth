@@ -1,4 +1,4 @@
-import { BypassWrapper, type Effect } from './effect';
+import { BypassWrapper, bindBypassMix, type Effect } from './effect';
 import type { ParamBus } from '../../state/params';
 
 /**
@@ -49,10 +49,9 @@ export class Reverb implements Effect {
   }
 
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.size`, (x) => this.setSize(x));
     bus.subscribe(`${prefix}.damp`, (x) => this.setDamp(x));
-    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
   }
 }
 
