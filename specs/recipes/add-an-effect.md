@@ -9,9 +9,9 @@ related:
   - effects
   - add-a-parameter
 source:
-  - src/audio/effects/effect.ts
+  - src/audio/effects/effect.ts         # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/delay.ts          # reference implementation
-  - src/audio/engine.ts
+  - src/audio/effects/fx-chain.ts       # the three chain factories
   - src/state/params.ts
 ```
 
@@ -48,34 +48,38 @@ export class MyFx implements Effect {
   setMix(m: number): void { this.wrap.setMix(m); }
   // + your own setters (setRate, setDepth, …) using setTargetAtTime to avoid zipper noise
 
-  // self-wire your params (ADR-008): Engine calls this.myFx.bind(bus, 'fx.myfx')
+  // self-wire your params (ADR-008); bindBypassMix opens the shared
+  // `${prefix}.on` → setBypass and `${prefix}.mix` → setMix subscriptions.
   bind(bus: ParamBus, prefix: string): void {
-    bus.subscribe(`${prefix}.on`,  (x) => this.setBypass(x < 0.5));
-    bus.subscribe(`${prefix}.mix`, (x) => this.setMix(x));
+    bindBypassMix(bus, prefix, this);
     // … your other params
   }
 }
 ```
 
-### 2. Construct + add to a bus chain — `src/audio/engine.ts`
+### 2. Add it to a chain — `src/audio/effects/fx-chain.ts`
 
-Build it in the constructor and add it to the relevant bus's `chain([...])` list:
-
-```ts
-this.myFx = new MyFx(this.ctx);
-// synth voice bus, in order:
-chain(this.voiceBus, [this.distortion, this.wah, this.phaser, this.myFx, this.delay, this.reverb], this.preMaster);
-```
-
-### 3. Bind params
-
-Register the params ([add-a-parameter](add-a-parameter.md)) — always a `<id>.on`
-toggle defaulting to **off** (no-op) — then call your effect's `bind` once in
-`Engine.subscribeParams()`:
+The three insert chains are built as units. Add your effect to the relevant
+factory's `fx` object **and** to its order array (the order array *is* the
+signal order), then bind it in that factory's `bindAll`:
 
 ```ts
-this.myFx.bind(bus, 'fx.myfx');
+const fx = { dist: …, wah: …, phaser: …, myFx: new MyFx(ctx), delay: …, reverb: … };
+return makeChain(fx, ['dist', 'wah', 'phaser', 'myFx', 'delay', 'reverb'], (bus) => {
+  …
+  fx.myFx.bind(bus, 'fx.myfx');
+});
 ```
+
+Widen that factory's return type with your member so `engine.synthFx.fx.myFx`
+stays typed. Engine needs no change — it just calls `wire()` and `bind()`.
+
+### 3. Register the params
+
+Register them ([add-a-parameter](add-a-parameter.md)) — always a `<id>.on`
+toggle defaulting to **off** (no-op), plus `<id>.mix` if the effect has a
+dry/wet. The chain's `bind(bus)` already reaches your effect, so
+`Engine.subscribeParams()` is untouched.
 
 ### 4. UI + verify
 

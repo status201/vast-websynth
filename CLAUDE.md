@@ -177,6 +177,18 @@ The analyser taps **pre-master** so the scope is independent of the volume
 knob. The drum bus **and** the sampler bus join at `preMaster`, bypassing the
 synth FX chain.
 
+The three insert chains are built as units by `audio/effects/fx-chain.ts`
+(`createSynthChain`/`createDrumChain`/`createSamplerChain`), held on Engine as
+`synthFx`/`drumFx`/`samplerFx`. Each `FxChain` owns its effect order, its param
+prefixes and (drum) the comp ratio table, exposing `fx` (named members —
+`drumFx.fx.comp`), `tail` (last output; the bank-render tap), `wire(in, out)`
+and `bind(bus)`. Three explicit factories, not one generic spec: only the synth
+has a wah, only the drum bus heads with a compressor. `masterComp` stays a flat
+Engine field (a master-bus insert, not a chain member), and `engine.drumComp` is
+a getter onto `drumFx.fx.comp` — what `StudioApi` and the drum GR meter read.
+Adding an effect means editing the chain factory, not Engine (see
+`specs/recipes/add-an-effect.md`).
+
 **Compressors** — a single `hardware-compressor` AudioWorklet
 (`public/worklets/compressor.js`, wrapped by `audio/compressor/node.ts`)
 with two character modes fixed per instance via `processorOptions.mode`:
@@ -236,6 +248,27 @@ A loaded slot exposes an ✎ button that reopens its buffer in the same editor.
 Non-scalar state (step grids) lives in **`PatternStore`** (`state/patterns.ts`),
 not in `ParamBus`, because the shapes are arrays of objects. It has its own
 listener mechanism.
+
+**Shared helpers** — pure, dependency-free, importable from any layer (they must
+never import `audio/`, `state/` or `ui/`, so the audio layer can use them without
+dragging in UI code): `utils/math.ts` (`clamp`/`clamp01`/`midiToHz`),
+`utils/taper.ts` (`toNorm`/`fromNorm`), `utils/base64url.ts`
+(`toBase64Url`/`fromBase64Url` — share links + WebRTC blobs),
+`utils/listeners.ts` (`ListenerSet<Args>`: `add(fn) -> disposer` / `emit(...)`,
+behind every `onStep`/`onNote`/`onFollowChange` hook), plus `utils/array.ts`,
+`utils/compression.ts`, `utils/zip.ts`, `utils/wake-lock.ts`. Layer-specific
+siblings: `bindBypassMix` (`audio/effects/effect.ts`), `forEachActiveHit`
+(`audio/transport/step-hits.ts` — the drum/sampler lane sweep) and
+`Performance.stepIndex` (`mapStep(step) % SEQ_LENGTH`; the **motion** machine
+deliberately uses the raw `step % SEQ_LENGTH` so automation never follows
+stutter remaps). Named localStorage slots (presets, songs) share
+`state/slot-store.ts` (`SlotStore`); blank grids come from
+`emptyPatternBanks()` (`state/patterns.ts`), which shares PatternStore's own
+`make*Bank` builders. The four machine tabs share their chrome via
+`ui/panels/step-panel-scaffold.ts` (`bankBarFor`, `wrapGridWithRestOverlay`,
+`wirePlayhead`, `GridCursor`) plus `paintTriggerCell`
+(`ui/components/step-settings.ts`); the seq panel keeps its own painter because
+it also writes the note name as the label.
 
 ### Song mode
 

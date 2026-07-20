@@ -35,12 +35,15 @@ Each subsystem **wires its own params**. Concretely:
 
 - Every insert `Effect` exposes `bind(bus, prefix)` (`Compressor` takes the
   index→real-value tables: `bind(bus, prefix, ratios, releases?)`) that
-  `bus.subscribe(...)`s its own `on`/`mix`/setter params. `Engine` calls
-  `this.distortion.bind(bus, 'fx.dist')` etc. — the same class binds at a
-  different prefix for the drum/sampler variants. This replaces the old
+  `bus.subscribe(...)`s its own `on`/`mix`/setter params — the same class binds
+  at a different prefix for the drum/sampler variants. This replaces the old
   `Engine.subscribeCompressor()` helper and the per-effect subscribe blocks.
+  *(Since the FxChain refactor these `bind` calls live in the chain factories in
+  `effects/fx-chain.ts` rather than directly in `Engine`; the decision — each
+  component subscribes its own params — is unchanged, and `bindBypassMix` in
+  `effects/effect.ts` now factors out the shared `.on`/`.mix` pair.)*
 - A `chain(input, fx[], output)` helper (`effects/effect.ts`) wires a series of
-  effects, so the three FX chains in `Engine`'s constructor are declarative.
+  effects declaratively; `FxChain.wire()` is what calls it today.
 - Voice allocation + voicing (poly/mono, unison, glide, analogue drift) lives in
   **`Polyphony`** (`src/audio/polyphony.ts`); the Song-tab mute/solo/volume
   mixer lives in **`LaneMixer`** (`src/audio/lane-mixer.ts`, reusing the pure

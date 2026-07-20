@@ -11,14 +11,15 @@ related:
   - performance
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
 source:
-  - src/audio/effects/effect.ts        # Effect interface + BypassWrapper
+  - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
+  - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
   - src/audio/effects/distortion.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
   - src/state/params.ts
-  - src/audio/engine.ts                 # calls each Effect.bind(bus, prefix)
+  - src/audio/engine.ts                 # holds synthFx/drumFx/samplerFx; wire + bind
   - src/ui/app.ts / src/ui/panels/*
 ```
 
@@ -75,6 +76,15 @@ BypassWrapper: # dry/wet crossfade + delayed true-bypass disconnect (ADR-012)
   # bypassed 150ms -> disconnects input→processedIn and processedOut→wet;
   # un-bypass reconnects before ramping. DISCONNECT_DELAY_MS = 150.
 chain(input, fx[], output)  # series-wires input → fx[0] → … → output
+bindBypassMix(bus, prefix, fx)  # the shared `${prefix}.on` → setBypass and
+                                # `${prefix}.mix` → setMix pair (setMix optional:
+                                # the Wah has no dry/wet, so it skips .mix)
+FxChain<E>:    # src/audio/effects/fx-chain.ts — one bus's chain as a unit
+  fx: E                      # named members, e.g. drumFx.fx.comp
+  tail: AudioNode            # last effect's output (the bank-render tap point)
+  wire(input, output) / bind(bus)
+  # createSynthChain / createDrumChain / createSamplerChain — explicit factories,
+  # each owning its effect order, param prefixes and (drum) the comp ratio table.
 ```
 
 ### Data shapes (registry — synth bus; drum/sampler mirror with a prefix)
@@ -94,11 +104,13 @@ prefixes:
 ### Layer touchpoints
 
 ```yaml
-engine: each effect self-wires via Effect.bind(bus, prefix), e.g.
-  this.delay.bind(bus, 'fx.delay')        # on/time/feedback/mix subscribed inside Delay
-  this.drumPhaser.bind(bus, 'fx.drum.phaser')   # same class, drum prefix
-  this.samplerDist.bind(bus, 'fx.sampler.dist') # same class, sampler prefix
-graph: constructor wires the three chains via chain(bus, [..fx], preMaster)
+engine: the three chains are built by audio/effects/fx-chain.ts and held as
+  synthFx / drumFx / samplerFx; each chain's bind(bus) self-wires its members
+  at that chain's prefixes (ADR-008), e.g. inside createDrumChain:
+    fx.phaser.bind(bus, 'fx.drum.phaser')     # same class, drum prefix
+    fx.delay.bind(bus, 'fx.drum.delay')
+  and `bindBypassMix` (effects/effect.ts) opens the shared `.on`/`.mix` pair.
+graph: Engine calls synthFx/drumFx/samplerFx .wire(<bus>, preMaster)
 ui: synth FX in app.ts; drum FX in drum-panel.ts; sampler FX in sampler-panel.ts
 ```
 
@@ -151,4 +163,5 @@ Scenario: Compressor attach while bypassed-and-disconnected (edge)
 ## Open questions / future
 
 - A new effect adds an `Effect` impl + a `BypassWrapper`, its params, and its own
-  `bind(bus, prefix)` — then add it to the relevant bus's `chain([...])` list.
+  `bind(bus, prefix)` — then add it to the relevant chain factory in
+  `effects/fx-chain.ts` (its `fx` object **and** its order array).
