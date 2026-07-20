@@ -97,9 +97,17 @@
 }
 
 /* Active (orange) state for the Help button + the modal's badge-toggle button
-   while the help badges are showing. `button.X` outranks switch.module's
-   `.root` so it wins regardless of stylesheet order. */
-button.toggleActive {
+   while the help badges are showing, and for the header's Fullscreen button.
+
+   `button.toggleActive` (0-1-1) outranks switch.module's bare `.root` (0-1-0),
+   so it wins regardless of stylesheet order. But the Fullscreen button also
+   carries the global `on` class, and `.root:global(.on)` (0-2-0) declares
+   `color: var(--text)` — which would beat 0-1-1 and leave the glyph grey while
+   the border/glow (undeclared there) still went orange. The second selector
+   below is 0-2-1, so the accent colour wins in that case too and the inline SVG
+   inherits it via `currentColor`. */
+button.toggleActive,
+button.toggleActive:global(.on) {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 8px var(--accent-glow), inset 0 1px 0 rgba(244, 205, 94, 0.06);

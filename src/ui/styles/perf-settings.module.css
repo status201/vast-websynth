@@ -62,8 +62,11 @@
 
 /* Header "Perf" button tier colour: weak=red, medium=amber, strong=green — shown
    even under Auto (it reflects the *resolved* tier, so the user sees what Auto
-   picked). `button.X` outranks switch.module's `.root` so it wins regardless of
-   stylesheet order — same trick as tour's .toggleActive. */
+   picked). `button.X` (0-1-1) outranks switch.module's bare `.root` (0-1-0) so it
+   wins regardless of stylesheet order — same trick as tour's .toggleActive.
+   Note this does NOT outrank the compound `.root:global(.on)` (0-2-0); safe here
+   because the Perf button never carries the global `on` class (unlike Fullscreen,
+   see tour.module.css .toggleActive). */
 button.tierWeak {
   border-color: var(--accent-bad);
   color: var(--accent-bad);
