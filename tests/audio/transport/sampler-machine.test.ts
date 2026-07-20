@@ -1,25 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SamplerMachine } from '../../../src/audio/transport/sampler-machine';
-import { Arrangement } from '../../../src/audio/transport/arrangement';
-import type { Performance } from '../../../src/audio/transport/performance';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
-import { TestClock } from './test-clock';
 import { makeMockAudioContext, makeStubBuffer, type MockAudioContext } from '../mock-audio-context';
+import { createPerfStub, makeTransportRig } from './rig';
 
-function perfStub(mapStep: (s: number) => number = (s) => s) {
-  return {
-    mapStep,
-    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
-    fillActive: false,
-    setFill() {},
-  } as unknown as Performance;
-}
-
-function build(perf = perfStub()) {
+function build(perf = createPerfStub()) {
   const ctx: MockAudioContext = makeMockAudioContext();
-  const clock = new TestClock();
-  const patterns = new PatternStore();
-  const arrangement = new Arrangement(patterns, clock);
+  const { clock, patterns, arrangement } = makeTransportRig(perf);
   const samplerBus = (ctx as unknown as AudioContext).createGain();
   const sm = new SamplerMachine(
     ctx as unknown as AudioContext,

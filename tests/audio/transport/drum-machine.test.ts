@@ -1,26 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DrumMachine } from '../../../src/audio/transport/drum-machine';
-import { Arrangement } from '../../../src/audio/transport/arrangement';
 import type { Performance } from '../../../src/audio/transport/performance';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
-import { TestClock } from './test-clock';
 import { makeMockAudioContext } from '../mock-audio-context';
+import { createPerfStub, makeTransportRig } from './rig';
 
-/** Mutable Performance-like stub (DrumMachine only reads mapStep + fillActive). */
-function perfStub(mapStep: (s: number) => number = (s) => s) {
-  return {
-    mapStep,
-    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
-    fillActive: false,
-    setFill() {},
-  } as unknown as Performance & { fillActive: boolean };
-}
-
-function build(perf = perfStub(), fxOversample = true) {
+function build(perf = createPerfStub(), fxOversample = true) {
   const ctx = makeMockAudioContext();
-  const clock = new TestClock();
-  const patterns = new PatternStore();
-  const arrangement = new Arrangement(patterns, clock);
+  const { clock, patterns, arrangement } = makeTransportRig(perf);
   const drumBus = (ctx as unknown as AudioContext).createGain();
   const dm = new DrumMachine(
     ctx as unknown as AudioContext,
@@ -64,7 +50,7 @@ describe('DrumMachine', () => {
   });
 
   it('reads the bank at the stutter-mapped step', () => {
-    const { clock, patterns, dm, spies } = build(perfStub(() => 4));
+    const { clock, patterns, dm, spies } = build(createPerfStub(() => 4));
     dm.setEnabled(true);
     patterns.setDrumCell(0, 4, { on: true, velocity: 0.8 }); // cell at the mapped index
     patterns.setDrumCell(0, 0, { on: true, velocity: 0.3 }); // raw step (should be ignored)
@@ -121,7 +107,7 @@ describe('DrumMachine', () => {
   });
 
   it('plays the fill cascade instead of the pattern when fillActive', () => {
-    const perf = perfStub();
+    const perf = createPerfStub();
     const { clock, patterns, dm, spies } = build(perf);
     dm.setEnabled(true);
     perf.fillActive = true;
@@ -188,7 +174,7 @@ describe('DrumMachine', () => {
   });
 
   it('a weak tier (fxOversample false) pins the shapers to none even when driven', () => {
-    const { ctx, dm } = build(perfStub(), false);
+    const { ctx, dm } = build(createPerfStub(), false);
     const shaper = ctx.createWaveShaper.mock.results[0]!.value;
     dm.setTrackDrive(0, 0.8);
     expect(shaper.oversample).toBe('none');

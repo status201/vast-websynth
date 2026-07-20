@@ -1,31 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
 import { StepSequencer } from '../../../src/audio/transport/sequencer';
-import { Arrangement } from '../../../src/audio/transport/arrangement';
-import { Performance } from '../../../src/audio/transport/performance';
-import { TestClock } from './test-clock';
 import type { SynthOutput } from '../../../src/audio/transport/note-output';
-
-/**
- * Minimal Performance-like stub that Performance needs (ctx, djFilter).
- * We avoid constructing a real Performance since it needs AudioContext.
- */
-function createPerfStub() {
-  const mapStep = (s: number): number => s;
-  return {
-    mapStep,
-    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
-    fillActive: false,
-    setFill: () => {},
-  } as unknown as Performance;
-}
+import { makeTransportRig } from './rig';
 
 describe('StepSequencer', () => {
   it('plays notes from the pattern on each tick', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -42,10 +22,7 @@ describe('StepSequencer', () => {
   });
 
   it('skips inactive steps', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -59,10 +36,7 @@ describe('StepSequencer', () => {
   });
 
   it('releases the previous note before playing the next', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -79,10 +53,7 @@ describe('StepSequencer', () => {
   });
 
   it('does nothing when disabled', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -95,10 +66,7 @@ describe('StepSequencer', () => {
   });
 
   it('disabling during playback releases the held note', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -114,10 +82,7 @@ describe('StepSequencer', () => {
   });
 
   it('fires step listeners with the mapped step index', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const output: SynthOutput = { playNote: vi.fn(), releaseNote: vi.fn() };
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
@@ -130,10 +95,7 @@ describe('StepSequencer', () => {
   });
 
   it('skips a step when probability loses the dice roll', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote: vi.fn() };
 
@@ -154,10 +116,7 @@ describe('StepSequencer', () => {
   });
 
   it('ratchet schedules N evenly-spaced sub-hits within the step', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote: vi.fn() };
 
@@ -174,10 +133,7 @@ describe('StepSequencer', () => {
   });
 
   it('tie holds into the next step instead of releasing first (legato)', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote };
@@ -197,10 +153,7 @@ describe('StepSequencer', () => {
   });
 
   it('a tie into a rest releases the held note rather than ringing forever', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const releaseNote = vi.fn();
     const output: SynthOutput = { playNote: vi.fn(), releaseNote };
 
@@ -214,10 +167,7 @@ describe('StepSequencer', () => {
   });
 
   it('fires note listeners with note/when/releaseAt', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const output: SynthOutput = { playNote: vi.fn(), releaseNote: vi.fn() };
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
@@ -235,10 +185,7 @@ describe('StepSequencer', () => {
   });
 
   it('plays nothing during an arrangement rest bar', () => {
-    const clock = new TestClock();
-    const patterns = new PatternStore();
-    const arrangement = new Arrangement(patterns, clock);
-    const perf = createPerfStub();
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
     const output: SynthOutput = { playNote, releaseNote: vi.fn() };
 
