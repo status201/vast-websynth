@@ -143,6 +143,52 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(page.getByTestId('tour-callout')).toBeVisible();
 });
 
+test('the tour showcases the Song tab and ends there, ready to play', async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('websynth.onboarding.done', '1');
+    } catch {
+      /* ignore */
+    }
+  });
+  await page.goto('/');
+  await startBtn(page).click();
+
+  // Replay on demand rather than relying on the auto-launch, so this spec is
+  // independent of first-visit ordering.
+  await page.getByTestId('help-button').click();
+  await page.getByTestId('help-start-tour').click();
+
+  const callout = page.getByTestId('tour-callout');
+  await expect(callout).toBeVisible();
+
+  // Walk to the end. `tour-next` flips to `tour-done` on the last step, so the
+  // loop terminates on its own — no hardcoded step count (the tour's progress is
+  // derived from TOUR_STEPS.length).
+  const done = page.getByTestId('tour-done');
+  for (let i = 0; i < 30 && (await done.count()) === 0; i++) {
+    await page.getByTestId('tour-next').click();
+  }
+  await expect(done).toBeVisible();
+
+  // The two Song-tab steps sit just before the closing one (REQ-10).
+  await page.getByTestId('tour-back').click();
+  await expect(callout).toContainText('Perform it live');
+  await page.getByTestId('tour-back').click();
+  await expect(callout).toContainText('Arrange a full song');
+
+  // Forward again to the end and finish.
+  await page.getByTestId('tour-next').click();
+  await page.getByTestId('tour-next').click();
+  await done.click();
+  await expect(callout).toBeHidden();
+
+  // The tour leaves the user on the Song tab — chains and live FX in reach.
+  await expect(page.getByTestId('panel-song')).toBeVisible();
+  await expect(page.getByTestId('song-lane-seq')).toBeVisible();
+  await expect(page.getByTestId('perf-stutter')).toBeVisible();
+});
+
 test('contextual badges hide when their control scrolls under the sticky header', async ({ page }) => {
   await page.addInitScript(() => {
     try {

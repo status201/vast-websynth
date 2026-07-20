@@ -82,6 +82,27 @@ export const TOUR_STEPS: TourStep[] = [
     precondition: () => clickTestId('tab-seq'),
   },
   {
+    target: 'song-lane-seq',
+    title: 'Arrange a full song',
+    body:
+      'Each machine gets a <strong>chain</strong> — a running order of banks (A B C D), one bar ' +
+      'each, so your patterns become a track with an intro, a drop and a breakdown. Mute, solo ' +
+      'and level every lane right here, like a DJ mixer.',
+    placement: 'top',
+    precondition: () => clickTestId('tab-song'),
+  },
+  {
+    target: 'perf-stutter',
+    title: 'Perform it live',
+    body:
+      'Now play the song like an instrument: <strong>Fill</strong>, <strong>Stutter</strong>, ' +
+      '<strong>Drop</strong> and <strong>Tape Stop</strong> are momentary — hold one for a build, ' +
+      'a glitch or a wobbly halt — and <strong>DJ FLT</strong> sweeps the whole mix. ' +
+      "It's all live and nothing here can break your song.",
+    placement: 'top',
+    precondition: () => clickTestId('tab-song'),
+  },
+  {
     target: 'help-button',
     title: "That's it — go play",
     body:

@@ -3,7 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 5   # v5: mod-wheel badge explains the LFO-boost routing; idle Help tooltip "Help & Demo Tour"
+version: 6   # v6: the tour visits the Song tab (chains + live DJ FX) and ends there
 owner: core
 related:
   - architecture
@@ -68,6 +68,16 @@ never reads DEV-only globals.
   - The Help button's tooltip while help mode is **inactive** is
     "Help & Demo Tour" (it opens the tour/badges chooser, not a shortcuts
     list); the active-state tooltip stays "Turn off help badges" (REQ-8).
+- **REQ-10** (v6) — The tour showcases the Song tab before its closing step: one
+  step spotlights the arrangement **chain lanes** (`song-lane-seq` — banks chained
+  one per bar, plus the per-lane mute/solo/level mixer) and the next the **live DJ
+  FX** (`perf-stutter` — Fill/Stutter/Drop/Tape Stop + the DJ filter). Both use
+  `precondition: clickTestId('tab-song')` — on *both* steps, not just the first, so
+  **Back** from the closing step (or a stray tab click) re-opens the Song tab. The
+  closing step targets the header `help-button` and switches no tab, so the tour
+  **ends with the Song tab open and active** — the user is left ready to play rather
+  than parked on the Sequencer. The demo loaded earlier in the tour populates the
+  chains, so the lane spotlight lands on real content.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -132,6 +142,12 @@ Scenario: Inactive Help button opens the chooser modal
   Given help mode is off
   When the user clicks the Help button
   Then the Help chooser modal opens (tour / toggle badges)
+# pinned by: e2e/onboarding.spec.ts
+
+Scenario: The tour ends on the Song tab, ready to play (v6)
+  Given the tour is running
+  When the user advances past the chain-lane and live-FX steps and presses Done
+  Then the Song tab is the active tab, showing the chains and live FX
 # pinned by: e2e/onboarding.spec.ts
 
 Scenario: Sync section carries USB + WiFi help badges (v2)

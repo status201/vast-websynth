@@ -61,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the demos automatically and CI's new `check:demos` fails on drift; all
   previously single-line demos were unfolded once.
 
+- **Guided tour shows off the Song tab** — two new steps before the sign-off:
+  one on the arrangement **chains** (banks chained a bar at a time, plus the
+  per-lane mute/solo/level mixer) and one on the **live DJ FX** (Fill, Stutter,
+  Drop, Tape Stop and the DJ filter). The tour now finishes with the Song tab
+  open and ready to play, instead of parked on the Sequencer.
+
 - **Mod wheel help badge tells the truth** — it now explains that the wheel
   boosts the LFO amount toward whatever destination is selected (wobble /
   vibrato / tremolo / PWM), and that it does nothing while the LFO
