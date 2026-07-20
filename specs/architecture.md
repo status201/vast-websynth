@@ -178,6 +178,20 @@ utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
 
+The four machine tabs share their **chrome** through
+`ui/panels/step-panel-scaffold.ts` — composable helpers, not one template, since
+the panel bodies genuinely differ (note labels, a tuning strip, slot loaders, an
+SVG graph). One internal `laneHooks(engine, lane)` switch maps the systematic
+per-lane accessor families (PatternStore edit/copy/content, Arrangement play
+bank, the machine's `onStep`), and the exported helpers read from it:
+`bankBarFor` (the A/B/C/D bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
+(the `position: relative` wrapper + overlay + follow wiring),
+`wirePlayhead` (highlight only while edit bank === play bank, refreshing the
+overlay on the same tick) and `GridCursor` (the drum/sampler 2-D selection
+cursor). `paintTriggerCell` lives with `stepTitle` in
+`ui/components/step-settings.ts`; the seq panel keeps its own painter because it
+also writes the note name as the button label. Every `data-testid` is unchanged.
+
 The transport machines additionally share two helpers:
 `forEachActiveHit(bank, idx, when, stepDur, muted, fire)`
 (`audio/transport/step-hits.ts`) — the one-shot lane sweep (skip muted, skip

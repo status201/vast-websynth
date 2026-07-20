@@ -7,11 +7,9 @@ import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
-import { BankBar } from '../components/bank-bar';
 import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints } from '../components/motion-graph';
-import { PlayheadHighlighter } from '../components/playhead-highlighter';
-import { buildRestOverlay } from '../components/rest-overlay';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import { SEQ_LENGTH, type MotionStep } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
@@ -70,17 +68,7 @@ export function buildMotionPanel(
   });
   header.appendChild(viewSel);
 
-  const bankBar = new BankBar({
-    getEdit: () => patterns.motionEditBank,
-    setEdit: (i) => patterns.setMotionEditBank(i),
-    copy: (f, t) => patterns.copyMotionBank(f, t),
-    onEditChange: (fn) => patterns.onEditBankChange(fn),
-    getPlay: () => engine.arrangement.motionPlayBank,
-    onPlayChange: (fn) => engine.arrangement.onChange(fn),
-    hasContent: (i) => patterns.motionBanks[i]!.some((s) => s.on),
-    onContentChange: (fn) => patterns.onMotionChange(fn),
-    testidPrefix: 'motion',
-  });
+  const bankBar = bankBarFor(engine, 'motion');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'motion'));
   header.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
@@ -110,13 +98,8 @@ export function buildMotionPanel(
   graph.setAttribute('preserveAspectRatio', 'none');
   graph.dataset.testid = 'motion-graph';
 
-  const gridWrap = document.createElement('div');
-  gridWrap.style.position = 'relative';
-  gridWrap.appendChild(cells);
-  gridWrap.appendChild(graph);
-  const restOverlay = buildRestOverlay(engine, 'motion', { following: () => bankBar.following });
-  gridWrap.appendChild(restOverlay.el);
-  bankBar.onFollowChange(() => restOverlay.refresh());
+  const { el: gridWrap, restOverlay } =
+    wrapGridWithRestOverlay(engine, 'motion', bankBar, cells, graph);
   root.appendChild(gridWrap);
 
   const redrawGraph = (): void => {
@@ -196,12 +179,7 @@ export function buildMotionPanel(
     refreshAxes();
   };
 
-  const highlighter = new PlayheadHighlighter([pads]);
-  engine.motion.onStep((idx) => {
-    const match = patterns.motionEditBank === engine.arrangement.motionPlayBank;
-    highlighter.update(idx, match);
-    restOverlay.refresh();
-  });
+  const highlighter = wirePlayhead(engine, 'motion', [pads], restOverlay);
 
   patterns.onMotionBankChange((bank) => {
     highlighter.clear();

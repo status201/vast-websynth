@@ -6,25 +6,16 @@ import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
-import { PlayheadHighlighter } from '../components/playhead-highlighter';
-import { BankBar } from '../components/bank-bar';
-import { buildRestOverlay } from '../components/rest-overlay';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor } from './step-panel-scaffold';
 import { openRecordSoundModal } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
-import { StepSettingsEditor, stepTitle } from '../components/step-settings';
+import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH, type SamplerStep } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
-
-// Repaint a sampler cell: lit state, the per-step settings viz and a tooltip.
-function paintCell(sb: StepButton, cell: SamplerStep): void {
-  sb.setOn(cell.on);
-  sb.setViz(cell);
-  sb.el.title = stepTitle(cell);
-}
 
 export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
   const root = document.createElement('div');
@@ -35,17 +26,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
-  const bankBar = new BankBar({
-    getEdit: () => engine.patterns.samplerEditBank,
-    setEdit: (i) => engine.patterns.setSamplerEditBank(i),
-    copy: (f, t) => engine.patterns.copySamplerBank(f, t),
-    onEditChange: (fn) => engine.patterns.onEditBankChange(fn),
-    getPlay: () => engine.arrangement.samplerPlayBank,
-    onPlayChange: (fn) => engine.arrangement.onChange(fn),
-    hasContent: (i) => engine.patterns.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
-    onContentChange: (fn) => engine.patterns.onSamplerChange(fn),
-    testidPrefix: 'sampler',
-  });
+  const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'sampler'));
 
@@ -83,14 +64,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   // ---- Slot rows ----
   const grid = document.createElement('div');
   grid.className = drumStyles.grid!;
-  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
-  // rest bar (arrangement-rest.md REQ-6).
-  const gridWrap = document.createElement('div');
-  gridWrap.style.position = 'relative';
-  gridWrap.appendChild(grid);
-  const restOverlay = buildRestOverlay(engine, 'sampler', { following: () => bankBar.following });
-  gridWrap.appendChild(restOverlay.el);
-  bankBar.onFollowChange(() => restOverlay.refresh());
+  const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'sampler', bankBar, grid);
   root.appendChild(gridWrap);
 
   const stepBtns: StepButton[][] = [];
@@ -98,16 +72,11 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   const editBtns: HTMLButtonElement[] = [];
 
   // Selection cursor for the per-step edit row (one cell across the grid).
-  let selSlot = 0;
-  let selStep = 0;
-  const setSelected = (sl: number, st: number): void => {
-    stepBtns[selSlot]?.[selStep]?.el.classList.remove(StepButton.selectedClass);
-    selSlot = sl;
-    selStep = st;
-    stepBtns[sl]?.[st]?.el.classList.add(StepButton.selectedClass);
+  const cursor = new GridCursor(stepBtns, () => {
     renderSelected();
     editor.refresh();
-  };
+  });
+  const setSelected = (sl: number, st: number): void => cursor.set(sl, st);
 
   const refreshLabel = (slot: number): void => {
     const lbl = labels[slot];
@@ -194,7 +163,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.el.dataset.testid = `sampler-step-${slot}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
-      paintCell(sb, cell);
+      paintTriggerCell(sb, cell);
       sb.el.addEventListener('click', () => {
         setSelected(slot, s);
         engine.patterns.setSamplerCell(slot, s, { on: !engine.patterns.sampler[slot]![s]!.on });
@@ -212,26 +181,20 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   // ---- Per-step edit row (shared component; below the grid) ----
   const editor = new StepSettingsEditor({
     testidPrefix: 'sampler',
-    get: () => engine.patterns.sampler[selSlot]?.[selStep],
-    set: (p) => engine.patterns.setSamplerCell(selSlot, selStep, p),
+    get: () => engine.patterns.sampler[cursor.selRow]?.[cursor.selCol],
+    set: (p) => engine.patterns.setSamplerCell(cursor.selRow, cursor.selCol, p),
   });
   const selectedLabel = document.createElement('div');
   selectedLabel.className = editStyles.selectedLabel!;
   const renderSelected = () => {
-    const name = engine.patterns.sampleNames[selSlot] ?? SAMPLER_SLOT_LABELS[selSlot] ?? `S${selSlot + 1}`;
-    selectedLabel.textContent = `${name} · step ${selStep + 1}`;
+    const name = engine.patterns.sampleNames[cursor.selRow] ?? SAMPLER_SLOT_LABELS[cursor.selRow] ?? `S${cursor.selRow + 1}`;
+    selectedLabel.textContent = `${name} · step ${cursor.selCol + 1}`;
   };
   editor.el.insertBefore(selectedLabel, editor.el.firstChild);
   root.appendChild(editor.el);
   setSelected(0, 0);
 
-  // Highlight playback position — only when viewing the bank that's playing
-  const highlighter = new PlayheadHighlighter(stepBtns);
-  engine.sampler.onStep((idx) => {
-    const match = engine.patterns.samplerEditBank === engine.arrangement.samplerPlayBank;
-    highlighter.update(idx, match);
-    restOverlay.refresh();
-  });
+  const highlighter = wirePlayhead(engine, 'sampler', stepBtns, restOverlay);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSamplerBankChange((bank) => {
@@ -239,7 +202,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
     for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
       for (let i = 0; i < SEQ_LENGTH; i++) {
         const sb = stepBtns[s]?.[i];
-        if (sb) paintCell(sb, bank[s]![i]!);
+        if (sb) paintTriggerCell(sb, bank[s]![i]!);
       }
     }
     editor.refresh();
@@ -248,14 +211,14 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   // Live step edit updates
   engine.patterns.onSamplerChange((slot, step, cell) => {
     const sb = stepBtns[slot]?.[step];
-    if (sb) paintCell(sb, cell);
-    if (slot === selSlot && step === selStep) editor.refresh();
+    if (sb) paintTriggerCell(sb, cell);
+    if (slot === cursor.selRow && step === cursor.selCol) editor.refresh();
   });
 
   // Filename / load-state changes
   engine.patterns.onSampleMetaChange((slot) => {
     refreshLabel(slot);
-    if (slot === selSlot) renderSelected();
+    if (slot === cursor.selRow) renderSelected();
   });
 
   return root;

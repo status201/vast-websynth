@@ -9,9 +9,7 @@ import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
-import { PlayheadHighlighter } from '../components/playhead-highlighter';
-import { BankBar } from '../components/bank-bar';
-import { buildRestOverlay } from '../components/rest-overlay';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead } from './step-panel-scaffold';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { Dropdown } from '../components/dropdown';
@@ -41,17 +39,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
-  const bankBar = new BankBar({
-    getEdit: () => engine.patterns.seqEditBank,
-    setEdit: (i) => engine.patterns.setSeqEditBank(i),
-    copy: (f, t) => engine.patterns.copySeqBank(f, t),
-    onEditChange: (fn) => engine.patterns.onEditBankChange(fn),
-    getPlay: () => engine.arrangement.seqPlayBank,
-    onPlayChange: (fn) => engine.arrangement.onChange(fn),
-    hasContent: (i) => engine.patterns.seqBanks[i]!.some((s) => s.on),
-    onContentChange: (fn) => engine.patterns.onSeqChange(fn),
-    testidPrefix: 'seq',
-  });
+  const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
 
@@ -121,14 +109,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     steps.push(sb);
     stepRow.appendChild(sb.el);
   }
-  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
-  // rest bar (arrangement-rest.md REQ-6).
-  const gridWrap = document.createElement('div');
-  gridWrap.style.position = 'relative';
-  gridWrap.appendChild(stepRow);
-  const restOverlay = buildRestOverlay(engine, 'seq', { following: () => bankBar.following });
-  gridWrap.appendChild(restOverlay.el);
-  bankBar.onFollowChange(() => restOverlay.refresh());
+  const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'seq', bankBar, stepRow);
   root.appendChild(gridWrap);
 
   // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
@@ -141,13 +122,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     setSelected((selected + 1) % SEQ_LENGTH);
   });
 
-  // Highlight playback position — only when viewing the bank that's playing
-  const highlighter = new PlayheadHighlighter([steps]);
-  engine.seq.onStep((idx) => {
-    const match = engine.patterns.seqEditBank === engine.arrangement.seqPlayBank;
-    highlighter.update(idx, match);
-    restOverlay.refresh();
-  });
+  const highlighter = wirePlayhead(engine, 'seq', [steps], restOverlay);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSeqBankChange((bank) => {

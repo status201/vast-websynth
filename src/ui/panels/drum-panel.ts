@@ -7,26 +7,17 @@ import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
-import { PlayheadHighlighter } from '../components/playhead-highlighter';
-import { BankBar } from '../components/bank-bar';
-import { buildRestOverlay } from '../components/rest-overlay';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor } from './step-panel-scaffold';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
-import { StepSettingsEditor, stepTitle } from '../components/step-settings';
+import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
 import { ParamDropdown } from '../components/param-dropdown';
 import { DRUM_TRACK_LABELS, DRUM_MODEL_LABELS } from '../../state/params';
-import { DRUM_TRACK_COUNT, SEQ_LENGTH, type DrumCell } from '../../state/patterns';
+import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
-
-// Repaint a drum cell: lit state, the per-step settings viz and a tooltip.
-function paintCell(sb: StepButton, cell: DrumCell): void {
-  sb.setOn(cell.on);
-  sb.setViz(cell);
-  sb.el.title = stepTitle(cell);
-}
 
 export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
   const root = document.createElement('div');
@@ -35,17 +26,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
-  const bankBar = new BankBar({
-    getEdit: () => engine.patterns.drumEditBank,
-    setEdit: (i) => engine.patterns.setDrumEditBank(i),
-    copy: (f, t) => engine.patterns.copyDrumBank(f, t),
-    onEditChange: (fn) => engine.patterns.onEditBankChange(fn),
-    getPlay: () => engine.arrangement.drumPlayBank,
-    onPlayChange: (fn) => engine.arrangement.onChange(fn),
-    hasContent: (i) => engine.patterns.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
-    onContentChange: (fn) => engine.patterns.onDrumChange(fn),
-    testidPrefix: 'drum',
-  });
+  const bankBar = bankBarFor(engine, 'drum');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'drum'));
 
@@ -89,17 +70,12 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     DRUM_MODEL_LABELS[Math.round(bus.get(`drum.t${t}.model`))] ?? DRUM_TRACK_LABELS[t] ?? `T${t}`;
 
   // Selection cursor for the per-step edit row (one cell across the grid).
-  let selTrack = 0;
-  let selStep = 0;
-  const setSelected = (t: number, s: number): void => {
-    stepBtns[selTrack]?.[selStep]?.el.classList.remove(StepButton.selectedClass);
-    selTrack = t;
-    selStep = s;
-    stepBtns[t]?.[s]?.el.classList.add(StepButton.selectedClass);
+  const cursor = new GridCursor(stepBtns, () => {
     renderSelected();
     renderTuning();
     editor.refresh();
-  };
+  });
+  const setSelected = (t: number, s: number): void => cursor.set(t, s);
 
   for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
     const row = document.createElement('div');
@@ -113,7 +89,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     label.textContent = DRUM_TRACK_LABELS[t] ?? `T${t}`;
     label.title = 'Click to audition + edit its sound';
     label.addEventListener('click', () => {
-      setSelected(t, selStep);
+      setSelected(t, cursor.selCol);
       engine.drums.triggerTrack(t, 0.9);
     });
     ctrls.appendChild(label);
@@ -133,7 +109,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
       const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
       sb.el.dataset.testid = `drum-step-${t}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
-      paintCell(sb, cell);
+      paintTriggerCell(sb, cell);
       sb.el.addEventListener('click', () => {
         setSelected(t, s);
         engine.patterns.setDrumCell(t, s, { on: !engine.patterns.drum[t]![s]!.on });
@@ -145,14 +121,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     row.appendChild(cells);
     grid.appendChild(row);
   }
-  // Wrap the grid so the rest overlay can cover it while the arrangement plays a
-  // rest bar (arrangement-rest.md REQ-6).
-  const gridWrap = document.createElement('div');
-  gridWrap.style.position = 'relative';
-  gridWrap.appendChild(grid);
-  const restOverlay = buildRestOverlay(engine, 'drum', { following: () => bankBar.following });
-  gridWrap.appendChild(restOverlay.el);
-  bankBar.onFollowChange(() => restOverlay.refresh());
+  const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'drum', bankBar, grid);
   root.appendChild(gridWrap);
 
   // ---- Selected-drum tuning strip (sound design for the selected track) ----
@@ -178,19 +147,19 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   const renderTuning = (): void => {
     // The knobs bind per-track paramIds, so the strip only needs rebuilding when
     // the selected track changes — not on every step click (drum-machine.md REQ-10).
-    if (selTrack === tuningTrack) return;
-    tuningTrack = selTrack;
+    if (cursor.selRow === tuningTrack) return;
+    tuningTrack = cursor.selRow;
     for (const k of tuningCells) k.destroy();
     tuningCells = [];
     modelDd?.destroy();
     tuningKnobs.innerHTML = '';
-    tuningLabel.textContent = `${modelName(selTrack)} — sound`;
+    tuningLabel.textContent = `${modelName(cursor.selRow)} — sound`;
     // Voice model picker leads the strip (drum-machine.md REQ-11).
-    modelDd = new ParamDropdown(bus, `drum.t${selTrack}.model`, DRUM_MODEL_LABELS);
+    modelDd = new ParamDropdown(bus, `drum.t${cursor.selRow}.model`, DRUM_MODEL_LABELS);
     modelDd.el.dataset.testid = 'drum-model';
     tuningKnobs.appendChild(modelDd.el);
     for (const { suffix, label } of TUNING_PARAMS) {
-      const knob = new Knob({ bus, paramId: `drum.t${selTrack}.${suffix}`, label, size: 34 });
+      const knob = new Knob({ bus, paramId: `drum.t${cursor.selRow}.${suffix}`, label, size: 34 });
       tuningCells.push(knob);
       tuningKnobs.appendChild(knob.el);
     }
@@ -202,7 +171,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
       // Reset each tuning knob to the same baseline a double-tap uses (loaded
       // preset/song value, else default; see param-reset-baseline.md).
       for (const { suffix } of TUNING_PARAMS) {
-        bus.reset(`drum.t${selTrack}.${suffix}`);
+        bus.reset(`drum.t${cursor.selRow}.${suffix}`);
       }
     },
   });
@@ -231,13 +200,13 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   // ---- Per-step edit row (shared component; below the grid) ----
   const editor = new StepSettingsEditor({
     testidPrefix: 'drum',
-    get: () => engine.patterns.drum[selTrack]?.[selStep],
-    set: (p) => engine.patterns.setDrumCell(selTrack, selStep, p),
+    get: () => engine.patterns.drum[cursor.selRow]?.[cursor.selCol],
+    set: (p) => engine.patterns.setDrumCell(cursor.selRow, cursor.selCol, p),
   });
   const selectedLabel = document.createElement('div');
   selectedLabel.className = editStyles.selectedLabel!;
   const renderSelected = () => {
-    selectedLabel.textContent = `${modelName(selTrack)} · step ${selStep + 1}`;
+    selectedLabel.textContent = `${modelName(cursor.selRow)} · step ${cursor.selCol + 1}`;
   };
   editor.el.insertBefore(selectedLabel, editor.el.firstChild);
   root.appendChild(editor.el);
@@ -250,20 +219,14 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
       const name = modelName(track);
       const l = trackLabels[track];
       if (l) l.textContent = name;
-      if (track === selTrack) {
+      if (track === cursor.selRow) {
         tuningLabel.textContent = `${name} — sound`;
         renderSelected();
       }
     });
   }
 
-  // Highlight playback position — only when viewing the bank that's playing
-  const highlighter = new PlayheadHighlighter(stepBtns);
-  engine.drums.onStep((idx) => {
-    const match = engine.patterns.drumEditBank === engine.arrangement.drumPlayBank;
-    highlighter.update(idx, match);
-    restOverlay.refresh();
-  });
+  const highlighter = wirePlayhead(engine, 'drum', stepBtns, restOverlay);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onDrumBankChange((bank) => {
@@ -271,7 +234,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
       for (let s = 0; s < SEQ_LENGTH; s++) {
         const sb = stepBtns[t]?.[s];
-        if (sb) paintCell(sb, bank[t]![s]!);
+        if (sb) paintTriggerCell(sb, bank[t]![s]!);
       }
     }
     editor.refresh();
@@ -280,8 +243,8 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   // Live step edit updates
   engine.patterns.onDrumChange((track, step, cell) => {
     const sb = stepBtns[track]?.[step];
-    if (sb) paintCell(sb, cell);
-    if (track === selTrack && step === selStep) editor.refresh();
+    if (sb) paintTriggerCell(sb, cell);
+    if (track === cursor.selRow && step === cursor.selCol) editor.refresh();
   });
 
   return root;

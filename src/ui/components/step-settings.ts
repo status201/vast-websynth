@@ -1,7 +1,8 @@
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/step-settings.module.css';
-import type { StepSettings } from '../../state/patterns';
+import type { StepSettings, TriggerCell } from '../../state/patterns';
 import { createButton } from './button';
+import type { StepButton } from './step-button';
 
 /**
  * Per-step settings edit row shared by the sequencer, drum and sampler
@@ -93,6 +94,17 @@ export function stepTitle(s: StepSettings): string {
   return `vel ${pct(s.velocity)} · gate ${pct(s.gate)} · prob ${pct(s.prob)}`
     + (s.ratchet > 1 ? ` · ×${s.ratchet}` : '')
     + (s.tie ? ' · tie' : '');
+}
+
+/**
+ * Repaint a one-shot trigger cell (drum track / sampler slot): lit state, the
+ * per-step settings viz and the tooltip. The seq panel keeps its own painter —
+ * it additionally writes the note name as the button label.
+ */
+export function paintTriggerCell(sb: StepButton, cell: TriggerCell): void {
+  sb.setOn(cell.on);
+  sb.setViz(cell);
+  sb.el.title = stepTitle(cell);
 }
 
 function makeSlider(label: string, min: number, max: number, get: () => number, set: (v: number) => void): { el: HTMLElement; refresh(): void } {
