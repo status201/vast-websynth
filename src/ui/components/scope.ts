@@ -363,8 +363,11 @@ export class Scope {
   private drawLabel(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
     ctx.fillStyle = 'rgba(244, 205, 94, 0.4)';
     ctx.font = '10px ui-monospace, monospace';
-    ctx.textBaseline = 'top';
-    ctx.fillText(r.label, r.x + 4, r.y + 4);
+    // Bottom-left: the corner overlay buttons (Mono/Stereo top-left, Wave/Spectrum
+    // top-right) sit flush with the canvas corners, so a top-anchored label hides
+    // behind them. Same dodge the peak-dB readout makes by centring. (REQ-6)
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(r.label, r.x + 4, r.y + r.h - 4);
   }
 
   private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {

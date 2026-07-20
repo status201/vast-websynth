@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 6   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024
+version: 7   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons)
 owner: status201
 related:
   - architecture
@@ -79,7 +79,14 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
 - **REQ-6** — The Wave and Spectrum renderers are **rect-scoped** (draw into a
   given region), so a single renderer serves 1 region (mono) or 2 (stereo) — DRY,
   no per-mode duplication. Each region draws its own mid-line; stereo regions show
-  a faint `L`/`R` label.
+  a faint `L`/`R` label. The label is anchored at its region's **bottom-left**
+  (`textBaseline: 'bottom'`, inset 4 px), **not** the top-left: the two corner
+  overlay buttons — Mono/Stereo (`top: 8px; left: 8px`) and Wave/Spectrum
+  (`top: 8px; right: 8px`) — sit flush with the canvas corners inside the
+  8 px-padded `.scopeWrap`, so a top-anchored `L` is completely hidden behind the
+  Mono/Stereo button. The bottom edge is the only quadrant free of overlay chrome
+  in **both** stereo layouts (side-by-side and stacked). This is the same dodge
+  the peak-dB readout already makes by centring horizontally.
 - **REQ-7** — A second toggle button (`data-testid="scope-channels-toggle"`) sits
   in the scope panel, labelled `Mono`/`Stereo`, defaulting to `Mono`. Clicking it
   flips `Scope.setChannels` and its own label, without disturbing the Wave/Spectrum
@@ -337,6 +344,14 @@ Scenario: Engine exposes working left and right analysers tapped pre-master
   And each differs from the mono analyser
   And getByteTimeDomainData fills a buffer of length fftSize on each
 # pinned by: e2e/scope.spec.ts
+
+Scenario: Stereo channel labels clear the corner overlay buttons (regression)
+  Given the scope is in Stereo mode
+  Then each region's L/R label is drawn at that region's bottom-left, inset 4px
+  And neither label is overlapped by the Mono/Stereo button at the canvas top-left
+  Nor by the Wave/Spectrum button at the canvas top-right
+  And this holds in both the side-by-side and the stacked stereo layout
+# pinned by: design contract (REQ-6); canvas text is not assertable from the DOM
 
 Scenario: Stereo requested without per-channel analysers stays mono (defensive)
   Given a Scope built with only a mono analyser
