@@ -114,28 +114,47 @@
 .chip.rest svg { width: 16px; height: 16px; display: block; }
 .chip.rest:global(.playing) svg { color: #f4e4c2; }
 
-/* Rest add-button: matches the A/B/C/D add-buttons but carries the rest glyph. */
-.addRest { display: inline-flex; align-items: center; justify-content: center; }
-.addRest svg { width: 15px; height: 15px; display: block; }
+/* Rest add-button: matches the A/B/C/D add-buttons but carries the rest glyph.
+   Centring comes from .add — only the glyph size is specific to this one. 14px
+   is what fits .add's content box exactly (26px - 2px border - 10px padding,
+   box-sizing:border-box); at 15px the glyph pushed the button to 27px. */
+.addRest svg { width: 14px; height: 14px; display: block; }
 
+/* The edit row (bank palette + move/delete/clear) is a toolbar for the chain
+   above it, not part of it — same dashed divider as .djFx / .io below. */
 .controls {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-top: 8px;
 }
 
-.addRow { display: inline-flex; gap: 3px; }
+/* align-items:center, or the taller rest button stretches A/B/C/D and their
+   letters pin to the top of the stretched box (.btn is a column flex). */
+.addRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
 
-.add {
+/* Scoped under .addRow (0-2-0) so it beats bank-bar's .btn/.add deterministically
+   — both are 0-1-0 and set min-width/padding/color, so unscoped the winner would
+   depend on bundle source order (i.e. the import order in song-panel.ts). */
+.addRow .add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center; /* column flex from .btn, so this centres vertically */
   min-width: 26px;
+  min-height: 26px; /* match .ctl, so the whole row shares one control height */
   padding: 5px 7px;
   background: linear-gradient(180deg, #1a1410, #0a0805);
   border: 1px solid var(--panel-border);
   border-radius: 3px;
   color: var(--text-dim);
 }
-.add:hover { color: var(--accent-secondary); }
+.addRow .add:hover { color: var(--accent-secondary); }
 
 .ctl { min-height: 26px; padding: 4px 8px; }
 
