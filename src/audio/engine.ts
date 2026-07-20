@@ -1,13 +1,8 @@
 import { LadderFilterNode } from './ladder-filter/node';
 import { Voice } from './voice';
 import { LFO } from './lfo';
-import { Distortion } from './effects/distortion';
-import { Wah } from './effects/wah';
-import { Phaser } from './effects/phaser';
-import { Delay } from './effects/delay';
-import { Reverb } from './effects/reverb';
 import { Compressor } from './effects/compressor';
-import { chain } from './effects/effect';
+import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
 import { ParamBus, registerDefaults } from '../state/params';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
@@ -69,22 +64,16 @@ export class Engine {
   readonly analyserL: AnalyserNode;
   readonly analyserR: AnalyserNode;
 
-  readonly distortion: Distortion;
-  readonly wah: Wah;
-  readonly phaser: Phaser;
-  readonly delay: Delay;
-  readonly reverb: Reverb;
+  /** The three insert chains, each self-wiring its own params (ADR-008). */
+  readonly synthFx: ReturnType<typeof createSynthChain>;
+  readonly drumFx: ReturnType<typeof createDrumChain>;
+  readonly samplerFx: ReturnType<typeof createSamplerChain>;
 
-  readonly drumPhaser: Phaser;
-  readonly drumDelay: Delay;
-  readonly drumReverb: Reverb;
-  readonly drumComp: Compressor;
+  /** Master-bus compressor — not a chain member; it sits djFilter → here → analyser. */
   readonly masterComp: Compressor;
 
-  readonly samplerDist: Distortion;
-  readonly samplerPhaser: Phaser;
-  readonly samplerDelay: Delay;
-  readonly samplerReverb: Reverb;
+  /** The drum-bus compressor. Kept as a named accessor for `StudioApi`. */
+  get drumComp(): Compressor { return this.drumFx.fx.comp; }
 
   readonly preMaster!: GainNode;
   readonly drumBus!: GainNode;
@@ -146,22 +135,11 @@ export class Engine {
     const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
     const distOpts = { oversample: this.fxOversample };
 
-    this.distortion = new Distortion(this.ctx, distOpts);
-    this.wah = new Wah(this.ctx);
-    this.phaser = new Phaser(this.ctx);
-    this.delay = new Delay(this.ctx);
-    this.reverb = new Reverb(this.ctx, reverbOpts);
-
-    this.drumPhaser = new Phaser(this.ctx);
-    this.drumDelay = new Delay(this.ctx);
-    this.drumReverb = new Reverb(this.ctx, reverbOpts);
-    this.drumComp = new Compressor(this.ctx, 'fet');
+    const chainOpts = { dist: distOpts, reverb: reverbOpts };
+    this.synthFx = createSynthChain(this.ctx, chainOpts);
+    this.drumFx = createDrumChain(this.ctx, chainOpts);
+    this.samplerFx = createSamplerChain(this.ctx, chainOpts);
     this.masterComp = new Compressor(this.ctx, 'vca');
-
-    this.samplerDist = new Distortion(this.ctx, distOpts);
-    this.samplerPhaser = new Phaser(this.ctx);
-    this.samplerDelay = new Delay(this.ctx);
-    this.samplerReverb = new Reverb(this.ctx, reverbOpts);
 
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
@@ -197,15 +175,10 @@ export class Engine {
     this.samplerBus = this.ctx.createGain();
     this.samplerBus.gain.value = 1;
 
-    // Synth FX chain
-    chain(this.voiceBus, [this.distortion, this.wah, this.phaser, this.delay, this.reverb], this.preMaster);
-
-    // Drum FX chain: compressor → phaser → delay → reverb. The 1176-style
-    // compressor sits first so it smashes the dry hits, not the FX wash.
-    chain(this.drumBus, [this.drumComp, this.drumPhaser, this.drumDelay, this.drumReverb], this.preMaster);
-
-    // Sampler FX chain: distortion → phaser → delay → reverb
-    chain(this.samplerBus, [this.samplerDist, this.samplerPhaser, this.samplerDelay, this.samplerReverb], this.preMaster);
+    // Each chain owns its own effect order + param prefixes (effects/fx-chain.ts).
+    this.synthFx.wire(this.voiceBus, this.preMaster);
+    this.drumFx.wire(this.drumBus, this.preMaster);
+    this.samplerFx.wire(this.samplerBus, this.preMaster);
 
     // DJ performance filter — transparent by default, swept live.
     this.djFilter = this.ctx.createBiquadFilter();
@@ -313,7 +286,7 @@ export class Engine {
     // buses never enter it. Engine keeps the state juggling (REQ-5) in the
     // prepare closure so LaneMixer/private state stays out of the controller.
     const bankRenderNode = await RecorderNode.create(this.ctx);
-    this.reverb.output.connect(bankRenderNode.input);
+    this.synthFx.tail.connect(bankRenderNode.input);
     this.bankRender = new BankRenderController(
       this.clock,
       bankRenderNode,
@@ -505,25 +478,11 @@ export class Engine {
     bus.subscribe('lfo.wave', (x) => this.lfo.setWave(x));
     bus.subscribe('lfo.dest', (x) => this.lfo.setDest(x));
 
-    // Insert effects self-wire their own params (ADR-008); the same class binds
-    // at a different prefix for the drum/sampler bus variants.
-    this.distortion.bind(bus, 'fx.dist');
-    this.wah.bind(bus, 'fx.wah');
-    this.phaser.bind(bus, 'fx.phaser');
-    this.delay.bind(bus, 'fx.delay');
-    this.reverb.bind(bus, 'fx.reverb');
-
-    // Drum FX (compressor: 1176 FET; ratio index → real ratio, 100 = ALL)
-    this.drumPhaser.bind(bus, 'fx.drum.phaser');
-    this.drumDelay.bind(bus, 'fx.drum.delay');
-    this.drumReverb.bind(bus, 'fx.drum.reverb');
-    this.drumComp.bind(bus, 'fx.drum.comp', [4, 8, 12, 20, 100]);
-
-    // Sampler FX
-    this.samplerDist.bind(bus, 'fx.sampler.dist');
-    this.samplerPhaser.bind(bus, 'fx.sampler.phaser');
-    this.samplerDelay.bind(bus, 'fx.sampler.delay');
-    this.samplerReverb.bind(bus, 'fx.sampler.reverb');
+    // Insert effects self-wire their own params (ADR-008); each chain carries
+    // its own prefixes and (for the drum comp) its ratio table.
+    this.synthFx.bind(bus);
+    this.drumFx.bind(bus);
+    this.samplerFx.bind(bus);
 
     // DJ filter (manual sweep; Drop overrides it while held)
     bus.subscribe('fx.djfilter', (x) => this.perf.setDjFilter(x));

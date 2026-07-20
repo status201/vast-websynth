@@ -287,6 +287,19 @@ voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb
 - `drumComp` is a **FET**-mode compressor; `masterComp` is a **VCA**-mode
   compressor (see [`features/compressor.md`](features/compressor.md)).
 
+The three insert chains are built as units by `audio/effects/fx-chain.ts` —
+`createSynthChain` / `createDrumChain` / `createSamplerChain`, held on Engine as
+`synthFx` / `drumFx` / `samplerFx`. Each `FxChain` owns its effect **order**, its
+param **prefixes** and (for the drum comp) its **ratio table**, and exposes
+`fx` (named members, e.g. `drumFx.fx.comp`), `tail` (the last effect's output —
+the bank-render tap point), `wire(input, output)` and `bind(bus)`. They are three
+explicit factories rather than one generic spec because the chains are alike but
+not identical: only the synth has a wah, only the drum bus heads with a
+compressor. `masterComp` stays a flat Engine field — it is a master-bus insert
+(`djFilter → masterComp → analyser`), not a chain member — and `Engine.drumComp`
+remains available as a getter onto `drumFx.fx.comp`, which is what `StudioApi`
+and the drum panel's GR meter read.
+
 ### State model (the "schemas")
 
 ```yaml
