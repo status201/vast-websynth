@@ -51,10 +51,25 @@
   min-height: 0;
 }
 
+/* Wraps at every width, not just below a breakpoint: with all four effects
+   engaged the row exceeds even a 1280px panel, and .content (tabs.module.css)
+   is an overflow:auto container — so an unwrapped row drags a horizontal
+   scrollbar across the whole panel, step grid included. */
 .patternPanelHeader {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* The machine's effect groups as one unit, so the row breaks between machine
+   controls and FX rather than mid-cluster. See responsive-machine-header.md. */
+.fxCluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 /* ===== Header ===== */
@@ -432,6 +447,10 @@
     display: block;
     flex: 1;
   }
+  /* Machine panel headers: the FX cluster leads its own full-width row, so the
+     machine controls (switch/master/banks/undo/actions) never reflow around an
+     individual effect group. */
+  .fxCluster { flex-basis: 100%; }
 }
 
 @media (max-width: 992px) {

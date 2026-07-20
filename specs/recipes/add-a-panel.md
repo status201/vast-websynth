@@ -87,6 +87,12 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
 - Style with a `*.module.css` and the shared `layout.patternPanel` /
   `patternPanelHeader` classes; reference global state classes (`.on`,
   `.active`) via `:global(...)`.
+- **Group effect groups into `layout.fxCluster`.** If the panel has inline
+  `fxGroup(...)`s, append them to one `.fxCluster` div rather than straight to
+  the header — the header wraps, and the cluster is what keeps the break
+  between machine controls and FX instead of mid-cluster
+  ([responsive-machine-header](../features/responsive-machine-header.md)).
+  Machine controls stay direct children of the header.
 - The `TabContainer` wraps content in a `panel-<id>` shell and toggles a
   `visible` class — don't set `display` on your root in a way that fights it.
 

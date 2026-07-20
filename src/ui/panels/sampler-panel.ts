@@ -37,27 +37,33 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   recBtn.title = 'Record a sound from your microphone';
   recBtn.addEventListener('click', () => openRecordSoundModal(engine));
   header.appendChild(recBtn);
-  header.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [
+
+  // One cluster so the header breaks between machine controls and FX rather
+  // than mid-cluster (responsive-machine-header.md).
+  const fx = document.createElement('div');
+  fx.className = layout.fxCluster!;
+  fx.appendChild(fxGroup(bus, 'DIST', 'fx.sampler.dist', [
     { id: 'fx.sampler.dist.drive', label: 'DRIVE' },
     { id: 'fx.sampler.dist.tone', label: 'TONE' },
     { id: 'fx.sampler.dist.mix', label: 'MIX' },
   ]));
-  header.appendChild(fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
+  fx.appendChild(fxGroup(bus, 'PHASER', 'fx.sampler.phaser', [
     { id: 'fx.sampler.phaser.rate', label: 'RATE' },
     { id: 'fx.sampler.phaser.depth', label: 'DEPTH' },
     { id: 'fx.sampler.phaser.feedback', label: 'FB' },
     { id: 'fx.sampler.phaser.mix', label: 'MIX' },
   ]));
-  header.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
+  fx.appendChild(fxGroup(bus, 'DELAY', 'fx.sampler.delay', [
     { id: 'fx.sampler.delay.time', label: 'TIME' },
     { id: 'fx.sampler.delay.feedback', label: 'FB' },
     { id: 'fx.sampler.delay.mix', label: 'MIX' },
   ]));
-  header.appendChild(fxGroup(bus, 'REVERB', 'fx.sampler.reverb', [
+  fx.appendChild(fxGroup(bus, 'REVERB', 'fx.sampler.reverb', [
     { id: 'fx.sampler.reverb.size', label: 'SIZE' },
     { id: 'fx.sampler.reverb.damp', label: 'DAMP' },
     { id: 'fx.sampler.reverb.mix', label: 'MIX' },
   ]));
+  header.appendChild(fx);
 
   root.appendChild(header);
 

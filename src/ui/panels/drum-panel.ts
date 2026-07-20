@@ -31,31 +31,36 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   header.appendChild(createUndoButton(undo, 'drum'));
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
+  // One cluster so the header breaks between machine controls and FX rather
+  // than mid-cluster (responsive-machine-header.md).
   const drumGr = new GrMeter('grmeter-fx.drum.comp');
   engine.drumComp.onGr((db) => drumGr.update(db));
-  header.appendChild(fxGroup(bus, 'COMP', 'fx.drum.comp', [
+  const fx = document.createElement('div');
+  fx.className = layout.fxCluster!;
+  fx.appendChild(fxGroup(bus, 'COMP', 'fx.drum.comp', [
     { id: 'fx.drum.comp.threshold', label: 'THR' },
     { id: 'fx.drum.comp.ratio', label: 'RATIO' },
     { id: 'fx.drum.comp.attack', label: 'ATK' },
     { id: 'fx.drum.comp.release', label: 'REL' },
     { id: 'fx.drum.comp.makeup', label: 'GAIN' },
   ], { trailing: drumGr.el }));
-  header.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
+  fx.appendChild(fxGroup(bus, 'PHASER', 'fx.drum.phaser', [
     { id: 'fx.drum.phaser.rate', label: 'RATE' },
     { id: 'fx.drum.phaser.depth', label: 'DEPTH' },
     { id: 'fx.drum.phaser.feedback', label: 'FB' },
     { id: 'fx.drum.phaser.mix', label: 'MIX' },
   ]));
-  header.appendChild(fxGroup(bus, 'DELAY', 'fx.drum.delay', [
+  fx.appendChild(fxGroup(bus, 'DELAY', 'fx.drum.delay', [
     { id: 'fx.drum.delay.time', label: 'TIME' },
     { id: 'fx.drum.delay.feedback', label: 'FB' },
     { id: 'fx.drum.delay.mix', label: 'MIX' },
   ]));
-  header.appendChild(fxGroup(bus, 'REVERB', 'fx.drum.reverb', [
+  fx.appendChild(fxGroup(bus, 'REVERB', 'fx.drum.reverb', [
     { id: 'fx.drum.reverb.size', label: 'SIZE' },
     { id: 'fx.drum.reverb.damp', label: 'DAMP' },
     { id: 'fx.drum.reverb.mix', label: 'MIX' },
   ]));
+  header.appendChild(fx);
   root.appendChild(header);
 
   // ---- Track rows ----
