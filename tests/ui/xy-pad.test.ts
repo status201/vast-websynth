@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createXyPad } from '../../src/ui/components/xy-pad';
-import { toNorm, fromNorm } from '../../src/ui/components/taper';
+import { toNorm, fromNorm } from '../../src/utils/taper';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { XyPadStore } from '../../src/state/xy-pad';
 

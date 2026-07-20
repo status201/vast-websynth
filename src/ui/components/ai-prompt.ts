@@ -5,7 +5,7 @@
 // demo as a worked, downloadable example. Reuses the Modal lifecycle and the
 // modal.module.css styling. The prompt text itself lives in the pure
 // state/authoring-guide.ts (shared with the MCP server); this module keeps
-// the modal and re-exports buildSongPrompt for its existing consumers.
+// only the modal.
 import type { ParamBus } from '../../state/params';
 import { buildSongPrompt } from '../../state/authoring-guide';
 import { Song, DEMO_SONGS } from '../../state/song';
@@ -15,8 +15,6 @@ import { copyText, flashCopied } from '../clipboard';
 import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
-
-export { buildSongPrompt } from '../../state/authoring-guide';
 
 const EXAMPLE_NAME = 'I Feel Love';
 

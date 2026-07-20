@@ -1,8 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-  buildSongPrompt,
-  createAiPromptButton,
-} from '../../src/ui/components/ai-prompt';
+import { createAiPromptButton } from '../../src/ui/components/ai-prompt';
+import { buildSongPrompt } from '../../src/state/authoring-guide';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import modalStyles from '../../src/ui/styles/modal.module.css';
@@ -46,11 +44,6 @@ describe('buildSongPrompt', () => {
     expect(prompt).toContain('NEVER truncate');
     expect(prompt).toMatch(/under ~80 lines/);
     expect(prompt).toMatch(/1-2 banks/);
-  });
-
-  it('re-exports buildSongPrompt from the pure authoring guide', async () => {
-    const guide = await import('../../src/state/authoring-guide');
-    expect(buildSongPrompt).toBe(guide.buildSongPrompt);
   });
 
   it('injects a creative brief into the SONG REQUEST section', () => {

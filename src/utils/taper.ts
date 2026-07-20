@@ -2,8 +2,8 @@ import type { ParamDef } from '../state/params';
 
 // Pure value ↔ normalized-position mappings for the parameter tapers. Lives in
 // utils (not ui/) because both the UI (Knob, XY Pad) and the audio layer (the
-// motion sequencer's coordinate→value mapping) need it; ui/components/taper.ts
-// re-exports for existing imports. Unit-tested in tests/ui/taper.test.ts.
+// motion sequencer's coordinate→value mapping) need it.
+// Unit-tested in tests/ui/taper.test.ts.
 //
 //   linear  — straight lerp across [min, max]
 //   exp     — geometric; needs min > 0 (wide-range time/frequency knobs)

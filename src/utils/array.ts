@@ -15,20 +15,3 @@ export function assertIndex<T>(
   }
   return arr[index] as T;
 }
-
-export function assertCell3D<T>(
-  cells: readonly (readonly (readonly T[])[])[],
-  bank: number,
-  track: number,
-  step: number,
-): T {
-  return assertIndex(
-    assertIndex(
-      assertIndex(cells, bank, 'banks'),
-      track,
-      'tracks',
-    ),
-    step,
-    'steps',
-  );
-}

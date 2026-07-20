@@ -227,8 +227,6 @@
   margin: 0 var(--side-margin);
 }
 
-.mixerTall { grid-row: span 2; }
-
 /* ===== FX section ===== */
 
 .fxSection {
@@ -403,7 +401,6 @@
 
 @media (max-width: 1280px) {
   .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .mixerTall { grid-row: span 2; }
   .patternRow { min-height: 200px; }
 }
 
@@ -448,7 +445,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
-  .mixerTall { grid-row: auto; }
   .fxRow { grid-template-columns: repeat(2, 1fr); }
   .keyboardWrap { min-height: 160px; }
 }

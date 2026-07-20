@@ -1,6 +1,6 @@
 import styles from '../styles/knob.module.css';
 import type { ParamBus, ParamDef } from '../../state/params';
-import { toNorm, fromNorm } from './taper';
+import { toNorm, fromNorm } from '../../utils/taper';
 
 export interface KnobOptions {
   bus: ParamBus;

@@ -10,7 +10,6 @@ import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import { PlayheadHighlighter } from '../components/playhead-highlighter';
-import { Knob } from '../components/knob';
 import { BankBar } from '../components/bank-bar';
 import { buildRestOverlay } from '../components/rest-overlay';
 import { noteName } from '../components/keyboard';
@@ -309,9 +308,6 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
 
   // Initial selected highlight
   stepRow.querySelector(`.${StepButton.rootClass}`)?.classList.add(StepButton.selectedClass);
-
-  // Avoid unused-variable warning on Knob (kept import for potential future use)
-  void Knob;
 
   return root;
 }

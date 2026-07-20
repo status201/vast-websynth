@@ -140,9 +140,8 @@ The tab sits between Sampler and Song.
   `setMotionAssign(i, a|null)`, `onMotionChange`, `onMotionBankChange`.
 - `Arrangement`: `motionPlayBank`, `motionResting`, `setMotionChain(steps, enabled)`,
   `motionChainPos`.
-- `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of
-  `ui/components/taper.ts` (which re-exports) so the audio layer can map
-  taper-correctly without importing UI code.
+- `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of the
+  UI layer so the audio layer can map taper-correctly without importing UI code.
 - `src/ui/components/motion-graph.ts` (pure, v2):
   `motionGraphPoints(bank, view, mode) → { line: [x,y][]; dots: [x,y][] }` in the
   graph SVG's 0–100 viewBox space (dots at anchor centres; step mode's line is

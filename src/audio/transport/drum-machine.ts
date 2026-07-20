@@ -16,8 +16,6 @@ export type DrumStepListener = (step: number) => void;
  * The label list lives in state (`DRUM_MODEL_LABELS`); MODEL_BUILDERS below
  * must stay index-aligned with it.
  */
-export { DRUM_MODEL_LABELS as DRUM_VOICE_MODELS } from '../../state/params';
-
 const MODEL_BUILDERS: readonly ((ctx: AudioContext, noise: AudioBuffer) => DrumSynth)[] = [
   (ctx) => new Kick(ctx),
   (ctx, noise) => new Snare(ctx, noise),

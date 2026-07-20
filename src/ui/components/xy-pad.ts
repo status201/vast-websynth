@@ -2,7 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { XyPadStore, XyAssign } from '../../state/xy-pad';
 import type { EffectiveXy } from '../../state/xy-effective';
 import { Dropdown } from './dropdown';
-import { toNorm, fromNorm } from './taper';
+import { toNorm, fromNorm } from '../../utils/taper';
 import styles from '../styles/xy-pad.module.css';
 
 /**

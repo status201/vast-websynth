@@ -65,7 +65,6 @@ export const MOTION_STEP_DEFAULTS: MotionStep = { on: false, x: 0.5, y: 0.5 };
 export const SEQ_LENGTH = 16;
 
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
-export type DrumTrack = typeof DRUM_TRACKS[number];
 export const DRUM_TRACK_COUNT = DRUM_TRACKS.length;
 
 export const SAMPLER_SLOT_COUNT = 8;

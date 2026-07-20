@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toNorm, fromNorm } from '../../src/ui/components/taper';
+import { toNorm, fromNorm } from '../../src/utils/taper';
 import type { ParamDef } from '../../src/state/params';
 
 const def = (over: Partial<ParamDef>): ParamDef => ({

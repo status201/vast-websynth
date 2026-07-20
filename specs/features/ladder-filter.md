@@ -17,7 +17,7 @@ source:
   - src/audio/ladder-filter/node.ts       # LadderFilterNode wrapper
   - src/state/params.ts                   # filter.* ParamDefs
   - src/audio/engine.ts                   # subscribeParams (per-voice)
-  - src/ui/components/taper.ts             # power-taper knob mapping
+  - src/utils/taper.ts                    # power-taper knob mapping
   - src/ui/app.ts                         # the FILTER panel
 ```
 
@@ -137,7 +137,7 @@ filter.drive:     { range: 0.5..6,  default: 1.2, format: "x" }
 filter.envAmount: { range: -48..48, default: 24, unit: semitones }            # bipolar
 ```
 
-The `power` taper (`Taper` in `params.ts`, applied by `ui/components/taper.ts`)
+The `power` taper (`Taper` in `params.ts`, applied by `utils/taper.ts`)
 maps knob position `c → min + (max-min)·c^curve`; `curve < 1` stretches the
 high-resonance end across more knob travel. It is the only non-trivial mapping
 that works at `min = 0` (`exp` requires `min > 0`).
@@ -263,7 +263,7 @@ Scenario: Resonance knob has a power taper (non-linear mapping)
   on construction/noteOn/release-complete/kill (mock AudioContext + mock
   worklet port).
 - Unit (taper): `tests/ui/taper.test.ts` — `power` taper mapping +
-  round-trip for `ui/components/taper.ts`.
+  round-trip for `utils/taper.ts`.
 - E2E: `e2e/controls.spec.ts` — drives the control surface; assert via
   `window.__synth.bus.get('filter.cutoff')`. `npm run e2e`.
 - Typecheck: `npm run typecheck`.

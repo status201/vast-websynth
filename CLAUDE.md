@@ -311,8 +311,8 @@ listener mechanism.
   (`motion-curve.ts` — slide = linear breakpoints across gaps + last→first
   wrap; step = jump-and-hold) on a perf-fps-throttled rAF loop against the
   audio clock's *now* (tick `when`s are scheduled ahead), writing via
-  `bus.set` with taper-correct `fromNorm` (`utils/taper.ts`, extracted from
-  `ui/components/taper.ts` which re-exports). Baseline discipline: first
+  `bus.set` with taper-correct `fromNorm` (`utils/taper.ts` — shared by the UI
+  knob/XY-pad and the audio layer). Baseline discipline: first
   write per param records its prior value; stop / `motion.on→0` /
   `motion.mute→1` restores all.
   Per-bank axis override `motionAssigns` falls back per-axis to `XyPadStore`.

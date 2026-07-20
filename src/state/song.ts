@@ -12,7 +12,6 @@ import { XY_DEFAULT_ASSIGN } from './xy-pad';
 import { validateSongFile } from './song-validate';
 import { isAuthorSong, expandAuthorSong } from './song-author';
 import { compactSongForExport } from './serialize';
-export type { SongValidation } from './song-validate';
 
 const STORAGE_PREFIX = 'websynth.song.';
 const INDEX_KEY = 'websynth.song.index';

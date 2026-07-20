@@ -109,7 +109,7 @@ DrumMachine:  # src/audio/transport/drum-machine.ts
   setTrackModel(i, model)              # swap the voice algorithm (REQ-11)
   triggerTrack(i, velocity)            # UI audition
   onStep(fn) -> unsubscribe
-DRUM_VOICE_MODELS: string[]  # dropdown labels, index = model value (drum-machine.ts)
+DRUM_MODEL_LABELS: string[]  # dropdown labels, index = model value (state/params.ts)
 DrumSynth:    # src/audio/drums/drum-synths.ts
   output: AudioNode
   trigger(when, velocity, chokeAt?)   # chokeAt cuts the hit with a fast fade
@@ -132,7 +132,7 @@ drum.t{i}.drive: { range: 0..1, default: 0, format: pct }   # 0 = clean (no-op)
 drum.t{i}.pan:   { range: -1..1, default: 0, format: L/C/R } # 0 = centre (no-op)
 drum.t{i}.mute:  { discrete, labels: [on, mute], default: 0 }
 drum.t{i}.model: { range: 0..12, default: i, step: 1, taper: discrete,
-                   labels: DRUM_VOICE_MODELS }   # default = the classic voice (REQ-11)
+                   labels: DRUM_MODEL_LABELS }   # default = the classic voice (REQ-11)
 # step grid: DrumCell[track][step] in PatternStore — see step-settings.md
 ```
 
@@ -237,5 +237,5 @@ Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-10, 
   (see `specs/recipes/add-a-drum-voice.md`).
 - Per-track voice models shipped in v5 (REQ-11) with five percussion voices;
   further models (e.g. 808 vs 909 kick variants) can extend
-  `DRUM_VOICE_MODELS` without another schema change.
+  `DRUM_MODEL_LABELS` without another schema change.
 ```

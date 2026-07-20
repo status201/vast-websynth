@@ -2,8 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { SynthOutput } from './note-output';
 import type { TickSubscriber } from './tick-source';
 
-export const ARP_PATTERNS = ['up', 'down', 'up-down', 'random', 'as-played'];
-export const ARP_RATES = ['1/4', '1/8', '1/16', '1/32'];
+// Dropdown labels live in ARP_PATTERN_LABELS / ARP_RATE_LABELS (state/params.ts).
 const RATE_DIVISIONS = [4, 2, 1, 0.5]; // 16ths per step at each rate
 
 /**
