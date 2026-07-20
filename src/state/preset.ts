@@ -1,8 +1,8 @@
 import type { ParamBus } from './params';
 import { roundParams } from './serialize';
+import { SlotStore } from './slot-store';
 
-const STORAGE_PREFIX = 'websynth.preset.';
-const INDEX_KEY = 'websynth.preset.index';
+const store = new SlotStore('websynth.preset.');
 
 export type Snapshot = Record<string, number>;
 
@@ -254,26 +254,23 @@ export const Presets = {
   factory(): FactoryBank { return FACTORY; },
 
   list(): string[] {
-    const ix = readIndex();
-    return [...new Set([...Object.keys(FACTORY), ...ix])].sort();
+    return [...new Set([...Object.keys(FACTORY), ...store.readIndex()])].sort();
   },
 
   ensureFactoryPresets(): void {
     for (const [name, snap] of Object.entries(FACTORY)) {
-      if (!localStorage.getItem(STORAGE_PREFIX + name)) {
-        localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(snap));
-      }
+      if (!store.readRaw(name)) store.writeRaw(name, JSON.stringify(snap));
     }
-    const ix = readIndex();
+    const ix = store.readIndex();
     let changed = false;
     for (const n of Object.keys(FACTORY)) {
       if (!ix.includes(n)) { ix.push(n); changed = true; }
     }
-    if (changed) writeIndex(ix);
+    if (changed) store.writeIndex(ix);
   },
 
   load(name: string): Snapshot | null {
-    const raw = localStorage.getItem(STORAGE_PREFIX + name);
+    const raw = store.readRaw(name);
     if (!raw) return FACTORY[name] ?? null;
     try { return JSON.parse(raw) as Snapshot; }
     catch { return null; }
@@ -282,9 +279,8 @@ export const Presets = {
   save(name: string, snap: Snapshot): void {
     // Round at the serialization boundary (same helper as song export) — clean
     // JSON, no audible change. capture() keeps live state full-precision.
-    localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(roundParams(snap)));
-    const ix = readIndex();
-    if (!ix.includes(name)) { ix.push(name); writeIndex(ix); }
+    store.writeRaw(name, JSON.stringify(roundParams(snap)));
+    store.addToIndex(name);
   },
 
   capture(bus: ParamBus): Snapshot {
@@ -295,14 +291,3 @@ export const Presets = {
     bus.restore(snap);
   },
 };
-
-function readIndex(): string[] {
-  try {
-    const raw = localStorage.getItem(INDEX_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch { return []; }
-}
-
-function writeIndex(ix: string[]): void {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(ix));
-}

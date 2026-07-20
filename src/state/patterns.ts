@@ -127,7 +127,7 @@ export function clampChainStep(i: number): number {
   return i === REST ? REST : clampBank(i);
 }
 
-function makeSeqBank(): SeqStep[] {
+export function makeSeqBank(): SeqStep[] {
   return Array.from({ length: SEQ_LENGTH }, (_, i) => ({
     on: false,
     note: 60 + (i % 8),
@@ -139,13 +139,13 @@ function makeSeqBank(): SeqStep[] {
   }));
 }
 
-function makeDrumBank(): DrumCell[][] {
+export function makeDrumBank(): DrumCell[][] {
   return Array.from({ length: DRUM_TRACK_COUNT }, () =>
     Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );
 }
 
-function makeSamplerBank(): SamplerStep[][] {
+export function makeSamplerBank(): SamplerStep[][] {
   return Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
     Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
   );
@@ -153,6 +153,25 @@ function makeSamplerBank(): SamplerStep[][] {
 
 export function makeMotionBank(): MotionStep[] {
   return Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_STEP_DEFAULTS }));
+}
+
+/**
+ * A full set of blank banks for every machine — what "New Song" restores and
+ * what `PatternStore` boots with. Shares the per-machine builders above so a
+ * blank bank can never drift between the two.
+ */
+export function emptyPatternBanks(): {
+  seqBanks: SeqStep[][];
+  drumBanks: DrumCell[][][];
+  samplerBanks: SamplerStep[][][];
+  motionBanks: MotionStep[][];
+} {
+  return {
+    seqBanks: Array.from({ length: BANK_COUNT }, makeSeqBank),
+    drumBanks: Array.from({ length: BANK_COUNT }, makeDrumBank),
+    samplerBanks: Array.from({ length: BANK_COUNT }, makeSamplerBank),
+    motionBanks: Array.from({ length: BANK_COUNT }, makeMotionBank),
+  };
 }
 
 export class PatternStore {

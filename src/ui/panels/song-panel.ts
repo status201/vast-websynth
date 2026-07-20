@@ -17,7 +17,7 @@ import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
 import { showToast } from '../components/toast';
-import { BANK_LABELS, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT, TRIGGER_CELL_DEFAULTS, MOTION_STEP_DEFAULTS, BANK_COUNT } from '../../state/patterns';
+import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, BANK_COUNT, emptyPatternBanks } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
@@ -385,11 +385,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     const stash = stashCurrent();
     applyToken++; // a confirmed New also supersedes any in-flight clip decodes
     engine.patterns.restore({
-      seqBanks: emptySeqBanks(),
-      drumBanks: emptyDrumBanks(),
-      samplerBanks: emptySamplerBanks(),
+      ...emptyPatternBanks(),
       sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
-      motionBanks: emptyMotionBanks(),
       motionAssigns: Array(BANK_COUNT).fill(null),
     });
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
@@ -486,17 +483,6 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   root.appendChild(buildSyncSection(engine.sync, engine.rtcSync));
 
   return { el: root, loadDemo, importBytes };
-}
-
-function emptySamplerBanks() {
-  return Array.from({ length: 4 }, () =>
-    Array.from({ length: SAMPLER_SLOT_COUNT }, () =>
-      Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))));
-}
-
-function emptyMotionBanks() {
-  return Array.from({ length: BANK_COUNT }, () =>
-    Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_STEP_DEFAULTS })));
 }
 
 function buildChainLane(
@@ -646,14 +632,4 @@ function buildChainLane(
   engine.arrangement.onChange(render);
   render();
   return root;
-}
-
-function emptySeqBanks() {
-  return Array.from({ length: 4 }, () =>
-    Array.from({ length: SEQ_LENGTH }, (_, i) => ({ on: false, note: 60 + (i % 8), velocity: 0.8, gate: 0.5, prob: 1, ratchet: 1, tie: false })));
-}
-function emptyDrumBanks() {
-  return Array.from({ length: 4 }, () =>
-    Array.from({ length: DRUM_TRACK_COUNT }, () =>
-      Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))));
 }

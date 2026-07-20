@@ -303,6 +303,23 @@ not_persisted:
                          # or carried in a project-zip download (features/project-export.md)
 ```
 
+The two **named-slot** stores (presets and saved songs) share one implementation,
+`SlotStore` (`src/state/slot-store.ts`): a prefix plus a name index at
+`<prefix>index`, with `readIndex`/`writeIndex`/`addToIndex`/`removeFromIndex` and
+opaque-JSON `readRaw`/`writeRaw`/`remove`. Serialization stays with the caller —
+`Presets.save` rounds params, `Song.saveSlot` writes the canonical compact form —
+so the store never knows either schema. A corrupt or absent index reads as empty
+rather than throwing. Project **zips** are not slot-storable (localStorage is
+text-only), so save slots stay JSON-only.
+
+Blank step grids likewise have one source: `emptyPatternBanks()`
+(`state/patterns.ts`) returns `BANK_COUNT` banks per machine from the same
+`makeSeqBank`/`makeDrumBank`/`makeSamplerBank`/`makeMotionBank` builders
+`PatternStore` boots with, so "New Song" can never drift from a fresh store.
+(The demo-authoring helpers in `song.ts` — `emptySeq`/`seqFromNotes` — stay
+separate on purpose: they use different constants that are already serialized
+into the committed demos and share links.)
+
 ## Global conventions (constrain every feature)
 
 - **Filter cutoff is a MIDI note number, not Hz.** The ladder filter worklet takes

@@ -5,16 +5,16 @@
  */
 import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign } from './patterns';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT, TRIGGER_CELL_DEFAULTS } from './patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
 import { validateSongFile } from './song-validate';
 import { isAuthorSong, expandAuthorSong } from './song-author';
 import { compactSongForExport } from './serialize';
+import { SlotStore } from './slot-store';
 
-const STORAGE_PREFIX = 'websynth.song.';
-const INDEX_KEY = 'websynth.song.index';
+const store = new SlotStore('websynth.song.');
 
 export interface ChainData {
   enabled: boolean;
@@ -138,37 +138,24 @@ export const Song = {
   // ---- localStorage slots ----
 
   list(): string[] {
-    return [...new Set([...Object.keys(DEMO_SONGS), ...readIndex()])].sort();
+    return [...new Set([...Object.keys(DEMO_SONGS), ...store.readIndex()])].sort();
   },
 
   saveSlot(name: string, file: SongFile): void {
-    localStorage.setItem(STORAGE_PREFIX + name, Song.toJSON(file));
-    const ix = readIndex();
-    if (!ix.includes(name)) { ix.push(name); writeIndex(ix); }
+    store.writeRaw(name, Song.toJSON(file));
+    store.addToIndex(name);
   },
 
   loadSlot(name: string): SongFile | null {
-    const raw = localStorage.getItem(STORAGE_PREFIX + name);
+    const raw = store.readRaw(name);
     if (raw) return Song.fromJSON(raw);
     return DEMO_SONGS[name] ?? null;
   },
 
   deleteSlot(name: string): void {
-    localStorage.removeItem(STORAGE_PREFIX + name);
-    writeIndex(readIndex().filter((n) => n !== name));
+    store.remove(name);
   },
 };
-
-function readIndex(): string[] {
-  try {
-    const raw = localStorage.getItem(INDEX_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch { return []; }
-}
-
-function writeIndex(ix: string[]): void {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(ix));
-}
 
 /* ---------------- Demo songs ---------------- */
 
@@ -203,6 +190,10 @@ function baseParams(): Record<string, number> {
   return p;
 }
 
+// NOTE: the seq helpers below deliberately do NOT share PatternStore's
+// makeSeqBank() — they use different constants (fixed note 60, velocity 0.85 vs
+// 60 + i%8 / 0.8), and those values are serialized into the committed demo
+// songs and into share-link payloads. Unifying them would change demo bytes.
 function seqFromNotes(notes: (number | null)[], gate = 0.5, velocity = 0.85): SeqStep[] {
   return Array.from({ length: SEQ_LENGTH }, (_, i) => {
     const n = notes[i] ?? null;
@@ -216,9 +207,7 @@ function emptySeq(): SeqStep[] {
 
 /** rows: map of track index → array of step indices that are ON. */
 function drumFrom(rows: Record<number, number[]>): DrumCell[][] {
-  const bank: DrumCell[][] = Array.from({ length: DRUM_TRACK_COUNT }, () =>
-    Array.from({ length: SEQ_LENGTH }, () => ({ ...TRIGGER_CELL_DEFAULTS }))
-  );
+  const bank = makeDrumBank();
   for (const [t, steps] of Object.entries(rows)) {
     for (const s of steps) {
       const cell = bank[Number(t)]?.[s];
