@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 7
+version: 8
 owner: core
 related:
   - architecture
@@ -15,6 +15,7 @@ related:
   - dialog
   - session-autosave
   - toast
+  - machine-status
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -88,6 +89,12 @@ demos, the load path **must stay backward compatible** as the format grows.
   hidden demos — visibility only affects the buttons. Loading a demo — like
   every song load/import — also fires `UiBridge.cuePlay`
   (see [play-button-blink](play-button-blink.md)).
+- **REQ-11 (lane titles navigate, v8)** — Each lane card's title is a button
+  (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
+  tab, and the tab bar carries a per-machine status LED. Both are governed by
+  [machine-status](machine-status.md); note the lane prefix `drum` maps to the tab
+  id `drums`. The card's existing silenced-dimming (REQ-6) is unchanged — it still
+  keys off audibility only, never off `<machine>.on`.
 
 ## Technical design
 

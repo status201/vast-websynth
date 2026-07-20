@@ -48,13 +48,52 @@
   gap: 10px;
 }
 
+/* The lane title is a button that opens that machine's tab (machine-status.md
+   REQ-5). `justify-content: flex-start` matters: .title is flex:1 next to the
+   Chain button, so without it the ↗ would drift to the far right of the card and
+   read as belonging to Chain rather than to the title. */
 .title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--accent-secondary);
   font-weight: 700;
   flex: 1;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.title:hover,
+.title:focus-visible {
+  text-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+.title:hover span:first-child,
+.title:focus-visible span:first-child {
+  text-decoration: underline;
+}
+
+/* Visible AT REST, not only on hover — a hover-only affordance is invisible on
+   touch, and this ships as an installable PWA used on phones. */
+.arrow {
+  font-size: 0.85em;
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.title:hover .arrow,
+.title:focus-visible .arrow {
+  opacity: 1;
+  transform: translate(1px, -1px);
 }
 
 /* Per-lane DJ mixer strip: mute / solo / volume. */

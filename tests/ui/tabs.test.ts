@@ -43,4 +43,53 @@ describe('TabContainer', () => {
     ], 'b');
     expect(tabBtn(tc, 'b').classList.contains('active')).toBe(true);
   });
+
+  // machine-status.md REQ-3/REQ-4/REQ-7
+  describe('status indicators', () => {
+    const withIndicator = () => new TabContainer([
+      { id: 'a', label: 'Alpha', content: document.createElement('div'), indicator: true },
+      { id: 'b', label: 'Beta', content: document.createElement('div') },
+    ]);
+    const led = (tc: TabContainer, id: string) =>
+      tabBtn(tc, id).querySelector<HTMLElement>('span');
+
+    it('renders an LED only on tabs that asked for one, keeping the label intact', () => {
+      const tc = withIndicator();
+      expect(led(tc, 'a')).not.toBeNull();
+      expect(tabBtn(tc, 'a').textContent).toBe('Alpha');
+      // A plain tab keeps its textContent label and grows no LED span.
+      expect(led(tc, 'b')).toBeNull();
+      expect(tabBtn(tc, 'b').textContent).toBe('Beta');
+    });
+
+    it('setIndicator paints the state and mirrors it into aria-label', () => {
+      const tc = withIndicator();
+      tc.setIndicator('a', 'muted');
+      expect(led(tc, 'a')!.dataset.state).toBe('muted');
+      // Never colour-only: the state must be readable by assistive tech.
+      expect(tabBtn(tc, 'a').getAttribute('aria-label')).toBe('Alpha — muted');
+
+      tc.setIndicator('a', 'off');
+      expect(led(tc, 'a')!.dataset.state).toBe('off');
+    });
+
+    it('setIndicator is a no-op for a tab without an indicator', () => {
+      const tc = withIndicator();
+      expect(() => tc.setIndicator('b', 'on')).not.toThrow();
+      expect(tabBtn(tc, 'b').hasAttribute('aria-label')).toBe(false);
+    });
+
+    it('reveal expands a collapsed bar before activating', () => {
+      const tc = new TabContainer([
+        { id: 'a', label: 'Alpha', content: document.createElement('div') },
+        { id: 'b', label: 'Beta', content: document.createElement('div') },
+      ], 'a', { collapsibleStoreKey: 'test.collapsed', collapsedByDefault: () => true });
+      expect(tc.el.classList.contains('collapsed')).toBe(true);
+
+      tc.reveal('b');
+      // Plain activate() would leave the body hidden, so the click appears dead.
+      expect(tc.el.classList.contains('collapsed')).toBe(false);
+      expect(tc.activeId).toBe('b');
+    });
+  });
 });

@@ -64,11 +64,12 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
   await stop.click();
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
-  // Pattern tabs activate on click (literal `.active` class). `exact` is
-  // case-sensitive — the capitalized tab labels won't match lowercase
-  // siblings (e.g. the Song panel's "sampler"/"seq" chain-lane labels).
-  for (const label of ['Sequencer', 'Drum Machine', 'Sampler', 'Song', 'Arpeggiator']) {
-    const tab = page.getByRole('button', { name: label, exact: true });
+  // Pattern tabs activate on click (literal `.active` class). Selected by
+  // testid, not label: the four machine tabs carry a status LED whose state is
+  // mirrored into aria-label ("Sequencer — on"), so their accessible name is no
+  // longer the bare label (machine-status.md REQ-4).
+  for (const id of ['seq', 'drums', 'sampler', 'song', 'arp']) {
+    const tab = page.locator(`[data-testid="tab-${id}"]`);
     await tab.click();
     await expect(tab).toHaveClass(/\bactive\b/);
   }

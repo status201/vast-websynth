@@ -95,7 +95,9 @@ via its `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume;
-`song-lane-motion` carries chain controls + `switch-motion.mute` only — no solo/volume),
+`song-lane-motion` carries chain controls + `switch-motion.mute` only — no solo/volume;
+each card's title is a button `song-lane-title-<seq|drum|sampler|motion>` that opens
+that machine's tab — see `specs/features/machine-status.md`),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's

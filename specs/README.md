@@ -234,6 +234,7 @@ specs/
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster
+    machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue

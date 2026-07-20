@@ -19,6 +19,9 @@
 }
 
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 8px 18px;
   font-size: 11px;
   text-transform: uppercase;
@@ -30,6 +33,44 @@
   cursor: pointer;
   background: none;
   border-radius: 0;
+}
+
+/* Machine status LED (machine-status.md REQ-3). Deliberately inert: no hover,
+   focus or cursor styling of its own, and pointer-events:none so the whole tab
+   highlights as ONE unit and every click navigates. It must never read as a
+   toggle — the real machine switch lives inside the tab. */
+/* One lamp at three brightnesses, sharing the switch LED's red so the tab dots
+   read as the same hardware as every other indicator in the app. The base is
+   the unlit look (= data-state 'off'). */
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  pointer-events: none;
+  background: var(--led-off);
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Enabled and audible — fully lit, matching switch.module.css exactly. */
+.led[data-state='on'] {
+  background: var(--led-on);
+  box-shadow:
+    0 0 8px rgba(255, 58, 32, 0.85),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+/* Enabled but silent (own mute, or another lane's solo) — half lit: the same
+   red burning low, no glow, so it is unmistakably distinct from both. */
+.led[data-state='muted'] {
+  background: #8c2414;
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
 .tab:global(.active) {
@@ -82,5 +123,8 @@
     padding: 7px 10px;
     font-size: 10px;
     letter-spacing: 0.1em;
+    gap: 5px;
   }
+  /* Keep the dot legible against the tighter padding. */
+  .led { width: 6px; height: 6px; }
 }

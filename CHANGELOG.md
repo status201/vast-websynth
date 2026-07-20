@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Machine status lights** — the Sequencer / Drum Machine / Sampler / Motion
+  tabs now carry a small LED, so you can see at a glance whether a machine is
+  running without opening its tab: fully lit = on and audible, half lit =
+  enabled but muted (or silenced by another lane's solo), unlit = off. It is an
+  indicator only — clicking anywhere on the tab still just opens it.
+
+- **Song tab lane titles are links** — the "Sequencer" / "Drums" / "Sampler" /
+  "Motion" headings on the Song tab's chain cards now open that machine's tab
+  (marked with a ↗).
+
 ## [2.2.0] - 2026-07-20
 
 ### Added

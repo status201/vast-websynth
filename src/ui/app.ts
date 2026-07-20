@@ -16,6 +16,7 @@ import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
+import { MACHINE_IDS, MACHINE_TAB, readMachineStatus, subscribeMachineStatus } from './machine-status';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import { promptDialog } from './components/dialog';
@@ -377,10 +378,10 @@ function buildPatternRow(
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
-    { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine, patternUndo) },
-    { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine, patternUndo) },
-    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine, patternUndo) },
-    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo) },
+    { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine, patternUndo), indicator: true },
+    { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine, patternUndo), indicator: true },
+    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine, patternUndo), indicator: true },
+    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo), indicator: true },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
@@ -400,6 +401,16 @@ function buildPatternRow(
     patternUndo.undo(m);
     return true;
   };
+
+  // The Song panel's lane titles navigate here (machine-status.md REQ-5).
+  bridge.showTab = (id) => tabs.reveal(id);
+
+  // Machine status LEDs (machine-status.md REQ-1/REQ-2). `subscribe` fires
+  // immediately with the current value, so this also paints the initial state.
+  subscribeMachineStatus(bus, () => {
+    const status = readMachineStatus(bus);
+    for (const m of MACHINE_IDS) tabs.setIndicator(MACHINE_TAB[m], status[m]);
+  });
 
   return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }

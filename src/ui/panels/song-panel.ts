@@ -8,7 +8,8 @@ import type { ExportFormat } from '../../audio/recorder/recorder-controller';
 import { Knob } from '../components/knob';
 import { Switch } from '../components/switch';
 import { Dropdown } from '../components/dropdown';
-import { audibleLanes, LANE_IDS, type LaneId, type LaneFlags } from '../../audio/transport/lane-mix';
+import { audibleLanes, LANE_IDS, type LaneId } from '../../audio/transport/lane-mix';
+import { laneFlags, MACHINE_TAB } from '../machine-status';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import type { XyPadWindowController } from '../components/xy-pad-window';
@@ -143,13 +144,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Dim a lane card whenever it is silenced — by its own mute or by another
   // lane's solo. Uses the same `audibleLanes` rule the engine applies, so the
   // visual can never disagree with what you hear.
-  const flag = (suffix: string): LaneFlags => ({
-    seq: bus.get(`seq.${suffix}`) >= 0.5,
-    drum: bus.get(`drum.${suffix}`) >= 0.5,
-    sampler: bus.get(`sampler.${suffix}`) >= 0.5,
-  });
   const refreshSilenced = (): void => {
-    const audible = audibleLanes(flag('mute'), flag('solo'));
+    const audible = audibleLanes(laneFlags(bus, 'mute'), laneFlags(bus, 'solo'));
     for (const id of LANE_IDS) laneEls[id].classList.toggle(styles.silenced!, !audible[id]);
   };
   for (const id of LANE_IDS) {
@@ -500,7 +496,21 @@ function buildChainLane(
   root.dataset.testid = `song-lane-${prefix}`;
 
   const head = el('div', styles.head!);
-  head.appendChild(el('div', styles.title!, title));
+
+  // The title navigates to that machine's tab (machine-status.md REQ-5/REQ-6).
+  // The ↗ glyph is aria-hidden — the aria-label already names the destination,
+  // so it must not be announced as "north east arrow".
+  const titleBtn = document.createElement('button');
+  titleBtn.type = 'button';
+  titleBtn.className = styles.title!;
+  titleBtn.dataset.testid = `song-lane-title-${prefix}`;
+  titleBtn.setAttribute('aria-label', `Open the ${title} tab`);
+  titleBtn.title = `Open the ${title} tab`;
+  const arrow = el('span', styles.arrow!, '↗');
+  arrow.setAttribute('aria-hidden', 'true');
+  titleBtn.append(el('span', '', title), arrow);
+  titleBtn.addEventListener('click', () => { bridge.showTab(MACHINE_TAB[prefix]); });
+  head.appendChild(titleBtn);
 
   const enableBtn = document.createElement('button');
   enableBtn.type = 'button';
