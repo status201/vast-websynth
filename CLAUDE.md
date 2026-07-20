@@ -329,12 +329,12 @@ listener mechanism.
   unchanged and accepts all versions; v1 files (incl. `DEMO_SONGS`) load with
   empty sampler state and default XY axes. JSON file export/import **and** localStorage slots under
   `websynth.song.*`. Demos (`DEMO_SONGS`) are the two hand-authored `SongFile`
-  literals (Zombie Nation, I Feel Love) **plus** any `*.json` SongFile in
-  `src/state/demos/` (Apex Twin lives there now), auto-registered at build time
+  literals (Zombie Nation, I Feel Love) **plus** any `*.json` SongFile dropped
+  into `src/state/demos/` (14 today), auto-registered at build time
   via an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
   *before* the built-ins, so they lead the demo button row (`Object.keys` order).
   A `*.websynth.zip` project in `src/state/demos/` registers too (`ZIP_DEMOS`,
-  a `?url` glob — fetched on click, not bundled); `Song.list()`/`loadSlot()`
+  a `?url` glob — fetched on click, not bundled; 1 today); `Song.list()`/`loadSlot()`
   stay sync + JSON-only, and `loadDemo` delegates zip demos fire-and-forget.
 - **Project export** (`state/project.ts` + `utils/zip.ts`/`utils/compression.ts`,
   see `specs/features/project-export.md`) — Export opens a modal
@@ -442,7 +442,8 @@ listener mechanism.
   three tiers (`weak`/`medium`/`strong`, plus `auto`), persisted under `websynth.perf`,
   **not** a `ParamBus` param (so it never enters presets/songs). `PERF_PROFILES` is the
   single source of truth mapping each tier to
-  `{ latencyHint, voiceCount, fps, scheduleAheadS, reverbIrMaxS, fxOversample }`:
+  `{ latencyHint, voiceCount, fps, scheduleAheadS, reverbIrMaxS, fxOversample,
+  analyserFftSize }`:
   weak = `'playback'`/5/15 + 0.2 s look-ahead, 1.5 s IR cap, no oversampling;
   medium = `'interactive'`/8/30, strong = `'interactive'`/8/60 (both full-cost:
   0.1 s look-ahead, 4 s IRs, oversampling on — so they still share one audio profile).
@@ -451,8 +452,9 @@ listener mechanism.
   `main.ts` reads `PERF_PROFILES[resolveTier()]` at boot for the audio fields
   (all boot-time knobs — buffer, voices, look-ahead, IR cap, oversampling — are fixed
   when the `AudioContext`/graph are built → a change across an *audio* boundary
-  applies on **reload**); the scope **fps is applied live** (`Scope({ fps })` + `setFps`,
-  wired through a late-bound hook in `app.ts`). The canvas drop-shadow is dropped for all
+  applies on **reload**); the two scope knobs — **`fps` and `analyserFftSize` — are
+  applied live** (`Scope({ fps })` + `setFps`/`setFftSize`, wired through a
+  late-bound hook in `app.ts`), so both are excluded from `sameAudioProfile`. The canvas drop-shadow is dropped for all
   tiers. The header "Perf" button is colour-coded by resolved tier (red/amber/green) and
   its modal shows a reload nudge only when the choice crosses an audio boundary
   (`sameAudioProfile`, which compares every boot-time field). The About → Debug panel

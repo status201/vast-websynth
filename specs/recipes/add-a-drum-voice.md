@@ -53,7 +53,8 @@ Append to `this.tracks = [ … new MyDrum(this.ctx) ]` (order must match the lab
 
 ### 4. Per-track params + engine wiring
 
-`drumTrackParams()` generates `drum.t{i}.vol/tune/decay/mute`. Verify + verify
+`drumTrackParams()` generates `drum.t{i}.vol/tune/decay/tone/drive/pan/mute/model`.
+Verify + verify
 (see Gotchas).
 
 ## Gotchas

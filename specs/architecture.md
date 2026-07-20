@@ -49,8 +49,8 @@ means a UI control and its audio effect can be reasoned about independently.
 ## Tech stack
 
 ```yaml
-language: TypeScript            # ^6.0.3, strict + noUncheckedIndexedAccess
-build:      Vite                # ^8.1.3   (vite build) + tsc --noEmit
+language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess
+build:      Vite                # ^8.1.4   (vite build) + tsc --noEmit
 unit_tests: Vitest              # ^4.1.10  (jsdom env)
 e2e_tests:  "@playwright/test"  # ^1.61.1  (headless Chromium)
 dom_env:    jsdom               # ^29.1.1  (unit-test DOM)
@@ -101,7 +101,7 @@ never call each other directly.
     ├─ Voices      — 8-voice pool
     ├─ FX          — insert chain + drum/master compressors
     ├─ Transport   — Clock, Arrangement, Performance, Sequencer,
-    │                DrumMachine, SamplerMachine, Arpeggiator
+    │                DrumMachine, SamplerMachine, MotionMachine, Arpeggiator
     ├─ Sync        — SyncController (+ MidiSyncTransport / WebRtcSyncTransport)
     └─ Recorder    — RecorderController (audio export), taps master
 ```
@@ -138,8 +138,9 @@ Engine:          # src/audio/engine.ts
   # delegates: Polyphony (voice alloc + unison/glide/drift), LaneMixer (mute/solo/vol)
 
 StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR-009)
-  # patterns, arrangement, clock, perf, seq, drums, sampler, motion, recorder, sync,
-  # analyser, analyserL, analyserR, ctx, drumComp, masterComp + panic()/resume().
+  # patterns, arrangement, clock, perf, seq, drums, sampler, motion, recorder,
+  # bankRender, sync, rtcSync, analyser, analyserL, analyserR, ctx, drumComp,
+  # masterComp, iosAudio + panic()/resume().
   # Engine satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
 
@@ -268,9 +269,11 @@ localStorage:
   websynth.preset.*   : factory + user presets   # state/preset.ts
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
+  websynth.session    : debounced autosave of the live session (silent boot restore)  # state/session-autosave.ts
   websynth.perf       : performance-mode pref (auto|weak|medium|strong)  # state/perf-mode.ts — device-scoped, NOT a patch param
   websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
+  websynth.hint.emptyplay  : "pressed Play on an empty song" hint dismissed  # ui/components/empty-play-modal.ts
   websynth.debug.about     : About-modal Debug section open    # ui/components/about.ts
   websynth.ui.collapsed.*  : panel collapse state (pattern/fx) # ui/app.ts
 not_persisted:
@@ -303,7 +306,8 @@ not_persisted:
   `switch-<paramId>`, `seg-<paramId>`, `tab-<id>`, `seq-step-<i>`, …). E2E specs
   select by testid/text/role because CSS Module class names are hashed.
 - **Dev bridge** — `main.ts` exposes `window.__synth = { engine, bus, patterns,
-  session }` gated on `import.meta.env.DEV` (absent in production). Use it for E2E
+  session, xy, patternUndo }` gated on `import.meta.env.DEV` (absent in
+  production). Use it for E2E
   state assertions, e.g. `window.__synth.bus.get('filter.cutoff')`.
 - **TypeScript is strict** with `noUncheckedIndexedAccess` — expect `arr[i]!`
   assertions; match that style. Tests live **outside `src/`** so `tsc` ignores
