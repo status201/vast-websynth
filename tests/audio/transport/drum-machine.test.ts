@@ -2,13 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { DrumMachine } from '../../../src/audio/transport/drum-machine';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import type { Performance } from '../../../src/audio/transport/performance';
-import { PatternStore } from '../../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
 import { TestClock } from './test-clock';
 import { makeMockAudioContext } from '../mock-audio-context';
 
 /** Mutable Performance-like stub (DrumMachine only reads mapStep + fillActive). */
 function perfStub(mapStep: (s: number) => number = (s) => s) {
-  return { mapStep, fillActive: false, setFill() {} } as unknown as Performance & { fillActive: boolean };
+  return {
+    mapStep,
+    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
+    fillActive: false,
+    setFill() {},
+  } as unknown as Performance & { fillActive: boolean };
 }
 
 function build(perf = perfStub(), fxOversample = true) {

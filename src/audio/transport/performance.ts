@@ -1,4 +1,5 @@
 import type { ParamBus } from '../../state/params';
+import { SEQ_LENGTH } from '../../state/patterns';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -57,6 +58,16 @@ export class Performance {
     const n = this.stutterSize;
     const off = (((rawStep - this.anchor) % n) + n) % n;
     return this.anchor + off;
+  }
+
+  /**
+   * The stutter-mapped step folded into a bank position — what the seq, drum
+   * and sampler machines read each tick. (The motion sequencer deliberately
+   * uses the *raw* `step % SEQ_LENGTH` instead: automation must not follow
+   * stutter remaps.)
+   */
+  stepIndex(step: number): number {
+    return this.mapStep(step) % SEQ_LENGTH;
   }
 
   // ---- Fill ----

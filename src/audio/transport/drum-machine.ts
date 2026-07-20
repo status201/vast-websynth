@@ -4,8 +4,9 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
-import { chokeAt, rollProb, stepHits } from './step-hits';
+import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
+import { ListenerSet } from '../../utils/listeners';
 
 export type DrumStepListener = (step: number) => void;
 
@@ -49,7 +50,7 @@ export class DrumMachine {
   private readonly noise: AudioBuffer;
 
   private enabled = false;
-  private readonly stepListeners = new Set<DrumStepListener>();
+  private readonly stepListeners = new ListenerSet<[number]>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -109,8 +110,7 @@ export class DrumMachine {
   setEnabled(on: boolean): void { this.enabled = on; }
 
   onStep(fn: DrumStepListener): () => void {
-    this.stepListeners.add(fn);
-    return () => { this.stepListeners.delete(fn); };
+    return this.stepListeners.add(fn);
   }
 
   setTrackVolume(track: number, v: number): void {
@@ -183,8 +183,8 @@ export class DrumMachine {
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.mapStep(step) % SEQ_LENGTH;
-    for (const l of this.stepListeners) l(idx);
+    const idx = this.perf.stepIndex(step);
+    this.stepListeners.emit(idx);
 
     // Arrangement rest bar: keep the playhead moving but trigger nothing.
     if (this.arrangement.drumResting) return;
@@ -196,14 +196,9 @@ export class DrumMachine {
 
     const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
     const stepDur = this.clock.sixteenthDuration();
-    for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
-      if (this.muted[t]) continue;
-      const cell = bank[t]?.[idx];
-      if (!cell || !cell.on || !rollProb(cell.prob)) continue;
-      for (const h of stepHits(cell, when, stepDur)) {
-        this.tracks[t]?.trigger(h.t, cell.velocity, chokeAt(cell, h));
-      }
-    }
+    forEachActiveHit(bank, idx, when, stepDur, this.muted, (t, h, cell) => {
+      this.tracks[t]?.trigger(h.t, cell.velocity, chokeAt(cell, h));
+    });
   }
 
   /** Momentary drum fill — snare ramp + tom cascade on the last beat. */

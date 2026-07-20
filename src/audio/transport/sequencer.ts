@@ -1,10 +1,10 @@
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
-import { SEQ_LENGTH } from '../../state/patterns';
 import type { SynthOutput } from './note-output';
 import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
+import { ListenerSet } from '../../utils/listeners';
 
 export type StepListener = (step: number) => void;
 /** (midi note, audio time it sounds, audio time it releases). */
@@ -20,8 +20,8 @@ export class StepSequencer {
   private lastPlayedNote = -1;
   private lastReleaseAt = 0;
   private prevTied = false;
-  private readonly stepListeners = new Set<StepListener>();
-  private readonly noteListeners = new Set<SeqNoteListener>();
+  private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly noteListeners = new ListenerSet<[number, number, number]>();
 
   constructor(
     private readonly output: SynthOutput,
@@ -57,20 +57,18 @@ export class StepSequencer {
   }
 
   onStep(fn: StepListener): () => void {
-    this.stepListeners.add(fn);
-    return () => { this.stepListeners.delete(fn); };
+    return this.stepListeners.add(fn);
   }
 
   /** Fires when a step triggers a note, with its scheduled audio times. */
   onNote(fn: SeqNoteListener): () => void {
-    this.noteListeners.add(fn);
-    return () => { this.noteListeners.delete(fn); };
+    return this.noteListeners.add(fn);
   }
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.mapStep(step) % SEQ_LENGTH;
-    for (const l of this.stepListeners) l(idx);
+    const idx = this.perf.stepIndex(step);
+    this.stepListeners.emit(idx);
     // Arrangement rest bar: play nothing this bar, but release a note tied into
     // the rest so it doesn't ring forever (mirrors the per-step rest path below).
     if (this.arrangement.seqResting) {
@@ -111,6 +109,6 @@ export class StepSequencer {
     this.lastPlayedNote = s.note;
     this.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
     this.prevTied = s.tie;
-    for (const l of this.noteListeners) l(s.note, when, hits[0]!.gateEnd);
+    this.noteListeners.emit(s.note, when, hits[0]!.gateEnd);
   }
 }

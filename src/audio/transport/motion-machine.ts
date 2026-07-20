@@ -6,6 +6,7 @@ import type { XyPadStore } from '../../state/xy-pad';
 import { fromNorm } from '../../utils/taper';
 import { valueAt, type MotionMode } from './motion-curve';
 import type { TickSubscriber } from './tick-source';
+import { ListenerSet } from '../../utils/listeners';
 
 export type MotionStepListener = (step: number) => void;
 
@@ -57,7 +58,7 @@ export class MotionMachine {
   private curr: LatchedTick | null = null;
   private prev: LatchedTick | null = null;
   private readonly baselines = new Map<string, number>();
-  private readonly stepListeners = new Set<MotionStepListener>();
+  private readonly stepListeners = new ListenerSet<[number]>();
 
   private rafId: number | null = null;
   private lastFrameMs = 0;
@@ -91,7 +92,7 @@ export class MotionMachine {
         playBank: this.arrangement.motionPlayBank,
       };
       if (!this.enabled) return;
-      for (const l of this.stepListeners) l(idx);
+      this.stepListeners.emit(idx);
     });
     clock.onStart(() => {
       this.curr = this.prev = null;
@@ -139,8 +140,7 @@ export class MotionMachine {
   }
 
   onStep(fn: MotionStepListener): () => void {
-    this.stepListeners.add(fn);
-    return () => { this.stepListeners.delete(fn); };
+    return this.stepListeners.add(fn);
   }
 
   /**

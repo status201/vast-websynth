@@ -171,7 +171,20 @@ utils/array.ts:      assertIndex(arr,i,name) · IndexError
 utils/compression.ts: deflateRaw / inflateRaw                          # zip codec + share links
 utils/zip.ts:        the hand-written zip reader/writer (ADR-003)
 utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
+utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
 ```
+
+`ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
+transport machines and `BankBar`), which had each open-coded the same
+`Set` + `add → return () => delete` pair.
+
+The transport machines additionally share two helpers:
+`forEachActiveHit(bank, idx, when, stepDur, muted, fire)`
+(`audio/transport/step-hits.ts`) — the one-shot lane sweep (skip muted, skip
+off, roll `prob`, expand ratchets) used by the drum machine and the sampler —
+and `Performance.stepIndex(step)` = `mapStep(step) % SEQ_LENGTH`, read by the
+seq/drum/sampler machines. The **motion** machine deliberately uses the raw
+`step % SEQ_LENGTH`: automation must not follow stutter remaps.
 
 Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
 (`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and

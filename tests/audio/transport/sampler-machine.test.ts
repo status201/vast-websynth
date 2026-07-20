@@ -2,12 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { SamplerMachine } from '../../../src/audio/transport/sampler-machine';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import type { Performance } from '../../../src/audio/transport/performance';
-import { PatternStore } from '../../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
 import { TestClock } from './test-clock';
 import { makeMockAudioContext, makeStubBuffer, type MockAudioContext } from '../mock-audio-context';
 
 function perfStub(mapStep: (s: number) => number = (s) => s) {
-  return { mapStep, fillActive: false, setFill() {} } as unknown as Performance;
+  return {
+    mapStep,
+    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
+    fillActive: false,
+    setFill() {},
+  } as unknown as Performance;
 }
 
 function build(perf = perfStub()) {

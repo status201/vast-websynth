@@ -1,6 +1,7 @@
 import styles from '../styles/bank-bar.module.css';
 import switchStyles from '../styles/switch.module.css';
 import { BANK_LABELS } from '../../state/patterns';
+import { ListenerSet } from '../../utils/listeners';
 
 export interface BankBarOpts {
   getEdit(): number;
@@ -32,7 +33,7 @@ export class BankBar {
   private copyBtn!: HTMLButtonElement;
   private _following = true;
   private followBtn!: HTMLButtonElement;
-  private readonly followListeners = new Set<() => void>();
+  private readonly followListeners = new ListenerSet();
 
   constructor(private readonly opts: BankBarOpts) {
     this.el = document.createElement('div');
@@ -103,15 +104,14 @@ export class BankBar {
 
   /** Fires on every Follow flip (button toggle or auto-off on a manual bank click). */
   onFollowChange(fn: () => void): () => void {
-    this.followListeners.add(fn);
-    return () => { this.followListeners.delete(fn); };
+    return this.followListeners.add(fn);
   }
 
   private setFollowing(on: boolean): void {
     this._following = on;
     this.followBtn.classList.toggle('on', on);
     if (on) this.syncToPlay(); // jump to the playing bank at once, not next bar
-    for (const l of this.followListeners) l();
+    this.followListeners.emit();
   }
 
   /** While following, keep the edit bank on the play bank. */

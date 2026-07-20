@@ -11,8 +11,10 @@ import type { SynthOutput } from '../../../src/audio/transport/note-output';
  * We avoid constructing a real Performance since it needs AudioContext.
  */
 function createPerfStub() {
+  const mapStep = (s: number): number => s;
   return {
-    mapStep: (s: number) => s,
+    mapStep,
+    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
     fillActive: false,
     setFill: () => {},
   } as unknown as Performance;

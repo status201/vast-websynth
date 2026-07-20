@@ -1,10 +1,11 @@
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
-import { SAMPLER_SLOT_COUNT, SEQ_LENGTH } from '../../state/patterns';
-import { chokeAt, rollProb, stepHits } from './step-hits';
+import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
+import { chokeAt, forEachActiveHit } from './step-hits';
 import { clamp01 } from '../../utils/math';
 import type { TickSubscriber } from './tick-source';
+import { ListenerSet } from '../../utils/listeners';
 
 export type SamplerStepListener = (step: number) => void;
 
@@ -20,7 +21,7 @@ export class SamplerMachine {
   readonly muted: boolean[] = Array(SAMPLER_SLOT_COUNT).fill(false);
 
   private enabled = false;
-  private readonly stepListeners = new Set<SamplerStepListener>();
+  private readonly stepListeners = new ListenerSet<[number]>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -43,8 +44,7 @@ export class SamplerMachine {
   setEnabled(on: boolean): void { this.enabled = on; }
 
   onStep(fn: SamplerStepListener): () => void {
-    this.stepListeners.add(fn);
-    return () => { this.stepListeners.delete(fn); };
+    return this.stepListeners.add(fn);
   }
 
   setSlotMute(slot: number, muted: boolean): void {
@@ -82,8 +82,8 @@ export class SamplerMachine {
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.mapStep(step) % SEQ_LENGTH;
-    for (const l of this.stepListeners) l(idx);
+    const idx = this.perf.stepIndex(step);
+    this.stepListeners.emit(idx);
 
     // Arrangement rest bar: keep the playhead moving but trigger nothing.
     if (this.arrangement.samplerResting) return;
@@ -91,13 +91,8 @@ export class SamplerMachine {
     // Sampler plays through drum fills (no fill behaviour of its own).
     const bank = this.patterns.samplerBank(this.arrangement.samplerPlayBank);
     const stepDur = this.clock.sixteenthDuration();
-    for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
-      if (this.muted[s]) continue;
-      const cell = bank[s]?.[idx];
-      if (!cell || !cell.on || !rollProb(cell.prob)) continue;
-      for (const h of stepHits(cell, when, stepDur)) {
-        this.play(s, h.t, cell.velocity, chokeAt(cell, h));
-      }
-    }
+    forEachActiveHit(bank, idx, when, stepDur, this.muted, (s, h, cell) => {
+      this.play(s, h.t, cell.velocity, chokeAt(cell, h));
+    });
   }
 }
