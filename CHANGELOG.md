@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "Motion" headings on the Song tab's chain cards now open that machine's tab
   (marked with a ↗).
 
+### Fixed
+
+- **Sync no longer holds your tempo hostage** — with Sync set to Slave,
+  disconnecting (unplugging the MIDI cable, closing the WiFi link, or the other
+  instrument simply going away) left the setting stuck "on": the BPM knob
+  stayed greyed out and unmovable at the vanished master's tempo, and it
+  survived a reload. Master/Slave is still remembered, but it now only takes
+  effect while something is actually connected — otherwise it greys out to
+  *armed*, the status line says why ("Slave armed — no clock"), and the tempo
+  is yours again. It picks up by itself when the clock comes back, including
+  after a virtual MIDI cable outlives the app behind it. If the link drops
+  mid-song nothing lurches: the BPM knob adopts the tempo already playing. A
+  brief dropout while playing still rides through untouched.
+
 ## [2.2.0] - 2026-07-20
 
 ### Added

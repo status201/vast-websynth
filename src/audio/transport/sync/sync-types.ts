@@ -55,7 +55,15 @@ export interface SyncLink {
 }
 
 export interface SyncStatus {
+  /** The user's persisted selection — what the Sync section paints as active. */
   mode: SyncMode;
+  /**
+   * v4: the role **actually running** (midi-clock-sync REQ-19). `'off'` while
+   * the selection is *armed* but nothing is connected, so every "are we
+   * slaved?" consumer reads this instead of `mode` and a pulled cable hands
+   * the tempo back.
+   */
+  activeMode: SyncMode;
   /**
    * One entry per added transport (v2: replaces the single `ports`). Empty when
    * no transport is added yet (no Web MIDI / permission denied and no WiFi).

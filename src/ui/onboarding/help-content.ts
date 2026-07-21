@@ -628,6 +628,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li>Pick <strong>Master</strong> on one instrument and <strong>Slave</strong> on the other. ' +
       'The status line shows the port count and the followed tempo.</li>' +
       '</ul>' +
+      '<p>Your choice is remembered, but it only takes effect while something is actually ' +
+      'connected — disconnect and it greys out to <em>armed</em>, the BPM knob comes back to ' +
+      'you, and it picks up again by itself when the clock returns.</p>' +
       '<p>No cable? Use <strong>WiFi link…</strong> instead (see its own badge).</p>',
   },
   'sync.wifi': {

@@ -35,6 +35,18 @@
     inset 0 -1px 2px rgba(0, 0, 0, 0.5);
 }
 
+/* Armed: the choice is remembered and still selected, but nothing is connected
+   so it isn't doing anything (midi-clock-sync REQ-22). Keep the pressed well,
+   drop the amber glow — reads as "selected, not lit". `--text-dim` (not
+   `--text-faint`, which *is* the unselected colour) keeps three legible tiers:
+   unselected < armed < lit. */
+.root button:global(.active):global(.armed),
+:global(.segmented) button.active.armed {
+  color: var(--text-dim);
+  text-shadow: none;
+  opacity: 0.85;
+}
+
 .icons button { padding: 5px 7px; min-width: 0; }
 
 .icons button :global(svg.wave-icon) { display: block; width: 22px; height: 13px; }

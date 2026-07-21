@@ -41,14 +41,9 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
     b.type = 'button';
     b.textContent = lbl;
     b.dataset.testid = `sync-mode-${mode}`;
-    b.title = mode === 'master'
-      ? 'Broadcast MIDI clock + start/stop to all MIDI outputs'
-      : mode === 'slave'
-        ? 'Follow MIDI clock + start/stop from any MIDI input'
-        : 'No MIDI transport sync';
     b.addEventListener('click', () => {
       sync.setMode(mode);
-      paintMode(sync.mode);
+      paint(sync.status);
     });
     btns.set(mode, b);
     sel.appendChild(b);
@@ -72,23 +67,43 @@ export function buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport)
   wifiBtn.title = 'Pair another device over WiFi (same network, client isolation off)';
   root.appendChild(wifiBtn);
 
-  const paintMode = (mode: SyncMode): void => {
-    for (const [m, b] of btns) b.classList.toggle('active', m === mode);
+  /**
+   * The **selected** mode is always the lit segment — that is what makes the
+   * setting visibly remembered across a disconnect (midi-clock-sync REQ-19).
+   * When it isn't actually running, `armed` desaturates it: selected, not lit
+   * (REQ-22).
+   */
+  const paintMode = (s: SyncStatus): void => {
+    const armed = s.mode !== 'off' && s.activeMode === 'off';
+    for (const [m, b] of btns) {
+      const selected = m === s.mode;
+      b.classList.toggle('active', selected);
+      b.classList.toggle('armed', selected && armed);
+      if (selected && armed) b.title = 'Remembered, but inactive until something is connected';
+      else b.title = TITLES[m];
+    }
   };
 
   const paintStatus = (s: SyncStatus): void => {
     status.textContent = statusText(s);
   };
 
-  paintMode(sync.mode);
-  paintStatus(sync.status);
-  sync.onStatus((s) => {
-    paintMode(s.mode);
+  const paint = (s: SyncStatus): void => {
+    paintMode(s);
     paintStatus(s);
-  });
+  };
+
+  paint(sync.status);
+  sync.onStatus(paint);
 
   return root;
 }
+
+const TITLES: Record<SyncMode, string> = {
+  off: 'No MIDI transport sync',
+  master: 'Broadcast MIDI clock + start/stop to all MIDI outputs',
+  slave: 'Follow MIDI clock + start/stop from any MIDI input',
+};
 
 function statusText(s: SyncStatus): string {
   const midi = s.links.find((l) => l.id === 'midi');
@@ -99,11 +114,20 @@ function statusText(s: SyncStatus): string {
   else if (midi.ins === 0 && midi.outs === 0) text = 'No MIDI ports';
   else text = `${midi.ins} in · ${midi.outs} out`;
 
-  if (s.mode === 'slave') {
+  if (s.activeMode === 'slave') {
     if (s.stalled) text += ' · stalled (free-running)';
     else if (s.followedBpm !== null) text += ` · following ${s.followedBpm.toFixed(1)} BPM`;
   }
 
   if (wifi) text += wifi.ins > 0 || wifi.outs > 0 ? ' · WiFi: linked' : ' · WiFi: not linked';
+
+  // Spell out *why* an armed mode isn't doing anything (REQ-22) — otherwise a
+  // lit-but-inert Slave reads as a bug.
+  if (s.mode !== 'off' && s.activeMode === 'off') {
+    if (s.mode === 'master') text += ' · Master armed — nothing connected';
+    else text += s.links.some((l) => l.ins > 0)
+      ? ' · Slave armed — no clock'
+      : ' · Slave armed — no link';
+  }
   return text;
 }

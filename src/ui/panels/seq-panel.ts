@@ -256,7 +256,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   let rendering = false;
   const refreshImport = () => {
     const empty = !engine.patterns.seq.some((s) => s.on);
-    const slaved = engine.sync.mode === 'slave';
+    const slaved = engine.sync.activeMode === 'slave';
     renderBtn.disabled = rendering || empty || slaved;
     renderBtn.textContent = rendering ? 'Rendering…' : 'Render';
     renderBtn.title = slaved

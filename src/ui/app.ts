@@ -4,6 +4,7 @@ import type { PresetSession } from '../state/preset-session';
 import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
+import type { SyncStatus } from '../audio/transport/sync/sync-types';
 import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
@@ -263,7 +264,7 @@ function buildHeader(
       // sync master/slave (an empty clock legitimately drives external gear).
       if (!engine.clock.playing
         && !emptyPlayHintDismissed()
-        && engine.sync.mode === 'off'
+        && engine.sync.activeMode === 'off'
         && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
         openEmptyPlayModal({
           onPlayDemo: () => {
@@ -330,15 +331,21 @@ function buildHeader(
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
   // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
-  // is then driven by the sync master (midi-clock-sync REQ-14).
+  // is then driven by the sync master (midi-clock-sync REQ-14). Keyed on the
+  // *running* role, so a selected-but-disconnected Slave leaves the knob live
+  // instead of freezing it at a vanished master's tempo (REQ-19/REQ-22).
   const bpmKnob = new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' });
-  const applySlaved = (mode: string): void => {
-    const slaved = mode === 'slave';
+  const applySlaved = (s: SyncStatus): void => {
+    const slaved = s.activeMode === 'slave';
     bpmKnob.setDisabled(slaved);
-    bpmKnob.el.title = slaved ? 'Tempo follows the sync master while slaved' : '';
+    bpmKnob.el.title = slaved
+      ? 'Tempo follows the sync master while slaved'
+      : s.mode !== 'off'
+        ? 'Sync is armed but nothing is connected — the tempo is yours'
+        : '';
   };
-  applySlaved(engine.sync.mode);
-  engine.sync.onStatus((s) => applySlaved(s.mode));
+  applySlaved(engine.sync.status);
+  engine.sync.onStatus(applySlaved);
   transport.appendChild(bpmKnob.el);
   transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
 

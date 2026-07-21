@@ -9,16 +9,23 @@ import type { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport'
 function stubController(status: Partial<SyncStatus> = {}) {
   let statusCb: ((s: SyncStatus) => void) | null = null;
   const state = {
-    mode: 'off' as SyncMode,
+    mode: (status.mode ?? 'off') as SyncMode,
     status: {
-      mode: 'off', links: [] as SyncLink[], playing: false, followedBpm: null, stalled: false,
+      mode: 'off', activeMode: 'off', links: [] as SyncLink[], playing: false,
+      followedBpm: null, stalled: false,
       ...status,
     } as SyncStatus,
   };
   const ctrl = {
     get mode() { return state.mode; },
     get status() { return state.status; },
-    setMode: vi.fn((m: SyncMode) => { state.mode = m; }),
+    // The real controller re-emits status on every setMode, so `status.mode`
+    // moves with the selection — the section paints from status.
+    setMode: vi.fn((m: SyncMode) => {
+      state.mode = m;
+      state.status = { ...state.status, mode: m };
+      statusCb?.(state.status);
+    }),
     onStatus: (cb: (s: SyncStatus) => void) => { statusCb = cb; return () => {}; },
   };
   const push = (s: SyncStatus) => { state.status = s; statusCb?.(s); };
@@ -79,11 +86,46 @@ describe('sync-section', () => {
     expect(q(buildSyncSection(linked, rtcStub), 'sync-status').textContent).toContain('WiFi: linked');
   });
 
+  // v4 (midi-clock-sync REQ-22): a selected-but-unconnected mode stays the
+  // *selected* segment (so the setting visibly persists) but reads as armed.
+  it('marks a selected-but-inactive mode armed, keeping it selected', () => {
+    const { ctrl } = stubController({ mode: 'slave', activeMode: 'off' });
+    const el = buildSyncSection(ctrl, rtcStub);
+    const slave = q(el, 'sync-mode-slave');
+    expect(slave.classList.contains('active')).toBe(true);
+    expect(slave.classList.contains('armed')).toBe(true);
+    expect(slave.title).toContain('Remembered');
+  });
+
+  it('does not mark an active role armed', () => {
+    const { ctrl } = stubController({
+      mode: 'slave', activeMode: 'slave', links: [{ id: 'midi', ins: 1, outs: 0 }],
+    });
+    const el = buildSyncSection(ctrl, rtcStub);
+    expect(q(el, 'sync-mode-slave').classList.contains('armed')).toBe(false);
+    expect(q(el, 'sync-status').textContent).not.toContain('armed');
+  });
+
+  it('spells out why an armed mode is inert', () => {
+    const noLink = stubController({ mode: 'slave', activeMode: 'off', links: [{ id: 'midi', ins: 0, outs: 0 }] });
+    expect(q(buildSyncSection(noLink.ctrl, rtcStub), 'sync-status').textContent)
+      .toContain('Slave armed — no link');
+
+    // Ports present but nothing arriving — the lingering-virtual-cable case.
+    const noClock = stubController({ mode: 'slave', activeMode: 'off', links: [{ id: 'midi', ins: 1, outs: 1 }] });
+    expect(q(buildSyncSection(noClock.ctrl, rtcStub), 'sync-status').textContent)
+      .toContain('Slave armed — no clock');
+
+    const master = stubController({ mode: 'master', activeMode: 'off', links: [{ id: 'midi', ins: 1, outs: 0 }] });
+    expect(q(buildSyncSection(master.ctrl, rtcStub), 'sync-status').textContent)
+      .toContain('Master armed — nothing connected');
+  });
+
   it('re-renders on status pushes: ports, followed BPM, stall', () => {
     const { ctrl, push } = stubController();
     const el = buildSyncSection(ctrl, rtcStub);
     const base: SyncStatus = {
-      mode: 'slave', links: [{ id: 'midi', ins: 2, outs: 1 }], playing: true,
+      mode: 'slave', activeMode: 'slave', links: [{ id: 'midi', ins: 2, outs: 1 }], playing: true,
       followedBpm: 120.44, stalled: false,
     };
     push(base);

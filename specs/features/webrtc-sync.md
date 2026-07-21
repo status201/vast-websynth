@@ -155,7 +155,10 @@ follows whichever delivers.
   `onPortsChange` fires (status "WiFi: not linked"), and a **playing slave keeps
   playing** via the existing > 1 s stall free-run (midi-clock-sync REQ-6).
   Re-pairing closes the previous peer first. A page reload **never** resumes a
-  link (the sync *mode* persists; the link does not) — the user re-pairs.
+  link (the sync *mode* persists; the link does not) — the user re-pairs. The
+  zeroed `ports()` also **releases the sync role** (`activeMode` returns to
+  `off`, midi-clock-sync REQ-19/20): the mode stays selected but inert, so the
+  BPM knob comes back instead of staying frozen at the vanished peer's tempo.
 - **REQ-8** — **Secure-context notice.** WebRTC pairing, `navigator.clipboard`,
   and the QR camera all require a secure origin. When `window.isSecureContext`
   is false the modal shows a **non-blocking** banner (`sync-pair-insecure`)

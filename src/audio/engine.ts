@@ -303,6 +303,8 @@ export class Engine {
       toPerfMs: (t) => performance.now() + (t - this.ctx.currentTime) * 1000,
       toAudioTime: (ms) => this.ctx.currentTime + (ms - performance.now()) / 1000,
       localBpm: () => this.bus.get('transport.bpm'),
+      // One-shot tempo handoff when a link drops mid-play (REQ-21).
+      setLocalBpm: (b) => this.bus.set('transport.bpm', b),
     });
 
     // WiFi sync (WebRTC DataChannel) coexists with the MIDI transport; no RTC
@@ -312,7 +314,7 @@ export class Engine {
 
     // While slaved, Tape Stop skips its clock-BPM ramp (pitch ramp still sounds)
     // so incoming clock keeps driving the tempo (midi-clock-sync REQ-13).
-    this.perf.clockRampAllowed = () => this.sync.mode !== 'slave';
+    this.perf.clockRampAllowed = () => this.sync.activeMode !== 'slave';
 
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => {
@@ -500,10 +502,12 @@ export class Engine {
     bus.subscribe('master.modWheel', () => updateLfoAmount());
 
     // ----- Transport -----
-    // Gated while slaved: incoming MIDI clock owns the tempo then; the knob's
-    // bus value is the restore target when slave mode ends (midi-clock-sync REQ-4).
+    // Gated while *actively* slaved: incoming MIDI clock owns the tempo then;
+    // the knob's bus value is the restore target when the role ends
+    // (midi-clock-sync REQ-4). `activeMode`, not `mode`, so a selected-but-
+    // disconnected Slave leaves the knob in charge (REQ-19).
     bus.subscribe('transport.bpm', (b) => {
-      if (this.sync.mode !== 'slave') this.clock.setBpm(b);
+      if (this.sync.activeMode !== 'slave') this.clock.setBpm(b);
     });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 

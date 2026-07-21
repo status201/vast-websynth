@@ -3,7 +3,7 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -155,8 +155,9 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
 - **REQ-14 — BPM-knob slaved indicator.** `Knob.setDisabled(on)` toggles a
   `disabled` style class + `aria-disabled` and early-returns in `onPointerDown`
   (blocks drag **and** double-tap reset). `app.ts` captures the BPM knob and
-  subscribes `engine.sync.onStatus` → `setDisabled(mode === 'slave')` with a
-  tooltip "Tempo follows the sync master while slaved".
+  subscribes `engine.sync.onStatus` → `setDisabled(activeMode === 'slave')`
+  (v4 — the *running* role, not the selection; REQ-19) with a tooltip
+  "Tempo follows the sync master while slaved".
 - **REQ-15 — Multi-transport + links status.** MIDI and WiFi coexist:
   `SyncController.addTransport(id, t)` replaces `attachTransport` (a `Map` keyed
   by `TransportId = 'midi' | 'wifi'`; same id replaces + unsubscribes). Sends
@@ -243,6 +244,77 @@ error than the one being fixed.
   `SyncController` fans the flush out to every transport. The WebRTC transport
   omits `flush` (nothing is queued — it sends immediately).
 
+## v4 fix — a disconnected link must release the transport
+
+Field report: set **Slave**, jam over MIDI or WiFi, then disconnect — and the
+instrument stays hostage. `mode` is persisted (REQ-1) and was the *only* signal
+anything consumed, so after the cable is pulled or the WebRTC channel tears down
+the app still believes it is slaved: the BPM knob stays dimmed and undraggable
+(REQ-14), the tempo is frozen at whatever the vanished master last dictated
+(REQ-4's gate), Tape Stop still skips its ramp (REQ-13) and render-to-sampler
+still refuses — and it all survives a reload. The only escape was clicking
+**Off**, which throws away the setting the user wanted remembered.
+
+The wire state was already observable and already emitted (`ports()` +
+`onPortsChange` → `emitStatus`); nothing gated on it. v4 splits the one
+overloaded concept in two, so the role is a *preference* that only takes effect
+while there is a live link.
+
+- **REQ-19 — Selected mode vs. active role.** `SyncController.mode` stays the
+  persisted **selection** (REQ-1 unchanged: `websynth.midisync`, restored at
+  boot, painted as the selected segment). New derived
+  `SyncController.activeMode: SyncMode` is the role **actually running** — never
+  persisted:
+
+  ```
+  mode 'off'    -> 'off'
+  mode 'master' -> some link has outs > 0                     ? 'master' : 'off'
+  mode 'slave'  -> some link has ins > 0
+                   AND (a message arrived < linkIdleMs ago
+                        OR clock.playing)                     ? 'slave'  : 'off'
+  ```
+
+  The `SyncMaster`/`SyncSlave` lifecycle keys off `activeMode`, and so does
+  every "are we slaved?" consumer: the gated `transport.bpm → clock.setBpm`
+  subscription (REQ-4), the BPM knob (REQ-14), the tape-stop clock ramp
+  (REQ-13), the seq panel's render-to-sampler refusal
+  (`render-to-sampler.md`) and the empty-play hint (`empty-play-hint.md`).
+  `SyncStatus` gains `activeMode`. **Selection painting is unchanged** — an
+  armed-but-inactive mode is still the selected segment (so the setting visibly
+  persists), just rendered greyed-out.
+- **REQ-20 — Link liveness.** Ports alone are too weak a signal: a virtual MIDI
+  cable (loopMIDI) keeps its port after the peer app quits, so `ins > 0` would
+  latch forever. A slave is therefore active only with an input port **and** a
+  sync message within `linkIdleMs` (3000 ms — comfortably past the master's
+  100 ms idle pulses and 2 s tempo heartbeat, REQ-11/12), polled by a
+  `TickTimer` watchdog every `watchdogWakeMs` (500 ms) while `mode === 'slave'`
+  and re-evaluated on `clock.onStart`/`onStop`, `addTransport` and every
+  `onPortsChange`. **`clock.playing` defers the silence-based release**, so
+  REQ-6's stall tolerance is untouched — a USB hiccup mid-performance never
+  yanks the tempo; a provable wire loss (`ins === 0`) releases immediately in
+  either state. Incoming messages stay gated on the **selection**
+  (`mode === 'slave'`, REQ-7), never on `activeMode`: receiving one is what
+  re-arms the role, so gating on the derived value would deadlock. Reactivation
+  therefore stamps the timestamp and rebuilds the role *before* the triggering
+  message is handled. A master needs an output port; gating it also stops its
+  100 ms idle-clock timer from broadcasting into the void.
+- **REQ-21 — Tempo handoff.** An **automatic** release (link lost / clock
+  silence) while `clock.playing` adopts the followed tempo into the knob — a
+  one-shot injected `setLocalBpm(bpm)` (`bus.set('transport.bpm', …)`) issued
+  *before* `SyncSlave.disable()`, so `disable()`'s existing
+  `clock.setBpm(localBpm())` restore lands on the same value and the tempo never
+  jumps mid-performance, while the knob becomes truthful (and a later song save
+  correct). This narrows REQ-4's "the followed BPM is never written to
+  `transport.bpm`" to **never while following**. An **explicit** `setMode`
+  change is a deliberate exit and keeps the REQ-4 snap-back to the knob's value
+  unchanged.
+- **REQ-22 — Armed UI.** The Song panel's Sync section marks a selected-but-
+  inactive mode with an `armed` class alongside `active` (desaturated: selected,
+  not lit) and spells out the reason in the status line — `Slave armed — no
+  link` (no input port), `Slave armed — no clock` (port present, nothing
+  arriving), `Master armed — nothing connected` (no output port). The armed BPM
+  knob is enabled and carries an explanatory tooltip instead of the slaved one.
+
 ## Technical design
 
 ### Contract / public interface
@@ -263,7 +335,8 @@ SyncTransport:
   onPortsChange(cb): unsubscribe
   flush?(): void                  # v3: best-effort cancel of scheduled-but-unsent messages
 SyncStatus:
-  mode: SyncMode
+  mode: SyncMode                  # the persisted *selection*
+  activeMode: SyncMode            # v4: the role actually running ('off' while armed but unconnected)
   links: "Array<{ id: TransportId; ins: number; outs: number }>"   # v2: replaces `ports`; [] = no transport added
   playing: boolean
   followedBpm: "number | null"    # slave only
@@ -290,9 +363,11 @@ SyncSlave(clock, { localBpm, toAudioTime }):
   onChange(cb): unsubscribe       # status repaint hook
 
 # src/audio/transport/sync/sync-controller.ts
-SyncController(clock, { toPerfMs, toAudioTime, localBpm, persist? }):
-  mode: SyncMode
-  setMode(m): void                # tear down old role, build new, persist, emit
+SyncController(clock, { toPerfMs, toAudioTime, localBpm, persist?,
+                        setLocalBpm?, nowMs?, watchdogTimer? }):   # v4: last three
+  mode: SyncMode                  # the persisted selection
+  activeMode: SyncMode            # v4: the running role (REQ-19); 'off' while armed
+  setMode(m): void                # persist, re-derive the role (explicit: no tempo adopt), emit
   addTransport(id, t): void       # v2: replaces attachTransport; Map keyed by TransportId (same id replaces)
   status: SyncStatus
   onStatus(cb): unsubscribe
@@ -345,6 +420,13 @@ tempoHeartbeatMs: 2000            # idle 'tempo' emission spacing
 tempoSendMinDelta: 0.1            # emit 'tempo' on even ticks when |bpm - lastSent| >= this
 ```
 
+Link-liveness constants (`sync-controller.ts`, v4 — REQ-20):
+
+```yaml
+linkIdleMs: 3000                  # no sync message for this long -> the slave link is dead
+watchdogWakeMs: 500               # TickTimer poll cadence while mode is 'slave'
+```
+
 Time domains: MIDI timestamps (`MIDIOutput.send`, `MIDIMessageEvent.timeStamp`)
 are `performance.now()`-domain; `Clock` schedules in AudioContext time. The
 converters are injected into the core:
@@ -355,11 +437,12 @@ inverse — the core never touches `performance`/`ctx` directly (unit-testable).
 
 - `Engine.init()` constructs `SyncController` immediately **before**
   `subscribeParams()` so the gated `transport.bpm` subscription
-  (`if (this.sync.mode !== 'slave')`) can read it safely. Immediately after, it
-  constructs `this.rtcSync = new WebRtcSyncTransport()` and calls
-  `this.sync.addTransport('wifi', this.rtcSync)` (v2; see webrtc-sync.md), and
-  wires the tape-stop gate `this.perf.clockRampAllowed = () => this.sync.mode
-  !== 'slave'`.
+  (`if (this.sync.activeMode !== 'slave')` — v4) can read it safely. It passes
+  `setLocalBpm: (b) => this.bus.set('transport.bpm', b)` (v4, REQ-21).
+  Immediately after, it constructs `this.rtcSync = new WebRtcSyncTransport()`
+  and calls `this.sync.addTransport('wifi', this.rtcSync)` (v2; see
+  webrtc-sync.md), and wires the tape-stop gate
+  `this.perf.clockRampAllowed = () => this.sync.activeMode !== 'slave'`.
 - `initMIDI(engine, bus)` runs post-gesture (input-control REQ-6); it builds
   `MidiSyncTransport(access)` and calls `engine.sync.addTransport('midi', sync)`
   (v2; was `attachTransport`). `onstatechange` also calls `sync.refreshPorts()`.
@@ -537,6 +620,57 @@ Scenario: MIDI transport flush clears every output, tolerating unsupported clear
 # pinned by: tests/audio/midi-sync-transport.test.ts
 ```
 
+v4 regression scenarios (a disconnected link must release the transport):
+
+```gherkin
+Scenario: Slave with a link but no traffic is armed, not active (regression)
+  Given sync mode is slave and a transport reports 1 input port
+  When no sync message has arrived
+  Then activeMode is 'off' and the BPM knob / transport.bpm subscription are live
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: An incoming message arms the role before it is handled
+  Given a slave-selected controller whose activeMode is 'off'
+  When a 'start' message arrives
+  Then the role activates first and the same message still starts the clock
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: Losing the wire releases the role (the reported bug)
+  Given a slave following a master over a transport
+  When the transport's input ports drop to 0 (cable pulled / DataChannel closed)
+  Then activeMode returns to 'off' while mode stays 'slave'
+  And the clock BPM is back under the knob's control
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts, e2e/sync.spec.ts
+
+Scenario: Clock silence releases only once stopped (REQ-6 stall tolerance held)
+  Given a slave whose master stopped sending (a lingering virtual MIDI port)
+  When linkIdleMs passes while the clock is playing
+  Then the role stays active and playback keeps its tempo
+  When the clock stops and linkIdleMs passes
+  Then the role releases
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: An automatic release while playing hands the tempo over without a jump
+  Given a slave playing at a followed 140 BPM while the knob reads 120
+  When the link is lost
+  Then 140 is written once to transport.bpm and the clock keeps running at 140
+  But an explicit setMode('off') still snaps back to the knob's 120 (REQ-4)
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: Master with no outputs is armed, and a link opening announces once
+  Given sync mode is master and every transport reports 0 outputs
+  Then activeMode is 'off' and nothing is broadcast (no idle clock)
+  When a transport's outputs go 0 -> >0
+  Then the role activates and the join is announced exactly once
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: An armed mode stays selected and says why
+  Given sync mode is slave with no link
+  Then the Slave segment is still marked active, plus an `armed` class
+  And the status line reads "Slave armed — no link"
+# pinned by: tests/ui/sync-section.test.ts, e2e/sync.spec.ts
+```
+
 ## Tests & verification
 
 - Unit: `tests/state/sync-mode.test.ts`,
@@ -550,7 +684,9 @@ Scenario: MIDI transport flush clears every output, tolerating unsupported clear
   offset estimator, signaling codec and pair modal are tested under
   `webrtc-sync.md`.
 - E2E: `e2e/sync.spec.ts` (UI presence + persistence + WiFi status/link button;
-  headless Chromium has no MIDI ports) — `npm run e2e`
+  headless Chromium has no MIDI ports — which makes it the end-to-end proof of
+  v4's armed state: selecting Slave there must leave the BPM knob live) —
+  `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Manual: two `localhost:5173` tabs + a virtual MIDI loopback (e.g. loopMIDI);
   cross-device needs HTTPS (Web MIDI is secure-context-only; same constraint
@@ -572,4 +708,8 @@ external. Remaining future ideas:
 - **Configurable STUN (WiFi)**: opt-in STUN to cross simple NATs while keeping
   the serverless promise (see `webrtc-sync.md`).
 - **BPM knob while slaved** still holds the local (restore) value under the
-  disabled dim; the status line's followed-BPM disambiguates.
+  disabled dim; the status line's followed-BPM disambiguates. (v4 narrows this:
+  the knob *adopts* the followed tempo when the link drops mid-play — REQ-21.)
+- **Per-port routing**: sends still broadcast to every MIDI output and liveness
+  is a whole-transport question (REQ-20), so a slave cannot yet say *which*
+  input it is following. A port picker would sharpen both.

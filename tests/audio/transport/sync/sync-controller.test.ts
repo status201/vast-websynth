@@ -35,14 +35,24 @@ function setup(persist = false) {
   const ctx = { currentTime: 0 } as unknown as AudioContext;
   const clock = new Clock(ctx, { timer: new TimeoutTimer() });
   clock.setBpm(120);
+  // v4: the link-liveness watchdog reads an injected clock (REQ-20) so tests
+  // can age a link deterministically; `knobBpm` doubles as the bus so the
+  // tempo handoff (REQ-21) is observable.
+  let nowMs = 0;
+  const knobBpm = { value: 120 };
   const ctrl = new SyncController(clock, {
     toPerfMs: (t) => t * 1000,
     toAudioTime: (ms) => ms / 1000,
-    localBpm: () => 120,
+    localBpm: () => knobBpm.value,
+    setLocalBpm: (b) => { knobBpm.value = b; },
     persist,
+    nowMs: () => nowMs,
+    watchdogTimer: new TimeoutTimer(),
   });
   const transport = new FakeTransport();
-  return { clock, ctrl, transport };
+  /** Advance the injected wall clock *and* let the watchdog fire. */
+  const advance = (ms: number): void => { nowMs += ms; vi.advanceTimersByTime(ms); };
+  return { clock, ctrl, transport, knobBpm, advance };
 }
 
 let store: Map<string, string>;
@@ -182,6 +192,115 @@ describe('SyncController', () => {
     expect(store.get('websynth.midisync')).toBe('slave');
     const { ctrl: reborn } = setup(true); // fresh controller, same storage
     expect(reborn.mode).toBe('slave');
+  });
+
+  // ---- v4: a disconnected link must release the transport (REQ-19..22) ----
+
+  it('a slave with a link but no traffic is armed, not active', () => {
+    const { ctrl, transport } = setup();
+    ctrl.addTransport('midi', transport); // 1 in / 1 out, but nothing sending
+    ctrl.setMode('slave');
+    expect(ctrl.mode).toBe('slave');       // the selection is remembered
+    expect(ctrl.activeMode).toBe('off');   // ...but inert
+    expect(ctrl.status.activeMode).toBe('off');
+  });
+
+  it('an incoming message arms the role before it is handled', () => {
+    const { clock, ctrl, transport } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    expect(ctrl.activeMode).toBe('off');
+    transport.emit({ type: 'start' });
+    expect(ctrl.activeMode).toBe('slave'); // activated by the message...
+    expect(clock.playing).toBe(true);      // ...and that same message still landed
+  });
+
+  it('losing the wire releases the role and hands the tempo back (the reported bug)', () => {
+    const { clock, ctrl, transport } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'start' });
+    const dt = intervalMs(140);
+    for (let i = 0; i < 96; i++) transport.emit({ type: 'pulse' }, i * dt);
+    transport.emit({ type: 'stop' });
+    expect(ctrl.activeMode).toBe('slave');
+
+    transport.setPorts(0, 0); // cable pulled / DataChannel torn down
+    expect(ctrl.mode).toBe('slave');      // still selected...
+    expect(ctrl.activeMode).toBe('off');  // ...no longer in charge
+    expect(clockBpm(clock)).toBeCloseTo(120, 6); // the knob owns the tempo again
+    expect(clock.playing).toBe(false);
+  });
+
+  it('clock silence releases only once stopped (REQ-6 stall tolerance held)', () => {
+    const { clock, ctrl, transport, advance } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'start' }); // ports linger (loopMIDI), traffic stops
+    expect(clock.playing).toBe(true);
+
+    advance(4000); // past LINK_IDLE_MS, but mid-performance
+    expect(ctrl.activeMode).toBe('slave');
+
+    clock.stop(); // the stop edge re-derives the role — nothing has arrived since
+    expect(ctrl.activeMode).toBe('off');
+  });
+
+  it('re-arms by itself when the clock comes back', () => {
+    const { ctrl, transport, advance } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'pulse' }, 0);
+    expect(ctrl.activeMode).toBe('slave');
+    advance(4000); // silence while stopped -> the watchdog releases it
+    expect(ctrl.activeMode).toBe('off');
+    transport.emit({ type: 'pulse' }, 0); // the master is back
+    expect(ctrl.activeMode).toBe('slave');
+  });
+
+  it('an automatic release while playing adopts the followed tempo (no jump)', () => {
+    const { clock, ctrl, transport, knobBpm } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'start' });
+    const dt = intervalMs(140);
+    for (let i = 0; i < 96; i++) transport.emit({ type: 'pulse' }, i * dt);
+    expect(Math.abs(clockBpm(clock) - 140)).toBeLessThan(0.5);
+
+    transport.setPorts(0, 0); // link lost mid-performance
+    expect(ctrl.activeMode).toBe('off');
+    expect(Math.abs(knobBpm.value - 140)).toBeLessThan(0.5);   // knob tells the truth
+    expect(Math.abs(clockBpm(clock) - 140)).toBeLessThan(0.5); // and nothing lurched
+  });
+
+  it('an explicit Off still snaps back to the knob tempo (REQ-4, not the handoff)', () => {
+    const { clock, ctrl, transport, knobBpm } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('slave');
+    transport.emit({ type: 'start' });
+    const dt = intervalMs(140);
+    for (let i = 0; i < 96; i++) transport.emit({ type: 'pulse' }, i * dt);
+
+    ctrl.setMode('off'); // deliberate exit, while playing
+    expect(knobBpm.value).toBe(120);              // never adopted
+    expect(clockBpm(clock)).toBeCloseTo(120, 6);
+  });
+
+  it('a master with no outputs is armed; a link opening announces exactly once', () => {
+    const { clock, ctrl, transport } = setup();
+    transport.setPorts(0, 0);
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('master');
+    expect(ctrl.activeMode).toBe('off');
+    clock.start();
+    expect(transport.sent.length).toBe(0); // armed: no idle clock, no broadcasts
+
+    transport.setPorts(1, 1); // an output appears mid-play
+    expect(ctrl.activeMode).toBe('master');
+    // The activating enable() already announced — the targeted per-transport
+    // join must not fire on top of it.
+    expect(transport.sent.map((s) => s.msg.type)).toEqual(['tempo', 'songposition', 'continue']);
+    clock.stop();
   });
 
   it('emits status on mode changes and transport edges', () => {
