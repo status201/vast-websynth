@@ -71,6 +71,12 @@
 .graph circle {
   fill: rgba(255, 176, 81, 0.9);
 }
+/* The bar-line carry: what the curve does between this bar and its neighbours
+   (motion-sequencer.md REQ-2b). Dashed + dimmer so it reads as "leaving the bar". */
+.graph polyline.carry {
+  stroke: rgba(255, 176, 81, 0.32);
+  stroke-dasharray: 3 3;
+}
 
 /* Axes row: which params the edit bank drives (override or inherited). */
 .axes {

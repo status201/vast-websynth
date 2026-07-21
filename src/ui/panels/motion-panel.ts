@@ -11,7 +11,9 @@ import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints } from '../components/motion-graph';
 import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
-import { SEQ_LENGTH, type MotionStep } from '../../state/patterns';
+import type { MotionNeighbours } from '../../audio/transport/motion-curve';
+import { motionAxesFor } from '../../state/xy-effective';
+import { REST, SEQ_LENGTH, type MotionStep } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -102,17 +104,46 @@ export function buildMotionPanel(
     wrapGridWithRestOverlay(engine, 'motion', bankBar, cells, graph);
   root.appendChild(gridWrap);
 
+  /**
+   * The banks the edit bank's bar sits between in the chain — what its bar-line
+   * segments ramp to and from (REQ-2b). A disabled lane (or a bank the chain never
+   * plays) loops on itself; a REST neighbour, or one driving other params, carries
+   * nothing, matching MotionMachine's own gate.
+   */
+  const chainNeighbours = (): MotionNeighbours => {
+    const edit = patterns.motionEditBank;
+    const lane = engine.arrangement.motion;
+    const slot = lane.enabled ? lane.steps.indexOf(edit) : -1;
+    if (slot < 0) return { prev: patterns.motion, next: patterns.motion };
+    const axes = motionAxesFor(patterns, edit, xy.get());
+    const at = (i: number): readonly MotionStep[] | null => {
+      const n = lane.steps.length;
+      const b = lane.steps[((i % n) + n) % n]!;
+      if (b === REST) return null;
+      const nb = motionAxesFor(patterns, b, xy.get());
+      if (nb.x !== axes.x || nb.y !== axes.y) return null;
+      return patterns.motionBanks[b]!;
+    };
+    return { prev: at(slot - 1), next: at(slot + 1) };
+  };
+
+  const strokePolyline = (pts: Array<[number, number]>, cls?: string): void => {
+    const poly = document.createElementNS(SVG_NS, 'polyline');
+    poly.setAttribute('points', pts.map(([px, py]) => `${px},${py}`).join(' '));
+    if (cls) poly.setAttribute('class', cls);
+    graph.appendChild(poly);
+  };
+
   const redrawGraph = (): void => {
     graph.innerHTML = '';
     // Mode-aware line (REQ-8): slide = anchor polyline; step = the true
     // jump-and-hold staircase, so the graph matches what valueAt will play.
     const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
-    const { line, dots } = motionGraphPoints(patterns.motion, view, mode);
-    if (line.length > 1) {
-      const poly = document.createElementNS(SVG_NS, 'polyline');
-      poly.setAttribute('points', line.map(([px, py]) => `${px},${py}`).join(' '));
-      graph.appendChild(poly);
-    }
+    const { line, dots, carry } =
+      motionGraphPoints(patterns.motion, view, mode, chainNeighbours());
+    // Dashed first, so the solid in-bar line wins where they meet.
+    for (const seg of carry) strokePolyline(seg, styles.carry!);
+    if (line.length > 1) strokePolyline(line);
     for (const [px, py] of dots) {
       const c = document.createElementNS(SVG_NS, 'circle');
       c.setAttribute('cx', String(px));
@@ -189,9 +220,14 @@ export function buildMotionPanel(
     pads[idx]?.setStep(step);
     redrawGraph();
   });
-  xy.onChange(refreshAxes);
+  xy.onChange(() => {
+    refreshAxes();
+    redrawGraph(); // a base reassignment can change which neighbours carry
+  });
   // STEP/SLIDE changes the line's shape (staircase vs ramp) — re-project live.
   bus.subscribe('motion.slide', redrawGraph);
+  // Chain edits (and each bar's advance) move which banks border this one.
+  engine.arrangement.onChange(redrawGraph);
 
   redrawGraph();
   refreshAxes();

@@ -49,7 +49,45 @@ describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
   });
 
   it('an empty bank draws nothing in either mode', () => {
-    expect(motionGraphPoints(bank({}), 'y', 'step')).toEqual({ line: [], dots: [] });
-    expect(motionGraphPoints(bank({}), 'y', 'slide')).toEqual({ line: [], dots: [] });
+    const empty = { line: [], dots: [], carry: [] };
+    expect(motionGraphPoints(bank({}), 'y', 'step')).toEqual(empty);
+    expect(motionGraphPoints(bank({}), 'y', 'slide')).toEqual(empty);
+  });
+
+  describe('bar-line carry (REQ-2b, v3)', () => {
+    const b = bank({ 2: { x: 0.25, y: 1 }, 10: { x: 0.75, y: 0 } });
+
+    it('slide mode dashes both bar edges, tracing the self-wrap by default', () => {
+      const { carry } = motionGraphPoints(b, 'y', 'slide');
+      // Wrap 10 → 2 spans 8 steps; the bar line sits 6 of them along, so the
+      // edges meet at 6/8 of the way from y=100 (value 0) up to y=0 (value 1).
+      expect(carry).toEqual([
+        [[0, 25], [cx(2), 0]],     // carried in: the wrap's tail
+        [[cx(10), 100], [100, 25]], // carried out: the wrap's head
+      ]);
+    });
+
+    it('ramps toward the NEXT bank instead when the chain moves on', () => {
+      const next = bank({ 0: { x: 0.5, y: 1 } });
+      const [, out] = motionGraphPoints(b, 'y', 'slide', { next }).carry;
+      // 10 → next's step 0 spans 6 steps, all of them before the bar line, so the
+      // edge lands on the next bank's opening value (y=1 → the top).
+      expect(out).toEqual([[cx(10), 100], [100, 0]]);
+    });
+
+    it('holds flat at an edge that carries nowhere', () => {
+      const { carry } = motionGraphPoints(b, 'y', 'slide', { prev: null, next: null });
+      expect(carry).toEqual([
+        [[0, 0], [cx(2), 0]],        // holds anchor 2's value back to the bar start
+        [[cx(10), 100], [100, 100]], // holds anchor 10's value to the bar end
+      ]);
+    });
+
+    it("step mode's lead-in follows the previous bank, and needs no dashes", () => {
+      const prev = bank({ 6: { x: 0.5, y: 0.4 } });
+      const { line, carry } = motionGraphPoints(b, 'y', 'step', { prev });
+      expect(line[0]).toEqual([0, 60]); // the previous bar's last anchor, not this bank's
+      expect(carry).toEqual([]);        // the staircase already spans the bar
+    });
   });
 });

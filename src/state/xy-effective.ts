@@ -25,6 +25,21 @@ interface MotionLaneView {
   onChange(fn: () => void): () => void;
 }
 
+/**
+ * The axes a motion bank drives: its per-bank override wins per axis, each unset
+ * axis falls back to the XY Pad's base assignment (REQ-4). Shared by the resolver
+ * below, the machine's bar-line carry gate and the Motion panel's graph — all
+ * three must agree on which param a bank's anchors mean.
+ */
+export function motionAxesFor(
+  patterns: PatternStore,
+  bank: number,
+  base: XyAssign,
+): XyAssign {
+  const ov = patterns.motionAssign(bank);
+  return { x: ov?.x ?? base.x, y: ov?.y ?? base.y };
+}
+
 export function createEffectiveXy(
   xy: XyPadStore,
   patterns: PatternStore,
@@ -35,8 +50,7 @@ export function createEffectiveXy(
     const base = xy.get();
     // A muted machine is inactive (motion-sequencer.md REQ-12) — base axes apply.
     if (bus.get('motion.on') < 0.5 || bus.get('motion.mute') >= 0.5) return base;
-    const ov = patterns.motionAssign(arrangement.motionPlayBank);
-    return { x: ov?.x ?? base.x, y: ov?.y ?? base.y };
+    return motionAxesFor(patterns, arrangement.motionPlayBank, base);
   };
 
   let last = resolve();

@@ -299,4 +299,45 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
     clock.fireStart();
     expect(arr.motionResting).toBe(true);
   });
+
+  describe('neighbour bars (REQ-2b, the motion curve\'s bar-line carry)', () => {
+    it('resolves the bars either side of the current slot, wrapping at both ends', () => {
+      const clock = new TestClock();
+      const arr = new Arrangement(new PatternStore(), clock);
+      arr.setMotionChain([0, 1, 2], true);
+      clock.fireStart();
+      playBar(clock, 0);
+      expect([arr.motionPrevPlayBank, arr.motionPlayBank, arr.motionNextPlayBank])
+        .toEqual([2, 0, 1]); // wraps back to the chain's last slot
+      playBar(clock, 1);
+      expect([arr.motionPrevPlayBank, arr.motionPlayBank, arr.motionNextPlayBank])
+        .toEqual([0, 1, 2]);
+      playBar(clock, 2);
+      expect([arr.motionPrevPlayBank, arr.motionPlayBank, arr.motionNextPlayBank])
+        .toEqual([1, 2, 0]); // wraps forward to the first slot
+    });
+
+    it('flags a resting neighbour', () => {
+      const clock = new TestClock();
+      const arr = new Arrangement(new PatternStore(), clock);
+      arr.setMotionChain([0, REST], true);
+      clock.fireStart();
+      playBar(clock, 0);
+      expect(arr.motionNextResting).toBe(true);
+      expect(arr.motionPrevResting).toBe(true); // a 2-slot chain: same bar both ways
+      playBar(clock, 1);
+      expect(arr.motionResting).toBe(true);
+      expect(arr.motionNextResting).toBe(false);
+    });
+
+    it('a disabled lane reports the edit bank on both sides (it loops on itself)', () => {
+      const clock = new TestClock();
+      const patterns = new PatternStore();
+      const arr = new Arrangement(patterns, clock);
+      patterns.setMotionEditBank(2);
+      clock.fireStart();
+      expect([arr.motionPrevPlayBank, arr.motionNextPlayBank]).toEqual([2, 2]);
+      expect([arr.motionPrevResting, arr.motionNextResting]).toEqual([false, false]);
+    });
+  });
 });

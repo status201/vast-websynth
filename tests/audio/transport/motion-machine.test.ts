@@ -184,6 +184,100 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
   });
 
+  describe('bar-line carry across banks (REQ-2b)', () => {
+    /** Fill bank `i` with anchors (+ an optional assign), restoring the edit bank. */
+    function fill(
+      patterns: PatternStore,
+      i: number,
+      anchors: Record<number, number>,
+      assign?: { x: string; y: string },
+    ): void {
+      const edit = patterns.motionEditBank;
+      patterns.setMotionEditBank(i);
+      for (const [s, y] of Object.entries(anchors)) anchor(patterns, Number(s), y, y);
+      if (assign) patterns.setMotionAssign(assign);
+      patterns.setMotionEditBank(edit);
+    }
+
+    /**
+     * Drive the clock forward to absolute step position `pos` (fractional) and
+     * evaluate one frame there. Ticks are fired once each, as the transport does.
+     */
+    function driver(clock: TestClock, machine: MotionMachine) {
+      let next = 0;
+      return (pos: number): void => {
+        for (; next <= Math.floor(pos); next++) clock.fireTick(next * STEP_DUR);
+        machine.frame(pos * STEP_DUR);
+      };
+    }
+    const bar = (n: number, step: number): number => n * SEQ_LENGTH + step;
+
+    // The reported bug: a delay throw built at the end of one bank, handed to the
+    // next. Pre-v3 the final 16th raced back to the *same* bank's first anchor.
+    const D = { 0: 0.13, 10: 0.13, 14: 0.58, 15: 0.53 };
+    const A = { 0: 0.55, 7: 0.52, 13: 0.16, 15: 0.13 };
+
+    it('holds the throw into the next bank instead of collapsing to its own opening', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      fill(patterns, 0, D);
+      fill(patterns, 1, A);
+      arrangement.setMotionChain([0, 1], true);
+      const def = bus.def('filter.cutoff')!;
+      clock.fireStart();
+      const frameAt = driver(clock, machine);
+      // Deep into bank D's final step: climbing toward A's opening, not diving.
+      frameAt(bar(0, 15.5));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.54), 6);
+      // …and bank A opens exactly where D left off.
+      frameAt(bar(1, 0));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.55), 6);
+    });
+
+    it('holds the last anchor toward an anchorless bank, which then keeps it there', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      fill(patterns, 0, A);              // bank B (index 1) stays empty
+      arrangement.setMotionChain([0, 1], true);
+      const def = bus.def('filter.cutoff')!;
+      clock.fireStart();
+      const frameAt = driver(clock, machine);
+      frameAt(bar(0, 15.5));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.13), 6);
+      // The empty bank writes nothing (REQ-3) — so the value it inherits is A's
+      // last anchor, not the 0.55 the old self-wrap sprang back up to.
+      frameAt(bar(1, 8));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.13), 6);
+    });
+
+    it('does not carry into a bank that drives different params', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      fill(patterns, 0, A);
+      fill(patterns, 1, D, { x: 'fx.delay.mix', y: 'fx.delay.mix' });
+      arrangement.setMotionChain([0, 1], true);
+      const def = bus.def('filter.cutoff')!;
+      clock.fireStart();
+      // D's anchors are in fx.delay.mix's space — meaningless to ramp toward, so
+      // bank A simply holds its own last anchor to the bar line.
+      driver(clock, machine)(bar(0, 15.5));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.13), 6);
+    });
+
+    it('a chain that repeats one bank still wraps within it (back-compat)', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      anchor(patterns, 4, 0, 0);
+      anchor(patterns, 12, 1, 1);
+      arrangement.setMotionChain([0, 0], true);
+      const def = bus.def('filter.cutoff')!;
+      clock.fireStart();
+      // The 12→4 wrap spans 8 steps across the bar line; step 0 is halfway.
+      driver(clock, machine)(bar(1, 0));
+      expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.5), 6);
+    });
+  });
+
   it('reads the play bank the arrangement selects, not the edit bank', () => {
     const { bus, patterns, clock, arrangement, machine } = build();
     machine.setEnabled(true);

@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 2   # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
+version: 3   # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
+             # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
 owner: core
 related:
   - xy-pad
@@ -42,10 +43,25 @@ The tab sits between Sampler and Song.
   0..1** in taper space (the XY Pad surface's space). Dead step = `{on:false}`.
   4 banks (A–D) × 16 steps, stored in `PatternStore` beside the other machines.
 - **REQ-2** — Set steps are **anchors**. In **Slide** mode the driven value ramps
-  linearly between consecutive anchors, *across* unset gaps, wrapping last→first
-  anchor over the bar boundary (within the current play bank). In **Step** mode the
+  linearly between consecutive anchors, *across* unset gaps. In **Step** mode the
   value jumps at each anchor's tick and holds. Mode = `motion.slide` param
   (0=step, 1=slide, default 1); it persists in songs/presets like any param.
+- **REQ-2b** — (v3) **Cross-bank carry.** The segment spanning the bar line does not
+  wrap within the bank: the ramp *out* of the last anchor targets the **next play
+  bank's first anchor** and the ramp *into* the first anchor continues from the
+  **previous play bank's last anchor**, so a chained curve is continuous bar to bar
+  (step mode carries the previous bank's last anchor as its pre-first-anchor hold).
+  The span is unchanged (`n - lastIdx + firstIdx`, measured across the bar line), so
+  when both neighbours resolve to the *same* bank — a repeating chain slot, a
+  single-slot chain, or a disabled lane (which follows the edit bank) — the curve is
+  identical to the pre-v3 self-wrap. A neighbour that **rests**, holds **no anchors**,
+  or drives a **different param** on either axis (its effective assignment differs,
+  REQ-4) is unusable: the value then **holds flat** to/from the bar line rather than
+  ramping toward a meaningless target. Rationale: a bank's last anchor is the value
+  the author expects to hand to the next bar — the self-wrap silently undid it inside
+  the final step (e.g. a delay throw built at the end of bank D collapsed at the
+  seam, and bank A's low ending sprang back up and froze there through anchorless
+  banks).
 - **REQ-3** — A bank with **zero anchors writes nothing** (params stay put). This is
   the "no automation" state: to localize a one-step peak the user anchors the
   neighbouring steps at the base value.
@@ -61,7 +77,10 @@ The tab sits between Sampler and Song.
   never subscribes to the params it writes (no feedback loop).
 - **REQ-6** — Motion has the 4th `Arrangement` chain lane (`motionPlayBank`,
   `motionResting`, `setMotionChain`); it respects rests (no writes) and a disabled
-  lane follows the edit bank. It is **not** an audio lane: excluded from
+  lane follows the edit bank. (v3) The lane also resolves its **neighbour bars** —
+  `motion{Prev,Next}PlayBank` + `motion{Prev,Next}Resting`, the same `resolveLane`
+  at `motionPos ± 1` (wrapped) — which REQ-2b's carry needs; motion is the only lane
+  that exposes them. It is **not** an audio lane: excluded from
   `LaneId`/`LaneMixer`/`audibleLanes`; its Song-panel card carries the chain
   controls plus a **Mute** switch (v2, REQ-12) but no solo/volume (nothing to
   mix). The card dims (the same `silenced` visual as the audio lanes) while
@@ -73,8 +92,9 @@ The tab sits between Sampler and Song.
   only changes value at anchor boundaries and `bus.set` early-returns unchanged
   values, so its idle frames cost nothing. The pure curve math is
   `motion-curve.ts` (`valueAt(bank, barPos, mode)`), fully unit-testable.
-  The same discipline applies to **arrangement state**: the rest gate and play
-  bank flip on the *scheduled* bar-boundary tick, up to `scheduleAheadS` before
+  The same discipline applies to **arrangement state**: the rest gate, the play
+  bank and (v3) the neighbour banks flip on the *scheduled* bar-boundary tick, up to
+  `scheduleAheadS` before
   it is heard — the machine latches them per tick and evaluates against the tick
   whose **audible** window contains now, so rests and bank switches land on the
   heard bar boundary (reading them live truncated the final `scheduleAheadS` of
@@ -87,9 +107,19 @@ The tab sits between Sampler and Song.
   The line is **mode-aware** (v2): in Slide mode it is the anchor-to-anchor
   polyline; in Step mode it is a full-width **staircase** (jump-and-hold at each
   anchor, including the last→first wrap hold before the first anchor — a single
-  anchor draws a flat line), mirroring `valueAt`'s semantics. The geometry is the
-  pure `motionGraphPoints(bank, view, mode)` (`ui/components/motion-graph.ts`);
-  the panel redraws on `motion.slide` changes. Header: `motion.on` switch,
+  anchor draws a flat line), mirroring `valueAt`'s semantics. (v3) It also draws the
+  **carry**: up to two dashed edge segments joining the first/last anchor to the bar
+  edges at the values REQ-2b will actually play, so the bar-line behaviour is visible
+  while authoring instead of implied (pre-v3 the slide line simply stopped at the
+  outer anchors and the wrap was invisible). The graph resolves its neighbours from
+  the motion chain lane around the edit bank (lane disabled or bank absent from the
+  chain ⇒ the bank itself — the self-loop that plays), so both edges stay flat when
+  nothing carries. The geometry is the
+  pure `motionGraphPoints(bank, view, mode, neighbours?)`
+  (`ui/components/motion-graph.ts`), whose edge values come from `valueAt` itself so
+  the picture cannot drift from playback;
+  the panel redraws on `motion.slide`, chain and assignment changes. Header:
+  `motion.on` switch,
   Slide/Step segmented, view toggle, BankBar (`bank-motion-*`), and an axes row
   showing the edit bank's *effective* assignment with override dropdowns + an
   inherit/reset button. A help-mode badge (`motion` topic, anchored to
@@ -133,19 +163,30 @@ The tab sits between Sampler and Song.
   `stop()` restore hook via `clock.onStop`. Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
   `motion`.
-- `motion-curve.ts` (pure): `anchorIndices(bank)`, `valueAt(bank, barPos, mode)
-  → {x,y} | null` — all interpolation/wrap math, no AudioContext.
+- `motion-curve.ts` (pure): `anchorIndices(bank)`,
+  `valueAt(bank, barPos, mode, neighbours?) → {x,y} | null` — all
+  interpolation/carry math, no AudioContext.
+  `MotionNeighbours = { prev?, next?: readonly MotionStep[] | null }` are the banks
+  of the adjacent *bars* (REQ-2b); omitted ⇒ this bank (the pre-v3 self-wrap),
+  `null`/anchorless ⇒ hold flat at the bar line. The module stays free of
+  assignment/`XyPadStore` knowledge — deciding whether a neighbour is *usable* is the
+  caller's job.
 - `PatternStore`: `motionEditBank`, `motion`, `motionBank(i)`, `setMotionEditBank`,
   `setMotionStep(step, cell)`, `copyMotionBank(from,to)`, `motionAssign(i)`,
   `setMotionAssign(i, a|null)`, `onMotionChange`, `onMotionBankChange`.
 - `Arrangement`: `motionPlayBank`, `motionResting`, `setMotionChain(steps, enabled)`,
-  `motionChainPos`.
+  `motionChainPos`, `motion{Prev,Next}PlayBank`, `motion{Prev,Next}Resting` (v3).
 - `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of the
   UI layer so the audio layer can map taper-correctly without importing UI code.
+- `src/state/xy-effective.ts`: `motionAxesFor(patterns, bank, base) → XyAssign`
+  (v3) — the one-line per-axis override/fallback rule (REQ-4), shared by
+  `createEffectiveXy`, `MotionMachine`'s neighbour gate and the panel's graph.
 - `src/ui/components/motion-graph.ts` (pure, v2):
-  `motionGraphPoints(bank, view, mode) → { line: [x,y][]; dots: [x,y][] }` in the
+  `motionGraphPoints(bank, view, mode, neighbours?)
+  → { line: [x,y][]; dots: [x,y][]; carry: [x,y][][] }` in the
   graph SVG's 0–100 viewBox space (dots at anchor centres; step mode's line is
-  the wrap-aware staircase). No DOM — unit-testable like `motion-curve.ts`.
+  the wrap-aware staircase; `carry` holds the 0–2 dashed bar-edge segments, v3).
+  No DOM — unit-testable like `motion-curve.ts`.
 
 ### Data shapes
 
@@ -228,6 +269,36 @@ Scenario: The final anchor before a rest bar still writes under look-ahead (regr
     audible boundary instead of freezing the step-12 value through the rest)
 # pinned by: tests/audio/transport/motion-machine.test.ts
 
+Scenario: The curve carries into the next bank instead of wrapping (v3, regression)
+  Given slide mode and a chain D → A
+  And bank D ends high (anchor at step 15) while bank A opens at that same value
+  When the bar line between them is crossed
+  Then D's final step holds its high value instead of ramping back to D's step-0 value
+  And bank A opens on its own step-0 anchor, so the move is continuous
+# pinned by: tests/audio/transport/motion-curve.test.ts, tests/audio/transport/motion-machine.test.ts
+
+Scenario: An unusable neighbour holds the last anchor (v3)
+  Given slide mode and a chain A → B where B has no anchors (or rests, or drives
+    a different param than A)
+  When bank A's last anchor is passed
+  Then the value holds that anchor to the bar line
+  And bank B — writing nothing — leaves it there, instead of freezing the value the
+    old self-wrap sprang back up to
+# pinned by: tests/audio/transport/motion-curve.test.ts, tests/audio/transport/motion-machine.test.ts
+
+Scenario: A repeating bank is unchanged by the carry (v3, back-compat)
+  Given a single-bank chain (or a disabled lane) with anchors at steps 4 and 12
+  When the bar plays
+  Then the curve is exactly the pre-v3 last→first wrap across the bar line
+# pinned by: tests/audio/transport/motion-curve.test.ts
+
+Scenario: The graph draws the bar-line carry (v3)
+  Given the chain plays D → A and bank D is on screen
+  When the graph is drawn
+  Then dashed segments join the bar edges to D's outer anchors at the values that
+    will play, and they are flat when the neighbour cannot be carried to
+# pinned by: tests/ui/motion-graph.test.ts
+
 Scenario: Bank switches apply at the audible bar boundary, not at schedule time
   Given the chain moves from bank A to bank B with different anchor values
   When the new bar's first tick arrives ahead of its audible time
@@ -292,10 +363,12 @@ Scenario: Dialect motion bank expands
 - Assigning `transport.bpm` is allowed (tempo automation); slave-sync gating already
   prevents clock conflicts.
 - When the chain leaves a bank whose override drove other params, those params hold
-  their last written value until stop (then baselines restore).
+  their last written value until stop (then baselines restore). Since v3 that held
+  value is the bank's **last anchor** (the carry holds flat toward an unusable
+  neighbour), which is what the author drew — pre-v3 it was the bank's *first*
+  anchor, because the self-wrap ran back up inside the final step. To bring a param
+  home during anchorless bars, anchor them.
 
 ## Open questions / future
 
-- Cross-bar interpolation toward the *next* bank's first anchor (v1 wraps within the
-  current bank).
 - More than two axes / free per-step param choice (would decouple from the XY Pad).

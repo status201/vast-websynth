@@ -37,6 +37,15 @@ export class Arrangement {
   samplerResting = false;
   motionResting = false;
 
+  // The motion lane alone also resolves its neighbouring *bars*: the motion
+  // curve's bar-line segment ramps between banks, so it needs to know what
+  // played before and what plays next (motion-sequencer.md REQ-2b). The audio
+  // lanes have no such continuity, hence no neighbour fields.
+  motionPrevPlayBank = 0;
+  motionNextPlayBank = 0;
+  motionPrevResting = false;
+  motionNextResting = false;
+
   private seqPos = 0;
   private drumPos = 0;
   private samplerPos = 0;
@@ -144,9 +153,19 @@ export class Arrangement {
     const sampler = resolveLane(this.sampler, this.samplerPos, this.patterns.samplerEditBank);
     this.samplerPlayBank = sampler.playBank;
     this.samplerResting = sampler.resting;
-    const motion = resolveLane(this.motion, this.motionPos, this.patterns.motionEditBank);
+    const motionEdit = this.patterns.motionEditBank;
+    const motion = resolveLane(this.motion, this.motionPos, motionEdit);
     this.motionPlayBank = motion.playBank;
     this.motionResting = motion.resting;
+    // `resolveLane` mods, so keep the index non-negative. A disabled lane returns
+    // the edit bank for all three, which is exactly what plays.
+    const len = this.motion.steps.length || 1;
+    const before = resolveLane(this.motion, this.motionPos + len - 1, motionEdit);
+    this.motionPrevPlayBank = before.playBank;
+    this.motionPrevResting = before.resting;
+    const after = resolveLane(this.motion, this.motionPos + 1, motionEdit);
+    this.motionNextPlayBank = after.playBank;
+    this.motionNextResting = after.resting;
   }
 }
 

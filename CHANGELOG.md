@@ -28,6 +28,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "Motion" headings on the Song tab's chain cards now open that machine's tab
   (marked with a ↗).
 
+### Changed
+
+- **Motion curves now flow across the bar line** — a chained motion bank used to
+  wrap back into itself at the end of the bar, so a move you built up over a bank
+  quietly collapsed inside its final step: a filter sweep or delay throw ending
+  high at step 16 raced back down to where the bank started before the next bar
+  ever got a say. Motion now hands off instead. The last anchor of a bank ramps
+  toward the *next* bank's first anchor, and a bank's opening anchor continues
+  from the *previous* bank's last, so a curve drawn across a chain reads as one
+  continuous gesture. If the next bar can't be carried into — it rests, holds no
+  anchors, or drives different parameters — the value simply holds where you left
+  it rather than sliding somewhere arbitrary. The Motion tab's graph draws both
+  bar edges as dashed lines at the values that will actually play, so the seam is
+  visible while you author instead of a surprise on playback. A bank that repeats
+  (a single-slot chain, the same bank twice, or the lane switched off) behaves
+  exactly as before.
+
 ### Fixed
 
 - **Step Input can no longer record behind your back** — the Sequencer's Step

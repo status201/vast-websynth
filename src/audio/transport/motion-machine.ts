@@ -1,10 +1,11 @@
 import type { Arrangement } from './arrangement';
-import type { PatternStore } from '../../state/patterns';
+import type { MotionStep, PatternStore } from '../../state/patterns';
 import { SEQ_LENGTH } from '../../state/patterns';
 import type { ParamBus } from '../../state/params';
-import type { XyPadStore } from '../../state/xy-pad';
+import type { XyAssign, XyPadStore } from '../../state/xy-pad';
+import { motionAxesFor } from '../../state/xy-effective';
 import { fromNorm } from '../../utils/taper';
-import { valueAt, type MotionMode } from './motion-curve';
+import { valueAt, type MotionMode, type MotionNeighbours } from './motion-curve';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
@@ -19,6 +20,11 @@ interface LatchedTick {
   dur: number;
   resting: boolean;
   playBank: number;
+  /** Neighbouring bars, for the bar-line carry (REQ-2b) — latched with the rest. */
+  prevBank: number;
+  prevResting: boolean;
+  nextBank: number;
+  nextResting: boolean;
 }
 
 interface MotionMachineOpts {
@@ -45,7 +51,9 @@ interface MotionMachineOpts {
  * unchanged values, so idle frames cost nothing). Arrangement state (rest
  * gate, play bank) advances with the scheduled tick too, so it is latched per
  * tick and applied at the tick's audible time (REQ-7) — reading it live would
- * truncate the final scheduleAheadS of every bar before a rest.
+ * truncate the final scheduleAheadS of every bar before a rest. The neighbouring
+ * bars' banks are latched the same way and handed to the curve, so the segment
+ * crossing the bar line ramps into the bank that actually plays next (REQ-2b).
  *
  * Baseline discipline (REQ-5): the first write to a param in a play session
  * records its prior value; stop / disable restores every recorded baseline.
@@ -90,6 +98,10 @@ export class MotionMachine {
         dur: clock.sixteenthDuration(),
         resting: this.arrangement.motionResting,
         playBank: this.arrangement.motionPlayBank,
+        prevBank: this.arrangement.motionPrevPlayBank,
+        prevResting: this.arrangement.motionPrevResting,
+        nextBank: this.arrangement.motionNextPlayBank,
+        nextResting: this.arrangement.motionNextResting,
       };
       if (!this.enabled) return;
       this.stepListeners.emit(idx);
@@ -160,17 +172,38 @@ export class MotionMachine {
     if (tick.resting) return;
 
     const bank = this.patterns.motionBank(tick.playBank);
+    const base = this.xy.get();
+    const axes = motionAxesFor(this.patterns, tick.playBank, base);
     // True playhead position in step units: the governing tick's index plus
     // the fraction of a step elapsed since (negative while that tick is still
     // ahead of now — valueAt wraps, matching the loop seam).
     const pos = tick.idx + (nowS - tick.when) / tick.dur;
-    const v = valueAt(bank, pos / SEQ_LENGTH, this.mode);
+    const v = valueAt(bank, pos / SEQ_LENGTH, this.mode, {
+      prev: this.carryBank(tick.prevBank, tick.prevResting, axes, base),
+      next: this.carryBank(tick.nextBank, tick.nextResting, axes, base),
+    });
     if (!v) return;
 
-    const assign = this.patterns.motionAssign(tick.playBank);
-    const base = this.xy.get();
-    this.write(assign?.x ?? base.x, v.x);
-    this.write(assign?.y ?? base.y, v.y);
+    this.write(axes.x, v.x);
+    this.write(axes.y, v.y);
+  }
+
+  /**
+   * The neighbouring bar's bank as a carry target (REQ-2b), or null when there is
+   * nothing meaningful to ramp toward: a rest bar writes nothing, and a bank
+   * driving *other* params holds its anchors in a different value space — ramping
+   * into either would move this bar's params for no authored reason.
+   */
+  private carryBank(
+    bank: number,
+    resting: boolean,
+    axes: XyAssign,
+    base: XyAssign,
+  ): readonly MotionStep[] | null {
+    if (resting) return null;
+    const nb = motionAxesFor(this.patterns, bank, base);
+    if (nb.x !== axes.x || nb.y !== axes.y) return null;
+    return this.patterns.motionBank(bank);
   }
 
   private write(id: string, norm: number): void {
