@@ -383,9 +383,12 @@ function buildPatternRow(
   const effectiveXy = createEffectiveXy(xy, engine.patterns, engine.arrangement, bus);
   const xyWin = createXyPadWindowController(bus, xy, effectiveXy);
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
+  // Hoisted out of the tabs array: the panel is built before the TabContainer
+  // exists, so this is the only way to keep a handle on it (see below).
+  const seq = buildSeqPanel(bus, engine, patternUndo);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
-    { id: 'seq', label: 'Sequencer', content: buildSeqPanel(bus, engine, patternUndo), indicator: true },
+    { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },
     { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine, patternUndo), indicator: true },
     { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine, patternUndo), indicator: true },
     { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo), indicator: true },
@@ -408,6 +411,12 @@ function buildPatternRow(
     patternUndo.undo(m);
     return true;
   };
+
+  // Step Input is armed only while its own grid is on screen (sequencer.md
+  // REQ-5): switching tabs or folding the row disarms it, so notes played
+  // elsewhere — held chords on the Arpeggiator tab, say — can never overwrite
+  // the sequencer bank behind the user's back.
+  tabs.onViewChange(() => { if (!tabs.isVisible('seq')) seq.disarmStepInput(); });
 
   // The Song panel's lane titles navigate here (machine-status.md REQ-5).
   bridge.showTab = (id) => tabs.reveal(id);

@@ -105,7 +105,27 @@ describe('BankBar', () => {
     expect(calls.setEdit).toEqual([1, 3]);
   });
 
-  it('exposes follow state read-only and notifies on every flip', () => {
+  // sequencer.md REQ-6 — a panel drops Follow on the user's behalf so an
+  // armed Step Input take can't be moved to another bank mid-recording.
+  it('setFollowing pins the edit bank and notifies, like a manual bank click', () => {
+    const { bar, followBtn, setPlay, calls } = harness();
+    const seen: boolean[] = [];
+    bar.onFollowChange(() => seen.push(bar.following));
+
+    bar.setFollowing(false);
+    expect(bar.following).toBe(false);
+    expect(followBtn.classList.contains('on')).toBe(false);
+    expect(seen).toEqual([false]);
+
+    setPlay(2); // the arrangement advances — the edit bank must not move
+    expect(calls.setEdit).toEqual([]);
+
+    bar.setFollowing(true); // re-enabling still syncs immediately
+    expect(calls.setEdit).toEqual([2]);
+    expect(seen).toEqual([false, true]);
+  });
+
+  it('exposes follow state and notifies on every flip', () => {
     const { bar, followBtn, banks, setPlay } = harness();
     const seen: boolean[] = [];
     const off = bar.onFollowChange(() => seen.push(bar.following));

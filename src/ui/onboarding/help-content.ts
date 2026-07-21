@@ -474,6 +474,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'them for the details.</p>' +
       '<p><strong>Filling it fast:</strong> arm <strong>Step Input</strong> and play notes on the ' +
       'keyboard (or MIDI) — each lands in the selected step and the cursor advances on its own. ' +
+      'It records only while this tab is open, into the bank you can see: leaving the tab switches ' +
+      'it back off, and arming it turns <strong>Follow</strong> off so the song can\'t move your ' +
+      'take to another bank. ' +
       'Or <strong>scroll</strong> a step to change its pitch, and <strong>Shift</strong>+click ± / ' +
       'Shift+scroll to jump a whole octave.</p>' +
       '<p>It has four banks (<strong>A–D</strong>) you can fill with different riffs and chain ' +

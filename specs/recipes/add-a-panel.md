@@ -95,6 +95,14 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   Machine controls stay direct children of the header.
 - The `TabContainer` wraps content in a `panel-<id>` shell and toggles a
   `visible` class — don't set `display` on your root in a way that fights it.
+- **Has a mode that must not act off-screen?** (a record arm, a capture of global
+  input, an animation loop.) Return a handle from your builder — `{ el, … }`
+  instead of the bare root — and in `buildPatternRow` gate it on
+  `tabs.onViewChange(() => { if (!tabs.isVisible('my')) … })`. `isVisible` accounts
+  for both the active tab and the row's fold state. The sequencer's Step Input is
+  the worked example ([sequencer](../features/sequencer.md) REQ-5); a panel built
+  *before* the `TabContainer` exists cannot hold a reference to it, so this wiring
+  belongs in `app.ts` next to `bridge.showTab`.
 
 ## Scenarios (BDD)
 

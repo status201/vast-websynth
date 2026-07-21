@@ -29,6 +29,12 @@ export interface CollapseToggleOptions {
    */
   trigger?: HTMLElement;
   ignoreSelector?: string;
+  /**
+   * Fires whenever the collapsed state is written — the chevron, the `trigger`
+   * click and `expand()` all funnel through it, so a listener sees every fold.
+   * Also fires once during creation with the initial (stored or default) state.
+   */
+  onChange?(collapsed: boolean): void;
 }
 
 /** Raw stored choice, or null when the user has never toggled this panel. */
@@ -63,6 +69,7 @@ export function createCollapseToggle(
   const apply = (collapsed: boolean): void => {
     target.classList.toggle('collapsed', collapsed);
     el.setAttribute('aria-expanded', String(!collapsed));
+    opts?.onChange?.(collapsed);
   };
 
   const set = (collapsed: boolean): void => {

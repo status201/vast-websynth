@@ -31,7 +31,17 @@ function paintStep(sb: StepButton, s: SeqStep): void {
   sb.el.title = `${noteName(s.note)} · ${stepTitle(s)}`;
 }
 
-export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
+export interface SeqPanel {
+  readonly el: HTMLElement;
+  /**
+   * Turn Step Input off from outside — `app.ts` calls this the moment the panel
+   * stops being on screen (sequencer.md REQ-5), so the arm can never outlive
+   * the grid it writes to.
+   */
+  disarmStepInput(): void;
+}
+
+export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): SeqPanel {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} seq-panel`;
 
@@ -49,14 +59,28 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     label: 'Step Input',
     led: true,
     testId: 'seq-step-input',
-    onClick: () => {
-      armed = !armed;
-      recBtn.classList.toggle('on', armed);
-      stepRow.classList.toggle(styles.recording!, armed);
-    },
+    onClick: () => setArmed(!armed),
   });
-  recBtn.title = 'Step Input — play notes (keyboard / MIDI) to fill steps; the cursor auto-advances';
+  recBtn.title = 'Step Input — play notes (keyboard / MIDI) to fill steps; the cursor '
+    + 'auto-advances. Records only while this tab is open, into the bank on screen';
   header.appendChild(recBtn);
+
+  // The ONE writer of `armed` and its two visual affordances (sequencer.md
+  // REQ-7). Arming also drops Bank Follow so the arrangement can't swap the edit
+  // bank mid-take and spray the notes across banks (REQ-6) — the same
+  // editing-intent rule a manual bank click already applies. Disarming leaves
+  // Follow off for the user to re-enable.
+  function setArmed(on: boolean): void {
+    if (armed === on) return;
+    armed = on;
+    recBtn.classList.toggle('on', armed);
+    stepRow.classList.toggle(styles.recording!, armed);
+    if (armed && bankBar.following) bankBar.setFollowing(false);
+  }
+
+  // A whole-store overwrite (song / demo / import / New / session-undo) must not
+  // leave a recorder armed over someone else's song (REQ-5).
+  engine.patterns.onBulkRestore(() => setArmed(false));
 
   const selectedLabel = document.createElement('div');
   selectedLabel.className = editStyles.selectedLabel!;
@@ -116,6 +140,11 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   // selected step and the cursor advances. Audition is automatic — bus.onNote also
   // reaches the engine, so the note sounds while transport passthrough isn't
   // suppressed (i.e. the usual case of editing while stopped).
+  //
+  // `bus.onNote` is the *global* note funnel and cannot tell a note meant for this
+  // grid from one played anywhere else, so `armed` carries the whole gate — and
+  // REQ-5 keeps it true only while this panel is on screen. No visibility check
+  // belongs here: one source of truth, checked once.
   bus.onNote((on, note) => {
     if (!armed || !on) return;
     engine.patterns.setSeqStep(selected, { on: true, note });
@@ -284,5 +313,5 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   // Initial selected highlight
   stepRow.querySelector(`.${StepButton.rootClass}`)?.classList.add(StepButton.selectedClass);
 
-  return root;
+  return { el: root, disarmStepInput: () => setArmed(false) };
 }

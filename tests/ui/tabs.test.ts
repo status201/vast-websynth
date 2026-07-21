@@ -44,6 +44,58 @@ describe('TabContainer', () => {
     expect(tabBtn(tc, 'b').classList.contains('active')).toBe(true);
   });
 
+  // sequencer.md REQ-5 — the surface a panel gates an off-screen mode on.
+  describe('view visibility', () => {
+    const collapsible = (key: string, collapsed = false) => new TabContainer([
+      { id: 'a', label: 'Alpha', content: document.createElement('div') },
+      { id: 'b', label: 'Beta', content: document.createElement('div') },
+    ], 'a', { collapsibleStoreKey: key, collapsedByDefault: () => collapsed });
+
+    it('isVisible is true only for the active tab', () => {
+      const tc = makeTabs();
+      expect(tc.isVisible('a')).toBe(true);
+      expect(tc.isVisible('b')).toBe(false);
+      tabBtn(tc, 'b').click();
+      expect(tc.isVisible('a')).toBe(false);
+      expect(tc.isVisible('b')).toBe(true);
+    });
+
+    it('isVisible is false for the active tab while the bar is collapsed', () => {
+      // A fold hides the active panel just as surely as another tab would.
+      const tc = collapsible('test.view.collapsed', true);
+      expect(tc.activeId).toBe('a');
+      expect(tc.isVisible('a')).toBe(false);
+      tc.reveal('a');
+      expect(tc.isVisible('a')).toBe(true);
+    });
+
+    it('onViewChange fires on a tab switch but not on re-activating the same tab', () => {
+      const tc = makeTabs();
+      let n = 0;
+      tc.onViewChange(() => { n++; });
+      tabBtn(tc, 'b').click();
+      expect(n).toBe(1);
+      // Already active — nothing on screen changed, so no emit.
+      tabBtn(tc, 'b').click();
+      expect(n).toBe(1);
+      tabBtn(tc, 'a').click();
+      expect(n).toBe(2);
+    });
+
+    it('onViewChange fires on a collapse toggle, and the disposer unsubscribes', () => {
+      const tc = collapsible('test.view.toggle');
+      let n = 0;
+      const off = tc.onViewChange(() => { n++; });
+      const chevron = tc.el.querySelector<HTMLButtonElement>('[aria-label="Collapse panel"]')!;
+      chevron.click();
+      expect(tc.el.classList.contains('collapsed')).toBe(true);
+      expect(n).toBe(1);
+      off();
+      chevron.click();
+      expect(n).toBe(1);
+    });
+  });
+
   // machine-status.md REQ-3/REQ-4/REQ-7
   describe('status indicators', () => {
     const withIndicator = () => new TabContainer([

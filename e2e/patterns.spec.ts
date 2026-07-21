@@ -49,6 +49,48 @@ test.describe('pattern grids', () => {
     expect(await seqNote(page, 8)).toBe(72);
   });
 
+  // sequencer.md REQ-5 — Step Input listens on the global note funnel, so
+  // without this gate any note played anywhere in the app overwrote the grid.
+  test('leaving the tab disarms Step Input, so other tabs cannot record', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    const armBtn = page.getByTestId('seq-step-input');
+    await armBtn.click();
+    await expect(armBtn).toHaveClass(/(^|\s)on(\s|$)/);
+
+    // Fiddling with the Arpeggiator: notes still play, but nothing is recorded.
+    await page.getByTestId('tab-arp').click();
+    await playNote(page, 64);
+    await playNote(page, 67);
+    await playNote(page, 71);
+    expect(await seqOn(page, 0)).toBe(false);
+    expect(await seqOn(page, 1)).toBe(false);
+    expect(await seqOn(page, 2)).toBe(false);
+
+    // Back on the tab it stays disarmed — the arm must be deliberate, never
+    // silently resumed.
+    await page.getByTestId('tab-seq').click();
+    await expect(armBtn).not.toHaveClass(/(^|\s)on(\s|$)/);
+    await playNote(page, 64);
+    expect(await seqOn(page, 0)).toBe(false);
+  });
+
+  // sequencer.md REQ-6 — Follow would otherwise drag the edit bank along with
+  // the arrangement, spraying one take across all four banks.
+  test('arming Step Input pins the take by turning Bank Follow off', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    const follow = page.getByTestId('bank-seq-follow');
+    await expect(follow).toHaveClass(/(^|\s)on(\s|$)/); // on by default
+
+    await page.getByTestId('seq-step-input').click();
+    await expect(follow).not.toHaveClass(/(^|\s)on(\s|$)/);
+
+    // Disarming leaves Follow off — the user re-enables it deliberately.
+    await page.getByTestId('seq-step-input').click();
+    await expect(follow).not.toHaveClass(/(^|\s)on(\s|$)/);
+  });
+
   test('one computer key fills exactly one step (no double-trigger)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-seq').click();

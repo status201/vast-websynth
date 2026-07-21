@@ -1,5 +1,6 @@
 import styles from '../styles/tabs.module.css';
 import { createCollapseToggle } from './collapse-toggle';
+import { ListenerSet } from '../../utils/listeners';
 import type { MachineState } from '../machine-status';
 
 export interface Tab {
@@ -26,6 +27,7 @@ export class TabContainer {
   private leds = new Map<string, HTMLElement>();
   private labels = new Map<string, string>();
   private expand?: () => void;
+  private readonly viewListeners = new ListenerSet();
 
   constructor(tabs: Tab[], initialId?: string, opts?: TabOptions) {
     this.el = document.createElement('div');
@@ -82,6 +84,9 @@ export class TabContainer {
         defaultCollapsed: opts.collapsedByDefault,
         trigger: this.tabBar,
         ignoreSelector: `.${styles.tab!}`,
+        // A fold hides the active panel just as surely as switching tabs does,
+        // so it is a view change too (both feed `isVisible`).
+        onChange: () => this.viewListeners.emit(),
       });
       this.expand = c.expand;
       this.tabBar.appendChild(c.el);
@@ -95,6 +100,20 @@ export class TabContainer {
     return this.active;
   }
 
+  /**
+   * Is this tab's content actually on screen? Active *and* unfolded — a
+   * collapsed bar hides the active panel just like another tab would. Panels
+   * with a mode that must not act off-screen gate on this (sequencer.md REQ-5).
+   */
+  isVisible(id: string): boolean {
+    return this.active === id && !this.el.classList.contains('collapsed');
+  }
+
+  /** Fires whenever what's on screen changes — a tab switch or a fold. */
+  onViewChange(fn: () => void): () => void {
+    return this.viewListeners.add(fn);
+  }
+
   activate(id: string): void {
     if (this.active === id) return;
     this.active = id;
@@ -102,6 +121,7 @@ export class TabContainer {
     for (const c of Array.from(this.body.children) as HTMLElement[]) {
       c.classList.toggle('visible', c.dataset.tabId === id);
     }
+    this.viewListeners.emit();
   }
 
   /**

@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Step Input can no longer record behind your back** — the Sequencer's Step
+  Input kept capturing every note you played, even from a completely different
+  tab, so an afternoon of fiddling with the Arpeggiator could quietly overwrite
+  a riff you had already written (and, with Bank Follow on during playback,
+  smear it across all four banks). It is now scoped to what you can see: it
+  records only while the Sequencer tab is open, switching tabs or folding the
+  pattern row switches it back off, loading a song or hitting New clears it, and
+  arming it turns Follow off so your take stays in the bank in front of you.
+
 - **Sync no longer holds your tempo hostage** — with Sync set to Slave,
   disconnecting (unplugging the MIDI cable, closing the WiFi link, or the other
   instrument simply going away) left the setting stuck "on": the BPM knob

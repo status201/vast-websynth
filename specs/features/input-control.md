@@ -3,12 +3,13 @@
 ```yaml
 id: input-control
 status: implemented
-version: 6
+version: 7
 owner: core
 related:
   - architecture
   - voicing
   - midi-clock-sync
+  - sequencer
 source:
   - src/ui/components/keyboard.ts
   - src/ui/shortcuts.ts
@@ -32,6 +33,12 @@ stay visual-only — if it also fired the bus, a computer key would emit **two**
 note-ons, which the funnel forwards to every consumer (double-triggering a voice,
 and advancing the sequencer's Step-Input cursor by two). MIDI is wired through Web
 MIDI when available and degrades silently when not.
+
+The funnel stays deliberately **undiscriminating** — it cannot know a note was meant
+for one particular consumer — so a consumer that *captures* rather than plays notes
+must scope itself. The sequencer's Step Input is the one such consumer: it is armed
+only while its own grid is on screen ([sequencer](sequencer.md) REQ-5), which is why
+notes played on another tab no longer overwrite its bank.
 
 ## Requirements
 
@@ -103,6 +110,8 @@ SustainPedal                                            # src/audio/sustain-peda
   noteOff(note): boolean      # false = deferred (pedal down); true = pass to bus.noteOff
   setPedal(down): number[]    # on release: the sustained notes to flush via bus.noteOff
 note funnel: bus.onNote -> Engine.playNote/releaseNote (unless passthroughSuppressed)
+  capture consumers scope themselves; seq Step Input is armed only while visible
+  (sequencer.md REQ-5) — the funnel itself stays undiscriminating
 ```
 
 > Note: there is **no** `window.__synthKeyboard` / `window.__transportToggle`

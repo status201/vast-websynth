@@ -49,6 +49,26 @@ describe('createCollapseToggle', () => {
     expect(target.classList.contains('collapsed')).toBe(false);
   });
 
+  // sequencer.md REQ-5 — TabContainer turns this into a view change, so a fold
+  // disarms an off-screen-unsafe panel mode.
+  it('onChange reports every write of the collapsed state', () => {
+    const seen: boolean[] = [];
+    const target = document.createElement('div');
+    const trigger = document.createElement('div');
+    const c = createCollapseToggle(target, KEY, { trigger, onChange: (v) => { seen.push(v); } });
+    // Creation applies the initial state, so listeners see it too.
+    expect(seen).toEqual([false]);
+
+    c.el.click();          // chevron
+    trigger.click();       // the wider hit target
+    c.el.click();
+    c.expand();            // collapsed → opens it, and reports
+    expect(seen).toEqual([false, true, false, true, false]);
+
+    c.expand();            // already open — a no-op, so no event
+    expect(seen).toHaveLength(5);
+  });
+
   it('a trigger element toggles, except clicks matching ignoreSelector', () => {
     const target = document.createElement('div');
     const trigger = document.createElement('div');

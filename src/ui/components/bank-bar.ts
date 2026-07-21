@@ -107,7 +107,13 @@ export class BankBar {
     return this.followListeners.add(fn);
   }
 
-  private setFollowing(on: boolean): void {
+  /**
+   * Public so a panel can declare editing intent on the user's behalf — arming
+   * the sequencer's Step Input turns Follow off so the arrangement can't swap
+   * the edit bank mid-take (sequencer.md REQ-6). Same funnel as a manual bank
+   * click, so `onFollowChange` fires either way.
+   */
+  setFollowing(on: boolean): void {
     this._following = on;
     this.followBtn.classList.toggle('on', on);
     if (on) this.syncToPlay(); // jump to the playing bank at once, not next bar
