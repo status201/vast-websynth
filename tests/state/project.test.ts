@@ -218,13 +218,13 @@ describe('encodeClip', () => {
     return { left, right, sampleRate: rate };
   };
 
-  it('derives the extension from the encoded blob type', () => {
-    expect(encodeClip(sine(44100), 'wav').ext).toBe('wav');
-    expect(encodeClip(sine(44100), 'mp3').ext).toBe('mp3');
+  it('derives the extension from the encoded blob type', async () => {
+    expect((await encodeClip(sine(44100), 'wav')).ext).toBe('wav');
+    expect((await encodeClip(sine(44100), 'mp3')).ext).toBe('mp3');
   });
 
-  it("mp3 at an unsupported rate falls back to WAV — ext must say 'wav'", () => {
-    const out = encodeClip(sine(12345), 'mp3');
+  it("mp3 at an unsupported rate falls back to WAV — ext must say 'wav'", async () => {
+    const out = await encodeClip(sine(12345), 'mp3');
     expect(out.blob.type).toBe('audio/wav');
     expect(out.ext).toBe('wav');
   });

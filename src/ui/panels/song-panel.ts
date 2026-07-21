@@ -343,7 +343,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       const buf = engine.sampler.buffers[slot];
       if (!buf) continue;
       // Encode + materialize one clip at a time (8 × multi-MB WAVs — REQ-8).
-      const { blob, ext } = encodeClip(audioBufferToCaptured(buf), fmt);
+      const { blob, ext } = await encodeClip(audioBufferToCaptured(buf), fmt);
       clips.push({ slot, data: new Uint8Array(await blob.arrayBuffer()), ext });
     }
     const bytes = await buildProjectZip(file, clips);
@@ -446,6 +446,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = lbl;
+    b.dataset.testid = `song-export-fmt-${f}`;
     if (i === 0) b.classList.add('active');
     b.addEventListener('click', () => {
       fmt = f;

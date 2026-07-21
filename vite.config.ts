@@ -24,6 +24,13 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'demos', test: /[\\/]state[\\/]demos[\\/].*\.json$/ },
+            // The vendored lamejs MP3 encoder is 153 kB of pre-minified JS —
+            // 30% of what used to be a single 505 kB entry chunk, downloaded by
+            // every visitor whether or not they ever export MP3. It is reached
+            // only through the dynamic import in `encodeMp3`, so rolldown
+            // already splits it; this just gives the chunk a stable, readable
+            // name. See specs/features/audio-export.md REQ-7.
+            { name: 'lamejs', test: /[\\/]vendor[\\/]lamejs[\\/]/ },
           ],
         },
       },

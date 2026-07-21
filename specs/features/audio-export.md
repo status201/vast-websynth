@@ -3,18 +3,20 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
   - song-mode
   - sample-recorder
+  - pwa-install
 source:
   - public/worklets/recorder.js
   - src/audio/recorder/node.ts
   - src/audio/recorder/recorder-controller.ts
   - src/audio/recorder/encode.ts
   - src/ui/panels/song-panel.ts
+  - src/main.ts
 ```
 
 Capturing the master output to a downloadable WAV or MP3, either as a full song
@@ -27,6 +29,12 @@ master-volume) as a pure sink — it pulls audio without affecting playback. Enc
 is kept **pure and AudioContext-free** (`encode.ts`) so it is unit-testable under
 jsdom: `encodeWav` is dependency-free; `encodeMp3` uses the vendored `lamejs`.
 The same `encode.ts` is reused by the [sample recorder](sample-recorder.md).
+
+`lamejs` is **pre-minified and 153 kB** — 30% of what used to be a single
+505 kB entry chunk, downloaded and parsed by every visitor whether or not they
+ever export MP3. It is therefore loaded with a dynamic `import()` (v4, REQ-7),
+which is why `encodeMp3` is async. MP3 encoding is a rare, deliberate,
+already-slow action, so the fetch is invisible next to the encode itself.
 
 ## Requirements
 
@@ -43,7 +51,8 @@ The same `encode.ts` is reused by the [sample recorder](sample-recorder.md).
   "high quality" sweet spot, ≈ `-V2`) — every MP3 surface (song export, project
   clips, sample-editor saves) goes through this one `encodeMp3`, so they all
   inherit the bitrate. A sample rate lamejs cannot handle still falls back to
-  WAV with a console warning.
+  WAV with a console warning — on that path `encodeMp3` returns **without**
+  loading lamejs at all.
 - **REQ-6 (frame tagging)** — Each chunk the worklet posts carries
   `f = currentFrame` (the absolute sample index of the chunk's first frame in
   the context timeline). `RecorderNode` records the first chunk's tag as
@@ -52,6 +61,18 @@ The same `encode.ts` is reused by the [sample recorder](sample-recorder.md).
   `offset = round(when × sampleRate) − firstFrame`. Consumers that ignore the
   tag (this spec's own controller) are unaffected. Consumed by
   [render-to-sampler](render-to-sampler.md).
+- **REQ-7 (lazy encoder, v4)** — `encodeMp3` loads lamejs via a dynamic
+  `import()`, so the encoder ships as its **own chunk**, fetched on the first
+  MP3 encode rather than at boot. `encodeMp3` is therefore `async`; `encodeWav`
+  stays synchronous. `encode.ts` remains AudioContext-free and jsdom-testable —
+  a dynamic import is not an environment dependency.
+  Boot warms the chunk from `main.ts` on `requestIdleCallback` (2 s `setTimeout`
+  fallback — Safari only shipped `requestIdleCallback` in 17.4, and this app
+  targets installed iOS PWAs). The warm is what preserves offline parity: the
+  service worker is runtime-cache-only with no precache manifest of hashed
+  assets ([pwa-install](pwa-install.md) REQ-6), so a chunk never fetched while
+  online would be missing offline. A failed warm is swallowed — the real
+  `import()` inside `encodeMp3` retries it.
 
 ## Technical design
 
@@ -69,11 +90,17 @@ RecorderNode:  # src/audio/recorder/node.ts (wraps recorder.js)
   firstFrame: number | null   # REQ-6; null until the first chunk arrives
 worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = currentFrame
 encode.ts (pure):
-  encodeWav(left, right, sampleRate): Blob          # dependency-free
-  encodeMp3(left, right, sampleRate): Blob          # vendored lamejs, MP3_KBPS CBR; unsupported rate -> WAV
+  encodeWav(left, right, sampleRate): Blob            # dependency-free, sync
+  encodeMp3(left, right, sampleRate): Promise<Blob>   # REQ-7 lazy lamejs, MP3_KBPS CBR; unsupported rate -> WAV
   triggerDownload(blob, filename): void
 constants: FALLBACK_BARS = 4, TAIL_MS = 350, MP3_KBPS = 192
 ```
+
+`RecorderController.finish()` is `async` because of `encodeMp3`, but its
+`finishing` guard and `node.stop()` both run **before** the await — capture
+timing and re-entrancy are unchanged, and both callers fire-and-forget
+(`void this.finish(fmt)`). The download landing a microtask later is safe:
+`exportSong` already downloads from a `setTimeout` with no user activation.
 
 ### Layer touchpoints
 
@@ -82,6 +109,10 @@ graph: master -> recorder worklet (zero-output sink; does not alter playback)
 song export: RecorderController drives clock from the top, watches bar count,
   finishes after the longest enabled chain (or FALLBACK_BARS) + TAIL_MS
 ui: src/ui/panels/song-panel.ts (Export Song WAV/MP3, manual record toggle)
+  testids: song-export-audio, song-export-fmt-<wav|mp3>, song-record
+build: vendor/lamejs is dynamic-import-only -> its own rolldown chunk
+  (vite.config.ts codeSplitting group `lamejs`, mirroring `demos`)
+boot: src/main.ts warms that chunk on idle (REQ-7)
 ```
 
 ## Scenarios (BDD)
@@ -107,6 +138,21 @@ Scenario: Manual record leaves the transport running
 Scenario: MP3 encodes at the high-quality bitrate (v3)
   When encodeMp3 runs at a supported sample rate
   Then the first MP3 frame header carries the 192 kbps bitrate index (0xB)
+# pinned by: tests/audio/wav-encode.test.ts
+
+Scenario: The lazily-loaded encoder still produces a valid MP3 (v4, REQ-7)
+  Given lamejs has never been imported in this session
+  When encodeMp3 is awaited at a supported sample rate
+  Then it resolves to an audio/mpeg blob at 192 kbps
+# pinned by: tests/audio/wav-encode.test.ts (a fresh module graph per test file)
+#   + e2e/song.spec.ts — the only check that the dynamic import resolves in a
+#   real browser. It asserts the MPEG frame sync + 192 kbps index by byte
+#   inspection, so it runs on CI Chromium, which has no MP3 *decoder*.
+
+Scenario: An unsupported rate never loads the encoder (v4, edge)
+  When encodeMp3 is awaited at a sample rate lamejs cannot handle
+  Then it resolves to an audio/wav blob with a console warning
+  And the lamejs chunk is never fetched
 # pinned by: tests/audio/wav-encode.test.ts
 ```
 

@@ -89,6 +89,14 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   `websynth-*` cache and claims clients. Guarantee: **offline-ready after the
   first revisit/reload** (runtime caching, no precache manifest of hashed
   assets).
+  Because there is no precache manifest, that guarantee only covers chunks the
+  page actually **fetched** while online. The build is not one eager bundle —
+  demo songs, jsQR, the sync-pair modal and the lamejs MP3 encoder are all
+  split off. The lazy ones reached from a user gesture (jsQR on QR scan, the
+  sync modal on open) are acceptable to miss offline; **lamejs is warmed on
+  idle at boot** from `main.ts` so offline MP3 export keeps working — see
+  [audio-export](audio-export.md) REQ-7. Any future eagerly-needed lazy chunk
+  must either be warmed the same way or accept an offline gap.
 - **REQ-7 (single import parse path)** — Sniffing + parsing import bytes
   (`bytes → { file, clips } | errors`) is one pure function
   (`parseSongOrProject`), shared by the song panel's file input and the

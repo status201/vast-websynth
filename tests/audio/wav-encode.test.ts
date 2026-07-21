@@ -61,9 +61,9 @@ describe('encodeWav', () => {
 });
 
 describe('encodeMp3', () => {
-  it('falls back to WAV (with a warning) on an unsupported sample rate', () => {
+  it('falls back to WAV (with a warning) on an unsupported sample rate', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const blob = encodeMp3(new Float32Array(8), new Float32Array(8), 12345);
+    const blob = await encodeMp3(new Float32Array(8), new Float32Array(8), 12345);
     expect(blob.type).toBe('audio/wav');
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
@@ -77,7 +77,7 @@ describe('encodeMp3', () => {
       left[i] = Math.sin(i * 0.05) * 0.5;
       right[i] = Math.sin(i * 0.07) * 0.5;
     }
-    const blob = encodeMp3(left, right, 44100);
+    const blob = await encodeMp3(left, right, 44100);
     expect(blob.type).toBe('audio/mpeg');
     expect(blob.size).toBeGreaterThan(0);
 

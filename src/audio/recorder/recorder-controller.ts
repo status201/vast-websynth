@@ -51,7 +51,14 @@ export class RecorderController {
     this.notify();
   }
 
-  private finish(format: ExportFormat): void {
+  /**
+   * Async only because MP3 encoding lazily imports lamejs (audio-export.md
+   * REQ-7). The `finishing` guard and `node.stop()` both run *before* the
+   * await, so capture timing and re-entrancy are unchanged; callers
+   * fire-and-forget. A download one microtask later is fine — `exportSong`
+   * already downloads from a timeout with no user activation at all.
+   */
+  private async finish(format: ExportFormat): Promise<void> {
     if (!this.armed || this.finishing) return;
     this.finishing = true;
     if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
@@ -62,7 +69,7 @@ export class RecorderController {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     if (left.length === 0) return; // nothing captured — skip empty download
     const blob = format === 'mp3'
-      ? encodeMp3(left, right, sampleRate)
+      ? await encodeMp3(left, right, sampleRate)
       : encodeWav(left, right, sampleRate);
     const ext = blob.type === 'audio/mpeg' ? 'mp3' : 'wav';
     triggerDownload(blob, `websynth-${stamp}.${ext}`);
@@ -70,7 +77,7 @@ export class RecorderController {
 
   /** Manual free-form record toggle. */
   toggleManual(format: ExportFormat): void {
-    if (this.armed) { this.finish(format); return; }
+    if (this.armed) { void this.finish(format); return; }
     this.begin();
     if (!this.clock.playing) this.clock.start();
   }
@@ -92,7 +99,7 @@ export class RecorderController {
     this.unsubTick = this.clock.onTick((step) => {
       if (step >= stopAtStep) {
         this.clock.stop();
-        window.setTimeout(() => this.finish(format), TAIL_MS);
+        window.setTimeout(() => void this.finish(format), TAIL_MS);
       }
     });
     this.clock.start();       // resets step to 0, fires onStart → arrangement

@@ -114,4 +114,27 @@ test.describe('song mode', () => {
     expect(head.subarray(0, 4).toString('ascii')).toBe('RIFF');
     expect(head.subarray(8, 12).toString('ascii')).toBe('WAVE');
   });
+
+  // audio-export.md REQ-7: the MP3 encoder (lamejs) is a lazily-imported chunk,
+  // so this is the only check that the dynamic import actually resolves in a
+  // real browser. We inspect bytes rather than decode — CI Chromium has no MP3
+  // decoder, but an MPEG frame sync is just a bit pattern.
+  test('Export Song downloads an MP3 through the lazily-loaded encoder', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
+
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('song-export-fmt-mp3').click();
+    const mp3Download = page.waitForEvent('download', { timeout: 20000 });
+    await page.getByTestId('song-export-audio').click();
+    const download = await mp3Download;
+
+    expect(download.suggestedFilename()).toMatch(/\.mp3$/);
+    const bytes = readFileSync(await download.path());
+    // First MPEG audio frame: 11 set sync bits, then the 192 kbps index (0xB).
+    let i = 0;
+    while (i < bytes.length - 4 && !(bytes[i] === 0xff && (bytes[i + 1]! & 0xe0) === 0xe0)) i++;
+    expect(i).toBeLessThan(bytes.length - 4);
+    expect(bytes[i + 2]! >> 4).toBe(0xb);
+  });
 });

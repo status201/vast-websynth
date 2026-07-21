@@ -104,7 +104,9 @@ section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 "Import into sampler" resample section), `export-modal`/`export-kind-<json|project>`/
 `export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`/
 `song-share-link` (the Export chooser opened by `song-export`; `song-share-link`
-is its Copy Link action)). Prefer testids
+is its Copy Link action), `song-export-audio`/`song-export-fmt-<wav|mp3>`/
+`song-record` (the Song panel's Audio section — render/record the master bus)).
+Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
 `play`; the `Sampler` tab vs the Song panel's `sampler` lane). For state
@@ -216,6 +218,12 @@ one full pass of the longest enabled arrangement chain then auto-stops;
 `toggleManual()` is a free-form record toggle. Encoding is **pure** and
 AudioContext-free (`audio/recorder/encode.ts` — `encodeWav` is dependency-free;
 `encodeMp3` uses the vendored lamejs) so it is unit-testable under jsdom.
+lamejs is 153 kB of pre-minified JS, so `encodeMp3` pulls it in with a
+**dynamic `import()`** — it is `async` (`encodeWav` stays sync), ships as its
+own `lamejs` chunk, and `main.ts` warms that chunk on `requestIdleCallback`
+after boot so offline MP3 export still works under the precache-manifest-less
+service worker. Any new statically-imported heavyweight belongs behind the same
+pattern; see `specs/features/audio-export.md` REQ-7.
 Each worklet chunk carries `f = currentFrame` (the absolute sample index);
 `RecorderNode.firstFrame` records the capture's first tag, letting consumers
 map a scheduled audio time to an exact offset in the captured stream.
@@ -379,7 +387,8 @@ it also writes the note name as the label.
   just a container) plus one `samples/<slot>-<name>.<ext>`
   clip per loaded sampler slot (WAV default / MP3; the extension derives from
   the encoded blob's MIME type — `encodeMp3` falls back to WAV at unsupported
-  rates). The zip codec is hand-written and dependency-free (ADR-003): writes
+  rates). `encodeClip` is `async` because `encodeMp3` is.
+  The zip codec is hand-written and dependency-free (ADR-003): writes
   stored audio + deflated json, reads methods 0+8 with EOCD backward scan and
   CRC checks, and tolerates hand-re-zipped archives (folder nesting, PowerShell's
   backslash separators). Import sniffs PK magic bytes (extension fallback) on

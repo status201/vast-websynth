@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The app starts lighter** — the MP3 encoder is a large chunk of code that
+  every visitor used to download and parse before the synth would boot, whether
+  or not they ever exported an MP3. It is now fetched only when something
+  actually encodes MP3, cutting roughly a third off the initial download. It is
+  still quietly pulled in the background once the app is idle, so exporting MP3
+  offline (as an installed app) keeps working exactly as before, and the export
+  itself is unchanged — same 192 kbps, same files.
+
 - **Motion curves now flow across the bar line** — a chained motion bank used to
   wrap back into itself at the end of the bar, so a move you built up over a bank
   quietly collapsed inside its final step: a filter sweep or delay throw ending

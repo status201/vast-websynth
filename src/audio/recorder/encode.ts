@@ -1,9 +1,10 @@
 /**
  * Pure audio-encoding helpers — NO AudioContext / DOM dependency (except the
  * standalone `triggerDownload`), so the WAV path is unit-testable under
- * vitest+jsdom. WAV is dependency-free; MP3 uses the vendored lamejs.
+ * vitest+jsdom. WAV is dependency-free; MP3 uses the vendored lamejs, pulled in
+ * by a dynamic import so its 153 kB stay off the boot path (audio-export.md
+ * REQ-7 — that is why `encodeMp3` is async and `encodeWav` is not).
  */
-import { Mp3Encoder } from '../../vendor/lamejs';
 
 /** lamejs supports these PCM sample rates; others fall back to WAV. */
 const MP3_RATES = new Set([8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000]);
@@ -79,13 +80,15 @@ function floatToInt16Array(samples: Float32Array): Int16Array {
 
 /**
  * Stereo MP3 (MP3_KBPS CBR). Falls back to WAV (with a warning) if the sample
- * rate is one lamejs cannot handle — we never resample.
+ * rate is one lamejs cannot handle — we never resample. The fallback returns
+ * before the import, so an unsupported rate never fetches the encoder chunk.
  */
-export function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Blob {
+export async function encodeMp3(left: Float32Array, right: Float32Array, sampleRate: number): Promise<Blob> {
   if (!MP3_RATES.has(sampleRate)) {
     console.warn(`encodeMp3: sample rate ${sampleRate} unsupported by lamejs — exporting WAV instead.`);
     return encodeWav(left, right, sampleRate);
   }
+  const { Mp3Encoder } = await import('../../vendor/lamejs');
   const enc = new Mp3Encoder(2, sampleRate, MP3_KBPS);
   const l16 = floatToInt16Array(left);
   const r16 = floatToInt16Array(right);

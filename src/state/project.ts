@@ -43,11 +43,12 @@ const CLIP_RE = /(?:^|\/)samples\/(\d+)-[^/]*\.(wav|mp3)$/i;
 /**
  * Encode one slot's audio. The extension derives from the blob's MIME type,
  * never the requested format — `encodeMp3` silently falls back to WAV at
- * sample rates lamejs cannot handle (project-export.md REQ-4).
+ * sample rates lamejs cannot handle (project-export.md REQ-4). Async because
+ * the MP3 path lazily imports lamejs (audio-export.md REQ-7).
  */
-export function encodeClip(a: CapturedAudio, fmt: ClipExt): { blob: Blob; ext: ClipExt } {
+export async function encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob; ext: ClipExt }> {
   const blob = fmt === 'mp3'
-    ? encodeMp3(a.left, a.right, a.sampleRate)
+    ? await encodeMp3(a.left, a.right, a.sampleRate)
     : encodeWav(a.left, a.right, a.sampleRate);
   return { blob, ext: blob.type === 'audio/mpeg' ? 'mp3' : 'wav' };
 }

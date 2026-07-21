@@ -3,7 +3,7 @@
 ```yaml
 id: project-export
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - song-mode
@@ -52,7 +52,9 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   sampler slot has audio loaded**. Project export offers a WAV (default) / MP3
   clip-format toggle; MP3 shows a caveat that encoder padding slightly alters clip
   length. Clip extension derives from the encoded blob's MIME type — `encodeMp3`'s
-  unsupported-rate WAV fallback must yield `.wav`.
+  unsupported-rate WAV fallback must yield `.wav`. `encodeClip` is **async** (v2)
+  because `encodeMp3` lazily imports lamejs ([audio-export](audio-export.md)
+  REQ-7); the export flow already awaits per clip, so this adds no round trip.
 - **REQ-5** — **Import** auto-detects zip vs JSON by magic bytes (`PK` first,
   extension fallback). The JSON path is unchanged. The zip path validates
   `song.json` via `Song.parse` (reused), tolerates one level of folder nesting
@@ -94,8 +96,9 @@ project:  # src/state/project.ts (pure — no AudioContext, no DOM beyond Blob)
   ClipExt: 'wav' | 'mp3'
   ProjectClipOut: { slot: number, data: Uint8Array, ext: ClipExt }   # input to buildProjectZip
   ProjectClipIn:  { slot: number, entryName: string, data: Uint8Array }  # normalized '/' entryName
-  encodeClip(a: CapturedAudio, fmt: ClipExt): { blob: Blob, ext: ClipExt }
+  encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob, ext: ClipExt }>
     # ext from blob.type, not fmt; caller adds slot + materializes data
+    # async since v2: encodeMp3 lazily imports lamejs (audio-export REQ-7)
   buildProjectZip(file: SongFile, clips: ProjectClipOut[]): Promise<Uint8Array>
     # clip entry names derive from file.sampleNames[slot] (sanitized)
   parseProjectZip(bytes): Promise<ProjectParse>
@@ -130,7 +133,7 @@ import matching (tolerates one folder level from an Explorer re-zip):
 export (song-panel):
   song-export click -> openExportSongModal({ hasSamplerAudio: sampler.buffers.some(b => b != null) })
   kind json    -> Song.download(Song.capture(...))            # unchanged path
-  kind project -> capture; per loaded slot audioBufferToCaptured -> encodeClip(fmt)
+  kind project -> capture; per loaded slot audioBufferToCaptured -> await encodeClip(fmt)
                   -> await blob.arrayBuffer()  (sequentially — REQ-8)
                   -> buildProjectZip -> triggerDownload(application/zip, projectFilename)
 import (song-panel):
@@ -206,7 +209,7 @@ Scenario: Corrupt zips are rejected with a typed error (failure)
 
 Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)
   Given a CapturedAudio at a sample rate lamejs cannot handle
-  When encodeClip(a, 'mp3') runs
+  When encodeClip(a, 'mp3') is awaited
   Then the returned ext is 'wav' (derived from blob.type, never from the request)
 # pinned by: tests/state/project.test.ts
 ```

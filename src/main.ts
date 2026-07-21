@@ -166,6 +166,19 @@ async function boot() {
     if (document.readyState === 'complete') register();
     else window.addEventListener('load', register);
   }
+
+  // The MP3 encoder (~153 kB of pre-minified lamejs) is split into its own
+  // chunk and only imported when something actually encodes MP3, so it stays
+  // off the boot critical path. Warm it once boot is idle: the service worker
+  // has no precache manifest of hashed assets, so a chunk never fetched while
+  // online would be missing offline. Failures are ignored — the real import
+  // inside encodeMp3 retries. See audio-export.md REQ-7.
+  const warmMp3 = () => void import('./vendor/lamejs').catch(() => {});
+  // requestIdleCallback only reached Safari in 17.4, and we target installed
+  // iOS PWAs — fall back to a plain timeout. (A `'x' in window` guard would
+  // narrow `window` itself to `never` in the else branch; probe the function.)
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warmMp3);
+  else window.setTimeout(warmMp3, 2000);
 }
 
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */

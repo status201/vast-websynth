@@ -481,10 +481,10 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     const mp3Btn = createButton({
       label: 'Save MP3',
       testId: 'mic-save-mp3',
-      onClick: () => {
+      onClick: async () => {
         const c = finalClip();
         const fn = `recording-${timestamp()}.mp3`;
-        triggerDownload(encodeMp3(c.left, c.right, c.sampleRate), fn);
+        triggerDownload(await encodeMp3(c.left, c.right, c.sampleRate), fn);
         lastAction = `Saved ${fn}`;
         redraw();
       },
