@@ -21,7 +21,6 @@ import { TabContainer } from './components/tabs';
 import { MACHINE_IDS, MACHINE_TAB, readMachineStatus, subscribeMachineStatus } from './machine-status';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
-import { promptDialog } from './components/dialog';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
 import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
@@ -34,6 +33,7 @@ import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
 import { Presets } from '../state/preset';
+import { openPresetManagerModal } from './components/preset-manager-modal';
 import { Song, DEMO_SONGS } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
@@ -190,26 +190,18 @@ function buildHeader(
     session.setActive(name);
   });
 
+  // One door for everything you can do with a sound — save, export a preset or
+  // a bank, import (presets.md REQ-9). The header stays a single button.
   const saveBtn = createButton({
-    label: 'Save preset',
+    label: 'Presets — save, export, import',
     icon: HEADER_ICONS.save,
-    title: 'Save preset',
+    title: 'Presets — save, export, import',
     testId: 'preset-save',
-    onClick: async () => {
-      const name = await promptDialog({
-        title: 'Save preset',
-        message: 'Preset name:',
-        defaultValue: session.label,
-        confirmLabel: 'Save',
-      });
-      if (!name) return;
-      const snap = Presets.capture(bus);
-      Presets.save(name, snap);
-      // The saved patch becomes the new double-tap reset target.
-      bus.setBaselines(snap);
-      dropdown.setOptions(Presets.list());
-      session.setActive(name);
-    },
+    onClick: () => openPresetManagerModal({
+      bus,
+      session,
+      onPresetsChanged: () => dropdown.setOptions(Presets.list()),
+    }),
   });
 
   const presetLabel = document.createElement('span');

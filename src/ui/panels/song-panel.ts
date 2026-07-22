@@ -17,6 +17,7 @@ import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } fr
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
+import { describePresetPayload } from '../../state/preset-file';
 import { showToast } from '../components/toast';
 import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, BANK_COUNT, emptyPatternBanks } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
@@ -307,7 +308,21 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // installed-PWA file-launch path (SongPanel.importBytes).
   const importBytes = async (bytes: Uint8Array, name: string): Promise<boolean> => {
     const res = await parseSongOrProject(bytes, name);
-    if (!res.ok) { await showImportErrors(res.errors); return false; }
+    if (!res.ok) {
+      // Preset and bank files share the `.websynth.json` tail with songs, so
+      // users land here by mistake. Point at the right door instead of reporting
+      // a schema failure they can do nothing with (presets.md REQ-11).
+      const wrongDoor = describePresetPayload(new TextDecoder().decode(bytes));
+      if (wrongDoor) {
+        await alertDialog({
+          title: `That is a ${wrongDoor} file`,
+          message: `"${name}" holds sounds, not a song.\n\nOpen it from the header's Preset button → Import.`,
+        });
+        return false;
+      }
+      await showImportErrors(res.errors);
+      return false;
+    }
     try {
       await applyProjectBundle(res);
       return true;

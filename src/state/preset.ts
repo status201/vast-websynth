@@ -1,5 +1,6 @@
 import type { ParamBus } from './params';
 import { roundParams } from './serialize';
+import { sameSnapshot } from './preset-file';
 import { SlotStore } from './slot-store';
 
 const store = new SlotStore('websynth.preset.');
@@ -289,5 +290,30 @@ export const Presets = {
 
   apply(bus: ParamBus, snap: Snapshot): void {
     bus.restore(snap);
+  },
+
+  /**
+   * Every preset the user actually made or changed — presets.md REQ-8. Derived,
+   * never tracked: a name absent from `FACTORY` is user-made, and a factory name
+   * counts when its stored snapshot differs from the factory definition. No
+   * dirty flag is persisted, so this can never go stale or need migrating.
+   */
+  modified(): string[] {
+    return Presets.list().filter((name) => {
+      const stored = Presets.load(name);
+      if (!stored) return false;
+      const factory = FACTORY[name];
+      return factory ? !sameSnapshot(factory, stored) : true;
+    });
+  },
+
+  /** Snapshots for a list of names, skipping any that fail to load. */
+  entries(names: readonly string[]): Record<string, Snapshot> {
+    const out: Record<string, Snapshot> = {};
+    for (const n of names) {
+      const snap = Presets.load(n);
+      if (snap) out[n] = snap;
+    }
+    return out;
   },
 };

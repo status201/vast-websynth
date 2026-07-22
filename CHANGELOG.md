@@ -37,6 +37,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Delete key clears the selected step** — Delete or Backspace switches off the
   step you have selected on whichever machine tab is open.
 
+- **Presets can leave the browser** — sounds used to live only in this browser's
+  storage, so clearing your profile lost them and there was no way to move a
+  patch to another machine or hand it to someone else. Two new files fix that:
+  a **preset** holds one sound (`<name>.preset.websynth.json`) and a **bank**
+  holds many (`<name>.bank.websynth.json`) — the traditional synth naming, where
+  a patch is a single sound and a bank is a collection of them.
+
+- **One Preset button for everything** — the header's Save button now opens a
+  preset manager: save the sound you are hearing, export it as a preset, export
+  a bank, or import a file. The bank export offers **Mine** (everything you have
+  made or changed, worked out by comparing against the factory sounds) or
+  **All**, and tells you how many presets and which ones.
+
+- **Importing presets shows you what will happen first** — choosing a file opens
+  a review list marking each incoming preset as new, already identical, or
+  clashing with one you have. Where names clash you choose **Keep both** (the
+  default — it lands as "lead 2"), **Overwrite** or **Skip**, and the button says
+  exactly how many will be written. Nothing is saved until you confirm, and your
+  current sound is never touched. Re-importing a file you exported yourself
+  changes nothing.
+
+- **Files that went through the wrong door say so** — dropping a preset or bank
+  on the Song tab's Import points you at the Preset button instead of reporting
+  a broken song, and vice versa.
+
 - **Empty slot in the FX rack** — on narrower screens the five effect panels sit
   in two columns and left one cell empty. It now reads as a vacant slot with
   room for another module's front plate: an inset, borderless recess, faintly

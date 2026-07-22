@@ -101,6 +101,11 @@ DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 each card's title is a button `song-lane-title-<seq|drum|sampler|motion>` that opens
 that machine's tab — see `specs/features/machine-status.md`),
 `song-save`/`song-load`/…, `transport-play`, `preset-select`,
+`preset-save` (opens the preset manager) + `preset-manager`/`preset-mgr-save`/
+`preset-mgr-export-preset`/`preset-mgr-export-bank`/`preset-mgr-bank-scope-<modified|all>`/
+`preset-mgr-import`/`preset-mgr-file`/`preset-mgr-close` and the import wizard's
+`preset-import-review`/`preset-import-row-<name>`/`preset-import-policy-<rename|overwrite|skip>`/
+`preset-import-confirm`/`preset-import-back` (see `specs/features/presets.md`),
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 "Import into sampler" resample section), `export-modal`/`export-kind-<json|project>`/
@@ -484,7 +489,14 @@ it also writes the note name as the label.
   transport modules). Transport modules are created **after** voices so they
   can call back into the engine.
 - Presets persist to `localStorage` under `websynth.preset.*`. Factory
-  presets are seeded by `ensureFactoryPresets()` on boot.
+  presets are seeded by `ensureFactoryPresets()` on boot. They also travel as
+  **files** (`specs/features/presets.md`): `<name>.preset.websynth.json` (one
+  sound) and `<name>.bank.websynth.json` (many — vintage naming: a *patch* is one
+  sound, a *bank* is a collection). `state/preset-file.ts` is pure (build/parse/
+  `planImport`, no localStorage/DOM) so the import wizard's arithmetic is
+  unit-testable; the header Save button opens `preset-manager-modal.ts`
+  (save / export preset / export bank / import-with-review). `Presets.modified()`
+  derives "what the user made" by comparing against `FACTORY` — never a stored flag.
 - Audio cannot start without a user gesture — everything is wired inside the
   "Tap to start" handler in `main.ts`.
 - **Performance mode** (`state/perf-mode.ts`) — a device-scoped quality setting in

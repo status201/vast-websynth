@@ -149,3 +149,51 @@ describe('Presets', () => {
     });
   });
 });
+
+describe('Presets.modified() / entries() (presets.md REQ-8)', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+  });
+
+  it('an untouched factory install has nothing modified', () => {
+    Presets.ensureFactoryPresets();
+    expect(Presets.modified()).toEqual([]);
+  });
+
+  it('counts a user-made preset', () => {
+    Presets.ensureFactoryPresets();
+    Presets.save('MyLead', { 'filter.cutoff': 90 });
+    expect(Presets.modified()).toEqual(['MyLead']);
+  });
+
+  it('counts an edited factory preset, and stops counting it once restored', () => {
+    Presets.ensureFactoryPresets();
+    const original = Presets.factory()['bass']!;
+    Presets.save('bass', { ...original, 'filter.cutoff': 33 });
+    expect(Presets.modified()).toContain('bass');
+
+    Presets.save('bass', original);
+    expect(Presets.modified()).not.toContain('bass');
+  });
+
+  it('is derived, not tracked — re-saving identical values is not a modification', () => {
+    Presets.ensureFactoryPresets();
+    Presets.save('pad', Presets.factory()['pad']!);
+    expect(Presets.modified()).toEqual([]);
+  });
+
+  it('entries() returns snapshots for the named presets and skips unknown names', () => {
+    Presets.ensureFactoryPresets();
+    Presets.save('MyLead', { 'filter.cutoff': 90 });
+    const out = Presets.entries(['MyLead', 'nope']);
+    expect(Object.keys(out)).toEqual(['MyLead']);
+    expect(out['MyLead']).toEqual({ 'filter.cutoff': 90 });
+  });
+
+  it('a bank export of the modified set carries exactly what the user made', () => {
+    Presets.ensureFactoryPresets();
+    Presets.save('MyLead', { 'filter.cutoff': 90 });
+    Presets.save('bass', { ...Presets.factory()['bass']!, 'filter.drive': 2.9 });
+    expect(Object.keys(Presets.entries(Presets.modified())).sort()).toEqual(['MyLead', 'bass']);
+  });
+});
