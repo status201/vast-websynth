@@ -94,8 +94,10 @@ pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
 `seq-step-<i>` (track 1) / `seq-step-<t>-<i>` (tracks 2-4), `seq-track-<t>`/`seq-track-fold-<t>`,
 `bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
 via its `testidPrefix` opt),
-`clear-<seq|drum|sampler|motion>` + `clear-…-bank`/`clear-…-row`/`clear-toast-…`
-(the per-machine `Clear ▾` menu — see `specs/features/step-grid-editing.md`), the Song panel's live FX (`perf-fill`/`perf-stutter`/
+`clear-<seq|drum|sampler|motion>` + `clear-…-bank`/`clear-…-row-<i>`/`clear-toast-…`
+(the per-machine `Clear ▾` menu, rebuilt on every open — seq/drum/sampler offer
+the selected row, Motion lists every lane holding steps; see
+`specs/features/step-grid-editing.md`), the Song panel's live FX (`perf-fill`/`perf-stutter`/
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume;

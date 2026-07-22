@@ -57,7 +57,10 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
-  header.appendChild(clearMenuFor(engine, 'seq', undo));
+  header.appendChild(clearMenuFor(engine, 'seq', undo, () => [{
+    label: `track ${SEQ_TRACK_LABELS[cursor.selRow] ?? cursor.selRow + 1}`,
+    clear: () => engine.patterns.clearSeqTrack(cursor.selRow),
+  }]));
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).
   let armed = false;

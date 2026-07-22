@@ -211,7 +211,7 @@ test.describe('step-grid gestures', () => {
 
     // Clear the row first so the latch is unambiguous (kick boots with a groove).
     await page.getByTestId('clear-drum').click();
-    await page.getByTestId('clear-drum-row').click();
+    await page.getByTestId('clear-drum-row-0').click();
     expect(await drumOn(page, 0, 0)).toBe(false);
 
     const from = (await page.getByTestId('drum-step-0-1').boundingBox())!;
@@ -340,4 +340,22 @@ test.describe('sequencer tracks', () => {
     await busSet(page, 'voicing.mode', 1); // poly
     await expect(page.getByTestId('seq-track-1')).toHaveAttribute('title', '');
   });
+});
+
+test('the Sequencer can clear just the selected track', async ({ page }) => {
+  await gotoAndStart(page);
+  await page.getByTestId('tab-seq').click();
+  await page.getByTestId('seq-track-fold-1').click();
+
+  await page.getByTestId('seq-step-0').click();     // track 1
+  await page.getByTestId('seq-step-1-4').click();   // track 2 (selects it)
+
+  await page.getByTestId('clear-seq').click();
+  await expect(page.getByTestId('clear-seq-row-0')).toContainText('track 2');
+  await page.getByTestId('clear-seq-row-0').click();
+
+  const on = (t: number, i: number): Promise<boolean> =>
+    page.evaluate((a) => (window as any).__synth.patterns.seq[a.t][a.i].on, { t, i });
+  expect(await on(1, 4)).toBe(false);   // the selected track cleared
+  expect(await on(0, 0)).toBe(true);    // track 1 untouched
 });

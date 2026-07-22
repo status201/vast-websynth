@@ -86,12 +86,21 @@ answer to "inspect this step without disturbing it".
   tab-scoped `Ctrl+Z` ([pattern-undo](pattern-undo.md)), so it can never reach a
   grid that is off screen, and it is ignored while focus is in a text input.
 - **REQ-6** — **`Clear ▾` clears in bulk.** Every machine header carries a Clear
-  control offering **Clear bank** (all steps of the edit bank) and, on the
-  drum/sampler grids, **Clear <track|slot>** (the selected row only). Each is a
-  single `PatternStore` call that emits **one** bulk mutation, so one `Undo`
-  press restores everything (REQ-7). No confirmation dialog — the action is
-  labelled and instantly reversible, which [ADR-014](../decisions/adr-014-dont-make-me-think.md)
-  law 3 prefers over interrupting every correct use.
+  control offering **Clear bank** (every step of the edit bank, *all* of its rows)
+  plus **row-scoped** items. The menu is rebuilt **on every open**, because what
+  it can offer moves under it — the edit bank, the selected row, and which rows
+  even hold steps:
+    - machines with a selection cursor (seq / drum / sampler) offer the **one
+      selected row** — `Clear <track|slot|track n>`;
+    - **Motion has no selection cursor**, so it instead lists **every lane that
+      currently holds steps** (`XY`, `A`, `B`). An empty lane is not offered:
+      a menu item that would do nothing is a dead item
+      ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
+  Each item is a single `PatternStore` call that emits **one** bulk mutation, so
+  one `Undo` press restores everything (REQ-7). No confirmation dialog — the
+  action is labelled and instantly reversible, which
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 3 prefers over
+  interrupting every correct use.
 - **REQ-7** — **One bulk action = one undo entry.** Bulk clears reuse the
   existing whole-bank mutation kinds (`seq-copy` / `drum-copy` / `sampler-copy` /
   `motion-copy`), whose `before` already carries a full clone of the bank. A
@@ -138,7 +147,7 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | wheel | ±1 semitone (seq only) | — | — |
 | `Delete` / `Backspace` | clear selected step | clear selected step | DAW piano roll |
 | `Clear ▾` → bank | clear the edit bank | clear the edit bank | — |
-| `Clear ▾` → track | clear the selected row | — (single row) | — |
+| `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
 
 Every gesture has exactly one outcome, independent of hidden state — there is no
 mode anywhere in this table.
@@ -161,10 +170,12 @@ createClearMenu(opts): HTMLElement           # src/ui/components/clear-menu.ts
   # testids: clear-<lane>, clear-<lane>-row, clear-<lane>-bank
 
 PatternStore:                                 # src/state/patterns.ts — REQ-6/REQ-7
-  clearSeqBank(): void
-  clearDrumBank(): void      / clearDrumTrack(track): void
-  clearSamplerBank(): void   / clearSamplerSlot(slot): void
-  clearMotionBank(): void
+  clearSeqBank(): boolean    / clearSeqTrack(track): boolean
+  clearDrumBank(): boolean   / clearDrumTrack(track): boolean
+  clearSamplerBank(): boolean / clearSamplerSlot(slot): boolean
+  clearMotionBank(): boolean / clearMotionXy(): boolean / clearMotionTrack(t): boolean
+  # each returns whether anything changed, so an already-empty target shows no
+  # toast and pushes no undo entry
   # each emits exactly ONE '<machine>-copy' mutation carrying the pre-clear bank
 ```
 
@@ -262,6 +273,21 @@ Scenario: Right-click selects without toggling and shows no browser menu (edge)
   When the user right-clicks it
   Then it is selected, still on, and the context menu is suppressed
 # pinned by: tests/ui/grid-gestures.test.ts
+
+Scenario: Motion's Clear menu lists only the lanes that hold steps (REQ-6)
+  Given the Motion tab with anchors on the XY lane and on track B, and A empty
+  When the Clear menu is opened
+  Then it offers "Clear XY", "Clear B" and "Clear bank <x>" — but not "Clear A"
+  When track B is then emptied and the menu reopened
+  Then "Clear B" is gone, because the menu is rebuilt on every open
+# pinned by: e2e/motion.spec.ts
+
+Scenario: Clearing a motion bank clears every lane (REQ-6, regression)
+  Given the XY lane and both extra tracks hold anchors
+  When Clear bank is picked
+  Then all three lanes empty — "the bank" is every lane, as on the drum grid
+  And one Undo press brings all of them back
+# pinned by: tests/state/patterns.test.ts, tests/state/pattern-undo.test.ts
 
 Scenario: Motion keeps drag-to-set and double-tap-to-clear (REQ-9)
   Given the Motion tab is open

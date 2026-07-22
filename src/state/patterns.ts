@@ -407,24 +407,14 @@ export class PatternStore {
   }
 
   /** Clear one extra track's anchors (its param choice is configuration, kept —
-   *  same rule as clearMotionBank and the axis override). */
+   *  same rule as the axis override). */
   clearMotionTrack(track: number): boolean {
-    const t = this.motionTrackBanks[this._motionEdit]?.[track];
-    if (!t || !t.steps.some((s) => s.on)) return false;
-    const bank = this._motionEdit;
-    this.emitMutate(() => ({
-      kind: 'motion-copy', bank,
-      before: this.motionBanks[bank]!.map((s) => ({ ...s })),
-      beforeAssign: this.motionAssigns[bank] ? { ...this.motionAssigns[bank]! } : null,
-      beforeTracks: cloneMotionTracks(this.motionTrackBanks[bank]!),
-    }));
-    for (let i = 0; i < t.steps.length; i++) {
-      const s = t.steps[i]!;
-      if (!s.on) continue;
-      s.on = false;
-      for (const l of this.motionTrackListeners) l(track, i);
-    }
-    return true;
+    return this.clearMotionCells(false, [track]);
+  }
+
+  /** Clear the XY lane's anchors only, leaving the extra tracks alone. */
+  clearMotionXy(): boolean {
+    return this.clearMotionCells(true, []);
   }
 
   /** Set/clear the edit bank's axis override; repaints via the bank listeners. */
@@ -505,21 +495,53 @@ export class PatternStore {
    * means undo restores it unchanged rather than resurrecting a stale one.
    */
   clearMotionBank(): boolean {
-    const bank = this.motionBanks[this._motionEdit]!;
-    if (!bank.some((s) => s.on)) return false;
-    const assign = this.motionAssigns[this._motionEdit] ?? null;
+    // The whole bank means every lane — the XY anchors AND both extra tracks —
+    // matching what "Clear bank" does on the drum and sampler grids.
+    return this.clearMotionCells(
+      true, Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => t));
+  }
+
+  /**
+   * The one motion clear (step-grid-editing.md REQ-7): whichever lanes are
+   * named, cleared under a SINGLE `motion-copy` mutation carrying the whole
+   * pre-clear bank — anchors, axis override and both tracks — so one Undo
+   * press restores everything however narrow the clear was. Only `on` is reset
+   * (REQ-2) and the axis override / track params survive: they are
+   * configuration, not step data.
+   */
+  private clearMotionCells(xy: boolean, tracks: readonly number[]): boolean {
+    const b = this._motionEdit;
+    const bank = this.motionBanks[b]!;
+    const trackBanks = this.motionTrackBanks[b]!;
+    const hitXy = xy && bank.some((s) => s.on);
+    const hitTracks = tracks.filter((t) => trackBanks[t]?.steps.some((s) => s.on));
+    if (!hitXy && hitTracks.length === 0) return false;
+
+    const assign = this.motionAssigns[b] ?? null;
     this.emitMutate(() => ({
       kind: 'motion-copy',
-      bank: this._motionEdit,
+      bank: b,
       before: bank.map((s) => ({ ...s })),
       beforeAssign: assign ? { ...assign } : null,
-      beforeTracks: cloneMotionTracks(this.motionTrackBanks[this._motionEdit]!),
+      beforeTracks: cloneMotionTracks(trackBanks),
     }));
-    for (let i = 0; i < bank.length; i++) {
-      const s = assertIndex(bank, i, 'motionSteps');
-      if (!s.on) continue;
-      s.on = false;
-      for (const l of this.motionListeners) l(i, s);
+
+    if (hitXy) {
+      for (let i = 0; i < bank.length; i++) {
+        const s = assertIndex(bank, i, 'motionSteps');
+        if (!s.on) continue;
+        s.on = false;
+        for (const l of this.motionListeners) l(i, s);
+      }
+    }
+    for (const t of hitTracks) {
+      const steps = assertIndex(trackBanks, t, 'motionTracks').steps;
+      for (let i = 0; i < steps.length; i++) {
+        const s = assertIndex(steps, i, 'motionTrackSteps');
+        if (!s.on) continue;
+        s.on = false;
+        for (const l of this.motionTrackListeners) l(t, i);
+      }
     }
     return true;
   }

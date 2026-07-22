@@ -212,6 +212,15 @@ The tab sits between Sampler and Song.
   never goes inert, or its param picker would be unreachable and the lane could
   never be assigned ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2).
   The parameter is the switch, so there is no separate on/off to keep in sync.
+  A level pad drops the XY pad's **vertical** centre line: `onSet` discards `x`,
+  so a cell's horizontal position means nothing, and drawing that axis would
+  make a one-dimensional cell read as a mini XY pad. The horizontal line stays —
+  on a level cell it is a 50% mark.
+  Clearing: Motion has no selection cursor, so its `Clear ▾` lists **every lane
+  holding steps** rather than "the selected row" — see
+  [step-grid-editing](step-grid-editing.md) REQ-6. `Clear bank` empties all
+  three lanes; the axis override and the tracks' param choices survive every
+  clear, being configuration rather than step data.
 - **REQ-17** — **SongFile v5** adds optional `motionTracks` (4 banks × 2 tracks),
   additive per [ADR-007](../decisions/adr-007-songfile-additive-versioning.md):
   v1–v4 files load with both tracks empty and unassigned, writing nothing. Export

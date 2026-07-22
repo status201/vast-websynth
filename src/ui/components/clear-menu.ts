@@ -15,15 +15,24 @@ import switchStyles from '../styles/switch.module.css';
  * toggle and marks an option `.active`), while this fires *actions* and has no
  * state to show.
  */
+/** One row-scoped clear offered by the menu. */
+export interface ClearMenuRow {
+  label: string;
+  run(): void;
+}
+
 export interface ClearMenuOptions {
   /** Lane name — namespaces the testids (`clear-drum`, `clear-drum-bank`, …). */
   lane: string;
   /** Bank letter for the item label, read at open time (it changes under us). */
   bankLabel(): string;
   onClearBank(): void;
-  /** Row-scoped clear (drum track / sampler slot). Omit on single-row grids. */
-  rowLabel?: () => string;
-  onClearRow?: () => void;
+  /**
+   * Row-scoped clears, resolved **at open time**. A machine with a selection
+   * cursor returns the one selected row; a machine without one (Motion) returns
+   * every lane worth offering. Omit entirely on single-row grids.
+   */
+  rows?: () => ClearMenuRow[];
 }
 
 export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
@@ -44,24 +53,19 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
 
   let open = false;
 
-  const item = (testId: string, run: () => void): HTMLButtonElement => {
+  const item = (testId: string, label: string, run: () => void): void => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = styles.option!;
     b.dataset.testid = testId;
+    b.textContent = label;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       setOpen(false);
       run();
     });
     menu.appendChild(b);
-    return b;
   };
-
-  const rowItem = opts.onClearRow
-    ? item(`clear-${opts.lane}-row`, opts.onClearRow)
-    : null;
-  const bankItem = item(`clear-${opts.lane}-bank`, opts.onClearBank);
 
   /**
    * The menu is `position: fixed` so it escapes the panel's stacking and
@@ -83,10 +87,14 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
     open = o;
     root.classList.toggle('open', o);
     if (!o) return;
-    // Labels are built at open time: the edit bank and the selected row both
-    // move under us, and a stale "Clear A" on bank C would be a lie.
-    if (rowItem && opts.rowLabel) rowItem.textContent = `Clear ${opts.rowLabel()}`;
-    bankItem.textContent = `Clear bank ${opts.bankLabel()}`;
+    // The whole menu is rebuilt on every open: the edit bank, the selected row
+    // and (on Motion) which lanes even have content all move under us. A stale
+    // "Clear A" on bank C, or a row that has since emptied, would be a lie.
+    menu.innerHTML = '';
+    (opts.rows?.() ?? []).forEach((row, i) => {
+      item(`clear-${opts.lane}-row-${i}`, `Clear ${row.label}`, row.run);
+    });
+    item(`clear-${opts.lane}-bank`, `Clear bank ${opts.bankLabel()}`, opts.onClearBank);
     position();
   }
 

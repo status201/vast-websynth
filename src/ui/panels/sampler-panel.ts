@@ -33,11 +33,11 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'sampler'));
-  header.appendChild(clearMenuFor(engine, 'sampler', undo, {
-    label: () => engine.patterns.sampleNames[cursor.selRow]
+  header.appendChild(clearMenuFor(engine, 'sampler', undo, () => [{
+    label: engine.patterns.sampleNames[cursor.selRow]
       ?? SAMPLER_SLOT_LABELS[cursor.selRow] ?? `S${cursor.selRow + 1}`,
     clear: () => engine.patterns.clearSamplerSlot(cursor.selRow),
-  }));
+  }]));
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;

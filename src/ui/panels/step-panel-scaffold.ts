@@ -168,20 +168,27 @@ export interface MachinePanel {
   clearSelectedStep(): void;
 }
 
+/** One row-scoped clear a panel offers; `clear` reports whether it did anything. */
+export interface ClearRow {
+  label: string;
+  clear(): boolean;
+}
+
 /**
  * The lane's `Clear ▾` header control, wired to the store's bulk-clear entry
  * points (step-grid-editing.md REQ-6/REQ-8). Each clear is ONE PatternStore
  * mutation, so the toast's Undo — and the machine's Undo button, and Ctrl+Z —
  * all reverse the whole thing in a single press (REQ-7).
  *
- * `row` is the row-scoped item; single-row grids (seq, motion) omit it and get
- * a bank-only menu.
+ * `rows` is resolved every time the menu opens. A machine with a selection
+ * cursor returns its one selected row; Motion has no cursor, so it returns
+ * every lane that currently holds steps.
  */
 export function clearMenuFor(
   engine: StudioApi,
   lane: StepLane,
   undo: PatternUndo,
-  row?: { label(): string; clear(): boolean },
+  rows?: () => ClearRow[],
 ): HTMLElement {
   const h = laneHooks(engine, lane);
   const bankLabel = (): string => BANK_LABELS[h.getEdit()] ?? String(h.getEdit() + 1);
@@ -202,8 +209,13 @@ export function clearMenuFor(
     lane,
     bankLabel,
     onClearBank: () => report(`bank ${bankLabel()}`, h.clearBank()),
-    ...(row
-      ? { rowLabel: row.label, onClearRow: () => report(row.label(), row.clear()) }
+    ...(rows
+      ? {
+        rows: () => rows().map((r) => ({
+          label: r.label,
+          run: () => report(r.label, r.clear()),
+        })),
+      }
       : {}),
   });
 }

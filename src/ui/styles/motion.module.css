@@ -174,3 +174,9 @@
    unusable — its cells carry .inert (pointer-events: none), the row itself
    never does, or the param picker inside it would be unreachable. */
 .trackDim .trackLabel { opacity: 0.45; }
+
+/* A level cell is one-dimensional: `onSet` discards x, so its horizontal
+   position carries no meaning. The vertical centre line would advertise an axis
+   that does not exist and make the cell read as a mini XY pad — drop it. The
+   horizontal line stays: on a level cell it is a useful 50% mark. */
+.levelPad::before { display: none; }

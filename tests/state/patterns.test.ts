@@ -474,6 +474,58 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
     expect(p.motion[2]!.x).toBe(0.3);                       // coordinate preserved
     expect(p.motionAssign(0)).toEqual({ x: 'fx.delay.mix' }); // config, not step data
   });
+
+  it('clearMotionBank empties EVERY lane, tracks included (regression)', () => {
+    // It used to clear only the XY anchors, so "Clear bank A" left A and B
+    // playing — the drum grid's Clear bank has always meant every row.
+    const p = new PatternStore();
+    p.setMotionStep(1, { on: true, x: 0.2, y: 0.4 });
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionTrackStep(0, 3, { on: true, v: 0.8 });
+    p.setMotionTrackStep(1, 5, { on: true, v: 0.6 });
+
+    expect(p.clearMotionBank()).toBe(true);
+    expect(p.motion[1]!.on).toBe(false);
+    expect(p.motionTrack(0)!.steps[3]!.on).toBe(false);
+    expect(p.motionTrack(1)!.steps[5]!.on).toBe(false);
+    // Track params are configuration and survive, like the axis override.
+    expect(p.motionTrack(0)!.param).toBe('fx.delay.mix');
+  });
+
+  it('clearMotionXy leaves the extra tracks alone, and vice versa', () => {
+    const p = new PatternStore();
+    p.setMotionStep(1, { on: true, x: 0.2, y: 0.4 });
+    p.setMotionTrackStep(0, 3, { on: true, v: 0.8 });
+
+    expect(p.clearMotionXy()).toBe(true);
+    expect(p.motion[1]!.on).toBe(false);
+    expect(p.motionTrack(0)!.steps[3]!.on).toBe(true);   // untouched
+
+    expect(p.clearMotionTrack(0)).toBe(true);
+    expect(p.motionTrack(0)!.steps[3]!.on).toBe(false);
+    expect(p.motionTrack(0)!.steps[3]!.v).toBe(0.8);     // level preserved
+  });
+
+  it('a clear that would change nothing reports false and emits no mutation', () => {
+    const p = new PatternStore();
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    expect(p.clearMotionXy()).toBe(false);
+    expect(p.clearMotionTrack(1)).toBe(false);
+    expect(p.clearMotionBank()).toBe(false);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('clearSeqTrack clears one track and leaves the others alone', () => {
+    const p = new PatternStore();
+    p.setSeqStep(0, 2, { on: true, note: 60 });
+    p.setSeqStep(2, 4, { on: true, note: 67 });
+    expect(p.clearSeqTrack(2)).toBe(true);
+    expect(p.seqTrack(2)![4]!.on).toBe(false);
+    expect(p.seqTrack(2)![4]!.note).toBe(67);   // note preserved (REQ-2)
+    expect(p.seqTrack(0)![2]!.on).toBe(true);
+    expect(p.clearSeqTrack(2)).toBe(false);     // already empty
+  });
 });
 
 describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-13)', () => {

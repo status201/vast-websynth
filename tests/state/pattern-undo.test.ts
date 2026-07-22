@@ -246,3 +246,32 @@ describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-13)', () 
     expect(patterns.motionTrack(0)!.steps[2]).toEqual({ on: true, v: 0.9 });
   });
 });
+
+describe('PatternUndo — scoped motion clears (step-grid-editing.md REQ-6/REQ-7)', () => {
+  it('one Undo after Clear bank restores every motion lane', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionStep(1, { on: true, x: 0.2, y: 0.4 });
+    patterns.setMotionTrackStep(0, 3, { on: true, v: 0.8 });
+    patterns.setMotionTrackStep(1, 5, { on: true, v: 0.6 });
+
+    patterns.clearMotionBank();
+    undo.undo('motion');
+
+    expect(patterns.motion[1]!.on).toBe(true);
+    expect(patterns.motionTrack(0)!.steps[3]).toEqual({ on: true, v: 0.8 });
+    expect(patterns.motionTrack(1)!.steps[5]).toEqual({ on: true, v: 0.6 });
+  });
+
+  it('a lane-scoped clear still costs exactly one undo entry', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionTrackStep(1, 2, { on: true, v: 0.5 });
+    patterns.setMotionTrackStep(1, 9, { on: true, v: 0.9 });
+    const depth = () => undo.canUndo('motion');
+    expect(depth()).toBe(true);
+
+    patterns.clearMotionTrack(1);
+    undo.undo('motion');            // reverses the whole clear
+    expect(patterns.motionTrack(1)!.steps[2]!.on).toBe(true);
+    expect(patterns.motionTrack(1)!.steps[9]!.on).toBe(true);
+  });
+});

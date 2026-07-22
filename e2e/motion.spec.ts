@@ -279,3 +279,39 @@ test('a track’s Slide/Step is independent of the XY lane and the other track',
   expect(await mode('motion.slide')).toBe(1);
   expect(await mode('motion.t1.slide')).toBe(1);
 });
+
+test('Motion’s Clear menu lists every lane that holds steps', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // Nothing anchored yet: only the bank item is offered.
+  await page.getByTestId('clear-motion').click();
+  await expect(page.getByTestId('clear-motion-bank')).toBeVisible();
+  await expect(page.getByTestId('clear-motion-row-0')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Anchor the XY lane and track B (leaving A empty).
+  await setAnchor(page, 2, 0.5, 0.8);
+  const picker = page.getByTestId('motion-trk-1-param');
+  await picker.click();
+  await picker.getByText('fx.reverb.mix', { exact: true }).click();
+  await setTrackLevel(page, 1, 4, 1);
+
+  await page.getByTestId('clear-motion').click();
+  await expect(page.getByTestId('clear-motion-row-0')).toContainText('XY');
+  await expect(page.getByTestId('clear-motion-row-1')).toContainText('B');
+  await expect(page.getByTestId('clear-motion-row-2')).toHaveCount(0); // A is empty
+
+  // Clearing B alone leaves the XY anchors in place.
+  await page.getByTestId('clear-motion-row-1').click();
+  const trackOn = await page.evaluate(() =>
+    (window as any).__synth.patterns.motionTrack(1).steps[4].on);
+  const xyOn = await page.evaluate(() => (window as any).__synth.patterns.motion[2].on);
+  expect(trackOn).toBe(false);
+  expect(xyOn).toBe(true);
+
+  // Reopened, the emptied lane is gone from the menu.
+  await page.getByTestId('clear-motion').click();
+  await expect(page.getByTestId('clear-motion-row-0')).toContainText('XY');
+  await expect(page.getByTestId('clear-motion-row-1')).toHaveCount(0);
+});

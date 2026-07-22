@@ -87,7 +87,24 @@ export function buildMotionPanel(
   // Motion keeps its own per-pad gestures (step-grid-editing.md REQ-9) — this is
   // the bulk escape hatch, since clearing 16 anchors by double-tapping each is
   // exactly the tedium REQ-6 exists to remove. The bank's axis override survives.
-  header.appendChild(clearMenuFor(engine, 'motion', undo));
+  // Motion has no selection cursor, so there is no "selected row" to clear.
+  // Instead the menu lists every lane that currently holds steps — offering an
+  // already-empty lane would be a dead item (ADR-014 law 1).
+  header.appendChild(clearMenuFor(engine, 'motion', undo, () => {
+    const out = [];
+    if (patterns.motion.some((st) => st.on)) {
+      out.push({ label: 'XY', clear: () => patterns.clearMotionXy() });
+    }
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const track = t;
+      if (!patterns.motionTrack(track)?.steps.some((st) => st.on)) continue;
+      out.push({
+        label: MOTION_TRACK_LABELS[track] ?? String(track + 1),
+        clear: () => patterns.clearMotionTrack(track),
+      });
+    }
+    return out;
+  }));
   root.appendChild(header);
   // Populated further down by the axes block; placed here so it renders between
   // the machine header and the pads it belongs to.

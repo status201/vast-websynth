@@ -33,10 +33,10 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   const bankBar = bankBarFor(engine, 'drum');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'drum'));
-  header.appendChild(clearMenuFor(engine, 'drum', undo, {
-    label: () => modelName(cursor.selRow),
+  header.appendChild(clearMenuFor(engine, 'drum', undo, () => [{
+    label: modelName(cursor.selRow),
     clear: () => engine.patterns.clearDrumTrack(cursor.selRow),
-  }));
+  }]));
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
   // One cluster so the header breaks between machine controls and FX rather

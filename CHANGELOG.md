@@ -30,9 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   as it was, ready to retune.
 
 - **Clear ▾ on every machine** — next to each machine's Undo button, a Clear
-  menu wipes the whole bank, or just the selected drum track / sampler slot. A
-  message appears with an Undo button, and one press brings everything back —
-  a cleared bank costs exactly one undo, not one per step.
+  menu wipes the whole bank, or just one row: the selected track or slot on the
+  Sequencer, Drum Machine and Sampler, and on Motion a list of whichever lanes
+  (XY, A, B) currently hold steps. A message appears with an Undo button, and
+  one press brings everything back — a cleared bank costs exactly one undo, not
+  one per step.
 
 - **Delete key clears the selected step** — Delete or Backspace switches off the
   step you have selected on whichever machine tab is open.
@@ -57,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   exactly how many will be written. Nothing is saved until you confirm, and your
   current sound is never touched. Re-importing a file you exported yourself
   changes nothing.
+
+- **Motion's A and B cells read as level bars** — they no longer draw the XY
+  pad's vertical centre line. A track cell only has a height, so an axis line
+  down the middle suggested a horizontal position that does nothing.
 
 - **The Motion tab is laid out by lane** — each of the three lanes now carries
   its own controls on a line directly above its own cells, instead of the XY
