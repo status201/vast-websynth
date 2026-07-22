@@ -5,6 +5,13 @@ import { clamp01 } from '../../utils/math';
 export interface MotionStepPadOpts {
   /** Beat-column accent (steps 0/4/8/12), like the drum grid's red columns. */
   beat?: boolean;
+  /**
+   * 'xy' (default) — the two-axis pad: a dot at the literal (x, y).
+   * 'level' — an extra motion track's single-param cell (motion-sequencer.md
+   * REQ-16): only y is meaningful and it renders as a bottom-up fill bar. The
+   * gesture handling is identical, which is the point of sharing the component.
+   */
+  mode?: 'xy' | 'level';
   /** A drag/click set the coordinate (both normalized 0..1, y up = more). */
   onSet: (x: number, y: number) => void;
   /** Double-click / double-tap cleared the step. */
@@ -21,15 +28,19 @@ export interface MotionStepPadOpts {
 export class MotionStepPad {
   readonly el: HTMLDivElement;
   private readonly dot: HTMLDivElement;
+  private readonly level: boolean;
   private lastTapMs = 0;
   private dragging = false;
 
   constructor(private readonly opts: MotionStepPadOpts) {
+    this.level = opts.mode === 'level';
     this.el = document.createElement('div');
-    this.el.className = styles.pad! + (opts.beat ? ` ${styles.beat!}` : '');
+    this.el.className = styles.pad!
+      + (opts.beat ? ` ${styles.beat!}` : '')
+      + (this.level ? ` ${styles.levelPad!}` : '');
 
     this.dot = document.createElement('div');
-    this.dot.className = styles.dot!;
+    this.dot.className = this.level ? styles.bar! : styles.dot!;
     this.el.appendChild(this.dot);
 
     // Own dragging flag + optional capture, like xy-pad.ts (jsdom-safe).
@@ -73,6 +84,21 @@ export class MotionStepPad {
     this.el.title = step.on
       ? `x ${step.x.toFixed(2)} · y ${step.y.toFixed(2)} (double-click to clear)`
       : 'Drag to set an XY anchor';
+  }
+
+  /** Repaint a level-mode cell from an extra track's step (REQ-16). */
+  setLevel(on: boolean, v: number, paramLabel?: string): void {
+    this.el.classList.toggle('on', on);
+    this.dot.style.height = `${v * 100}%`;
+    this.el.title = on
+      ? `${paramLabel ? paramLabel + ' · ' : ''}${v.toFixed(2)} (double-click to clear)`
+      : (paramLabel ? `Drag to set ${paramLabel}` : 'Pick a parameter for this track first');
+  }
+
+  /** A track with no parameter chosen has nothing to write, so its cells are
+   *  inert — the parameter IS the on/off (REQ-16). */
+  setInert(inert: boolean): void {
+    this.el.classList.toggle(styles.inert!, inert);
   }
 
   setPlaying(p: boolean): void {

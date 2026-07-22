@@ -103,3 +103,62 @@
   font-size: 10px;
   color: #77664f;
 }
+
+/* ---- extra single-param tracks (motion-sequencer.md REQ-16) ---- */
+
+/* Level cell: same box as the XY pad, but the value reads as a bottom-up fill
+   instead of a dot, so a row of them is legible as a bar graph at a glance. */
+.levelPad .bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: linear-gradient(180deg, var(--accent) 0%, rgba(232, 116, 46, 0.35) 100%);
+  border-radius: 0 0 3px 3px;
+  pointer-events: none;
+  transition: height 0.06s linear;
+}
+
+/* Unlit cells keep a faint bar so the parked level stays visible — toggling a
+   step off must not look like the value was lost. */
+.levelPad .bar { opacity: 0.22; }
+.levelPad:global(.on) .bar { opacity: 1; }
+
+.inert {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.trackCtrls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 210px;
+  flex: none;
+}
+
+.trackLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.trackGrid {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* An unassigned track reads as "not doing anything" without becoming
+   unusable — its cells carry .inert (pointer-events: none), the row itself
+   never does, or the param picker inside it would be unreachable. */
+.trackDim .trackLabel { opacity: 0.45; }

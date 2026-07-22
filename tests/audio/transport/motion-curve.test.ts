@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { anchorIndices, valueAt } from '../../../src/audio/transport/motion-curve';
+import { anchorIndices, valueAt, valueAt1D } from '../../../src/audio/transport/motion-curve';
 import { makeMotionBank, SEQ_LENGTH, type MotionStep } from '../../../src/state/patterns';
 
 /** A bank with anchors at the given steps ({step: [x, y]}). */
@@ -147,5 +147,62 @@ describe('motion-curve', () => {
     const b = bank({ 0: [0.2, 0.2], 8: [0.8, 0.8] });
     expect(valueAt(b, 1.5, 'step')).toEqual(valueAt(b, 0.5, 'step'));
     expect(valueAt(b, -0.25, 'slide')!.y).toBeCloseTo(valueAt(b, 0.75, 'slide')!.y, 10);
+  });
+});
+
+describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-14)', () => {
+  const t = (anchors: Record<number, number>): { on: boolean; v: number }[] =>
+    Array.from({ length: 16 }, (_, i) => (
+      i in anchors ? { on: true, v: anchors[i]! } : { on: false, v: 0.5 }
+    ));
+
+  it('a track with no anchors writes nothing', () => {
+    expect(valueAt1D(t({}), 0.5, 'slide')).toBeNull();
+  });
+
+  it('slides linearly between anchors', () => {
+    const steps = t({ 0: 0, 8: 1 });
+    expect(valueAt1D(steps, 0, 'slide')).toBeCloseTo(0, 6);
+    expect(valueAt1D(steps, 4 / 16, 'slide')).toBeCloseTo(0.5, 6);
+    expect(valueAt1D(steps, 8 / 16, 'slide')).toBeCloseTo(1, 6);
+  });
+
+  it('step mode jumps and holds', () => {
+    const steps = t({ 0: 0.2, 8: 0.9 });
+    expect(valueAt1D(steps, 4 / 16, 'step')).toBeCloseTo(0.2, 6);
+    expect(valueAt1D(steps, 8 / 16, 'step')).toBeCloseTo(0.9, 6);
+    expect(valueAt1D(steps, 15 / 16, 'step')).toBeCloseTo(0.9, 6);
+  });
+
+  it('carries across the bar line into the next bar’s track', () => {
+    const a = t({ 0: 0, 15: 1 });
+    const b = t({ 0: 0 });
+    // After the last anchor it heads for b's first anchor (1 → 0), not back to
+    // its own step-0 value — the REQ-2b carry, inherited from the shared core.
+    const mid = valueAt1D(a, 15.5 / 16, 'slide', { next: b });
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
+  });
+
+  it('holds flat toward an unusable neighbour', () => {
+    const a = t({ 0: 0, 15: 1 });
+    expect(valueAt1D(a, 15.5 / 16, 'slide', { next: null })).toBeCloseTo(1, 6);
+    expect(valueAt1D(a, 15.5 / 16, 'slide', { next: t({}) })).toBeCloseTo(1, 6);
+  });
+
+  it('matches the XY lane exactly — both go through the same scalar core', () => {
+    // Same anchor positions and values on a track and on the XY lane's y axis
+    // must produce identical curves at every sample point.
+    const track = t({ 2: 0.25, 9: 0.8 });
+    const xyBank = Array.from({ length: 16 }, (_, i) => (
+      i === 2 ? { on: true, x: 0, y: 0.25 }
+        : i === 9 ? { on: true, x: 0, y: 0.8 }
+          : { on: false, x: 0, y: 0.5 }
+    ));
+    for (const mode of ['slide', 'step'] as const) {
+      for (let p = 0; p < 16; p += 0.25) {
+        expect(valueAt1D(track, p / 16, mode)).toBeCloseTo(valueAt(xyBank, p / 16, mode)!.y, 9);
+      }
+    }
   });
 });

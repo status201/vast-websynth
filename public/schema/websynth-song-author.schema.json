@@ -53,6 +53,40 @@
     "drumChain": { "$ref": "#/$defs/chain", "description": "Drum arrangement lane." },
     "samplerChain": { "$ref": "#/$defs/chain", "description": "Sampler arrangement lane." },
     "motionChain": { "$ref": "#/$defs/chain", "description": "Motion arrangement lane." },
+    "motionTracks": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "0..4 banks, each 0..2 extra single-param motion tracks. Each track picks one ParamBus id and its own anchors, so a bank can automate up to 4 params (the XY pair plus these two). Use null for an unused track.",
+      "items": {
+        "type": "array",
+        "maxItems": 2,
+        "items": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "param": { "type": "string", "minLength": 1, "description": "ParamBus id this track drives, e.g. 'fx.delay.mix'." },
+                "steps": {
+                  "type": "array",
+                  "description": "Anchors: { step: 0..15, v: 0..1 }. Unlisted steps are not anchors.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["step", "v"],
+                    "properties": {
+                      "step": { "type": "integer", "minimum": 0, "maximum": 15 },
+                      "v": { "type": "number", "minimum": 0, "maximum": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
     "sampleNames": {
       "type": "array",
       "maxItems": 8,

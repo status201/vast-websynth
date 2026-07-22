@@ -96,7 +96,7 @@ test('motion state survives a save → new → load round-trip', async ({ page }
   // The stored file is v4 with motion fields.
   const stored = await page.evaluate(() => localStorage.getItem('websynth.song.e2e-motion'));
   const parsed = JSON.parse(stored!) as { version: number; motionBanks: unknown[] };
-  expect(parsed.version).toBe(4);
+  expect(parsed.version).toBe(5);
   expect(parsed.motionBanks).toHaveLength(4);
 });
 
@@ -144,4 +144,80 @@ test('the XY Pad axes follow the motion bank override (effective assignment)', a
   // Turning motion off returns the pad to the base assignment.
   await page.getByTestId('switch-motion.on').click();
   await expect(xLabel).toHaveText('cutoff');
+});
+
+/**
+ * The two extra single-param tracks — specs/features/motion-sequencer.md
+ * REQ-13/REQ-16. The curve maths is unit-tested; this pins the panel wiring and
+ * that a track really drives its param through the live engine.
+ */
+test('an extra motion track drives its own param and restores on stop', async ({ page }) => {
+  await gotoAndStart(page);
+  await page.getByTestId('tab-motion').click();
+
+  // A track with no param chosen is inert — the parameter IS the on/off.
+  const cell = page.getByTestId('motion-trk-0-step-0');
+  await expect(cell).toBeVisible();
+
+  const picker = page.getByTestId('motion-trk-0-param');
+  await picker.click();
+  await picker.getByText('fx.delay.mix', { exact: true }).click();
+
+  const baseline = await page.evaluate(() => (window as any).__synth.bus.get('fx.delay.mix'));
+
+  // Anchor every step high, so any playhead position drives the same value.
+  for (const s of [0, 4, 8, 12]) {
+    const box = (await page.getByTestId(`motion-trk-0-step-${s}`).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 2); // top of the cell = 1
+    await page.mouse.down();
+    await page.mouse.up();
+  }
+  await page.evaluate(() => (window as any).__synth.bus.set('motion.on', 1));
+
+  await page.getByTestId('transport-play').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__synth.bus.get('fx.delay.mix')))
+    .toBeGreaterThan(baseline);
+
+  await page.getByTestId('transport-play').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__synth.bus.get('fx.delay.mix')))
+    .toBeCloseTo(baseline, 4);
+});
+
+test('extra motion tracks survive a save → new → load round-trip', async ({ page }) => {
+  await gotoAndStart(page);
+  await page.getByTestId('tab-motion').click();
+  const picker = page.getByTestId('motion-trk-1-param');
+  await picker.click();
+  await picker.getByText('fx.reverb.mix', { exact: true }).click();
+  const box = (await page.getByTestId('motion-trk-1-step-3').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 3);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  const read = () => page.evaluate(() =>
+    (window as any).__synth.patterns.motionTrack(1));
+  const before = await read();
+  expect(before.param).toBe('fx.reverb.mix');
+  expect(before.steps[3].on).toBe(true);
+
+  await page.getByTestId('tab-song').click();
+  const download = page.waitForEvent('download');
+  await page.getByTestId('song-save').click();
+  await page.getByTestId('dialog-input').fill('e2e-tracks');
+  await page.getByTestId('dialog-confirm').click();
+  await download;
+  await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
+  await page.getByTestId('song-new').click();
+  await page.getByTestId('dialog-confirm').click();
+  expect((await read()).param).toBeUndefined();
+
+  await page.getByTestId('song-load').click();
+
+  const after = await read();
+  expect(after.param).toBe('fx.reverb.mix');
+  expect(after.steps[3].on).toBe(true);
+  expect(after.steps[3].v).toBeCloseTo(before.steps[3].v, 4);
 });

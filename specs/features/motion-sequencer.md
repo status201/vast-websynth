@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 3   # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
+version: 4   # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
+             # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
              # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
 owner: core
 related:
@@ -30,6 +31,13 @@ source:
 ```
 
 ## Background / Why
+
+(v4) The XY lane is bound to the XY Pad's two params, which means automating
+anything costs you the pad — the one surface you want free for live playing. Two
+extra **single-param tracks** per bank fix that: each picks its own parameter and
+holds its own anchors, so a bank can drive up to four parameters while the pad
+stays yours to grab. They are the Korg Electribe / MPC "motion lane" idea:
+a strip of levels under the pattern, one parameter each.
 
 Songs vary notes and hits over time (banks + chains) but every *parameter* is static —
 no filter sweeps, no delay throws, no per-bar sound scenes. Motion is a 4th machine
@@ -154,6 +162,45 @@ The tab sits between Sampler and Song.
   `audibleLanes` (it makes no sound); the card's dim visual is driven directly
   off `motion.mute`.
 
+### v4 — extra tracks
+
+- **REQ-13** — **Two extra tracks per bank**, A and B, each a
+  `MotionTrack = { param?: string; steps: MotionTrackStep[16] }` where
+  `MotionTrackStep = { on, v }` and `v` is **0..1 normalized taper space** exactly
+  like the XY lane's `x`/`y`. The parameter is chosen **per bank, per track** —
+  the same scope as REQ-4's `MotionAssign` override, so one song can drive eight
+  different params across a four-bank chain. A track with **no `param`** writes
+  nothing: that is the no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
+  and unlike REQ-4's axes there is no global fallback to inherit from (there is no
+  pad behind these tracks). `copyMotionBank` copies the tracks *and* their param
+  choices, so building one bank and copying it does not mean re-picking params.
+- **REQ-14** — **Tracks share the XY lane's curve semantics exactly**: slide/step
+  from `motion.slide`, set steps are anchors, a track with **zero anchors writes
+  nothing** (REQ-3), and the bar-line **cross-bank carry** of REQ-2b applies with
+  the same usability gate — a neighbour bar that rests, whose same-index track has
+  no anchors, or whose same-index track drives a **different param**, is unusable,
+  so the value holds flat to/from the bar line. This is guaranteed rather than
+  re-implemented: the interpolation core is extracted as the scalar `scalarAt`,
+  and XY's `valueAt` becomes two calls of it, so the two cannot drift.
+- **REQ-15** — **Baselines are unchanged** (REQ-5): the machine's baseline map is
+  keyed by param id, so track writes join it with no new mechanism. Stop,
+  `motion.on → 0` and `motion.mute → 1` restore every recorded baseline including
+  the tracks'.
+- **REQ-16** — **UI**: two rows below the XY pad row, each carrying a param
+  dropdown and 16 **level pads** — drag up/down to set the value (the pad fills
+  from the bottom), double-click/double-tap to clear, matching the XY pads'
+  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). Each row
+  draws the same mode-aware polyline the XY row does, so slide interpolation and
+  the bar-line carry stay visible while authoring. A row with no param chosen
+  renders dimmed with its pads inert — the parameter is the switch, so there is no
+  separate on/off to keep in sync.
+- **REQ-17** — **SongFile v5** adds optional `motionTracks` (4 banks × 2 tracks),
+  additive per [ADR-007](../decisions/adr-007-songfile-additive-versioning.md):
+  v1–v4 files load with both tracks empty and unassigned, writing nothing. Export
+  is default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
+  track that is entirely empty *and* unassigned is omitted. The authoring dialect
+  gains a matching key; both public schemas and the authoring guide document it.
+
 ## Technical design
 
 ### Contract / public interface
@@ -166,7 +213,12 @@ The tab sits between Sampler and Song.
   `motion`.
 - `motion-curve.ts` (pure): `anchorIndices(bank)`,
   `valueAt(bank, barPos, mode, neighbours?) → {x,y} | null` — all
-  interpolation/carry math, no AudioContext.
+  interpolation/carry math, no AudioContext. (v4) The engine underneath is the
+  scalar `scalarAt(bank, barPos, mode, get, neighbours?) → number | null`,
+  generic over any `{ on }` cell plus a value accessor; `valueAt` is two calls of
+  it (`s => s.x`, `s => s.y`) and `valueAt1D(steps, …)` — the extra tracks' entry
+  point — is one (`s => s.v`). One implementation of anchors, slide, step and the
+  bar-line carry, so XY and the tracks cannot diverge (REQ-14).
   `MotionNeighbours = { prev?, next?: readonly MotionStep[] | null }` are the banks
   of the adjacent *bars* (REQ-2b); omitted ⇒ this bank (the pre-v3 self-wrap),
   `null`/anchorless ⇒ hold flat at the bar line. The module stays free of
@@ -175,6 +227,12 @@ The tab sits between Sampler and Song.
 - `PatternStore`: `motionEditBank`, `motion`, `motionBank(i)`, `setMotionEditBank`,
   `setMotionStep(step, cell)`, `copyMotionBank(from,to)`, `motionAssign(i)`,
   `setMotionAssign(i, a|null)`, `onMotionChange`, `onMotionBankChange`.
+  (v4) `motionTracks(bank) → MotionTrack[2]`, `motionTrack(track)` (edit bank),
+  `setMotionTrackStep(track, step, patch)`, `setMotionTrackParam(track, id|null)`,
+  `clearMotionTrack(track)`, `onMotionTrackChange(fn)`. Track mutations emit the
+  `motion-track` / `motion-track-param` undo kinds; `clearMotionBank` and
+  `copyMotionBank` keep carrying the whole bank (tracks included) in their single
+  `motion-copy` entry (step-grid-editing.md REQ-7).
 - `Arrangement`: `motionPlayBank`, `motionResting`, `setMotionChain(steps, enabled)`,
   `motionChainPos`, `motion{Prev,Next}PlayBank`, `motion{Prev,Next}Resting` (v3).
 - `src/utils/taper.ts`: `toNorm(def, v)`, `fromNorm(def, n)` — moved out of the
@@ -199,6 +257,17 @@ MotionStep:
 MotionAssign:        # per-bank override, each axis optional
   x: string | absent # ParamBus id
   y: string | absent
+MotionTrackStep:     # v4 — one extra track's step
+  on: boolean
+  v: number          # 0..1 normalized (taper space)
+MotionTrack:         # v4 — per bank, per track
+  param: string | absent   # ParamBus id; absent = the track writes nothing
+  steps: MotionTrackStep[16]
+SongFile v5 (additive):
+  motionTracks: (MotionTrack | null)[4][2] | absent
+Author dialect (v4):
+  motionTracks: [ [TrackSpec, TrackSpec], ... up to 4 banks ]
+  # TrackSpec = { param, steps: [ {step, v}, ... ] } | null
 SongFile v4 (additive):
   motionBanks: MotionStep[4][16] | absent
   motionAssigns: (MotionAssign | null)[4] | absent
@@ -238,6 +307,39 @@ Scenario: A one-bar cutoff sweep (slide)
   When the transport plays bar after bar
   Then filter.cutoff ramps min→max→min continuously each bar
 # pinned by: tests/audio/transport/motion-curve.test.ts, tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: An extra track drives a third parameter while the pad stays free (v4)
+  Given motion track A on bank A is assigned to fx.delay.mix with anchors
+  When the transport plays that bank
+  Then fx.delay.mix follows the track's curve
+  And the XY Pad's own two params are driven only by the XY anchors
+  And stopping restores every driven param, tracks included
+# pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: An unassigned extra track writes nothing (v4)
+  Given motion track B has anchors but no parameter chosen
+  When the transport plays
+  Then nothing is written — the parameter is the track's on/off
+  And its cells render inert while the param picker stays usable
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/state/patterns.test.ts
+
+Scenario: Extra tracks follow the XY lane's curve rules exactly (v4)
+  Given a track and the XY lane's y axis carry the same anchors
+  When both are sampled across the bar in slide and step mode
+  Then their values are equal at every point, since one scalar core serves both
+# pinned by: tests/audio/transport/motion-curve.test.ts
+
+Scenario: Copying a bank carries the tracks and their parameters (v4)
+  Given bank A has track B assigned with anchors
+  When bank A is copied to bank C
+  Then C's track B has the same parameter and anchors, deep-copied
+# pinned by: tests/state/patterns.test.ts
+
+Scenario: New Song clears the extra tracks (v4, regression)
+  Given a song assigned motion track A to fx.delay.mix
+  When the user starts a New Song
+  Then the track is blank AND unassigned, so nothing is still being automated
+# pinned by: tests/state/patterns.test.ts, e2e/motion.spec.ts
 
 Scenario: Step mode jumps and holds
   Given anchors at steps 0 and 8 and step mode
@@ -331,6 +433,12 @@ Scenario: The XY Pad reflects the bank being driven
   Then the pad's x axis (label/dot/drag) is fx.delay.time while y stays the base param
   And turning motion off returns both axes to the base assignment
 # pinned by: tests/state/xy-effective.test.ts, e2e/motion.spec.ts
+
+Scenario: Extra tracks round-trip through a song (v4)
+  Given a track assigned with anchors
+  When the song is saved, a New Song started, and the song reloaded
+  Then the track's parameter and anchors come back
+# pinned by: tests/state/patterns.test.ts, e2e/motion.spec.ts
 
 Scenario: Old songs load unchanged
   Given a v1/v2/v3 SongFile without motion fields

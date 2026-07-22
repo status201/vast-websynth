@@ -205,3 +205,44 @@ describe('PatternUndo — bulk clears (step-grid-editing.md REQ-7)', () => {
     expect(patterns.motionAssign(0)).toEqual({ y: 'filter.cutoff' });
   });
 });
+
+describe('PatternUndo — extra motion tracks (motion-sequencer.md REQ-13)', () => {
+  it('undoes a track step and a track param independently', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 4, { on: true, v: 0.7 });
+
+    undo.undo('motion');
+    expect(patterns.motionTrack(0)!.steps[4]!.on).toBe(false);
+    undo.undo('motion');
+    expect(patterns.motionTrack(0)!.param).toBeUndefined();
+  });
+
+  it('one Undo after Clear bank restores anchors, override AND tracks', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionStep(0, { on: true, x: 0.1, y: 0.2 });
+    patterns.setMotionAssign({ x: 'lfo.rate' });
+    patterns.setMotionTrackParam(1, 'fx.reverb.mix');
+    patterns.setMotionTrackStep(1, 6, { on: true, v: 0.55 });
+
+    patterns.clearMotionBank();
+    expect(patterns.motion[0]!.on).toBe(false);
+
+    undo.undo('motion');
+    expect(patterns.motion[0]!.on).toBe(true);
+    expect(patterns.motionAssign(0)).toEqual({ x: 'lfo.rate' });
+    expect(patterns.motionTrack(1)!.param).toBe('fx.reverb.mix');
+    expect(patterns.motionTrack(1)!.steps[6]).toEqual({ on: true, v: 0.55 });
+  });
+
+  it('one Undo after Clear track restores that track', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    patterns.setMotionTrackStep(0, 2, { on: true, v: 0.9 });
+    patterns.clearMotionTrack(0);
+    expect(patterns.motionTrack(0)!.steps[2]!.on).toBe(false);
+
+    undo.undo('motion');
+    expect(patterns.motionTrack(0)!.steps[2]).toEqual({ on: true, v: 0.9 });
+  });
+});

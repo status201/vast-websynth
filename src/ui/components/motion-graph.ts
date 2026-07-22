@@ -1,5 +1,7 @@
-import type { MotionStep } from '../../state/patterns';
-import { valueAt, type MotionMode, type MotionNeighbours } from '../../audio/transport/motion-curve';
+import type { MotionStep, MotionTrackStep } from '../../state/patterns';
+import {
+  scalarAt, type MotionMode, type MotionNeighbours, type MotionTrackNeighbours, type Neighbours,
+} from '../../audio/transport/motion-curve';
 
 /**
  * Pure geometry for the Motion panel's axis-graph overlay
@@ -19,7 +21,12 @@ import { valueAt, type MotionMode, type MotionNeighbours } from '../../audio/tra
  * `carry` holds the up-to-two segments joining the outer anchors to the bar edges
  * (the panel strokes them dashed): what the curve does *across* the bar line, which
  * depends on the neighbouring bars' banks (REQ-2b). Their edge values come from
- * `valueAt` itself, so the drawing cannot drift from what plays.
+ * `scalarAt` itself, so the drawing cannot drift from what plays.
+ *
+ * (v4) The geometry is generic over "a lane of anchorable cells plus a value
+ * accessor", exactly like the curve core it samples — so the XY row's two axes
+ * and an extra single-param track (`motionGraphPoints1D`) draw through one
+ * implementation.
  */
 export interface MotionGraph {
   line: Array<[number, number]>;
@@ -27,18 +34,18 @@ export interface MotionGraph {
   carry: Array<Array<[number, number]>>;
 }
 
-export function motionGraphPoints(
-  bank: readonly MotionStep[],
-  view: 'x' | 'y',
+function graphPoints<T extends { on: boolean }>(
+  bank: readonly T[],
+  get: (s: T) => number,
   mode: MotionMode,
-  neighbours: MotionNeighbours = {},
+  neighbours: Neighbours<T>,
 ): MotionGraph {
   const n = bank.length;
   const dots: Array<[number, number]> = [];
   for (let s = 0; s < n; s++) {
     const step = bank[s]!;
     if (!step.on) continue;
-    dots.push([((s + 0.5) / n) * 100, (1 - step[view]) * 100]);
+    dots.push([((s + 0.5) / n) * 100, (1 - get(step)) * 100]);
   }
   if (dots.length === 0) return { line: [], dots, carry: [] };
 
@@ -46,8 +53,8 @@ export function motionGraphPoints(
   // trailing edge is sampled a sliver before the bar line (`barPos` 1 wraps back
   // to 0), so round the float dust off the coordinate it produces.
   const edge = (barPos: number): number => {
-    const v = valueAt(bank, barPos, mode, neighbours)!;
-    return Math.round((1 - v[view]) * 1e6) / 1e4;
+    const v = scalarAt(bank, barPos, mode, get, neighbours)!;
+    return Math.round((1 - v) * 1e6) / 1e4;
   };
   const yIn = edge(0);
   const yOut = edge((n - 1e-6) / n);
@@ -74,4 +81,26 @@ export function motionGraphPoints(
   // The staircase already spans the bar; its lead-in *is* the carry and is part
   // of the line, so there is nothing extra to dash.
   return { line, dots, carry: [] };
+}
+
+const getX = (s: MotionStep): number => s.x;
+const getY = (s: MotionStep): number => s.y;
+
+/** The XY row's graph, projected onto one axis (REQ-8). */
+export function motionGraphPoints(
+  bank: readonly MotionStep[],
+  view: 'x' | 'y',
+  mode: MotionMode,
+  neighbours: MotionNeighbours = {},
+): MotionGraph {
+  return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours);
+}
+
+/** An extra single-param track's graph (REQ-16). */
+export function motionGraphPoints1D(
+  steps: readonly MotionTrackStep[],
+  mode: MotionMode,
+  neighbours: MotionTrackNeighbours = {},
+): MotionGraph {
+  return graphPoints(steps, (s) => s.v, mode, neighbours);
 }

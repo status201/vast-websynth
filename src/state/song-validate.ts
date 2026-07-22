@@ -163,6 +163,32 @@ const validateMotionStep: CellValidator = (path, value, add) => {
   checkUnit(`${path}.y`, value.y, add);
 };
 
+/** v5 extra motion tracks — BANK_COUNT banks × MOTION_TRACK_COUNT, each null or
+ *  { param?, steps: 16 × {on, v?} }. */
+function checkMotionTracks(v: unknown, add: AddError): void {
+  if (!Array.isArray(v)) { add(`motionTracks must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
+  if (v.length !== BANK_COUNT) add(`motionTracks must have ${BANK_COUNT} banks (got ${v.length})`);
+  v.forEach((bank: unknown, b) => {
+    if (bank === null || bank === undefined) return;
+    if (!Array.isArray(bank)) { add(`motionTracks[${b}] must be an array (got ${describe(bank)})`); return; }
+    bank.forEach((t: unknown, i) => {
+      if (t === null) return;
+      const path = `motionTracks[${b}][${i}]`;
+      if (!isObject(t)) { add(`${path} must be null or an object (got ${describe(t)})`); return; }
+      if (t.param !== undefined && (typeof t.param !== 'string' || t.param.length === 0)) {
+        add(`${path}.param must be a non-empty string (got ${describe(t.param)})`);
+      }
+      if (!Array.isArray(t.steps)) { add(`${path}.steps must be an array (got ${describe(t.steps)})`); return; }
+      if (t.steps.length !== SEQ_LENGTH) add(`${path}.steps must have ${SEQ_LENGTH} entries (got ${t.steps.length})`);
+      t.steps.forEach((cell: unknown, si) => {
+        if (!isObject(cell)) { add(`${path}.steps[${si}] must be an object (got ${describe(cell)})`); return; }
+        checkBool(`${path}.steps[${si}].on`, cell.on, add, false);
+        checkUnit(`${path}.steps[${si}].v`, cell.v, add);
+      });
+    });
+  });
+}
+
 /** v4 per-bank axis overrides — BANK_COUNT entries, each null or {x?, y?} of ids. */
 function checkMotionAssigns(v: unknown, add: AddError): void {
   if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${BANK_COUNT} entries (got ${describe(v)})`); return; }
@@ -191,7 +217,10 @@ export function validateSongFile(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== 'websynth-song') add(`format must be "websynth-song" (got ${describe(o.format)})`);
-  if (o.version !== 1 && o.version !== 2 && o.version !== 3 && o.version !== 4) add(`version must be 1, 2, 3, or 4 (got ${describe(o.version)})`);
+  const KNOWN_VERSIONS = [1, 2, 3, 4, 5];
+  if (!KNOWN_VERSIONS.includes(o.version as number)) {
+    add(`version must be one of ${KNOWN_VERSIONS.join(', ')} (got ${describe(o.version)})`);
+  }
   if (typeof o.name !== 'string') add(`name must be a string (got ${describe(o.name)})`);
 
   checkParams(o.params, add);
@@ -212,6 +241,8 @@ export function validateSongFile(value: unknown): SongValidation {
   if (o.motionBanks !== undefined) check2D('motionBanks', o.motionBanks, SEQ_LENGTH, validateMotionStep, add);
   if (o.motionAssigns !== undefined) checkMotionAssigns(o.motionAssigns, add);
   if (o.motionChain !== undefined) checkChain('motionChain', o.motionChain, true, add);
+  // v5 (optional) — the extra single-param motion tracks.
+  if (o.motionTracks !== undefined) checkMotionTracks(o.motionTracks, add);
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, file: value as unknown as SongFile };

@@ -8,12 +8,15 @@ import { Switch } from '../components/switch';
 import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
 import { MotionStepPad } from '../components/motion-step-pad';
-import { motionGraphPoints } from '../components/motion-graph';
+import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
-import type { MotionNeighbours } from '../../audio/transport/motion-curve';
+import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
 import { motionAxesFor } from '../../state/xy-effective';
-import { REST, SEQ_LENGTH, type MotionStep } from '../../state/patterns';
+import {
+  REST, SEQ_LENGTH, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS,
+  type MotionStep, type MotionTrackStep,
+} from '../../state/patterns';
 import layout from '../styles/layout.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -131,11 +134,35 @@ export function buildMotionPanel(
     return { prev: at(slot - 1), next: at(slot + 1) };
   };
 
-  const strokePolyline = (pts: Array<[number, number]>, cls?: string): void => {
+  const strokePolylineIn = (svg: SVGElement, pts: Array<[number, number]>, cls?: string): void => {
     const poly = document.createElementNS(SVG_NS, 'polyline');
     poly.setAttribute('points', pts.map(([px, py]) => `${px},${py}`).join(' '));
     if (cls) poly.setAttribute('class', cls);
-    graph.appendChild(poly);
+    svg.appendChild(poly);
+  };
+  const strokePolyline = (pts: Array<[number, number]>, cls?: string): void =>
+    strokePolylineIn(graph, pts, cls);
+
+  /**
+   * The neighbouring bars' same-index track, for an extra track's bar-line carry
+   * (REQ-14) — mirroring `chainNeighbours` for the axes. A neighbour driving a
+   * different param carries nothing, matching MotionMachine's own gate.
+   */
+  const trackNeighbours = (track: number, param: string | undefined): MotionTrackNeighbours => {
+    const self = patterns.motionTrack(track)?.steps ?? [];
+    if (!param) return { prev: self, next: self };
+    const edit = patterns.motionEditBank;
+    const lane = engine.arrangement.motion;
+    const slot = lane.enabled ? lane.steps.indexOf(edit) : -1;
+    if (slot < 0) return { prev: self, next: self };
+    const at = (i: number): readonly MotionTrackStep[] | null => {
+      const n = lane.steps.length;
+      const b = lane.steps[((i % n) + n) % n]!;
+      if (b === REST) return null;
+      const nb = patterns.motionTracks(b)[track];
+      return nb && nb.param === param ? nb.steps : null;
+    };
+    return { prev: at(slot - 1), next: at(slot + 1) };
   };
 
   const redrawGraph = (): void => {
@@ -206,6 +233,95 @@ export function buildMotionPanel(
       ? `bank override — graph: ${effective}`
       : `inherited from XY Pad — graph: ${effective}`;
   };
+
+  // ---- Extra single-param tracks (REQ-13/REQ-16) ----
+  // One row per track: a param picker plus 16 level cells sharing the XY pads'
+  // gesture family (drag = set, double-tap = clear) via MotionStepPad's level
+  // mode, and the same mode-aware polyline so slide interpolation and the
+  // bar-line carry stay visible while authoring.
+  const NONE = '— none —';
+  const buildTrackRow = (track: number): { repaint: () => void } => {
+    const row = document.createElement('div');
+    row.className = styles.trackRow!;
+
+    const ctrls = document.createElement('div');
+    ctrls.className = styles.trackCtrls!;
+    const label = document.createElement('span');
+    label.className = styles.trackLabel!;
+    label.textContent = MOTION_TRACK_LABELS[track] ?? String(track + 1);
+    ctrls.appendChild(label);
+
+    const picker = new Dropdown([NONE, ...paramIds], NONE);
+    picker.el.dataset.testid = `motion-trk-${track}-param`;
+    picker.onChange((id) => patterns.setMotionTrackParam(track, id === NONE ? null : id));
+    ctrls.appendChild(picker.el);
+    row.appendChild(ctrls);
+
+    const cells = document.createElement('div');
+    cells.className = drumStyles.cells!;
+    const pads: MotionStepPad[] = [];
+    for (let sIdx = 0; sIdx < SEQ_LENGTH; sIdx++) {
+      const step = sIdx;
+      const pad = new MotionStepPad({
+        beat: sIdx % 4 === 0,
+        mode: 'level',
+        onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
+        onClear: () => patterns.setMotionTrackStep(track, step, { on: false }),
+      });
+      pad.el.dataset.testid = `motion-trk-${track}-step-${sIdx}`;
+      cells.appendChild(pad.el);
+      pads.push(pad);
+    }
+
+    const graph = document.createElementNS(SVG_NS, 'svg');
+    graph.setAttribute('class', styles.graph!);
+    graph.setAttribute('viewBox', '0 0 100 100');
+    graph.setAttribute('preserveAspectRatio', 'none');
+    graph.dataset.testid = `motion-trk-${track}-graph`;
+
+    const grid = document.createElement('div');
+    grid.className = styles.trackGrid!;
+    grid.appendChild(cells);
+    grid.appendChild(graph);
+    row.appendChild(grid);
+    root.appendChild(row);
+
+    const repaint = (): void => {
+      const t = patterns.motionTrack(track);
+      if (!t) return;
+      const assigned = !!t.param;
+      picker.setValue(t.param ?? NONE);
+      // Only the CELLS go inert — never the row, which holds the param picker.
+      // Disabling that is the one thing that would make an unassigned track
+      // impossible to assign (ADR-014 law 2: no dead ends).
+      row.classList.toggle(styles.trackDim!, !assigned);
+      for (let i = 0; i < SEQ_LENGTH; i++) {
+        const cell = t.steps[i]!;
+        pads[i]!.setLevel(cell.on, cell.v, t.param);
+        pads[i]!.setInert(!assigned);
+      }
+      graph.innerHTML = '';
+      const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
+      const { line, dots, carry } =
+        motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param));
+      for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
+      if (line.length > 1) strokePolylineIn(graph, line);
+      for (const [px, py] of dots) {
+        const c = document.createElementNS(SVG_NS, 'circle');
+        c.setAttribute('cx', String(px));
+        c.setAttribute('cy', String(py));
+        c.setAttribute('r', '1.1');
+        graph.appendChild(c);
+      }
+    };
+    return { repaint };
+  };
+
+  const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
+  const repaintTracks = (): void => { for (const r of trackRows) r.repaint(); };
+  patterns.onMotionTrackChange(repaintTracks);
+  bus.subscribe('motion.slide', repaintTracks);
+  engine.arrangement.onChange(repaintTracks);
 
   // ---- Wiring ----
   const paintAll = (bank: readonly MotionStep[]): void => {

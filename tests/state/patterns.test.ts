@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, type SeqStep, type DrumCell } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, type SeqStep, type DrumCell } from '../../src/state/patterns';
 
 describe('clampChainStep', () => {
   it('passes the REST sentinel through untouched', () => {
@@ -473,5 +473,110 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
     expect(p.motion[2]!.on).toBe(false);
     expect(p.motion[2]!.x).toBe(0.3);                       // coordinate preserved
     expect(p.motionAssign(0)).toEqual({ x: 'fx.delay.mix' }); // config, not step data
+  });
+});
+
+describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-13)', () => {
+  it('boots with two blank, unassigned tracks per bank', () => {
+    const p = new PatternStore();
+    const tracks = p.motionTracks(0);
+    expect(tracks).toHaveLength(2);
+    expect(tracks[0]!.param).toBeUndefined();
+    expect(tracks[0]!.steps).toHaveLength(SEQ_LENGTH);
+    expect(tracks[0]!.steps.every((s) => !s.on)).toBe(true);
+  });
+
+  it('sets and clears a track parameter', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    expect(p.motionTrack(0)!.param).toBe('fx.delay.mix');
+    p.setMotionTrackParam(0, null);
+    expect(p.motionTrack(0)!.param).toBeUndefined();
+  });
+
+  it('tracks are per bank — assigning one bank leaves the others alone', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionEditBank(1);
+    expect(p.motionTrack(0)!.param).toBeUndefined();
+    expect(p.motionTracks(0)[0]!.param).toBe('fx.delay.mix');
+  });
+
+  it('clearing a track keeps its parked levels and its parameter', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionTrackStep(0, 3, { on: true, v: 0.8 });
+    expect(p.clearMotionTrack(0)).toBe(true);
+    expect(p.motionTrack(0)!.steps[3]!.on).toBe(false);
+    expect(p.motionTrack(0)!.steps[3]!.v).toBe(0.8);
+    expect(p.motionTrack(0)!.param).toBe('fx.delay.mix');
+    expect(p.clearMotionTrack(0)).toBe(false); // already empty
+  });
+
+  it('copyMotionBank carries the tracks AND their params', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(1, 'fx.reverb.mix');
+    p.setMotionTrackStep(1, 5, { on: true, v: 0.3 });
+    p.copyMotionBank(0, 2);
+    const copied = p.motionTracks(2)[1]!;
+    expect(copied.param).toBe('fx.reverb.mix');
+    expect(copied.steps[5]).toEqual({ on: true, v: 0.3 });
+    // A deep copy: editing the source must not reach the destination.
+    p.setMotionTrackStep(1, 5, { v: 0.9 });
+    expect(p.motionTracks(2)[1]!.steps[5]!.v).toBe(0.3);
+  });
+
+  it('tracks round-trip through snapshot/restore', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionTrackStep(0, 7, { on: true, v: 0.42 });
+    const snap = p.snapshot();
+
+    const q = new PatternStore();
+    q.restore(snap);
+    expect(q.motionTrack(0)!.param).toBe('fx.delay.mix');
+    expect(q.motionTrack(0)!.steps[7]).toEqual({ on: true, v: 0.42 });
+  });
+
+  it('restore is authoritative — a file without tracks blanks the previous song’s', () => {
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionTrackStep(0, 1, { on: true, v: 1 });
+    p.restore({ motionTracks: [[null, null], [null, null], [null, null], [null, null]] });
+    expect(p.motionTrack(0)!.param).toBeUndefined();
+    expect(p.motionTrack(0)!.steps[1]!.on).toBe(false);
+  });
+
+  it('a v1-v4 file (no motionTracks key) leaves the tracks untouched and blank', () => {
+    const p = new PatternStore();
+    p.restore({ seqBanks: [] });
+    expect(p.motionTrack(0)!.param).toBeUndefined();
+    expect(p.motionTrack(0)!.steps.every((s) => !s.on)).toBe(true);
+  });
+});
+
+describe('emptyPatternBanks — New Song blanks the extra motion tracks (regression)', () => {
+  it('returns unassigned, empty tracks for every bank', () => {
+    const blank = emptyPatternBanks();
+    expect(blank.motionTracks).toHaveLength(BANK_COUNT);
+    for (const bank of blank.motionTracks) {
+      expect(bank).toHaveLength(2);
+      for (const t of bank) {
+        expect(t.param).toBeUndefined();
+        expect(t.steps.every((c) => !c.on)).toBe(true);
+      }
+    }
+  });
+
+  it('restoring it clears a previous song’s track params', () => {
+    // The bug this pins: emptyPatternBanks omitted motionTracks, so restore()
+    // left them alone and "New Song" kept automating the old song's params.
+    const p = new PatternStore();
+    p.setMotionTrackParam(0, 'fx.delay.mix');
+    p.setMotionTrackStep(0, 2, { on: true, v: 1 });
+
+    p.restore(emptyPatternBanks());
+    expect(p.motionTrack(0)!.param).toBeUndefined();
+    expect(p.motionTrack(0)!.steps[2]!.on).toBe(false);
   });
 });

@@ -35,6 +35,8 @@ function coalesceKey(m: PatternMutation): string | undefined {
     case 'sampler': return `sampler:${m.bank}:${m.slot}:${m.step}`;
     case 'motion': return `motion:${m.bank}:${m.index}`;
     case 'motion-assign': return `motion-assign:${m.bank}`;
+    case 'motion-track': return `motion-track:${m.bank}:${m.track}:${m.index}`;
+    case 'motion-track-param': return `motion-track-param:${m.bank}:${m.track}`;
     default: return undefined;
   }
 }
@@ -133,10 +135,24 @@ export class PatternUndo {
         p.setSamplerEditBank(entry.bank);
         entry.before.forEach((row, t) => row.forEach((c, s) => p.setSamplerCell(t, s, { ...c })));
         break;
+      case 'motion-track':
+        p.setMotionEditBank(entry.bank);
+        p.setMotionTrackStep(entry.track, entry.index, { ...entry.before });
+        break;
+      case 'motion-track-param':
+        p.setMotionEditBank(entry.bank);
+        p.setMotionTrackParam(entry.track, entry.before ?? null);
+        break;
       case 'motion-copy':
         p.setMotionEditBank(entry.bank);
         entry.before.forEach((s, i) => p.setMotionStep(i, { ...s }));
         p.setMotionAssign(entry.beforeAssign ? { ...entry.beforeAssign } : null);
+        // The extra tracks ride in the same entry, so one press restores the
+        // whole bank — anchors, axis override and tracks (REQ-13).
+        entry.beforeTracks.forEach((t, ti) => {
+          p.setMotionTrackParam(ti, t.param ?? null);
+          t.steps.forEach((s, i) => p.setMotionTrackStep(ti, i, { ...s }));
+        });
         break;
     }
   }

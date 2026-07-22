@@ -12,7 +12,7 @@
     },
     "version": {
       "type": "integer",
-      "enum": [1, 2, 3, 4],
+      "enum": [1, 2, 3, 4, 5],
       "description": "Format version. capture() always writes 4; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields — all still load. Versions beyond those this build knows are rejected."
     },
     "name": {
@@ -122,10 +122,46 @@
         ]
       }
     },
-    "motionChain": { "$ref": "#/$defs/chainData", "description": "v4 (optional). Motion arrangement lane." }
+    "motionChain": { "$ref": "#/$defs/chainData", "description": "v4 (optional). Motion arrangement lane." },
+    "motionTracks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "v5 (optional). Per motion bank, 2 extra single-param tracks (A, B). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 4 params while the XY Pad stays free for live playing. A track that is unassigned and empty is null and writes nothing.",
+      "items": {
+        "type": "array",
+        "maxItems": 2,
+        "items": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["steps"],
+              "properties": {
+                "param": { "type": "string", "minLength": 1, "description": "ParamBus id this track drives. Absent = the track writes nothing." },
+                "steps": {
+                  "type": "array",
+                  "minItems": 16,
+                  "maxItems": 16,
+                  "items": { "$ref": "#/$defs/motionTrackStep" }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
   },
   "$comment": "additionalProperties is intentionally NOT forbidden at the root: the format is additive/forward-compatible, so a file carrying keys from a newer build still validates.",
   "$defs": {
+    "motionTrackStep": {
+      "type": "object",
+      "description": "One extra-track step. 'on' makes it an anchor; 'v' is 0..1 in normalized taper space (same space as motionStep's x/y).",
+      "properties": {
+        "on": { "type": "boolean" },
+        "v": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
     "stepSettings": {
       "type": "object",
       "description": "Per-step settings shared by all three machines. All fields are OPTIONAL on disk: legacy cells omit them and the loader fills defaults (velocity 0.85, gate 1, prob 1, ratchet 1, tie false). When present they are type/range-checked.",

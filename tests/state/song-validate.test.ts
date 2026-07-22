@@ -115,7 +115,7 @@ describe('validateSongFile — rejects', () => {
 
   it('an unknown version', () => {
     const f = clone(captureValid()) as Record<string, unknown>;
-    f.version = 5;
+    f.version = 99;
     expectReject(f, 'version');
   });
 

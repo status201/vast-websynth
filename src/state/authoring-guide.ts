@@ -93,7 +93,8 @@ COMPACT AUTHOR FORMAT (recommended output)
   "sampleNames": ["kick.wav", …],      // OPTIONAL — display names per sampler slot (max ${SAMPLER_SLOT_COUNT}; audio is NEVER embedded)
   "xy": { "x": "<param id>", "y": "<param id>" },   // OPTIONAL — XY-pad axis assignment
   "motion": [ MotionBank, … up to ${BANK_COUNT} ],  // OPTIONAL — motion sequencer (XY param automation over the bar)
-  "motionChain": Chain                 // OPTIONAL — motion bank order per bar
+  "motionChain": Chain,                // OPTIONAL — motion bank order per bar
+  "motionTracks": [ [Track, Track], … ] // OPTIONAL — 2 extra 1-param tracks per motion bank
 }
 
 SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), either form:
@@ -150,7 +151,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 4,                        // 4 (3 lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": 5,                        // 5 (4 lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -166,7 +167,14 @@ TOP-LEVEL SHAPE
   // ---- v4 motion sequencer fields, all OPTIONAL ----
   "motionBanks": MotionStep[${BANK_COUNT}][${SEQ_LENGTH}],
   "motionAssigns": (MotionAssign | null)[${BANK_COUNT}],   // per-bank axis override; null = inherit "xy"
-  "motionChain": { "enabled": boolean, "steps": number[] }
+  "motionChain": { "enabled": boolean, "steps": number[] },
+
+  // ---- v5 extra motion tracks, OPTIONAL ----
+  // Per bank, 2 more automation tracks that each drive ONE param of your choice —
+  // so a bank can move up to 4 params, and the XY Pad stays free to play live.
+  // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
+  // or null. Same slide/step curve rules as the XY anchors ("motion.slide").
+  "motionTracks": ((Track | null)[2])[${BANK_COUNT}]
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,

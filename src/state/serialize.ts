@@ -22,7 +22,7 @@
  * compaction is idempotent, so re-exporting an already-compact file is a no-op.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell, MotionStep } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep, MotionTrackStep } from './patterns';
 import { TRIGGER_CELL_DEFAULTS, SEQ_EXTRA_DEFAULTS } from './patterns';
 
 /** Significant figures kept for every exported number. */
@@ -125,5 +125,15 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
     out.motionAssigns = file.motionAssigns.map((a) => (a ? { ...a } : null));
   }
   if (file.motionChain !== undefined) out.motionChain = cloneChain(file.motionChain);
+  if (file.motionTracks !== undefined) {
+    // A track that is both unassigned and empty carries no information, so it
+    // writes as null rather than 16 dead cells (ADR-011 default-sparse).
+    out.motionTracks = file.motionTracks.map((bank) =>
+      (bank ?? []).map((t) => {
+        if (!t || (!t.param && !t.steps.some((s: MotionTrackStep) => s.on))) return null;
+        const cells = t.steps.map((s: MotionTrackStep) => (s.on ? { on: true, v: roundNum(s.v) } : { on: false }));
+        return t.param ? { param: t.param, steps: cells } : { steps: cells };
+      }));
+  }
   return out;
 }

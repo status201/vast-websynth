@@ -4,7 +4,7 @@
  * slots (mirrors the Presets pattern in `preset.ts`).
  */
 import type { ParamBus } from './params';
-import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign } from './patterns';
+import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign, MotionTrack } from './patterns';
 import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
@@ -23,7 +23,7 @@ export interface ChainData {
 
 export interface SongFile {
   format: 'websynth-song';
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   name: string;
   params: Record<string, number>;
   seqBanks: SeqStep[][];
@@ -42,6 +42,8 @@ export interface SongFile {
   /** Per-bank axis override; null = inherit the song's XY Pad assignment. */
   motionAssigns?: (MotionAssign | null)[];
   motionChain?: ChainData;
+  /** v5 — the two extra single-param motion tracks per bank. */
+  motionTracks?: (MotionTrack | null)[][];
 }
 
 export const Song = {
@@ -49,7 +51,7 @@ export const Song = {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 4,
+      version: 5,
       name,
       params: bus.snapshot(),
       seqBanks: snap.seqBanks,
@@ -62,6 +64,7 @@ export const Song = {
       xy: xy ? xy.get() : { ...XY_DEFAULT_ASSIGN },
       motionBanks: snap.motionBanks,
       motionAssigns: snap.motionAssigns,
+      motionTracks: snap.motionTracks,
       motionChain: { enabled: arr.motion.enabled, steps: [...arr.motion.steps] },
     };
   },
@@ -76,6 +79,7 @@ export const Song = {
       sampleNames: file.sampleNames,
       motionBanks: file.motionBanks,
       motionAssigns: file.motionAssigns,
+      motionTracks: file.motionTracks,
     });
     arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);

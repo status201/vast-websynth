@@ -1,11 +1,11 @@
 import type { Arrangement } from './arrangement';
-import type { MotionStep, PatternStore } from '../../state/patterns';
-import { SEQ_LENGTH } from '../../state/patterns';
+import type { MotionStep, MotionTrackStep, PatternStore } from '../../state/patterns';
+import { MOTION_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import type { ParamBus } from '../../state/params';
 import type { XyAssign, XyPadStore } from '../../state/xy-pad';
 import { motionAxesFor } from '../../state/xy-effective';
 import { fromNorm } from '../../utils/taper';
-import { valueAt, type MotionMode, type MotionNeighbours } from './motion-curve';
+import { valueAt, valueAt1D, type MotionMode, type MotionNeighbours } from './motion-curve';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
@@ -182,10 +182,51 @@ export class MotionMachine {
       prev: this.carryBank(tick.prevBank, tick.prevResting, axes, base),
       next: this.carryBank(tick.nextBank, tick.nextResting, axes, base),
     });
-    if (!v) return;
+    if (v) {
+      this.write(axes.x, v.x);
+      this.write(axes.y, v.y);
+    }
 
-    this.write(axes.x, v.x);
-    this.write(axes.y, v.y);
+    this.frameTracks(tick, pos);
+  }
+
+  /**
+   * The extra single-param tracks (REQ-13/REQ-14). Each is evaluated with the
+   * same scalar core the XY axes use, so slide/step and the bar-line carry are
+   * identical by construction. An unassigned track — or one with no anchors —
+   * writes nothing; that is the no-op default, and it is why the tracks need no
+   * on/off of their own.
+   */
+  private frameTracks(tick: LatchedTick, pos: number): void {
+    const tracks = this.patterns.motionTracks(tick.playBank);
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const track = tracks[t];
+      const id = track?.param;
+      if (!track || !id) continue;
+      const v = valueAt1D(track.steps, pos / SEQ_LENGTH, this.mode, {
+        prev: this.carryTrack(tick.prevBank, tick.prevResting, t, id),
+        next: this.carryTrack(tick.nextBank, tick.nextResting, t, id),
+      });
+      if (v !== null) this.write(id, v);
+    }
+  }
+
+  /**
+   * A neighbouring bar's same-index track as a carry target — usable only when it
+   * drives the *same* param, mirroring `carryBank`'s rule for the axes. A track
+   * pointed at a different param holds its anchors in another value space, so
+   * ramping toward it would move this bar's param for no authored reason.
+   */
+  private carryTrack(
+    bank: number,
+    resting: boolean,
+    track: number,
+    id: string,
+  ): readonly MotionTrackStep[] | null {
+    if (resting) return null;
+    const nb = this.patterns.motionTracks(bank)[track];
+    if (!nb || nb.param !== id) return null;
+    return nb.steps;
   }
 
   /**

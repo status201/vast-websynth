@@ -14,7 +14,7 @@
  * demo registration.
  */
 import type { SongFile, ChainData } from './song';
-import type { SeqStep, TriggerCell, MotionStep, MotionAssign } from './patterns';
+import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack } from './patterns';
 import {
   BANK_COUNT,
   SEQ_LENGTH,
@@ -23,6 +23,8 @@ import {
   REST,
   TRIGGER_CELL_DEFAULTS,
   MOTION_STEP_DEFAULTS,
+  MOTION_TRACK_COUNT,
+  makeMotionTrack,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
 
@@ -37,7 +39,7 @@ const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: f
 const ALLOWED_KEYS = new Set([
   'format', 'version', 'name', 'params',
   'seq', 'drums', 'sampler', 'motion',
-  'seqChain', 'drumChain', 'samplerChain', 'motionChain',
+  'seqChain', 'drumChain', 'samplerChain', 'motionChain', 'motionTracks',
   'sampleNames', 'xy',
   '$schema', // tolerated so schema-aware editors/agents can self-reference
 ]);
@@ -423,6 +425,81 @@ function expandMotionBank(
   return { steps: bank, assign };
 }
 
+/**
+ * Expand one extra single-param track: `{ param, steps: [{step, v}, …] }` or
+ * null. An unassigned/empty track expands to null so the canonical file stays
+ * default-sparse (motion-sequencer.md REQ-17).
+ */
+function expandMotionTrack(path: string, v: unknown, add: AddError): MotionTrack | null {
+  if (v === null || v === undefined) return null;
+  if (!isObject(v)) {
+    add(`${path} must be null or {param, steps: [...]} (got ${describe(v)})`);
+    return null;
+  }
+  for (const k of Object.keys(v)) {
+    if (!['param', 'steps'].includes(k)) {
+      add(`${path}.${k} is not a motion track field (allowed: param, steps)`);
+    }
+  }
+  const track = makeMotionTrack();
+  if (v.param !== undefined) {
+    if (typeof v.param !== 'string' || v.param.length === 0) {
+      add(`${path}.param must be a ParamBus id string (got ${describe(v.param)})`);
+    } else {
+      track.param = v.param;
+    }
+  }
+  if (v.steps !== undefined) {
+    if (!Array.isArray(v.steps)) {
+      add(`${path}.steps must be an array of {step, v} anchors (got ${describe(v.steps)})`);
+    } else {
+      v.steps.forEach((a: unknown, i) => {
+        const ap = `${path}.steps[${i}]`;
+        if (!isObject(a)) { add(`${ap} must be an object {step, v} (got ${describe(a)})`); return; }
+        const step = a.step;
+        if (typeof step !== 'number' || !Number.isInteger(step) || step < 0 || step >= SEQ_LENGTH) {
+          add(`${ap}.step must be an integer 0..${SEQ_LENGTH - 1} (got ${describe(step)})`);
+          return;
+        }
+        const value = a.v;
+        if (typeof value !== 'number' || !(value >= 0 && value <= 1)) {
+          add(`${ap}.v must be a number 0..1 (got ${describe(value)})`);
+          return;
+        }
+        Object.assign(track.steps[step]!, { on: true, v: value });
+      });
+    }
+  }
+  if (!track.param && !track.steps.some((c) => c.on)) return null;
+  return track;
+}
+
+function expandMotionTracks(v: unknown, add: AddError): (MotionTrack | null)[][] | undefined {
+  if (v === undefined) return undefined;
+  const out: (MotionTrack | null)[][] = Array.from(
+    { length: BANK_COUNT }, () => Array<MotionTrack | null>(MOTION_TRACK_COUNT).fill(null));
+  if (!Array.isArray(v)) {
+    add(`motionTracks must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
+    return out;
+  }
+  if (v.length > BANK_COUNT) add(`motionTracks has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
+  for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
+    const bank = v[b];
+    if (bank === null || bank === undefined) continue;
+    if (!Array.isArray(bank)) {
+      add(`motionTracks[${b}] must be an array of up to ${MOTION_TRACK_COUNT} tracks (got ${describe(bank)})`);
+      continue;
+    }
+    if (bank.length > MOTION_TRACK_COUNT) {
+      add(`motionTracks[${b}] has ${bank.length} tracks — motion has ${MOTION_TRACK_COUNT} (A, B)`);
+    }
+    for (let t = 0; t < Math.min(bank.length, MOTION_TRACK_COUNT); t++) {
+      out[b]![t] = expandMotionTrack(`motionTracks[${b}][${t}]`, bank[t], add);
+    }
+  }
+  return out;
+}
+
 function expandMotionBanks(
   v: unknown,
   add: AddError,
@@ -578,9 +655,11 @@ export function expandAuthorSong(value: unknown): SongValidation {
   const sampleNames = hasSampler ? expandSampleNames(o.sampleNames, add) : undefined;
 
   // Motion fields likewise appear only when the author supplied motion content.
-  const hasMotion = o.motion !== undefined || o.motionChain !== undefined;
+  const hasMotion = o.motion !== undefined || o.motionChain !== undefined
+    || o.motionTracks !== undefined;
   const motion = hasMotion ? expandMotionBanks(o.motion, add) : undefined;
   const motionChain = hasMotion ? expandChain('motionChain', o.motionChain, add) : undefined;
+  const motionTracks = expandMotionTracks(o.motionTracks, add);
 
   // xy passes through; validated lightly here so the error names the author file.
   if (o.xy !== undefined) {
@@ -609,11 +688,13 @@ export function expandAuthorSong(value: unknown): SongValidation {
   autoEnable('seq.on', hasHits(seqBanks));
   autoEnable('drum.on', hasHits(drumBanks.flat()));
   if (samplerBanks) autoEnable('sampler.on', hasHits(samplerBanks.flat()));
-  if (motion) autoEnable('motion.on', hasHits([motion.banks.flat()]));
+  const trackHasAnchors = (motionTracks ?? []).some((bank) =>
+    bank.some((t) => t?.param && t.steps.some((c) => c.on)));
+  if (motion) autoEnable('motion.on', hasHits([motion.banks.flat()]) || trackHasAnchors);
 
   const file: SongFile = {
     format: 'websynth-song',
-    version: motion ? 4 : 3,
+    version: motionTracks ? 5 : motion ? 4 : 3,
     name: o.name as string,
     params,
     seqBanks,
@@ -632,6 +713,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
     file.motionAssigns = motion.assigns;
     file.motionChain = motionChain;
   }
+  if (motionTracks) file.motionTracks = motionTracks;
 
   // Final gate: the expansion must yield a file the canonical validator accepts.
   return validateSongFile(file);

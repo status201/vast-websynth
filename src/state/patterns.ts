@@ -62,6 +62,47 @@ export interface MotionAssign {
 
 export const MOTION_STEP_DEFAULTS: MotionStep = { on: false, x: 0.5, y: 0.5 };
 
+/**
+ * One step of an extra single-param motion track (motion-sequencer.md REQ-13).
+ * `v` is 0..1 in the same normalized taper space as MotionStep's x/y. A dead
+ * cell keeps its level so toggling a step off and on doesn't lose the value.
+ */
+export interface MotionTrackStep {
+  on: boolean;
+  v: number; // 0..1
+}
+
+/**
+ * An extra motion track, per bank. `param` absent = the track writes nothing —
+ * the no-op default (ADR-006). Unlike the XY axes there is no global assignment
+ * to inherit from, because there is no pad behind these tracks.
+ */
+export interface MotionTrack {
+  param?: string;
+  steps: MotionTrackStep[];
+}
+
+export const MOTION_TRACK_STEP_DEFAULTS: MotionTrackStep = { on: false, v: 0.5 };
+
+/** Extra single-param tracks per motion bank (beyond the XY lane). */
+export const MOTION_TRACK_COUNT = 2;
+export const MOTION_TRACK_LABELS = ['A', 'B'];
+
+export function makeMotionTrack(): MotionTrack {
+  return { steps: Array.from({ length: SEQ_LENGTH }, () => ({ ...MOTION_TRACK_STEP_DEFAULTS })) };
+}
+
+export function cloneMotionTracks(tracks: readonly MotionTrack[]): MotionTrack[] {
+  return tracks.map((t) => ({
+    ...(t.param !== undefined ? { param: t.param } : {}),
+    steps: t.steps.map((s) => ({ ...s })),
+  }));
+}
+
+export function makeMotionTracks(): MotionTrack[] {
+  return Array.from({ length: MOTION_TRACK_COUNT }, makeMotionTrack);
+}
+
 export const SEQ_LENGTH = 16;
 
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
@@ -94,10 +135,13 @@ export type PatternMutation =
   | { kind: 'sampler'; bank: number; slot: number; step: number; before: SamplerStep }
   | { kind: 'motion'; bank: number; index: number; before: MotionStep }
   | { kind: 'motion-assign'; bank: number; before: MotionAssign | null }
+  | { kind: 'motion-track'; bank: number; track: number; index: number; before: MotionTrackStep }
+  | { kind: 'motion-track-param'; bank: number; track: number; before: string | undefined }
   | { kind: 'seq-copy'; bank: number; before: SeqStep[] }
   | { kind: 'drum-copy'; bank: number; before: DrumCell[][] }
   | { kind: 'sampler-copy'; bank: number; before: SamplerStep[][] }
-  | { kind: 'motion-copy'; bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null };
+  | { kind: 'motion-copy'; bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null;
+      beforeTracks: MotionTrack[] };
 
 export interface PatternSnapshot {
   seqBanks: SeqStep[][];
@@ -112,6 +156,8 @@ export interface PatternSnapshot {
   motionBanks?: MotionStep[][];
   motionAssigns?: (MotionAssign | null)[];
   motionEditBank?: number;
+  /** Optional so v1-v4 song files (no extra motion tracks) still restore cleanly. */
+  motionTracks?: (MotionTrack | null)[][];
 }
 
 function clampBank(i: number): number {
@@ -165,12 +211,16 @@ export function emptyPatternBanks(): {
   drumBanks: DrumCell[][][];
   samplerBanks: SamplerStep[][][];
   motionBanks: MotionStep[][];
+  motionTracks: MotionTrack[][];
 } {
   return {
     seqBanks: Array.from({ length: BANK_COUNT }, makeSeqBank),
     drumBanks: Array.from({ length: BANK_COUNT }, makeDrumBank),
     samplerBanks: Array.from({ length: BANK_COUNT }, makeSamplerBank),
     motionBanks: Array.from({ length: BANK_COUNT }, makeMotionBank),
+    // Blank AND unassigned: a New Song that inherited the previous song's track
+    // parameters would silently keep automating them.
+    motionTracks: Array.from({ length: BANK_COUNT }, makeMotionTracks),
   };
 }
 
@@ -185,6 +235,8 @@ export class PatternStore {
   readonly motionBanks: MotionStep[][];
   /** Per-bank axis override (null = inherit the XY Pad assignment). */
   readonly motionAssigns: (MotionAssign | null)[];
+  /** motionTrackBanks[bank][track] — the extra single-param tracks (REQ-13). */
+  readonly motionTrackBanks: MotionTrack[][];
 
   /** Filename per sampler slot (null = empty). Decoded audio lives in the
    *  audio layer (SamplerMachine), not here — only the name persists. */
@@ -203,6 +255,7 @@ export class PatternStore {
   private readonly samplerBankListeners = new Set<(bank: readonly (readonly SamplerStep[])[]) => void>();
   private readonly motionListeners = new Set<(index: number, step: MotionStep) => void>();
   private readonly motionBankListeners = new Set<(bank: readonly MotionStep[]) => void>();
+  private readonly motionTrackListeners = new Set<(track: number, index: number) => void>();
   private readonly sampleMetaListeners = new Set<(slot: number, name: string | null) => void>();
   private readonly editBankListeners = new Set<() => void>();
   private readonly mutateListeners = new Set<(m: PatternMutation) => void>();
@@ -214,6 +267,7 @@ export class PatternStore {
     this.samplerBanks = Array.from({ length: BANK_COUNT }, makeSamplerBank);
     this.motionBanks = Array.from({ length: BANK_COUNT }, makeMotionBank);
     this.motionAssigns = Array(BANK_COUNT).fill(null);
+    this.motionTrackBanks = Array.from({ length: BANK_COUNT }, makeMotionTracks);
 
     // Seed a friendly default groove into drum bank A only
     // (basic 4-on-the-floor + offbeat hats + snare on 5/13).
@@ -242,6 +296,12 @@ export class PatternStore {
   samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBank(i)]!; }
   motionBank(i: number): MotionStep[] { return this.motionBanks[clampBank(i)]!; }
   motionAssign(i: number): MotionAssign | null { return this.motionAssigns[clampBank(i)] ?? null; }
+  /** A bank's extra tracks (the transport reads the *play* bank's). */
+  motionTracks(i: number): MotionTrack[] { return this.motionTrackBanks[clampBank(i)]!; }
+  /** One extra track of the *edit* bank (what the panel edits). */
+  motionTrack(track: number): MotionTrack | undefined {
+    return this.motionTrackBanks[this._motionEdit]?.[track];
+  }
 
   setSeqEditBank(i: number): void {
     const n = clampBank(i);
@@ -272,6 +332,7 @@ export class PatternStore {
     if (n === this._motionEdit) return;
     this._motionEdit = n;
     this.emitBankMotion();
+    this.emitAllMotionTracks();
     for (const l of this.editBankListeners) l();
   }
 
@@ -307,6 +368,49 @@ export class PatternStore {
     this.emitMutate(() => ({ kind: 'motion', bank: this._motionEdit, index, before: { ...s } }));
     Object.assign(s, patch);
     for (const l of this.motionListeners) l(index, s);
+  }
+
+  setMotionTrackStep(track: number, index: number, patch: Partial<MotionTrackStep>): void {
+    const s = this.motionTrackBanks[this._motionEdit]?.[track]?.steps?.[index];
+    if (!s) return;
+    this.emitMutate(() => ({
+      kind: 'motion-track', bank: this._motionEdit, track, index, before: { ...s },
+    }));
+    Object.assign(s, patch);
+    for (const l of this.motionTrackListeners) l(track, index);
+  }
+
+  /** Choose (or clear) the parameter an extra track drives, for the edit bank. */
+  setMotionTrackParam(track: number, param: string | null): void {
+    const t = this.motionTrackBanks[this._motionEdit]?.[track];
+    if (!t) return;
+    this.emitMutate(() => ({
+      kind: 'motion-track-param', bank: this._motionEdit, track, before: t.param,
+    }));
+    if (param) t.param = param;
+    else delete t.param;
+    for (const l of this.motionTrackListeners) l(track, -1);
+  }
+
+  /** Clear one extra track's anchors (its param choice is configuration, kept —
+   *  same rule as clearMotionBank and the axis override). */
+  clearMotionTrack(track: number): boolean {
+    const t = this.motionTrackBanks[this._motionEdit]?.[track];
+    if (!t || !t.steps.some((s) => s.on)) return false;
+    const bank = this._motionEdit;
+    this.emitMutate(() => ({
+      kind: 'motion-copy', bank,
+      before: this.motionBanks[bank]!.map((s) => ({ ...s })),
+      beforeAssign: this.motionAssigns[bank] ? { ...this.motionAssigns[bank]! } : null,
+      beforeTracks: cloneMotionTracks(this.motionTrackBanks[bank]!),
+    }));
+    for (let i = 0; i < t.steps.length; i++) {
+      const s = t.steps[i]!;
+      if (!s.on) continue;
+      s.on = false;
+      for (const l of this.motionTrackListeners) l(track, i);
+    }
+    return true;
   }
 
   /** Set/clear the edit bank's axis override; repaints via the bank listeners. */
@@ -377,6 +481,7 @@ export class PatternStore {
       bank: this._motionEdit,
       before: bank.map((s) => ({ ...s })),
       beforeAssign: assign ? { ...assign } : null,
+      beforeTracks: cloneMotionTracks(this.motionTrackBanks[this._motionEdit]!),
     }));
     for (let i = 0; i < bank.length; i++) {
       const s = assertIndex(bank, i, 'motionSteps');
@@ -482,12 +587,16 @@ export class PatternStore {
         kind: 'motion-copy', bank: b,
         before: dst.map((s) => ({ ...s })),
         beforeAssign: prevAssign ? { ...prevAssign } : null,
+        beforeTracks: cloneMotionTracks(this.motionTrackBanks[b]!),
       };
     });
     for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'motionSteps'), assertIndex(src, i, 'motionSteps'));
     const srcAssign = this.motionAssigns[a] ?? null;
     this.motionAssigns[b] = srcAssign ? { ...srcAssign } : null;
-    if (b === this._motionEdit) this.emitBankMotion();
+    // The extra tracks travel with the bank, params included (REQ-13): copying a
+    // bank you just built must not mean re-picking every parameter.
+    this.motionTrackBanks[b] = cloneMotionTracks(this.motionTrackBanks[a]!);
+    if (b === this._motionEdit) { this.emitBankMotion(); this.emitAllMotionTracks(); }
   }
 
   // ---- Subscriptions ----
@@ -565,6 +674,19 @@ export class PatternStore {
     return () => { this.motionBankListeners.delete(fn); };
   }
 
+  /** An extra track changed. `index` is the step, or -1 for a param change. */
+  onMotionTrackChange(fn: (track: number, index: number) => void): () => void {
+    this.motionTrackListeners.add(fn);
+    return () => { this.motionTrackListeners.delete(fn); };
+  }
+
+  /** Repaint every extra-track cell (bank switch / restore / copy). */
+  private emitAllMotionTracks(): void {
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      for (const l of this.motionTrackListeners) l(t, -1);
+    }
+  }
+
   private emitBankSeq(): void {
     const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
     for (const l of this.seqBankListeners) l(bank);
@@ -626,6 +748,7 @@ export class PatternStore {
       motionBanks: this.motionBanks.map((b) => b.map((s) => ({ ...s }))),
       motionAssigns: this.motionAssigns.map((a) => (a ? { ...a } : null)),
       motionEditBank: this._motionEdit,
+      motionTracks: this.motionTrackBanks.map(cloneMotionTracks),
     };
   }
 
@@ -689,6 +812,26 @@ export class PatternStore {
         }
       }
     }
+    if (snap.motionTracks) {
+      for (let b = 0; b < BANK_COUNT; b++) {
+        const incoming = snap.motionTracks[b];
+        const dst = assertIndex(this.motionTrackBanks, b, 'motionTrackBanks');
+        for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+          const src = incoming?.[t] ?? null;
+          const track = assertIndex(dst, t, 'motionTracks');
+          // Authoritative like the rest of restore: a track absent from the file
+          // comes back blank and unassigned rather than lingering from the
+          // previous song (REQ-17 — v1-v4 files have none at all).
+          if (src?.param) track.param = src.param;
+          else delete track.param;
+          for (let i = 0; i < track.steps.length; i++) {
+            const cell = src?.steps?.[i];
+            Object.assign(assertIndex(track.steps, i, 'motionTrackSteps'),
+              MOTION_TRACK_STEP_DEFAULTS, cell ?? {});
+          }
+        }
+      }
+    }
     if (snap.motionAssigns) {
       for (let b = 0; b < BANK_COUNT; b++) {
         const a = snap.motionAssigns[b];
@@ -709,6 +852,7 @@ export class PatternStore {
     this.emitBankDrum();
     this.emitBankSampler();
     this.emitBankMotion();
+    this.emitAllMotionTracks();
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       for (const l of this.sampleMetaListeners) l(i, this.sampleNames[i] ?? null);
     }

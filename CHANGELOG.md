@@ -58,6 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   current sound is never touched. Re-importing a file you exported yourself
   changes nothing.
 
+- **Two more automation tracks in the Motion sequencer** — each motion bank now
+  carries two extra tracks alongside the XY pair, and each one drives a single
+  parameter you pick yourself. A bank can move up to four parameters at once, and
+  because these tracks are independent of the XY Pad, the pad stays free for
+  playing live. Pick a parameter per track per bank, drag the cells to set levels
+  and double-click to clear, exactly like the XY steps. They follow the same
+  Slide/Step curve and the same flow across the bar line, and copying a bank
+  brings the tracks and their parameter choices with it.
+
 - **Files that went through the wrong door say so** — dropping a preset or bank
   on the Song tab's Import points you at the Preset button instead of reporting
   a broken song, and vice versa.

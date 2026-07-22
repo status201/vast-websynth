@@ -341,3 +341,103 @@ describe('MotionMachine', () => {
     expect(seen).toEqual([1 % SEQ_LENGTH, 2 % SEQ_LENGTH]);
   });
 });
+
+describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-13/REQ-15)', () => {
+  /** Assign a track and anchor two of its steps on the edit bank. */
+  const setupTrack = (patterns: PatternStore, track: number, param: string,
+    anchors: Record<number, number>): void => {
+    patterns.setMotionTrackParam(track, param);
+    for (const [step, v] of Object.entries(anchors)) {
+      patterns.setMotionTrackStep(track, Number(step), { on: true, v });
+    }
+  };
+
+  it('drives its chosen param, independently of the XY axes', () => {
+    const { bus, patterns, clock, machine } = build();
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0, 8: 1 });
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(bus.def('fx.delay.mix')!, 0), 6);
+
+    clock.fireTick(8);
+    machine.frame(8 * STEP_DUR);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(bus.def('fx.delay.mix')!, 1), 6);
+  });
+
+  it('an unassigned track writes nothing (the no-op default)', () => {
+    const { bus, patterns, clock, machine } = build();
+    // Anchors but no param chosen: there is nothing to drive.
+    patterns.setMotionTrackStep(0, 0, { on: true, v: 1 });
+    const before = bus.get('fx.delay.mix');
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+
+  it('an assigned track with no anchors writes nothing', () => {
+    const { bus, patterns, clock, machine } = build();
+    patterns.setMotionTrackParam(0, 'fx.delay.mix');
+    const before = bus.get('fx.delay.mix');
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+
+  it('both tracks run at once, so one bank can drive four params', () => {
+    const { bus, patterns, clock, machine } = build();
+    anchor(patterns, 0, 0.25, 0.75);
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
+    setupTrack(patterns, 1, 'fx.reverb.mix', { 0: 1 });
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(bus.def('fx.delay.mix')!, 1), 6);
+    expect(bus.get('fx.reverb.mix')).toBeCloseTo(fromNorm(bus.def('fx.reverb.mix')!, 1), 6);
+    expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(bus.def('filter.cutoff')!, 0.25), 6);
+  });
+
+  it('restores a track param’s baseline on stop, like the axes (REQ-15)', () => {
+    const { bus, patterns, clock, machine } = build();
+    const before = bus.get('fx.delay.mix');
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).not.toBe(before);
+
+    clock.fireStop();
+    expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+
+  it('mute restores track baselines too', () => {
+    const { bus, patterns, clock, machine } = build();
+    const before = bus.get('fx.delay.mix');
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    machine.setMuted(true);
+    expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+
+  it('a rest bar writes nothing on the tracks either', () => {
+    const { bus, patterns, clock, arrangement, machine } = build();
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
+    const before = bus.get('fx.delay.mix');
+    arrangement.setMotionChain([-1], true); // REST
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('fx.delay.mix')).toBe(before);
+  });
+});

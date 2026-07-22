@@ -409,3 +409,54 @@ describe('motion dialect (motion-sequencer.md REQ-9)', () => {
     expect(mixed.join('\n')).toContain('"motionBanks" is a full-form websynth-song field');
   });
 });
+
+describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-17)', () => {
+  const base = (extra: Record<string, unknown>) => ({
+    format: 'websynth-song-author',
+    version: 1,
+    name: 'Tracks',
+    seq: [[null]],
+    ...extra,
+  });
+
+  it('expands a track to a canonical v5 file and auto-enables motion', () => {
+    const res = expandAuthorSong(base({
+      motionTracks: [[{ param: 'fx.delay.mix', steps: [{ step: 0, v: 0 }, { step: 8, v: 1 }] }, null]],
+    }));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.version).toBe(5);
+    const t = res.file.motionTracks![0]![0]!;
+    expect(t.param).toBe('fx.delay.mix');
+    expect(t.steps[0]).toEqual({ on: true, v: 0 });
+    expect(t.steps[8]).toEqual({ on: true, v: 1 });
+    expect(t.steps[1]!.on).toBe(false);
+    expect(res.file.params['motion.on']).toBe(1);
+  });
+
+  it('an unassigned or empty track expands to null', () => {
+    const res = expandAuthorSong(base({ motionTracks: [[{ steps: [] }, null]] }));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.motionTracks![0]).toEqual([null, null]);
+    // Nothing to drive, so motion is not switched on.
+    expect(res.file.params['motion.on']).toBeUndefined();
+  });
+
+  it('rejects an out-of-range step, a bad v, and an unknown field', () => {
+    for (const bad of [
+      { param: 'a', steps: [{ step: 16, v: 0.5 }] },
+      { param: 'a', steps: [{ step: 0, v: 2 }] },
+      { param: 'a', steps: [], nope: 1 },
+    ]) {
+      expect(expandAuthorSong(base({ motionTracks: [[bad, null]] })).ok).toBe(false);
+    }
+  });
+
+  it('rejects more tracks than the machine has', () => {
+    const res = expandAuthorSong(base({
+      motionTracks: [[{ param: 'a', steps: [] }, { param: 'b', steps: [] }, { param: 'c', steps: [] }]],
+    }));
+    expect(res.ok).toBe(false);
+  });
+});
