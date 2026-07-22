@@ -464,6 +464,9 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
+  /* Five effects in two columns leave the last cell empty; the patch-cable
+     decoration fills it. fx-patch-decoration.module.css mirrors this
+     breakpoint (it is display:none above it) — keep the two in sync. */
   .fxRow { grid-template-columns: repeat(2, 1fr); }
   .keyboardWrap { min-height: 160px; }
 }

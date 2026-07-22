@@ -11,6 +11,7 @@ import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
 import { WAVE_ICONS } from './components/wave-icons';
 import { HEADER_ICONS } from './components/header-icons';
+import { fxPatchDecoration } from './components/fx-patch-decoration';
 import { ParamDropdown } from './components/param-dropdown';
 import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
@@ -566,6 +567,11 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
     { id: 'fx.reverb.damp', label: 'DAMP' },
     { id: 'fx.reverb.mix', label: 'MIX' },
   ], 'fx.reverb'));
+
+  // Five effects in the ≤992px 2-column grid leave one cell empty; fill it with
+  // the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed, so a
+  // sixth effect drops it again instead of pushing it onto a row of its own.
+  if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
 
   section.appendChild(fx);
   return { el: section, expand: collapse.expand };

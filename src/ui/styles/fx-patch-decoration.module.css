@@ -1,0 +1,170 @@
+/* Decorative filler for the empty .fxRow cell — see
+   specs/features/fx-patch-decoration.md and fx-patch-decoration.ts.
+   Near-black throughout: the brightest stroke stays at or below --panel-border
+   so it never out-contrasts a real effect panel (REQ-6). Fully static (REQ-7). */
+
+.root {
+  position: relative;
+  /* Inset from the grid cell so the gap around it reads as the reveal a
+     module's front plate would cover — this is an empty *slot*, not a panel.
+     Percentage margins resolve against the cell's width on all four sides, so
+     the reveal stays square as the bay grows. Deliberately no border: a rim
+     would draw the slot as an object; it should just be a hole in the rack,
+     defined only by the recessed face falling away to black (REQ-8). */
+  margin: 5%;
+  min-height: 48px; /* never tall enough to drive the FX row's height */
+  overflow: hidden; /* cables that run past the bay disappear behind the rack */
+  pointer-events: none;
+  border-radius: 6px;
+  background: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.75);
+  /* Only the ≤992px 2-column grid leaves a gap to fill; the 5-column row is
+     full, and a 6th child would wrap onto a row of its own (REQ-1).
+     Breakpoint mirrors .fxRow in layout.module.css — keep the two in sync. */
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .root { display: block; }
+}
+
+/* Vignette over the cables (generated last, so it paints above both layers):
+   the bundle sinks into the dark at the rim instead of being cut off. */
+.root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 76% 88% at 50% 48%,
+    rgba(5, 4, 3, 0) 38%,
+    rgba(5, 4, 3, 0.55) 76%,
+    rgba(5, 4, 3, 0.94) 100%
+  );
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+}
+
+/* Everything drawn here is either cable or a machined edge — inherited, so the
+   individual stroke classes only carry colour and width. */
+.cables,
+.lead {
+  stroke-linecap: round;
+}
+
+/* ===== Patch-bay palette =====
+   Real bays are colour-coded, so the bundle is too — but each hue is taken down
+   to near-black, with its sheen the only trace of the actual colour. Set as
+   custom props on the cable's <g> (the inline-custom-prop pattern StepButton
+   uses), so one pair of stroke rules serves every wire. */
+
+.hueBrown  { --wire: #17100a; --wire-lit: rgba(232, 116, 46, 0.05); }
+.hueRed    { --wire: #1b0d0a; --wire-lit: rgba(200, 72, 66, 0.042); }
+.hueBlue   { --wire: #0c1219; --wire-lit: rgba(96, 138, 186, 0.04); }
+.hueGreen  { --wire: #0d1710; --wire-lit: rgba(108, 160, 104, 0.04); }
+.hueAmber  { --wire: #1a1408; --wire-lit: rgba(244, 205, 94, 0.046); }
+.hueViolet { --wire: #150c16; --wire-lit: rgba(140, 110, 180, 0.038); }
+
+/* ===== Background cables (stretched layer) =====
+   Deliberately thinner and darker than the hero lead: that contrast is the only
+   thing giving the bundle depth, since nothing here is allowed to be bright. */
+
+.bgCable {
+  stroke: var(--wire);
+  stroke-width: 2.6;
+}
+
+/* Mixed gauges, like a real bundle. Declared after .bgCable so it wins. */
+.thin {
+  stroke-width: 1.7;
+}
+
+/* Cables deeper in the rack: dimmer and finer, so the near loom reads as the
+   foreground layer. Set on the run's <g>, hence the descendant selector for the
+   gauge — it has to outrank .thin on the path itself. */
+.far {
+  opacity: 0.44;
+}
+
+.far path {
+  stroke-width: 1.1;
+}
+
+/* Centred on the sheath, not offset: the loom runs vertically, so a translateY
+   "specular" would lie along each cable's length instead of beside it and light
+   the whole strand up. A round cable's highlight reads fine as a lit core. */
+.bgSheen {
+  stroke: var(--wire-lit);
+  stroke-width: 0.6;
+}
+
+/* The bundle's strokes are non-scaling, so on a phone-sized bay they'd take up
+   proportionally far more of it and the tangle would read as spaghetti. */
+@media (max-width: 560px) {
+  .bgCable { stroke-width: 1.8; }
+  .thin { stroke-width: 1.2; }
+  /* The curtain's 10 runs compress into a phone-width bay, so at full strength
+     they read as stripes rather than distance. */
+  .far { opacity: 0.3; }
+  .far path { stroke-width: 0.9; }
+}
+
+/* ===== The hero lead (undistorted layer) ===== */
+
+.cable {
+  stroke: #1a1209;
+  stroke-width: 4.6;
+}
+
+.sheen {
+  stroke: rgba(232, 116, 46, 0.1);
+  stroke-width: 0.9;
+}
+
+/* ===== The plug ===== */
+
+.boot {
+  fill: #1a130c;
+}
+
+.barrel {
+  fill: #241e18;
+  stroke: rgba(244, 205, 94, 0.12);
+  stroke-width: 0.7;
+}
+
+.knurl {
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 1.1;
+}
+
+.collar {
+  fill: #3a3129;
+  stroke: rgba(244, 205, 94, 0.2);
+  stroke-width: 0.6;
+}
+
+/* Sleeve: two rails read as a shaft without a fill that would go flat. */
+.shaft {
+  stroke: #3a3129;
+  stroke-width: 1.6;
+}
+
+.groove {
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 1.4;
+}
+
+.tip {
+  fill: #3a3129;
+}
+
+.glint {
+  stroke: rgba(244, 205, 94, 0.2);
+  stroke-width: 0.8;
+}

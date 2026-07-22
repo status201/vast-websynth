@@ -10,6 +10,7 @@ related:
   - compressor
   - performance
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
+  - fx-patch-decoration  # scenery filling the gap 5 panels leave in the 2-col grid
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories

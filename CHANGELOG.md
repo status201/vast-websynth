@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Empty slot in the FX rack** — on narrower screens the five effect panels sit
+  in two columns and left one cell empty. It now reads as a vacant slot with
+  room for another module's front plate: an inset, borderless recess, faintly
+  lit at the centre and dark at the rim, with a colour-coded loom of cables
+  dropping through it from the rack above — two ranks deep, the far one dimmer
+  and finer — and one unused lead dangling its jack plug in mid-air. Purely
+  decorative, and deliberately almost invisible.
+
 ### Changed
 
 - **Audio buttons spell out the format** — on the Song tab, the Audio row's
