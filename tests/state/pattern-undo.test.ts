@@ -21,7 +21,7 @@ describe('PatternUndo', () => {
 
   it('undoes seq / sampler / motion edits on their own stacks', () => {
     const { patterns, undo } = build();
-    patterns.setSeqStep(2, { on: true, note: 71 });
+    patterns.setSeqStep(0, 2, { on: true, note: 71 });
     patterns.setSamplerCell(1, 4, { on: true });
     patterns.setMotionStep(5, { on: true, x: 0.1, y: 0.9 });
     expect(undo.canUndo('seq')).toBe(true);
@@ -29,7 +29,7 @@ describe('PatternUndo', () => {
     expect(undo.canUndo('motion')).toBe(true);
     expect(undo.canUndo('drum')).toBe(false);
     undo.undo('seq');
-    expect(patterns.seq[2]!.on).toBe(false);
+    expect(patterns.seq[0]![2]!.on).toBe(false);
     undo.undo('sampler');
     expect(patterns.sampler[1]![4]!.on).toBe(false);
     undo.undo('motion');
@@ -61,11 +61,11 @@ describe('PatternUndo', () => {
   it('undo navigates back to the bank the edit was made in', () => {
     const { patterns, undo } = build();
     patterns.setSeqEditBank(1);
-    patterns.setSeqStep(0, { on: true, note: 60 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60 });
     patterns.setSeqEditBank(2);
     undo.undo('seq');
     expect(patterns.seqEditBank).toBe(1);
-    expect(patterns.seqBanks[1]![0]!.on).toBe(false);
+    expect(patterns.seqBanks[1]![0]![0]!.on).toBe(false);
   });
 
   it('undoes a bank copy (destination contents restore)', () => {
@@ -94,7 +94,7 @@ describe('PatternUndo', () => {
 
   it('restore() clears every stack (song load / import / New)', () => {
     const { patterns, undo } = build();
-    patterns.setSeqStep(0, { on: true });
+    patterns.setSeqStep(0, 0, { on: true });
     patterns.setDrumCell(0, 0, { on: true });
     patterns.setSamplerCell(0, 0, { on: true });
     patterns.setMotionStep(0, { on: true });
@@ -177,22 +177,22 @@ describe('PatternUndo — bulk clears (step-grid-editing.md REQ-7)', () => {
 
   it('undo of a seq bank clear brings back notes and settings together', () => {
     const { patterns, undo } = build();
-    patterns.setSeqStep(2, { on: true, note: 67, ratchet: 4 });
-    patterns.setSeqStep(9, { on: true, note: 71 });
+    patterns.setSeqStep(0, 2, { on: true, note: 67, ratchet: 4 });
+    patterns.setSeqStep(0, 9, { on: true, note: 71 });
     patterns.clearSeqBank();
     undo.undo('seq');
-    expect(patterns.seq[2]).toMatchObject({ on: true, note: 67, ratchet: 4 });
-    expect(patterns.seq[9]).toMatchObject({ on: true, note: 71 });
+    expect(patterns.seq[0]![2]).toMatchObject({ on: true, note: 67, ratchet: 4 });
+    expect(patterns.seq[0]![9]).toMatchObject({ on: true, note: 71 });
   });
 
   it('clearing an empty bank pushes nothing, so Undo still targets the prior edit', () => {
     const { patterns, undo } = build();
     patterns.setSeqEditBank(1);
-    patterns.setSeqStep(0, { on: true, note: 60 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60 });
     patterns.clearSeqBank();     // one entry
     patterns.clearSeqBank();     // no-op: bank is already empty
     undo.undo('seq');
-    expect(patterns.seq[0]!.on).toBe(true);
+    expect(patterns.seq[0]![0]!.on).toBe(true);
   });
 
   it('a motion bank clear restores anchors without disturbing the override', () => {

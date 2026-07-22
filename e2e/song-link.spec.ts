@@ -45,7 +45,7 @@ test.describe('song share links', () => {
     expect(await busGet(page, 'filter.resonance')).toBe(1.7);
     expect(await sessionDisplay(page)).toBe('Linked Author Song');
     // The dialect expanded: bank A step 0 carries A2 and the chain runs AABA.
-    expect(await page.evaluate(() => (window as any).__synth.patterns.seqBanks[0][0].note)).toBe(45);
+    expect(await page.evaluate(() => (window as any).__synth.patterns.seqBanks[0][0][0].note)).toBe(45);
     expect(await page.evaluate(() => (window as any).__synth.engine.arrangement.seq.steps)).toEqual([0, 0, 1, 0]);
     // Success consumes the hash.
     await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');

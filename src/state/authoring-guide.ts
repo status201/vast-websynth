@@ -14,6 +14,7 @@ import type { ParamBus } from './params';
 import { DRUM_TRACK_LABELS } from './params';
 import {
   SEQ_LENGTH,
+  SEQ_TRACK_COUNT,
   BANK_COUNT,
   BANK_LABELS,
   DRUM_TRACK_COUNT,
@@ -84,7 +85,7 @@ COMPACT AUTHOR FORMAT (recommended output)
   "version": 1,                        // literal, required
   "name": "string",                    // song title
   "params": { "<id>": number },        // OPTIONAL and SPARSE — set only what matters; omitted params keep their defaults (see PARAMS)
-  "seq": [ SeqBank, … up to ${BANK_COUNT} ],        // melody banks ${BANK_LABELS.join('/')}; a missing bank is empty
+  "seq": [ SeqBank, … up to ${BANK_COUNT} ],   // a bank may be {"tracks": [notes, notes, …]} for chords        // melody banks ${BANK_LABELS.join('/')}; a missing bank is empty
   "drums": [ HitBank, … up to ${BANK_COUNT} ],      // drum banks
   "sampler": [ HitBank, … up to ${BANK_COUNT} ],    // OPTIONAL — sampler banks (slots play user-loaded audio files)
   "seqChain": Chain,                   // OPTIONAL — bar-by-bar bank order (omitted = just play bank A)
@@ -97,8 +98,11 @@ COMPACT AUTHOR FORMAT (recommended output)
   "motionTracks": [ [Track, Track], … ] // OPTIONAL — 2 extra 1-param tracks per motion bank
 }
 
-SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), either form:
+SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), any of these forms:
 - Positional array of up to ${SEQ_LENGTH} entries, one per step; short arrays are rest-padded.
+- { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}] } — simultaneous tracks, for chords and
+  counter-lines. The first is track 1; tracks 2-4 sound only in POLY voicing
+  ("voicing.mode": 1), so set that when you use them.
   Entry = null (rest) | MIDI number 0-127 | note name "A2"/"C#4"/"Db3" (C4 = 60)
         | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool }
 - Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? } —
@@ -151,7 +155,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 5,                        // 5 (4 lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": 6,                        // 6 (5 lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -174,7 +178,12 @@ TOP-LEVEL SHAPE
   // so a bank can move up to 4 params, and the XY Pad stays free to play live.
   // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
   // or null. Same slide/step curve rules as the XY anchors ("motion.slide").
-  "motionTracks": ((Track | null)[2])[${BANK_COUNT}]
+  "motionTracks": ((Track | null)[2])[${BANK_COUNT}],
+
+  // ---- v6 sequencer tracks 2-4, OPTIONAL ----
+  // Indexed by the REAL track number, so index 0 is always null (track 1 is
+  // "seqBanks"). An unused track is null. Tracks 2-4 sound only in poly voicing.
+  "seqTracks": ((SeqStep[${SEQ_LENGTH}] | null)[${SEQ_TRACK_COUNT}])[${BANK_COUNT}]
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,

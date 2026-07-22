@@ -167,10 +167,10 @@ describe('round-trip fidelity', () => {
     Song.apply(compactFile, bus, patterns, fakeArr() as never);
 
     expect(bus.get('transport.bpm')).toBe(130);
-    expect(patterns.seqBanks[0]![2]!.note).toBe(69);
+    expect(patterns.seqBanks[0]![0]![2]!.note).toBe(69);
     // default fields the sparse cells omitted are re-expanded by restore()
-    expect(patterns.seqBanks[0]![2]!.prob).toBe(1);
-    expect(patterns.seqBanks[0]![2]!.ratchet).toBe(1);
+    expect(patterns.seqBanks[0]![0]![2]!.prob).toBe(1);
+    expect(patterns.seqBanks[0]![0]![2]!.ratchet).toBe(1);
     expect(patterns.drumBanks[0]![0]![0]!.gate).toBe(1);
   });
 });

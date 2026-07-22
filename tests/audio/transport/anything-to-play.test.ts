@@ -38,14 +38,14 @@ describe('anythingToPlay', () => {
     const patterns = new PatternStore();
     const get = makeGet({ 'seq.on': 1 });
     expect(anythingToPlay(get, patterns, lanes(), NO_BUFFERS)).toBe(false);
-    patterns.setSeqStep(3, { on: true });
+    patterns.setSeqStep(0, 3, { on: true });
     expect(anythingToPlay(get, patterns, lanes(), NO_BUFFERS)).toBe(true);
   });
 
   it('chain enabled: only banks actually in the chain count (RESTs skipped)', () => {
     const patterns = new PatternStore();
     const get = makeGet({ 'seq.on': 1 });
-    patterns.setSeqStep(0, { on: true }); // content in bank 0 (the edit bank)
+    patterns.setSeqStep(0, 0, { on: true }); // content in bank 0 (the edit bank)
 
     // Chain plays only bank 1 (empty) → silent, even though bank 0 has a step.
     expect(anythingToPlay(get, patterns, lanes({ seq: lane(true, [1]) }), NO_BUFFERS)).toBe(false);

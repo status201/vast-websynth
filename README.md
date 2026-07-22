@@ -28,7 +28,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **LFO** routable to cutoff, pitch, amp, or pulse width
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
 - **Bus compressors** (custom AudioWorklet, with gain-reduction meters): a 1176-style FET compressor on the drum bus (microsecond attacks, program-dependent release, "all buttons in" mode) and an SSL-G-style VCA "glue" compressor on the master bus (soft knee, auto-release)
-- **Transport**: clock, arpeggiator, 16-step note sequencer, 8-track drum machine, and 8-slot multi-track sampler
+- **Transport**: clock, arpeggiator, **4-track** 16-step note sequencer (chords and counter-lines; tracks 2–4 need poly voicing, and fold away when unused), 8-track drum machine, and 8-slot multi-track sampler
 - **Per-step settings** on the seq/drum/sampler machines, visualized on the step buttons: velocity, gate (chokes a drum/sampler hit early when shortened), probability, ratchet (1–4 sub-hits), and tie (seq: legato/slide; drums/sampler: let the last ratchet hit ring)
 - **Grid editing that gets out of the way**: tap a step to toggle it, **drag across the grid to paint** a whole run on or off in one swipe (starting on a lit step erases), and **press-and-hold** — or right-click — a step to select it for editing *without* switching it off. `Delete` clears the selected step, and each machine's **Clear ▾** wipes a bank (or just the selected drum track / sampler slot) with a one-press Undo. A step you switch off keeps its note, velocity, gate and the rest, so toggling it back on restores it exactly
 - **Pattern banks**: the sequencer, drum machine, sampler, and motion sequencer each have 4 banks (A/B/C/D), independently copyable and chainable

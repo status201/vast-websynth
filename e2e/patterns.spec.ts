@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, busSet } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
-  page.evaluate((idx) => (window as any).__synth.patterns.seq[idx].on, i);
+  page.evaluate((idx) => (window as any).__synth.patterns.seq[0][idx].on, i);
 const seqNote = (page: import('@playwright/test').Page, i: number): Promise<number> =>
-  page.evaluate((idx) => (window as any).__synth.patterns.seq[idx].note, i);
+  page.evaluate((idx) => (window as any).__synth.patterns.seq[0][idx].note, i);
 const playNote = (page: import('@playwright/test').Page, n: number): Promise<void> =>
   page.evaluate((note) => (window as any).__synth.bus.noteOn(note), n);
 const drumOn = (page: import('@playwright/test').Page, t: number, s: number): Promise<boolean> =>
@@ -261,5 +261,83 @@ test.describe('step-grid gestures', () => {
     await page.getByTestId('tab-sampler').click();
     await page.keyboard.press('Delete');
     expect(await seqOn(page, 6)).toBe(true);
+  });
+});
+
+/**
+ * Four sequencer tracks — specs/features/sequencer.md REQ-8..REQ-13.
+ */
+test.describe('sequencer tracks', () => {
+  const trackOn = (page: import('@playwright/test').Page, t: number, i: number): Promise<boolean> =>
+    page.evaluate((a) => (window as any).__synth.patterns.seq[a.t][a.i].on, { t, i });
+
+  test('tracks 2-4 start folded when empty and unfold on demand', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    // Track 1 always shows its steps; the rest start folded (nothing to show).
+    await expect(page.getByTestId('seq-step-0')).toBeVisible();
+    await expect(page.getByTestId('seq-step-1-0')).toBeHidden();
+
+    await page.getByTestId('seq-track-fold-1').click();
+    await expect(page.getByTestId('seq-step-1-0')).toBeVisible();
+  });
+
+  test('a second track adds a simultaneous note', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-track-fold-1').click();
+
+    await page.getByTestId('seq-step-0').click();
+    await page.getByTestId('seq-step-1-0').click();
+    expect(await trackOn(page, 0, 0)).toBe(true);
+    expect(await trackOn(page, 1, 0)).toBe(true);
+    // Independent data: clearing track 1's step leaves track 2 alone.
+    await page.getByTestId('seq-step-0').click();
+    expect(await trackOn(page, 0, 0)).toBe(false);
+    expect(await trackOn(page, 1, 0)).toBe(true);
+  });
+
+  test('four-track songs round-trip and reopen their tracks', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-track-fold-2').click();
+    await page.getByTestId('seq-step-2-4').click();
+    expect(await trackOn(page, 2, 4)).toBe(true);
+
+    await page.getByTestId('tab-song').click();
+    const download = page.waitForEvent('download');
+    await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('e2e-seqtracks');
+    await page.getByTestId('dialog-confirm').click();
+    await download;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
+    // The stored file is v6 and carries the track under seqTracks (index 0 null).
+    const stored = await page.evaluate(() =>
+      localStorage.getItem('websynth.song.e2e-seqtracks'));
+    const parsed = JSON.parse(stored!) as { version: number; seqTracks: unknown[][] };
+    expect(parsed.version).toBe(6);
+    expect(parsed.seqTracks[0]![0]).toBeNull();
+
+    await page.getByTestId('song-new').click();
+    await page.getByTestId('dialog-confirm').click();
+    expect(await trackOn(page, 2, 4)).toBe(false);
+
+    await page.getByTestId('song-load').click();
+    expect(await trackOn(page, 2, 4)).toBe(true);
+  });
+
+  test('mono voicing dims tracks 2-4 without losing their steps', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-track-fold-1').click();
+    await page.getByTestId('seq-step-1-0').click();
+
+    await busSet(page, 'voicing.mode', 0); // mono
+    await expect(page.getByTestId('seq-track-1')).toHaveAttribute('title', /mono voicing/);
+    expect(await trackOn(page, 1, 0)).toBe(true); // data intact
+
+    await busSet(page, 'voicing.mode', 1); // poly
+    await expect(page.getByTestId('seq-track-1')).toHaveAttribute('title', '');
   });
 });

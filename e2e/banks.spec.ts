@@ -9,7 +9,7 @@ import { gotoAndStart } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const stepOnInBank = (page: Page, bank: number, step: number) =>
-  page.evaluate((a) => (window as any).__synth.patterns.seqBanks[a.bank][a.step].on as boolean, { bank, step });
+  page.evaluate((a) => (window as any).__synth.patterns.seqBanks[a.bank][0][a.step].on as boolean, { bank, step });
 const editBank = (page: Page) =>
   page.evaluate(() => (window as any).__synth.patterns.seqEditBank as number);
 

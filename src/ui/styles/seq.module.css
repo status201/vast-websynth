@@ -46,3 +46,51 @@
   font-size: 11px;
   color: var(--text-dim);
 }
+
+/* ---- four track rows (sequencer.md REQ-8/REQ-9/REQ-11) ---- */
+
+.trackGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trackCtrls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 118px;
+  flex: none;
+}
+
+.trackFold {
+  min-width: 40px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.trackFold:disabled { opacity: 0.5; cursor: default; }
+
+.trackMute { transform: scale(0.85); transform-origin: left center; }
+
+.trackBody { flex: 1; min-width: 0; }
+
+/* A folded track keeps its header row so it can be reopened — only the steps
+   go away. Track 1 never folds. */
+.folded .trackBody { display: none; }
+
+/* Tracks 2-4 in mono voicing: visibly not playing, but fully editable — the
+   data is intact and one param flip brings them back (REQ-9). */
+.monoGated .trackBody { opacity: 0.35; }

@@ -67,6 +67,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Slide/Step curve and the same flow across the bar line, and copying a bank
   brings the tracks and their parameter choices with it.
 
+- **Four sequencer tracks** — the note sequencer now has four independent
+  tracks per bank instead of one, so a bank can hold a chord or a counter-line
+  without faking it through the arpeggiator or a second render. Track 1 is the
+  sequencer you already had, unchanged; tracks 2–4 start empty and folded away,
+  and unfold with a click (a song that uses them opens them for you). Each track
+  has its own mute, and each holds its own notes and ties, so one track's rest
+  never cuts another's held note short. Tracks 2–4 need **poly** voicing — in
+  mono they dim and say so rather than fighting over the single voice, and
+  nothing is lost when you switch back.
+
 - **Files that went through the wrong door say so** — dropping a preset or bank
   on the Song tab's Import points you at the Preset button instead of reporting
   a broken song, and vice versa.

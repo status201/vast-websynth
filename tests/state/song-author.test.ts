@@ -460,3 +460,48 @@ describe('expandAuthorSong — extra motion tracks (motion-sequencer.md REQ-17)'
     expect(res.ok).toBe(false);
   });
 });
+
+describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () => {
+  it('a plain note list still lands on track 1 and expands to v3', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'One', seq: [['A2', null, 'A3']],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.version).toBe(3);       // unchanged from before v6
+    expect(res.file.seqTracks).toBeUndefined();
+    expect(res.file.seqBanks[0]![0]!.on).toBe(true);
+  });
+
+  it('the tracks form expands to v6 with index 0 null', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Chord',
+      seq: [{ tracks: [['C3'], ['E3'], ['G3']] }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.version).toBe(6);
+    expect(res.file.seqBanks[0]![0]!.note).toBe(48);        // C3 on track 1
+    expect(res.file.seqTracks![0]![0]).toBeNull();
+    expect(res.file.seqTracks![0]![1]![0]!.note).toBe(52);   // E3
+    expect(res.file.seqTracks![0]![2]![0]!.note).toBe(55);   // G3
+  });
+
+  it('the bank-defaults form still works and is not mistaken for tracks', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Defaults',
+      seq: [{ notes: ['A2', 'A3'], gate: 0.4 }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqBanks[0]![0]).toMatchObject({ on: true, gate: 0.4 });
+  });
+
+  it('rejects more tracks than the sequencer has', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Too many',
+      seq: [{ tracks: [['C3'], ['E3'], ['G3'], ['B3'], ['D4']] }],
+    });
+    expect(res.ok).toBe(false);
+  });
+});

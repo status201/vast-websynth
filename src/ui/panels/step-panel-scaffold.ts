@@ -54,7 +54,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         setEdit: (i) => p.setSeqEditBank(i),
         copy: (f, t) => p.copySeqBank(f, t),
         getPlay: () => a.seqPlayBank,
-        hasContent: (i) => p.seqBanks[i]!.some((s) => s.on),
+        hasContent: (i) => p.seqBanks[i]!.some((track) => track.some((s) => s.on)),
         onContentChange: (fn) => p.onSeqChange(fn),
         onStep: (fn) => engine.seq.onStep(fn),
         clearBank: () => p.clearSeqBank(),

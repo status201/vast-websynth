@@ -18,6 +18,7 @@ import type { SeqStep, TriggerCell, MotionStep, MotionAssign, MotionTrack } from
 import {
   BANK_COUNT,
   SEQ_LENGTH,
+  SEQ_TRACK_COUNT,
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
   REST,
@@ -256,8 +257,42 @@ function expandSeqBank(path: string, bank: unknown, add: AddError): SeqStep[] {
   return out;
 }
 
-function expandSeqBanks(v: unknown, add: AddError): SeqStep[][] {
-  const banks: SeqStep[][] = Array.from({ length: BANK_COUNT }, makeEmptySeqBank);
+/**
+ * One bank, four tracks (sequencer.md REQ-8). A bank entry is either a plain
+ * note list — the pre-v6 form, which lands on track 1 and keeps every existing
+ * dialect song byte-identical — or `{ tracks: [list, list, …] }` for chords and
+ * counter-lines.
+ */
+function expandSeqBankTracks(path: string, v: unknown, add: AddError): SeqStep[][] {
+  const bank: SeqStep[][] = Array.from({ length: SEQ_TRACK_COUNT }, makeEmptySeqBank);
+  if (v === undefined || v === null) return bank;
+  // Only a `tracks` key means the multi-track form; every other object is the
+  // pre-existing bank-defaults form ({ notes, gate, velocity, … }), which stays
+  // exactly as it was and lands on track 1.
+  if (isObject(v) && !Array.isArray(v) && v.tracks !== undefined) {
+    for (const k of Object.keys(v)) {
+      if (k !== 'tracks') add(`${path}.${k} cannot be combined with tracks (put it inside each track)`);
+    }
+    const tracks = v.tracks;
+    if (!Array.isArray(tracks)) {
+      add(`${path}.tracks must be an array of up to ${SEQ_TRACK_COUNT} note lists (got ${describe(tracks)})`);
+      return bank;
+    }
+    if (tracks.length > SEQ_TRACK_COUNT) {
+      add(`${path}.tracks has ${tracks.length} tracks — the sequencer has ${SEQ_TRACK_COUNT}`);
+    }
+    for (let t = 0; t < Math.min(tracks.length, SEQ_TRACK_COUNT); t++) {
+      bank[t] = expandSeqBank(`${path}.tracks[${t}]`, tracks[t], add);
+    }
+    return bank;
+  }
+  bank[0] = expandSeqBank(path, v, add);
+  return bank;
+}
+
+function expandSeqBanks(v: unknown, add: AddError): SeqStep[][][] {
+  const banks: SeqStep[][][] = Array.from({ length: BANK_COUNT },
+    () => Array.from({ length: SEQ_TRACK_COUNT }, makeEmptySeqBank));
   if (v === undefined) return banks;
   if (!Array.isArray(v)) {
     add(`seq must be an array of up to ${BANK_COUNT} banks (got ${describe(v)})`);
@@ -265,7 +300,7 @@ function expandSeqBanks(v: unknown, add: AddError): SeqStep[][] {
   }
   if (v.length > BANK_COUNT) add(`seq has ${v.length} banks — the synth has ${BANK_COUNT} (A..D)`);
   for (let b = 0; b < Math.min(v.length, BANK_COUNT); b++) {
-    banks[b] = expandSeqBank(`seq[${b}]`, v[b], add);
+    banks[b] = expandSeqBankTracks(`seq[${b}]`, v[b], add);
   }
   return banks;
 }
@@ -685,7 +720,7 @@ export function expandAuthorSong(value: unknown): SongValidation {
   const autoEnable = (id: string, on: boolean) => {
     if (params[id] === undefined && on) params[id] = 1;
   };
-  autoEnable('seq.on', hasHits(seqBanks));
+  autoEnable('seq.on', hasHits(seqBanks.flat()));
   autoEnable('drum.on', hasHits(drumBanks.flat()));
   if (samplerBanks) autoEnable('sampler.on', hasHits(samplerBanks.flat()));
   const trackHasAnchors = (motionTracks ?? []).some((bank) =>
@@ -694,10 +729,20 @@ export function expandAuthorSong(value: unknown): SongValidation {
 
   const file: SongFile = {
     format: 'websynth-song',
-    version: motionTracks ? 5 : motion ? 4 : 3,
+    // The lowest version that can hold what was authored — so a simple song
+    // still expands to the same v3 file it always did (ADR-007).
+    version: seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
+      ? 6 : motionTracks ? 5 : motion ? 4 : 3,
     name: o.name as string,
     params,
-    seqBanks,
+    // Track 1 in the v1-v5 field; 2-4 only when used (sequencer.md REQ-13).
+    seqBanks: seqBanks.map((bank) => bank[0]!),
+    ...(seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
+      ? {
+        seqTracks: seqBanks.map((bank) =>
+          bank.map((row, t) => (t === 0 || !row.some((st) => st.on) ? null : row))),
+      }
+      : {}),
     drumBanks,
     seqChain,
     drumChain,

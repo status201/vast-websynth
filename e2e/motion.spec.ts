@@ -93,10 +93,10 @@ test('motion state survives a save → new → load round-trip', async ({ page }
   await openMotionTab(page);
   await expect(page.getByTestId('motion-step-3')).toHaveClass(/\bon\b/);
 
-  // The stored file is v4 with motion fields.
+  // The stored file is the current version and carries the motion fields.
   const stored = await page.evaluate(() => localStorage.getItem('websynth.song.e2e-motion'));
   const parsed = JSON.parse(stored!) as { version: number; motionBanks: unknown[] };
-  expect(parsed.version).toBe(5);
+  expect(parsed.version).toBe(6);
   expect(parsed.motionBanks).toHaveLength(4);
 });
 

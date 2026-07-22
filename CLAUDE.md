@@ -90,6 +90,7 @@ pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` (the extra tracks) + `motio
 `motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
 `StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
+`seq-step-<i>` (track 1) / `seq-step-<t>-<i>` (tracks 2-4), `seq-track-<t>`/`seq-track-fold-<t>`,
 `bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
 via its `testidPrefix` opt),
 `clear-<seq|drum|sampler|motion>` + `clear-…-bank`/`clear-…-row`/`clear-toast-…`
@@ -297,6 +298,15 @@ it also writes the note name as the label.
   `setSeqEditBank`/… re-emit every step so panels repaint). The transport
   reads the *play bank* (`seqBank(i)`/`drumBank(i)`/…) chosen by the
   Arrangement — which may differ.
+- **Sequencer tracks** — the seq holds `SEQ_TRACK_COUNT` (4) tracks per bank:
+  `seqBanks[bank][track][step]`, `patterns.seq` is track-major (like `drum`),
+  `seqTrack(t)`, `setSeqStep(track, index, patch)`. Each track is independently
+  monophonic in `StepSequencer` (one `SeqTrackState[]`); tracks 1..3 are gated on
+  poly voicing (`setPolyphonic`) and have their own `seq.t<i>.mute`. SongFile
+  **v6** adds `seqTracks[bank][track]` — indexed by the REAL track number with
+  **index 0 always null** (track 1 stays in `seqBanks`), omitted entirely when
+  unused so one-track songs are byte-identical. Dialect: a `seq` bank may be
+  `{tracks: [...]}`. See `specs/features/sequencer.md`.
 - **Per-step settings** — every machine's step carries velocity/gate/prob/
   ratchet/tie (`StepSettings` in `state/patterns.ts`; `SeqStep` adds `note`,
   `DrumCell`/`SamplerStep` are the shared `TriggerCell`). The pure hit math

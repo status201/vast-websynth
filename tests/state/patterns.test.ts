@@ -29,13 +29,13 @@ describe('PatternStore', () => {
 
   it('setSeqStep mutates the edit bank and notifies', () => {
     const ps = new PatternStore();
-    const calls: Array<[number, boolean]> = [];
-    ps.onSeqChange((i, s) => calls.push([i, s.on]));
-    ps.setSeqStep(3, { on: true, note: 64 });
-    expect(ps.seq[3]!.on).toBe(true);
-    expect(ps.seq[3]!.note).toBe(64);
-    expect(ps.seqBanks[0]![3]!.note).toBe(64);
-    expect(calls).toEqual([[3, true]]);
+    const calls: Array<[number, number, boolean]> = [];
+    ps.onSeqChange((t, i, s) => calls.push([t, i, s.on]));
+    ps.setSeqStep(0, 3, { on: true, note: 64 });
+    expect(ps.seq[0]![3]!.on).toBe(true);
+    expect(ps.seq[0]![3]!.note).toBe(64);
+    expect(ps.seqBanks[0]![0]![3]!.note).toBe(64);
+    expect(calls).toEqual([[0, 3, true]]);
   });
 
   it('setDrumCell mutates the edit bank and notifies', () => {
@@ -72,28 +72,28 @@ describe('PatternStore', () => {
 
   it('onSeqBankChange receives the full bank array from the switched bank', () => {
     const ps = new PatternStore();
-    let received: SeqStep[] | null = null;
-    ps.onSeqBankChange((bank) => { received = [...bank]; });
+    let received: readonly (readonly SeqStep[])[] | null = null;
+    ps.onSeqBankChange((bank) => { received = bank; });
     ps.setSeqEditBank(1);
-    ps.setSeqStep(3, { on: true, note: 72 });
+    ps.setSeqStep(0, 3, { on: true, note: 72 });
     ps.setSeqEditBank(0);
     // received should now be bank 0 (fresh, step 3 untouched)
-    expect(received?.length).toBe(SEQ_LENGTH);
-    expect(received![3]!.on).toBe(false);
-    // Switch back to bank 1, should see the mutation
+    expect(received![0]!.length).toBe(SEQ_LENGTH);
+    expect(received![0]![3]!.on).toBe(false);
+    // Switch back to bank 1, should see the mutation (on track 0)
     ps.setSeqEditBank(1);
-    expect(received![3]!.on).toBe(true);
-    expect(received![3]!.note).toBe(72);
+    expect(received![0]![3]!.on).toBe(true);
+    expect(received![0]![3]!.note).toBe(72);
   });
 
   it('copySeqBank deep-copies and skips same-bank copies', () => {
     const ps = new PatternStore();
-    ps.setSeqStep(0, { on: true, note: 72 });
+    ps.setSeqStep(0, 0, { on: true, note: 72 });
     ps.copySeqBank(0, 1);
-    expect(ps.seqBanks[1]![0]!.note).toBe(72);
+    expect(ps.seqBanks[1]![0]![0]!.note).toBe(72);
     // independent objects, not shared references
-    ps.seqBanks[1]![0]!.note = 48;
-    expect(ps.seqBanks[0]![0]!.note).toBe(72);
+    ps.seqBanks[1]![0]![0]!.note = 48;
+    expect(ps.seqBanks[0]![0]![0]!.note).toBe(72);
     // same-bank copy is a safe no-op
     expect(() => ps.copySeqBank(2, 2)).not.toThrow();
   });
@@ -183,7 +183,7 @@ describe('PatternStore', () => {
 
   it('new seq steps default to prob 1, ratchet 1, tie false', () => {
     const ps = new PatternStore();
-    const s = ps.seq[0]!;
+    const s = ps.seq[0]![0]!;
     expect(s.prob).toBe(1);
     expect(s.ratchet).toBe(1);
     expect(s.tie).toBe(false);
@@ -191,23 +191,23 @@ describe('PatternStore', () => {
 
   it('prob/ratchet/tie round-trip through snapshot/restore', () => {
     const ps = new PatternStore();
-    ps.setSeqStep(5, { on: true, prob: 0.5, ratchet: 3, tie: true });
+    ps.setSeqStep(0, 5, { on: true, prob: 0.5, ratchet: 3, tie: true });
     const snap = ps.snapshot();
 
     const ps2 = new PatternStore();
     ps2.restore(snap);
-    expect(ps2.seqBanks[0]![5]!.prob).toBe(0.5);
-    expect(ps2.seqBanks[0]![5]!.ratchet).toBe(3);
-    expect(ps2.seqBanks[0]![5]!.tie).toBe(true);
+    expect(ps2.seqBanks[0]![0]![5]!.prob).toBe(0.5);
+    expect(ps2.seqBanks[0]![0]![5]!.ratchet).toBe(3);
+    expect(ps2.seqBanks[0]![0]![5]!.tie).toBe(true);
   });
 
   it('restores legacy steps (missing the new fields) to the defaults', () => {
     const ps = new PatternStore();
     // Simulate a v1/v2 song whose seq steps predate prob/ratchet/tie —
     // after a live edit, so stale values must not survive the load.
-    ps.setSeqStep(0, { prob: 0.3, ratchet: 4, tie: true });
-    ps.restore({ seqBanks: [[{ on: true, note: 60, velocity: 0.8, gate: 0.5 }]] as SeqStep[][] });
-    const s = ps.seqBanks[0]![0]!;
+    ps.setSeqStep(0, 0, { prob: 0.3, ratchet: 4, tie: true });
+    ps.restore({ seqBanks: [[[{ on: true, note: 60, velocity: 0.8, gate: 0.5 }]]] as SeqStep[][][] });
+    const s = ps.seqBanks[0]![0]![0]!;
     expect(s.on).toBe(true);
     expect(s.prob).toBe(1);
     expect(s.ratchet).toBe(1);
@@ -254,21 +254,21 @@ describe('PatternStore', () => {
 
   it('round-trips through snapshot/restore', () => {
     const ps = new PatternStore();
-    ps.setSeqStep(2, { on: true, note: 67, velocity: 0.5, gate: 0.9 });
+    ps.setSeqStep(0, 2, { on: true, note: 67, velocity: 0.5, gate: 0.9 });
     ps.setDrumCell(1, 3, { on: true, velocity: 0.6 });
     ps.setSeqEditBank(2);
     const snap = ps.snapshot();
 
     const ps2 = new PatternStore();
     ps2.restore(snap);
-    expect(ps2.seqBanks[0]![2]!.note).toBe(67);
-    expect(ps2.seqBanks[0]![2]!.gate).toBe(0.9);
+    expect(ps2.seqBanks[0]![0]![2]!.note).toBe(67);
+    expect(ps2.seqBanks[0]![0]![2]!.gate).toBe(0.9);
     expect(ps2.drumBanks[0]![1]![3]!.on).toBe(true);
     expect(ps2.seqEditBank).toBe(2);
 
     // snapshot is a deep copy: mutating the store does not change the snap
-    ps2.setSeqStep(2, { note: 1 });
-    expect(snap.seqBanks[0]![2]!.note).toBe(67);
+    ps2.setSeqStep(0, 2, { note: 1 });
+    expect(snap.seqBanks[0]![0]![2]!.note).toBe(67);
   });
 });
 
@@ -366,16 +366,16 @@ describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', 
 
   it('a bank copy emits the destination bank pre-state', () => {
     const p = new PatternStore();
-    p.setSeqStep(0, { on: true, note: 64 }); // bank 0 = copy source
+    p.setSeqStep(0, 0, { on: true, note: 64 }); // bank 0 = copy source
     p.setSeqEditBank(1);
-    p.setSeqStep(1, { on: true, note: 65 }); // bank 1 = destination content
+    p.setSeqStep(0, 1, { on: true, note: 65 }); // bank 1 = destination content
     const seen: unknown[] = [];
     p.onMutate((m) => seen.push(m));
     p.copySeqBank(0, 1);
-    const copy = seen.find((m) => (m as { kind: string }).kind === 'seq-copy') as { bank: number; before: SeqStep[] };
+    const copy = seen.find((m) => (m as { kind: string }).kind === 'seq-copy') as { bank: number; before: SeqStep[][] };
     expect(copy.bank).toBe(1);
-    expect(copy.before[1]!.on).toBe(true);
-    expect(copy.before[0]!.on).toBe(false);
+    expect(copy.before[0]![1]!.on).toBe(true);
+    expect(copy.before[0]![0]!.on).toBe(false);
   });
 
   it('restore() fires onBulkRestore and never onMutate', () => {
@@ -401,16 +401,16 @@ describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', 
 describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
   it('clearSeqBank clears only `on`, keeping every per-step setting (REQ-2)', () => {
     const p = new PatternStore();
-    p.setSeqStep(3, { on: true, note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
+    p.setSeqStep(0, 3, { on: true, note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
     expect(p.clearSeqBank()).toBe(true);
-    const s = p.seq[3]!;
+    const s = p.seqTrack(0)![3]!;
     expect(s.on).toBe(false);
     expect(s).toMatchObject({ note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
   });
 
   it('emits exactly ONE bulk mutation, not one per cell', () => {
     const p = new PatternStore();
-    for (let i = 0; i < SEQ_LENGTH; i++) p.setSeqStep(i, { on: true });
+    for (let i = 0; i < SEQ_LENGTH; i++) p.setSeqStep(0, i, { on: true });
     const seen: unknown[] = [];
     p.onMutate((m) => seen.push(m));
     p.clearSeqBank();
@@ -429,10 +429,10 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
 
   it('notifies per-cell listeners so panels and the BankBar both repaint', () => {
     const p = new PatternStore();
-    p.setSeqStep(1, { on: true });
-    p.setSeqStep(5, { on: true });
+    p.setSeqStep(0, 1, { on: true });
+    p.setSeqStep(0, 5, { on: true });
     const touched: number[] = [];
-    p.onSeqChange((i) => touched.push(i));
+    p.onSeqChange((_t, i) => touched.push(i));
     p.clearSeqBank();
     expect(touched).toEqual([1, 5]); // dead cells are not re-emitted
   });

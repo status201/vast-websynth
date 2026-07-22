@@ -15,7 +15,7 @@
  * tests (every demo must pass `validateSongFile`).
  */
 import type { SongFile } from './song';
-import { BANK_COUNT, REST, SEQ_LENGTH, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 
 export type SongValidation =
   | { ok: true; file: SongFile }
@@ -163,6 +163,31 @@ const validateMotionStep: CellValidator = (path, value, add) => {
   checkUnit(`${path}.y`, value.y, add);
 };
 
+/**
+ * v6 sequencer tracks — BANK_COUNT banks × SEQ_TRACK_COUNT entries, each null or
+ * 16 SeqSteps. Index 0 must be null: track 1 lives in `seqBanks`, and accepting
+ * it here would create two sources of truth for the same notes.
+ */
+function checkSeqTracks(v: unknown, add: AddError): void {
+  if (!Array.isArray(v)) { add(`seqTracks must be an array of ${BANK_COUNT} banks (got ${describe(v)})`); return; }
+  if (v.length !== BANK_COUNT) add(`seqTracks must have ${BANK_COUNT} banks (got ${v.length})`);
+  v.forEach((bank: unknown, b) => {
+    if (bank === null || bank === undefined) return;
+    if (!Array.isArray(bank)) { add(`seqTracks[${b}] must be an array (got ${describe(bank)})`); return; }
+    if (bank.length > SEQ_TRACK_COUNT) {
+      add(`seqTracks[${b}] has ${bank.length} tracks — the sequencer has ${SEQ_TRACK_COUNT}`);
+    }
+    bank.forEach((track: unknown, t) => {
+      if (track === null || track === undefined) return;
+      if (t === 0) { add('seqTracks[…][0] must be null — track 1 lives in seqBanks'); return; }
+      const path = `seqTracks[${b}][${t}]`;
+      if (!Array.isArray(track)) { add(`${path} must be null or an array of steps (got ${describe(track)})`); return; }
+      if (track.length !== SEQ_LENGTH) add(`${path} must have ${SEQ_LENGTH} steps (got ${track.length})`);
+      track.forEach((cell: unknown, i) => validateSeqStep(`${path}[${i}]`, cell, add));
+    });
+  });
+}
+
 /** v5 extra motion tracks — BANK_COUNT banks × MOTION_TRACK_COUNT, each null or
  *  { param?, steps: 16 × {on, v?} }. */
 function checkMotionTracks(v: unknown, add: AddError): void {
@@ -217,7 +242,7 @@ export function validateSongFile(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== 'websynth-song') add(`format must be "websynth-song" (got ${describe(o.format)})`);
-  const KNOWN_VERSIONS = [1, 2, 3, 4, 5];
+  const KNOWN_VERSIONS = [1, 2, 3, 4, 5, 6];
   if (!KNOWN_VERSIONS.includes(o.version as number)) {
     add(`version must be one of ${KNOWN_VERSIONS.join(', ')} (got ${describe(o.version)})`);
   }
@@ -243,6 +268,8 @@ export function validateSongFile(value: unknown): SongValidation {
   if (o.motionChain !== undefined) checkChain('motionChain', o.motionChain, true, add);
   // v5 (optional) — the extra single-param motion tracks.
   if (o.motionTracks !== undefined) checkMotionTracks(o.motionTracks, add);
+  // v6 (optional) — sequencer tracks 2-4 (index 0 is null: track 1 is seqBanks).
+  if (o.seqTracks !== undefined) checkSeqTracks(o.seqTracks, add);
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, file: value as unknown as SongFile };

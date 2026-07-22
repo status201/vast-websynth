@@ -13,7 +13,7 @@ describe('StepSequencer', () => {
     // Enable and set a note on step 0
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
 
     clock.fireTick(0); // step 0 → should trigger note 60
     expect(playNote).toHaveBeenCalledWith(60, 0.8, 0);
@@ -43,8 +43,8 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
-    patterns.setSeqStep(1, { on: true, note: 64, velocity: 0.7, gate: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(0, 1, { on: true, note: 64, velocity: 0.7, gate: 0.5 });
 
     clock.fireTick(0); // plays note 60 (released at 0 + 0.125*0.5 = 0.0625)
     clock.fireTick(0.125); // when = 0.125 → release 60, then play 64
@@ -60,7 +60,7 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     // Not enabled
-    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
     clock.fireTick(0);
     expect(playNote).not.toHaveBeenCalled();
   });
@@ -73,7 +73,7 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
     clock.fireTick(0);
     expect(playNote).toHaveBeenCalledOnce();
 
@@ -101,8 +101,8 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, prob: 0.5 });
-    patterns.setSeqStep(1, { on: true, note: 60, prob: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, prob: 0.5 });
+    patterns.setSeqStep(0, 1, { on: true, note: 60, prob: 0.5 });
 
     const rng = vi.spyOn(Math, 'random');
     rng.mockReturnValue(0.9); // 0.9 > 0.5 → rest
@@ -122,7 +122,7 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, gate: 0.5, ratchet: 3 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, ratchet: 3 });
 
     clock.fireTick(0);
     expect(playNote).toHaveBeenCalledTimes(3);
@@ -140,8 +140,8 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, gate: 0.5, tie: true });
-    patterns.setSeqStep(1, { on: true, note: 64, gate: 0.5 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 64, gate: 0.5 });
 
     clock.fireTick(0); // tied step: plays 60 but schedules no release
     expect(playNote).toHaveBeenCalledWith(60, expect.any(Number), 0);
@@ -159,7 +159,7 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 60, tie: true }); // step 1 stays off (rest)
+    patterns.setSeqStep(0, 0, { on: true, note: 60, tie: true }); // step 1 stays off (rest)
 
     clock.fireTick(0);
     clock.fireTick(0.125); // rest after a tie → release the held note here
@@ -172,7 +172,7 @@ describe('StepSequencer', () => {
 
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
-    patterns.setSeqStep(0, { on: true, note: 72, velocity: 0.9, gate: 0.25 });
+    patterns.setSeqStep(0, 0, { on: true, note: 72, velocity: 0.9, gate: 0.25 });
 
     const notes: Array<[number, number, number]> = [];
     seq.onNote((n, w, r) => notes.push([n, w, r]));
@@ -192,12 +192,91 @@ describe('StepSequencer', () => {
     const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
     seq.setEnabled(true);
     // A lit step in the play bank, but the only chain slot is a rest.
-    patterns.setSeqStep(0, { on: true, note: 60, velocity: 0.8 });
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8 });
     arrangement.setSeqChain([-1], true); // REST
 
     clock.fireStart();
     clock.fireTick(0); // bar boundary → arrangement resting → seq skips
     expect(arrangement.seqResting).toBe(true);
     expect(playNote).not.toHaveBeenCalled();
+  });
+});
+
+describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () => {
+  /** Rig with recording output stubs — the four-track cases care about the SET
+   *  of notes per tick, which vi.fn() call order alone makes awkward to read. */
+  function build() {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const played: { note: number; when: number }[] = [];
+    const released: { note: number }[] = [];
+    const output: SynthOutput = {
+      playNote: (note, _vel, when) => { played.push({ note, when: when ?? 0 }); },
+      releaseNote: (note) => { released.push({ note }); },
+    };
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    return { clock, patterns, arrangement, seq, played, released };
+  }
+
+  it('plays every track on the same step, layering into a chord', () => {
+    const { patterns, clock, played, seq } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 64, velocity: 0.8, gate: 0.5 });
+    patterns.setSeqStep(2, 0, { on: true, note: 67, velocity: 0.8, gate: 0.5 });
+    seq.setEnabled(true);
+    clock.fireTick(0);
+    expect(played.map((p) => p.note).sort((a, b) => a - b)).toEqual([60, 64, 67]);
+  });
+
+  it('each track keeps its own held note — one track’s rest never cuts another', () => {
+    const { patterns, clock, played, seq } = build();
+    // Track 1 ties across step 1; track 2 rests there and must not interfere.
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 62, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 72, gate: 0.5 });
+    seq.setEnabled(true);
+    clock.fireTick(0);
+    clock.fireTick(1);
+    expect(played.map((p) => p.note)).toContain(62);
+  });
+
+  it('mono voicing gates tracks 2-4 but keeps track 1 (REQ-9)', () => {
+    const { patterns, clock, played, seq } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 64, gate: 0.5 });
+    seq.setEnabled(true);
+    seq.setPolyphonic(false);
+    clock.fireTick(0);
+    expect(played.map((p) => p.note)).toEqual([60]);
+
+    // Flipping back to poly brings the track straight back — nothing was lost.
+    // (fireTick's argument is the audio TIME; the step comes from clock.step.)
+    played.length = 0;
+    seq.setPolyphonic(true);
+    clock.step = 0;
+    clock.fireTick(0);
+    expect(played.map((p) => p.note).sort((a, b) => a - b)).toEqual([60, 64]);
+  });
+
+  it('a per-track mute silences only that track (REQ-10)', () => {
+    const { patterns, clock, played, seq } = build();
+    patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+    patterns.setSeqStep(1, 0, { on: true, note: 64, gate: 0.5 });
+    seq.setEnabled(true);
+    seq.setTrackMuted(1, true);
+    clock.fireTick(0);
+    expect(played.map((p) => p.note)).toEqual([60]);
+  });
+
+  it('a rest bar releases every track’s tied note', () => {
+    const { patterns, clock, arrangement, released, seq } = build();
+    patterns.setSeqStep(0, 15, { on: true, note: 60, gate: 0.5, tie: true });
+    patterns.setSeqStep(1, 15, { on: true, note: 64, gate: 0.5, tie: true });
+    seq.setEnabled(true);
+    clock.step = 15;
+    clock.fireTick(0);   // step 15: both tracks tie into the next bar
+    released.length = 0;
+    arrangement.setSeqChain([-1], true); // REST
+    clock.fireTick(0);   // step 16 = bar boundary, now a rest bar
+    expect(released.map((r) => r.note).sort((a, b) => a - b)).toEqual([60, 64]);
   });
 });

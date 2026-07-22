@@ -105,6 +105,11 @@ export function makeMotionTracks(): MotionTrack[] {
 
 export const SEQ_LENGTH = 16;
 
+/** Sequencer tracks per bank (sequencer.md REQ-8). Track 0 is the pre-v3
+ *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-9). */
+export const SEQ_TRACK_COUNT = 4;
+export const SEQ_TRACK_LABELS = ['1', '2', '3', '4'];
+
 export const DRUM_TRACKS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'] as const;
 export const DRUM_TRACK_COUNT = DRUM_TRACKS.length;
 
@@ -130,21 +135,22 @@ export const REST = -1;
  * `restore()` bypasses the setters and never emits these.
  */
 export type PatternMutation =
-  | { kind: 'seq'; bank: number; index: number; before: SeqStep }
+  | { kind: 'seq'; bank: number; track: number; index: number; before: SeqStep }
   | { kind: 'drum'; bank: number; track: number; step: number; before: DrumCell }
   | { kind: 'sampler'; bank: number; slot: number; step: number; before: SamplerStep }
   | { kind: 'motion'; bank: number; index: number; before: MotionStep }
   | { kind: 'motion-assign'; bank: number; before: MotionAssign | null }
   | { kind: 'motion-track'; bank: number; track: number; index: number; before: MotionTrackStep }
   | { kind: 'motion-track-param'; bank: number; track: number; before: string | undefined }
-  | { kind: 'seq-copy'; bank: number; before: SeqStep[] }
+  | { kind: 'seq-copy'; bank: number; before: SeqStep[][] }
   | { kind: 'drum-copy'; bank: number; before: DrumCell[][] }
   | { kind: 'sampler-copy'; bank: number; before: SamplerStep[][] }
   | { kind: 'motion-copy'; bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null;
       beforeTracks: MotionTrack[] };
 
 export interface PatternSnapshot {
-  seqBanks: SeqStep[][];
+  /** [bank][track][step] since v3 (sequencer.md REQ-8). */
+  seqBanks: SeqStep[][][];
   drumBanks: DrumCell[][][];
   seqEditBank: number;
   drumEditBank: number;
@@ -173,7 +179,8 @@ export function clampChainStep(i: number): number {
   return i === REST ? REST : clampBank(i);
 }
 
-export function makeSeqBank(): SeqStep[] {
+/** One track's 16 steps. The default note ladder is the pre-v3 seeding. */
+export function makeSeqTrack(): SeqStep[] {
   return Array.from({ length: SEQ_LENGTH }, (_, i) => ({
     on: false,
     note: 60 + (i % 8),
@@ -183,6 +190,11 @@ export function makeSeqBank(): SeqStep[] {
     ratchet: 1,
     tie: false,
   }));
+}
+
+/** One bank: SEQ_TRACK_COUNT tracks (sequencer.md REQ-8). */
+export function makeSeqBank(): SeqStep[][] {
+  return Array.from({ length: SEQ_TRACK_COUNT }, makeSeqTrack);
 }
 
 export function makeDrumBank(): DrumCell[][] {
@@ -207,7 +219,7 @@ export function makeMotionBank(): MotionStep[] {
  * blank bank can never drift between the two.
  */
 export function emptyPatternBanks(): {
-  seqBanks: SeqStep[][];
+  seqBanks: SeqStep[][][];
   drumBanks: DrumCell[][][];
   samplerBanks: SamplerStep[][][];
   motionBanks: MotionStep[][];
@@ -225,8 +237,8 @@ export function emptyPatternBanks(): {
 }
 
 export class PatternStore {
-  /** seqBanks[bank][step] */
-  readonly seqBanks: SeqStep[][];
+  /** seqBanks[bank][track][step] */
+  readonly seqBanks: SeqStep[][][];
   /** drumBanks[bank][track][step] */
   readonly drumBanks: DrumCell[][][];
   /** samplerBanks[bank][slot][step] */
@@ -247,10 +259,10 @@ export class PatternStore {
   private _samplerEdit = 0;
   private _motionEdit = 0;
 
-  private readonly seqListeners = new Set<(index: number, step: SeqStep) => void>();
+  private readonly seqListeners = new Set<(track: number, index: number, step: SeqStep) => void>();
   private readonly drumListeners = new Set<(track: number, step: number, cell: DrumCell) => void>();
   private readonly samplerListeners = new Set<(slot: number, step: number, cell: SamplerStep) => void>();
-  private readonly seqBankListeners = new Set<(bank: readonly SeqStep[]) => void>();
+  private readonly seqBankListeners = new Set<(bank: readonly (readonly SeqStep[])[]) => void>();
   private readonly drumBankListeners = new Set<(bank: readonly (readonly DrumCell[])[]) => void>();
   private readonly samplerBankListeners = new Set<(bank: readonly (readonly SamplerStep[])[]) => void>();
   private readonly motionListeners = new Set<(index: number, step: MotionStep) => void>();
@@ -285,13 +297,15 @@ export class PatternStore {
   get motionEditBank(): number { return this._motionEdit; }
 
   /** Back-compat accessors: the bank currently being edited in the UI. */
-  get seq(): SeqStep[] { return this.seqBanks[this._seqEdit]!; }
+  get seq(): SeqStep[][] { return this.seqBanks[this._seqEdit]!; }
+  /** One track of the edit bank. */
+  seqTrack(track: number): SeqStep[] | undefined { return this.seqBanks[this._seqEdit]?.[track]; }
   get drum(): DrumCell[][] { return this.drumBanks[this._drumEdit]!; }
   get sampler(): SamplerStep[][] { return this.samplerBanks[this._samplerEdit]!; }
   get motion(): MotionStep[] { return this.motionBanks[this._motionEdit]!; }
 
   /** Direct bank access (used by the transport for the *playing* bank). */
-  seqBank(i: number): SeqStep[] { return this.seqBanks[clampBank(i)]!; }
+  seqBank(i: number): SeqStep[][] { return this.seqBanks[clampBank(i)]!; }
   drumBank(i: number): DrumCell[][] { return this.drumBanks[clampBank(i)]!; }
   samplerBank(i: number): SamplerStep[][] { return this.samplerBanks[clampBank(i)]!; }
   motionBank(i: number): MotionStep[] { return this.motionBanks[clampBank(i)]!; }
@@ -338,12 +352,12 @@ export class PatternStore {
 
   // ---- Mutations (operate on the edit bank) ----
 
-  setSeqStep(index: number, patch: Partial<SeqStep>): void {
-    const s = this.seqBanks[this._seqEdit]?.[index];
+  setSeqStep(track: number, index: number, patch: Partial<SeqStep>): void {
+    const s = this.seqBanks[this._seqEdit]?.[track]?.[index];
     if (!s) return;
-    this.emitMutate(() => ({ kind: 'seq', bank: this._seqEdit, index, before: { ...s } }));
+    this.emitMutate(() => ({ kind: 'seq', bank: this._seqEdit, track, index, before: { ...s } }));
     Object.assign(s, patch);
-    for (const l of this.seqListeners) l(index, s);
+    for (const l of this.seqListeners) l(track, index, s);
   }
 
   setDrumCell(track: number, step: number, patch: Partial<DrumCell>): void {
@@ -439,14 +453,32 @@ export class PatternStore {
   // changed, so a caller can skip the toast on an already-empty bank.
 
   clearSeqBank(): boolean {
+    return this.clearSeqCells(null);
+  }
+
+  clearSeqTrack(track: number): boolean {
+    return this.clearSeqCells(track);
+  }
+
+  /** `track === null` clears every track of the edit bank; the mutation is
+   *  whole-bank either way, so one undo kind covers both scopes (REQ-7). */
+  private clearSeqCells(track: number | null): boolean {
     const bank = this.seqBanks[this._seqEdit]!;
-    if (!bank.some((s) => s.on)) return false;
-    this.emitMutate(() => ({ kind: 'seq-copy', bank: this._seqEdit, before: bank.map((s) => ({ ...s })) }));
-    for (let i = 0; i < bank.length; i++) {
-      const s = assertIndex(bank, i, 'seqSteps');
-      if (!s.on) continue;
-      s.on = false;
-      for (const l of this.seqListeners) l(i, s);
+    const rows = track === null ? [...bank.keys()] : [track];
+    const touched = rows.filter((t) => bank[t]?.some((s) => s.on));
+    if (touched.length === 0) return false;
+    this.emitMutate(() => ({
+      kind: 'seq-copy', bank: this._seqEdit,
+      before: bank.map((row) => row.map((s) => ({ ...s }))),
+    }));
+    for (const t of touched) {
+      const row = assertIndex(bank, t, 'seqTracks');
+      for (let i = 0; i < row.length; i++) {
+        const s = assertIndex(row, i, 'seqSteps');
+        if (!s.on) continue;
+        s.on = false;
+        for (const l of this.seqListeners) l(t, i, s);
+      }
     }
     return true;
   }
@@ -543,8 +575,12 @@ export class PatternStore {
     if (a === b) return;
     const src = assertIndex(this.seqBanks, a, 'seqBanks');
     const dst = assertIndex(this.seqBanks, b, 'seqBanks');
-    this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: dst.map((s) => ({ ...s })) }));
-    for (let i = 0; i < dst.length; i++) Object.assign(assertIndex(dst, i, 'seqSteps'), assertIndex(src, i, 'seqSteps'));
+    this.emitMutate(() => ({ kind: 'seq-copy', bank: b, before: dst.map((row) => row.map((s) => ({ ...s }))) }));
+    for (let t = 0; t < dst.length; t++) {
+      const srcRow = assertIndex(src, t, 'seqTracks');
+      const dstRow = assertIndex(dst, t, 'seqTracks');
+      for (let i = 0; i < dstRow.length; i++) Object.assign(assertIndex(dstRow, i, 'seqSteps'), assertIndex(srcRow, i, 'seqSteps'));
+    }
     if (b === this._seqEdit) this.emitBankSeq();
   }
 
@@ -601,7 +637,7 @@ export class PatternStore {
 
   // ---- Subscriptions ----
 
-  onSeqChange(fn: (index: number, step: SeqStep) => void): () => void {
+  onSeqChange(fn: (track: number, index: number, step: SeqStep) => void): () => void {
     this.seqListeners.add(fn);
     return () => { this.seqListeners.delete(fn); };
   }
@@ -649,7 +685,7 @@ export class PatternStore {
   }
 
   /** Fires once when the active edit bank changes (not per-cell). */
-  onSeqBankChange(fn: (bank: readonly SeqStep[]) => void): () => void {
+  onSeqBankChange(fn: (bank: readonly (readonly SeqStep[])[]) => void): () => void {
     this.seqBankListeners.add(fn);
     return () => { this.seqBankListeners.delete(fn); };
   }
@@ -709,8 +745,11 @@ export class PatternStore {
 
   private emitAllSeq(): void {
     const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
-    for (let i = 0; i < bank.length; i++) {
-      for (const l of this.seqListeners) l(i, assertIndex(bank, i, 'seqSteps'));
+    for (let t = 0; t < bank.length; t++) {
+      const row = assertIndex(bank, t, 'seqTracks');
+      for (let i = 0; i < row.length; i++) {
+        for (const l of this.seqListeners) l(t, i, assertIndex(row, i, 'seqSteps'));
+      }
     }
   }
 
@@ -738,7 +777,7 @@ export class PatternStore {
 
   snapshot(): PatternSnapshot {
     return {
-      seqBanks: this.seqBanks.map((b) => b.map((s) => ({ ...s }))),
+      seqBanks: this.seqBanks.map((bk) => bk.map((row) => row.map((s) => ({ ...s })))),
       drumBanks: this.drumBanks.map((bk) => bk.map((row) => row.map((c) => ({ ...c })))),
       seqEditBank: this._seqEdit,
       drumEditBank: this._drumEdit,
@@ -763,9 +802,17 @@ export class PatternStore {
         const incoming = snap.seqBanks[b];
         if (!incoming) continue;
         const bank = assertIndex(this.seqBanks, b, 'seqBanks');
-        for (let i = 0; i < bank.length; i++) {
-          const step = incoming[i];
-          if (step) Object.assign(assertIndex(bank, i, 'seqSteps'), SEQ_EXTRA_DEFAULTS, step);
+        for (let t = 0; t < bank.length; t++) {
+          const row = incoming[t];
+          const rowDst = assertIndex(bank, t, 'seqTracks');
+          for (let i = 0; i < rowDst.length; i++) {
+            const step = row?.[i];
+            // Authoritative like the other machines: a track absent from the
+            // snapshot (every v1-v5 file has only track 0) resets to blank
+            // rather than lingering from the previous song.
+            Object.assign(assertIndex(rowDst, i, 'seqSteps'),
+              makeSeqTrack()[i]!, SEQ_EXTRA_DEFAULTS, step ?? {});
+          }
         }
       }
     }

@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   SEQ_LENGTH,
+  SEQ_TRACK_COUNT,
   BANK_COUNT,
   DRUM_TRACKS,
   SAMPLER_SLOT_COUNT,
@@ -30,9 +31,11 @@ describe('websynth-song-author.schema.json', () => {
     for (const key of ['seq', 'drums', 'sampler', 'motion']) {
       expect(schema.properties[key].maxItems, key).toBe(BANK_COUNT);
     }
-    const [positional, defaults] = schema.$defs.seqBank.oneOf;
+    const [positional, defaults, tracks] = schema.$defs.seqBank.oneOf;
     expect(positional.maxItems).toBe(SEQ_LENGTH);
     expect(defaults.properties.notes.maxItems).toBe(SEQ_LENGTH);
+    // v6 multi-track form — capped at the real track count (sequencer.md REQ-8).
+    expect(tracks.properties.tracks.maxItems).toBe(SEQ_TRACK_COUNT);
     expect(schema.properties.sampleNames.maxItems).toBe(SAMPLER_SLOT_COUNT);
     // Hits address steps 0..15; chains address banks -1..3.
     const [hitIdx, hitObj] = schema.$defs.hit.oneOf;

@@ -5,7 +5,7 @@
  */
 import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign, MotionTrack } from './patterns';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank } from './patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank, makeSeqBank } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
@@ -23,10 +23,18 @@ export interface ChainData {
 
 export interface SongFile {
   format: 'websynth-song';
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   name: string;
   params: Record<string, number>;
+  /** v1-v5: one track per bank. Since v6 this is still **track 1** only —
+   *  tracks 2-4 live in the additive `seqTracks` (sequencer.md REQ-13). */
   seqBanks: SeqStep[][];
+  /**
+   * v6 — `seqTracks[bank][track]`, indexed by the REAL track number, so index 0
+   * is always null (track 1 is `seqBanks`). An empty track is null. Costs one
+   * null per bank and removes the off-by-one an "extra tracks" array invites.
+   */
+  seqTracks?: (SeqStep[] | null)[][];
   drumBanks: DrumCell[][][];
   seqChain: ChainData;
   drumChain: ChainData;
@@ -46,15 +54,50 @@ export interface SongFile {
   motionTracks?: (MotionTrack | null)[][];
 }
 
+/**
+ * Split the store's 3-D seq banks into the v6 file shape: track 1 stays in
+ * `seqBanks` (handled by the caller) and tracks 2-4 become `seqTracks`, with an
+ * empty track written as null. When no extra track holds a step the key is
+ * omitted entirely, so a one-track song serializes exactly as it did pre-v6.
+ */
+function splitSeqTracks(banks: SeqStep[][][]): { seqTracks?: (SeqStep[] | null)[][] } {
+  const used = banks.some((bank) => bank.slice(1).some((row) => row.some((s) => s.on)));
+  if (!used) return {};
+  return {
+    seqTracks: banks.map((bank) =>
+      bank.map((row, t) => (t === 0 || !row.some((s) => s.on) ? null : row.map((s) => ({ ...s }))))),
+  };
+}
+
+/** The inverse: rebuild `[bank][track][step]` for the store. Every version
+ *  before 6 simply has no `seqTracks`, so its banks come back one-track. */
+function mergeSeqTracks(file: SongFile): SeqStep[][][] {
+  return file.seqBanks.map((track0, b) => {
+    const bank = makeSeqBank();
+    bank[0] = track0;
+    const extra = file.seqTracks?.[b];
+    if (extra) {
+      for (let t = 1; t < bank.length; t++) {
+        const row = extra[t];
+        if (row) bank[t] = row;
+      }
+    }
+    return bank;
+  });
+}
+
 export const Song = {
   capture(bus: ParamBus, patterns: PatternStore, arr: Arrangement, name: string, xy?: XyPadStore): SongFile {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 5,
+      version: 6,
       name,
       params: bus.snapshot(),
-      seqBanks: snap.seqBanks,
+      // Track 1 keeps the v1-v5 field; 2-4 ride in the additive one, omitted
+      // entirely when empty so a one-track song is byte-identical to before.
+      seqBanks: snap.seqBanks.map((bank) => bank[0]!.map((s) => ({ ...s }))),
+      ...splitSeqTracks(snap.seqBanks),
       drumBanks: snap.drumBanks,
       seqChain: { enabled: arr.seq.enabled, steps: [...arr.seq.steps] },
       drumChain: { enabled: arr.drum.enabled, steps: [...arr.drum.steps] },
@@ -73,7 +116,7 @@ export const Song = {
     bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
     patterns.restore({
-      seqBanks: file.seqBanks,
+      seqBanks: mergeSeqTracks(file),
       drumBanks: file.drumBanks,
       samplerBanks: file.samplerBanks,
       sampleNames: file.sampleNames,

@@ -153,7 +153,7 @@ describe('Song', () => {
     expect(arr.seq.steps).toEqual([0, 1, 2, 3]);
     expect(arr.drum.steps).toEqual([0, 0, 0, 1]);
     // first sounded note of the Zombie Nation hook (step 0 is a rest)
-    expect(patterns.seqBanks[0]![2]!.note).toBe(69);
+    expect(patterns.seqBanks[0]![0]![2]!.note).toBe(69);
   });
 
   it('apply() resets params omitted from the snapshot back to their defaults', () => {
@@ -267,7 +267,7 @@ describe('Song', () => {
       arr.setSamplerChain([2, 3], true);
 
       const file = Song.capture(bus, patterns, arr as never, 'S');
-      expect(file.version).toBe(5);
+      expect(file.version).toBe(6);
       expect(file.samplerChain).toEqual({ enabled: true, steps: [2, 3] });
       expect(file.samplerBanks!.length).toBe(4);
       expect(file.samplerBanks![0]![0]![3]!.on).toBe(true);
@@ -314,7 +314,7 @@ describe('Song', () => {
       xy.set({ x: 'lfo.rate', y: 'master.volume' });
 
       const file = Song.capture(bus, patterns, fakeArr() as never, 'XY', xy);
-      expect(file.version).toBe(5);
+      expect(file.version).toBe(6);
       expect(file.xy).toEqual({ x: 'lfo.rate', y: 'master.volume' });
     });
 
@@ -322,7 +322,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'XY');
-      expect(file.version).toBe(5);
+      expect(file.version).toBe(6);
       expect(file.xy).toEqual(XY_DEFAULT_ASSIGN);
     });
 
@@ -389,7 +389,7 @@ describe('Song', () => {
       expect(bus.get('filter.resonance')).toBe(1.5);
       expect(bus.get('lfo.dest')).toBe(1); // LFO → cutoff
       // step 2 jumps the octave (45 → 57) in the bassline
-      expect(patterns.seqBanks[0]![2]!.note).toBe(57);
+      expect(patterns.seqBanks[0]![0]![2]!.note).toBe(57);
       expect(arr.seq.enabled).toBe(true);
     });
   });
@@ -417,7 +417,7 @@ describe('Song', () => {
       // faithfully rather than pinning a float that drifts on each retune.
       expect(bus.get('filter.resonance')).toBe(fat.params['filter.resonance']);
       expect(bus.get('fx.drum.comp.ratio')).toBe(4);       // ALL buttons in
-      expect(patterns.seqBanks[0]![2]!.tie).toBe(true);    // acid slide
+      expect(patterns.seqBanks[0]![0]![2]!.tie).toBe(true);    // acid slide
       expect(patterns.drumBanks[0]![3]![2]!.gate).toBeCloseTo(0.45); // choked open hat
       expect(patterns.drumBanks[0]![2]![1]!.prob).toBeCloseTo(0.35); // ghost hat
       expect(arr.seq.steps).toHaveLength(16);              // long chains
@@ -446,9 +446,53 @@ describe('Song', () => {
       Song.apply(DEMO_SONGS['Apex Twin']!, bus, patterns, arr as never);
 
       expect(bus.get('transport.bpm')).toBe(128);
-      expect(patterns.seqBanks[0]![0]!.note).toBe(45);
+      expect(patterns.seqBanks[0]![0]![0]!.note).toBe(45);
       expect(arr.seq.steps).toEqual([0, 0, 1, 0, 0, 2, 0, 3]);
       expect(arr.drum.steps).toEqual([0, 0, 1, 1, 2, 0, 1, 3]);
     });
+  });
+});
+
+describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
+  const rig = () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    return { bus, patterns: new PatternStore() };
+  };
+
+  it('a one-track song omits seqTracks entirely, so it is unchanged from v5', () => {
+    const { bus, patterns } = rig();
+    patterns.setSeqStep(0, 0, { on: true, note: 60 });
+    const file = Song.capture(bus, patterns, fakeArr() as never, 'One');
+    expect(file.seqTracks).toBeUndefined();
+    expect(file.seqBanks[0]![0]).toMatchObject({ on: true, note: 60 });
+  });
+
+  it('tracks 2-4 round-trip, with index 0 null (track 1 lives in seqBanks)', () => {
+    const { bus, patterns } = rig();
+    patterns.setSeqStep(0, 0, { on: true, note: 60 });
+    patterns.setSeqStep(2, 5, { on: true, note: 67 });
+    const file = Song.capture(bus, patterns, fakeArr() as never, 'Four');
+    expect(file.version).toBe(6);
+    expect(file.seqTracks![0]![0]).toBeNull();       // never duplicates track 1
+    expect(file.seqTracks![0]![1]).toBeNull();       // empty track stays null
+    expect(file.seqTracks![0]![2]![5]).toMatchObject({ on: true, note: 67 });
+
+    const parsed = Song.fromJSON(Song.toJSON(file))!;
+    const fresh = new PatternStore();
+    Song.apply(parsed, bus, fresh, fakeArr() as never);
+    expect(fresh.seqTrack(0)![0]).toMatchObject({ on: true, note: 60 });
+    expect(fresh.seqTrack(2)![5]).toMatchObject({ on: true, note: 67 });
+  });
+
+  it('a v1-v5 file loads with three empty tracks and sounds identical', () => {
+    const { bus, patterns } = rig();
+    // Dirty the extra tracks first: the load must be authoritative about them.
+    patterns.setSeqStep(3, 2, { on: true, note: 99 });
+    const legacy = { ...demo(), version: 5 as const };
+    Song.apply(legacy, bus, patterns, fakeArr() as never);
+    expect(patterns.seqTrack(1)!.every((s) => !s.on)).toBe(true);
+    expect(patterns.seqTrack(3)!.every((s) => !s.on)).toBe(true);
+    expect(patterns.seqTrack(0)!.some((s) => s.on)).toBe(true);
   });
 });

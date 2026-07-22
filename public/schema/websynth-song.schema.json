@@ -12,7 +12,7 @@
     },
     "version": {
       "type": "integer",
-      "enum": [1, 2, 3, 4, 5],
+      "enum": [1, 2, 3, 4, 5, 6],
       "description": "Format version. capture() always writes 4; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields — all still load. Versions beyond those this build knows are rejected."
     },
     "name": {
@@ -123,6 +123,27 @@
       }
     },
     "motionChain": { "$ref": "#/$defs/chainData", "description": "v4 (optional). Motion arrangement lane." },
+    "seqTracks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "v6 (optional). Sequencer tracks 2-4 per bank, indexed by the REAL track number — index 0 is always null because track 1 lives in 'seqBanks'. An unused track is null. Tracks 2-4 only sound in poly voicing.",
+      "items": {
+        "type": "array",
+        "maxItems": 4,
+        "items": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "array",
+              "minItems": 16,
+              "maxItems": 16,
+              "items": { "$ref": "#/$defs/seqStep" }
+            }
+          ]
+        }
+      }
+    },
     "motionTracks": {
       "type": "array",
       "minItems": 4,

@@ -9,7 +9,10 @@ import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, type MachinePanel } from './step-panel-scaffold';
+import {
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, GridCursor,
+  type MachinePanel,
+} from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
@@ -20,6 +23,8 @@ import {
   SAMPLER_SLOT_COUNT,
   SAMPLER_SLOT_LABELS,
   SEQ_LENGTH,
+  SEQ_TRACK_COUNT,
+  SEQ_TRACK_LABELS,
   type SeqStep,
 } from '../../state/patterns';
 
@@ -75,7 +80,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     if (armed === on) return;
     armed = on;
     recBtn.classList.toggle('on', armed);
-    stepRow.classList.toggle(styles.recording!, armed);
+    for (const el of trackNotes) el.classList.toggle(styles.recording!, armed);
     if (armed && bankBar.following) bankBar.setFollowing(false);
   }
 
@@ -88,62 +93,135 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   header.appendChild(selectedLabel);
   root.appendChild(header);
 
-  // ---- Step row ----
-  const stepRow = document.createElement('div');
-  stepRow.className = styles.stepRow!;
-  const steps: StepButton[] = [];
-  let selected = 0;
-
-  const renderSelected = () => {
-    const s = engine.patterns.seq[selected];
+  const renderSelected = (): void => {
+    const s = engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol];
     if (!s) return;
-    selectedLabel.textContent = `Step ${selected + 1}  ${noteName(s.note)}  vel ${(s.velocity * 100).toFixed(0)}%  gate ${(s.gate * 100).toFixed(0)}%`;
+    selectedLabel.textContent =
+      `Track ${SEQ_TRACK_LABELS[cursor.selRow] ?? cursor.selRow + 1}  ·  Step ${cursor.selCol + 1}  ${noteName(s.note)}`
+      + `  vel ${(s.velocity * 100).toFixed(0)}%  gate ${(s.gate * 100).toFixed(0)}%`;
   };
 
-  // Single place that moves the selection cursor and repaints the edit row.
-  // Used by clicks, the wheel handler, and step-record auto-advance.
-  function setSelected(i: number): void {
-    selected = i;
-    for (let k = 0; k < steps.length; k++) {
-      steps[k]!.el.classList.toggle(StepButton.selectedClass, k === selected);
-    }
+  // ---- Track rows (sequencer.md REQ-8/REQ-11) ----
+  // Four independent tracks. Track 1 is the pre-v3 sequencer and never folds;
+  // 2-4 fold, and start folded when empty so a fresh session still shows one
+  // row while a loaded four-track song shows everything it uses.
+  /** Re-run on every bank change / song load: reveal a track that has content
+   *  but no explicit user preference (REQ-11). */
+  const trackAutoReveal: (() => void)[] = [];
+
+  const grid = document.createElement('div');
+  grid.className = styles.trackGrid!;
+  const stepBtns: StepButton[][] = [];
+  const trackRows: HTMLElement[] = [];
+  const trackBodies: HTMLElement[] = [];
+  const trackNotes: HTMLElement[] = [];
+
+  const collapseKey = (t: number): string => `websynth.ui.collapsed.seqtrack.${t}`;
+  const trackHasSteps = (t: number): boolean =>
+    engine.patterns.seqTrack(t)?.some((s) => s.on) ?? false;
+
+  const cursor = new GridCursor(stepBtns, () => {
     renderSelected();
+    editor.refresh();
     refresh();
+  });
+  const setSelected = (t: number, i: number): void => cursor.set(t, i);
+
+  for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
+    const track = t;
+    const row = document.createElement('div');
+    row.className = styles.trackRow!;
+    row.dataset.testid = `seq-track-${t}`;
+
+    const ctrls = document.createElement('div');
+    ctrls.className = styles.trackCtrls!;
+
+    // Track 1 has nothing to fold; the others get a chevron that is also the
+    // row's label, so the whole header is one target.
+    const foldBtn = document.createElement('button');
+    foldBtn.type = 'button';
+    foldBtn.className = styles.trackFold!;
+    foldBtn.dataset.testid = `seq-track-fold-${t}`;
+    ctrls.appendChild(foldBtn);
+
+    const mute = new Switch(bus, `seq.t${t}.mute`, 'mute');
+    mute.el.classList.add(styles.trackMute!);
+    ctrls.appendChild(mute.el);
+    row.appendChild(ctrls);
+
+    const body = document.createElement('div');
+    body.className = styles.trackBody!;
+    const stepRowEl = document.createElement('div');
+    stepRowEl.className = styles.stepRow!;
+    const btns: StepButton[] = [];
+    for (let i = 0; i < SEQ_LENGTH; i++) {
+      const index = i;
+      const cell = engine.patterns.seqTrack(track)![i]!;
+      const sb = new StepButton(noteName(cell.note), 'orange');
+      // Track 1 keeps the original testid so every existing spec still selects
+      // it; the other tracks are namespaced.
+      sb.el.dataset.testid = track === 0 ? `seq-step-${i}` : `seq-step-${track}-${i}`;
+      paintStep(sb, cell);
+      sb.el.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        setSelected(track, index);
+        bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1), track, index);
+      }, { passive: false });
+      btns.push(sb);
+      stepRowEl.appendChild(sb.el);
+    }
+    stepBtns.push(btns);
+    body.appendChild(stepRowEl);
+    row.appendChild(body);
+    grid.appendChild(row);
+    trackRows.push(row);
+    trackBodies.push(body);
+    trackNotes.push(stepRowEl);
+
+    const setFolded = (folded: boolean, persist: boolean): void => {
+      row.classList.toggle(styles.folded!, folded);
+      foldBtn.textContent = `${folded ? '▸' : '▾'} ${SEQ_TRACK_LABELS[track] ?? track + 1}`;
+      foldBtn.title = folded ? 'Show this track' : 'Hide this track';
+      if (persist) localStorage.setItem(collapseKey(track), folded ? '1' : '0');
+    };
+    if (track === 0) {
+      foldBtn.textContent = `▾ ${SEQ_TRACK_LABELS[0]}`;
+      foldBtn.disabled = true;
+      foldBtn.title = 'Track 1 is always shown';
+    } else {
+      const stored = localStorage.getItem(collapseKey(track));
+      setFolded(stored !== null ? stored === '1' : !trackHasSteps(track), false);
+      foldBtn.addEventListener('click', () => {
+        setFolded(!row.classList.contains(styles.folded!), true);
+      });
+      // A loaded song that uses this track must never arrive hidden (REQ-11).
+      trackAutoReveal.push(() => {
+        if (localStorage.getItem(collapseKey(track)) === null && trackHasSteps(track)) {
+          setFolded(false, false);
+        }
+      });
+    }
   }
 
-  for (let i = 0; i < SEQ_LENGTH; i++) {
-    const cell = engine.patterns.seq[i]!;
-    const sb = new StepButton(noteName(cell.note), 'orange');
-    sb.el.dataset.testid = `seq-step-${i}`;
-    paintStep(sb, cell);
-    // Scroll a step to change its pitch: wheel = ±1 semitone, Shift = ±1 octave.
-    sb.el.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      setSelected(i);
-      bumpNote((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 12 : 1), i);
-    }, { passive: false });
-    steps.push(sb);
-    stepRow.appendChild(sb.el);
-  }
   // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,
   // long-press / right-click selects without toggling. While Step Input is
   // armed a press only moves the cursor — the notes come from the keyboard, so
   // a toggle there would fight the take (sequencer.md REQ-5).
   attachGridGestures({
-    cells: [steps.map((s) => s.el)],
-    isOn: (_r, c) => engine.patterns.seq[c]?.on ?? false,
-    onToggle: (_r, c, on) => { if (!armed) engine.patterns.setSeqStep(c, { on }); },
-    onSelect: (_r, c) => setSelected(c),
+    cells: stepBtns.map((row) => row.map((sb) => sb.el)),
+    isOn: (t, i) => engine.patterns.seqTrack(t)?.[i]?.on ?? false,
+    onToggle: (t, i, on) => { if (!armed) engine.patterns.setSeqStep(t, i, { on }); },
+    onSelect: setSelected,
     heldClass: StepButton.heldClass,
   });
 
-  const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'seq', bankBar, stepRow);
+  const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'seq', bankBar, grid);
   root.appendChild(gridWrap);
 
   // Step record: while armed, played notes (keyboard / QWERTY / MIDI) land in the
-  // selected step and the cursor advances. Audition is automatic — bus.onNote also
-  // reaches the engine, so the note sounds while transport passthrough isn't
-  // suppressed (i.e. the usual case of editing while stopped).
+  // selected step of the FOCUSED track (REQ-12) and the cursor advances.
+  // Audition is automatic — bus.onNote also reaches the engine, so the note
+  // sounds while transport passthrough isn't suppressed.
   //
   // `bus.onNote` is the *global* note funnel and cannot tell a note meant for this
   // grid from one played anywhere else, so `armed` carries the whole gate — and
@@ -151,37 +229,38 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   // belongs here: one source of truth, checked once.
   bus.onNote((on, note) => {
     if (!armed || !on) return;
-    engine.patterns.setSeqStep(selected, { on: true, note });
-    setSelected((selected + 1) % SEQ_LENGTH);
+    engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, { on: true, note });
+    setSelected(cursor.selRow, (cursor.selCol + 1) % SEQ_LENGTH);
   });
 
-  const highlighter = wirePlayhead(engine, 'seq', [steps], restOverlay);
+  const highlighter = wirePlayhead(engine, 'seq', stepBtns, restOverlay);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSeqBankChange((bank) => {
     highlighter.clear();
-    for (let i = 0; i < SEQ_LENGTH; i++) {
-      const s = bank[i]!;
-      const sb = steps[i];
-      if (!sb) continue;
-      paintStep(sb, s);
+    for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
+      for (let i = 0; i < SEQ_LENGTH; i++) {
+        const sb = stepBtns[t]?.[i];
+        if (sb) paintStep(sb, bank[t]![i]!);
+      }
     }
+    // A song that uses tracks 2-4 must not arrive with them folded away.
+    for (const reveal of trackAutoReveal) reveal();
     renderSelected();
   });
 
   // Live step edit updates
-  engine.patterns.onSeqChange((idx, step) => {
-    const sb = steps[idx];
-    if (!sb) return;
-    paintStep(sb, step);
-    if (idx === selected) renderSelected();
+  engine.patterns.onSeqChange((track, idx, step) => {
+    const sb = stepBtns[track]?.[idx];
+    if (sb) paintStep(sb, step);
+    if (track === cursor.selRow && idx === cursor.selCol) renderSelected();
   });
 
   // ---- Edit row ---- (shared sliders/ratchet/tie + the seq-only note picker)
   const editor = new StepSettingsEditor({
     testidPrefix: 'seq',
-    get: () => engine.patterns.seq[selected],
-    set: (p) => engine.patterns.setSeqStep(selected, p),
+    get: () => engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol],
+    set: (p) => engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, p),
   });
   const edit = editor.el;
 
@@ -213,12 +292,12 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   noteCtrl.appendChild(upBtn);
   edit.insertBefore(noteCtrl, edit.firstChild); // note picker leads the row
 
-  function bumpNote(delta: number, index = selected): void {
-    const s = engine.patterns.seq[index];
+  function bumpNote(delta: number, track = cursor.selRow, index = cursor.selCol): void {
+    const s = engine.patterns.seqTrack(track)?.[index];
     if (!s) return;
     const next = Math.max(0, Math.min(127, s.note + delta));
-    engine.patterns.setSeqStep(index, { note: next });
-    if (index === selected) noteDisplay.textContent = noteName(next);
+    engine.patterns.setSeqStep(track, index, { note: next });
+    if (track === cursor.selRow && index === cursor.selCol) noteDisplay.textContent = noteName(next);
   }
 
   root.appendChild(edit);
@@ -288,7 +367,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   // bar-exact length.
   let rendering = false;
   const refreshImport = () => {
-    const empty = !engine.patterns.seq.some((s) => s.on);
+    const empty = !engine.patterns.seq.some((track) => track.some((s) => s.on));
     const slaved = engine.sync.activeMode === 'slave';
     renderBtn.disabled = rendering || empty || slaved;
     renderBtn.textContent = rendering ? 'Rendering…' : 'Render';
@@ -305,21 +384,31 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   refreshImport();
 
   const refresh = () => {
-    const s = engine.patterns.seq[selected];
+    const s = engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol];
     if (!s) return;
     noteDisplay.textContent = noteName(s.note);
     editor.refresh();
     renderSelected();
   };
-  engine.patterns.onSeqChange((idx) => { if (idx === selected) refresh(); });
-  refresh();
+  engine.patterns.onSeqChange((track, idx) => {
+    if (track === cursor.selRow && idx === cursor.selCol) refresh();
+  });
 
-  // Initial selected highlight
-  stepRow.querySelector(`.${StepButton.rootClass}`)?.classList.add(StepButton.selectedClass);
+  // Tracks 2-4 only sound in poly voicing (REQ-9): dim them and say why, rather
+  // than letting four tracks fight over one mono voice.
+  bus.subscribe('voicing.mode', (v) => {
+    const poly = v >= 0.5;
+    for (let t = 1; t < trackRows.length; t++) {
+      trackRows[t]!.classList.toggle(styles.monoGated!, !poly);
+      trackRows[t]!.title = poly ? '' : 'mono voicing — switch to POLY to hear this track';
+    }
+  });
+
+  setSelected(0, 0);
 
   return {
     el: root,
     disarmStepInput: () => setArmed(false),
-    clearSelectedStep: () => engine.patterns.setSeqStep(selected, { on: false }),
+    clearSelectedStep: () => engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, { on: false }),
   };
 }

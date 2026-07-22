@@ -112,6 +112,12 @@ export function compactSongForExport(file: SongFile): Record<string, unknown> {
     seqChain: cloneChain(file.seqChain),
     drumChain: cloneChain(file.drumChain),
   };
+  if (file.seqTracks !== undefined) {
+    // Tracks 2-4 (index 0 is null — track 1 is seqBanks). An empty track stays
+    // null, so a one-track song adds nothing but four nulls per bank.
+    out.seqTracks = file.seqTracks.map((bank) =>
+      (bank ?? []).map((row) => (row ? row.map(compactSeqStep) : null)));
+  }
   if (file.samplerBanks !== undefined) {
     out.samplerBanks = file.samplerBanks.map((bank) => bank.map((row) => row.map(compactTriggerCell)));
   }

@@ -4,7 +4,7 @@ import { gotoAndStart, sessionDisplay } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
-  page.evaluate((idx) => (window as any).__synth.patterns.seq[idx].on, i);
+  page.evaluate((idx) => (window as any).__synth.patterns.seq[0][idx].on, i);
 
 test.describe('song mode', () => {
   test('save → new → load round-trips pattern state via localStorage', async ({ page }) => {

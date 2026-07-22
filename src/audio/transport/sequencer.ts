@@ -1,6 +1,7 @@
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
-import type { PatternStore } from '../../state/patterns';
+import type { PatternStore, SeqStep } from '../../state/patterns';
+import { SEQ_TRACK_COUNT } from '../../state/patterns';
 import type { SynthOutput } from './note-output';
 import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
@@ -11,15 +12,35 @@ export type StepListener = (step: number) => void;
 export type SeqNoteListener = (note: number, when: number, releaseAt: number) => void;
 
 /**
- * Monophonic 16-step note sequencer. Triggers the synth engine on each
- * active step. Keyboard input still passes through (it can layer on top).
+ * Per-track held-note state. Each of the four tracks is independently
+ * monophonic — it owns its ringing note and its tie flag — so four active
+ * tracks layer into a chord through the shared voice pool (sequencer.md REQ-8)
+ * without any of them stealing another's release.
+ */
+interface SeqTrackState {
+  lastPlayedNote: number;
+  lastReleaseAt: number;
+  prevTied: boolean;
+  muted: boolean;
+}
+
+const newTrackState = (): SeqTrackState =>
+  ({ lastPlayedNote: -1, lastReleaseAt: 0, prevTied: false, muted: false });
+
+/**
+ * Four-track 16-step note sequencer. Triggers the synth engine on each active
+ * step of each track. Keyboard input still passes through (it can layer on top).
+ *
+ * Tracks 2..4 only sound in **poly** voicing (REQ-9): in mono they would fight
+ * over the single voice and produce last-note-wins mush, so they are gated
+ * rather than silently mixed. Their data is untouched either way.
  */
 export class StepSequencer {
   private enabled = false;
   private muted = false;
-  private lastPlayedNote = -1;
-  private lastReleaseAt = 0;
-  private prevTied = false;
+  private polyphonic = true;
+  private readonly tracks: SeqTrackState[] =
+    Array.from({ length: SEQ_TRACK_COUNT }, newTrackState);
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly noteListeners = new ListenerSet<[number, number, number]>();
 
@@ -35,11 +56,36 @@ export class StepSequencer {
 
   setEnabled(on: boolean): void {
     this.enabled = on;
-    if (!on && this.lastPlayedNote >= 0) {
-      this.output.releaseNote(this.lastPlayedNote);
-      this.lastPlayedNote = -1;
+    if (!on) this.releaseAll();
+  }
+
+  /** Poly voicing gate for tracks 2..4 (REQ-9). Track 1 always plays. */
+  setPolyphonic(poly: boolean): void {
+    if (poly === this.polyphonic) return;
+    this.polyphonic = poly;
+    if (!poly) {
+      for (let t = 1; t < this.tracks.length; t++) this.releaseTrack(this.tracks[t]!);
     }
-    if (!on) this.prevTied = false;
+  }
+
+  /** Per-track mute (REQ-10): stop triggering, keep the playhead advancing. */
+  setTrackMuted(track: number, muted: boolean): void {
+    const st = this.tracks[track];
+    if (!st || st.muted === muted) return;
+    st.muted = muted;
+    if (muted) this.releaseTrack(st);
+  }
+
+  private releaseTrack(st: SeqTrackState, when?: number): void {
+    if (st.lastPlayedNote >= 0) {
+      this.output.releaseNote(st.lastPlayedNote, when);
+      st.lastPlayedNote = -1;
+    }
+    st.prevTied = false;
+  }
+
+  private releaseAll(when?: number): void {
+    for (const st of this.tracks) this.releaseTrack(st, when);
   }
 
   /**
@@ -49,11 +95,7 @@ export class StepSequencer {
    */
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (muted && this.lastPlayedNote >= 0) {
-      this.output.releaseNote(this.lastPlayedNote);
-      this.lastPlayedNote = -1;
-      this.prevTied = false;
-    }
+    if (muted) this.releaseAll();
   }
 
   onStep(fn: StepListener): () => void {
@@ -69,36 +111,45 @@ export class StepSequencer {
     if (!this.enabled) return;
     const idx = this.perf.stepIndex(step);
     this.stepListeners.emit(idx);
-    // Arrangement rest bar: play nothing this bar, but release a note tied into
-    // the rest so it doesn't ring forever (mirrors the per-step rest path below).
+    // Arrangement rest bar: play nothing this bar, but release notes tied into
+    // the rest so they don't ring forever (mirrors the per-step rest path).
     if (this.arrangement.seqResting) {
-      if (this.prevTied && this.lastPlayedNote >= 0) {
-        this.output.releaseNote(this.lastPlayedNote, when);
-        this.lastPlayedNote = -1;
+      for (const st of this.tracks) {
+        if (st.prevTied) this.releaseTrack(st, when);
+        st.prevTied = false;
       }
-      this.prevTied = false;
       return;
     }
     // Muted: keep the playhead moving (above) but trigger nothing. setMuted has
     // already released any held note, so just bail before scheduling.
     if (this.muted) return;
-    const s = this.patterns.seqBank(this.arrangement.seqPlayBank)[idx];
 
+    const bank = this.patterns.seqBank(this.arrangement.seqPlayBank);
+    // Track 1 always plays; 2..4 need poly voicing (REQ-9) and their own
+    // un-muted state (REQ-10). Each track advances independently below.
+    const last = this.polyphonic ? this.tracks.length : 1;
+    for (let t = 0; t < last; t++) {
+      const st = this.tracks[t]!;
+      if (st.muted) continue;
+      this.tickTrack(bank[t]?.[idx], st, when);
+    }
+  }
+
+  /** One track's step. Its held-note/tie handling is exactly the pre-v3
+   *  monophonic logic, now scoped to `st` instead of the whole machine. */
+  private tickTrack(s: SeqStep | undefined, st: SeqTrackState, when: number): void {
     // Rest (or step skipped by probability): let any held note finish, but a
     // tie into a rest must be released here so it doesn't ring forever.
     if (!s || !s.on || !rollProb(s.prob)) {
-      if (this.prevTied && this.lastPlayedNote >= 0) {
-        this.output.releaseNote(this.lastPlayedNote, when);
-        this.lastPlayedNote = -1;
-      }
-      this.prevTied = false;
+      if (st.prevTied) this.releaseTrack(st, when);
+      st.prevTied = false;
       return;
     }
 
     // Release the previous note before this attack — unless the previous step
     // tied, in which case we leave its voice ringing so the engine's mono
     // glide slurs into the new note (audible slide needs mixer.glide > 0).
-    if (!this.prevTied && this.lastPlayedNote >= 0) this.output.releaseNote(this.lastPlayedNote, when);
+    if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, when);
 
     const hits = stepHits(s, when, this.clock.sixteenthDuration());
     for (const h of hits) {
@@ -106,9 +157,9 @@ export class StepSequencer {
       // The final sub-hit holds (no release) when the step ties into the next.
       if (!h.holds) this.output.releaseNote(s.note, h.gateEnd);
     }
-    this.lastPlayedNote = s.note;
-    this.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
-    this.prevTied = s.tie;
+    st.lastPlayedNote = s.note;
+    st.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
+    st.prevTied = s.tie;
     this.noteListeners.emit(s.note, when, hits[0]!.gateEnd);
   }
 }

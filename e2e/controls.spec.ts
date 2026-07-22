@@ -77,7 +77,7 @@ test.describe('control surface (testids + debug bridge)', () => {
     await gotoAndStart(page);
     await page.getByTestId('tab-seq').click();
     const stepOn = () =>
-      page.evaluate(() => (window as unknown as { __synth: { patterns: { seq: Array<{ on: boolean }> } } }).__synth.patterns.seq[0]!.on);
+      page.evaluate(() => (window as unknown as { __synth: { patterns: { seq: Array<Array<{ on: boolean }>> } } }).__synth.patterns.seq[0]![0]!.on);
     const before = await stepOn();
     await page.getByTestId('seq-step-0').click();
     expect(await stepOn()).toBe(!before);

@@ -27,7 +27,7 @@ export function anythingToPlay(
 
   if (on('arp.on')) return true;
   if (on('seq.on') && banks(lanes.seq, patterns.seqEditBank)
-    .some((b) => patterns.seqBank(b).some((s) => s.on))) return true;
+    .some((b) => patterns.seqBank(b).some((track) => track.some((s) => s.on)))) return true;
   if (on('drum.on') && banks(lanes.drum, patterns.drumEditBank)
     .some((b) => patterns.drumBank(b).some((track) => track.some((c) => c.on)))) return true;
   if (on('sampler.on') && banks(lanes.sampler, patterns.samplerEditBank)

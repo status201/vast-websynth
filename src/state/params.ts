@@ -1,4 +1,4 @@
-import { DRUM_TRACK_COUNT } from './patterns';
+import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT } from './patterns';
 import { clamp, midiToHz } from '../utils/math';
 
 export type ParamId = string;
@@ -369,6 +369,12 @@ export function registerDefaults(bus: ParamBus): void {
     // Song-tab DJ controls. Seq mute stops the sequencer triggering (live keys
     // stay audible); solo silences the other lanes. Defaults are no-ops.
     { id: 'seq.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
+    // Per-track mute (sequencer.md REQ-10) — the drum machine's per-track rule.
+    // Default 0 is a no-op, so v1-v5 songs are unaffected (ADR-006).
+    ...Array.from({ length: SEQ_TRACK_COUNT }, (_, t) => ({
+      id: `seq.t${t}.mute`, min: 0, max: 1, default: 0, step: 1,
+      taper: 'discrete' as const, labels: ['on', 'mute'],
+    })),
     { id: 'seq.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
 
     // ----- Drum machine -----

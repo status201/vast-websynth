@@ -30,7 +30,7 @@ function machineOf(m: PatternMutation): UndoMachine {
 /** Same-target key so a drag coalesces into one undo step; copies never do. */
 function coalesceKey(m: PatternMutation): string | undefined {
   switch (m.kind) {
-    case 'seq': return `seq:${m.bank}:${m.index}`;
+    case 'seq': return `seq:${m.bank}:${m.track}:${m.index}`;
     case 'drum': return `drum:${m.bank}:${m.track}:${m.step}`;
     case 'sampler': return `sampler:${m.bank}:${m.slot}:${m.step}`;
     case 'motion': return `motion:${m.bank}:${m.index}`;
@@ -105,7 +105,7 @@ export class PatternUndo {
     switch (entry.kind) {
       case 'seq':
         p.setSeqEditBank(entry.bank);
-        p.setSeqStep(entry.index, { ...entry.before });
+        p.setSeqStep(entry.track, entry.index, { ...entry.before });
         break;
       case 'drum':
         p.setDrumEditBank(entry.bank);
@@ -125,7 +125,7 @@ export class PatternUndo {
         break;
       case 'seq-copy':
         p.setSeqEditBank(entry.bank);
-        entry.before.forEach((s, i) => p.setSeqStep(i, { ...s }));
+        entry.before.forEach((row, t) => row.forEach((s, i) => p.setSeqStep(t, i, { ...s })));
         break;
       case 'drum-copy':
         p.setDrumEditBank(entry.bank);

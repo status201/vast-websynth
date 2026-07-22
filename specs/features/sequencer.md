@@ -3,7 +3,7 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 2
+version: 3   # v3: four tracks (poly-gated), per-track mute + collapse, SongFile v6
 owner: core
 related:
   - architecture
@@ -24,8 +24,9 @@ source:
   - src/ui/components/bank-bar.ts        # setFollowing — the take is bank-pinned (REQ-6)
 ```
 
-The monophonic 16-step note sequencer that drives the synth voice on each active
-step.
+The 16-step note sequencer that drives the synth voice on each active step —
+**four independent tracks** (v3), so a bank can hold a chord or a counter-line
+instead of one monophonic riff.
 
 ## Background / Why
 
@@ -48,6 +49,12 @@ the **edit** bank while [banks](banks.md) REQ-5 Follow drags that bank along wit
 arrangement, a take during playback sprayed across all four banks. REQ-5..REQ-7 make
 the arm a deliberate, visible, bank-pinned mode instead: it exists only while its own
 grid is on screen, so "armed" and "visible" cannot disagree.
+
+(v3) One track meant a bank could only ever be one line: harmony had to be
+faked with the arpeggiator, ties or a second render into the sampler. Four
+tracks is the smallest change that makes chords and counter-lines native, and it
+costs nothing to existing songs — track 1 *is* the old sequencer, byte for byte,
+and tracks 2–4 start empty and silent.
 
 ## Requirements
 
@@ -79,6 +86,41 @@ grid is on screen, so "armed" and "visible" cannot disagree.
   second visibility check. One function owns the flag and both its visual affordances
   (button LED + grid outline); nothing else writes them.
 
+### v3 — four tracks
+
+- **REQ-8** — **Four tracks per bank.** `seqBanks` becomes `[bank][track][step]`
+  (`SEQ_TRACK_COUNT = 4`), mirroring the drum machine's shape. **Track 1 is the
+  pre-v3 sequencer** — same data, same behaviour — and tracks 2–4 start empty.
+  Each track is independently monophonic (its own held-note/tie state), so four
+  active tracks sound up to a four-note chord through the shared voice pool.
+- **REQ-9** — **Poly voicing gates the extra tracks.** While `voicing.mode` is
+  mono only track 1 triggers; tracks 2–4 keep their data, render dimmed and say
+  why ("mono voicing — switch to POLY"). Nothing is rewritten: flipping to poly
+  brings them straight back. Four tracks fighting over one mono voice would be
+  last-note-wins mush that reads as a bug, and silently forcing poly would
+  overwrite a param the user (or their song) set.
+- **REQ-10** — **Per-track mute** (`seq.t<i>.mute`, default 0 — a no-op per
+  [ADR-006](../decisions/adr-006-no-op-param-defaults.md)), the drum machine's
+  per-track mute rule: the track stops triggering while the playhead keeps
+  advancing. Independent of the lane-wide `seq.mute` (REQ-3) and of `seq.master`.
+- **REQ-11** — **Tracks 2–4 collapse, and start collapsed when empty.** A track
+  row folds to its header; the fold is per track and persisted under
+  `websynth.ui.collapsed.seqtrack.<i>`. With no stored preference an *empty*
+  track 2–4 starts folded (nothing to show) and one carrying steps starts open —
+  so loading a song that uses all four never hides its content, and a fresh
+  session shows one track, as before v3. Track 1 never collapses.
+- **REQ-12** — **Step Input targets the focused track** (REQ-5..7 otherwise
+  unchanged): notes land in the track holding the selection cursor, so the arm
+  stays the single source of truth and gains no second mode.
+- **REQ-13** — **SongFile v6** adds optional `seqTracks`, additive per
+  [ADR-007](../decisions/adr-007-songfile-additive-versioning.md).
+  `seqBanks` keeps its exact v1–v5 shape and meaning (**track 1**), so every
+  older file — and all committed demos — load and sound identical with three
+  empty tracks. `seqTracks[bank][track]` is indexed by the *real* track number
+  with **index 0 always null** (track 1 lives in `seqBanks`); that costs one
+  `null` per bank and removes the off-by-one that an "extra tracks" array would
+  invite. An empty track writes as `null`.
+
 ## Technical design
 
 ### Contract / public interface
@@ -87,8 +129,19 @@ grid is on screen, so "armed" and "visible" cannot disagree.
 StepSequencer:  # src/audio/transport/sequencer.ts
   setEnabled(on)
   setMuted(muted)        # DJ mute: stop triggering, keep advancing
+  setTrackMuted(track, muted)   # v3, REQ-10
+  setPolyphonic(poly)           # v3, REQ-9 — gates tracks 2..4
   onStep(fn) / onSeqNote(fn) -> unsubscribe   # playhead + note viz
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick
+  # per-track held-note/tie state lives in one SeqTrackState[] (v3)
+
+PatternStore (v3):     # src/state/patterns.ts
+  seqBanks[bank][track][step]        # was [bank][step]
+  seq -> SeqStep[][]                 # edit bank, track-major (like `drum`)
+  seqTrack(track) -> SeqStep[]       # one track of the edit bank
+  seqBank(i) -> SeqStep[][]
+  setSeqStep(track, index, patch)    # leading track arg (like setDrumCell)
+  clearSeqTrack(track)               # REQ-6 of step-grid-editing
 
 buildSeqPanel(bus, engine, undo): { el, disarmStepInput() }   # src/ui/panels/seq-panel.ts
   # el is the panel root (was the bare return); disarmStepInput is REQ-5's hook
@@ -108,6 +161,7 @@ BankBar.setFollowing(on): void   # src/ui/components/bank-bar.ts — public (REQ
 
 ```yaml
 seq.on:     { discrete, labels: [off, on], default: 0 }
+seq.t<i>.mute: { discrete, labels: [on, mute], default: 0 }   # v3, i = 0..3
 seq.master: { range: 0..1, default: 1 }      # voice-bus volume (no-op default)
 seq.mute:   { discrete, labels: [on, mute], default: 0 }   # lane mixer (song-mode)
 seq.solo:   { discrete, labels: [off, solo], default: 0 }
@@ -141,6 +195,47 @@ Scenario: Active steps trigger the synth on the beat
   When the transport reaches step 0
   Then the synth plays that note and releases it at gateEnd
 # pinned by: tests/audio/transport/sequencer.test.ts, e2e/patterns.spec.ts
+
+Scenario: Four tracks layer into a chord (v3)
+  Given tracks 1-3 each hold a note on step 0 and voicing is poly
+  When the transport reaches step 0
+  Then all three notes sound together
+  And each track holds and releases its own note, so one track's rest never
+    cuts another's tied note short
+# pinned by: tests/audio/transport/sequencer.test.ts, e2e/patterns.spec.ts
+
+Scenario: Mono voicing gates tracks 2-4 without losing them (v3)
+  Given tracks 1 and 2 both hold notes
+  When voicing.mode is mono
+  Then only track 1 sounds, and track 2 dims with "mono voicing — switch to POLY"
+  When voicing.mode returns to poly
+  Then track 2 sounds again, its steps untouched throughout
+# pinned by: tests/audio/transport/sequencer.test.ts, e2e/patterns.spec.ts
+
+Scenario: A per-track mute silences one track only (v3)
+  Given tracks 1 and 2 both hold notes on the same step
+  When track 2 is muted
+  Then track 1 still sounds and the playhead keeps advancing
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: Empty extra tracks start folded, used ones do not (v3)
+  Given a fresh session
+  Then tracks 2-4 are folded and track 1 is open
+  When a song using track 3 is loaded
+  Then track 3 unfolds, so its content is never hidden behind a chevron
+# pinned by: e2e/patterns.spec.ts
+
+Scenario: A one-track song is byte-identical to pre-v6 (v3, back-compat)
+  Given only track 1 holds steps
+  When the song is captured
+  Then no seqTracks key is written at all and the version stays as it was
+# pinned by: tests/state/song.test.ts, tests/state/song-author.test.ts
+
+Scenario: A v1-v5 file loads with three empty tracks (v3)
+  Given an older SongFile and a session that had dirtied tracks 2-4
+  When it is applied
+  Then tracks 2-4 are blank and track 1 sounds exactly as before
+# pinned by: tests/state/song.test.ts
 
 Scenario: DJ mute stops notes but the playhead keeps moving (edge)
   Given the sequencer is muted via the lane mixer

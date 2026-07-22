@@ -22,7 +22,7 @@ import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
-import { PatternStore, DRUM_TRACK_COUNT } from '../state/patterns';
+import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT } from '../state/patterns';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
@@ -520,6 +520,13 @@ export class Engine {
 
     // ----- Sequencer -----
     bus.subscribe('seq.on', (v) => this.seq.setEnabled(v >= 0.5));
+    // Tracks 2-4 only sound in poly voicing (sequencer.md REQ-9); each track
+    // also has its own mute (REQ-10), independent of the lane-wide seq.mute.
+    bus.subscribe('voicing.mode', (v) => this.seq.setPolyphonic(v >= 0.5));
+    for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
+      const track = t;
+      bus.subscribe(`seq.t${t}.mute`, (v) => this.seq.setTrackMuted(track, v >= 0.5));
+    }
     // Synth voice-bus volume (independent of mute: seq mute stops triggering,
     // not the bus, so live keys keep playing at this level).
     bus.subscribe('seq.master', (v) => rampTo(this.voiceBus.gain, v, this.ctx, RAMP_MEDIUM));
