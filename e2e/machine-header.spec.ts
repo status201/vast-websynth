@@ -11,6 +11,14 @@ import { gotoAndStart, busSet } from './helpers';
 const DESKTOP = { width: 1280, height: 900 };
 // Below the 1140px wrap step, where the FX cluster claims its own row.
 const TABLET = { width: 1024, height: 768 };
+// Comfortably above the wrap step. 1280 is the *top of the breakpoint cascade*,
+// not a width where the wide row is guaranteed to fit: the sampler's machine
+// controls plus four collapsed fx groups leave only ~57px of slack there under
+// Windows font metrics, and none under the wider fonts on CI Linux — where the
+// row then legitimately wraps under REQ-1. Row membership is therefore asserted
+// with real headroom, and the breakpoint rule itself is asserted from computed
+// style, so neither depends on how wide a font renders.
+const WIDE = { width: 1600, height: 900 };
 
 const SAMPLER_FX = ['dist', 'phaser', 'delay', 'reverb'] as const;
 const fxId = (name: string) => `fxgroup-fx.sampler.${name}`;
@@ -54,6 +62,12 @@ test.describe('responsive machine header', () => {
     await page.getByTestId('tab-sampler').click();
     await engageAllFx(page);
 
+    // REQ-3: below the wrap step the cluster claims a full-width row of its own.
+    // The mirror of the DESKTOP assertion below — together they pin the media
+    // query from both sides.
+    const cluster = page.getByTestId(fxId('dist')).locator('xpath=..');
+    expect(await cluster.evaluate((el) => getComputedStyle(el).flexBasis)).toBe('100%');
+
     // The machine controls share no row with any effect group: every group
     // starts at or below the bottom of the machine on/off switch.
     const machine = (await page.getByTestId('switch-sampler.on').boundingBox())!;
@@ -68,8 +82,18 @@ test.describe('responsive machine header', () => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
 
-    // Effects bypassed (the default): the collapsed row fits, so the first FX
-    // group still shares the machine controls' row exactly as before.
+    // REQ-4: above the wrap step the cluster is a plain content-sized run in DOM
+    // order — REQ-3's `flex-basis: 100%` must not reach here, and it is never
+    // right-aligned. Read from computed style, so a font that renders wider (and
+    // legitimately wraps the row under REQ-1) cannot turn this into a failure.
+    const cluster = page.getByTestId(fxId('dist')).locator('xpath=..');
+    expect(await cluster.evaluate((el) => getComputedStyle(el).flexBasis)).toBe('auto');
+    expect(await cluster.evaluate((el) => getComputedStyle(el).marginLeft)).not.toBe('auto');
+    expect(await horizontalOverflow(page)).toBe(0);
+
+    // And given room to spare, effects bypassed (the default), the first FX
+    // group shares the machine controls' row exactly as before.
+    await page.setViewportSize(WIDE);
     const machine = (await page.getByTestId('switch-sampler.on').boundingBox())!;
     const dist = (await page.getByTestId(fxId('dist')).boundingBox())!;
     expect(dist.y).toBeLessThan(machine.y + machine.height);

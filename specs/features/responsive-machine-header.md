@@ -3,7 +3,7 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 1
+version: 2   # v2: the wide row's fit is font-metric-dependent, so REQ-4 is pinned from computed style
 owner: ui
 related:
   - responsive-header
@@ -11,6 +11,7 @@ related:
   - drum-machine
   - sampler
   - banks
+  - step-grid-editing
 source:
   - src/ui/styles/layout.module.css   # .patternPanelHeader wrap + .fxCluster
   - src/ui/panels/sampler-panel.ts    # DIST / PHASER / DELAY / REVERB cluster
@@ -40,6 +41,16 @@ clipping therefore appeared to come and go with the effect switches, because
 `fxGroup` only reveals its knobs once `<prefix>.on >= 0.5` ([fx-group](fx-group.md)
 REQ-2).
 
+That machine-controls figure is a **budget, not a constant**, and it has since
+grown: [step-grid-editing](step-grid-editing.md) REQ-6 added a `Clear ▾` control
+to every machine header, ~82 px including its gap. At a 1280 px viewport the
+sampler's panel is ~1186 px wide and the bypassed row measures ~1129 px — about
+57 px of slack under Windows font metrics, and none under the wider default fonts
+on Linux CI, where the cluster then wraps. That wrap is **correct** behaviour
+(REQ-1), which is why REQ-4 is pinned from computed style rather than from
+whether the row happens to fit at any one width. Anything else added to this row
+should be measured against that ~57 px, not assumed free.
+
 This row was the last non-wrapping control row in the app — `panelRow`,
 `djFx`, `fxKnobs`, `tabs.bar`, `step-settings.edit` and the rest all already
 wrap. The fix adopts the same idiom, plus the deterministic line-break trick
@@ -64,10 +75,14 @@ somewhere predictable rather than mid-cluster.
   it leads its **own** full-width row. The machine controls keep the row(s)
   above and never reflow around individual fx groups.
 - **REQ-4** — Above 1140px the layout is **visually identical to before**: the
-  cluster is a plain content-sized run in the same DOM order, with the same
-  12 px gap, and is *not* right-aligned (no `margin-left: auto`). The only
-  observable difference at wide widths is that an over-long row now wraps
-  instead of clipping (REQ-1).
+  cluster is a plain content-sized run in the same DOM order (computed
+  `flex-basis: auto`, never REQ-3's `100%`), with the same 12 px gap, and is
+  *not* right-aligned (no `margin-left: auto`). The only observable difference at
+  wide widths is that an over-long row now wraps instead of clipping (REQ-1).
+  Sharing a row with the machine controls is a *consequence* of being
+  content-sized, **not a guarantee at any particular width** — see the budget
+  note above. The pin therefore reads the two properties directly at 1280 px and
+  checks row membership only where there is headroom to spare.
 - **REQ-5** — `.fxCluster` itself wraps internally (`flex-wrap: wrap`,
   `min-width: 0`), so once it owns a row its groups tile onto as many lines as
   needed rather than overflowing that row.
@@ -188,14 +203,24 @@ Scenario: The machine header never overflows its panel
 Scenario: FX take their own row below the wrap step
   Given the app is open at a 1024px-wide viewport
   And the Sampler tab is selected
-  Then the FX cluster starts below the machine on/off switch
+  Then the FX cluster computes flex-basis 100%
+  And it starts below the machine on/off switch
   And the machine controls share no row with any effect group
 # pinned by: e2e/machine-header.spec.ts
 
 Scenario: Wide layout is unchanged
   Given the app is open at a 1280px-wide viewport
   And the Sampler tab is selected
+  Then the FX cluster computes flex-basis auto and is not right-aligned
+  And the panel does not scroll horizontally
+# pinned by: e2e/machine-header.spec.ts
+
+Scenario: With headroom, the FX cluster shares the machine controls' row (edge)
+  Given the app is open at a 1600px-wide viewport
+  And the Sampler tab is selected with every effect bypassed
   Then the machine switch and the DIST group sit on the same row
+  # Deliberately not asserted at 1280px: the bypassed row leaves only ~57px of
+  # slack there, so wider font metrics legitimately wrap it (REQ-1).
 # pinned by: e2e/machine-header.spec.ts
 
 Scenario: A bypassed effect still anchors its help badge (regression)
