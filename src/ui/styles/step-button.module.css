@@ -58,7 +58,11 @@
     inset 0 1px 0 rgba(244, 205, 94, 0.2);
 }
 
-.selected {
+/* Selection cursor. Qualified with `.root` so it outranks the accent-specific
+   `.red.on` / `.yellow.on` border colours (also 0-2-0, declared above): a lit
+   beat-column cell must still show the cursor, since selection is what the
+   per-step edit row and Delete act on. */
+.root.selected {
   border-color: var(--accent-secondary);
 }
 

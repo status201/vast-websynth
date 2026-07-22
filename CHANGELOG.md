@@ -120,6 +120,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the Format switch, so it is obvious what each will write. While recording, the
   button still just says **Stop**.
 
+- **Help badges sit still** — the little (i) badges no longer pulse, and they are
+  a touch see-through, so a screenful of them is a quiet layer over the panels
+  rather than a dozen things blinking at once. They still glow, and hovering one
+  brings it back to full strength.
+
+### Fixed
+
+- **Selecting a beat-column step now shows** — on the Drum Machine and Sampler
+  grids, a lit step on beats 1, 5, 9 and 13 kept its red outline when selected,
+  so there was no sign of which step the edit row was about to change. It now
+  takes the same yellow outline as every other step.
+
 ## [2.2.1] - 2026-07-21
 
 ### Added

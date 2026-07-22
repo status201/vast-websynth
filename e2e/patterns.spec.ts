@@ -134,6 +134,36 @@ test.describe('pattern grids', () => {
     expect(await drumOn(page, 0, 0)).toBe(!before);
   });
 
+  // The beat columns (steps 0/4/8/12) are red, and `.red.on` used to outrank the
+  // selection border — a lit beat cell showed no cursor at all. See
+  // specs/features/step-grid-editing.md REQ-1.
+  test('a lit beat-column cell still shows the selection ring', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    const borderOf = (t: number, s: number): Promise<string> =>
+      page
+        .getByTestId(`drum-step-${t}-${s}`)
+        .evaluate((el) => getComputedStyle(el).borderTopColor);
+
+    // Light both cells first: the last one clicked owns the selection cursor.
+    await page.getByTestId('drum-step-0-4').click(); // red (beat column)
+    if (!(await drumOn(page, 0, 4))) await page.getByTestId('drum-step-0-4').click();
+    await page.getByTestId('drum-step-0-5').click(); // orange (off-beat)
+    if (!(await drumOn(page, 0, 5))) await page.getByTestId('drum-step-0-5').click();
+
+    const redUnselected = await borderOf(0, 4);
+    const orangeSelected = await borderOf(0, 5);
+    expect(redUnselected).not.toBe(orangeSelected);
+
+    // Right-click selects without toggling (REQ-3), so the red cell stays LIT —
+    // the case that used to lose the ring. A plain click would switch it off and
+    // pass regardless.
+    await page.getByTestId('drum-step-0-4').click({ button: 'right' });
+    expect(await drumOn(page, 0, 4)).toBe(true);
+    expect(await borderOf(0, 4)).toBe(orangeSelected);
+  });
+
   test('drum per-step settings show up on the cell', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();

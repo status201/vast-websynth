@@ -60,7 +60,12 @@ answer to "inspect this step without disturbing it".
 
 - **REQ-1** — **Tap toggles.** A tap/click on a step inverts its `on` flag and
   moves the selection cursor to it. This is unchanged behaviour and stays the
-  primary gesture on all four machines.
+  primary gesture on all four machines. The cursor must be **visible on every
+  cell** regardless of its accent colour or lit state — the drum/sampler grids
+  colour their beat columns (steps 1/5/9/13) red, and a lit red cell shows the
+  same accent-secondary ring as any other. An invisible cursor is a functional
+  defect, not a cosmetic one: selection is what the per-step edit row and
+  `Delete` (REQ-5) act on.
 - **REQ-2** — **Toggling off is non-destructive.** Switching a step off clears
   only `on`; `note` / `velocity` / `gate` / `prob` / `ratchet` / `tie` (and
   motion's `x`/`y`) are preserved, so toggling back on restores the step exactly.
@@ -227,6 +232,12 @@ Scenario: Tap still toggles, and toggling off keeps the step's settings
   When the user taps it, then taps it again
   Then it ends up on with note C4, velocity 0.6 and ratchet 3 unchanged
 # pinned by: tests/ui/grid-gestures.test.ts, tests/state/patterns.test.ts
+
+Scenario: A lit beat-column step shows the selection ring (REQ-1, regression)
+  Given the Drum tab with step 5 — a red beat column — switched on
+  When the user selects it
+  Then it shows the same accent-secondary ring as a lit off-beat step
+# pinned by: e2e/patterns.spec.ts
 
 Scenario: One swipe erases a run of hits
   Given the closed-hat row has hits on steps 2, 4, 6 and 8

@@ -142,17 +142,15 @@ button.toggleActive:global(.on) {
   cursor: pointer;
   pointer-events: auto;
   box-shadow: 0 0 10px var(--accent-glow);
-  animation: tourPulse 1.6s ease-in-out infinite;
+  /* Held back so a dozen badges sit over the panels instead of shouting; the
+     static glow is what makes them findable. No pulse — a screenful of them
+     breathing in sync reads as noise, not as an affordance. */
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
 }
 
-@keyframes tourPulse {
-  0%,
-  100% {
-    box-shadow: 0 0 6px var(--accent-glow);
-  }
-  50% {
-    box-shadow: 0 0 16px var(--accent-glow);
-  }
+.badge:hover {
+  opacity: 1;
 }
 
 /* ---- BPM "sweet spots" list (dynamic delay/rate help badges) ---- */
