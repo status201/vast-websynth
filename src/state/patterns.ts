@@ -325,6 +325,114 @@ export class PatternStore {
     for (const l of this.sampleMetaListeners) l(slot, name);
   }
 
+  // ---- Bulk clears (step-grid-editing.md REQ-6/REQ-7) ----
+  //
+  // Each emits exactly ONE `*-copy` mutation carrying a clone of the whole
+  // pre-clear bank, so a single Undo press restores everything — emitting N
+  // per-cell mutations would cost N undo presses to reverse one click. Only
+  // `on` is reset (REQ-2): a cleared step keeps its note/velocity/gate, so
+  // re-toggling it restores the step exactly. Each returns whether anything
+  // changed, so a caller can skip the toast on an already-empty bank.
+
+  clearSeqBank(): boolean {
+    const bank = this.seqBanks[this._seqEdit]!;
+    if (!bank.some((s) => s.on)) return false;
+    this.emitMutate(() => ({ kind: 'seq-copy', bank: this._seqEdit, before: bank.map((s) => ({ ...s })) }));
+    for (let i = 0; i < bank.length; i++) {
+      const s = assertIndex(bank, i, 'seqSteps');
+      if (!s.on) continue;
+      s.on = false;
+      for (const l of this.seqListeners) l(i, s);
+    }
+    return true;
+  }
+
+  clearDrumBank(): boolean {
+    return this.clearDrumCells(null);
+  }
+
+  clearDrumTrack(track: number): boolean {
+    return this.clearDrumCells(track);
+  }
+
+  clearSamplerBank(): boolean {
+    return this.clearSamplerCells(null);
+  }
+
+  clearSamplerSlot(slot: number): boolean {
+    return this.clearSamplerCells(slot);
+  }
+
+  /**
+   * Clear the edit bank's anchors. The bank's axis **override** is deliberately
+   * kept — it is configuration, not step data — and passing it as `beforeAssign`
+   * means undo restores it unchanged rather than resurrecting a stale one.
+   */
+  clearMotionBank(): boolean {
+    const bank = this.motionBanks[this._motionEdit]!;
+    if (!bank.some((s) => s.on)) return false;
+    const assign = this.motionAssigns[this._motionEdit] ?? null;
+    this.emitMutate(() => ({
+      kind: 'motion-copy',
+      bank: this._motionEdit,
+      before: bank.map((s) => ({ ...s })),
+      beforeAssign: assign ? { ...assign } : null,
+    }));
+    for (let i = 0; i < bank.length; i++) {
+      const s = assertIndex(bank, i, 'motionSteps');
+      if (!s.on) continue;
+      s.on = false;
+      for (const l of this.motionListeners) l(i, s);
+    }
+    return true;
+  }
+
+  /** `track === null` clears the whole bank; the mutation is whole-bank either
+   *  way, so one undo kind per machine covers both scopes (REQ-7). */
+  private clearDrumCells(track: number | null): boolean {
+    const bank = this.drumBanks[this._drumEdit]!;
+    const rows = track === null ? bank.keys() : [track];
+    const touched = [...rows].filter((t) => bank[t]?.some((c) => c.on));
+    if (touched.length === 0) return false;
+    this.emitMutate(() => ({
+      kind: 'drum-copy',
+      bank: this._drumEdit,
+      before: bank.map((row) => row.map((c) => ({ ...c }))),
+    }));
+    for (const t of touched) {
+      const row = assertIndex(bank, t, 'drumTracks');
+      for (let s = 0; s < row.length; s++) {
+        const cell = assertIndex(row, s, 'drumCells');
+        if (!cell.on) continue;
+        cell.on = false;
+        for (const l of this.drumListeners) l(t, s, cell);
+      }
+    }
+    return true;
+  }
+
+  private clearSamplerCells(slot: number | null): boolean {
+    const bank = this.samplerBanks[this._samplerEdit]!;
+    const rows = slot === null ? bank.keys() : [slot];
+    const touched = [...rows].filter((sl) => bank[sl]?.some((c) => c.on));
+    if (touched.length === 0) return false;
+    this.emitMutate(() => ({
+      kind: 'sampler-copy',
+      bank: this._samplerEdit,
+      before: bank.map((row) => row.map((c) => ({ ...c }))),
+    }));
+    for (const sl of touched) {
+      const row = assertIndex(bank, sl, 'samplerTracks');
+      for (let s = 0; s < row.length; s++) {
+        const cell = assertIndex(row, s, 'samplerCells');
+        if (!cell.on) continue;
+        cell.on = false;
+        for (const l of this.samplerListeners) l(sl, s, cell);
+      }
+    }
+    return true;
+  }
+
   copySeqBank(from: number, to: number): void {
     const a = clampBank(from), b = clampBank(to);
     if (a === b) return;

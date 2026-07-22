@@ -12,6 +12,11 @@ export class UiBridge {
    * shortcut only preventDefaults when it did. Assigned in buildPatternRow;
    * the default no-op leaves the key to the browser. */
   undoActiveMachine = (): boolean => false;
+  /** Clear the selected step on the active machine tab (Delete/Backspace —
+   * step-grid-editing.md REQ-5). Same late-bound seam as undoActiveMachine:
+   * returns whether it acted, so the key falls through on the Arp/Song/Motion
+   * tabs (Motion has no selection cursor — REQ-9). */
+  clearSelectedStep = (): boolean => false;
   /** Reveal a pattern-row tab by id, expanding the row if it is collapsed
    * (machine-status.md REQ-5/REQ-7) — drives the Song panel's lane titles.
    * Assigned in buildPatternRow, which is where `tabs` first exists: the Song

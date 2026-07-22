@@ -39,6 +39,7 @@ import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
 import { buildSamplerPanel } from './panels/sampler-panel';
+import type { MachinePanel } from './panels/step-panel-scaffold';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
@@ -387,11 +388,13 @@ function buildPatternRow(
   // Hoisted out of the tabs array: the panel is built before the TabContainer
   // exists, so this is the only way to keep a handle on it (see below).
   const seq = buildSeqPanel(bus, engine, patternUndo);
+  const drums = buildDrumPanel(bus, engine, patternUndo);
+  const sampler = buildSamplerPanel(bus, engine, patternUndo);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },
-    { id: 'drums', label: 'Drum Machine', content: buildDrumPanel(bus, engine, patternUndo), indicator: true },
-    { id: 'sampler', label: 'Sampler', content: buildSamplerPanel(bus, engine, patternUndo), indicator: true },
+    { id: 'drums', label: 'Drum Machine', content: drums.el, indicator: true },
+    { id: 'sampler', label: 'Sampler', content: sampler.el, indicator: true },
     { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo), indicator: true },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
@@ -410,6 +413,17 @@ function buildPatternRow(
     const m = TAB_MACHINE[tabs.activeId];
     if (!m || !patternUndo.canUndo(m)) return false;
     patternUndo.undo(m);
+    return true;
+  };
+
+  // Delete/Backspace clears the selected step of the machine behind the active
+  // tab (step-grid-editing.md REQ-5) — the same routing shape as Ctrl+Z above.
+  // Motion is absent on purpose: it has no selection cursor (REQ-9).
+  const TAB_PANEL: Record<string, MachinePanel> = { seq, drums, sampler };
+  bridge.clearSelectedStep = () => {
+    const panel = TAB_PANEL[tabs.activeId];
+    if (!panel) return false;
+    panel.clearSelectedStep();
     return true;
   };
 

@@ -7,7 +7,11 @@ import { Knob } from '../components/knob';
 import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor } from './step-panel-scaffold';
+import {
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor,
+  type MachinePanel,
+} from './step-panel-scaffold';
+import { attachGridGestures } from '../components/grid-gestures';
 import { fxGroup } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
@@ -19,7 +23,7 @@ import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
 
-export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
+export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): MachinePanel {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} drum-panel`;
   const header = document.createElement('div');
@@ -29,6 +33,10 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   const bankBar = bankBarFor(engine, 'drum');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'drum'));
+  header.appendChild(clearMenuFor(engine, 'drum', undo, {
+    label: () => modelName(cursor.selRow),
+    clear: () => engine.patterns.clearDrumTrack(cursor.selRow),
+  }));
 
   // FX groups mirror the drum bus chain order: comp → phaser → delay → reverb.
   // One cluster so the header breaks between machine controls and FX rather
@@ -115,10 +123,6 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
       sb.el.dataset.testid = `drum-step-${t}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
       paintTriggerCell(sb, cell);
-      sb.el.addEventListener('click', () => {
-        setSelected(t, s);
-        engine.patterns.setDrumCell(t, s, { on: !engine.patterns.drum[t]![s]!.on });
-      });
       cells.appendChild(sb.el);
       trackBtns.push(sb);
     }
@@ -126,6 +130,16 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     row.appendChild(cells);
     grid.appendChild(row);
   }
+  // The shared gesture model (step-grid-editing.md): tap toggles, drag paints
+  // across rows as well as columns, long-press / right-click selects only.
+  attachGridGestures({
+    cells: stepBtns.map((row) => row.map((sb) => sb.el)),
+    isOn: (t, s) => engine.patterns.drum[t]?.[s]?.on ?? false,
+    onToggle: (t, s, on) => engine.patterns.setDrumCell(t, s, { on }),
+    onSelect: setSelected,
+    heldClass: StepButton.heldClass,
+  });
+
   const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'drum', bankBar, grid);
   root.appendChild(gridWrap);
 
@@ -252,5 +266,8 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     if (track === cursor.selRow && step === cursor.selCol) editor.refresh();
   });
 
-  return root;
+  return {
+    el: root,
+    clearSelectedStep: () => engine.patterns.setDrumCell(cursor.selRow, cursor.selCol, { on: false }),
+  };
 }

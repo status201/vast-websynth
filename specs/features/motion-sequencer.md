@@ -9,6 +9,7 @@ owner: core
 related:
   - xy-pad
   - arrangement
+  - step-grid-editing
   - song-mode
   - banks
   - song-authoring-dialect

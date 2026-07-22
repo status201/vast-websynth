@@ -9,6 +9,7 @@ related:
   - architecture
   - transport
   - step-settings
+  - step-grid-editing
   - banks
   - arrangement
   - input-control
@@ -29,7 +30,9 @@ step.
 ## Background / Why
 
 A bread-and-butter step sequencer: 16 steps, each with a note and the shared
-[per-step settings](step-settings.md). It reads the **play bank** the
+[per-step settings](step-settings.md), edited with the shared grid gestures
+(tap toggles, drag paints, long-press selects without toggling —
+[step-grid-editing](step-grid-editing.md)). It reads the **play bank** the
 [arrangement](arrangement.md) selects (not necessarily the UI edit bank), so song
 playback and editing can diverge. Live keyboard input still passes through and can
 layer on top. The Song-tab DJ **mute** suppresses *triggering* while the playhead

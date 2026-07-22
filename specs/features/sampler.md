@@ -9,6 +9,7 @@ related:
   - architecture
   - drum-machine
   - step-settings
+  - step-grid-editing
   - banks
   - sample-recorder
   - song-mode
@@ -26,7 +27,8 @@ An 8-slot one-shot sampler — structurally a sibling of the
 
 ## Background / Why
 
-The sampler reuses the drum machine's grid/bank/step model but swaps synthesised
+The sampler reuses the drum machine's grid/bank/step model — including the
+shared [grid gestures](step-grid-editing.md) — but swaps synthesised
 voices for decoded audio buffers. Crucially, **decoded buffers are not persisted** —
 they live only in `SamplerMachine`; a song saves only the filenames
 (`patterns.sampleNames`), and after import the user re-loads the files (the UI shows

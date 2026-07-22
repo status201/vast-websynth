@@ -205,6 +205,7 @@ specs/
     drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler
     step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
+    step-grid-editing.md ·  the shared grid gesture model (tap/paint/hold, Clear ▾)
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)
     arrangement.md     ·  the four chain lanes
@@ -250,6 +251,7 @@ specs/
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe
     add-a-parameter.md       ·  the 3-edit pattern for any new scalar param
+    design-an-interaction.md ·  gesture inventory → precedent → wiring → undo
     add-an-effect.md         ·  a bypass-able insert effect on a bus
     add-an-audioworklet.md   ·  a new audio-thread DSP node + wrapper
     add-a-ui-component.md     ·  a hand-built DOM component
@@ -280,6 +282,7 @@ specs/
     adr-011-export-precision-and-default-sparse-serialization.md ·  compact export at the boundary
     adr-012-true-bypass-disconnects.md         ·  bypassed FX disconnect their processed path
     adr-013-authoring-dialect-input-only.md    ·  the authoring dialect is input-only
+    adr-014-dont-make-me-think.md              ·  interaction design: six ordered UX laws
 ```
 
 > Coverage note: the feature set above documents the current system. New features

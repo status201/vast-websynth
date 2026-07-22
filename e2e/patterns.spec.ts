@@ -170,3 +170,96 @@ test.describe('pattern grids', () => {
     await page.getByTestId('transport-play').click(); // stop
   });
 });
+
+/**
+ * The shared gesture model — specs/features/step-grid-editing.md. These drive
+ * the real pointer stack (Playwright's mouse emits pointerdown/move/up), which
+ * is the only place the hold timer and the paint latch are exercised end to end.
+ */
+test.describe('step-grid gestures', () => {
+  test('holding a lit step selects it for editing without switching it off', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+
+    // Light step 5, then hold it: the freak-out regression is that this used to
+    // turn it back off before the user could touch the edit row.
+    await page.getByTestId('seq-step-5').click();
+    expect(await seqOn(page, 5)).toBe(true);
+
+    const box = (await page.getByTestId('seq-step-5').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(500); // past the 350ms hold window
+    await page.mouse.up();
+
+    expect(await seqOn(page, 5)).toBe(true);
+    await expect(page.getByTestId('seq-vel')).toBeVisible();
+  });
+
+  test('right-click selects a lit step without toggling it', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-step-3').click();
+    expect(await seqOn(page, 3)).toBe(true);
+    await page.getByTestId('seq-step-3').click({ button: 'right' });
+    expect(await seqOn(page, 3)).toBe(true);
+  });
+
+  test('dragging across drum cells paints a run in one gesture', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    // Clear the row first so the latch is unambiguous (kick boots with a groove).
+    await page.getByTestId('clear-drum').click();
+    await page.getByTestId('clear-drum-row').click();
+    expect(await drumOn(page, 0, 0)).toBe(false);
+
+    const from = (await page.getByTestId('drum-step-0-1').boundingBox())!;
+    const to = (await page.getByTestId('drum-step-0-5').boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    // Several intermediate moves: one jump would skip the cells in between.
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(
+        from.x + from.width / 2 + ((to.x - from.x) * i) / 8,
+        from.y + from.height / 2,
+      );
+    }
+    await page.mouse.up();
+
+    for (let s = 1; s <= 5; s++) expect(await drumOn(page, 0, s)).toBe(true);
+    expect(await drumOn(page, 0, 6)).toBe(false);
+  });
+
+  test('Clear bank wipes the grid and the toast Undo brings it back in one press', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+    expect(await drumOn(page, 0, 0)).toBe(true); // seeded four-on-the-floor
+
+    await page.getByTestId('clear-drum').click();
+    await page.getByTestId('clear-drum-bank').click();
+    expect(await drumOn(page, 0, 0)).toBe(false);
+    expect(await drumOn(page, 1, 4)).toBe(false);
+
+    await page.getByTestId('toast-action').click();
+    expect(await drumOn(page, 0, 0)).toBe(true);
+    expect(await drumOn(page, 1, 4)).toBe(true);
+  });
+
+  test('Delete clears the selected step, and only on the visible tab', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-seq').click();
+    await page.getByTestId('seq-step-6').click();
+    expect(await seqOn(page, 6)).toBe(true);
+
+    await page.keyboard.press('Delete');
+    expect(await seqOn(page, 6)).toBe(false);
+
+    // Re-light it, leave the tab, and confirm the key can no longer reach it.
+    await page.getByTestId('seq-step-6').click();
+    expect(await seqOn(page, 6)).toBe(true);
+    await page.getByTestId('tab-sampler').click();
+    await page.keyboard.press('Delete');
+    expect(await seqOn(page, 6)).toBe(true);
+  });
+});

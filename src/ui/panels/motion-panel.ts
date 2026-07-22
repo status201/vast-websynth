@@ -9,7 +9,7 @@ import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
 import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints } from '../components/motion-graph';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead } from './step-panel-scaffold';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours } from '../../audio/transport/motion-curve';
 import { motionAxesFor } from '../../state/xy-effective';
@@ -73,6 +73,10 @@ export function buildMotionPanel(
   const bankBar = bankBarFor(engine, 'motion');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'motion'));
+  // Motion keeps its own per-pad gestures (step-grid-editing.md REQ-9) — this is
+  // the bulk escape hatch, since clearing 16 anchors by double-tapping each is
+  // exactly the tedium REQ-6 exists to remove. The bank's axis override survives.
+  header.appendChild(clearMenuFor(engine, 'motion', undo));
   header.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
   root.appendChild(header);
 

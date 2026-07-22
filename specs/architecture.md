@@ -378,6 +378,14 @@ into the committed demos and share links.)
   that changes nothing (sub level 0, unison 1 voice, drift 0, djfilter 0,
   `seq.master` 1) so existing presets are unaffected. `glide.mode` defaults to
   `always` (1) for the same reason.
+- **Interaction design follows "Don't Make Me Think"** — six ordered laws, chief
+  among them *one gesture, one outcome* (a gesture whose result depends on
+  invisible state is a defect) and *follow hardware/DAW precedent before
+  inventing*. Every new interactive control owes a **gesture inventory** in its
+  spec; run [`recipes/design-an-interaction.md`](recipes/design-an-interaction.md)
+  before writing the listener. See
+  [ADR-014](decisions/adr-014-dont-make-me-think.md); the grids' worked instance
+  is [`features/step-grid-editing.md`](features/step-grid-editing.md).
 - **CSS Modules** for all component/panel styling (`src/ui/styles/*.module.css`);
   global CSS is only `base.css` / `theme.css` / `layout.css`. State classes
   (`.on`, `.active`, `.playing`, …) are global — match with `:global(...)`.
@@ -432,6 +440,9 @@ load-bearing ones:
 - [ADR-013](decisions/adr-013-authoring-dialect-input-only.md) — the song
   authoring dialect is **input-only** (every import surface expands it to the
   canonical format; nothing ever exports it).
+- [ADR-014](decisions/adr-014-dont-make-me-think.md) — interaction design follows
+  *"Don't Make Me Think"*: six ordered laws, with *one gesture, one outcome* and
+  *precedent before invention* doing most of the work.
 
 ## Tests & verification
 

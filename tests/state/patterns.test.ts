@@ -397,3 +397,81 @@ describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', 
     expect(seen).toHaveLength(0);
   });
 });
+
+describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
+  it('clearSeqBank clears only `on`, keeping every per-step setting (REQ-2)', () => {
+    const p = new PatternStore();
+    p.setSeqStep(3, { on: true, note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
+    expect(p.clearSeqBank()).toBe(true);
+    const s = p.seq[3]!;
+    expect(s.on).toBe(false);
+    expect(s).toMatchObject({ note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
+  });
+
+  it('emits exactly ONE bulk mutation, not one per cell', () => {
+    const p = new PatternStore();
+    for (let i = 0; i < SEQ_LENGTH; i++) p.setSeqStep(i, { on: true });
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    p.clearSeqBank();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ kind: 'seq-copy', bank: 0 });
+  });
+
+  it('reports false and emits nothing on an already-empty bank', () => {
+    const p = new PatternStore();
+    p.setSeqEditBank(2); // untouched by the constructor's seeded groove
+    const seen: unknown[] = [];
+    p.onMutate((m) => seen.push(m));
+    expect(p.clearSeqBank()).toBe(false);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('notifies per-cell listeners so panels and the BankBar both repaint', () => {
+    const p = new PatternStore();
+    p.setSeqStep(1, { on: true });
+    p.setSeqStep(5, { on: true });
+    const touched: number[] = [];
+    p.onSeqChange((i) => touched.push(i));
+    p.clearSeqBank();
+    expect(touched).toEqual([1, 5]); // dead cells are not re-emitted
+  });
+
+  it('clearDrumTrack clears one row and leaves the rest of the bank alone', () => {
+    const p = new PatternStore();
+    expect(p.drum[0]!.some((c) => c.on)).toBe(true);  // seeded kick
+    expect(p.drum[1]!.some((c) => c.on)).toBe(true);  // seeded snare
+    expect(p.clearDrumTrack(0)).toBe(true);
+    expect(p.drum[0]!.some((c) => c.on)).toBe(false);
+    expect(p.drum[1]!.some((c) => c.on)).toBe(true);
+  });
+
+  it('clearDrumBank empties every track of the edit bank only', () => {
+    const p = new PatternStore();
+    p.copyDrumBank(0, 1);
+    expect(p.clearDrumBank()).toBe(true);
+    expect(p.drumBanks[0]!.every((row) => row.every((c) => !c.on))).toBe(true);
+    expect(p.drumBanks[1]!.some((row) => row.some((c) => c.on))).toBe(true);
+  });
+
+  it('clearSamplerSlot / clearSamplerBank scope the same way', () => {
+    const p = new PatternStore();
+    p.setSamplerCell(0, 0, { on: true });
+    p.setSamplerCell(1, 4, { on: true });
+    expect(p.clearSamplerSlot(0)).toBe(true);
+    expect(p.sampler[0]!.some((c) => c.on)).toBe(false);
+    expect(p.sampler[1]![4]!.on).toBe(true);
+    expect(p.clearSamplerBank()).toBe(true);
+    expect(p.sampler.every((row) => row.every((c) => !c.on))).toBe(true);
+  });
+
+  it('clearMotionBank drops the anchors but keeps the bank axis override (REQ-9)', () => {
+    const p = new PatternStore();
+    p.setMotionStep(2, { on: true, x: 0.3, y: 0.7 });
+    p.setMotionAssign({ x: 'fx.delay.mix' });
+    expect(p.clearMotionBank()).toBe(true);
+    expect(p.motion[2]!.on).toBe(false);
+    expect(p.motion[2]!.x).toBe(0.3);                       // coordinate preserved
+    expect(p.motionAssign(0)).toEqual({ x: 'fx.delay.mix' }); // config, not step data
+  });
+});

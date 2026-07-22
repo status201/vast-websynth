@@ -3,6 +3,10 @@ import { BankBar } from '../components/bank-bar';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
 import { buildRestOverlay, type RestLane, type RestOverlay } from '../components/rest-overlay';
 import { StepButton } from '../components/step-button';
+import { createClearMenu } from '../components/clear-menu';
+import { showToast } from '../components/toast';
+import type { PatternUndo } from '../../state/pattern-undo';
+import { BANK_LABELS } from '../../state/patterns';
 
 /**
  * The chrome every machine tab (seq / drum / sampler / motion) wraps around its
@@ -31,6 +35,8 @@ interface LaneHooks {
   hasContent(i: number): boolean;
   onContentChange(fn: () => void): () => void;
   onStep(fn: (idx: number) => void): () => void;
+  /** Clear the edit bank; true when something was actually cleared (REQ-6). */
+  clearBank(): boolean;
 }
 
 function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
@@ -51,6 +57,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         hasContent: (i) => p.seqBanks[i]!.some((s) => s.on),
         onContentChange: (fn) => p.onSeqChange(fn),
         onStep: (fn) => engine.seq.onStep(fn),
+        clearBank: () => p.clearSeqBank(),
       };
     case 'drum':
       return {
@@ -62,6 +69,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         hasContent: (i) => p.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
         onContentChange: (fn) => p.onDrumChange(fn),
         onStep: (fn) => engine.drums.onStep(fn),
+        clearBank: () => p.clearDrumBank(),
       };
     case 'sampler':
       return {
@@ -73,6 +81,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         hasContent: (i) => p.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
         onContentChange: (fn) => p.onSamplerChange(fn),
         onStep: (fn) => engine.sampler.onStep(fn),
+        clearBank: () => p.clearSamplerBank(),
       };
     case 'motion':
       return {
@@ -84,6 +93,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         hasContent: (i) => p.motionBanks[i]!.some((s) => s.on),
         onContentChange: (fn) => p.onMotionChange(fn),
         onStep: (fn) => engine.motion.onStep(fn),
+        clearBank: () => p.clearMotionBank(),
       };
   }
 }
@@ -144,6 +154,58 @@ export function wirePlayhead(
     restOverlay.refresh();
   });
   return highlighter;
+}
+
+/**
+ * What every machine tab returns, so `app.ts` can route keyboard actions to the
+ * grid that is actually on screen without knowing anything else about the panel
+ * (step-grid-editing.md REQ-5). The seq panel extends it with `disarmStepInput`.
+ */
+export interface MachinePanel {
+  readonly el: HTMLElement;
+  /** Switch the selected step off (Delete/Backspace). Non-destructive: the
+   *  step keeps its note/velocity/gate, per REQ-2. */
+  clearSelectedStep(): void;
+}
+
+/**
+ * The lane's `Clear ▾` header control, wired to the store's bulk-clear entry
+ * points (step-grid-editing.md REQ-6/REQ-8). Each clear is ONE PatternStore
+ * mutation, so the toast's Undo — and the machine's Undo button, and Ctrl+Z —
+ * all reverse the whole thing in a single press (REQ-7).
+ *
+ * `row` is the row-scoped item; single-row grids (seq, motion) omit it and get
+ * a bank-only menu.
+ */
+export function clearMenuFor(
+  engine: StudioApi,
+  lane: StepLane,
+  undo: PatternUndo,
+  row?: { label(): string; clear(): boolean },
+): HTMLElement {
+  const h = laneHooks(engine, lane);
+  const bankLabel = (): string => BANK_LABELS[h.getEdit()] ?? String(h.getEdit() + 1);
+
+  // Nothing cleared ⇒ no toast and no undo entry: an "Undo" that does nothing
+  // is worse than no toast at all.
+  const report = (what: string, changed: boolean): void => {
+    if (!changed) return;
+    showToast({
+      message: `Cleared ${what}`,
+      actionLabel: 'Undo',
+      onAction: () => undo.undo(lane),
+      testId: `clear-toast-${lane}`,
+    });
+  };
+
+  return createClearMenu({
+    lane,
+    bankLabel,
+    onClearBank: () => report(`bank ${bankLabel()}`, h.clearBank()),
+    ...(row
+      ? { rowLabel: row.label, onClearRow: () => report(row.label(), row.clear()) }
+      : {}),
+  });
 }
 
 /**

@@ -9,7 +9,8 @@ import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead } from './step-panel-scaffold';
+import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, type MachinePanel } from './step-panel-scaffold';
+import { attachGridGestures } from '../components/grid-gestures';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { Dropdown } from '../components/dropdown';
@@ -31,8 +32,7 @@ function paintStep(sb: StepButton, s: SeqStep): void {
   sb.el.title = `${noteName(s.note)} · ${stepTitle(s)}`;
 }
 
-export interface SeqPanel {
-  readonly el: HTMLElement;
+export interface SeqPanel extends MachinePanel {
   /**
    * Turn Step Input off from outside — `app.ts` calls this the moment the panel
    * stops being on screen (sequencer.md REQ-5), so the arm can never outlive
@@ -52,6 +52,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
+  header.appendChild(clearMenuFor(engine, 'seq', undo));
 
   // Step-record arm toggle. While armed, played notes fill steps (see below).
   let armed = false;
@@ -115,15 +116,6 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     const sb = new StepButton(noteName(cell.note), 'orange');
     sb.el.dataset.testid = `seq-step-${i}`;
     paintStep(sb, cell);
-    sb.el.addEventListener('click', () => {
-      setSelected(i);
-      // While armed, a click only moves the cursor; otherwise toggle on/off.
-      if (!armed) {
-        // Read the *current* edit bank's step, not the one captured at build.
-        const cur = engine.patterns.seq[i];
-        engine.patterns.setSeqStep(i, { on: !cur?.on });
-      }
-    });
     // Scroll a step to change its pitch: wheel = ±1 semitone, Shift = ±1 octave.
     sb.el.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -133,6 +125,18 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     steps.push(sb);
     stepRow.appendChild(sb.el);
   }
+  // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,
+  // long-press / right-click selects without toggling. While Step Input is
+  // armed a press only moves the cursor — the notes come from the keyboard, so
+  // a toggle there would fight the take (sequencer.md REQ-5).
+  attachGridGestures({
+    cells: [steps.map((s) => s.el)],
+    isOn: (_r, c) => engine.patterns.seq[c]?.on ?? false,
+    onToggle: (_r, c, on) => { if (!armed) engine.patterns.setSeqStep(c, { on }); },
+    onSelect: (_r, c) => setSelected(c),
+    heldClass: StepButton.heldClass,
+  });
+
   const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'seq', bankBar, stepRow);
   root.appendChild(gridWrap);
 
@@ -313,5 +317,9 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   // Initial selected highlight
   stepRow.querySelector(`.${StepButton.rootClass}`)?.classList.add(StepButton.selectedClass);
 
-  return { el: root, disarmStepInput: () => setArmed(false) };
+  return {
+    el: root,
+    disarmStepInput: () => setArmed(false),
+    clearSelectedStep: () => engine.patterns.setSeqStep(selected, { on: false }),
+  };
 }

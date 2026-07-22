@@ -6,7 +6,11 @@ import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor } from './step-panel-scaffold';
+import {
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor,
+  type MachinePanel,
+} from './step-panel-scaffold';
+import { attachGridGestures } from '../components/grid-gestures';
 import { openRecordSoundModal } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
@@ -17,7 +21,7 @@ import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
 
-export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): HTMLElement {
+export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): MachinePanel {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
 
@@ -29,6 +33,11 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'sampler'));
+  header.appendChild(clearMenuFor(engine, 'sampler', undo, {
+    label: () => engine.patterns.sampleNames[cursor.selRow]
+      ?? SAMPLER_SLOT_LABELS[cursor.selRow] ?? `S${cursor.selRow + 1}`,
+    clear: () => engine.patterns.clearSamplerSlot(cursor.selRow),
+  }));
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;
@@ -170,10 +179,6 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
       sb.el.dataset.testid = `sampler-step-${slot}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
       paintTriggerCell(sb, cell);
-      sb.el.addEventListener('click', () => {
-        setSelected(slot, s);
-        engine.patterns.setSamplerCell(slot, s, { on: !engine.patterns.sampler[slot]![s]!.on });
-      });
       cells.appendChild(sb.el);
       trackBtns.push(sb);
     }
@@ -183,6 +188,17 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
 
     refreshLabel(slot);
   }
+
+  // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,
+  // long-press / right-click selects only. Attached after the rows are built so
+  // every cell exists, and before the first repaint.
+  attachGridGestures({
+    cells: stepBtns.map((row) => row.map((sb) => sb.el)),
+    isOn: (sl, s) => engine.patterns.sampler[sl]?.[s]?.on ?? false,
+    onToggle: (sl, s, on) => engine.patterns.setSamplerCell(sl, s, { on }),
+    onSelect: setSelected,
+    heldClass: StepButton.heldClass,
+  });
 
   // ---- Per-step edit row (shared component; below the grid) ----
   const editor = new StepSettingsEditor({
@@ -227,5 +243,8 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
     if (slot === cursor.selRow) renderSelected();
   });
 
-  return root;
+  return {
+    el: root,
+    clearSelectedStep: () => engine.patterns.setSamplerCell(cursor.selRow, cursor.selCol, { on: false }),
+  };
 }

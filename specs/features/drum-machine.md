@@ -8,6 +8,7 @@ owner: core
 related:
   - architecture
   - step-settings
+  - step-grid-editing
   - banks
   - sampler
   - drum-kits
@@ -20,7 +21,8 @@ source:
 ```
 
 An 8-track synthesised drum machine on its own bus, sharing the
-[per-step settings](step-settings.md) and [bank](banks.md) machinery with the
+[per-step settings](step-settings.md), [bank](banks.md) and
+[grid-gesture](step-grid-editing.md) machinery with the
 sequencer and [sampler](sampler.md). Each track is sound-designable: pitch
 (tune), length (decay), brightness (tone), grit (drive), stereo position (pan),
 and volume.

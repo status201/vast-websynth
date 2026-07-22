@@ -86,6 +86,8 @@ export class StepButton {
   static get rootClass(): string { return styles.root!; }
   static get drumCellClass(): string { return styles['drum-cell']!; }
   static get selectedClass(): string { return styles.selected!; }
+  /** Ring shown while a long-press is registered (step-grid-editing.md REQ-3). */
+  static get heldClass(): string { return styles.held!; }
   static get onClass(): string { return styles.on!; }
   static get fillClass(): string { return styles.fill!; }
   static get tieClass(): string { return styles.tie!; }

@@ -91,7 +91,9 @@ pads) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
 `StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
 `bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
-via its `testidPrefix` opt), the Song panel's live FX (`perf-fill`/`perf-stutter`/
+via its `testidPrefix` opt),
+`clear-<seq|drum|sampler|motion>` + `clear-…-bank`/`clear-…-row`/`clear-toast-…`
+(the per-machine `Clear ▾` menu — see `specs/features/step-grid-editing.md`), the Song panel's live FX (`perf-fill`/`perf-stutter`/
 `perf-drop`/`perf-tapestop`, `perf-stutter-size-<n>`), the Song panel's per-lane
 DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `switch-<lane>.solo` + a `knob-<lane>.master` mirroring the per-machine volume;
@@ -276,7 +278,10 @@ stutter remaps). Named localStorage slots (presets, songs) share
 `emptyPatternBanks()` (`state/patterns.ts`), which shares PatternStore's own
 `make*Bank` builders. The four machine tabs share their chrome via
 `ui/panels/step-panel-scaffold.ts` (`bankBarFor`, `wrapGridWithRestOverlay`,
-`wirePlayhead`, `GridCursor`) plus `paintTriggerCell`
+`wirePlayhead`, `GridCursor`, `clearMenuFor` + the `MachinePanel` return shape)
+plus the one grid gesture controller `ui/components/grid-gestures.ts`
+(`attachGridGestures` — tap toggles, drag paints, long-press/right-click selects
+without toggling; see `specs/features/step-grid-editing.md` and ADR-014) plus `paintTriggerCell`
 (`ui/components/step-settings.ts`); the seq panel keeps its own painter because
 it also writes the note name as the label.
 

@@ -18,6 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Paint a run of steps in one swipe** — press a step and drag across the grid
+  to fill or wipe everything the pointer touches. Starting on an empty step
+  paints steps on; starting on a lit one erases, so clearing a whole hat line is
+  a single gesture instead of sixteen precise clicks. Works on the sequencer,
+  drum and sampler grids, with a finger or a mouse, and diagonally across
+  drum/sampler rows.
+
+- **Hold a step to edit it without switching it off** — press and hold (or
+  right-click) a lit step to select it for the edit row. The step stays exactly
+  as it was, ready to retune.
+
+- **Clear ▾ on every machine** — next to each machine's Undo button, a Clear
+  menu wipes the whole bank, or just the selected drum track / sampler slot. A
+  message appears with an Undo button, and one press brings everything back —
+  a cleared bank costs exactly one undo, not one per step.
+
+- **Delete key clears the selected step** — Delete or Backspace switches off the
+  step you have selected on whichever machine tab is open.
+
 - **Empty slot in the FX rack** — on narrower screens the five effect panels sit
   in two columns and left one cell empty. It now reads as a vacant slot with
   room for another module's front plate: an inset, borderless recess, faintly
@@ -27,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   decorative, and deliberately almost invisible.
 
 ### Changed
+
+- **Switching a step off keeps its settings** — a step you toggle off holds on to
+  its note, velocity, gate, probability, ratchet and tie, so toggling it back on
+  restores it exactly as it was. Clearing a bank works the same way.
 
 - **Audio buttons spell out the format** — on the Song tab, the Audio row's
   buttons now read **Export Song as WAV** / **Record as WAV** (or MP3), following

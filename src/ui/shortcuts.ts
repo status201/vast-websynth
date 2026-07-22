@@ -58,6 +58,14 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
 
+    // Delete/Backspace — clear the selected step on the active machine tab
+    // (step-grid-editing.md REQ-5). Scoped exactly like Ctrl+Z above, so it can
+    // never reach a grid that is off screen.
+    if (k === 'Delete' || k === 'Backspace') {
+      if (bridge.clearSelectedStep()) e.preventDefault();
+      return;
+    }
+
     // Pitch bend (springs back on release)
     if (k === '.') { bus.set('master.pitchBend', 1); return; }
     if (k === '/') { bus.set('master.pitchBend', -1); return; }

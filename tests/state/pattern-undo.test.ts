@@ -149,3 +149,59 @@ describe('PatternUndo', () => {
     expect(undo.canUndo('sampler')).toBe(false);
   });
 });
+
+describe('PatternUndo — bulk clears (step-grid-editing.md REQ-7)', () => {
+  it('one Undo press restores a whole cleared drum bank', () => {
+    // Bank A boots with the seeded groove, so nothing has to be edited first —
+    // the stack starts empty and its final size is the entry count of the clear.
+    const { patterns, undo } = build();
+    const before = patterns.drumBanks[0]!.map((r) => r.map((c) => ({ ...c })));
+    expect(before.some((r) => r.some((c) => c.on))).toBe(true);
+    patterns.clearDrumBank();
+    expect(patterns.drum.every((r) => r.every((c) => !c.on))).toBe(true);
+
+    undo.undo('drum');
+    expect(patterns.drumBanks[0]).toEqual(before);
+    expect(undo.canUndo('drum')).toBe(false); // exactly one entry was pushed
+  });
+
+  it('a row clear also costs one entry and restores the row', () => {
+    const { patterns, undo } = build();
+    const before = patterns.drumBanks[0]![0]!.map((c) => ({ ...c }));
+    patterns.clearDrumTrack(0);
+    expect(patterns.drum[0]!.some((c) => c.on)).toBe(false);
+    undo.undo('drum');
+    expect(patterns.drumBanks[0]![0]).toEqual(before);
+    expect(undo.canUndo('drum')).toBe(false);
+  });
+
+  it('undo of a seq bank clear brings back notes and settings together', () => {
+    const { patterns, undo } = build();
+    patterns.setSeqStep(2, { on: true, note: 67, ratchet: 4 });
+    patterns.setSeqStep(9, { on: true, note: 71 });
+    patterns.clearSeqBank();
+    undo.undo('seq');
+    expect(patterns.seq[2]).toMatchObject({ on: true, note: 67, ratchet: 4 });
+    expect(patterns.seq[9]).toMatchObject({ on: true, note: 71 });
+  });
+
+  it('clearing an empty bank pushes nothing, so Undo still targets the prior edit', () => {
+    const { patterns, undo } = build();
+    patterns.setSeqEditBank(1);
+    patterns.setSeqStep(0, { on: true, note: 60 });
+    patterns.clearSeqBank();     // one entry
+    patterns.clearSeqBank();     // no-op: bank is already empty
+    undo.undo('seq');
+    expect(patterns.seq[0]!.on).toBe(true);
+  });
+
+  it('a motion bank clear restores anchors without disturbing the override', () => {
+    const { patterns, undo } = build();
+    patterns.setMotionAssign({ y: 'filter.cutoff' });
+    patterns.setMotionStep(4, { on: true, x: 0.2, y: 0.8 });
+    patterns.clearMotionBank();
+    undo.undo('motion');
+    expect(patterns.motion[4]).toMatchObject({ on: true, x: 0.2, y: 0.8 });
+    expect(patterns.motionAssign(0)).toEqual({ y: 'filter.cutoff' });
+  });
+});
