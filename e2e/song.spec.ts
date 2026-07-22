@@ -104,6 +104,8 @@ test.describe('song mode', () => {
     await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
 
     await page.getByTestId('tab-song').click();
+    // audio-export.md REQ-8: the label names the format it will write.
+    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as WAV');
     const wavDownload = page.waitForEvent('download', { timeout: 20000 });
     await page.getByTestId('song-export-audio').click();
     const download = await wavDownload;
@@ -125,6 +127,8 @@ test.describe('song mode', () => {
 
     await page.getByTestId('tab-song').click();
     await page.getByTestId('song-export-fmt-mp3').click();
+    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as MP3');
+    await expect(page.getByTestId('song-record')).toHaveText('Record as MP3');
     const mp3Download = page.waitForEvent('download', { timeout: 20000 });
     await page.getByTestId('song-export-audio').click();
     const download = await mp3Download;

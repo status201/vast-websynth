@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
@@ -73,6 +73,12 @@ already-slow action, so the fetch is invisible next to the encode itself.
   assets ([pwa-install](pwa-install.md) REQ-6), so a chunk never fetched while
   online would be missing offline. A failed warm is swallowed — the real
   `import()` inside `encodeMp3` retries it.
+- **REQ-8 (format-echoing labels, v5)** — The Song tab's two audio buttons name
+  the format they will write: **`Export Song as <WAV|MP3>`** and
+  **`Record as <WAV|MP3>`**, both re-labelled the moment the Format switch
+  changes. While capturing, the record button reads plain **`Stop`** (stopping
+  needs no format) and reverts to `Record as <FMT>` afterwards. The `testids`
+  below stay the stable handles — these labels are not.
 
 ## Technical design
 
@@ -108,7 +114,8 @@ timing and re-entrancy are unchanged, and both callers fire-and-forget
 graph: master -> recorder worklet (zero-output sink; does not alter playback)
 song export: RecorderController drives clock from the top, watches bar count,
   finishes after the longest enabled chain (or FALLBACK_BARS) + TAIL_MS
-ui: src/ui/panels/song-panel.ts (Export Song WAV/MP3, manual record toggle)
+ui: src/ui/panels/song-panel.ts (Export Song WAV/MP3, manual record toggle;
+  both labels echo the selected format — REQ-8 — via one syncAudioLabels())
   testids: song-export-audio, song-export-fmt-<wav|mp3>, song-record
 build: vendor/lamejs is dynamic-import-only -> its own rolldown chunk
   (vite.config.ts codeSplitting group `lamejs`, mirroring `demos`)
@@ -148,6 +155,13 @@ Scenario: The lazily-loaded encoder still produces a valid MP3 (v4, REQ-7)
 #   + e2e/song.spec.ts — the only check that the dynamic import resolves in a
 #   real browser. It asserts the MPEG frame sync + 192 kbps index by byte
 #   inspection, so it runs on CI Chromium, which has no MP3 *decoder*.
+
+Scenario: The audio buttons name the format they will produce (v5, REQ-8)
+  Given the Song tab with Format = WAV
+  Then the buttons read "Export Song as WAV" and "Record as WAV"
+  When the user picks MP3
+  Then they read "Export Song as MP3" and "Record as MP3"
+# pinned by: e2e/song.spec.ts
 
 Scenario: An unsupported rate never loads the encoder (v4, edge)
   When encodeMp3 is awaited at a sample rate lamejs cannot handle

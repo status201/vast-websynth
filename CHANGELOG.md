@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Audio buttons spell out the format** — on the Song tab, the Audio row's
+  buttons now read **Export Song as WAV** / **Record as WAV** (or MP3), following
+  the Format switch, so it is obvious what each will write. While recording, the
+  button still just says **Stop**.
+
 ## [2.2.1] - 2026-07-21
 
 ### Added

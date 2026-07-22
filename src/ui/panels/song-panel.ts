@@ -441,6 +441,32 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   aio.appendChild(el('div', styles.sectionLabel!, 'Audio'));
 
   let fmt: ExportFormat = 'wav';
+
+  const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
+  expSongBtn.dataset.testid = 'song-export-audio';
+  expSongBtn.title = 'Render one full pass of the arrangement, then download';
+  expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
+
+  const recBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
+  recBtn.dataset.testid = 'song-record';
+  recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
+  recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
+
+  // Both labels name the format they will write (audio-export.md REQ-8), so the
+  // Format switch is never the only clue. One writer for both, since the record
+  // button's text is also driven by the recorder's state.
+  let recording = false;
+  const syncAudioLabels = (): void => {
+    const f = fmt.toUpperCase();
+    expSongBtn.textContent = `Export Song as ${f}`;
+    recBtn.textContent = recording ? 'Stop' : `Record as ${f}`;
+  };
+  engine.recorder.onState((rec) => {
+    recording = rec;
+    recBtn.classList.toggle('on', rec);
+    syncAudioLabels();
+  });
+
   const fmtSel = el('div', segmentedStyles.root!);
   ([['WAV', 'wav'], ['MP3', 'mp3']] as Array<[string, ExportFormat]>).forEach(([lbl, f], i) => {
     const b = document.createElement('button');
@@ -452,23 +478,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       fmt = f;
       for (const c of Array.from(fmtSel.children)) c.classList.remove('active');
       b.classList.add('active');
+      syncAudioLabels();
     });
     fmtSel.appendChild(b);
   });
-
-  const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Export Song') as HTMLButtonElement;
-  expSongBtn.dataset.testid = 'song-export-audio';
-  expSongBtn.title = 'Render one full pass of the arrangement, then download';
-  expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
-
-  const recBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Record') as HTMLButtonElement;
-  recBtn.dataset.testid = 'song-record';
-  recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
-  recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
-  engine.recorder.onState((rec) => {
-    recBtn.classList.toggle('on', rec);
-    recBtn.textContent = rec ? 'Stop' : 'Record';
-  });
+  syncAudioLabels();
 
   aio.appendChild(el('span', styles.ioLabel!, 'Format:'));
   aio.appendChild(fmtSel);
