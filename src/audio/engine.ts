@@ -22,7 +22,7 @@ import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
-import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT } from '../state/patterns';
+import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from '../state/patterns';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 
@@ -566,6 +566,11 @@ export class Engine {
     bus.subscribe('motion.on', (v) => this.motion.setEnabled(v >= 0.5));
     bus.subscribe('motion.mute', (v) => this.motion.setMuted(v >= 0.5));
     bus.subscribe('motion.slide', (v) => this.motion.setSlide(v >= 0.5));
+    // Each extra motion track interpolates on its own mode (REQ-2).
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const track = t;
+      bus.subscribe(`motion.t${t}.slide`, (v) => this.motion.setTrackSlide(track, v >= 0.5));
+    }
   }
 
   // ---------- Noise source ----------

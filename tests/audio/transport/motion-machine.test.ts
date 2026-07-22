@@ -441,3 +441,52 @@ describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-1
     expect(bus.get('fx.delay.mix')).toBe(before);
   });
 });
+
+describe('MotionMachine — per-lane Slide/Step (motion-sequencer.md REQ-2)', () => {
+  const setupTrack = (patterns: PatternStore, track: number, param: string,
+    anchors: Record<number, number>): void => {
+    patterns.setMotionTrackParam(track, param);
+    for (const [step, v] of Object.entries(anchors)) {
+      patterns.setMotionTrackStep(track, Number(step), { on: true, v: v });
+    }
+  };
+
+  it('two tracks interpolate differently in the same bar', () => {
+    const { bus, patterns, clock, machine } = build();
+    // Identical anchors on both tracks; only the MODE differs.
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0, 8: 1 });
+    setupTrack(patterns, 1, 'fx.reverb.mix', { 0: 0, 8: 1 });
+    machine.setTrackSlide(0, false); // A = step
+    machine.setTrackSlide(1, true);  // B = slide
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+
+    // Halfway to the step-8 anchor: A still holds step 0's value, B is midway.
+    machine.frame(4 * STEP_DUR);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(bus.def('fx.delay.mix')!, 0), 6);
+    expect(bus.get('fx.reverb.mix')).toBeCloseTo(fromNorm(bus.def('fx.reverb.mix')!, 0.5), 6);
+  });
+
+  it('the XY lane keeps its own mode, independent of the tracks', () => {
+    const { bus, patterns, clock, machine } = build();
+    anchor(patterns, 0, 0, 0);
+    anchor(patterns, 8, 1, 1);
+    setupTrack(patterns, 0, 'fx.delay.mix', { 0: 0, 8: 1 });
+    machine.setSlide(true);          // XY = slide
+    machine.setTrackSlide(0, false); // track A = step
+    machine.setEnabled(true);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(4 * STEP_DUR);
+
+    // XY ramps to the midpoint while the track holds its first anchor.
+    expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(bus.def('filter.cutoff')!, 0.5), 6);
+    expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(bus.def('fx.delay.mix')!, 0), 6);
+  });
+
+  it('setTrackSlide ignores an out-of-range track (edge)', () => {
+    const { machine } = build();
+    expect(() => { machine.setTrackSlide(9, false); }).not.toThrow();
+  });
+});

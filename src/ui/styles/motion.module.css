@@ -78,17 +78,19 @@
   stroke-dasharray: 3 3;
 }
 
-/* Axes row: which params the edit bank drives (override or inherited). */
-.axes {
+/* The XY lane's own header (motion-sequencer.md REQ-8): launcher, view toggle,
+   Slide/Step, the axes it drives and the hint reading them back — one row,
+   directly above its pads, so the toggle sits beside the readout it controls. */
+.xyHeader {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 6px;
+  margin-bottom: 6px;
   font-size: 11px;
   color: #b9a58f;
 }
-.axes .axisLabel {
+.xyHeader .axisLabel {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -130,19 +132,30 @@
   pointer-events: none;
 }
 
+/* A track lane: its controls above its own full-width cells, so all three
+   lanes share one 16-column grid and step n reads vertically across them
+   (REQ-16). A left gutter would indent the cells and break that. */
 .trackRow {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
 }
 
-.trackCtrls {
+.trackHeader {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 210px;
-  flex: none;
+  flex-wrap: wrap;
+}
+
+/* The single divider, carried by the first track: it fences the XY lane off
+   from the tracks. A and B are the same kind of lane, so nothing divides them.
+   Same dashed section rule the Song panel uses (song-panel.module.css .djFx). */
+.laneDivider {
+  border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 .trackLabel {
@@ -154,7 +167,6 @@
 
 .trackGrid {
   position: relative;
-  flex: 1;
   min-width: 0;
 }
 

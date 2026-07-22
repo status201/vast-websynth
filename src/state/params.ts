@@ -1,4 +1,4 @@
-import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT } from './patterns';
+import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
 import { clamp, midiToHz } from '../utils/math';
 
 export type ParamId = string;
@@ -400,7 +400,14 @@ export function registerDefaults(bus: ParamBus): void {
     // Song-tab mute: active = motion.on && !motion.mute (motion-sequencer.md REQ-12).
     { id: 'motion.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     // slide = linear interpolation between anchors; step = jump-and-hold.
+    // Mode is per lane (motion-sequencer.md REQ-2): this one drives the XY
+    // lane, each track has its own below, so a bank can sweep one param while
+    // stepping another. Same default, so nothing changes for existing songs.
     { id: 'motion.slide', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['step', 'slide'] },
+    ...Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => ({
+      id: `motion.t${t}.slide`, min: 0, max: 1, default: 1, step: 1,
+      taper: 'discrete' as const, labels: ['step', 'slide'],
+    })),
   ]);
 }
 

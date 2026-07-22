@@ -119,7 +119,7 @@ MotionBank — one bar of XY param automation: anchors the synth moves through w
   { "assign": { "x"?: "<param id>", "y"?: "<param id>" }, "steps": [ …anchors ] } to override,
   per bank, which two params the anchors drive (an unset axis inherits the song's "xy" assignment;
   x/y are the params' normalized 0..1 positions, like the XY pad surface).
-  "motion.slide" chooses the curve: 1 (default) ramps linearly between anchors (sweeps),
+  "motion.slide" chooses the XY lane's curve: 1 (default) ramps linearly between anchors (sweeps),
   0 jumps at each anchor and holds (param-lock stabs). A bank with no anchors automates nothing —
   e.g. a one-bar min→max→min cutoff sweep is [ {"step":0,"y":0,"x":0.5}, {"step":8,"y":1,"x":0.5}, {"step":15,"y":0,"x":0.5} ].
 
@@ -177,7 +177,8 @@ TOP-LEVEL SHAPE
   // Per bank, 2 more automation tracks that each drive ONE param of your choice —
   // so a bank can move up to 4 params, and the XY Pad stays free to play live.
   // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
-  // or null. Same slide/step curve rules as the XY anchors ("motion.slide").
+  // or null. Same slide/step curve rules as the XY anchors, but each track has
+  // its OWN mode param: "motion.t0.slide" / "motion.t1.slide" (1 = slide, default).
   "motionTracks": ((Track | null)[2])[${BANK_COUNT}],
 
   // ---- v6 sequencer tracks 2-4, OPTIONAL ----

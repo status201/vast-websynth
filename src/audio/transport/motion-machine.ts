@@ -62,7 +62,10 @@ interface MotionMachineOpts {
 export class MotionMachine {
   private enabled = false;
   private muted = false;
+  /** The XY lane's interpolation mode; each extra track carries its own (REQ-2). */
   private mode: MotionMode = 'slide';
+  private readonly trackModes: MotionMode[] =
+    Array.from({ length: MOTION_TRACK_COUNT }, () => 'slide' as MotionMode);
   private curr: LatchedTick | null = null;
   private prev: LatchedTick | null = null;
   private readonly baselines = new Map<string, number>();
@@ -147,8 +150,16 @@ export class MotionMachine {
     }
   }
 
+  /** The XY lane's mode (`motion.slide`). */
   setSlide(on: boolean): void {
     this.mode = on ? 'slide' : 'step';
+  }
+
+  /** One extra track's mode (`motion.t<i>.slide`) — independent of the XY lane
+   *  and of the other track, so a bank can sweep one param while stepping another. */
+  setTrackSlide(track: number, on: boolean): void {
+    if (track < 0 || track >= this.trackModes.length) return;
+    this.trackModes[track] = on ? 'slide' : 'step';
   }
 
   onStep(fn: MotionStepListener): () => void {
@@ -203,7 +214,7 @@ export class MotionMachine {
       const track = tracks[t];
       const id = track?.param;
       if (!track || !id) continue;
-      const v = valueAt1D(track.steps, pos / SEQ_LENGTH, this.mode, {
+      const v = valueAt1D(track.steps, pos / SEQ_LENGTH, this.trackModes[t]!, {
         prev: this.carryTrack(tick.prevBank, tick.prevResting, t, id),
         next: this.carryTrack(tick.nextBank, tick.nextResting, t, id),
       });

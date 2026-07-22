@@ -58,6 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   current sound is never touched. Re-importing a file you exported yourself
   changes nothing.
 
+- **The Motion tab is laid out by lane** — each of the three lanes now carries
+  its own controls on a line directly above its own cells, instead of the XY
+  lane's settings being split between the top header and a row underneath the
+  pads. The XY Pad button, the Y/X graph toggle, the SLIDE/STEP switch, the two
+  axis dropdowns and the "inherited / graph" readout are together in one row, so
+  the toggle sits beside the value it explains. All three lanes share the same
+  16 columns, so step 5 lines up vertically across them, and a single divider
+  separates the XY lane from the two tracks.
+
 - **Two more automation tracks in the Motion sequencer** — each motion bank now
   carries two extra tracks alongside the XY pair, and each one drives a single
   parameter you pick yourself. A bank can move up to four parameters at once, and
@@ -66,6 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and double-click to clear, exactly like the XY steps. They follow the same
   Slide/Step curve and the same flow across the bar line, and copying a bank
   brings the tracks and their parameter choices with it.
+
+- **Slide or Step per motion lane** — the Motion tab's SLIDE/STEP switch used to
+  apply to everything at once. Each lane now has its own, so the XY sweep and the
+  two extra tracks can differ: ramp a filter smoothly while another parameter
+  jumps and holds, in the same bar.
 
 - **Four sequencer tracks** — the note sequencer now has four independent
   tracks per bank instead of one, so a bank can hold a chord or a counter-line

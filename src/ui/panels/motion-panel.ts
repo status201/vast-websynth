@@ -50,7 +50,14 @@ export function buildMotionPanel(
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'motion.on', 'motion').el);
-  header.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
+
+  // ---- XY lane header (REQ-8) ----
+  // Everything that belongs to the XY lane rather than the machine: its
+  // launcher, its graph projection toggle, its interpolation mode, the axes it
+  // drives and the hint reading them back — one row, directly above its pads.
+  const xyHeader = document.createElement('div');
+  xyHeader.className = styles.xyHeader!;
+  xyHeader.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
 
   const viewSel = document.createElement('div');
   viewSel.className = segmentedStyles.root!;
@@ -71,7 +78,8 @@ export function buildMotionPanel(
     });
     viewSel.appendChild(b);
   });
-  header.appendChild(viewSel);
+  xyHeader.appendChild(viewSel);
+  xyHeader.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
 
   const bankBar = bankBarFor(engine, 'motion');
   header.appendChild(bankBar.el);
@@ -80,8 +88,10 @@ export function buildMotionPanel(
   // the bulk escape hatch, since clearing 16 anchors by double-tapping each is
   // exactly the tedium REQ-6 exists to remove. The bank's axis override survives.
   header.appendChild(clearMenuFor(engine, 'motion', undo));
-  header.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
   root.appendChild(header);
+  // Populated further down by the axes block; placed here so it renders between
+  // the machine header and the pads it belongs to.
+  root.appendChild(xyHeader);
 
   // ---- Step grid: one row of 16 mini XY pads ----
   const cells = document.createElement('div');
@@ -184,23 +194,23 @@ export function buildMotionPanel(
     }
   };
 
-  // ---- Axes row: the edit bank's effective assignment (override or inherit) ----
-  const axes = document.createElement('div');
-  axes.className = styles.axes!;
+  // ---- Axes: the edit bank's effective assignment (override or inherit) ----
+  // Appended into the XY lane header above, so the dropdowns and the "graph:"
+  // hint sit beside the view toggle that drives them (REQ-8).
   const paramIds = bus.ids().slice().sort();
 
   const mkAxis = (axis: 'x' | 'y'): Dropdown => {
     const label = document.createElement('span');
     label.className = styles.axisLabel!;
     label.textContent = axis.toUpperCase();
-    axes.appendChild(label);
+    xyHeader.appendChild(label);
     const sel = new Dropdown(paramIds, xy.get()[axis]);
     sel.el.dataset.testid = `motion-assign-${axis}`;
     sel.onChange((id) => {
       const ov = patterns.motionAssign(patterns.motionEditBank) ?? {};
       patterns.setMotionAssign({ ...ov, [axis]: id });
     });
-    axes.appendChild(sel.el);
+    xyHeader.appendChild(sel.el);
     return sel;
   };
   const xSel = mkAxis('x');
@@ -213,12 +223,11 @@ export function buildMotionPanel(
   resetBtn.textContent = '↺ inherit';
   resetBtn.title = "Clear this bank's override and follow the XY Pad assignment";
   resetBtn.addEventListener('click', () => patterns.setMotionAssign(null));
-  axes.appendChild(resetBtn);
+  xyHeader.appendChild(resetBtn);
 
   const hint = document.createElement('span');
   hint.className = styles.hint!;
-  axes.appendChild(hint);
-  root.appendChild(axes);
+  xyHeader.appendChild(hint);
 
   const refreshAxes = (): void => {
     const ov = patterns.motionAssign(patterns.motionEditBank);
@@ -242,10 +251,12 @@ export function buildMotionPanel(
   const NONE = '— none —';
   const buildTrackRow = (track: number): { repaint: () => void } => {
     const row = document.createElement('div');
-    row.className = styles.trackRow!;
+    // The first track carries the one divider — A and B are the same kind of
+    // lane, so only the XY lane above is fenced off (REQ-8).
+    row.className = styles.trackRow! + (track === 0 ? ` ${styles.laneDivider!}` : '');
 
     const ctrls = document.createElement('div');
-    ctrls.className = styles.trackCtrls!;
+    ctrls.className = styles.trackHeader!;
     const label = document.createElement('span');
     label.className = styles.trackLabel!;
     label.textContent = MOTION_TRACK_LABELS[track] ?? String(track + 1);
@@ -255,6 +266,9 @@ export function buildMotionPanel(
     picker.el.dataset.testid = `motion-trk-${track}-param`;
     picker.onChange((id) => patterns.setMotionTrackParam(track, id === NONE ? null : id));
     ctrls.appendChild(picker.el);
+    // This lane's own interpolation mode (REQ-2/REQ-16). Segmented mints
+    // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
+    ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
     row.appendChild(ctrls);
 
     const cells = document.createElement('div');
@@ -301,7 +315,7 @@ export function buildMotionPanel(
         pads[i]!.setInert(!assigned);
       }
       graph.innerHTML = '';
-      const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
+      const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
       const { line, dots, carry } =
         motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param));
       for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
@@ -320,7 +334,11 @@ export function buildMotionPanel(
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
   const repaintTracks = (): void => { for (const r of trackRows) r.repaint(); };
   patterns.onMotionTrackChange(repaintTracks);
-  bus.subscribe('motion.slide', repaintTracks);
+  // Per lane (REQ-2): a track's staircase-vs-ramp follows its own param, so the
+  // XY lane's STEP/SLIDE no longer redraws the tracks.
+  for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+    bus.subscribe(`motion.t${t}.slide`, () => trackRows[t]?.repaint());
+  }
   engine.arrangement.onChange(repaintTracks);
 
   // ---- Wiring ----

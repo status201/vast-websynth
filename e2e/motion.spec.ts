@@ -20,6 +20,20 @@ async function setAnchor(page: Page, step: number, x: number, y: number): Promis
   await pad.click({ position: { x: px, y: py } });
 }
 
+/**
+ * Click inside an extra track's level pad at a normalized value (y-up). Uses
+ * `locator.click` rather than raw `page.mouse` so Playwright scrolls the cell
+ * into view first — the panel is tall enough that a lower lane can sit below
+ * the fold, and raw mouse coordinates would land somewhere else entirely.
+ */
+async function setTrackLevel(page: Page, track: number, step: number, v: number): Promise<void> {
+  const pad = page.getByTestId(`motion-trk-${track}-step-${step}`);
+  const box = await pad.boundingBox();
+  if (!box) throw new Error(`motion-trk-${track}-step-${step} has no box`);
+  const py = Math.min(Math.max((1 - v) * box.height, 2), box.height - 2);
+  await pad.click({ position: { x: box.width / 2, y: py } });
+}
+
 async function openMotionTab(page: Page): Promise<void> {
   await page.getByTestId('tab-motion').click();
   await expect(page.getByTestId('motion-step-0')).toBeVisible();
@@ -166,12 +180,7 @@ test('an extra motion track drives its own param and restores on stop', async ({
   const baseline = await page.evaluate(() => (window as any).__synth.bus.get('fx.delay.mix'));
 
   // Anchor every step high, so any playhead position drives the same value.
-  for (const s of [0, 4, 8, 12]) {
-    const box = (await page.getByTestId(`motion-trk-0-step-${s}`).boundingBox())!;
-    await page.mouse.move(box.x + box.width / 2, box.y + 2); // top of the cell = 1
-    await page.mouse.down();
-    await page.mouse.up();
-  }
+  for (const s of [0, 4, 8, 12]) await setTrackLevel(page, 0, s, 1);
   await page.evaluate(() => (window as any).__synth.bus.set('motion.on', 1));
 
   await page.getByTestId('transport-play').click();
@@ -191,10 +200,7 @@ test('extra motion tracks survive a save → new → load round-trip', async ({ 
   const picker = page.getByTestId('motion-trk-1-param');
   await picker.click();
   await picker.getByText('fx.reverb.mix', { exact: true }).click();
-  const box = (await page.getByTestId('motion-trk-1-step-3').boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + 3);
-  await page.mouse.down();
-  await page.mouse.up();
+  await setTrackLevel(page, 1, 3, 1);
 
   const read = () => page.evaluate(() =>
     (window as any).__synth.patterns.motionTrack(1));
@@ -220,4 +226,56 @@ test('extra motion tracks survive a save → new → load round-trip', async ({ 
   expect(after.param).toBe('fx.reverb.mix');
   expect(after.steps[3].on).toBe(true);
   expect(after.steps[3].v).toBeCloseTo(before.steps[3].v, 4);
+});
+
+/**
+ * Panel layout — specs/features/motion-sequencer.md REQ-8/REQ-16: each lane's
+ * controls sit above its own cells, and Slide/Step is per lane.
+ */
+test('each lane carries its own controls above its cells', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // The XY lane's launcher, view toggle and mode all precede its first pad.
+  const order = await page.evaluate(() => {
+    const at = (id: string) => document.querySelector(`[data-testid="${id}"]`)!;
+    const pad = at('motion-step-0');
+    const before = (id: string) =>
+      !!(at(id).compareDocumentPosition(pad) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return {
+      xypad: before('motion-xypad'),
+      view: before('motion-view'),
+      slide: before('seg-motion.slide'),
+      assignX: before('motion-assign-x'),
+    };
+  });
+  expect(order).toEqual({ xypad: true, view: true, slide: true, assignX: true });
+
+  // Each track's picker and its own Slide/Step precede that track's first cell.
+  for (const t of [0, 1]) {
+    const ok = await page.evaluate((track) => {
+      const at = (id: string) => document.querySelector(`[data-testid="${id}"]`)!;
+      const cell = at(`motion-trk-${track}-step-0`);
+      const before = (id: string) =>
+        !!(at(id).compareDocumentPosition(cell) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return before(`motion-trk-${track}-param`) && before(`seg-motion.t${track}.slide`);
+    }, t);
+    expect(ok, `track ${t}`).toBe(true);
+  }
+});
+
+test('a track’s Slide/Step is independent of the XY lane and the other track', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  const mode = (id: string) => page.evaluate((p) => (window as any).__synth.bus.get(p), id);
+  expect(await mode('motion.slide')).toBe(1);
+  expect(await mode('motion.t0.slide')).toBe(1);
+
+  // STEP is index 0 of the segmented.
+  await page.getByTestId('seg-motion.t0.slide-0').click();
+  expect(await mode('motion.t0.slide')).toBe(0);
+  // The XY lane and track B are untouched.
+  expect(await mode('motion.slide')).toBe(1);
+  expect(await mode('motion.t1.slide')).toBe(1);
 });

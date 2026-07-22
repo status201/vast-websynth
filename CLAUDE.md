@@ -86,7 +86,8 @@ stable testids minted at the factory level: `knob-<paramId>`,
 `switch-<paramId>`, `seg-<paramId>`(+`-<idx>`), `strip-<paramId>`,
 `tab-<id>`/`panel-<id>`, plus per-instance ones in the panels (`seq-step-<i>`,
 `drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`, `motion-step-<s>` (mini XY
-pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` (the extra tracks) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
+pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
+(the extra tracks) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
 `motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
 `StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
@@ -385,7 +386,12 @@ it also writes the note name as the label.
   lane's curve rules by construction — `motion-curve.ts` exposes the scalar
   `scalarAt`, `valueAt` is two calls of it and `valueAt1D` is one — and
   `motion-graph.ts` is generalized the same way (`motionGraphPoints1D`). UI: two
-  rows of `MotionStepPad` in `mode:'level'`. SongFile **v5** adds optional
+  rows of `MotionStepPad` in `mode:'level'`. Slide/Step is **per lane**:
+  `motion.slide` drives the XY lane only, each track has `motion.t<i>.slide`
+  (`MotionMachine.setTrackSlide`). The panel is one header per lane — machine
+  header (on/banks/undo/clear), then an XY-lane row (launcher, view toggle,
+  Slide/Step, axis dropdowns, hint) above its pads, then the two track lanes,
+  with a single divider between the XY lane and the tracks. SongFile **v5** adds optional
   `motionTracks`. Gotcha: `emptyPatternBanks()` must blank them too or New Song
   keeps automating the previous song's params.
   Not an audio lane: no LaneMixer/audibleLanes entry; its Song-panel card is

@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 4   # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
+version: 5   # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
+             # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
              # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
              # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
 owner: core
@@ -53,8 +54,13 @@ The tab sits between Sampler and Song.
   4 banks (A–D) × 16 steps, stored in `PatternStore` beside the other machines.
 - **REQ-2** — Set steps are **anchors**. In **Slide** mode the driven value ramps
   linearly between consecutive anchors, *across* unset gaps. In **Step** mode the
-  value jumps at each anchor's tick and holds. Mode = `motion.slide` param
-  (0=step, 1=slide, default 1); it persists in songs/presets like any param.
+  value jumps at each anchor's tick and holds. Mode is **per lane** (v5):
+  `motion.slide` governs the **XY lane only**, and each extra track has its own
+  `motion.t<i>.slide` — so a bank can sweep one param while stepping another.
+  All are `0=step, 1=slide, default 1` and persist in songs/presets like any
+  param. Splitting a formerly global param is safe here because the tracks it
+  would have governed (v4) are unreleased and no demo uses them; a song that
+  never set `motion.slide` is unaffected either way, since the defaults match.
 - **REQ-2b** — (v3) **Cross-bank carry.** The segment spanning the bar line does not
   wrap within the bank: the ramp *out* of the last anchor targets the **next play
   bank's first anchor** and the ramp *into* the first anchor continues from the
@@ -127,11 +133,20 @@ The tab sits between Sampler and Song.
   pure `motionGraphPoints(bank, view, mode, neighbours?)`
   (`ui/components/motion-graph.ts`), whose edge values come from `valueAt` itself so
   the picture cannot drift from playback;
-  the panel redraws on `motion.slide`, chain and assignment changes. Header:
-  `motion.on` switch,
-  Slide/Step segmented, view toggle, BankBar (`bank-motion-*`), and an axes row
-  showing the edit bank's *effective* assignment with override dropdowns + an
-  inherit/reset button. A help-mode badge (`motion` topic, anchored to
+  the panel redraws on its lane's `slide` param, chain and assignment changes.
+  (v5) The panel is **one header per lane**, each naming what that lane drives
+  and how it interpolates, with its 16 cells full width beneath — so all three
+  lanes share one 16-column grid and step *n* reads vertically across them:
+    - the **machine header** carries only machine-level controls — `motion.on`
+      switch, BankBar (`bank-motion-*`), undo, `Clear ▾`;
+    - the **XY lane header** sits *above* the pads with the XY Pad launcher
+      (`motion-xypad`), the Y/X view toggle, the XY lane's Slide/Step segmented,
+      the axis dropdowns showing the edit bank's *effective* assignment, the
+      inherit/reset button and the "graph: `<param>`" hint — the toggle beside
+      the readout it drives, rather than three rows apart;
+    - a single **divider** separates the XY lane from the tracks below (A and B
+      are the same kind of lane, so nothing divides them from each other).
+  A help-mode badge (`motion` topic, anchored to
   `tab-motion` — [onboarding](onboarding.md) REQ-3) explains the Y/X graph
   projection.
 - **REQ-9** — SongFile **v4** adds optional `motionBanks` (4×16 `MotionStep`),
@@ -186,14 +201,17 @@ The tab sits between Sampler and Song.
   keyed by param id, so track writes join it with no new mechanism. Stop,
   `motion.on → 0` and `motion.mute → 1` restore every recorded baseline including
   the tracks'.
-- **REQ-16** — **UI**: two rows below the XY pad row, each carrying a param
-  dropdown and 16 **level pads** — drag up/down to set the value (the pad fills
-  from the bottom), double-click/double-tap to clear, matching the XY pads'
-  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). Each row
-  draws the same mode-aware polyline the XY row does, so slide interpolation and
-  the bar-line carry stay visible while authoring. A row with no param chosen
-  renders dimmed with its pads inert — the parameter is the switch, so there is no
-  separate on/off to keep in sync.
+- **REQ-16** — **UI**: two lanes below the XY lane, each a **header row** (label,
+  param dropdown, and its own Slide/Step segmented — `seg-motion.t<i>.slide`)
+  above 16 full-width **level pads** — drag up/down to set the value (the pad
+  fills from the bottom), double-click/double-tap to clear, matching the XY pads'
+  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). Each lane
+  draws the same mode-aware polyline the XY lane does — **using its own mode** —
+  so slide interpolation and the bar-line carry stay visible while authoring. A
+  lane with no param chosen renders dimmed with its pads inert; the row itself
+  never goes inert, or its param picker would be unreachable and the lane could
+  never be assigned ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2).
+  The parameter is the switch, so there is no separate on/off to keep in sync.
 - **REQ-17** — **SongFile v5** adds optional `motionTracks` (4 banks × 2 tracks),
   additive per [ADR-007](../decisions/adr-007-songfile-additive-versioning.md):
   v1–v4 files load with both tracks empty and unassigned, writing nothing. Export
@@ -207,7 +225,8 @@ The tab sits between Sampler and Song.
 
 - `MotionMachine` (`src/audio/transport/motion-machine.ts`):
   `setEnabled(on)`, `setMuted(m)` (v2 — effective-active = enabled ∧ ¬muted; either
-  deactivation restores baselines), `setSlide(on)`, `onStep(cb)` (playhead),
+  deactivation restores baselines), `setSlide(on)` (the XY lane) and
+  `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
   `stop()` restore hook via `clock.onStop`. Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
   `motion`.
@@ -263,6 +282,9 @@ MotionTrackStep:     # v4 — one extra track's step
 MotionTrack:         # v4 — per bank, per track
   param: string | absent   # ParamBus id; absent = the track writes nothing
   steps: MotionTrackStep[16]
+Params (v5):         # mode is per lane, not global
+  motion.slide:       { discrete, labels: [step, slide], default: 1 }   # XY lane
+  motion.t<i>.slide:  { discrete, labels: [step, slide], default: 1 }   # each track
 SongFile v5 (additive):
   motionTracks: (MotionTrack | null)[4][2] | absent
 Author dialect (v4):
@@ -315,6 +337,22 @@ Scenario: An extra track drives a third parameter while the pad stays free (v4)
   And the XY Pad's own two params are driven only by the XY anchors
   And stopping restores every driven param, tracks included
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: Two lanes interpolate differently in the same bar (v5)
+  Given track A is assigned with anchors and set to STEP
+  And track B is assigned with anchors and set to SLIDE
+  When the bar plays
+  Then A jumps and holds while B ramps, in the same bar
+  And the XY lane follows its own motion.slide, independent of both
+# pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: Every lane's controls sit above its own cells (v5)
+  Given the Motion tab is open
+  Then the XY Pad launcher, view toggle, Slide/Step, axis dropdowns and the
+    "graph:" hint are all in one row ABOVE the 16 XY pads
+  And each track's label, param picker and Slide/Step sit above its own cells
+  And a single divider separates the XY lane from the tracks
+# pinned by: e2e/motion.spec.ts
 
 Scenario: An unassigned extra track writes nothing (v4)
   Given motion track B has anchors but no parameter chosen

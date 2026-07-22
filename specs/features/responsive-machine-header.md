@@ -79,7 +79,10 @@ somewhere predictable rather than mid-cluster.
 - **REQ-7** — Existing testids and DOM identities are preserved. The
   `fxGroup(...)` calls, their arguments and their `fxgroup-<prefix>` testids are
   untouched; only their parent element changes. `bank-<lane>-*`,
-  `sampler-record`, `seq-step-input` and `motion-view-x|y` are unaffected.
+  `sampler-record` and `seq-step-input` are unaffected. (`motion-view-x|y` has
+  since moved out of the machine header into the Motion tab's own XY-lane row —
+  see [motion-sequencer](motion-sequencer.md) REQ-8 — so this rule no longer
+  covers it.)
 
 ## Technical design
 
