@@ -90,6 +90,16 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(subuniDialog).toBeVisible();
   await subuniDialog.getByRole('button', { name: 'Close' }).click();
 
+  // The header Presets button carries its own badge (onboarding.md REQ-12); its
+  // copy has to separate a preset (one sound) from a song (the arrangement).
+  const presetBadge = page.getByTestId('help-badge-presets');
+  await expect(presetBadge).toBeVisible();
+  await presetBadge.click();
+  const presetDialog = page.getByRole('dialog', { name: 'Presets' });
+  await expect(presetDialog).toContainText('one sound');
+  await expect(presetDialog).toContainText('Export bank');
+  await presetDialog.getByRole('button', { name: 'Close' }).click();
+
   // A per-machine badge anchored to a tab button opens its own modal.
   const arpBadge = page.getByTestId('help-badge-arp');
   await expect(arpBadge).toBeVisible();
@@ -177,7 +187,14 @@ test('the tour showcases the Song tab and ends there, ready to play', async ({ p
   await page.getByTestId('tour-back').click();
   await expect(callout).toContainText('Arrange a full song');
 
+  // And before those, the gesture step — on the DRUM grid, so the spotlight
+  // actually moves off the sequencer the preceding step highlights (REQ-13).
+  await page.getByTestId('tour-back').click();
+  await expect(callout).toContainText('Paint a pattern');
+  await expect(page.getByTestId('panel-drums')).toBeVisible();
+
   // Forward again to the end and finish.
+  await page.getByTestId('tour-next').click();
   await page.getByTestId('tour-next').click();
   await page.getByTestId('tour-next').click();
   await done.click();

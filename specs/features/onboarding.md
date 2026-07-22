@@ -3,7 +3,7 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 6   # v6: the tour visits the Song tab (chains + live DJ FX) and ends there
+version: 7   # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
 owner: core
 related:
   - architecture
@@ -11,6 +11,9 @@ related:
   - midi-clock-sync
   - webrtc-sync
   - motion-sequencer
+  - step-grid-editing
+  - sequencer
+  - presets
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/help-mode.ts
@@ -78,6 +81,30 @@ never reads DEV-only globals.
   **ends with the Song tab open and active** — the user is left ready to play rather
   than parked on the Sequencer. The demo loaded earlier in the tour populates the
   chains, so the lane spotlight lands on real content.
+- **REQ-11** (v7) — **Help copy covers the gesture model.** The grid gestures
+  ([step-grid-editing](step-grid-editing.md)) are invisible by construction —
+  nothing on screen says a step can be dragged, held or bulk-cleared — so the
+  `seq`, `drums` and `sampler` topics each carry the same authored paragraph
+  naming drag-to-paint (starting lit = erase), press-and-hold / right-click to
+  select without toggling, `Delete`, `Clear ▾` and tab-scoped `Ctrl+Z`. It is
+  **one shared constant** concatenated into the three bodies, not three
+  paraphrases, so the gesture vocabulary cannot drift between machines. `motion`
+  states its own variant, because its grid has no tap-toggle (drag sets a value,
+  double-click clears) and its `Clear ▾` lists lanes rather than a selected row
+  (step-grid-editing REQ-6).
+- **REQ-12** (v7) — **A `presets` topic anchors to `preset-save`.** The header's
+  single Presets button ([presets](presets.md) REQ-9) opens save / export-preset /
+  export-bank / import-with-review, none of which was explained anywhere. Its copy
+  must separate a **preset** (one sound) from a **song** (the whole arrangement) —
+  the confusion the badge exists to kill — and must describe the import review
+  step as non-destructive until confirmed.
+- **REQ-13** (v7) — **The tour teaches the grid gestures.** A "Paint a pattern"
+  step sits between the pattern-tabs step and the Song-tab steps. It targets
+  **`panel-drums`** (`precondition: clickTestId('tab-drums')`), deliberately *not*
+  `panel-seq`: the preceding step already spotlights `panel-seq`, and two
+  consecutive steps sharing a target leave the spotlight rect unmoved, which reads
+  as "nothing happened". The drum grid also carries the demo song's hits by this
+  point (same rationale as REQ-10), so the gesture lands on real content.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -148,6 +175,25 @@ Scenario: The tour ends on the Song tab, ready to play (v6)
   Given the tour is running
   When the user advances past the chain-lane and live-FX steps and presses Done
   Then the Song tab is the active tab, showing the chains and live FX
+# pinned by: e2e/onboarding.spec.ts
+
+Scenario: Every step grid explains its gestures the same way (v7)
+  Given help mode is on
+  When the user opens the Sequencer, Drum Machine and Sampler topics in turn
+  Then each names drag-to-paint, hold-to-select, Delete and Clear ▾ in identical words
+# pinned by: tests/ui/help-content.test.ts
+
+Scenario: The Presets button explains what a preset is (v7)
+  Given help mode is on
+  When the user clicks the badge on the header Presets button
+  Then the modal distinguishes a preset (one sound) from a song, and describes
+    exporting a preset/bank and the review step shown before an import is written
+# pinned by: tests/ui/help-content.test.ts
+
+Scenario: The tour's gesture step moves the spotlight to the drum grid (v7)
+  Given the tour has passed the "Build your own patterns" step
+  When the user presses Next
+  Then the Drum tab opens and the callout explains tap / drag / hold / Clear ▾
 # pinned by: e2e/onboarding.spec.ts
 
 Scenario: Sync section carries USB + WiFi help badges (v2)

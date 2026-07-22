@@ -82,6 +82,21 @@ export const TOUR_STEPS: TourStep[] = [
     precondition: () => clickTestId('tab-seq'),
   },
   {
+    // Deliberately the DRUM grid, not the sequencer the previous step spotlights:
+    // two steps sharing a target leave the spotlight rect unmoved, which reads as
+    // "nothing happened". The demo loaded earlier has filled this grid, so the
+    // gestures land on real content (onboarding.md REQ-13).
+    target: 'panel-drums',
+    title: 'Paint a pattern',
+    body:
+      'Tap a step to switch it on. <strong>Drag</strong> across several and they all follow — ' +
+      'start on a lit step and the drag erases instead. <strong>Hold</strong> one to edit it ' +
+      'without switching it off, and <strong>Clear ▾</strong> wipes a row or the bank ' +
+      '(Undo brings it back).',
+    placement: 'top',
+    precondition: () => clickTestId('tab-drums'),
+  },
+  {
     target: 'song-lane-seq',
     title: 'Arrange a full song',
     body:
@@ -128,11 +143,27 @@ export interface HelpTopic {
   body: string | ((ctx: HelpContext) => Node);
 }
 
+/**
+ * The step-grid gesture vocabulary (step-grid-editing.md), shared verbatim by the
+ * seq / drum / sampler topics. One constant, not three paraphrases: the gestures
+ * are identical on all three grids, and copy that drifts between machines is
+ * worse than none. Motion states its own variant — it has no tap-toggle and its
+ * Clear ▾ lists lanes rather than a selected row (onboarding.md REQ-11).
+ */
+const GRID_GESTURES =
+  '<p><strong>Editing faster:</strong> <strong>drag</strong> across the grid to paint a whole ' +
+  'run at once — starting on a lit step erases instead of filling. <strong>Press and hold</strong> ' +
+  'a step (or right-click it) to select it for editing <em>without</em> switching it off, and ' +
+  '<strong>Delete</strong> clears the selected step. <strong>Clear ▾</strong> wipes the whole bank ' +
+  'or just the row you have selected, and <strong>Ctrl+Z</strong> undoes the last edit on the tab ' +
+  'you are looking at — even a bulk clear comes back in one press.</p>';
+
 export type TopicId =
   | 'transport'
   | 'transport.swing'
   | 'voicing'
   | 'panic'
+  | 'presets'
   | 'oscillators'
   | 'subuni'
   | 'mixer'
@@ -221,6 +252,27 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'pointer, a runaway pattern), hit <strong>Panic</strong> to silence everything instantly ' +
       'and stop the transport. Harmless to press any time. The <strong>Esc</strong> key does the ' +
       'same thing.</p>',
+  },
+  presets: {
+    title: 'Presets',
+    body:
+      '<p>A <strong>preset</strong> is one <em>sound</em> — every knob and switch on the synth, ' +
+      'nothing else. (A <strong>song</strong>, over on the Song tab, is the whole arrangement: ' +
+      'patterns, chains and a sound.) The dropdown flips through 16 factory sounds plus your own; ' +
+      'pick one and play.</p>' +
+      '<p>The <strong>Presets</strong> button is the one door for everything else:</p>' +
+      '<ul>' +
+      '<li><strong>Save current sound</strong> — keep what you are hearing under a name of your ' +
+      'own, in this browser.</li>' +
+      '<li><strong>Export preset</strong> — one sound as a file, to back up or send to someone.</li>' +
+      '<li><strong>Export bank</strong> — many sounds in one file. It offers just the ones you ' +
+      'have made or changed (worked out by comparing against the factory sounds), or all of them.</li>' +
+      '<li><strong>Import</strong> — read either kind back in.</li>' +
+      '</ul>' +
+      '<p>Importing always shows you a <strong>review</strong> first, marking each incoming sound ' +
+      'as new, identical to one you have, or a name clash — where you choose <em>keep both</em>, ' +
+      '<em>overwrite</em> or <em>skip</em>. Nothing is written until you confirm, and the sound ' +
+      'you are currently playing is never touched.</p>',
   },
   oscillators: {
     title: 'Oscillators (OSC 1 & 2)',
@@ -479,6 +531,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'take to another bank. ' +
       'Or <strong>scroll</strong> a step to change its pitch, and <strong>Shift</strong>+click ± / ' +
       'Shift+scroll to jump a whole octave.</p>' +
+      '<p><strong>Four tracks</strong> share each bank, so you can stack a chord or run a ' +
+      'counter-line under the melody. Tracks 2–4 need <strong>Poly</strong> voicing — in Mono they ' +
+      'dim and say so, and flipping back to Poly brings them straight back; nothing is ever ' +
+      'rewritten. An empty track folds away to its header until you open it, and each has its own ' +
+      '<strong>mute</strong>.</p>' +
+      GRID_GESTURES +
       '<p>It has four banks (<strong>A–D</strong>) you can fill with different riffs and chain ' +
       'together in Song mode. Switch the sequencer on with its <strong>on</strong> toggle.</p>',
   },
@@ -511,6 +569,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>A classic 16-step drum grid with eight tracks (kick, snare, hats, toms, clap). Click ' +
       'cells to place hits; each track has a <strong>mute</strong> and you can audition a sound ' +
       'by clicking its name. Runs while the transport plays.</p>' +
+      GRID_GESTURES +
       '<p><strong>MASTER</strong> sets the kit volume, and there are dedicated drum effects. Four ' +
       'banks (<strong>A–D</strong>) chain together in Song mode.</p>',
   },
@@ -520,6 +579,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> to ' +
       'capture from your mic and edit it. The ✎ button re-opens a loaded sound in the editor.</p>' +
+      GRID_GESTURES +
       '<p>Plays while the transport runs, with its own master and effects. Note: after loading a ' +
       'saved song you re-load the audio files (only their names are stored).</p>',
   },
@@ -532,6 +592,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'smoothly between anchors; <strong>STEP</strong> jumps at each anchor and holds. Each ' +
       'lane has its own SLIDE/STEP switch, so the XY sweep and the two extra tracks can ' +
       'differ.</p>' +
+      '<p>Under the XY lane sit <strong>two more tracks</strong>, each driving a single ' +
+      'parameter you choose yourself — and you choose it <em>per bank</em>, so bank A can ride the ' +
+      'delay mix while bank B moves the drive. Drag a cell to set its level, double-click to clear ' +
+      'it. Between the XY pair and these two, one bank can move <strong>four</strong> parameters ' +
+      'at once while the XY Pad stays free for you to play live.</p>' +
+      '<p>There is no on/off tap here — a cell either holds a value or it does not — so ' +
+      '<strong>Clear ▾</strong> lists whichever lanes currently hold steps (XY, A, B) rather than ' +
+      'a selected row. <strong>Ctrl+Z</strong> undoes the last edit, a bulk clear included.</p>' +
       '<p><strong>Reading the graph:</strong> every dot stores <em>two</em> values (X and Y), but ' +
       'the overlay line can only trace one at a time. The <strong>Y / X</strong> toggle picks ' +
       'which one it shows — <strong>Y</strong> (the default) draws each anchor’s vertical ' +
@@ -544,9 +612,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   song: {
     title: 'Song mode',
     body:
-      '<p>Arrange your patterns into a full track. Chain banks for the sequencer, drums and ' +
-      'sampler, add live DJ-style FX (<strong>Fill, Stutter, Drop, Tape&nbsp;Stop</strong> and a ' +
-      'sweepable DJ filter), and save / load / export songs.</p>' +
+      '<p>Arrange your patterns into a full track. Chain banks for the sequencer, drums, ' +
+      'sampler and motion sequencer, add live DJ-style FX (<strong>Fill, Stutter, Drop, ' +
+      'Tape&nbsp;Stop</strong> and a sweepable DJ filter), and save / load / export songs.</p>' +
       '<p>The demo buttons load complete examples — remember to press <strong>Play</strong> ' +
       'afterwards to hear them.</p>' +
       '<p>Not sure what a button does? <strong>Save</strong>, <strong>Export</strong> and the ' +
@@ -596,8 +664,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'song.new': {
     title: 'New',
     body:
-      '<p>Clears every bank and chain — sequencer, drums and sampler — back to empty so you can ' +
-      'start a fresh song. It asks for confirmation first, as it cannot be undone.</p>' +
+      '<p>Clears every bank and chain — sequencer, drums, sampler and motion — back to empty so ' +
+      'you can start a fresh song. It asks for confirmation first, as it cannot be undone.</p>' +
       '<p><strong>Save</strong> or <strong>Export</strong> anything you want to keep before ' +
       'pressing it.</p>',
   },

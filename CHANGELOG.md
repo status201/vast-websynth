@@ -120,6 +120,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the Format switch, so it is obvious what each will write. While recording, the
   button still just says **Stop**.
 
+- **The tour shows you how to paint a pattern** — a new step lands on the drum
+  grid (already full of the demo you loaded a moment earlier) and demonstrates
+  tapping, dragging a run on or off, holding a step to edit it, and Clear ▾.
+
+- **Help badges caught up with the app** — the Sequencer, Drum Machine and
+  Sampler badges now explain drag-to-paint, hold-to-edit, Delete, Clear ▾ and
+  Undo in the same words; the Sequencer badge covers its four tracks and why
+  2–4 need Poly; Motion explains its two extra parameter tracks; and the header's
+  **Presets** button has a badge of its own, spelling out the difference between
+  a preset and a song and what the export/import review does.
+
 - **Help badges sit still** — the little (i) badges no longer pulse, and they are
   a touch see-through, so a screenful of them is a quiet layer over the panels
   rather than a dozen things blinking at once. They still glow, and hovering one

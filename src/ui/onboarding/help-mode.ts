@@ -35,6 +35,9 @@ const ANCHORS: Anchor[] = [
   { topic: 'transport.swing', find: () => byTestId('knob-transport.swing') },
   { topic: 'voicing', find: () => byTestId('seg-voicing.mode') },
   { topic: 'panic', find: () => byTestId('panic') },
+  // The header's one door for sounds — save / export preset / export bank /
+  // import-with-review (presets.md REQ-9, onboarding.md REQ-12).
+  { topic: 'presets', find: () => byTestId('preset-save') },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
   { topic: 'subuni', find: () => byHelp('subuni') },
   { topic: 'mixer', find: () => byHelp('mixer') },
