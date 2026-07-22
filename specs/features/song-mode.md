@@ -3,12 +3,14 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 8
+version: 9   # v9: SongFile v5 (motion tracks) + v6 (sequencer tracks); SONG_VERSION is exported
 owner: core
 related:
   - architecture
   - compressor
   - presets
+  - sequencer
+  - motion-sequencer
   - param-reset-baseline
   - xy-pad
   - project-export
@@ -48,11 +50,17 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 - **REQ-1** — A song captures the full bus snapshot + all seq/drum/sampler/motion
   banks + all four chain lanes into one `SongFile`.
-- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3 | 4`); v2 adds
-  optional sampler fields, v3 adds the optional [XY Pad](xy-pad.md) axis assignment
-  (`xy`), v4 adds the optional [motion sequencer](motion-sequencer.md) fields
-  (`motionBanks`/`motionAssigns`/`motionChain`). Older files (incl. built-in
-  demos) must still load.
+- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3 | 4 | 5 | 6`);
+  v2 adds optional sampler fields, v3 adds the optional [XY Pad](xy-pad.md) axis
+  assignment (`xy`), v4 adds the optional
+  [motion sequencer](motion-sequencer.md) fields
+  (`motionBanks`/`motionAssigns`/`motionChain`), v5 the optional `motionTracks`
+  (motion's two extra single-param tracks) and v6 the optional `seqTracks`
+  ([sequencer](sequencer.md) tracks 2–4). Older files (incl. built-in demos) must
+  still load. The version `capture()` writes is the exported **`SONG_VERSION`**
+  constant, not a literal — the published schema and `llms.txt` are pinned to it
+  by `tests/state/authoring-docs.test.ts`, which is what stops the shipped docs
+  silently falling a version behind (they did, twice, before v9 of this spec).
 - **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**,
   then restores, so a stale param omitted by an older file reverts rather than
   lingering. `resetDefaults()`+`restore()` also replaces every knob **reset
@@ -102,7 +110,8 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 ```yaml
 Song:   # src/state/song.ts (a plain object of functions, not a class)
-  capture(bus, patterns, arr, name, xy?): SongFile   # writes version 4; xy included only when passed
+  SONG_VERSION: 6                                   # the version capture() writes (exported, not a literal)
+  capture(bus, patterns, arr, name, xy?): SongFile   # writes SONG_VERSION; xy included only when passed
   apply(file, bus, patterns, arr, xyStore?): void    # ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
   fromJSON(text): SongFile | null                  # validate, return file|null (the sparse object; apply re-expands)
@@ -128,10 +137,10 @@ Nested beyond ~3 levels, so as flat YAML:
 ```yaml
 SongFile:
   format: 'websynth-song'            # required discriminator
-  version: 1 | 2 | 3 | 4
+  version: 1 | 2 | 3 | 4 | 5 | 6
   name: string
   params: Record<string, number>     # = ParamBus.snapshot()
-  seqBanks:  SeqStep[][]             # 4 banks × 16 steps
+  seqBanks:  SeqStep[][]             # 4 banks × 16 steps — since v6 this is TRACK 1 only
   drumBanks: DrumCell[][][]          # 4 banks × 8 tracks × 16 steps
   seqChain:  ChainData
   drumChain: ChainData
@@ -145,6 +154,14 @@ SongFile:
   motionBanks?: MotionStep[][]       # 4 banks × 16 steps of {on, x, y} anchors — see motion-sequencer.md
   motionAssigns?: (MotionAssign | null)[]  # per-bank axis override; null = inherit xy
   motionChain?: ChainData
+  # ---- v5 addition (optional, so v1-v4 files still parse) ----
+  motionTracks?: (MotionTrack | null)[][]  # 4 banks × 2 extra single-param tracks — see motion-sequencer.md
+  # ---- v6 addition (optional, so v1-v5 files still parse) ----
+  seqTracks?: (SeqStep[] | null)[][]  # [bank][track], indexed by the REAL track number:
+                                      # index 0 is ALWAYS null (track 1 stays in seqBanks) and an
+                                      # empty track is null. Omitted entirely when no extra track
+                                      # holds a step, so a one-track song stays byte-identical to
+                                      # its pre-v6 form — see sequencer.md REQ-13.
 
 ChainData:
   enabled: boolean
@@ -157,13 +174,15 @@ ChainData:
 ### Versioning & backward-compat (the load-bearing detail)
 
 ```yaml
-capture: always writes version: 4
+capture: always writes SONG_VERSION (6)
 fromJSON: version-agnostic — only checks format === 'websynth-song'
-          AND presence of params + seqBanks + drumBanks  -> v1..v4 all parse
+          AND presence of params + seqBanks + drumBanks  -> v1..v6 all parse
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
   2. bus.restore(file.params)
   3. patterns.restore({ seqBanks, drumBanks, samplerBanks, sampleNames })
+     # seqBanks is rebuilt to [bank][track][step] first: track 1 from seqBanks,
+     # 2-4 from seqTracks when present (absent pre-v6 -> a one-track song)
   4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false)
      arr.setDrumChain(... ?? [0], ... ?? false)
      arr.setSamplerChain(... ?? [0], ... ?? false)   # v1 files lack these -> defaults
@@ -183,12 +202,14 @@ not the strict current shape:
 
 ```yaml
 strict (reject + name the path):
-  root:        object; format === 'websynth-song'; version ∈ {1,2,3}; name: string
+  root:        object; format === 'websynth-song'; version ∈ {1..6}; name: string
   params:      object of string -> finite number   # keys NOT restricted (forward-compat)
   xy?:         { x: non-empty string, y: non-empty string }   # v3; param-id existence NOT checked
   seqBanks:    SeqStep[4][16]                       # exact dims
+  seqTracks?:  (SeqStep[16]|null)[4][4]             # if present; index 0 of each bank MUST be null
   drumBanks:   DrumCell[4][8][16]
   samplerBanks?: SamplerStep[4][8][16]              # if present
+  motionTracks?: (MotionTrack|null)[4][2]           # if present
   sampleNames?:  (string|null)[8]                   # if present
   chainData:   { enabled: boolean, steps: int[ ]≥1, each 0..3 }
   cell fields when present, by type/range:
@@ -427,8 +448,16 @@ Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6)
 
 ## Open questions / future
 
-- `version: 3` shipped the optional `xy` field (see [xy-pad](xy-pad.md)) and
-  `version: 4` the optional motion fields (see
-  [motion-sequencer](motion-sequencer.md)), both following the additive contract.
-  A future `version: 5` must keep new fields **optional** and extend the
-  `apply()` defaults-fallback pattern the same way, so older files keep loading.
+- Every version so far has held the additive contract: `version: 3` shipped the
+  optional `xy` field (see [xy-pad](xy-pad.md)), `4` the motion fields, `5`
+  `motionTracks` (both [motion-sequencer](motion-sequencer.md)) and `6`
+  `seqTracks` ([sequencer](sequencer.md)). A future `version: 7` must keep new
+  fields **optional** and extend the `apply()` defaults-fallback pattern the same
+  way, so older files keep loading.
+- Bumping the version is **four** edits, not one: `SONG_VERSION`, the
+  `SongFile['version']` union, `KNOWN_VERSIONS` in the validator, and the
+  published `websynth-song.schema.json` — plus `llms.txt`, which advertises the
+  canonical version to crawling agents. See
+  [evolve-the-song-format](../recipes/evolve-the-song-format.md); the drift pins
+  in `tests/state/authoring-docs.test.ts` fail loudly if the published pair is
+  forgotten (v5 and v6 both shipped without them before this was pinned).

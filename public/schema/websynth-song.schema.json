@@ -13,7 +13,7 @@
     "version": {
       "type": "integer",
       "enum": [1, 2, 3, 4, 5, 6],
-      "description": "Format version. capture() always writes 4; v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields — all still load. Versions beyond those this build knows are rejected."
+      "description": "Format version. capture() always writes 6 (the highest in this enum); every earlier version still loads because each addition is optional — v1 files (incl. some built-in demos) lack the sampler fields, v2 files lack the XY Pad assignment, v3 files lack the motion-sequencer fields, v4 files lack 'motionTracks' and v5 files lack 'seqTracks'. Versions beyond those this build knows are rejected."
     },
     "name": {
       "type": "string",

@@ -13,6 +13,7 @@ import {
   DRUM_TRACKS,
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
+import { SONG_VERSION } from '../../src/state/song';
 
 const read = (rel: string) =>
   readFileSync(fileURLToPath(new URL(`../../public/${rel}`, import.meta.url)), 'utf8');
@@ -64,6 +65,29 @@ describe('websynth-song-author.schema.json', () => {
     expect(new RegExp(name.pattern).test('Db-1')).toBe(true);
     expect(new RegExp(name.pattern).test('H4')).toBe(false);
     expect(schema.$defs.stepSettings.ratchet).toMatchObject({ minimum: 1, maximum: 4 });
+  });
+});
+
+/**
+ * The canonical format version reaches the outside world through two published
+ * files. Both fell behind `capture()` twice (v5 and v6 shipped without them), so
+ * they are pinned to `SONG_VERSION` rather than trusted — song-mode.md REQ-2.
+ */
+describe('the published canonical version', () => {
+  it('is the top of the schema version enum', () => {
+    const schema = JSON.parse(read('schema/websynth-song.schema.json')) as Record<string, any>;
+    const versions = schema.properties.version.enum as number[];
+    expect(Math.max(...versions)).toBe(SONG_VERSION);
+    expect(versions).toEqual([...Array(SONG_VERSION).keys()].map((i) => i + 1));
+    // The prose beside the enum names the written version too.
+    expect(schema.properties.version.description).toContain(`writes ${SONG_VERSION}`);
+  });
+
+  it('is what llms.txt advertises, with the versioned fields named', () => {
+    const txt = read('llms.txt');
+    expect(txt).toContain(`\`websynth-song\` (v${SONG_VERSION})`);
+    expect(txt).toContain('seqTracks');
+    expect(txt).toContain('motionTracks');
   });
 });
 

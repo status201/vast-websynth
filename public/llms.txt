@@ -1,8 +1,9 @@
 # VAST G1-J5 (websynth)
 
 > A browser-based virtual-analog synthesizer studio: 8-voice poly synth with a
-> ladder filter, a 16-step sequencer, an 8-track drum machine, an 8-slot
-> sampler, per-bar arrangement chains, live DJ FX, and WAV/MP3 audio export.
+> ladder filter, a 4-track 16-step note sequencer, an 8-track drum machine, an
+> 8-slot sampler, a parameter-automation (motion) sequencer, per-bar arrangement
+> chains, live DJ FX, and WAV/MP3 audio export.
 > Runs entirely client-side (vanilla TypeScript + Web Audio, no backend).
 
 AI agents can author songs for this synth as a single JSON file, which the
@@ -19,17 +20,24 @@ Two JSON formats are accepted on import:
   structure is a chain string like "AABA". Input-only: the app expands it to
   the canonical format on import.
   Schema: /schema/websynth-song-author.schema.json
-- `websynth-song` (v4) — the canonical full format the app exports. Requires
+- `websynth-song` (v6) — the canonical full format the app exports. Requires
   literal grids: seqBanks[4][16], drumBanks[4][8][16], optional
   samplerBanks[4][8][16] and motionBanks[4][16] (XY param automation).
+  Older versions still load: every addition is optional. v6 adds seqTracks
+  (note-sequencer tracks 2-4) and v5 motionTracks (motion's two extra
+  single-parameter tracks).
   Schema: /schema/websynth-song.schema.json
 
 Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note steps per bar;
-8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap);
-8 sampler slots. Per-step settings: velocity/gate/prob 0..1, ratchet 1..4,
-tie boolean. `filter.cutoff` is a MIDI note number, not Hz. The motion
-sequencer (dialect key `motion`) steps/interpolates the XY Pad's two assigned
-params through per-step anchors {step, x, y} in normalized 0..1.
+4 note-sequencer tracks per bank (track 1 in seqBanks, tracks 2-4 in the
+optional seqTracks[bank][track], which is indexed by the real track number so
+index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
+5=M.Tom 6=H.Tom 7=Clap); 8 sampler slots. Per-step settings: velocity/gate/prob
+0..1, ratchet 1..4, tie boolean. `filter.cutoff` is a MIDI note number, not Hz.
+The motion sequencer (dialect key `motion`) steps/interpolates the XY Pad's two
+assigned params through per-step anchors {step, x, y} in normalized 0..1, plus
+two optional single-parameter tracks per bank (motionTracks) that each name
+their own parameter id and carry 16 levels.
 
 ## The live parameter table
 

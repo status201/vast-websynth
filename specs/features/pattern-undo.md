@@ -80,15 +80,18 @@ machine stacks.
 ```ts
 // state/patterns.ts (additions)
 export type PatternMutation =
-  | { kind: 'seq';     bank: number; index: number; before: SeqStep }
+  | { kind: 'seq';     bank: number; track: number; index: number; before: SeqStep }
   | { kind: 'drum';    bank: number; track: number; step: number; before: DrumCell }
   | { kind: 'sampler'; bank: number; slot: number;  step: number; before: SamplerStep }
   | { kind: 'motion';  bank: number; index: number; before: MotionStep }
   | { kind: 'motion-assign'; bank: number; before: MotionAssign | null }
-  | { kind: 'seq-copy';     bank: number; before: SeqStep[] }
+  | { kind: 'motion-track';       bank: number; track: number; index: number; before: MotionTrackStep }
+  | { kind: 'motion-track-param'; bank: number; track: number; before: string | undefined }
+  | { kind: 'seq-copy';     bank: number; before: SeqStep[][] }
   | { kind: 'drum-copy';    bank: number; before: DrumCell[][] }
   | { kind: 'sampler-copy'; bank: number; before: SamplerStep[][] }
-  | { kind: 'motion-copy';  bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null };
+  | { kind: 'motion-copy';  bank: number; before: MotionStep[]; beforeAssign: MotionAssign | null;
+                            beforeTracks: MotionTrack[] };
 onMutate(fn: (m: PatternMutation) => void): () => void;
 onBulkRestore(fn: () => void): () => void;   // fired at the start of restore()
 
@@ -128,9 +131,13 @@ undoActiveMachine = (): boolean => false;
 - `app.ts` (`buildPatternRow`) assigns `bridge.undoActiveMachine` mapping
   `TabContainer.activeId` (new getter) → machine; `shortcuts.ts` handles
   Ctrl/Cmd+Z **before** its generic modifier bail-out.
-- Coalesce keys: `seq:<bank>:<index>`, `drum:<bank>:<track>:<step>`,
+- Coalesce keys: `seq:<bank>:<track>:<index>`, `drum:<bank>:<track>:<step>`,
   `sampler:<bank>:<slot>:<step>`, `motion:<bank>:<index>`,
-  `motion-assign:<bank>`; copies pass no key.
+  `motion-assign:<bank>`, `motion-track:<bank>:<track>:<index>`,
+  `motion-track-param:<bank>:<track>`; copies pass no key. Every key names the
+  full address of the cell, so two edits coalesce only when they are the *same*
+  cell — a drag across a row is one entry per cell, and the same cell nudged
+  twice is one.
 - `restore()` fires `onBulkRestore` and never emits `onMutate` (it writes
   cells directly, bypassing the setters) — that separation is what keeps
   song loads out of machine undo by construction.

@@ -402,10 +402,17 @@ it also writes the note name as the label.
   polyline, step = wrap-aware staircase). Params: `motion.on`, `motion.mute`,
   `motion.slide` (0=step 1=slide).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
-  + all banks + all four chains). `SongFile` is now `version: 1 | 2 | 3 | 4`;
+  + all banks + all four chains). `SongFile` is `version: 1 | 2 | 3 | 4 | 5 | 6`;
   v2 adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
   `xy` axis assignment (XY Pad), v4 the optional
-  `motionBanks`/`motionAssigns`/`motionChain` (motion sequencer). `fromJSON` is
+  `motionBanks`/`motionAssigns`/`motionChain` (motion sequencer), v5
+  `motionTracks` and v6 `seqTracks`. `capture` writes the exported
+  **`SONG_VERSION`**, never a literal — the published
+  `public/schema/websynth-song.schema.json` + `public/llms.txt` advertise it and
+  are pinned to it by `tests/state/authoring-docs.test.ts` (they fell a version
+  behind twice before that). Bumping the format is four edits — `SONG_VERSION`,
+  the `SongFile` union, `KNOWN_VERSIONS` in `song-validate.ts`, the schema — plus
+  `llms.txt`; see `specs/recipes/evolve-the-song-format.md`. `fromJSON` is
   unchanged and accepts all versions; v1 files (incl. `DEMO_SONGS`) load with
   empty sampler state and default XY axes. JSON file export/import **and** localStorage slots under
   `websynth.song.*`. Demos (`DEMO_SONGS`) are the two hand-authored `SongFile`

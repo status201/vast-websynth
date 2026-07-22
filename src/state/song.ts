@@ -21,6 +21,15 @@ export interface ChainData {
   steps: number[];
 }
 
+/**
+ * The version `capture()` writes. Exported rather than inlined because the
+ * *published* docs — `public/schema/websynth-song.schema.json` and
+ * `public/llms.txt` — advertise it to external tools, and they fell a version
+ * behind twice before `tests/state/authoring-docs.test.ts` pinned them to this
+ * constant (song-mode.md REQ-2).
+ */
+export const SONG_VERSION = 6;
+
 export interface SongFile {
   format: 'websynth-song';
   version: 1 | 2 | 3 | 4 | 5 | 6;
@@ -91,7 +100,7 @@ export const Song = {
     const snap = patterns.snapshot();
     return {
       format: 'websynth-song',
-      version: 6,
+      version: SONG_VERSION,
       name,
       params: bus.snapshot(),
       // Track 1 keeps the v1-v5 field; 2-4 ride in the additive one, omitted
