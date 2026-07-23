@@ -1,30 +1,30 @@
 {
   "format": "websynth-song",
-  "version": 4,
+  "version": 6,
   "name": "1983",
   "params": {
     "voicing.mode": 0,
     "osc1.wave": 3,
     "osc1.octave": -1,
-    "osc1.detune": 0,
-    "osc1.level": 0.8183,
-    "osc2.wave": 2,
-    "osc2.octave": 0,
-    "osc2.detune": 4,
-    "osc2.level": 0.68,
-    "sub.wave": 3,
+    "osc1.detune": -2.5,
+    "osc1.level": 0.8933,
+    "osc2.wave": 3,
+    "osc2.octave": 2,
+    "osc2.detune": 0,
+    "osc2.level": 0.66,
+    "sub.wave": 0,
     "sub.octave": -1,
-    "sub.level": 0.95,
+    "sub.level": 1,
     "unison.voices": 1,
-    "unison.detune": 10,
+    "unison.detune": 0,
     "analog.drift": 0.03667,
-    "mixer.noise": 0.05333,
-    "mixer.glide": 0.05,
+    "mixer.noise": 0.1383,
+    "mixer.glide": 0.045,
     "glide.mode": 2,
-    "filter.cutoff": 61.33,
-    "filter.resonance": 3.397,
-    "filter.drive": 1.42,
-    "filter.envAmount": 38,
+    "filter.cutoff": 58.33,
+    "filter.resonance": 3.036,
+    "filter.drive": 1.518,
+    "filter.envAmount": 23.6,
     "env.amp.attack": 0.002,
     "env.amp.decay": 0.18,
     "env.amp.sustain": 0.25,
@@ -33,27 +33,27 @@
     "env.fil.decay": 0.12,
     "env.fil.sustain": 0.1,
     "env.fil.release": 0.25,
-    "lfo.rate": 6.5,
-    "lfo.amount": 0.2,
+    "lfo.rate": 1.683,
+    "lfo.amount": 0.3,
     "lfo.wave": 3,
     "lfo.dest": 1,
     "fx.dist.on": 1,
-    "fx.dist.drive": 0.685,
-    "fx.dist.tone": 2462,
-    "fx.dist.mix": 0.39,
+    "fx.dist.drive": 0.25,
+    "fx.dist.tone": 1084,
+    "fx.dist.mix": 0.225,
     "fx.wah.on": 0,
-    "fx.wah.rate": 1.602,
-    "fx.wah.depth": 0.035,
-    "fx.wah.q": 0.5,
-    "fx.phaser.on": 1,
+    "fx.wah.rate": 3.367,
+    "fx.wah.depth": 0.055,
+    "fx.wah.q": 1.963,
+    "fx.phaser.on": 0,
     "fx.phaser.rate": 0.5611,
     "fx.phaser.depth": 0.095,
     "fx.phaser.feedback": 0.3955,
     "fx.phaser.mix": 0.295,
     "fx.delay.on": 1,
     "fx.delay.time": 0.4455,
-    "fx.delay.feedback": 0.06525,
-    "fx.delay.mix": 0.095,
+    "fx.delay.feedback": 0.1507,
+    "fx.delay.mix": 0.165,
     "fx.reverb.on": 0,
     "fx.reverb.size": 0.125,
     "fx.reverb.damp": 0.3,
@@ -67,16 +67,16 @@
     "fx.drum.delay.time": 0.35,
     "fx.drum.delay.feedback": 0.4,
     "fx.drum.delay.mix": 0.3,
-    "fx.drum.reverb.on": 0,
-    "fx.drum.reverb.size": 0.6,
+    "fx.drum.reverb.on": 1,
+    "fx.drum.reverb.size": 0.095,
     "fx.drum.reverb.damp": 0.4,
-    "fx.drum.reverb.mix": 0.25,
+    "fx.drum.reverb.mix": 0.4,
     "fx.drum.comp.on": 1,
     "fx.drum.comp.threshold": -20.2,
     "fx.drum.comp.ratio": 4,
     "fx.drum.comp.attack": 0.00005399,
     "fx.drum.comp.release": 0.25,
-    "fx.drum.comp.makeup": 15.72,
+    "fx.drum.comp.makeup": 9.6,
     "fx.sampler.dist.on": 0,
     "fx.sampler.dist.drive": 0.3,
     "fx.sampler.dist.tone": 3000,
@@ -96,12 +96,12 @@
     "fx.sampler.reverb.mix": 0.25,
     "fx.djfilter": 0,
     "fx.master.comp.on": 1,
-    "fx.master.comp.threshold": -24,
+    "fx.master.comp.threshold": -22.4,
     "fx.master.comp.ratio": 1,
     "fx.master.comp.attack": 0.003196,
     "fx.master.comp.release": 4,
     "fx.master.comp.makeup": 2.76,
-    "master.volume": 0.85,
+    "master.volume": 1,
     "master.pitchBend": 0,
     "master.modWheel": 0,
     "keyboard.transpose": -1,
@@ -113,8 +113,12 @@
     "arp.octaves": 1,
     "arp.gate": 0.5,
     "seq.on": 1,
-    "seq.master": 0.95,
+    "seq.master": 0.755,
     "seq.mute": 0,
+    "seq.t0.mute": 0,
+    "seq.t1.mute": 0,
+    "seq.t2.mute": 0,
+    "seq.t3.mute": 0,
     "seq.solo": 0,
     "drum.on": 1,
     "drum.master": 1,
@@ -198,7 +202,9 @@
     "sampler.t7.mute": 0,
     "motion.on": 0,
     "motion.mute": 0,
-    "motion.slide": 1
+    "motion.slide": 1,
+    "motion.t0.slide": 1,
+    "motion.t1.slide": 1
   },
   "seqBanks": [
     [
@@ -206,7 +212,7 @@
         "on": true,
         "note": 38,
         "velocity": 0.9,
-        "gate": 0.3
+        "gate": 0.4101
       },
       {
         "on": false,
@@ -217,9 +223,8 @@
       {
         "on": true,
         "note": 50,
-        "velocity": 0.7,
-        "gate": 0.2,
-        "prob": 0.5007
+        "velocity": 0.827,
+        "gate": 0.3408
       },
       {
         "on": true,
@@ -244,8 +249,7 @@
         "on": true,
         "note": 43,
         "velocity": 0.75,
-        "gate": 0.2,
-        "prob": 0.5145
+        "gate": 0.2914
       },
       {
         "on": true,
@@ -4296,5 +4300,23 @@
     "steps": [
       0
     ]
-  }
+  },
+  "motionTracks": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "format": "websynth-song",
-  "version": 3,
+  "version": 6,
   "name": "Run Away",
   "params": {
     "voicing.mode": 1,
@@ -70,7 +70,7 @@
     "fx.drum.reverb.on": 1,
     "fx.drum.reverb.size": 0.105,
     "fx.drum.reverb.damp": 0.405,
-    "fx.drum.reverb.mix": 0.355,
+    "fx.drum.reverb.mix": 0.4,
     "fx.drum.comp.on": 1,
     "fx.drum.comp.threshold": -13.68,
     "fx.drum.comp.ratio": 4,
@@ -115,6 +115,10 @@
     "seq.on": 1,
     "seq.master": 1,
     "seq.mute": 0,
+    "seq.t0.mute": 0,
+    "seq.t1.mute": 0,
+    "seq.t2.mute": 0,
+    "seq.t3.mute": 0,
     "seq.solo": 0,
     "drum.on": 1,
     "drum.master": 0.848,
@@ -127,6 +131,7 @@
     "drum.t0.drive": 0.03916,
     "drum.t0.pan": 0.1631,
     "drum.t0.mute": 0,
+    "drum.t0.model": 0,
     "drum.t1.vol": 1,
     "drum.t1.tune": 3,
     "drum.t1.decay": 0.1274,
@@ -134,13 +139,15 @@
     "drum.t1.drive": 0.3426,
     "drum.t1.pan": -0.08401,
     "drum.t1.mute": 0,
-    "drum.t2.vol": 0.5193,
+    "drum.t1.model": 1,
+    "drum.t2.vol": 0.0643,
     "drum.t2.tune": 3,
-    "drum.t2.decay": 0.1544,
-    "drum.t2.tone": 0.5305,
-    "drum.t2.drive": 0.1998,
-    "drum.t2.pan": 0.0006279,
+    "drum.t2.decay": 0.0508,
+    "drum.t2.tone": 0.6955,
+    "drum.t2.drive": 0.4048,
+    "drum.t2.pan": 0.1306,
     "drum.t2.mute": 0,
+    "drum.t2.model": 12,
     "drum.t3.vol": 0.8331,
     "drum.t3.tune": 4,
     "drum.t3.decay": 0.2876,
@@ -148,6 +155,7 @@
     "drum.t3.drive": 0.1016,
     "drum.t3.pan": 0.08463,
     "drum.t3.mute": 0,
+    "drum.t3.model": 3,
     "drum.t4.vol": 0.7373,
     "drum.t4.tune": -1,
     "drum.t4.decay": 0.1256,
@@ -155,6 +163,7 @@
     "drum.t4.drive": 0.0563,
     "drum.t4.pan": -0.5757,
     "drum.t4.mute": 0,
+    "drum.t4.model": 4,
     "drum.t5.vol": 0.8092,
     "drum.t5.tune": -5,
     "drum.t5.decay": 0.1683,
@@ -162,6 +171,7 @@
     "drum.t5.drive": 0.05925,
     "drum.t5.pan": -0.3174,
     "drum.t5.mute": 0,
+    "drum.t5.model": 5,
     "drum.t6.vol": 0.545,
     "drum.t6.tune": -11,
     "drum.t6.decay": 0.7655,
@@ -169,6 +179,7 @@
     "drum.t6.drive": 0.7775,
     "drum.t6.pan": -0.571,
     "drum.t6.mute": 0,
+    "drum.t6.model": 6,
     "drum.t7.vol": 0.3162,
     "drum.t7.tune": 3,
     "drum.t7.decay": 0.2418,
@@ -176,6 +187,7 @@
     "drum.t7.drive": 0.2564,
     "drum.t7.pan": -0.5123,
     "drum.t7.mute": 0,
+    "drum.t7.model": 7,
     "sampler.on": 0,
     "sampler.master": 0.85,
     "sampler.mute": 0,
@@ -187,7 +199,12 @@
     "sampler.t4.mute": 0,
     "sampler.t5.mute": 0,
     "sampler.t6.mute": 0,
-    "sampler.t7.mute": 0
+    "sampler.t7.mute": 0,
+    "motion.on": 0,
+    "motion.mute": 0,
+    "motion.slide": 1,
+    "motion.t0.slide": 1,
+    "motion.t1.slide": 1
   },
   "seqBanks": [
     [
@@ -3938,5 +3955,237 @@
   "xy": {
     "x": "filter.cutoff",
     "y": "filter.drive"
-  }
+  },
+  "motionBanks": [
+    [
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      }
+    ],
+    [
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      }
+    ],
+    [
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      }
+    ],
+    [
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      }
+    ]
+  ],
+  "motionAssigns": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "motionChain": {
+    "enabled": false,
+    "steps": [
+      0
+    ]
+  },
+  "motionTracks": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ]
 }
