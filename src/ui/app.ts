@@ -448,7 +448,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc1.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
-    ]));
+    ], styles.spread!));
   }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
@@ -457,19 +457,18 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc2.octave', label: 'OCT' }).el,
       new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
-    ]));
+    ], styles.spread!));
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
     b.appendChild(new Segmented(bus, 'sub.wave', WAVE_LABELS, WAVE_ICONS).el);
+    // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
     b.appendChild(row([
       new Knob({ bus, paramId: 'sub.octave', label: 'S.OCT' }).el,
       new Knob({ bus, paramId: 'sub.level', label: 'S.LVL' }).el,
-    ]));
-    b.appendChild(row([
       new Knob({ bus, paramId: 'unison.voices', label: 'UNISON' }).el,
       new Knob({ bus, paramId: 'unison.detune', label: 'SPREAD' }).el,
-    ]));
+    ], styles.quad!));
   }, 'subuni'));
 
   main.appendChild(panel('MIXER', (b) => {
@@ -477,19 +476,18 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'mixer.noise', label: 'NOISE' }).el,
       new Knob({ bus, paramId: 'mixer.glide', label: 'GLIDE' }).el,
       new Knob({ bus, paramId: 'analog.drift', label: 'DRIFT' }).el,
-    ]));
+    ], styles.spread!));
     b.appendChild(new Segmented(bus, 'glide.mode', GLIDE_MODE_LABELS).el);
   }, 'mixer'));
 
   main.appendChild(panel('FILTER', (b) => {
+    // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
     b.appendChild(row([
       new Knob({ bus, paramId: 'filter.cutoff', label: 'CUTOFF' }).el,
       new Knob({ bus, paramId: 'filter.resonance', label: 'RESO' }).el,
-    ]));
-    b.appendChild(row([
       new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
       new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
-    ]));
+    ], styles.quad!));
   }, 'filter'));
 
   main.appendChild(panel('AMP ENV', (b) => {
@@ -498,7 +496,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.amp.decay', label: 'D' }).el,
       new Knob({ bus, paramId: 'env.amp.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.amp.release', label: 'R' }).el,
-    ]));
+    ], styles.quad!));
   }, 'ampenv'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
@@ -507,7 +505,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'env.fil.decay', label: 'D' }).el,
       new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
-    ]));
+    ], styles.quad!));
   }, 'filterenv'));
 
   main.appendChild(panel('LFO', (b) => {
@@ -515,7 +513,7 @@ function buildMain(bus: ParamBus): HTMLElement {
     b.appendChild(row([
       new Knob({ bus, paramId: 'lfo.rate', label: 'RATE' }).el,
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
-    ]));
+    ], styles.spread!));
     b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
   }, 'lfo'));
 
@@ -707,9 +705,9 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: 
   return { el: bottom, scope };
 }
 
-function row(children: HTMLElement[]): HTMLElement {
+function row(children: HTMLElement[], extraClass?: string): HTMLElement {
   const r = document.createElement('div');
-  r.className = styles.panelRow!;
+  r.className = extraClass ? `${styles.panelRow!} ${extraClass}` : styles.panelRow!;
   for (const c of children) r.appendChild(c);
   return r;
 }

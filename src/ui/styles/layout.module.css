@@ -43,6 +43,29 @@
   flex-wrap: wrap;
 }
 
+/* 4-knob synth panels (SUB/UNI, FILTER, AMP ENV, FILTER ENV) lay their knobs
+   out as a deterministic grid instead of a flex-wrap: a 2x2 block here (the
+   8-column .main grid, narrow panels), switched to a single 4-up row at ≤1280px
+   where the panels widen. Layers over .panelRow, overriding display. Grid never
+   wraps 3+1. See specs/features/responsive-synth-panels.md. */
+.quad {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 4px;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* 3- and 2-knob panels (OSC 1/2, MIXER, LFO) keep their centered flex row on the
+   8-column desktop grid, but on the ≤1280px reflow — where the panels widen —
+   spread the knobs evenly across the width (space-evenly, applied in that media
+   block) so they read as generously as the .quad panels beside them, instead of
+   clustering in the middle. Inert here. See responsive-synth-panels.md. */
+.spread {
+  width: 100%;
+}
+
 .patternPanel {
   display: flex;
   flex-direction: column;
@@ -416,6 +439,12 @@
 
 @media (max-width: 1280px) {
   .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
+     row. Holds through every narrower width. */
+  .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Distribute the 3-/2-knob rows across the widened panel so they match the
+     .quad panels' generosity instead of clustering centre. */
+  .spread { justify-content: space-evenly; }
   .patternRow { min-height: 200px; }
 }
 

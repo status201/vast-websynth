@@ -236,6 +236,7 @@ specs/
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster
+    responsive-synth-panels.md ·  4-knob panels: 2x2 desktop, single row on tablets
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     onboarding.md      ·  guided tour + help mode

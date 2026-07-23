@@ -111,6 +111,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Knobs use the whole panel on tablets and phones** — on narrower screens the
+  synth panels widen, and their knobs now spread evenly across that width instead
+  of bunching in the middle. Sub/Uni and Filter drop from two cramped rows to a
+  single row, and every panel gets the same generous, consistent spacing. On a
+  wide desktop the layout is unchanged (Sub/Uni, Filter and the envelopes stay a
+  tidy 2×2).
+
 - **Switching a step off keeps its settings** — a step you toggle off holds on to
   its note, velocity, gate, probability, ratchet and tie, so toggling it back on
   restores it exactly as it was. Clearing a bank works the same way.
