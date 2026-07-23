@@ -107,6 +107,23 @@ describe('help-content seq topic', () => {
   });
 });
 
+/** The Render button's badge (onboarding.md REQ-15 / render-to-sampler.md REQ-10). */
+describe('help-content seq.render topic', () => {
+  it('explains the import and why the bar plays twice', () => {
+    const t = HELP_TOPICS['seq.render'];
+    expect(t).toBeTruthy();
+    expect(t.title).toMatch(/sampler/i);
+    const body = bodyOf('seq.render');
+    expect(body).toMatch(/sampler slot/i);
+    // The whole point of the badge: the two-pass tail bake reads as a hang.
+    expect(body).toMatch(/twice/i);
+    expect(body).toMatch(/reverb/i);
+    // Both disabled reasons (render-to-sampler.md REQ-6).
+    expect(body).toMatch(/no steps/i);
+    expect(body).toMatch(/MIDI clock/i);
+  });
+});
+
 /** The header Presets button (onboarding.md REQ-12). */
 describe('help-content presets topic', () => {
   it('separates a preset from a song and covers export/import', () => {

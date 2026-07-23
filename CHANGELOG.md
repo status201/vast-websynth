@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Render button explains itself** — the Sequencer's "Import into sampler"
+  section now carries a help badge (turn badges on from **Help**): what the
+  import is for, and why pressing Render plays the bar **twice** — the second
+  pass is the one it keeps, so the reverb and delay tails are already blended in
+  at the start of the loop instead of the sample starting dry.
+
 ### Fixed
 
 - **Motion banks filled only in their A/B tracks now light up** — a bank whose

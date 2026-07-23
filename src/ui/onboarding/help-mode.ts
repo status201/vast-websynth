@@ -62,6 +62,9 @@ const ANCHORS: Anchor[] = [
   { topic: 'seq.prob', find: () => byTestId('seq-prob') },
   { topic: 'seq.ratchet', find: () => byTestId('seq-ratchet') },
   { topic: 'seq.tie', find: () => byTestId('seq-tie') },
+  // "Import into sampler" (render-to-sampler.md REQ-10): the section is
+  // unexplained on screen and the two-pass render looks like a hang.
+  { topic: 'seq.render', find: () => byTestId('seq-import-render') },
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
   { topic: 'motion', find: () => byTestId('tab-motion') },

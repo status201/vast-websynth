@@ -118,6 +118,19 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // expand again
   await expect(distBadge).toBeVisible();
 
+  // The Sequencer's Render button (onboarding.md REQ-15): its badge must say why
+  // the render plays the bar twice, or the wait reads as a hang. The tab row
+  // opens on Arpeggiator, so reveal the Sequencer first — the badge repositions
+  // via the pattern-row ResizeObserver.
+  await page.getByTestId('tab-seq').click();
+  await page.getByTestId('seq-import-render').scrollIntoViewIfNeeded();
+  const renderBadge = page.getByTestId('help-badge-seq.render');
+  await expect(renderBadge).toBeVisible();
+  await renderBadge.click();
+  const renderDialog = page.getByRole('dialog', { name: 'Import into sampler' });
+  await expect(renderDialog).toContainText('twice');
+  await renderDialog.getByRole('button', { name: 'Close' }).click();
+
   // The Song panel's file buttons each carry their own badge; the Save and
   // Export copy must distinguish the two (the whole reason they exist). Open
   // the Song tab and scroll the I/O row into view so the fixed-position badges

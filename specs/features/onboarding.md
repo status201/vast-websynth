@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 8   # v8: per-lane Motion help badges (motion.xy / motion.tracks)
+version: 9   # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
+             # v8: per-lane Motion help badges (motion.xy / motion.tracks)
              # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
 owner: core
 related:
@@ -14,6 +15,7 @@ related:
   - motion-sequencer
   - step-grid-editing
   - sequencer
+  - render-to-sampler
   - presets
 source:
   - src/ui/onboarding/tour.ts
@@ -113,6 +115,13 @@ never reads DEV-only globals.
   2–3 sentence quick explainer — the XY-pad automation and the single-param tracks
   respectively — for users who don't want the full Motion write-up. See
   [motion-sequencer.md](motion-sequencer.md) REQ-8.
+- **REQ-15** (v9) — **The Sequencer's Render button carries a `seq.render` badge**
+  (anchored to `seq-import-render`). Same rationale as REQ-5's per-button Song
+  badges: "Import into sampler" is unexplained on screen, and pressing Render
+  goes quiet for ~2 bars because it renders the bar **twice** to bake the
+  reverb/delay tail into the loop — behaviour that reads as a hang unless the
+  copy says so. The badge must also cover the two reasons the button greys out.
+  See [render-to-sampler.md](render-to-sampler.md) REQ-10.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -216,6 +225,13 @@ Scenario: Motion tab carries per-lane help badges (v8)
     badge anchors to the A track's row, each a short explainer distinct from the
     machine-level `motion` topic
 # pinned by: tests/ui/help-content.test.ts (topic presence)
+
+Scenario: The Render button says why it takes two bars (v9)
+  Given help mode is on and the Sequencer tab is open
+  When the user clicks the badge on the Render button
+  Then the modal explains the import into a sampler slot and the second pass
+    that lets the reverb tail blend into the loop
+# pinned by: tests/ui/help-content.test.ts (topic copy), e2e/onboarding.spec.ts
 ```
 
 ## Tests & verification

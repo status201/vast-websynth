@@ -3,7 +3,7 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 1
+version: 2   # v2: a `seq.render` help badge explains the section + the two-pass tail bake
 owner: core
 related:
   - architecture
@@ -12,12 +12,15 @@ related:
   - sequencer
   - arrangement
   - lane-mixer
+  - onboarding
 source:
   - src/audio/recorder/bank-render.ts
   - src/audio/recorder/node.ts
   - public/worklets/recorder.js
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
+  - src/ui/onboarding/help-content.ts   # `seq.render` help topic (v2)
+  - src/ui/onboarding/help-mode.ts      # its badge anchor (v2)
 ```
 
 ## Background / Why
@@ -76,6 +79,18 @@ the loop drifts against the grid and is unusable.
   testid `seq-import-slot`) and a Render button (testid `seq-import-render`)
   that shows a busy state while rendering. The transport is left stopped when
   the render completes (same convention as Export Song).
+- **REQ-10 (help badge, v2)** — The Render button carries a help-mode badge
+  ([onboarding](onboarding.md) REQ-3/REQ-15): topic `seq.render`, anchored to
+  `seq-import-render`. Nothing on screen explains the section, and the button's
+  most surprising behaviour — the **two-pass** bake of REQ-3 — makes it look
+  hung for ~2 bars, so the copy must state in user words: what it does (records
+  the bank you can see through the live synth + FX into the chosen sampler
+  slot, freeing the synth to play something else), that it **plays the bar
+  twice and keeps the second pass** so the reverb/delay tails are already
+  ringing at the loop's start, what to expect afterwards (the derived slot name
+  of REQ-7, transport left stopped), both disabled reasons (REQ-6: empty bank /
+  slaved to MIDI clock) and that the audio is not persisted with the song
+  (REQ-7).
 
 ## Technical design
 
@@ -158,11 +173,19 @@ Scenario: Import lands in the chosen slot with a derived name
   When the render completes
   Then sampler slot 3 holds the buffer and its name is seq-<bank>-<bpm>bpm
 # pinned by: e2e/render-to-sampler.spec.ts
+
+Scenario: The Render button explains itself (v2)
+  Given help mode is on and the Sequencer tab is open
+  When the user clicks the badge on the Render button
+  Then the modal says what the import does and why the bar plays twice
+    (the reverb/delay tail bake of REQ-3)
+# pinned by: tests/ui/help-content.test.ts (topic copy), e2e/onboarding.spec.ts
 ```
 
 ## Tests & verification
 
-- Unit: `tests/audio/recorder/bank-render.test.ts` — `npm test`
+- Unit: `tests/audio/recorder/bank-render.test.ts`,
+  `tests/ui/help-content.test.ts` (REQ-10 copy) — `npm test`
 - E2E: `e2e/render-to-sampler.spec.ts` (real audio graph; asserts the exact
   sample count via `window.__synth`) — `npm run e2e`
 - Typecheck: `npm run typecheck`

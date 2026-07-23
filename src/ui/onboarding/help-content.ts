@@ -198,6 +198,7 @@ export type TopicId =
   | 'seq.prob'
   | 'seq.ratchet'
   | 'seq.tie'
+  | 'seq.render'
   | 'drums'
   | 'sampler'
   | 'motion'
@@ -564,6 +565,29 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'smooth legato lines.</p>' +
       '<p>With <strong>glide</strong> turned up (and Mono voicing) the held note <em>slides</em> ' +
       'in pitch to the next step — the classic acid-bassline slide.</p>',
+  },
+  'seq.render': {
+    title: 'Import into sampler (Render)',
+    body:
+      '<p>Turns the sequencer bank you are looking at into a <strong>sample</strong>. It records ' +
+      'one bar of it through the live synth and all its effects, then loads that recording into ' +
+      'the sampler slot you picked above.</p>' +
+      '<p>Why bother? The sampler then plays that riff on its own — so you are free to change the ' +
+      'synth to a completely different sound and <strong>layer</strong> a bass under a lead, or a ' +
+      'chord stab under a melody, with one synth.</p>' +
+      '<p><strong>It plays the bar twice — that is on purpose.</strong> The first pass gets the ' +
+      'reverb and delay ringing; only the <em>second</em> pass is kept, so those tails are already ' +
+      'blended in at the start of the loop. Without it the sample would begin bone dry and chop ' +
+      'the echo off at the end. So expect about two bars of playing before it lands, then the ' +
+      'transport stops by itself.</p>' +
+      '<p>The slot is named after what you rendered, like <strong>seq-A-120bpm</strong>. Play with ' +
+      'it like any sample: put it on the sampler grid, retune it, or re-open it with ✎.</p>' +
+      '<p><strong>Button greyed out?</strong> Either the bank has no steps yet (there would be ' +
+      'nothing to record), or the synth is slaved to an external MIDI clock — it needs to own the ' +
+      'tempo to cut the bar exactly.</p>' +
+      '<p>The recorded audio is <em>not</em> saved inside a song file (only the slot name is), the ' +
+      'same as any loaded sample. Render it again after loading, or save it to disk from the ' +
+      'slot’s ✎ editor.</p>',
   },
   drums: {
     title: 'Drum Machine',
