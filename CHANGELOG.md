@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   underneath the rest overlay. On the Motion tab the A and B lanes now dim with
   the rest glyph too, not just the XY pad — so all three lanes rest together.
 
+- **Loading a song no longer inherits the previous song's motion** — switching to
+  a song (or demo) that has no motion used to leave the old anchors, tracks and
+  XY assignments in place, still automating parameters. A song load now clears
+  motion authoritatively, so the Motion tab always reflects the song you loaded.
+  (Loaded samples are deliberately kept, so switching songs doesn't discard audio
+  you loaded into the sampler.)
+
 ## [2.3.0] - 2026-07-23
 
 ### Added

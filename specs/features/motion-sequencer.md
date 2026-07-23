@@ -520,8 +520,11 @@ Scenario: Extra tracks round-trip through a song (v4)
 
 Scenario: Old songs load unchanged
   Given a v1/v2/v3 SongFile without motion fields
-  When it is applied
+  When it is applied — even directly after a song that HAD motion banks/tracks
   Then motion banks are empty, the chain is disabled and nothing is written
+  # authoritative apply: an absent motion section is blanked, not inherited
+  # (song-mode.md REQ-3). The store is reset via emptyPatternSnapshot(), so a
+  # previously-loaded song's anchors/tracks/assigns can never linger.
 # pinned by: tests/state/song-validate.test.ts, tests/state/song.test.ts
 
 Scenario: Dialect motion bank expands

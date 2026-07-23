@@ -236,6 +236,30 @@ export function emptyPatternBanks(): {
   };
 }
 
+/**
+ * A **complete** blank PatternStore snapshot — every optional section defined —
+ * so `restore()` applies it authoritatively (an absent section can't slip through
+ * `restore`'s skip-on-undefined and be inherited). This is the single source of
+ * blank shared by New Song and the load path (`Song.apply`): both start here so an
+ * authoritative clear can't drift between them (song-mode.md REQ-3). Extends
+ * `emptyPatternBanks()` with the two per-slot/per-bank sections it omits.
+ */
+export function emptyPatternSnapshot(): {
+  seqBanks: SeqStep[][][];
+  drumBanks: DrumCell[][][];
+  samplerBanks: SamplerStep[][][];
+  sampleNames: (string | null)[];
+  motionBanks: MotionStep[][];
+  motionAssigns: (MotionAssign | null)[];
+  motionTracks: MotionTrack[][];
+} {
+  return {
+    ...emptyPatternBanks(),
+    sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
+    motionAssigns: Array(BANK_COUNT).fill(null),
+  };
+}
+
 export class PatternStore {
   /** seqBanks[bank][track][step] */
   readonly seqBanks: SeqStep[][][];

@@ -19,7 +19,7 @@ import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
 import { describePresetPayload } from '../../state/preset-file';
 import { showToast } from '../components/toast';
-import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, BANK_COUNT, emptyPatternBanks } from '../../state/patterns';
+import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
@@ -395,11 +395,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // way back to a stash with its audio intact.
     const stash = stashCurrent();
     applyToken++; // a confirmed New also supersedes any in-flight clip decodes
-    engine.patterns.restore({
-      ...emptyPatternBanks(),
-      sampleNames: Array(SAMPLER_SLOT_COUNT).fill(null),
-      motionAssigns: Array(BANK_COUNT).fill(null),
-    });
+    // Same authoritative blank the load path uses (song-mode.md REQ-3).
+    engine.patterns.restore(emptyPatternSnapshot());
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
     engine.arrangement.setSeqChain([0], false);
     engine.arrangement.setDrumChain([0], false);

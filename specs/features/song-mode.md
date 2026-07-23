@@ -61,11 +61,21 @@ demos, the load path **must stay backward compatible** as the format grows.
   constant, not a literal — the published schema and `llms.txt` are pinned to it
   by `tests/state/authoring-docs.test.ts`, which is what stops the shipped docs
   silently falling a version behind (they did, twice, before v9 of this spec).
-- **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**,
-  then restores, so a stale param omitted by an older file reverts rather than
-  lingering. `resetDefaults()`+`restore()` also replaces every knob **reset
-  baseline** with the song's values (see
-  [param-reset-baseline](param-reset-baseline.md)); Save-song marks it too.
+- **REQ-3** — `apply()` is authoritative: it **resets params to defaults first**
+  (a stale param omitted by an older file reverts rather than lingering), the four
+  chains and the XY axes fall back to their defaults, and — the fix this REQ pins —
+  the **motion** sections (banks / assigns / tracks) a file omits are **blanked**,
+  never inherited from the previously-loaded song. Loading a no-motion song after a
+  motion song used to leave the old anchors/tracks automating; `apply` now coalesces
+  each absent motion section against the shared blank (`emptyPatternSnapshot()`, the
+  same complete-blank source New Song restores from, so an authoritative clear can't
+  drift between the two paths). **Sampler** banks/names are the deliberate exception:
+  they inherit across a load, because the sampler's decoded buffers live in
+  `SamplerMachine` (out of reach of `apply`) and blanking the metadata alone would
+  orphan them — a full sampler clear (metadata **and** buffers) is New Song's job.
+  `resetDefaults()`+`restore()` also replaces every knob **reset baseline** with the
+  song's values (see [param-reset-baseline](param-reset-baseline.md)); Save-song
+  marks it too.
 - **REQ-4** — Legacy step cells (plain `{on, velocity}`) must load and **sound
   unchanged** (gain defaults filled in).
 - **REQ-5** — Decoded audio is **never embedded in the `.json`**; only sampler
@@ -180,7 +190,10 @@ fromJSON: version-agnostic — only checks format === 'websynth-song'
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
   2. bus.restore(file.params)
-  3. patterns.restore({ seqBanks, drumBanks, samplerBanks, sampleNames })
+  3. patterns.restore({ seqBanks, drumBanks, samplerBanks, sampleNames,
+        motionBanks/motionAssigns/motionTracks ?? emptyPatternSnapshot().<section> })
+     # absent MOTION section -> blanked, never inherited; sampler banks/names inherit
+     # (buffers live in SamplerMachine; full sampler clear is New Song's job)
      # seqBanks is rebuilt to [bank][track][step] first: track 1 from seqBanks,
      # 2-4 from seqTracks when present (absent pre-v6 -> a one-track song)
   4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false)
@@ -380,6 +393,14 @@ Scenario: A v2 file loads with default XY axes (backward compat)
   Then the store holds the default axes { x: filter.cutoff, y: filter.resonance }
 # pinned by: tests/state/song.test.ts
 # see: xy-pad.md → REQ-6
+
+Scenario: Loading a no-motion song clears the previous song's motion (REQ-3, regression)
+  Given a store already holding a song with motion banks, tracks and assigns
+  When apply() loads a song whose file omits the motion sections (e.g. a v1 file)
+  Then every motion section (banks, tracks, assigns) is blank/default — the prior
+    song's motion is not inherited, and nothing is still automated
+  And sampler banks/names still inherit (the deliberate exception, REQ-3)
+# pinned by: tests/state/song.test.ts
 
 Scenario: Legacy {on, velocity} cells sound unchanged (edge)
   Given a drum cell with only { on, velocity }

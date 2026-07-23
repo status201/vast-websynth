@@ -5,7 +5,7 @@
  */
 import type { ParamBus } from './params';
 import type { PatternStore, SeqStep, DrumCell, SamplerStep, MotionStep, MotionAssign, MotionTrack } from './patterns';
-import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank, makeSeqBank } from './patterns';
+import { SEQ_LENGTH, DRUM_TRACK_COUNT, makeDrumBank, makeSeqBank, emptyPatternSnapshot } from './patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { XyPadStore, XyAssign } from './xy-pad';
 import { XY_DEFAULT_ASSIGN } from './xy-pad';
@@ -124,14 +124,23 @@ export const Song = {
   apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement, xyStore?: XyPadStore): void {
     bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
+    // Motion is authoritative: a file that omits a motion section has it BLANKED,
+    // never inherited from the previously-loaded song (song-mode.md REQ-3,
+    // motion-sequencer.md "Old songs load unchanged"). Without the `?? blank`
+    // fallbacks, restore's skip-on-undefined leaves the prior song's anchors /
+    // tracks live and still automating. Sampler banks/names are deliberately left
+    // to inherit (see the v1-apply test): the sampler's decoded buffers live in
+    // SamplerMachine, out of reach here, so blanking the metadata alone would
+    // orphan them — clearing sampler is the New Song / UI layer's job.
+    const blank = emptyPatternSnapshot();
     patterns.restore({
       seqBanks: mergeSeqTracks(file),
       drumBanks: file.drumBanks,
       samplerBanks: file.samplerBanks,
       sampleNames: file.sampleNames,
-      motionBanks: file.motionBanks,
-      motionAssigns: file.motionAssigns,
-      motionTracks: file.motionTracks,
+      motionBanks: file.motionBanks ?? blank.motionBanks,
+      motionAssigns: file.motionAssigns ?? blank.motionAssigns,
+      motionTracks: file.motionTracks ?? blank.motionTracks,
     });
     arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);

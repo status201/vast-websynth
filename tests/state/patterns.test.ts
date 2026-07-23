@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, type SeqStep, type DrumCell } from '../../src/state/patterns';
+import { PatternStore, SEQ_LENGTH, BANK_COUNT, SAMPLER_SLOT_COUNT, REST, clampChainStep, emptyPatternBanks, emptyPatternSnapshot, type SeqStep, type DrumCell } from '../../src/state/patterns';
 
 describe('clampChainStep', () => {
   it('passes the REST sentinel through untouched', () => {
@@ -630,5 +630,22 @@ describe('emptyPatternBanks — New Song blanks the extra motion tracks (regress
     p.restore(emptyPatternBanks());
     expect(p.motionTrack(0)!.param).toBeUndefined();
     expect(p.motionTrack(0)!.steps[2]!.on).toBe(false);
+  });
+});
+
+describe('emptyPatternSnapshot — the complete blank shared by Load + New Song', () => {
+  it('defines every section (incl. sampleNames + motionAssigns) so restore is authoritative', () => {
+    const snap = emptyPatternSnapshot();
+    expect(snap.seqBanks).toHaveLength(BANK_COUNT);
+    expect(snap.drumBanks).toHaveLength(BANK_COUNT);
+    expect(snap.samplerBanks).toHaveLength(BANK_COUNT);
+    expect(snap.motionBanks).toHaveLength(BANK_COUNT);
+    expect(snap.motionTracks).toHaveLength(BANK_COUNT);
+    // The two sections emptyPatternBanks omits — present here so a load can never
+    // leave them undefined (which restore skips → the prior song's state inherited).
+    expect(snap.sampleNames).toHaveLength(SAMPLER_SLOT_COUNT);
+    expect(snap.sampleNames.every((n) => n === null)).toBe(true);
+    expect(snap.motionAssigns).toHaveLength(BANK_COUNT);
+    expect(snap.motionAssigns.every((a) => a === null)).toBe(true);
   });
 });

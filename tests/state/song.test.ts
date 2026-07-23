@@ -305,6 +305,40 @@ describe('Song', () => {
     });
   });
 
+  describe('load is authoritative — motion (regression)', () => {
+    it('loading a no-motion song clears motion but keeps sampler (REQ-3)', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      const arr = fakeArr();
+
+      // A previously-loaded song's live state: motion (an XY anchor, an assigned +
+      // anchored extra track, and a per-bank axis override) AND sampler (cell + name).
+      patterns.setMotionStep(0, { on: true, x: 0.5, y: 0.8 });
+      patterns.setMotionTrackParam(0, 'fx.delay.mix');
+      patterns.setMotionTrackStep(0, 3, { on: true, v: 0.7 });
+      patterns.setMotionAssign({ x: 'lfo.rate', y: 'master.volume' });
+      patterns.setSamplerCell(0, 5, { on: true });
+      patterns.setSampleName(0, 'kept.wav');
+
+      // Load Zombie Nation (v1 — no motion AND no sampler fields) into the SAME store.
+      const v1 = demo();
+      expect(v1.version).toBe(1);
+      Song.apply(v1, bus, patterns, arr as never);
+
+      // Motion is authoritative: every section is blanked, nothing is still automated.
+      expect(patterns.motion.every((s) => !s.on)).toBe(true);
+      expect(patterns.motionTrack(0)!.param).toBeUndefined();
+      expect(patterns.motionTrack(0)!.steps.every((s) => !s.on)).toBe(true);
+      expect(patterns.motionAssign(0)).toBeNull();
+
+      // Sampler is the deliberate exception — its banks/names inherit (buffers live
+      // in SamplerMachine; a full sampler clear is New Song's job).
+      expect(patterns.samplerBanks[0]![0]![5]!.on).toBe(true);
+      expect(patterns.sampleNames[0]).toBe('kept.wav');
+    });
+  });
+
   describe('XY Pad (v3)', () => {
     it('capture() writes version 3 and the store\'s current axis assignment', () => {
       const bus = new ParamBus();
