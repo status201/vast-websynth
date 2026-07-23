@@ -96,8 +96,17 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         copy: (f, t) => p.copyMotionBank(f, t),
         getPlay: () => a.motionPlayBank,
         getResting: () => a.motionResting,
-        hasContent: (i) => p.motionBanks[i]!.some((s) => s.on),
-        onContentChange: (fn) => p.onMotionChange(fn),
+        // Motion stores THREE lanes per bank (XY anchors + tracks A/B), so a bank
+        // whose tracks are full but whose XY lane is empty is still a filled bank
+        // (banks.md REQ-6) — the same rule the panel's Clear ▾ list uses.
+        hasContent: (i) => p.motionBanks[i]!.some((s) => s.on)
+          || p.motionTracks(i).some((t) => t.steps.some((s) => s.on)),
+        // Both streams can flip that answer, so both must repaint the bar.
+        onContentChange: (fn) => {
+          const offXy = p.onMotionChange(fn);
+          const offTracks = p.onMotionTrackChange(fn);
+          return () => { offXy(); offTracks(); };
+        },
         onStep: (fn) => engine.motion.onStep(fn),
         clearBank: () => p.clearMotionBank(),
       };

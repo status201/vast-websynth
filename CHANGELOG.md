@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Motion banks filled only in their A/B tracks now light up** — a bank whose
+  extra motion tracks held steps but whose XY lane was empty showed as an empty
+  bank in the Motion tab's bank bar, so it was easy to lose. The bank dot now
+  counts all three motion lanes, and updates as you edit the tracks.
+
 - **Rest bars read clearly on the machine tabs** — while a lane sits out a bar,
   its bank dot now glows amber (resting) instead of the red "now-playing"
   colour, and the moving playhead is hidden rather than sweeping across bank A

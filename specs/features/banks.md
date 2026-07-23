@@ -3,17 +3,20 @@
 ```yaml
 id: banks
 status: implemented
-version: 3
+version: 4   # v4: the per-bank content dot is specified (REQ-6) — it must count
+             #     every lane the machine stores in that bank
 owner: core
 related:
   - architecture
   - sequencer
   - drum-machine
   - sampler
+  - motion-sequencer
   - arrangement
 source:
   - src/state/patterns.ts
   - src/ui/components/bank-bar.ts
+  - src/ui/panels/step-panel-scaffold.ts
   - src/ui/panels/*-panel.ts
 ```
 
@@ -55,6 +58,20 @@ without the editor and the playhead fighting over one buffer.
   Input turns Follow **off** ([sequencer](sequencer.md) REQ-6) so the arrangement
   cannot swap the edit bank mid-take. Same rule, same funnel as a manual bank
   click — it is not a new state, just a second way to reach it.
+- **REQ-6** (v4) — **Content dot.** Each bank button carries a dot that lights
+  (`filled`) while that bank holds pattern data, so the user can see which of
+  A–D are worth switching to without visiting each one. It is distinct from the
+  red *now-playing* dot: a bank can be filled and not playing, or playing and
+  empty. The predicate `hasContent(i)` must cover **every lane the machine
+  stores in that bank** — the sequencer's four tracks, all drum/sampler rows,
+  and, for motion, the XY anchors **and** both extra A/B tracks
+  ([motion-sequencer](motion-sequencer.md) REQ-13/REQ-16); a lane left out
+  renders a full bank as empty. Correspondingly `onContentChange(fn)` must
+  subscribe to **every** mutation stream that can change that answer (motion
+  needs `onMotionChange` *and* `onMotionTrackChange`), or the dot goes stale
+  until the next repaint. Both live in one place per machine — `laneHooks()` in
+  `ui/panels/step-panel-scaffold.ts` — so adding a lane to a machine means
+  extending its entry there.
 
 ## Technical design
 
@@ -79,6 +96,15 @@ play vs edit:
   a DISABLED arrangement lane's play bank follows that machine's edit bank
 ui: src/ui/components/bank-bar.ts (BankBar) — testid prefix per machine:
     bank-<seq|drum|sampler|motion>-<i>, bank-…-copy, bank-…-follow
+content dot (REQ-6):
+  BankBar toggles a `filled` class per button from opts.hasContent(i) and
+  re-renders on opts.onContentChange. Both are supplied per machine by
+  laneHooks() in src/ui/panels/step-panel-scaffold.ts:
+    seq     -> any step on, across all 4 tracks        (onSeqChange)
+    drum    -> any cell on, across all rows            (onDrumChange)
+    sampler -> any cell on, across all slots           (onSamplerChange)
+    motion  -> any XY anchor on OR any A/B track step on
+               (onMotionChange + onMotionTrackChange, disposers composed)
 follow (REQ-5):
   lives entirely inside BankBar — its opts (getEdit/setEdit/getPlay/onPlayChange)
   already suffice. Surface for the panels: `get following(): boolean`,
@@ -125,6 +151,12 @@ Scenario: Manual bank click while following disables Follow (edge)
   Then bank A becomes the edit bank and Follow turns off (no snap-back next bar)
 # pinned by: tests/ui/bank-bar.test.ts, e2e/banks.spec.ts
 
+Scenario: A motion bank filled only in its A/B tracks shows as filled (v4, regression)
+  Given motion bank B has no XY anchors but its A track holds steps
+  Then bank B's dot is lit in the Motion tab's bank bar
+  And editing a track step lights (or clears) the dot without a bank switch
+# pinned by: tests/ui/step-panel-scaffold.test.ts, e2e/motion.spec.ts
+
 Scenario: Turning Follow on syncs immediately (edge)
   Given Follow is off and the play bank differs from the edit bank
   When the user turns Follow on
@@ -134,7 +166,9 @@ Scenario: Turning Follow on syncs immediately (edge)
 
 ## Tests & verification
 
-- `tests/state/patterns.test.ts`, `tests/ui/bank-bar.test.ts`, `e2e/banks.spec.ts`.
+- `tests/state/patterns.test.ts`, `tests/ui/bank-bar.test.ts`,
+  `tests/ui/step-panel-scaffold.test.ts` (REQ-6 per-machine predicates),
+  `e2e/banks.spec.ts`.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

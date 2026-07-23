@@ -364,3 +364,31 @@ test('Motion’s Clear menu lists every lane that holds steps', async ({ page })
   await expect(page.getByTestId('clear-motion-row-0')).toContainText('XY');
   await expect(page.getByTestId('clear-motion-row-1')).toHaveCount(0);
 });
+
+/**
+ * banks.md REQ-6 — the bank bar's content dot counts all three motion lanes. A
+ * bank filled only in its A/B tracks used to read as empty, so it was easy to
+ * lose track of where the automation lived.
+ */
+test('a bank filled only in its A/B tracks lights its bank dot', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  const bankB = page.getByTestId('bank-motion-1');
+  await bankB.click(); // a manual pick also drops Follow, so nothing yanks the view
+  await expect(bankB).not.toHaveClass(/filled/);
+
+  const picker = page.getByTestId('motion-trk-0-param');
+  await picker.click();
+  await picker.getByText('fx.reverb.mix', { exact: true }).click();
+  await setTrackLevel(page, 0, 6, 1);
+
+  // Lit live, with the XY lane still empty and the transport stopped.
+  await expect(bankB).toHaveClass(/filled/);
+  await expect(page.getByTestId('bank-motion-2')).not.toHaveClass(/filled/);
+
+  // And it goes out again when that lane is cleared.
+  await page.getByTestId('clear-motion').click();
+  await page.getByTestId('clear-motion-row-0').click();
+  await expect(bankB).not.toHaveClass(/filled/);
+});

@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 6   # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
+version: 7   # v7: the bank bar's content dot counts the A/B track lanes, not just XY
+             # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
              #     per-lane help badges (motion.xy / motion.tracks); solid divider above the XY lane
              # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
              # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
@@ -25,6 +26,7 @@ source:
   - src/utils/taper.ts                      # norm<->value mapping (extracted from ui)
   - src/state/xy-effective.ts               # observable effective-assignment resolver
   - src/ui/panels/motion-panel.ts
+  - src/ui/panels/step-panel-scaffold.ts    # lane hooks: bank bar content dot, playhead, Clear ▾
   - src/ui/components/motion-step-pad.ts
   - src/ui/components/motion-graph.ts       # pure graph-polyline geometry (v2)
   - src/ui/panels/song-panel.ts             # Motion card: chain + Mute (v2)
@@ -233,6 +235,10 @@ The tab sits between Sampler and Song.
   so a cell's horizontal position means nothing, and drawing that axis would
   make a one-dimensional cell read as a mini XY pad. The horizontal line stays —
   on a level cell it is a 50% mark.
+  (v7) The bank bar's **content dot** counts all three lanes the same way: a bank
+  whose A/B tracks hold steps is a filled bank even with an empty XY lane, and the
+  dot updates on track edits as well as anchor edits — see
+  [banks](banks.md) REQ-6.
   Clearing: Motion has no selection cursor, so its `Clear ▾` lists **every lane
   holding steps** rather than "the selected row" — see
   [step-grid-editing](step-grid-editing.md) REQ-6. `Clear bank` empties all
