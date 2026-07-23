@@ -3,7 +3,7 @@
 ```yaml
 id: arrangement-rest
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -23,8 +23,9 @@ source:
   - src/ui/panels/seq-panel.ts                   # rest overlay wiring
   - src/ui/panels/drum-panel.ts                  # rest overlay wiring
   - src/ui/panels/sampler-panel.ts               # rest overlay wiring
-  - src/ui/panels/motion-panel.ts                # rest overlay wiring
-  - src/ui/components/bank-bar.ts                # Follow state read by the overlay (REQ-6)
+  - src/ui/panels/motion-panel.ts                # rest overlay wiring (XY + both track lanes)
+  - src/ui/panels/step-panel-scaffold.ts        # bankBarFor + wirePlayhead resting gate (REQ-4/REQ-6)
+  - src/ui/components/bank-bar.ts                # Follow state read by the overlay + resting dot recolour (REQ-6)
 ```
 
 A fifth arrangement-chain option that is **always an empty bar** ("rest"), so a
@@ -57,8 +58,11 @@ banks stay fully usable and existing songs are unaffected.
   for triggering.
 - **REQ-4** — When a lane is resting, its machine (`StepSequencer` / `DrumMachine`
   / `SamplerMachine` / `MotionMachine`) triggers/writes nothing for that bar; the
-  sequencer additionally releases any note tied into the rest. The transport clock advances normally
-  (positions still step, the playhead still moves).
+  sequencer additionally releases any note tied into the rest. The transport clock
+  advances normally (positions still step internally). The machine tab's **playhead
+  is hidden while resting** — `wirePlayhead` gates the highlight on the lane *not*
+  resting, so it doesn't chase across a bank (index 0) that isn't playing under the
+  rest overlay.
 - **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
   and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
   Move / delete / clear operate on rest chips like any other slot.
@@ -68,6 +72,16 @@ banks stay fully usable and existing songs are unaffected.
   the panel's Bank **Follow** toggle is off — Follow off means editing intent
   ([banks](banks.md) REQ-5), and an overlay over the bank being edited discourages
   edits. The grid stays clickable underneath (overlay is `pointer-events: none`).
+  The **Motion** tab has three lanes (the XY lane plus tracks A and B); **each** is
+  wrapped in its own overlay, so all three dim together off the shared
+  `motionResting`. The `ctrls`/header rows stay outside the dim (as the XY lane's
+  axis header does), keeping the param pickers usable.
+- **REQ-8** — While a lane is resting, the panel's Bank bar draws the current
+  play bank's dot **amber** (the resting colour, matching the overlay) instead of
+  the red "now-playing" colour — during a rest no bank is actually playing, so a
+  red dot misreads. The edit bank stays selected (with Follow on it is synced to
+  the play bank, so bank A remains highlighted and shown). The recolour is applied
+  whenever the lane rests, independent of the Follow toggle.
 - **REQ-7** — A `REST` in a chain persists through save / load and passes import
   validation. Legacy songs (no `REST`) load unchanged; an older build that predates
   this feature clamps `REST` → bank A (graceful degradation, ADR-007).
@@ -116,6 +130,9 @@ machines: each onTick checks arrangement.<lane>Resting FIRST -> (seq releases ti
 ui (song tab): buildChainLane add-row appends REST; renderStructure draws restIcon() + .rest chip
 ui (machine tabs): step grid wrapped position:relative; buildRestOverlay(api, lane) appended;
                    refresh() driven by arrangement.onChange + the machine's onStep
+                   (motion wraps all 3 lanes — XY + tracks A/B — each its own overlay);
+                   wirePlayhead gates the highlight on !laneHooks.getResting();
+                   BankBar.render toggles a 'resting' root class (amber play-bank dot)
 persistence: Song.capture/apply + serialize.cloneChain copy steps verbatim (no change)
 ```
 
@@ -173,6 +190,26 @@ Scenario: Follow off hides the overlay; re-enabling Follow mid-rest brings it ba
   Then the overlay hides (the user is editing — the grid must look editable)
   And turning Follow back on while the lane still rests shows the overlay again
 # pinned by: tests/ui/rest-overlay.test.ts, e2e/arrangement-rest.spec.ts
+
+Scenario: The playhead is hidden while a lane rests (REQ-4)
+  Given a seq chain [A, rest] is enabled and playing with Follow on
+  When the rest bar plays and the Seq tab is open
+  Then no step cell carries the playing highlight
+  And on the next (non-rest) bar the playhead resumes sweeping bank A
+# pinned by: e2e/arrangement-rest.spec.ts
+
+Scenario: The bank dot is amber, not red, while resting (REQ-8)
+  Given a BankBar whose resting() reports true and play bank is A
+  When it renders
+  Then the bar root carries the "resting" class (CSS recolours A's playing dot amber)
+  And bank A stays selected (active)
+# pinned by: tests/ui/bank-bar.test.ts
+
+Scenario: All three Motion lanes dim while the motion lane rests (REQ-6)
+  Given a motion chain [A, rest] is enabled and playing with Follow on
+  When the rest bar plays and the Motion tab is open
+  Then the XY lane and both track lanes (A and B) each show a rest overlay
+# pinned by: e2e/motion.spec.ts
 ```
 
 ## Tests & verification

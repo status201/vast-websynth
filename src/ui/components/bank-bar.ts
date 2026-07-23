@@ -10,6 +10,9 @@ export interface BankBarOpts {
   onEditChange(fn: () => void): () => void;
   getPlay(): number;
   onPlayChange(fn: () => void): () => void;
+  /** True while the lane is playing a REST bar — recolours the play-bank dot
+   *  amber ("resting") instead of red, since no bank is actually playing. */
+  resting?(): boolean;
   /** True when bank `i` holds at least one active step/note. */
   hasContent(i: number): boolean;
   /** Subscribe to pattern mutations so the filled indicator stays live. */
@@ -130,6 +133,10 @@ export class BankBar {
   private render(): void {
     const edit = this.opts.getEdit();
     const play = this.opts.getPlay();
+    // A resting lane plays no bank, so the red "now-playing" dot misreads — a
+    // root class recolours it amber via CSS (arrangement-rest.md REQ-8). render()
+    // re-runs on onPlayChange (= arrangement.onChange), which fires when resting flips.
+    this.el.classList.toggle('resting', this.opts.resting?.() ?? false);
     this.btns.forEach((b, i) => {
       b.classList.toggle('active', i === edit);
       b.classList.toggle('playing', i === play);

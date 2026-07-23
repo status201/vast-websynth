@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rest bars read clearly on the machine tabs** — while a lane sits out a bar,
+  its bank dot now glows amber (resting) instead of the red "now-playing"
+  colour, and the moving playhead is hidden rather than sweeping across bank A
+  underneath the rest overlay. On the Motion tab the A and B lanes now dim with
+  the rest glyph too, not just the XY pad — so all three lanes rest together.
+
 ## [2.3.0] - 2026-07-23
 
 ### Added

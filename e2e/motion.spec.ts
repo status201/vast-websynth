@@ -83,6 +83,39 @@ test('the playhead lights the A/B track cells while playing (v6)', async ({ page
   await page.getByTestId('transport-play').click();
 });
 
+test('a resting motion lane dims all three lanes and hides the playhead (arrangement-rest REQ-4/REQ-6)', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // Motion on, and a chain that is a single rest slot so the lane always rests.
+  await page.getByTestId('switch-motion.on').click();
+  await page.evaluate(() =>
+    (window as any).__synth.engine.arrangement.setMotionChain([-1], true),
+  );
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__synth.engine.arrangement.motionResting))
+    .toBe(true);
+
+  // Fix D: all three lanes — the XY lane plus tracks A and B — show a rest
+  // overlay (previously only the XY lane did).
+  await expect(page.getByTestId('rest-overlay-motion')).toHaveCount(3);
+  for (const overlay of await page.getByTestId('rest-overlay-motion').all()) {
+    await expect(overlay).toBeVisible();
+  }
+
+  // Fix C: MotionMachine still emits onStep every tick while resting, but the
+  // playhead is gated off — over a full bar of ticks no cell ever lights.
+  await page.getByTestId('transport-play').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__synth.engine.clock.step))
+    .toBeGreaterThan(16);
+  await expect(page.locator('[data-testid^="motion-step-"].playing')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="motion-trk-0-step-"].playing')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="motion-trk-1-step-"].playing')).toHaveCount(0);
+
+  await page.getByTestId('transport-play').click();
+});
+
 test('the graph traces the selected axis and the view toggle switches it', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);

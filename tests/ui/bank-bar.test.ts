@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { BankBar } from '../../src/ui/components/bank-bar';
 import { BANK_LABELS } from '../../src/state/patterns';
 
-function harness(opts?: { play?: number; filled?: (i: number) => boolean }) {
+function harness(opts?: {
+  play?: number;
+  filled?: (i: number) => boolean;
+  resting?: () => boolean;
+}) {
   let edit = 0;
   let play = opts?.play ?? 0;
   const editListeners = new Set<() => void>();
@@ -15,6 +19,7 @@ function harness(opts?: { play?: number; filled?: (i: number) => boolean }) {
     onEditChange: (fn) => { editListeners.add(fn); return () => editListeners.delete(fn); },
     getPlay: () => play,
     onPlayChange: (fn) => { playListeners.add(fn); return () => playListeners.delete(fn); },
+    ...(opts?.resting ? { resting: opts.resting } : {}),
     hasContent: (i) => (opts?.filled ?? ((j) => j === 0))(i),
     onContentChange: () => () => {},
   });
@@ -49,6 +54,21 @@ describe('BankBar', () => {
     const { banks } = harness({ filled: (i) => i === 1 });
     expect(banks[1]?.classList.contains('filled')).toBe(true);
     expect(banks[0]?.classList.contains('filled')).toBe(false);
+  });
+
+  it('flags the root as resting so CSS recolours the play-bank dot (REQ-8)', () => {
+    // While a lane rests, the play bank is a safe index 0 and no bank truly
+    // plays; the root's `resting` class recolours A's playing dot amber, but A
+    // stays selected/playing on the button itself.
+    const { bar, banks } = harness({ play: 0, resting: () => true });
+    expect(bar.el.classList.contains('resting')).toBe(true);
+    expect(banks[0]?.classList.contains('playing')).toBe(true);
+    expect(banks[0]?.classList.contains('active')).toBe(true);
+  });
+
+  it('is not resting by default (no resting hook)', () => {
+    const { bar } = harness();
+    expect(bar.el.classList.contains('resting')).toBe(false);
   });
 
   it('click selects a bank for editing', () => {

@@ -32,6 +32,8 @@ interface LaneHooks {
   onEditChange(fn: () => void): () => void;
   getPlay(): number;
   onPlayChange(fn: () => void): () => void;
+  /** True while the lane's current chain slot is a REST (an empty bar). */
+  getResting(): boolean;
   hasContent(i: number): boolean;
   onContentChange(fn: () => void): () => void;
   onStep(fn: (idx: number) => void): () => void;
@@ -54,6 +56,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         setEdit: (i) => p.setSeqEditBank(i),
         copy: (f, t) => p.copySeqBank(f, t),
         getPlay: () => a.seqPlayBank,
+        getResting: () => a.seqResting,
         hasContent: (i) => p.seqBanks[i]!.some((track) => track.some((s) => s.on)),
         onContentChange: (fn) => p.onSeqChange(fn),
         onStep: (fn) => engine.seq.onStep(fn),
@@ -66,6 +69,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         setEdit: (i) => p.setDrumEditBank(i),
         copy: (f, t) => p.copyDrumBank(f, t),
         getPlay: () => a.drumPlayBank,
+        getResting: () => a.drumResting,
         hasContent: (i) => p.drumBanks[i]!.some((tr) => tr.some((c) => c.on)),
         onContentChange: (fn) => p.onDrumChange(fn),
         onStep: (fn) => engine.drums.onStep(fn),
@@ -78,6 +82,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         setEdit: (i) => p.setSamplerEditBank(i),
         copy: (f, t) => p.copySamplerBank(f, t),
         getPlay: () => a.samplerPlayBank,
+        getResting: () => a.samplerResting,
         hasContent: (i) => p.samplerBanks[i]!.some((sl) => sl.some((c) => c.on)),
         onContentChange: (fn) => p.onSamplerChange(fn),
         onStep: (fn) => engine.sampler.onStep(fn),
@@ -90,6 +95,7 @@ function laneHooks(engine: StudioApi, lane: StepLane): LaneHooks {
         setEdit: (i) => p.setMotionEditBank(i),
         copy: (f, t) => p.copyMotionBank(f, t),
         getPlay: () => a.motionPlayBank,
+        getResting: () => a.motionResting,
         hasContent: (i) => p.motionBanks[i]!.some((s) => s.on),
         onContentChange: (fn) => p.onMotionChange(fn),
         onStep: (fn) => engine.motion.onStep(fn),
@@ -108,6 +114,7 @@ export function bankBarFor(engine: StudioApi, lane: StepLane): BankBar {
     onEditChange: h.onEditChange,
     getPlay: h.getPlay,
     onPlayChange: h.onPlayChange,
+    resting: h.getResting,
     hasContent: h.hasContent,
     onContentChange: h.onContentChange,
     testidPrefix: lane,
@@ -137,9 +144,11 @@ export function wrapGridWithRestOverlay(
 
 /**
  * Drive the playing-step highlight from the machine's `onStep`. The highlight
- * only shows while the edit bank *is* the playing bank, so editing bank C
- * while B plays doesn't chase a phantom playhead; the rest overlay is
- * refreshed on the same tick so bar boundaries update promptly.
+ * only shows while the edit bank *is* the playing bank (so editing bank C while
+ * B plays doesn't chase a phantom playhead) *and* the lane is not resting (a
+ * rest bar plays no bank, so the highlight is hidden rather than sweeping under
+ * the rest overlay — arrangement-rest.md REQ-4). The rest overlay is refreshed
+ * on the same tick so bar boundaries update promptly.
  */
 export function wirePlayhead(
   engine: StudioApi,
@@ -150,7 +159,7 @@ export function wirePlayhead(
   const h = laneHooks(engine, lane);
   const highlighter = new PlayheadHighlighter(rows);
   h.onStep((idx) => {
-    highlighter.update(idx, h.getEdit() === h.getPlay());
+    highlighter.update(idx, h.getEdit() === h.getPlay() && !h.getResting());
     restOverlay.refresh();
   });
   return highlighter;

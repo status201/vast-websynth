@@ -324,7 +324,12 @@ export function buildMotionPanel(
     grid.className = styles.trackGrid!;
     grid.appendChild(cells);
     grid.appendChild(graph);
-    row.appendChild(grid);
+    // Dim this track lane while the motion lane rests, like the XY lane above
+    // (arrangement-rest.md REQ-6). The overlay self-wires to arrangement.onChange
+    // + bankBar.onFollowChange, so it needs no extra refresh plumbing; the header
+    // (ctrls) stays outside the dim so the param picker remains usable.
+    const { el: gridWrap } = wrapGridWithRestOverlay(engine, 'motion', bankBar, grid);
+    row.appendChild(gridWrap);
     root.appendChild(row);
 
     const repaint = (): void => {
