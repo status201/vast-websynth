@@ -201,6 +201,8 @@ export type TopicId =
   | 'drums'
   | 'sampler'
   | 'motion'
+  | 'motion.xy'
+  | 'motion.tracks'
   | 'song'
   | 'song.load'
   | 'song.save'
@@ -595,8 +597,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Under the XY lane sit <strong>two more tracks</strong>, each driving a single ' +
       'parameter you choose yourself — and you choose it <em>per bank</em>, so bank A can ride the ' +
       'delay mix while bank B moves the drive. Drag a cell to set its level, double-click to clear ' +
-      'it. Between the XY pair and these two, one bank can move <strong>four</strong> parameters ' +
-      'at once while the XY Pad stays free for you to play live.</p>' +
+      'it. Between the XY pair and these two, one bank can move up to <strong>four</strong> ' +
+      'parameters at once — or move just these two and leave the XY Pad free for you to play ' +
+      'live (using the XY lane is what costs you the pad).</p>' +
       '<p>There is no on/off tap here — a cell either holds a value or it does not — so ' +
       '<strong>Clear ▾</strong> lists whichever lanes currently hold steps (XY, A, B) rather than ' +
       'a selected row. <strong>Ctrl+Z</strong> undoes the last edit, a bulk clear included.</p>' +
@@ -608,6 +611,25 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'drives.</p>' +
       '<p>In Song mode the Motion card chains banks like the other machines, and its ' +
       '<strong>Mute</strong> pauses automation — every driven knob returns to its resting value.</p>',
+  },
+  'motion.xy': {
+    title: 'XY Pad lane',
+    body:
+      '<p>These 16 mini pads automate the <strong>two knobs the XY Pad is wired to</strong>. ' +
+      'Drag inside a pad to drop an X/Y <em>anchor</em> for that step; double-click to clear it.</p>' +
+      '<p><strong>SLIDE</strong> ramps smoothly between anchors, <strong>STEP</strong> jumps at ' +
+      'each and holds. The <strong>Y / X</strong> toggle only picks which axis the overlay line ' +
+      'traces — the dots never move.</p>',
+  },
+  'motion.tracks': {
+    title: 'Motion tracks A & B',
+    body:
+      '<p>Two extra lanes that each automate <strong>one parameter you choose</strong> — and you ' +
+      'choose it <em>per bank</em> — so you can move two params here and keep the XY Pad ' +
+      '<strong>free to play live</strong>, or add the XY lane on top for up to four in all.</p>' +
+      '<p>Drag a cell up or down to set its level, double-click to clear it. Each lane has its own ' +
+      '<strong>SLIDE / STEP</strong>, so it can move differently from the XY sweep and from the ' +
+      'other track.</p>',
   },
   song: {
     title: 'Song mode',

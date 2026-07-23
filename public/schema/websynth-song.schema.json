@@ -148,7 +148,7 @@
       "type": "array",
       "minItems": 4,
       "maxItems": 4,
-      "description": "v5 (optional). Per motion bank, 2 extra single-param tracks (A, B). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 4 params while the XY Pad stays free for live playing. A track that is unassigned and empty is null and writes nothing.",
+      "description": "v5 (optional). Per motion bank, 2 extra single-param tracks (A, B). Each picks its own ParamBus id and holds its own 16 anchors, so a bank can automate up to 4 params, or just these 2 while keeping the XY Pad free for live playing. A track that is unassigned and empty is null and writes nothing.",
       "items": {
         "type": "array",
         "maxItems": 2,

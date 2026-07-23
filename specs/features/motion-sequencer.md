@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 5   # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
+version: 6   # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
+             #     per-lane help badges (motion.xy / motion.tracks); solid divider above the XY lane
+             # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
              # v4: two extra single-param tracks per bank (A/B) + the scalar curve core
              # v3: cross-bank carry (the bar-line ramp targets the next play bank), dashed carry in the graph
              # v2: motion.mute (Song-card Mute), mode-aware graph (step = staircase), help badge
@@ -36,8 +38,9 @@ source:
 (v4) The XY lane is bound to the XY Pad's two params, which means automating
 anything costs you the pad — the one surface you want free for live playing. Two
 extra **single-param tracks** per bank fix that: each picks its own parameter and
-holds its own anchors, so a bank can drive up to four parameters while the pad
-stays yours to grab. They are the Korg Electribe / MPC "motion lane" idea:
+holds its own anchors, so a bank can drive up to four parameters — or drive just
+these two and keep the pad free to grab (only the XY lane costs you the pad).
+They are the Korg Electribe / MPC "motion lane" idea:
 a strip of levels under the pattern, one parameter each.
 
 Songs vary notes and hits over time (banks + chains) but every *parameter* is static —
@@ -144,11 +147,19 @@ The tab sits between Sampler and Song.
       the axis dropdowns showing the edit bank's *effective* assignment, the
       inherit/reset button and the "graph: `<param>`" hint — the toggle beside
       the readout it drives, rather than three rows apart;
-    - a single **divider** separates the XY lane from the tracks below (A and B
-      are the same kind of lane, so nothing divides them from each other).
-  A help-mode badge (`motion` topic, anchored to
-  `tab-motion` — [onboarding](onboarding.md) REQ-3) explains the Y/X graph
-  projection.
+    - a single **dashed divider** separates the XY lane from the tracks below (A
+      and B are the same kind of lane, so nothing divides them from each other),
+      and (v6) a **solid** divider (the Drum tab's below-grid rule) separates the
+      **machine header** from the XY lane header above it.
+  (v6) The A/B track cells use a **wider grid gap** than the XY lane's pads, so
+  the tracks read as a visually distinct, more spaced-out lane; the full-width
+  grid keeps step 0 / step 15 aligned across all three lanes (only interior cells
+  drift a few px from the decorative overlay line, which is `pointer-events:none`).
+  Help-mode badges ([onboarding](onboarding.md) REQ-3/REQ-14) explain the panel at
+  three grains: the machine-level `motion` topic (anchored to `tab-motion`) covers
+  the Y/X graph projection and the whole machine; short per-lane topics `motion.xy`
+  (the XY lane header) and `motion.tracks` (one shared badge on the A track's row,
+  covering both A and B) give the quick version.
 - **REQ-9** — SongFile **v4** adds optional `motionBanks` (4×16 `MotionStep`),
   `motionAssigns` (4 × `MotionAssign|null`) and `motionChain` (`ChainData`) —
   additive per ADR-007; old files load with empty motion state. Export is
@@ -205,7 +216,13 @@ The tab sits between Sampler and Song.
   param dropdown, and its own Slide/Step segmented — `seg-motion.t<i>.slide`)
   above 16 full-width **level pads** — drag up/down to set the value (the pad
   fills from the bottom), double-click/double-tap to clear, matching the XY pads'
-  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). Each lane
+  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). (v6) Clearing
+  returns the cell to the **default step** (its level reset too), so a cleared
+  cell reads like an untouched one instead of keeping its old parked height. The fill
+  **snaps** to its value (no CSS height animation), and the lanes show the moving
+  **playhead** while playing — the same `PlayheadHighlighter` glow the XY lane and
+  the other machines carry (all three motion lanes are wired into one highlighter,
+  so the playing column lights across them together). Each lane
   draws the same mode-aware polyline the XY lane does — **using its own mode** —
   so slide interpolation and the bar-line carry stay visible while authoring. A
   lane with no param chosen renders dimmed with its pads inert; the row itself
@@ -360,8 +377,22 @@ Scenario: Every lane's controls sit above its own cells (v5)
   Then the XY Pad launcher, view toggle, Slide/Step, axis dropdowns and the
     "graph:" hint are all in one row ABOVE the 16 XY pads
   And each track's label, param picker and Slide/Step sit above its own cells
-  And a single divider separates the XY lane from the tracks
+  And a single dashed divider separates the XY lane from the tracks
+  And a solid divider separates the machine header from the XY lane (v6)
 # pinned by: e2e/motion.spec.ts
+
+Scenario: The A/B tracks show the playhead while playing (v6)
+  Given the Motion tab is open and the transport is running
+  When the playhead advances
+  Then the playing column lights on the A and B track cells, not only the XY pads
+# pinned by: e2e/motion.spec.ts
+
+Scenario: The XY lane and the tracks each carry a short help badge (v6)
+  Given help mode is on and the Motion tab is open
+  Then a `motion.xy` badge anchors to the XY lane header and a `motion.tracks`
+    badge anchors to the A track's row, each a short explainer distinct from the
+    essay-length `motion` badge on the tab
+# pinned by: tests/ui/help-content.test.ts (topic presence)
 
 Scenario: An unassigned extra track writes nothing (v4)
   Given motion track B has anchors but no parameter chosen
@@ -506,7 +537,8 @@ Scenario: Dialect motion bank expands
   `tests/audio/transport/motion-machine.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/state/{patterns,song-validate,serialize,song-author,authoring-docs}.test.ts`,
   `tests/ui/motion-step-pad.test.ts`, `tests/ui/motion-graph.test.ts`,
-  `tests/ui/help-content.test.ts` (the `motion` topic) — `npm test`
+  `tests/ui/help-content.test.ts` (the `motion` / `motion.xy` / `motion.tracks`
+  topics) — `npm test`
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.

@@ -14,7 +14,7 @@ import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
 import { motionAxesFor } from '../../state/xy-effective';
 import {
-  REST, SEQ_LENGTH, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS,
+  REST, SEQ_LENGTH, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS, MOTION_TRACK_STEP_DEFAULTS,
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
 import layout from '../styles/layout.module.css';
@@ -57,6 +57,8 @@ export function buildMotionPanel(
   // drives and the hint reading them back — one row, directly above its pads.
   const xyHeader = document.createElement('div');
   xyHeader.className = styles.xyHeader!;
+  // Anchor for the short XY-lane help badge (onboarding.md REQ-14).
+  xyHeader.dataset.help = 'motion.xy';
   xyHeader.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
 
   const viewSel = document.createElement('div');
@@ -266,11 +268,14 @@ export function buildMotionPanel(
   // mode, and the same mode-aware polyline so slide interpolation and the
   // bar-line carry stay visible while authoring.
   const NONE = '— none —';
-  const buildTrackRow = (track: number): { repaint: () => void } => {
+  const buildTrackRow = (track: number): { repaint: () => void; pads: MotionStepPad[] } => {
     const row = document.createElement('div');
     // The first track carries the one divider — A and B are the same kind of
     // lane, so only the XY lane above is fenced off (REQ-8).
     row.className = styles.trackRow! + (track === 0 ? ` ${styles.laneDivider!}` : '');
+    // The shared A/B help badge anchors here, on the first track's row
+    // (onboarding.md REQ-14).
+    if (track === 0) row.dataset.help = 'motion.tracks';
 
     const ctrls = document.createElement('div');
     ctrls.className = styles.trackHeader!;
@@ -289,7 +294,9 @@ export function buildMotionPanel(
     row.appendChild(ctrls);
 
     const cells = document.createElement('div');
-    cells.className = drumStyles.cells!;
+    // Wider-gap grid than the XY lane's (styles.trackCells vs drumStyles.cells),
+    // so the tracks read as a distinct lane (REQ-8/REQ-16).
+    cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
     for (let sIdx = 0; sIdx < SEQ_LENGTH; sIdx++) {
       const step = sIdx;
@@ -297,7 +304,10 @@ export function buildMotionPanel(
         beat: sIdx % 4 === 0,
         mode: 'level',
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
-        onClear: () => patterns.setMotionTrackStep(track, step, { on: false }),
+        // Clearing returns the cell to the default step (level included), so a
+        // cleared cell reads like an untouched one instead of keeping its old
+        // parked height (motion-sequencer.md REQ-16).
+        onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
       });
       pad.el.dataset.testid = `motion-trk-${track}-step-${sIdx}`;
       cells.appendChild(pad.el);
@@ -345,7 +355,7 @@ export function buildMotionPanel(
         graph.appendChild(c);
       }
     };
-    return { repaint };
+    return { repaint, pads };
   };
 
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
@@ -365,7 +375,11 @@ export function buildMotionPanel(
     refreshAxes();
   };
 
-  const highlighter = wirePlayhead(engine, 'motion', [pads], restOverlay);
+  // Light the playing column across all three lanes (XY + A + B), not just the XY
+  // pads — the tracks were added later (v4) and were never wired in (REQ-16).
+  const highlighter = wirePlayhead(
+    engine, 'motion', [pads, ...trackRows.map((r) => r.pads)], restOverlay,
+  );
 
   patterns.onMotionBankChange((bank) => {
     highlighter.clear();

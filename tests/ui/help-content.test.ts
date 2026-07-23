@@ -55,6 +55,26 @@ describe('help-content motion topic', () => {
     // Motion's Clear lists lanes, not a selected row (step-grid-editing REQ-6).
     expect(body).toContain('Clear ▾');
   });
+
+  // The two short per-lane badges (onboarding.md REQ-14 / motion-sequencer.md v6).
+  it('has a short `motion.xy` topic for the XY lane', () => {
+    const t = HELP_TOPICS['motion.xy'];
+    expect(t).toBeTruthy();
+    expect(t.title).toContain('XY');
+    const body = bodyOf('motion.xy');
+    expect(body).toMatch(/anchor/i);
+    expect(body).toContain('SLIDE');
+    expect(body).toContain('Y / X');
+  });
+
+  it('has a short `motion.tracks` topic for the A/B tracks', () => {
+    const t = HELP_TOPICS['motion.tracks'];
+    expect(t).toBeTruthy();
+    expect(t.title).toMatch(/A & B/);
+    const body = bodyOf('motion.tracks');
+    expect(body).toContain('per bank');
+    expect(body).toContain('SLIDE');
+  });
 });
 
 /** The grid gesture vocabulary reaches every step grid (onboarding.md REQ-11). */

@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 7   # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
+version: 8   # v8: per-lane Motion help badges (motion.xy / motion.tracks)
+             # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
 owner: core
 related:
   - architecture
@@ -105,6 +106,13 @@ never reads DEV-only globals.
   consecutive steps sharing a target leave the spotlight rect unmoved, which reads
   as "nothing happened". The drum grid also carries the demo song's hits by this
   point (same rationale as REQ-10), so the gesture lands on real content.
+- **REQ-14** (v8) — **The Motion tab carries two short per-lane badges** beside the
+  essay-length `motion` topic (REQ-7): `motion.xy` anchored to the **XY lane header**
+  (`data-help="motion.xy"`) and `motion.tracks` anchored to the **A track's row**
+  (`data-help="motion.tracks"`, one shared badge covering both A and B). Each is a
+  2–3 sentence quick explainer — the XY-pad automation and the single-param tracks
+  respectively — for users who don't want the full Motion write-up. See
+  [motion-sequencer.md](motion-sequencer.md) REQ-8.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -200,6 +208,13 @@ Scenario: Sync section carries USB + WiFi help badges (v2)
   Given help mode is on and the Song tab is open
   Then a `sync` badge anchors to the Master mode button and a `sync.wifi` badge
     anchors to the WiFi link button, each opening its connection-steps modal
+# pinned by: tests/ui/help-content.test.ts (topic presence)
+
+Scenario: Motion tab carries per-lane help badges (v8)
+  Given help mode is on and the Motion tab is open
+  Then a `motion.xy` badge anchors to the XY lane header and a `motion.tracks`
+    badge anchors to the A track's row, each a short explainer distinct from the
+    machine-level `motion` topic
 # pinned by: tests/ui/help-content.test.ts (topic presence)
 ```
 

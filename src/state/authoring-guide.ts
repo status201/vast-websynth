@@ -175,7 +175,8 @@ TOP-LEVEL SHAPE
 
   // ---- v5 extra motion tracks, OPTIONAL ----
   // Per bank, 2 more automation tracks that each drive ONE param of your choice —
-  // so a bank can move up to 4 params, and the XY Pad stays free to play live.
+  // so a bank can move up to 4 params, or move just these 2 and keep the XY Pad
+  // free to play live (the XY lane is what costs you the pad).
   // A track is { "param": "<ParamBus id>", "steps": [{ "step": 0-15, "v": 0-1 }] }
   // or null. Same slide/step curve rules as the XY anchors, but each track has
   // its OWN mode param: "motion.t0.slide" / "motion.t1.slide" (1 = slide, default).

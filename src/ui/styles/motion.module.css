@@ -89,6 +89,12 @@
   margin-bottom: 6px;
   font-size: 11px;
   color: #b9a58f;
+  /* Solid divider fencing the machine header (on/banks/undo/clear) off from the
+     XY lane settings — the same rule the Drum tab uses below its grid
+     (drum.module.css .tuning). The XY↔tracks divider below stays dashed. */
+  border-top: 1px solid var(--panel-border);
+  margin-top: 6px;
+  padding-top: 8px;
 }
 .xyHeader .axisLabel {
   font-size: 10px;
@@ -119,11 +125,11 @@
   background: linear-gradient(180deg, var(--accent) 0%, rgba(232, 116, 46, 0.35) 100%);
   border-radius: 0 0 3px 3px;
   pointer-events: none;
-  transition: height 0.06s linear;
 }
 
-/* Unlit cells keep a faint bar so the parked level stays visible — toggling a
-   step off must not look like the value was lost. */
+/* Unlit cells still show a faint bar at their level, so a row reads as a bar
+   strip. Clearing resets a cell to the default level (motion-panel.ts onClear),
+   so a cleared cell matches an untouched one instead of keeping its old height. */
 .levelPad .bar { opacity: 0.22; }
 .levelPad:global(.on) .bar { opacity: 1; }
 
@@ -167,6 +173,19 @@
 
 .trackGrid {
   position: relative;
+  min-width: 0;
+}
+
+/* A/B track cells: a wider gap than the XY lane's 3px (drum.module.css .cells) so
+   the tracks read as a distinct, more spaced-out lane. The 1fr columns absorb the
+   extra gap, so the cells get narrower automatically. The full-width grid keeps
+   step 0 / step 15 aligned with the XY lane above; only interior cells sit a few
+   px off the decorative graph overlay (pointer-events:none), which is fine. */
+.trackCells {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 10px;
+  flex: 1;
   min-width: 0;
 }
 

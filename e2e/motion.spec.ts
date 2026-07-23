@@ -67,6 +67,22 @@ test('anchors drive the assigned params while playing and restore on stop', asyn
   await expect.poll(() => busGet(page, 'filter.resonance')).toBe(resBefore);
 });
 
+test('the playhead lights the A/B track cells while playing (v6)', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // Motion must be on for its onStep (the playhead) to fire.
+  await page.getByTestId('switch-motion.on').click();
+  await page.getByTestId('transport-play').click();
+
+  // The playing column lights on track A's cells, not only the XY pads (REQ-16).
+  // `.playing` is a global (unhashed) state class, so it selects directly.
+  await expect(page.locator('[data-testid^="motion-trk-0-step-"].playing'))
+    .toHaveCount(1, { timeout: 5_000 });
+
+  await page.getByTestId('transport-play').click();
+});
+
 test('the graph traces the selected axis and the view toggle switches it', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);

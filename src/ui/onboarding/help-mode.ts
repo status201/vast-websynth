@@ -65,6 +65,10 @@ const ANCHORS: Anchor[] = [
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
   { topic: 'motion', find: () => byTestId('tab-motion') },
+  // Short per-lane Motion badges (onboarding.md REQ-14): pinned to the panel via
+  // data-help, so they hide/reposition on tab switch like the other in-panel badges.
+  { topic: 'motion.xy', find: () => byHelp('motion.xy') },
+  { topic: 'motion.tracks', find: () => byHelp('motion.tracks') },
   { topic: 'song', find: () => byTestId('tab-song') },
   // Per-button badges on the Song panel's file/audio controls (the Save vs
   // Export confusion lives here). They pin to existing testids and reposition
