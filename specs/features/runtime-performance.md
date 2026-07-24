@@ -17,13 +17,19 @@ related:
 source:
   - src/state/params.ts
   - src/state/song.ts
+  - src/state/demos-index.json
   - src/audio/effects/reverb.ts
   - src/audio/effects/distortion.ts
+  - src/audio/drive-curve.ts
+  - src/audio/transport/drum-machine.ts
   - src/audio/transport/motion-machine.ts
   - src/audio/transport/motion-curve.ts
+  - src/audio/transport/performance.ts
   - src/ui/components/knob.ts
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
+  - src/ui/app.ts
+  - scripts/clean-demos.ts
   - public/worklets/ladder-filter.js
 ```
 

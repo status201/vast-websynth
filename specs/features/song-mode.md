@@ -181,7 +181,8 @@ Song:   # src/state/song.ts (a plain object of functions, not a class)
   parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
   download(file) / readFile(File): Promise<SongFile | null>
   parseFile(File): Promise<SongValidation>         # rich variant for the import UI
-  list(): string[]                       # demo names ∪ stored slot names, sorted
+  list(): string[]                       # JSON demo names ∪ stored slot names, sorted
+                                         #   (zip demos excluded — not song files)
   saveSlot(name, file) / loadSlot(name) / deleteSlot(name)
 
 song-validate:  # src/state/song-validate.ts (pure, dependency-free)
@@ -340,7 +341,9 @@ file:        download() -> "<name>.websynth.json"; readFile() parses via fromJSO
 localStorage:
   websynth.song.<name>  : one slot (JSON)
   websynth.song.index   : JSON array of slot names
-loadSlot:    falls back to a DEMO_SONGS[name] if no stored slot
+loadSlot:    falls back to a DEMO_SONGS[name] (a BUILT-IN) if no stored slot;
+             sync + JSON-only, so a drop-in demo is listed but not returned —
+             the Song panel Load button falls back to loadDemo for those (REQ-12)
 NOT persisted: decoded AudioBuffers — only sampleNames (user reloads files;
                the UI shows a .needs-reload hint)
 demos:       three sources, listed in this order by demoNames() — REQ-12:

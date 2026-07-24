@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 9   # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
+version: 10  # v10: TourCtx.applyDemo is async (demos are fetched on click)
+             # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
              # v8: per-lane Motion help badges (motion.xy / motion.tracks)
              # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
 owner: core
@@ -141,7 +142,10 @@ tour.ts:
   TourCtx (injected hooks):
     bus, engine
     toggleTransport()        # via the header button (keeps LED/label synced)
-    applyDemo(name)          # load a demo song (does not start transport)
+    applyDemo(name): Promise # load a demo song (does not start transport).
+                             #   ASYNC: all but the two built-ins are fetched on
+                             #   click (song-mode REQ-12), so a step that acts on
+                             #   the loaded song must await it (see below).
     resumeAudio(): Promise   # idempotent AudioContext resume (before note step)
     expandFx()               # open the collapsible FX section
 help-mode.ts / help-content.ts: per-control help badges + copy

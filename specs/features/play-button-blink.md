@@ -83,7 +83,8 @@ buildHeader (app.ts): owns the cueArmed flag + refreshIdleBlink(); subscribes
   bridge.cuePlay AND subscribes bus 'seq.on'/'drum.on'/'sampler.on' (value on
   -> cuePlay). Runs before buildPatternRow, so the hook is live before any
   cueing UI exists.
-song-panel.ts: loadDemo (JSON path), the Load button, applyProjectBundle
+song-panel.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
+  fetched JSON drop-in, and the tour), the Load button, applyProjectBundle
   (imports + zip demos + share links + OS launches) and buildChainLane's
   Chain-enable click call bridge.cuePlay().
 layout.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate

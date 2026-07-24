@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-ui-component
 status: implemented
-version: 2
+version: 3   # v3: measure-once-per-gesture + guarded repaints (runtime-performance)
 owner: core
 related:
   - architecture

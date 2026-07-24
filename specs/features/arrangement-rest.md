@@ -3,7 +3,7 @@
 ```yaml
 id: arrangement-rest
 status: implemented
-version: 2
+version: 3   # v3: playhead + per-tick overlay refresh are gated on panel visibility
 owner: core
 related:
   - architecture
@@ -62,7 +62,11 @@ banks stay fully usable and existing songs are unaffected.
   advances normally (positions still step internally). The machine tab's **playhead
   is hidden while resting** — `wirePlayhead` gates the highlight on the lane *not*
   resting, so it doesn't chase across a bank (index 0) that isn't playing under the
-  rest overlay.
+  rest overlay. A panel whose tab is not on screen skips both the highlight and the
+  per-tick overlay refresh entirely and re-syncs on reveal
+  ([step-grid-editing](step-grid-editing.md) REQ-12); the overlay's own
+  `arrangement.onChange` subscription is **not** gated, so a hidden lane's rest
+  state still tracks the bar — the gate only drops the redundant per-tick nudge.
 - **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
   and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
   Move / delete / clear operate on rest chips like any other slot.
@@ -131,7 +135,8 @@ ui (song tab): buildChainLane add-row appends REST; renderStructure draws restIc
 ui (machine tabs): step grid wrapped position:relative; buildRestOverlay(api, lane) appended;
                    refresh() driven by arrangement.onChange + the machine's onStep
                    (motion wraps all 3 lanes — XY + tracks A/B — each its own overlay);
-                   wirePlayhead gates the highlight on !laneHooks.getResting();
+                   wirePlayhead gates the highlight on !laneHooks.getResting()
+                     AND on the panel VisibilityGate (hidden => no per-tick work);
                    BankBar.render toggles a 'resting' root class (amber play-bank dot)
 persistence: Song.capture/apply + serialize.cloneChain copy steps verbatim (no change)
 ```

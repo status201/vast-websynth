@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-tour-step
 status: implemented
-version: 1
+version: 2   # v2: step actions are awaited; applyDemo is async
 owner: core
 related:
   - onboarding
@@ -33,7 +33,7 @@ via an injected `TourCtx` — never DEV-only globals — so they work in product
   body: 'Light HTML, authored + trusted.',
   placement: 'right',             // 'auto' | top | bottom | left | right (default auto)
   precondition: (ctx) => ctx.expandFx(),        // open a tab / resumeAudio before render
-  action: (ctx) => ctx.applyDemo('I Feel Love'),// run on Next
+  action: async (ctx) => { await ctx.applyDemo('Night Rider'); }, // run on Next
   advanceOn: 'note',              // auto-advance on first incoming note (default 'next')
 }
 ```
@@ -41,6 +41,12 @@ via an injected `TourCtx` — never DEV-only globals — so they work in product
 `TourStep` shape (`tour.ts`): `{ target?, title, body, placement?, precondition?,
 action?, advanceOn? }`. `TourCtx` hooks: `bus, engine, toggleTransport, applyDemo,
 resumeAudio, expandFx`.
+
+`action` may return a promise and the tour **awaits** it before advancing, which
+matters for `applyDemo`: all but the two built-in demos are fetched on click
+([song-mode](../features/song-mode.md) REQ-12), so a step that loads a demo *and
+then acts on it* — starting the transport, say — must `await` or it will act on
+whatever was loaded before. `resumeAudio` is async for the same reason.
 
 ### 2. (Optional) add a help-mode badge
 

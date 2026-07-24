@@ -3,7 +3,7 @@
 ```yaml
 id: empty-play-hint
 status: implemented
-version: 1
+version: 2   # v2: the demo load is awaited (most demos are fetched on click)
 owner: core
 related:
   - play-button-blink
@@ -52,10 +52,15 @@ again (the flag survives sessions).
   steps, load/import a song from the Song tab); notes the keyboard always
   plays live. Actions: **▶ Play a demo** (primary, focused) and **Close**.
   Built on the shared [Modal](dialog.md) (Escape / backdrop-click close).
-- **REQ-4 (play a demo)** — The demo action closes the modal, loads a random
-  `DEMO_SONGS` entry (JSON demos only — synchronous, so playback can start in
-  the same gesture) via the Song panel's `loadDemo` (dropdown stays in sync),
-  then re-clicks Play: the check now passes and the transport starts.
+- **REQ-4 (play a demo)** — The demo action closes the modal, loads a random demo
+  — any of the three sources, via `demoNames()` — through the Song panel's
+  `loadDemo` (dropdown stays in sync), then re-clicks Play: the check now passes
+  and the transport starts. The load is **awaited**: all but the two built-ins are
+  fetched on click ([song-mode](song-mode.md) REQ-12), and re-clicking Play before
+  the song lands just re-runs `anythingToPlay` against the old (still empty) state
+  and reopens this very modal. `onPlayDemo` is therefore typed
+  `() => void | Promise<void>` and the modal fires it without awaiting — closing
+  is not conditional on the load succeeding.
 - **REQ-5 (persistent opt-out)** — A "Don't show this again" checkbox persists
   `localStorage['websynth.hint.emptyplay'] = '1'` the moment it is checked
   (unchecking removes it). Device-scoped like `websynth.perf` — **not** a bus
@@ -87,7 +92,8 @@ testids: empty-play-modal, empty-play-demo, empty-play-close, empty-play-dismiss
 ```yaml
 buildHeader (app.ts): playBtn onClick gates start on
   !dismissed && sync.mode === 'off' && !anythingToPlay(...)
-  onPlayDemo -> loadDemo(random JSON demo) -> playBtn.click() (re-entry passes)
+  onPlayDemo -> await loadDemo(random demoNames() entry) -> playBtn.click()
+    (re-entry passes; the await is load-bearing — see REQ-4)
 mountApp: threads a lazy loadDemo closure into buildHeader (reads the
   late-bound songLoadDemo, which buildPatternRow rebinds to the Song panel's
   dropdown-syncing loader — same pattern as the tour's applyDemo)
