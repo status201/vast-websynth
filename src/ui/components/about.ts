@@ -1,13 +1,19 @@
 // "About" button + modal: version, copyright, keyboard shortcuts, and a
-// collapsible Debug section (live AudioContext state — see ios-audio.md).
+// collapsible Debug section (live state + the actions that act on it — see
+// debug-panel.md).
 import { Modal } from './modal';
-import { createButton } from './button';
+import { createButton, setButtonLabel } from './button';
 import { confirmDialog } from './dialog';
 import { HEADER_ICONS } from './header-icons';
 import { createCollapseToggle } from './collapse-toggle';
+import { copyText, flashCopied } from '../clipboard';
 import { isIOS } from '../../platform/ios';
 import { perfDiagnostics } from '../../state/perf-mode';
 import { restoreFactorySettings } from '../../state/factory-reset';
+import { SessionAutosave } from '../../state/session-autosave';
+import { SampleAutosave } from '../../state/sample-autosave';
+import { storageUsage } from '../../state/slot-store';
+import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -37,6 +43,20 @@ export function setClipStatsSource(fn: () => { count: number; bytes: number }): 
   clipStats = fn;
 }
 
+/** Late-bound MIDI port counts — `main.ts` binds it once `initMIDI` resolves an
+ *  access handle (the audio layer must not import UI). Unbound = "n/a": before
+ *  the start gesture there is deliberately no MIDI permission prompt. */
+let midiStats: (() => { inputs: number; outputs: number }) | null = null;
+export function setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void {
+  midiStats = fn;
+}
+
+/** Late-bound wake-lock state — bound by `main.ts`, which owns the manager. */
+let wakeState: (() => { supported: boolean; held: boolean }) | null = null;
+export function setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void {
+  wakeState = fn;
+}
+
 export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
@@ -49,6 +69,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
 
   let backdrop: HTMLElement | null = null;
   let refreshDebug: (() => void) | null = null;
+  let disposeDebug: (() => void) | null = null;
   let closeTimer: number | undefined;
   let refreshTimer: number | undefined;
 
@@ -76,6 +97,8 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
     window.removeEventListener('keydown', onKey, true);
     engine.ctx.removeEventListener('statechange', onState);
     window.clearInterval(refreshTimer);
+    // A test tone still ringing must not outlive the panel (debug-panel REQ-9).
+    disposeDebug?.();
     backdrop.classList.add('hidden');
     const el = backdrop;
     closeTimer = window.setTimeout(() => el.remove(), 200);
@@ -87,6 +110,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
       const built = buildModal(close, engine);
       backdrop = built.backdrop;
       refreshDebug = built.refreshDebug;
+      disposeDebug = built.disposeDebug;
     }
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
@@ -103,7 +127,11 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   return btn;
 }
 
-function buildModal(close: () => void, engine: StudioApi): { backdrop: HTMLElement; refreshDebug: () => void } {
+function buildModal(close: () => void, engine: StudioApi): {
+  backdrop: HTMLElement;
+  refreshDebug: () => void;
+  disposeDebug: () => void;
+} {
   const backdrop = document.createElement('div');
   backdrop.className = `${Modal.backdropClass} hidden`;
   backdrop.addEventListener('pointerdown', (e) => {
@@ -177,7 +205,7 @@ function buildModal(close: () => void, engine: StudioApi): { backdrop: HTMLEleme
   card.appendChild(debug.body);
   card.appendChild(closeBtn);
   backdrop.appendChild(card);
-  return { backdrop, refreshDebug: debug.refresh };
+  return { backdrop, refreshDebug: debug.refresh, disposeDebug: debug.dispose };
 }
 
 /**
@@ -205,37 +233,109 @@ function buildFactoryResetButton(): HTMLButtonElement {
   });
 }
 
+/** An inline action button attached to a row's value cell (REQ-6). */
+interface RowAction {
+  label: string;
+  testId: string;
+  onClick: () => void;
+  /** Destructive: styled red and confirmed before it runs. */
+  danger?: boolean;
+  /** Confirm copy — required when `danger`. */
+  confirm?: { title: string; message: string; confirmLabel: string };
+}
+
+const MB = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
+
+/** "3 min ago" / "just now" — enough to tell a stale autosave from a live one. */
+function ago(at: number | null): string {
+  if (at === null) return 'unknown age';
+  const s = Math.max(0, Math.round((Date.now() - at) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+
 /**
- * Default-collapsed Debug section. Cross-platform and intentionally minimal +
- * extensible — more diagnostic rows can be appended without a contract change.
- * Seeded with live AudioContext state, the iOS flag, and the sample rate.
+ * Default-collapsed Debug section (debug-panel.md). Cross-platform and
+ * intentionally minimal + extensible — a feature adds a row (and, since v3, an
+ * action) without a contract change.
+ *
+ * The actions exist because a remote device has no console: on a borrowed phone
+ * or a BrowserStack session, *observing* a wedged AudioContext or a poisoned
+ * autosave is only half of what you need — you also have to be able to do
+ * something about it, and "Restore to Factory Settings" is far too big a hammer.
  */
-function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTMLElement; refresh: () => void } {
+function buildDebugSection(engine: StudioApi): {
+  header: HTMLElement;
+  body: HTMLElement;
+  refresh: () => void;
+  dispose: () => void;
+} {
   const header = document.createElement('div');
   header.className = `${Modal.secClass} ${styles.debugHeader!}`;
   const label = document.createElement('span');
   label.textContent = 'Debug';
   header.appendChild(label);
 
+  // The section body wraps the key/value grid AND the actions row, so collapsing
+  // hides both and the grid keeps its own two-column layout.
   const body = document.createElement('div');
-  body.className = `${Modal.keysClass} ${styles.debugBody!}`;
+  body.className = styles.debugBody!;
   body.dataset.testid = 'debug-section';
 
-  const addRow = (name: string): HTMLElement => {
+  const grid = document.createElement('div');
+  grid.className = Modal.keysClass;
+  body.appendChild(grid);
+
+  /** Every row, in order — the source for the copyable report (REQ-7). */
+  const rows: Array<{ name: string; el: HTMLElement }> = [];
+
+  const rowButton = (action: RowAction): HTMLButtonElement => createButton({
+    label: action.label,
+    className: `${switchStyles.root!} ${styles.debugBtn!}${action.danger ? ` ${dialogStyles.danger!}` : ''}`,
+    testId: action.testId,
+    onClick: () => {
+      if (!action.confirm) { action.onClick(); return; }
+      const c = action.confirm;
+      void confirmDialog({ ...c, danger: action.danger ?? false }).then((ok) => {
+        if (ok) action.onClick();
+      });
+    },
+  });
+
+  const addRow = (name: string, action?: RowAction): HTMLElement => {
     const k = document.createElement('div');
     k.className = Modal.keyClass;
     k.textContent = name;
     const v = document.createElement('div');
     v.className = Modal.actClass;
-    body.appendChild(k);
-    body.appendChild(v);
-    return v;
+    grid.appendChild(k);
+    grid.appendChild(v);
+    if (!action) {
+      rows.push({ name, el: v });
+      return v;
+    }
+    // The value lives in its own span so `refresh` writing textContent can
+    // never wipe the button beside it.
+    v.classList.add(styles.debugActRow!);
+    const val = document.createElement('span');
+    v.appendChild(val);
+    v.appendChild(rowButton(action));
+    rows.push({ name, el: val });
+    return val;
   };
 
   const stateVal = addRow('AudioContext');
   stateVal.dataset.testid = 'debug-ctx-state';
-  const iosVal = addRow('iOS');
   const rateVal = addRow('Sample rate');
+  const latencyVal = addRow('Latency');
+  latencyVal.dataset.testid = 'debug-latency';
+  // Transport: the clock's OWN bpm, which a slaved clock writes directly —
+  // a disagreement with `transport.bpm` is the bug worth seeing (sync).
+  const transportVal = addRow('Transport');
+  transportVal.dataset.testid = 'debug-transport';
+  const iosVal = addRow('iOS');
   // Device / performance-mode diagnostics (owned by performance-mode.md).
   const tierVal = addRow('Perf tier');
   tierVal.dataset.testid = 'debug-perf-tier';
@@ -245,18 +345,154 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
   const profileVal = addRow('Audio profile');
   // Persisted sampler audio (owned by sample-persistence.md) — in-memory
   // bookkeeping, so opening About never touches IndexedDB.
-  const clipsVal = addRow('Sampler clips');
+  const clipsClear: RowAction = {
+    label: 'Clear',
+    testId: 'debug-clips-clear',
+    danger: true,
+    confirm: {
+      title: 'Clear stored sampler clips',
+      message: 'Empty every sampler slot and delete the audio kept on this device. The song itself is not touched.',
+      confirmLabel: 'Clear clips',
+    },
+    onClick: () => {
+      // Nulling the slots is what the autosaver watches, so it deletes them
+      // too; the explicit wipe also clears any orphan the session never named.
+      for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) engine.sampler.setBuffer(i, null);
+      void SampleAutosave.clear();
+    },
+  };
+  const clipsVal = addRow('Sampler clips', clipsClear);
   clipsVal.dataset.testid = 'debug-sampler-clips';
+  const clipsBtn = clipsVal.nextElementSibling as HTMLButtonElement;
+  // Session autosave (owned by session-autosave.md) — clearing it is the small
+  // hammer for a session the app chokes on.
+  const sessionVal = addRow('Session autosave', {
+    label: 'Clear',
+    testId: 'debug-session-clear',
+    danger: true,
+    confirm: {
+      title: 'Clear the autosaved session',
+      message: 'Forget the working session restored at boot. Saved songs and presets are untouched; the app reloads.',
+      confirmLabel: 'Clear session',
+    },
+    onClick: () => { SessionAutosave.clear(); location.reload(); },
+  });
+  sessionVal.dataset.testid = 'debug-session';
+  const storageVal = addRow('Local storage');
+  storageVal.dataset.testid = 'debug-storage';
+  // Service worker (owned by pwa-install.md) — a stale cache is the classic
+  // "why am I not seeing the new version?" on an installed PWA.
+  const swVal = addRow('Service worker', {
+    label: 'Unregister',
+    testId: 'debug-sw-unregister',
+    danger: true,
+    confirm: {
+      title: 'Unregister the service worker',
+      message: 'Drop the offline cache and reload. The app will re-register it on the next visit.',
+      confirmLabel: 'Unregister',
+    },
+    onClick: () => { void unregisterServiceWorkers(); },
+  });
+  swVal.dataset.testid = 'debug-sw';
+  const midiVal = addRow('MIDI ports');
+  midiVal.dataset.testid = 'debug-midi';
+  const wakeVal = addRow('Wake lock');
+  wakeVal.dataset.testid = 'debug-wake';
   // iOS audio-session diagnostics (owned by ios-audio.md; inert off iOS).
   const unlockVal = addRow('Audio unlock');
   unlockVal.dataset.testid = 'debug-ios-unlock';
   const loopVal = addRow('Silent loop');
   loopVal.dataset.testid = 'debug-ios-loop';
 
+  // ---- service-worker state (async, so polled far slower than the rows) ----
+  let swText = 'unsupported';
+  let swChecked = 0;
+  const readSw = (): void => {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      swText = regs.length === 0
+        ? 'none registered'
+        : `${regs.length} registered${navigator.serviceWorker.controller ? ' · controlling' : ''}`;
+      swVal.textContent = swText;
+    }).catch(() => { swText = 'unavailable'; });
+  };
+
+  // ---- actions (REQ-7) ----
+  const actions = document.createElement('div');
+  actions.className = styles.debugActions!;
+  actions.dataset.testid = 'debug-actions';
+
+  const ctxToggle = createButton({
+    label: 'Resume',
+    className: `${switchStyles.root!} ${styles.debugBtn!}`,
+    testId: 'debug-ctx-toggle',
+    onClick: () => {
+      // Suspending is how you prove a stuck note is the graph and not the
+      // device; resuming is the escape hatch when the OS suspended us.
+      if (engine.ctx.state === 'running') void engine.ctx.suspend();
+      else void engine.resume();
+    },
+  });
+
+  const panicBtn = createButton({
+    label: 'Panic',
+    className: `${switchStyles.root!} ${styles.debugBtn!}`,
+    testId: 'debug-panic',
+    onClick: () => engine.panic(),
+  });
+
+  let stopTone: (() => void) | null = null;
+  const toneBtn = createButton({
+    label: 'Test tone',
+    className: `${switchStyles.root!} ${styles.debugBtn!}`,
+    testId: 'debug-test-tone',
+    onClick: () => {
+      stopTone?.();
+      try {
+        stopTone = playTestTone(engine.ctx, () => {
+          stopTone = null;
+          setButtonLabel(toneBtn, 'Test tone');
+        });
+        setButtonLabel(toneBtn, 'Playing…');
+      } catch {
+        setButtonLabel(toneBtn, 'Failed');
+      }
+    },
+  });
+
+  const report = (): string => [
+    `VAST G1-J5 ${__APP_VERSION__}`,
+    new Date().toISOString(),
+    navigator.userAgent,
+    '',
+    ...rows.map((r) => `${r.name}: ${r.el.textContent ?? ''}`),
+  ].join('\n');
+
+  const copyBtn = createButton({
+    label: 'Copy report',
+    className: `${switchStyles.root!} ${styles.debugBtn!}`,
+    testId: 'debug-copy',
+    // The whole point of the panel on a device with no console: hand the
+    // readout to someone else in one gesture.
+    onClick: () => flashCopied(copyBtn, 'Copy report', copyText(report())),
+  });
+
+  actions.append(ctxToggle, panicBtn, toneBtn, copyBtn);
+  body.appendChild(actions);
+
   const refresh = (): void => {
     stateVal.textContent = engine.ctx.state;
-    iosVal.textContent = isIOS() ? 'yes' : 'no';
+    setButtonLabel(ctxToggle, engine.ctx.state === 'running' ? 'Suspend' : 'Resume');
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
+    const base = engine.ctx.baseLatency;
+    const out = engine.ctx.outputLatency;
+    latencyVal.textContent =
+      `base ${base != null ? `${(base * 1000).toFixed(1)} ms` : '—'} · ` +
+      `output ${out ? `${(out * 1000).toFixed(1)} ms` : '—'}`;
+    transportVal.textContent =
+      `${engine.clock.playing ? 'playing' : 'stopped'} · ` +
+      `${engine.clock.bpm.toFixed(1)} BPM · sync ${engine.sync.mode}`;
+    iosVal.textContent = isIOS() ? 'yes' : 'no';
     const perf = perfDiagnostics();
     tierVal.textContent = `${perf.tier} (${perf.pref === 'auto' ? 'auto' : 'forced'})`;
     coresVal.textContent = perf.cores != null ? String(perf.cores) : 'unknown';
@@ -268,9 +504,22 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
       `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
       `oversample ${p.fxOversample ? 'on' : 'off'}`;
     const clips = clipStats?.();
-    clipsVal.textContent = clips
-      ? `${clips.count} · ${(clips.bytes / 1e6).toFixed(1)} MB`
-      : 'n/a';
+    clipsVal.textContent = clips ? `${clips.count} · ${MB(clips.bytes)}` : 'n/a';
+    // REQ-8 — an action whose source never bound is disabled, not broken.
+    clipsBtn.disabled = clips === undefined;
+    const session = SessionAutosave.stats();
+    sessionVal.textContent = session
+      ? `${MB(session.bytes)} · ${ago(session.savedAt)}`
+      : 'none';
+    const store = storageUsage();
+    storageVal.textContent = `${store.keys} keys · ${MB(store.bytes)}`;
+    // getRegistrations() is async: poll it far slower than the 500 ms rows.
+    if (Date.now() - swChecked > 5000) { swChecked = Date.now(); readSw(); }
+    swVal.textContent = swText;
+    const midi = midiStats?.();
+    midiVal.textContent = midi ? `${midi.inputs} in · ${midi.outputs} out` : 'n/a';
+    const wake = wakeState?.();
+    wakeVal.textContent = wake ? (wake.supported ? (wake.held ? 'held' : 'released') : 'unsupported') : 'n/a';
     const ios = engine.iosAudio;
     unlockVal.textContent = ios.status
       + (ios.routed ? ' · routed' : '')
@@ -288,5 +537,48 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
   });
   header.appendChild(toggle.el);
 
-  return { header, body, refresh };
+  // REQ-9 — nothing an action started may outlive the modal.
+  const dispose = (): void => {
+    stopTone?.();
+    stopTone = null;
+    setButtonLabel(toneBtn, 'Test tone');
+  };
+
+  return { header, body, refresh, dispose };
+}
+
+/**
+ * A 1 s A440 straight to `ctx.destination`, deliberately **bypassing** the
+ * master chain: this answers "is this device making any sound at all?", which a
+ * muted mix or a closed filter would otherwise hide. Returns a stopper.
+ */
+function playTestTone(ctx: AudioContext, onEnded: () => void): () => void {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const t = ctx.currentTime;
+  osc.frequency.value = 440;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+  gain.gain.setValueAtTime(0.2, t + 0.9);
+  gain.gain.linearRampToValueAtTime(0, t + 1);
+  osc.connect(gain).connect(ctx.destination);
+  osc.onended = () => { gain.disconnect(); onEnded(); };
+  osc.start(t);
+  osc.stop(t + 1);
+  return () => {
+    try { osc.stop(); } catch { /* already stopped */ }
+    osc.disconnect();
+    gain.disconnect();
+  };
+}
+
+/** Drop every service-worker registration, then reload into an uncached app. */
+async function unregisterServiceWorkers(): Promise<void> {
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch {
+    // no service worker / storage blocked — the reload below is still correct
+  }
+  location.reload();
 }

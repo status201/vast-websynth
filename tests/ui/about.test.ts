@@ -11,21 +11,52 @@ vi.mock('../../src/state/factory-reset', () => ({ restoreFactorySettings: vi.fn(
 
 const INERT_IOS: IosAudioDiagnostics = { active: false, status: 'n/a', routed: false, paused: null, currentTime: null };
 
-/** Minimal StudioApi — createAboutButton only reads `engine.ctx` and `engine.iosAudio`. */
+/** Minimal StudioApi — the Debug panel reads the context, the clock/sync state,
+ *  the iOS diagnostics, and (for its actions) panic/resume/sampler. */
 function stubEngine(state: AudioContextState = 'running', iosAudio: IosAudioDiagnostics = INERT_IOS) {
+  const osc = {
+    frequency: { value: 0 },
+    connect: vi.fn(() => gain),
+    disconnect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    onended: null as null | (() => void),
+  };
+  const gain = {
+    gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() },
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  };
   const ctx = {
     state,
     sampleRate: 48000,
+    currentTime: 0,
+    baseLatency: 0.005,
+    outputLatency: 0.012,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    suspend: vi.fn(async () => {}),
+    createOscillator: vi.fn(() => osc),
+    createGain: vi.fn(() => gain),
+    destination: {},
   };
-  return { engine: { ctx, iosAudio } as unknown as StudioApi, ctx };
+  const engine = {
+    ctx,
+    iosAudio,
+    clock: { playing: false, bpm: 120 },
+    sync: { mode: 'off' },
+    sampler: { setBuffer: vi.fn() },
+    panic: vi.fn(),
+    resume: vi.fn(async () => {}),
+  };
+  return { engine: engine as unknown as StudioApi, ctx, osc, api: engine };
 }
 
 const debugSection = () => document.querySelector('[data-testid="debug-section"]') as HTMLElement | null;
 const ctxStateRow = () => document.querySelector('[data-testid="debug-ctx-state"]') as HTMLElement | null;
 const unlockRow = () => document.querySelector('[data-testid="debug-ios-unlock"]') as HTMLElement | null;
 const clipsRow = () => document.querySelector('[data-testid="debug-sampler-clips"]') as HTMLElement | null;
+const clipsClearBtn = () => document.querySelector('[data-testid="debug-clips-clear"]') as HTMLButtonElement | null;
 
 /** Close any open modal so its refresh interval / capturing keydown listener don't leak. */
 function closeOpenModal(): void {
@@ -84,12 +115,17 @@ describe('About modal — Debug section', () => {
     const { engine } = stubEngine('running');
     document.body.appendChild(createAboutButton(engine)).click();
     expect(clipsRow()?.textContent).toBe('n/a');
+    // REQ-8 — the action-side mirror: an unbound source disables its action
+    // rather than offering a button that cannot work. (This runs before any
+    // other test binds the module-level source, so it pins the real thing.)
+    expect(clipsClearBtn()?.disabled).toBe(true);
 
     closeOpenModal();
     document.body.innerHTML = '';
     setClipStatsSource(() => ({ count: 2, bytes: 4_200_000 }));
     document.body.appendChild(createAboutButton(engine)).click();
     expect(clipsRow()?.textContent).toBe('2 · 4.2 MB');
+    expect(clipsClearBtn()?.disabled).toBe(false);
   });
 
   it('places the factory-reset button between the shortcuts grid and Debug', () => {
@@ -149,6 +185,110 @@ describe('About modal — Debug section', () => {
     (document.querySelector('[data-testid="dialog-cancel"]') as HTMLButtonElement).click();
     await Promise.resolve();
     expect(restoreFactorySettings).not.toHaveBeenCalled();
+  });
+
+  // ---- v3: interactive actions (debug-panel.md REQ-6..REQ-9) ----
+
+  const openAbout = (engine: StudioApi): void => {
+    const btn = createAboutButton(engine);
+    document.body.appendChild(btn);
+    btn.click();
+  };
+  const byId = <T extends HTMLElement>(id: string): T =>
+    document.querySelector(`[data-testid="${id}"]`) as T;
+
+  it('offers the panel actions and follows the context state', () => {
+    const { engine, ctx, api } = stubEngine('suspended');
+    openAbout(engine);
+
+    const toggle = byId<HTMLButtonElement>('debug-ctx-toggle');
+    expect(byId('debug-actions')).not.toBeNull();
+    // Suspended: the button offers the escape hatch.
+    expect(toggle.textContent).toBe('Resume');
+    toggle.click();
+    expect(api.resume).toHaveBeenCalledTimes(1);
+
+    // Running: it offers the opposite, and suspends the real context.
+    ctx.state = 'running';
+    const handler = ctx.addEventListener.mock.calls.find((c) => c[0] === 'statechange')?.[1] as () => void;
+    handler();
+    expect(toggle.textContent).toBe('Suspend');
+    toggle.click();
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it('panics and plays a test tone straight to the destination', () => {
+    const { engine, ctx, osc, api } = stubEngine('running');
+    openAbout(engine);
+
+    byId<HTMLButtonElement>('debug-panic').click();
+    expect(api.panic).toHaveBeenCalledTimes(1);
+
+    const tone = byId<HTMLButtonElement>('debug-test-tone');
+    tone.click();
+    expect(osc.start).toHaveBeenCalled();
+    expect(osc.frequency.value).toBe(440);
+    // Deliberately NOT through the master chain — this asks "is the device
+    // silent?", which a muted mix would otherwise hide.
+    expect(ctx.createOscillator).toHaveBeenCalledTimes(1);
+    expect(tone.textContent).toBe('Playing…');
+
+    // REQ-9 — closing the panel stops it.
+    closeOpenModal();
+    expect(osc.stop).toHaveBeenCalled();
+  });
+
+  it('copies a report of every row plus the version and UA (REQ-7)', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { engine } = stubEngine('running');
+    openAbout(engine);
+
+    byId<HTMLButtonElement>('debug-copy').click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
+    const report = writeText.mock.calls[0]![0] as unknown as string;
+    expect(report).toContain(navigator.userAgent);
+    expect(report).toContain('AudioContext: running');
+    expect(report).toContain('Sample rate: 48000 Hz');
+    expect(report).toContain('Transport: stopped · 120.0 BPM · sync off');
+  });
+
+  // REQ-6 — a destructive action never fires on the click alone.
+  it('confirms before clearing the autosaved session', async () => {
+    const { engine } = stubEngine('running');
+    localStorage.setItem('websynth.session', JSON.stringify({ v: 1, savedAt: Date.now(), file: {} }));
+    openAbout(engine);
+
+    byId<HTMLButtonElement>('debug-session-clear').click();
+    byId<HTMLButtonElement>('dialog-cancel').click();
+    await Promise.resolve();
+    expect(localStorage.getItem('websynth.session')).not.toBeNull();
+  });
+
+  it('clears the sampler slots when the clip clear is confirmed', async () => {
+    const { engine, api } = stubEngine('running');
+    setClipStatsSource(() => ({ count: 2, bytes: 1000 }));
+    openAbout(engine);
+
+    byId<HTMLButtonElement>('debug-clips-clear').click();
+    byId<HTMLButtonElement>('dialog-confirm').click();
+    await Promise.resolve();
+    expect(api.sampler.setBuffer).toHaveBeenCalledTimes(8);
+    expect(api.sampler.setBuffer).toHaveBeenCalledWith(0, null);
+  });
+
+  it('reports storage, session and platform rows', () => {
+    const { engine } = stubEngine('running');
+    localStorage.setItem('websynth.preset.mine', '{"a":1}');
+    openAbout(engine);
+
+    expect(byId('debug-storage').textContent).toMatch(/\d+ keys · [\d.]+ MB/);
+    expect(byId('debug-latency').textContent).toBe('base 5.0 ms · output 12.0 ms');
+    // Unbound late-bound sources read n/a rather than crashing (REQ-5).
+    expect(byId('debug-midi').textContent).toBe('n/a');
+    expect(byId('debug-wake').textContent).toBe('n/a');
+    // jsdom has no service worker.
+    expect(byId('debug-sw').textContent).toBe('unsupported');
   });
 
   it('expands the Debug section when its header is clicked', () => {

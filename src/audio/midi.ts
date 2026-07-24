@@ -3,13 +3,19 @@ import type { ParamBus } from '../state/params';
 import { MidiSyncTransport } from './midi-sync-transport';
 import { SustainPedal } from './sustain-pedal';
 
-export async function initMIDI(engine: Engine, bus: ParamBus): Promise<void> {
+/**
+ * Request Web MIDI and wire it up. Resolves the `MIDIAccess` on success (and
+ * `null` when unavailable or denied) so `main.ts` can expose live port counts
+ * to the Debug panel — the audio layer must never import UI, and this module
+ * stays the sole owner of the handle.
+ */
+export async function initMIDI(engine: Engine, bus: ParamBus): Promise<MIDIAccess | null> {
   const nav = navigator as unknown as {
     requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
   };
   if (!nav.requestMIDIAccess) {
     console.info('[MIDI] Web MIDI not available in this browser.');
-    return;
+    return null;
   }
   try {
     // Explicit non-sysex request; the browser may still show a permission
@@ -29,8 +35,10 @@ export async function initMIDI(engine: Engine, bus: ParamBus): Promise<void> {
       access.inputs.forEach(wire);
       sync.refreshPorts();
     };
+    return access;
   } catch (err) {
     console.warn('[MIDI] requestMIDIAccess failed:', err);
+    return null;
   }
 }
 

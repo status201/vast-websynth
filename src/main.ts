@@ -16,7 +16,7 @@ import { parseSongLink, decodeSongPayload } from './state/song-link';
 import { Modal } from './ui/components/modal';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast } from './ui/components/toast';
-import { setClipStatsSource } from './ui/components/about';
+import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './ui/components/about';
 import type { Onboarding } from './ui/onboarding';
 
 // Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
@@ -109,6 +109,7 @@ async function boot() {
     if (engine.ctx.state === 'running') wake.enable();
     else wake.disable();
   });
+  setWakeLockSource(() => ({ supported: wake.supported, held: wake.held }));
 
   // Dev-only debug bridge for E2E tests (Playwright drives the dev server, so
   // import.meta.env.DEV is true there). Lets specs read/drive state directly —
@@ -174,7 +175,11 @@ async function boot() {
   // gates all Web MIDI behind a permission prompt, and prompting on page
   // load (behind the start modal) is hostile to MIDI-less visitors.
   showStartModal(engine, onboarding, () => {
-    void initMIDI(engine, bus);
+    // The resolved access handle feeds the Debug panel's port counts; it stays
+    // "n/a" until here, which is exactly when MIDI first exists.
+    void initMIDI(engine, bus).then((access) => {
+      if (access) setMidiStatsSource(() => ({ inputs: access.inputs.size, outputs: access.outputs.size }));
+    });
     // Tell the user their sampler audio came back from storage rather than the
     // song file (sample-persistence.md REQ-8). Fired from the start gesture,
     // not at boot, so the toast appears as the modal fades instead of under it.

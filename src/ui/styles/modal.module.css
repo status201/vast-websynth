@@ -142,6 +142,28 @@
   display: none;
 }
 
+/* Debug actions (debug-panel.md v3): a wrapped row of small buttons under the
+   readout, plus the inline per-row action button. */
+.debugActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.debugBtn {
+  padding: 4px 10px;
+  font-size: 10px;
+  min-height: 0;
+}
+
+.debugActRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .aiLabel {
   display: block;
   margin-top: 16px;

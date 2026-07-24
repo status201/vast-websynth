@@ -80,7 +80,11 @@ carries names only, so songs stay small and shareable).
   exactly the previous behaviour (`.needs-reload`), never worse.
 - **REQ-12** — The [Debug panel](debug-panel.md) shows the store's size
   (`Sampler clips: 3 · 4.2 MB`) from in-memory bookkeeping — never an extra
-  IndexedDB read.
+  IndexedDB read. It also offers a confirm-guarded **Clear** beside that row,
+  which nulls every slot (the one `onBufferChange` hook then deletes them) and
+  calls `SampleAutosave.clear()` for any orphan the session never named. With
+  the stats source unbound, persistence never started and the action is disabled
+  (debug-panel REQ-8).
 
 ## Technical design
 

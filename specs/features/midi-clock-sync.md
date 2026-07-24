@@ -24,7 +24,7 @@ source:
   - src/audio/transport/arrangement.ts
   - src/audio/transport/performance.ts
   - src/audio/engine.ts
-  - src/audio/midi.ts
+  - src/audio/midi.ts                 # sole owner of MIDIAccess; resolves it to main.ts
   - src/ui/components/sync-section.ts
   - src/ui/components/knob.ts
   - src/ui/app.ts
@@ -86,7 +86,10 @@ the timing code.
   `midi.ts` remains the **sole owner** of the shared `MIDIAccess`
   (`onmidimessage`/`onstatechange` are single-assignment properties) and feeds
   real-time bytes (≥ 0xF8) to the transport **before** the `& 0xf0` status
-  mask; they never reach note/CC handling. Incoming sync messages are ignored
+  mask; they never reach note/CC handling. `initMIDI` **resolves** the handle
+  (or `null` when unavailable/denied) so `main.ts` — not the audio layer, which
+  must never import UI — can bind the [debug panel](debug-panel.md)'s port-count
+  row. Incoming sync messages are ignored
   unless mode is `slave`; broadcasting happens only while `master` (so
   cross-wired ports cannot loop).
 - **REQ-8** — A "Sync" section in the Song panel (via `StudioApi.sync`): a

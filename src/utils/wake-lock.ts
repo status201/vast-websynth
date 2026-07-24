@@ -33,6 +33,11 @@ export class WakeLockManager {
     }
   }
 
+  /** Whether the lock is held right now (the OS drops it on tab hide). */
+  get held(): boolean {
+    return this.sentinel !== null;
+  }
+
   /** Want the screen awake from now on; acquires the lock when possible. */
   enable(): void {
     this.wanted = true;

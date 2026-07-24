@@ -17,6 +17,12 @@ source:
   - src/main.ts
 ```
 
+`SessionAutosave.stats()` — `{bytes, savedAt}` of the stored payload, or `null`
+when there is none — backs the [debug panel](debug-panel.md)'s Session row and
+its Clear action. A session the app chokes on was otherwise only escapable via a
+full [factory reset](factory-reset.md); the size of a corrupt payload is still
+reported (with `savedAt: null`), since that is the half that still helps.
+
 ## Background / Why
 
 The working session lived only in memory: any demo click, Load, Import, or tab

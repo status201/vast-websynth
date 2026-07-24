@@ -90,8 +90,12 @@ pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
 (the extra tracks) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
 `motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
-`StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`, `debug-sampler-clips` (the About →
-Debug row for the persisted clip store),
+`StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`, the About → Debug panel's rows and actions
+(`debug-section`/`debug-actions`, rows `debug-ctx-state`/`-latency`/`-transport`/
+`-perf-tier`/`-sampler-clips`/`-session`/`-storage`/`-sw`/`-midi`/`-wake`/`-ios-*`,
+actions `debug-ctx-toggle`/`-panic`/`-test-tone`/`-copy` + the inline
+`debug-clips-clear`/`-session-clear`/`-sw-unregister` — see
+`specs/features/debug-panel.md`),
 `seq-step-<i>` (track 1) / `seq-step-<t>-<i>` (tracks 2-4), `seq-track-<t>`/`seq-track-fold-<t>`,
 `bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
 via its `testidPrefix` opt),

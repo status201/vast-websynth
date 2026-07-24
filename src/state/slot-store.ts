@@ -9,6 +9,27 @@
  * never needs to know either schema. Reads are defensive — a corrupt or absent
  * index reads as empty rather than throwing, matching the previous behaviour.
  */
+/**
+ * How much of `localStorage` this app is using, by key prefix — the Debug
+ * panel's storage row (debug-panel.md). `bytes` counts key + value characters,
+ * which is what browsers bill against the ~5 MB origin quota.
+ */
+export function storageUsage(prefix = 'websynth.'): { keys: number; bytes: number } {
+  let keys = 0;
+  let bytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key === null || !key.startsWith(prefix)) continue;
+      keys++;
+      bytes += key.length + (localStorage.getItem(key)?.length ?? 0);
+    }
+  } catch {
+    // storage unavailable — report nothing rather than throwing in a readout
+  }
+  return { keys, bytes };
+}
+
 export class SlotStore {
   private readonly indexKey: string;
 

@@ -34,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   is flagged. A sparse patch ("just these eight parameters") is expanded to a
   **complete** sound, so it can't inherit leftovers from whatever was loaded
   before. Both preset and bank formats now have published JSON Schemas.
+- **The Debug panel can now do things, not just show them** — **About → Debug**
+  gains buttons for the problems you can only really hit on a phone or a remote
+  test device, where there is no console: **Suspend/Resume** the audio, **Panic**
+  (all notes off), a **Test tone** that goes straight to the output (so it tells
+  you the device is silent even when your mix is muted), and **Copy report**,
+  which puts the whole readout — version, browser, every row — on the clipboard
+  to paste into a chat. New rows cover transport/tempo, audio latency, local
+  storage use, the autosaved session, the service worker, MIDI ports and the
+  wake lock — and the session, sampler clips and service worker each have a
+  guarded **Clear/Unregister** so you can drop a wedged one without a full
+  factory reset.
 - **Your sampler sounds now survive a reload** — clips loaded into sampler slots
   are kept on the device (in IndexedDB, alongside the existing session autosave),
   so closing the tab and coming back gives you the audio, not just the filename

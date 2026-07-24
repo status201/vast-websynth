@@ -70,6 +70,9 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   new Clock(ctx, opts?: { timer?: TickTimer, scheduleAheadS?: number })
   get playing: boolean
   get step: number
+  get bpm: number      # the tempo actually running — a slaved clock writes it
+                       # directly, so it can differ from the bus's transport.bpm
+                       # (midi-clock-sync.md); surfaced by debug-panel.md
   setBpm(b)            # clamped 20..400 internally
   setSwing(s)          # 0 (straight) .. 1
   start(fromStep = 0) / stop()   # v3: fromStep seeds _step (& 0xffff) before onStart

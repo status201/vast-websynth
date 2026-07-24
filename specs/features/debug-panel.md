@@ -3,21 +3,29 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 2
+version: 3   # v3: rows and the panel gained interactive actions
 owner: core
 related:
   - architecture
   - ios-audio
   - performance-mode
   - sample-persistence
+  - session-autosave
+  - pwa-install
+  - dialog
 source:
   - src/ui/components/about.ts
+  - src/state/session-autosave.ts    # SessionAutosave.stats
+  - src/state/slot-store.ts          # storageUsage
+  - src/utils/wake-lock.ts           # WakeLockManager.held
+  - src/audio/transport/clock.ts     # Clock.bpm
+  - src/audio/midi.ts                # initMIDI resolves the access handle
 ```
 
 A small, **reusable** diagnostics panel inside the About modal: a default-collapsed
-"Debug" section that renders a live key/value list of runtime state. Features
-contribute their own rows — it is intentionally generic and extensible, not tied to
-any one feature.
+"Debug" section that renders a live key/value list of runtime state — and, since
+v3, the **actions** that act on it. Features contribute their own rows — it is
+intentionally generic and extensible, not tied to any one feature.
 
 ## Background / Why
 
@@ -29,6 +37,16 @@ About modal because that already exists, is reachable everywhere, and is non-int
 This spec owns the *panel mechanics*; the **data** in each row is owned by the feature
 that contributes it (so the panel does not accumulate unrelated knowledge).
 
+v3 answers the question this spec's own "Open questions" raised: on those same
+consoleless devices, *observing* a problem is only half of what you need. A
+suspended `AudioContext`, an autosave the app chokes on, a stale service-worker
+cache and a stuck voice are all one gesture from fixed — but until v3 the only
+in-app lever was **Restore to Factory Settings**, which erases everything the
+user made. The actions are the small hammers that reset was standing in for, plus
+one that solves the reporting problem itself: **Copy report** puts the entire
+readout on the clipboard so a remote tester can paste it into a chat window
+instead of transcribing it from a phone screen.
+
 ## Requirements
 
 - **REQ-1** — A "Debug" section in the About modal (`ui/components/about.ts`,
@@ -36,10 +54,13 @@ that contributes it (so the panel does not accumulate unrelated knowledge).
   `createCollapseToggle` and persisted under `localStorage['websynth.debug.about']`
   (same `websynth.*` + try/catch convention as `collapse-toggle.ts`). The whole header
   row is the click target; the body carries `data-testid="debug-section"`.
-- **REQ-2** — Rows are a key/value grid built by a local `addRow(name)` helper (reusing
-  the modal's `.keys`/`.key`/`.act` classes) that returns the value element to write
-  into. Built-in rows: **AudioContext** state (`data-testid="debug-ctx-state"`), **iOS**
-  (`isIOS()` yes/no), **Sample rate**.
+- **REQ-2** — Rows are a key/value grid built by a local `addRow(name, action?)` helper
+  (reusing the modal's `.keys`/`.key`/`.act` classes) that returns the value element to
+  write into. The section body wraps that grid **plus** the actions block (REQ-7), so
+  collapsing hides both. Built-in rows: **AudioContext** state
+  (`data-testid="debug-ctx-state"`), **Sample rate**, **Latency** (`debug-latency`,
+  base/output), **Transport** (`debug-transport`), **iOS** (`isIOS()` yes/no),
+  **Local storage** (`debug-storage`, `storageUsage()`).
 - **REQ-3** — Live refresh while the modal is open: a single `refresh()` re-reads every
   row's source and runs **on open**, on the `ctx` `statechange` event, **and** on a
   ~500 ms interval (so values that change without an event — e.g. a media element's
@@ -54,9 +75,51 @@ that contributes it (so the panel does not accumulate unrelated knowledge).
   `engine.iosAudio`), [`performance-mode`](performance-mode.md) (tier / cores /
   memory / mobile / audio profile), and
   [`sample-persistence`](sample-persistence.md) (**Sampler clips**,
-  `data-testid="debug-sampler-clips"`, via `setClipStatsSource`).
+  `data-testid="debug-sampler-clips"`, via `setClipStatsSource`),
+  [`session-autosave`](session-autosave.md) (**Session autosave**, `debug-session`,
+  from `SessionAutosave.stats()`), [`pwa-install`](pwa-install.md) (**Service
+  worker**, `debug-sw`), [`midi-clock-sync`](midi-clock-sync.md) (**MIDI ports**,
+  `debug-midi`, via `setMidiStatsSource`) and the wake lock (**Wake lock**,
+  `debug-wake`, via `setWakeLockSource`).
 - **REQ-5** — A row whose late-bound source is unbound reads **"n/a"** rather
   than blank or a crash, so the panel degrades cleanly in any boot order.
+
+### v3 — actions
+
+- **REQ-6** — **A row may carry one inline action button** in its value cell
+  (`addRow(name, action)`), which is why the value is written into its own `<span>`
+  — `refresh()` must not be able to wipe the button beside it. An action marked
+  `danger` is styled with `dialogStyles.danger` and **must** carry `confirm` copy:
+  it runs only after `confirmDialog` ([dialog](dialog.md)) resolves true, so a
+  stray click can never destroy state. Current row actions:
+  **Sampler clips ▸ Clear** (`debug-clips-clear`: nulls every sampler slot, then
+  `SampleAutosave.clear()` for orphans), **Session autosave ▸ Clear**
+  (`debug-session-clear`: `SessionAutosave.clear()` + reload) and
+  **Service worker ▸ Unregister** (`debug-sw-unregister`: unregister all + reload).
+  Each is the *small hammer* for something that previously needed a factory reset.
+- **REQ-7** — A panel-level **actions block** (`data-testid="debug-actions"`) of
+  plain buttons sits under the grid: **Resume/Suspend** (`debug-ctx-toggle`, label
+  follows `ctx.state`; `engine.resume()` / `ctx.suspend()`), **Panic**
+  (`debug-panic`, `engine.panic()`), **Test tone** (`debug-test-tone`) and
+  **Copy report** (`debug-copy`). The report is built from the *row registry*
+  (name + current text, in order), not by scraping the DOM, prefixed with
+  `__APP_VERSION__`, an ISO timestamp and the user agent, and copied via the
+  shared `copyText`/`flashCopied` ([ai-prompt](ai-prompt.md)'s helpers).
+- **REQ-7b** — **The test tone bypasses the master chain**: a 1 s A440 oscillator
+  connected straight to `ctx.destination`. That is deliberate — it answers "is
+  this device producing any sound at all?", which a muted mixer, a closed filter
+  or a solo'd lane would otherwise mask. It re-triggers on a second click.
+- **REQ-8** — An action whose late-bound source is **unbound renders disabled**
+  (the action-side mirror of REQ-5): with no `setClipStatsSource`, clip
+  persistence never started and there is nothing for Clear to clear.
+- **REQ-9** — **Nothing an action starts outlives the panel.** `buildDebugSection`
+  returns a `dispose()` alongside `refresh()`, called from the modal's `close()`
+  next to the interval/listener teardown; it stops a ringing test tone and resets
+  its button label.
+- **REQ-10** — The **service-worker row is polled on its own slow schedule**
+  (≥5 s, guarded by a timestamp inside `refresh()`), because
+  `getRegistrations()` is async and the rows refresh every ~500 ms (REQ-3). Its
+  value is cached between checks and written synchronously like every other row.
 
 ## Technical design
 
@@ -66,11 +129,34 @@ that contributes it (so the panel does not accumulate unrelated knowledge).
 # src/ui/components/about.ts
 createAboutButton(engine: StudioApi): HTMLButtonElement
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
-# internal: buildDebugSection(engine) -> { header, body, refresh }
-#   addRow(name: string): HTMLElement   # appends a key cell + value cell, returns the value cell
-# testids: debug-section (body), debug-ctx-state (+ feature rows, e.g. debug-ios-*,
-#          debug-perf-tier, debug-sampler-clips)
+setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
+setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
+# internal: buildDebugSection(engine) -> { header, body, refresh, dispose }
+#   addRow(name, action?): HTMLElement  # key cell + value cell (+ button); returns
+#                                       # the element `refresh` writes text into
+#   RowAction: { label, testId, onClick, danger?, confirm? }
+# testids: debug-section (body), debug-actions, debug-ctx-state, debug-ctx-toggle,
+#          debug-panic, debug-test-tone, debug-copy, debug-latency, debug-transport,
+#          debug-storage, debug-session(+-clear), debug-sw(+-unregister), debug-midi,
+#          debug-wake, debug-sampler-clips(+ debug-clips-clear), debug-perf-tier,
+#          debug-ios-*
+
+# what the rows read (owned by their own specs)
+SessionAutosave.stats(): { bytes, savedAt: number | null } | null   # session-autosave.ts
+storageUsage(prefix = 'websynth.'): { keys, bytes }                 # slot-store.ts
+WakeLockManager.held: boolean                                       # utils/wake-lock.ts
+Clock.bpm: number                                                   # transport clock
+initMIDI(engine, bus): Promise<MIDIAccess | null>                   # resolves the handle
 ```
+
+`Clock.bpm` and `initMIDI`'s return value are new accessors, not new state.
+`bpm` is worth surfacing because a **slaved** clock is driven by `setBpm` from
+incoming MIDI pulses and never touches the bus
+([midi-clock-sync](midi-clock-sync.md)), so `transport.bpm` can legitimately
+disagree with what is actually playing — precisely the kind of thing this panel
+exists to make visible. `initMIDI` returns its `MIDIAccess` so **`main.ts`** can
+bind the port-count source: the audio layer must never import UI, and `midi.ts`
+stays the sole owner of the handle.
 
 ### Persistence
 
@@ -97,19 +183,51 @@ Scenario: Clicking the header expands the section
   Then the section is no longer collapsed
 # pinned by: tests/ui/about.test.ts
 
-Scenario: A late-bound row with no source reads n/a (edge)
+Scenario: A late-bound row with no source reads n/a, and its action is disabled (edge)
   Given nothing has called setClipStatsSource
   When the About modal is opened
   Then the Sampler clips row reads "n/a"
+  And its Clear button is disabled
 # pinned by: tests/ui/about.test.ts
+
+Scenario: The context toggle follows and drives the AudioContext (REQ-7)
+  Given the context is suspended
+  Then the action reads "Resume" and calls engine.resume()
+  When the context becomes running
+  Then it reads "Suspend" and calls ctx.suspend()
+# pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
+
+Scenario: The test tone goes straight to the destination (REQ-7b)
+  When Test tone is pressed
+  Then a 440 Hz oscillator is started outside the master chain
+  And closing the panel stops it
+# pinned by: tests/ui/about.test.ts
+
+Scenario: Copy report carries the whole readout (REQ-7)
+  When Copy report is pressed
+  Then the clipboard holds the version, the user agent and every row's value
+# pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
+
+Scenario: A destructive action asks first (REQ-6)
+  Given an autosaved session exists
+  When Clear is pressed and the confirm is cancelled
+  Then the session is still stored
+# pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
 ```
 
 ## Tests & verification
 
-- Unit: `tests/ui/about.test.ts` (presence + default-collapsed + live refresh + expand) — `npm test`
+- Unit: `tests/ui/about.test.ts` (presence + default-collapsed + live refresh +
+  expand + every action), `tests/state/session-autosave.test.ts` (`stats`),
+  `tests/state/storage-usage.test.ts` (`storageUsage`) — `npm test`
+- E2E: `e2e/debug-panel.spec.ts` (the actions against a real AudioContext +
+  clipboard) — `npm run e2e`
 - Typecheck: `npm run typecheck`
 
 ## Open questions / future
 
-- Rows are read-only today; an interactive debug action (e.g. a "force resume" button)
-  could be added without changing the panel contract.
+- A rolling in-app error log (last N `window.onerror` / unhandled rejections)
+  would be the natural next row — it is the one class of problem the panel still
+  cannot show without a console.
+- The report is plain text; a "share" action (Web Share API) would beat
+  clipboard-then-paste on phones.

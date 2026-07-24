@@ -26,7 +26,7 @@ export interface ClockOptions {
 }
 
 export class Clock implements TickSubscriber {
-  private bpm = 120;
+  private _bpm = 120;
   private swing = 0;
   private _playing = false;
   private nextStepTime = 0;
@@ -44,9 +44,14 @@ export class Clock implements TickSubscriber {
 
   get playing(): boolean { return this._playing; }
   get step(): number { return this._step; }
+  /** The tempo the transport is actually running at. Worth reading directly:
+   *  a slaved clock is driven by `setBpm` from incoming MIDI pulses and never
+   *  touches the bus, so `transport.bpm` can legitimately disagree with this
+   *  (midi-clock-sync.md) — which is exactly what the Debug panel shows. */
+  get bpm(): number { return this._bpm; }
 
   setBpm(b: number): void {
-    this.bpm = Math.max(20, Math.min(400, b));
+    this._bpm = Math.max(20, Math.min(400, b));
   }
 
   /** Shuffle amount, 0 (straight) .. 1. Delays the off-beat 16ths. */
@@ -103,7 +108,7 @@ export class Clock implements TickSubscriber {
   private tick = (): void => {
     // A wakeup may land after stop() (worker message in flight) — emit nothing.
     while (this._playing && this.nextStepTime < this.ctx.currentTime + this.scheduleAheadS) {
-      const sixteenth = 60 / this.bpm / 4;
+      const sixteenth = 60 / this._bpm / 4;
       // Lay the off-beat 16ths back. Offset only the emitted time, never the
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an
       // off-beat never crosses the next on-beat.
@@ -116,7 +121,7 @@ export class Clock implements TickSubscriber {
 
   /** Duration of one 16th note at the current BPM, in seconds. */
   sixteenthDuration(): number {
-    return 60 / this.bpm / 4;
+    return 60 / this._bpm / 4;
   }
 
   /**

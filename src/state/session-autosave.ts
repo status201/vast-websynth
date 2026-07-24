@@ -142,6 +142,29 @@ export class SessionAutosave {
       // storage unavailable — nothing to clear
     }
   }
+
+  /**
+   * Size + age of the stored session, or null when there is none. Read by the
+   * Debug panel (debug-panel.md), which also offers to clear it: an autosave
+   * the app chokes on is otherwise only escapable via a full factory reset.
+   */
+  static stats(): { bytes: number; savedAt: number | null } | null {
+    let raw: string | null;
+    try {
+      raw = localStorage.getItem(SESSION_KEY);
+    } catch {
+      return null;
+    }
+    if (!raw) return null;
+    let savedAt: number | null = null;
+    try {
+      const at = (JSON.parse(raw) as Partial<SessionPayload>).savedAt;
+      if (typeof at === 'number') savedAt = at;
+    } catch {
+      // corrupt payload — its size is still the useful half of the answer
+    }
+    return { bytes: raw.length, savedAt };
+  }
 }
 
 /** Structural view of the four chain lanes — playback ticks don't change it. */

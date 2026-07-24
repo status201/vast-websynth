@@ -99,10 +99,18 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   must either be warmed the same way or accept an offline gap.
 - **REQ-7 (single import parse path)** — Sniffing + parsing import bytes
   (`bytes → { file, clips } | errors`) is one pure function
-  (`parseSongOrProject`), shared by the song panel's file input and the
-  launchQueue consumer. Applying stays in the song panel
-  (`applyProjectBundle`), reachable from outside via
+  (`parseSongOrProject`), shared by the song panel's file input, the
+  launchQueue consumer and the [paste door](paste-import.md). Applying stays in
+  the song panel (`applyProjectBundle`), reachable from outside via
   `UiBridge.importSongBytes`.
+- **REQ-8 (diagnosable from the device)** — Because a stale cache is the classic
+  "why am I not seeing the new version?" on an installed app, the
+  [debug panel](debug-panel.md) shows the registration state (`debug-sw`) and
+  offers **Unregister & reload** (`debug-sw-unregister`, confirm-guarded) — the
+  in-app equivalent of DevTools ▸ Application ▸ Unregister, which an installed
+  PWA has no way to reach. The panel likewise reports whether the wake lock is
+  currently **held** (`WakeLockManager.held`), which REQ-1's intent-based policy
+  otherwise keeps invisible.
 
 ## Technical design
 
@@ -115,7 +123,8 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   intent and releases. Internal: the sentinel's `release` event drops the held
   reference; a `visibilitychange` listener re-requests when
   `wanted && !sentinel && !doc.hidden`. `supported` is false (all methods
-  no-op) when `wakeLock` is undefined. Request rejections are swallowed.
+  no-op) when `wakeLock` is undefined; `held` reports whether a sentinel is
+  live right now (REQ-8's readout). Request rejections are swallowed.
 - `createFullscreenButton(doc = document): HTMLElement | null`
   (`src/ui/components/fullscreen-button.ts`) — returns `null` when
   `!doc.fullscreenEnabled`; otherwise a `createButton`-based header button

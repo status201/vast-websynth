@@ -131,6 +131,26 @@ describe('SessionAutosave', () => {
     expect(SESSION_KEY.startsWith('websynth.song.')).toBe(false);
     expect(Song.list()).not.toContain(SESSION_KEY);
   });
+
+  // debug-panel.md — the readout behind the Debug panel's Session row.
+  describe('stats()', () => {
+    it('is null with nothing stored, and reports size + age once written', () => {
+      expect(SessionAutosave.stats()).toBeNull();
+
+      const { bus } = build();
+      bus.set('filter.cutoff', 60);
+      vi.advanceTimersByTime(1500);
+
+      const s = SessionAutosave.stats()!;
+      expect(s.bytes).toBe(store.get(SESSION_KEY)!.length);
+      expect(s.savedAt).toBeTypeOf('number');
+    });
+
+    it('still reports the size of a corrupt payload (edge)', () => {
+      store.set(SESSION_KEY, 'not json');
+      expect(SessionAutosave.stats()).toEqual({ bytes: 8, savedAt: null });
+    });
+  });
 });
 
 // Type-level check that the injected capture matches Song.capture's output.
