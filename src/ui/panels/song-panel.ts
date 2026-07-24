@@ -70,7 +70,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   let applyToken = 0;
   const applySong = (file: SongFile): void => {
     applyToken++;
-    Song.apply(file, bus, engine.patterns, engine.arrangement, xy);
+    // `engine.sampler` lets apply evict audio the incoming song renames, so a
+    // slot's label can never outlive the sound under it (song-mode.md REQ-3b).
+    Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     session.setActive(file.name);
   };
 

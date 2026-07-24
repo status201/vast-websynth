@@ -3,12 +3,13 @@
 ```yaml
 id: factory-reset
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - dialog
   - debug-panel
+  - sample-persistence   # the one non-localStorage store this must also wipe
 source:
   - src/state/factory-reset.ts
   - src/ui/components/about.ts
@@ -41,8 +42,14 @@ storage and reloads the app into a pristine, factory-seeded state.
 - **REQ-3** — On confirm, `restoreFactorySettings()` (`state/factory-reset.ts`)
   clears **both** `localStorage` and `sessionStorage` for the whole origin
   (each `.clear()` in its own try/catch, per the `websynth.*` storage
-  convention) and then reloads the page. Cancel / Escape / backdrop-click
-  leaves all storage untouched.
+  convention) **and** the IndexedDB sampler-clip store
+  ([sample-persistence](sample-persistence.md) REQ-9), and then reloads the
+  page. Cancel / Escape / backdrop-click leaves all storage untouched.
+- **REQ-7** — The clip wipe is asynchronous (IndexedDB has no synchronous
+  clear), so `restoreFactorySettings` returns a promise and the About caller
+  is `void`-ed. It is awaited but **capped at 500 ms**: a wedged or absent
+  IndexedDB delays the reload briefly at worst, never blocks it. The store's
+  own `clear()` never rejects, so the race guards only a hang.
 - **REQ-4** — The reload is **mandatory**, not cosmetic: clearing storage does
   not reset live in-memory state (`ParamBus` values, pattern banks, the preset
   index already read at boot), and several settings are boot-time-only
@@ -66,8 +73,9 @@ storage and reloads the app into a pristine, factory-seeded state.
 
 ```yaml
 # src/state/factory-reset.ts
-restoreFactorySettings(reload?: () => void): void
+restoreFactorySettings(reload?: () => void): Promise<void>
   # clears localStorage + sessionStorage (each guarded by try/catch),
+  # awaits SampleAutosave.clear() capped at 500 ms,
   # then calls reload (default: () => location.reload())
 ```
 
@@ -87,8 +95,9 @@ key between the clear and the reload.
 ### Persistence
 
 Deliberately none — this feature only *destroys* persisted state. It clears
-the whole origin (not just `websynth.*` keys) so truly everything local is
-gone, matching the "factory" promise.
+the whole origin's `localStorage`/`sessionStorage` (not just `websynth.*` keys)
+plus the IndexedDB clip store, so truly everything local is gone, matching the
+"factory" promise.
 
 ## Scenarios (BDD)
 
@@ -104,6 +113,12 @@ Scenario: Confirming wipes all local data and reloads
   When the user clicks Restore to Factory Settings and confirms
   Then both storages are empty and the app reloads
 # pinned by: tests/ui/about.test.ts (reload via injected spy), tests/state/factory-reset.test.ts
+
+Scenario: The reload happens even without IndexedDB (failure)
+  Given IndexedDB is unavailable, so the clip wipe cannot run
+  When the user confirms Restore to Factory Settings
+  Then the storages are still cleared and the app still reloads
+# pinned by: tests/state/factory-reset.test.ts
 
 Scenario: Cancelling leaves everything intact
   Given localStorage holds websynth keys

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { gotoAndStart, sessionDisplay } from './helpers';
+import { gotoAndStart, sessionDisplay, makeWavBuffer } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
@@ -38,6 +38,46 @@ test.describe('song mode', () => {
 
     await page.getByTestId('song-load').click();
     await expect.poll(() => seqOn(page, 5)).toBe(true);
+  });
+
+  /**
+   * song-mode.md REQ-3b / sampler.md REQ-7 (regression): a slot's audio belongs
+   * to the name beside it. Loading a song that doesn't name slot 0 used to leave
+   * the previous sample loaded and playable under the new song's label.
+   */
+  test('loading a song evicts sampler audio it does not name', async ({ page }) => {
+    await gotoAndStart(page);
+
+    // Save a song while every sampler slot is empty — its sampleNames are all null.
+    await page.getByTestId('tab-song').click();
+    const jsonDownload = page.waitForEvent('download');
+    await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('no-samples');
+    await page.getByTestId('dialog-confirm').click();
+    await jsonDownload;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
+    // Now load a clip into slot 0.
+    await page.getByTestId('tab-sampler').click();
+    await page.getByTestId('sampler-file-0').setInputFiles({
+      name: 'beep.wav',
+      mimeType: 'audio/wav',
+      buffer: makeWavBuffer(),
+    });
+    await expect(page.getByTestId('sampler-name-0')).toHaveText('beep.wav');
+    await expect(page.getByTestId('sampler-edit-0')).toBeVisible();
+
+    // Load the sample-less song back: the slot must come back empty, not keep
+    // playing beep.wav under a blank label.
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('song-load').click();
+
+    await page.getByTestId('tab-sampler').click();
+    await expect(page.getByTestId('sampler-name-0')).toHaveText('S1 …');
+    await expect(page.getByTestId('sampler-edit-0')).toBeHidden();
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const loaded = await page.evaluate(() => (window as any).__synth.engine.sampler.buffers[0] != null);
+    expect(loaded).toBe(false);
   });
 
   test('per-lane Clear confirms before wiping the arrangement chain', async ({ page }) => {

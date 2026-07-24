@@ -7,6 +7,7 @@ import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
 import { SessionAutosave } from './state/session-autosave';
+import { SampleAutosave, type StoredClip } from './state/sample-autosave';
 import { PatternUndo } from './state/pattern-undo';
 import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
@@ -14,6 +15,8 @@ import { UiBridge } from './ui/ui-bridge';
 import { parseSongLink, decodeSongPayload } from './state/song-link';
 import { Modal } from './ui/components/modal';
 import { WakeLockManager } from './utils/wake-lock';
+import { showToast } from './ui/components/toast';
+import { setClipStatsSource } from './ui/components/about';
 import type { Onboarding } from './ui/onboarding';
 
 // Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
@@ -24,6 +27,10 @@ async function boot() {
   // created suspended (no sound until a gesture), so everything can render
   // behind the start modal — audio is unlocked when the user taps it.
   const bus = new ParamBus();
+  // Persisted sampler clips (sample-persistence.md REQ-5): kick the IndexedDB
+  // read off FIRST — it needs no AudioContext, so its I/O overlaps the worklet
+  // loading in engine.init() below and costs the boot ~nothing.
+  const clipsPromise = SampleAutosave.loadAll();
   // Performance mode (device-aware, persisted outside the bus) trades a little
   // latency/polyphony/FX cost for a glitch-resistant graph on weak hardware.
   // The audio fields are read once here because they are fixed when the
@@ -55,13 +62,20 @@ async function boot() {
 
   // Silent session recovery (session-autosave.md REQ-5): restore the autosaved
   // working session over the boot patch, BEFORE the UI mounts so every control
-  // constructs already reading the restored values. Sampler audio doesn't
-  // survive a reload (names only — slots show their .needs-reload hint).
+  // constructs already reading the restored values.
   const restored = SessionAutosave.load();
   if (restored) {
-    Song.apply(restored, bus, engine.patterns, engine.arrangement, xy);
+    Song.apply(restored, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     session.setActive(restored.name);
   }
+
+  // …and its sampler audio (sample-persistence.md). Awaited here, still before
+  // mountApp, so the sampler panel constructs already seeing loaded slots — no
+  // .needs-reload flash, and no race with the share-link / launchQueue
+  // importers wired further down. A clip is restored only for a slot the
+  // session names (REQ-6); orphans are dropped, undecodable ones skipped
+  // (REQ-7) so the slot simply keeps its hint.
+  const restoredClips = await restoreSamplerClips(engine, restored != null, clipsPromise);
 
   // Per-machine step-grid undo — pure state like session/xy, so it lives here
   // (not on StudioApi) and threads into the machine panels via mountApp.
@@ -77,6 +91,14 @@ async function boot() {
   const autosave = new SessionAutosave(() =>
     Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy));
   autosave.attach({ bus, patterns: engine.patterns, arr: engine.arrangement, xy });
+
+  // The audio sibling: one hook (SamplerMachine.onBufferChange) covers every
+  // slot-filling path. Seeded with what the restore just handed back, so those
+  // clips are not immediately re-encoded and re-written.
+  const clipStore = new SampleAutosave(engine.sampler);
+  clipStore.noteRestored(restoredClips, engine.sampler.buffers);
+  clipStore.attach();
+  setClipStatsSource(() => clipStore.stats());
 
   // Keep the display awake exactly while the synth can make sound: the wake
   // lock follows the AudioContext state (running from the Tap-to-start resume;
@@ -151,7 +173,18 @@ async function boot() {
   // MIDI is initialized from the start gesture, not at boot: Chrome ≥124
   // gates all Web MIDI behind a permission prompt, and prompting on page
   // load (behind the start modal) is hostile to MIDI-less visitors.
-  showStartModal(engine, onboarding, () => { void initMIDI(engine, bus); });
+  showStartModal(engine, onboarding, () => {
+    void initMIDI(engine, bus);
+    // Tell the user their sampler audio came back from storage rather than the
+    // song file (sample-persistence.md REQ-8). Fired from the start gesture,
+    // not at boot, so the toast appears as the modal fades instead of under it.
+    if (restoredClips.length > 0) {
+      showToast({
+        message: `Restored ${restoredClips.length} sampler clip${restoredClips.length === 1 ? '' : 's'}`,
+        testId: 'clips-restored-toast',
+      });
+    }
+  });
 
   // Offline support — PRODUCTION-ONLY: the dev server (and Playwright, which
   // drives it) must never run under a service worker or HMR breaks. The `?v=`
@@ -179,6 +212,45 @@ async function boot() {
   // narrow `window` itself to `never` in the else branch; probe the function.)
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warmMp3);
   else window.setTimeout(warmMp3, 2000);
+}
+
+/**
+ * Repopulate the sampler slots from the persisted clip store
+ * (sample-persistence.md REQ-5..REQ-7). Returns the clips that actually landed,
+ * so the autosaver can seed its identity table with them.
+ *
+ * Clips only make sense next to the session that named them: with no restored
+ * session the whole store is orphaned and dropped, and within one, a clip whose
+ * slot the session does not name is dropped too — keeping the invariant that a
+ * named slot is either loaded or shows `.needs-reload`.
+ */
+async function restoreSamplerClips(
+  engine: Engine,
+  hasSession: boolean,
+  clipsPromise: Promise<StoredClip[]>,
+): Promise<StoredClip[]> {
+  if (!hasSession) {
+    void SampleAutosave.clear();
+    return [];
+  }
+  const restored: StoredClip[] = [];
+  // Sequentially, like the project-zip import: 8 × multi-MB decodes at once
+  // is a needless memory spike (project-export.md REQ-8).
+  for (const clip of await clipsPromise) {
+    if (engine.patterns.sampleNames[clip.slot] == null) {
+      void SampleAutosave.drop(clip.slot);
+      continue;
+    }
+    try {
+      // .slice() is mandatory: decodeAudioData detaches the buffer it is given
+      // (the same gotcha as the zip import).
+      engine.sampler.setBuffer(clip.slot, await engine.ctx.decodeAudioData(clip.data.slice().buffer));
+      restored.push(clip);
+    } catch {
+      // Undecodable clip: skip it — the slot keeps its .needs-reload hint.
+    }
+  }
+  return restored;
 }
 
 /** "Tap to start" shown as a modal layover the synth (same as About etc.). */

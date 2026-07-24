@@ -3,11 +3,12 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 1
+version: 2
 owner: websynth
 related:
   - architecture
   - song-mode        # the SongFile the session serializes to; the guarded panel
+  - sample-persistence  # the audio half of the same reload safety net
   - toast            # the undo affordance
   - dialog           # New keeps its confirm dialog
 source:
@@ -67,9 +68,12 @@ happy path.
 - **REQ-9** — In-flight async work from a superseded apply must not leak into
   the current session: a monotonically increasing apply token invalidates
   project-zip clip decodes still pending when another apply (or Undo) lands.
-- **REQ-10** — Sampler *audio* does not survive a reload: only `sampleNames`
-  restore (slots show the existing `.needs-reload` hint). Deliberate — binary
-  clips don't fit localStorage; IndexedDB persistence is out of scope.
+- **REQ-10** — This key carries `sampleNames` only; binary clips don't fit
+  localStorage. Sampler *audio* is persisted separately in IndexedDB and
+  restored alongside this session at boot — see
+  [sample-persistence](sample-persistence.md), which owns that contract
+  (including what happens when a clip is missing: the slot keeps the existing
+  `.needs-reload` hint, i.e. this spec's original behaviour).
 - **REQ-11** — Storage failures (quota, private mode) are silent no-ops; the
   app never breaks because autosave couldn't write.
 - **REQ-12** — Multi-tab is last-writer-wins on the single key. Documented
@@ -99,9 +103,10 @@ on `song-validate`/`serialize`, not `song.ts`.
 ### Layer touchpoints & ordering
 
 - `main.ts` boot order: preset seed → **silent restore** (`SessionAutosave.load()`
-  → `Song.apply` + `session.setActive`) → `mountApp` → construct + `attach()`
-  the autosaver → share-link hook (unchanged position; applies over the
-  restore via the import path).
+  → `Song.apply` + `session.setActive`) → sampler-clip restore (awaited; see
+  [sample-persistence](sample-persistence.md) REQ-5) → `mountApp` → construct +
+  `attach()` the autosaver → share-link hook (unchanged position; applies over
+  the restore via the import path).
 - `song-panel.ts`: `applySongWithUndo(file, verb)` wraps the existing
   `applySong` choke point — stash (file + `[...engine.sampler.buffers]` +
   dropdown value) → apply → toast. Used by `loadDemo`, Load,
@@ -116,8 +121,8 @@ on `song-validate`/`serialize`, not `song.ts`.
 
 - `websynth.session` — the autosaved session (this spec). **Not** a song slot;
   invisible to `Song.list()`.
-- Deliberately not persisted: sampler audio (REQ-10), the undo stash (memory
-  only), any history.
+- Sampler audio lives in IndexedDB, not here (REQ-10).
+- Deliberately not persisted: the undo stash (memory only), any history.
 
 ## Scenarios (BDD)
 
@@ -171,6 +176,5 @@ Scenario: undo mid-import cancels stale clip decodes
 
 ## Open questions / future
 
-- Persist sampler clips to IndexedDB so audio also survives reload.
 - A "Restore previous session?" affordance if silent restore ever proves
   surprising (no evidence yet).

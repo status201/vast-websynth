@@ -168,9 +168,11 @@ cache `websynth-<version>`. `install`: `addAll(CORE_ASSETS)` + `skipWaiting()`.
 ### Persistence
 
 - CacheStorage: `websynth-<version>` (one per active SW version; older ones
-  purged on activate). Deliberately **not** persisted: no precache manifest of
-  hashed assets (runtime caching only), no IndexedDB, no offline mutation
-  queue. The SW never touches `localStorage`.
+  purged on activate). Deliberately **not** persisted *by the service worker*:
+  no precache manifest of hashed assets (runtime caching only), no IndexedDB,
+  no offline mutation queue. The SW never touches `localStorage`. (The app
+  itself does use IndexedDB, for sampler clips — see
+  [sample-persistence](sample-persistence.md); the SW is not involved.)
 
 ## Scenarios (BDD)
 

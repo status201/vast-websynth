@@ -78,7 +78,10 @@ export function mountApp(
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   let songLoadDemo: (name: string) => void = (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
-    if (file) { Song.apply(file, bus, engine.patterns, engine.arrangement, xy); session.setActive(file.name); }
+    if (file) {
+      Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
+      session.setActive(file.name);
+    }
   };
 
   // Runtime hooks for the tour. `bridge.toggleTransport` is set inside

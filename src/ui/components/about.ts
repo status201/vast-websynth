@@ -26,6 +26,17 @@ const SHORTCUTS: Array<[string, string]> = [
   ['Shift + drag', 'Fine knob control'],
 ];
 
+/**
+ * Late-bound source for the Debug panel's "Sampler clips" row — `main.ts` binds
+ * it to the `SampleAutosave` it owns (sample-persistence.md REQ-12). Same
+ * late-bound-hook idiom as app.ts's live scope knobs; unbound it reads as "n/a",
+ * which is exactly right in a build where clip persistence never started.
+ */
+let clipStats: (() => { count: number; bytes: number }) | null = null;
+export function setClipStatsSource(fn: () => { count: number; bytes: number }): void {
+  clipStats = fn;
+}
+
 export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
@@ -187,7 +198,9 @@ function buildFactoryResetButton(): HTMLButtonElement {
         confirmLabel: 'Restore',
         danger: true,
       });
-      if (ok) restoreFactorySettings();
+      // Async only because the sampler-clip store is IndexedDB-backed; the
+      // reload happens inside, so nothing here needs the result.
+      if (ok) void restoreFactorySettings();
     },
   });
 }
@@ -230,6 +243,10 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
   const memVal = addRow('Device memory');
   const mobileVal = addRow('Mobile UA');
   const profileVal = addRow('Audio profile');
+  // Persisted sampler audio (owned by sample-persistence.md) — in-memory
+  // bookkeeping, so opening About never touches IndexedDB.
+  const clipsVal = addRow('Sampler clips');
+  clipsVal.dataset.testid = 'debug-sampler-clips';
   // iOS audio-session diagnostics (owned by ios-audio.md; inert off iOS).
   const unlockVal = addRow('Audio unlock');
   unlockVal.dataset.testid = 'debug-ios-unlock';
@@ -250,6 +267,10 @@ function buildDebugSection(engine: StudioApi): { header: HTMLElement; body: HTML
       `${p.latencyHint} · ${p.voiceCount} voices · ${p.fps} fps · ` +
       `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
       `oversample ${p.fxOversample ? 'on' : 'off'}`;
+    const clips = clipStats?.();
+    clipsVal.textContent = clips
+      ? `${clips.count} · ${(clips.bytes / 1e6).toFixed(1)} MB`
+      : 'n/a';
     const ios = engine.iosAudio;
     unlockVal.textContent = ios.status
       + (ios.routed ? ' · routed' : '')

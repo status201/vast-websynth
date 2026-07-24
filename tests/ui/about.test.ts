@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createAboutButton } from '../../src/ui/components/about';
+import { createAboutButton, setClipStatsSource } from '../../src/ui/components/about';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
@@ -25,6 +25,7 @@ function stubEngine(state: AudioContextState = 'running', iosAudio: IosAudioDiag
 const debugSection = () => document.querySelector('[data-testid="debug-section"]') as HTMLElement | null;
 const ctxStateRow = () => document.querySelector('[data-testid="debug-ctx-state"]') as HTMLElement | null;
 const unlockRow = () => document.querySelector('[data-testid="debug-ios-unlock"]') as HTMLElement | null;
+const clipsRow = () => document.querySelector('[data-testid="debug-sampler-clips"]') as HTMLElement | null;
 
 /** Close any open modal so its refresh interval / capturing keydown listener don't leak. */
 function closeOpenModal(): void {
@@ -75,6 +76,20 @@ describe('About modal — Debug section', () => {
     btn.click();
 
     expect(unlockRow()?.textContent).toBe('playing · routed');
+  });
+
+  // debug-panel.md REQ-4/REQ-5 — the late-bound row idiom, used by
+  // sample-persistence.md for the IndexedDB clip store.
+  it('reads the sampler-clip row from its late-bound source, or n/a when unbound', () => {
+    const { engine } = stubEngine('running');
+    document.body.appendChild(createAboutButton(engine)).click();
+    expect(clipsRow()?.textContent).toBe('n/a');
+
+    closeOpenModal();
+    document.body.innerHTML = '';
+    setClipStatsSource(() => ({ count: 2, bytes: 4_200_000 }));
+    document.body.appendChild(createAboutButton(engine)).click();
+    expect(clipsRow()?.textContent).toBe('2 · 4.2 MB');
   });
 
   it('places the factory-reset button between the shortcuts grid and Debug', () => {

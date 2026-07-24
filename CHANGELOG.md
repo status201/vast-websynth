@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Your sampler sounds now survive a reload** — clips loaded into sampler slots
+  are kept on the device (in IndexedDB, alongside the existing session autosave),
+  so closing the tab and coming back gives you the audio, not just the filename
+  with a "reload me" hint. Works for every way a slot gets filled: Load, a
+  recorded or edited sound, an "Import into sampler" render, and a project zip.
+  A short toast tells you how many clips came back, and **About → Debug** shows
+  how much space they take. Restoring factory settings clears them too.
 - **The Render button explains itself** — the Sequencer's "Import into sampler"
   section now carries a help badge (turn badges on from **Help**): what the
   import is for, and why pressing Render plays the bar **twice** — the second
@@ -26,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Loading a song no longer leaves the previous song's samples in the sampler**
+  — a slot could show the new song's filename (or a blank placeholder) while
+  still holding, and playing, audio from the song before it, with no "reload me"
+  hint to give it away. A load now clears the audio of any slot it renames.
+  Slots the new song names identically keep their sound, so reloading a song
+  whose samples you already have still just works.
 - **Motion banks filled only in their A/B tracks now light up** — a bank whose
   extra motion tracks held steps but whose XY lane was empty showed as an empty
   bank in the Motion tab's bank bar, so it was easy to lose. The bank dot now

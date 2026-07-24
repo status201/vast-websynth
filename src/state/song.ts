@@ -64,6 +64,15 @@ export interface SongFile {
 }
 
 /**
+ * The narrow sampler view `apply` needs to evict stale audio (song-mode.md
+ * REQ-3b). Structural, so `state/` never imports the audio layer —
+ * `SamplerMachine` satisfies it.
+ */
+export interface SamplerSlots {
+  setBuffer(slot: number, buf: AudioBuffer | null): void;
+}
+
+/**
  * Split the store's 3-D seq banks into the v6 file shape: track 1 stays in
  * `seqBanks` (handled by the caller) and tracks 2-4 become `seqTracks`, with an
  * empty track written as null. When no extra track holds a step the key is
@@ -121,17 +130,37 @@ export const Song = {
     };
   },
 
-  apply(file: SongFile, bus: ParamBus, patterns: PatternStore, arr: Arrangement, xyStore?: XyPadStore): void {
+  apply(
+    file: SongFile,
+    bus: ParamBus,
+    patterns: PatternStore,
+    arr: Arrangement,
+    xyStore?: XyPadStore,
+    sampler?: SamplerSlots,
+  ): void {
     bus.resetDefaults();      // authoritative: clear stale params before applying
     bus.restore(file.params);
+    // A slot's decoded buffer belongs to the NAME beside it, so evict the audio
+    // of every slot this file renames (song-mode.md REQ-3b) — otherwise the
+    // previous song's sample keeps playing under the new song's label, with no
+    // .needs-reload hint to betray it. Done BEFORE restore so the store's own
+    // sample-meta emit repaints each slot against the settled buffers. A file
+    // that OMITS sampleNames renames nothing, so the REQ-3 inherit exception
+    // below still holds for v1 files.
+    if (sampler && file.sampleNames) {
+      for (let i = 0; i < patterns.sampleNames.length; i++) {
+        if ((file.sampleNames[i] ?? null) !== (patterns.sampleNames[i] ?? null)) {
+          sampler.setBuffer(i, null);
+        }
+      }
+    }
     // Motion is authoritative: a file that omits a motion section has it BLANKED,
     // never inherited from the previously-loaded song (song-mode.md REQ-3,
     // motion-sequencer.md "Old songs load unchanged"). Without the `?? blank`
     // fallbacks, restore's skip-on-undefined leaves the prior song's anchors /
     // tracks live and still automating. Sampler banks/names are deliberately left
-    // to inherit (see the v1-apply test): the sampler's decoded buffers live in
-    // SamplerMachine, out of reach here, so blanking the metadata alone would
-    // orphan them — clearing sampler is the New Song / UI layer's job.
+    // to inherit (see the v1-apply test): a file with no sampler section keeps the
+    // user's loaded kit rather than orphaning it.
     const blank = emptyPatternSnapshot();
     patterns.restore({
       seqBanks: mergeSeqTracks(file),

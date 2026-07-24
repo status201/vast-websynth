@@ -123,4 +123,20 @@ describe('SamplerMachine', () => {
     expect(ctx.createBufferSource).not.toHaveBeenCalled();
     rnd.mockRestore();
   });
+
+  // sampler.md REQ-6 — the single hook sample-persistence.md mirrors slots off.
+  it('notifies onBufferChange for a filled and a cleared slot', () => {
+    const { sm } = build();
+    const seen: number[] = [];
+    const off = sm.onBufferChange((slot) => seen.push(slot));
+
+    sm.setBuffer(3, makeStubBuffer());
+    sm.setBuffer(3, null);
+    sm.setBuffer(99, makeStubBuffer()); // out of range: no slot changed, no event
+    expect(seen).toEqual([3, 3]);
+
+    off();
+    sm.setBuffer(0, makeStubBuffer());
+    expect(seen).toEqual([3, 3]);
+  });
 });

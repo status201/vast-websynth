@@ -222,6 +222,7 @@ specs/
     mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     session-autosave.md ·  working-session autosave + load-undo toast safety net
+    sample-persistence.md ·  sampler clips in IndexedDB, so audio survives a reload
     presets.md         ·  sound snapshots (param-only)
     param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file

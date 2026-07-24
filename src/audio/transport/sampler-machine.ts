@@ -22,6 +22,7 @@ export class SamplerMachine {
 
   private enabled = false;
   private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly bufferListeners = new ListenerSet<[number]>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -47,12 +48,24 @@ export class SamplerMachine {
     return this.stepListeners.add(fn);
   }
 
+  /**
+   * A slot's buffer was replaced or cleared. The single hook every slot-filling
+   * path funnels through (Load, the record modal, ✎ re-edit, render-to-sampler,
+   * project-zip import, load-undo, New) — `SampleAutosave` persists off it
+   * without any caller knowing (sample-persistence.md REQ-2).
+   */
+  onBufferChange(fn: (slot: number) => void): () => void {
+    return this.bufferListeners.add(fn);
+  }
+
   setSlotMute(slot: number, muted: boolean): void {
     if (slot >= 0 && slot < SAMPLER_SLOT_COUNT) this.muted[slot] = muted;
   }
 
   setBuffer(slot: number, buf: AudioBuffer | null): void {
-    if (slot >= 0 && slot < SAMPLER_SLOT_COUNT) this.buffers[slot] = buf;
+    if (slot < 0 || slot >= SAMPLER_SLOT_COUNT) return;
+    this.buffers[slot] = buf;
+    this.bufferListeners.emit(slot);
   }
 
   /** Manual trigger (for UI auditioning). */

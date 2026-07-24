@@ -90,7 +90,8 @@ pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
 (the extra tracks) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
 `motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
-`StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`,
+`StepSettingsEditor` per-step edit row), `sampler-load/name/edit/file-<slot>`, `debug-sampler-clips` (the About →
+Debug row for the persisted clip store),
 `seq-step-<i>` (track 1) / `seq-step-<t>-<i>` (tracks 2-4), `seq-track-<t>`/`seq-track-fold-<t>`,
 `bank-<seq|drum|sampler|motion>-<i>`/`bank-…-copy` (the per-machine `BankBar`,
 via its `testidPrefix` opt),
@@ -368,7 +369,17 @@ it also writes the note name as the label.
   label hint), while a **project-zip** import repopulates the buffers directly
   (see *Project export*). Slots are filled by **Load** (WAV/MP3 file) or the
   record-sound modal (mic-record or re-edit a loaded buffer; see *Sample
-  recorder/editor*).
+  recorder/editor*). **Device-locally the buffers survive a reload**:
+  `SampleAutosave` (`state/sample-autosave.ts`, `specs/features/sample-persistence.md`)
+  mirrors them into IndexedDB (db `websynth`, store `clips`, keyed by slot) as
+  `encodeWav` bytes, off the single `SamplerMachine.onBufferChange` hook — so
+  every slot-filling path is covered without any caller knowing. The backend is
+  an injected `ClipKv` (`state/idb-clip-kv.ts` is the impl) because jsdom has no
+  IndexedDB. `main.ts` starts the read *before* `engine.init()` and awaits it
+  before `mountApp`, so the panel constructs already seeing loaded slots — a
+  clip is restored only for a slot the restored session names (no session ⇒ the
+  store is cleared). Every storage failure is a silent no-op, degrading to the
+  old `.needs-reload`.
 - **Motion sequencer** (`specs/features/motion-sequencer.md`) — the 4th
   machine (tab between Sampler and Song): 4 banks × 16 steps of optional XY
   anchors (`MotionStep {on,x,y}`, normalized taper space) that drive the XY
@@ -402,7 +413,13 @@ it also writes the note name as the label.
   polyline, step = wrap-aware staircase). Params: `motion.on`, `motion.mute`,
   `motion.slide` (0=step 1=slide).
 - **`Song`** (`state/song.ts`) — `capture`/`apply` a full song (`bus.snapshot`
-  + all banks + all four chains). `SongFile` is `version: 1 | 2 | 3 | 4 | 5 | 6`;
+  + all banks + all four chains). `apply` takes an optional narrow `sampler`
+  handle (`SamplerSlots = {setBuffer}`) and uses it to **evict stale audio**: a
+  slot the incoming file renames has its decoded buffer nulled, so a slot's
+  label can never outlive the sound under it (song-mode.md REQ-3b). A file that
+  *omits* `sampleNames` renames nothing, so v1 songs still inherit the user's
+  loaded kit. Every UI caller passes `engine.sampler`; omitting it keeps the old
+  behaviour (what unit tests without an audio graph want). `SongFile` is `version: 1 | 2 | 3 | 4 | 5 | 6`;
   v2 adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
   `xy` axis assignment (XY Pad), v4 the optional
   `motionBanks`/`motionAssigns`/`motionChain` (motion sequencer), v5

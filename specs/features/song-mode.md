@@ -3,7 +3,7 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 9   # v9: SongFile v5 (motion tracks) + v6 (sequencer tracks); SONG_VERSION is exported
+version: 10  # v10: apply() evicts stale sampler audio (REQ-3b)
 owner: core
 related:
   - architecture
@@ -13,6 +13,7 @@ related:
   - motion-sequencer
   - param-reset-baseline
   - xy-pad
+  - sampler
   - project-export
   - dialog
   - session-autosave
@@ -76,6 +77,19 @@ demos, the load path **must stay backward compatible** as the format grows.
   `resetDefaults()`+`restore()` also replaces every knob **reset baseline** with the
   song's values (see [param-reset-baseline](param-reset-baseline.md)); Save-song
   marks it too.
+- **REQ-3b** — **Stale sampler audio is evicted.** A slot's decoded buffer
+  belongs to the *name* beside it, so when an incoming file **supplies**
+  `sampleNames` and a slot's name changes, that slot's buffer is nulled — via
+  the optional narrow `sampler` handle (`{ setBuffer }`) `apply` now takes,
+  before `patterns.restore` runs so the store's own meta emit repaints the slot
+  correctly. Without it, loading song B left song A's audio playing under B's
+  labels: a slot could read "kick.wav" with no `.needs-reload` hint while
+  sounding like something else entirely. The REQ-3 inherit exception is
+  untouched: a file that **omits** `sampleNames` (a v1 file) changes no name, so
+  nothing is evicted. Callers that hold a sampler pass it (`song-panel.applySong`,
+  the app.ts demo fallback, the boot restore); omitting it keeps the old
+  inherit-everything behaviour, which is what unit tests without an audio graph
+  want.
 - **REQ-4** — Legacy step cells (plain `{on, velocity}`) must load and **sound
   unchanged** (gain defaults filled in).
 - **REQ-5** — Decoded audio is **never embedded in the `.json`**; only sampler
@@ -400,7 +414,16 @@ Scenario: Loading a no-motion song clears the previous song's motion (REQ-3, reg
   Then every motion section (banks, tracks, assigns) is blank/default — the prior
     song's motion is not inherited, and nothing is still automated
   And sampler banks/names still inherit (the deliberate exception, REQ-3)
+  And no sampler buffer is evicted — an omitted section changes no name (REQ-3b)
 # pinned by: tests/state/song.test.ts
+
+Scenario: Loading a song evicts audio the new song does not name (REQ-3b, regression)
+  Given slot 0 holds a loaded "beep.wav" buffer
+  When apply() loads a song whose sampleNames give slot 0 a different name (or none)
+  Then slot 0's buffer is nulled, so the label can never claim audio it isn't playing
+  And a slot whose name is unchanged keeps its buffer (reloading the same song
+    does not force the user to re-pick the file)
+# pinned by: tests/state/song.test.ts, e2e/song.spec.ts
 
 Scenario: Legacy {on, velocity} cells sound unchanged (edge)
   Given a drum cell with only { on, velocity }

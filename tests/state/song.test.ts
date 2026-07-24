@@ -339,6 +339,68 @@ describe('Song', () => {
     });
   });
 
+  // song-mode.md REQ-3b / sampler.md REQ-7 — a slot's audio belongs to the name
+  // beside it, so a load that renames a slot must take the audio with it.
+  describe('load is authoritative — stale sampler audio (regression)', () => {
+    /** Stand-in for SamplerMachine: records what apply evicted. */
+    const fakeSampler = () => {
+      const cleared: number[] = [];
+      return { cleared, setBuffer: (slot: number, buf: AudioBuffer | null) => { if (!buf) cleared.push(slot); } };
+    };
+
+    const rig = () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setSampleName(0, 'beep.wav');
+      patterns.setSampleName(1, 'kick.wav');
+      return { bus, patterns, arr: fakeArr() };
+    };
+
+    it('evicts the buffer of every slot the incoming song renames', () => {
+      const { bus, patterns, arr } = rig();
+      const sampler = fakeSampler();
+
+      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Other');
+      file.sampleNames = ['snare.wav', 'kick.wav', null, null, null, null, null, null];
+
+      Song.apply(file, bus, patterns, arr as never, undefined, sampler);
+
+      // Slot 0 renamed → evicted. Slot 1 has the SAME name → its audio is kept,
+      // so reloading a song you already have the samples for still just works.
+      expect(sampler.cleared).toEqual([0]);
+    });
+
+    it('evicts a slot the incoming song leaves unnamed', () => {
+      const { bus, patterns, arr } = rig();
+      const sampler = fakeSampler();
+
+      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Blank');
+      expect(file.sampleNames!.every((n) => n === null)).toBe(true);
+
+      Song.apply(file, bus, patterns, arr as never, undefined, sampler);
+      expect(sampler.cleared).toEqual([0, 1]);
+    });
+
+    it('evicts nothing when the file omits sampleNames (v1 inherit, REQ-3)', () => {
+      const { bus, patterns, arr } = rig();
+      const sampler = fakeSampler();
+
+      const v1 = demo(); // Zombie Nation — no sampler section at all
+      expect(v1.sampleNames).toBeUndefined();
+
+      Song.apply(v1, bus, patterns, arr as never, undefined, sampler);
+      expect(sampler.cleared).toEqual([]);
+      expect(patterns.sampleNames[0]).toBe('beep.wav');
+    });
+
+    it('is a no-op without a sampler handle (unit callers keep the old shape)', () => {
+      const { bus, patterns, arr } = rig();
+      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Blank');
+      expect(() => Song.apply(file, bus, patterns, arr as never)).not.toThrow();
+    });
+  });
+
   describe('XY Pad (v3)', () => {
     it('capture() writes version 3 and the store\'s current axis assignment', () => {
       const bus = new ParamBus();

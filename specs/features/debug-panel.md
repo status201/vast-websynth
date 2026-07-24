@@ -3,11 +3,13 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
   - ios-audio
+  - performance-mode
+  - sample-persistence
 source:
   - src/ui/components/about.ts
 ```
@@ -44,9 +46,17 @@ that contributes it (so the panel does not accumulate unrelated knowledge).
   `currentTime` — visibly tick). The `statechange` listener and the interval are
   registered on open and **torn down in `close()`** (no leaks when the modal is shut).
 - **REQ-4** — **Extension contract**: a feature adds rows inside `buildDebugSection` by
-  reading the `StudioApi` passed to `createAboutButton(engine)` and calling `addRow`. No
-  contract change is needed to add a row. Current contributor: [`ios-audio`](ios-audio.md)
-  (Audio unlock / Silent loop rows from `engine.iosAudio`).
+  calling `addRow` and reading either the `StudioApi` passed to
+  `createAboutButton(engine)` or, for state that lives outside the Engine, a
+  **late-bound module hook** the owner binds at boot (the same idiom as app.ts's
+  live scope knobs). No contract change is needed to add a row. Current
+  contributors: [`ios-audio`](ios-audio.md) (Audio unlock / Silent loop, from
+  `engine.iosAudio`), [`performance-mode`](performance-mode.md) (tier / cores /
+  memory / mobile / audio profile), and
+  [`sample-persistence`](sample-persistence.md) (**Sampler clips**,
+  `data-testid="debug-sampler-clips"`, via `setClipStatsSource`).
+- **REQ-5** — A row whose late-bound source is unbound reads **"n/a"** rather
+  than blank or a crash, so the panel degrades cleanly in any boot order.
 
 ## Technical design
 
@@ -55,9 +65,11 @@ that contributes it (so the panel does not accumulate unrelated knowledge).
 ```yaml
 # src/ui/components/about.ts
 createAboutButton(engine: StudioApi): HTMLButtonElement
+setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 # internal: buildDebugSection(engine) -> { header, body, refresh }
 #   addRow(name: string): HTMLElement   # appends a key cell + value cell, returns the value cell
-# testids: debug-section (body), debug-ctx-state (+ feature rows, e.g. debug-ios-*)
+# testids: debug-section (body), debug-ctx-state (+ feature rows, e.g. debug-ios-*,
+#          debug-perf-tier, debug-sampler-clips)
 ```
 
 ### Persistence
@@ -83,6 +95,12 @@ Scenario: Clicking the header expands the section
   Given the Debug section is collapsed
   When its header is clicked
   Then the section is no longer collapsed
+# pinned by: tests/ui/about.test.ts
+
+Scenario: A late-bound row with no source reads n/a (edge)
+  Given nothing has called setClipStatsSource
+  When the About modal is opened
+  Then the Sampler clips row reads "n/a"
 # pinned by: tests/ui/about.test.ts
 ```
 
