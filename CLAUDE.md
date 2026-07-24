@@ -12,7 +12,11 @@ in `specs/recipes/` (e.g. `specs/recipes/add-a-parameter.md`). For **new** featu
 write/review the spec before generating code; copy `specs/features/_feature-template.md`
 to start (a how-to copies `specs/recipes/_recipe-template.md`).
 Specs are standalone, so they restate the conventions they rely on — this file
-remains the canonical, exhaustive reference.
+remains the canonical, exhaustive reference. `specs/features/runtime-performance.md`
+is the app-wide cost contract every feature is held to (boot budget,
+gesture-scoped listeners, no work for off-screen DOM, automation ≠ edit, no
+per-frame allocation, guarded DOM writes) — read it before adding anything that
+runs per frame, per tick, or at boot.
 
 **SDD is enforced, not optional.** A change that edits production code (`src/**`,
 `public/worklets/**`) must create/update a spec under `specs/` in the *same* change
@@ -179,6 +183,13 @@ Two long-lived objects are created once in `main.ts` and threaded everywhere:
   audio graph. To add a parameter: add a `ParamDef`, wire it (per-voice +
   one-off in `Engine.subscribeParams()`; an insert-effect param goes in that
   effect's own `bind(bus, prefix)` — ADR-008), add a UI control in `ui/app.ts`.
+  Two notification channels, and the difference matters: `subscribe(id, fn)` is
+  per-param (audio + UI repaint), `onChange(fn)` is the global *"the user changed
+  the sound"* signal that drives session autosave and the preset-dirty marker.
+  A **machine** writing params — motion automation, a Tape Stop ramp — wraps its
+  writes in `bus.withoutChangeSignal(fn)` so the per-param channel still fires but
+  `onChange` does not; at frame rate it otherwise re-armed the autosave debounce
+  forever and the session never saved. See `specs/features/runtime-performance.md`.
 - **`Engine`** (`audio/engine.ts`) — owns the `AudioContext`, the voice pool
   (8 `Voice`s), the FX chain, and transport modules; it *coordinates* rather
   than knows-all (ADR-008). Voice allocation + unison/glide/drift live in
@@ -211,6 +222,16 @@ Engine field (a master-bus insert, not a chain member), and `engine.drumComp` is
 a getter onto `drumFx.fx.comp` — what `StudioApi` and the drum GR meter read.
 Adding an effect means editing the chain factory, not Engine (see
 `specs/recipes/add-an-effect.md`).
+
+Two shared caches keep the FX layer's boot + drag cost down (`effects.md`
+REQ-6/REQ-7): the **reverb IR bank** is one process-wide map keyed by
+`sampleRate|duration`, so all three `Reverb`s share it and each size is generated
+on **first selection** (only the default is built at construction — the three
+instances used to render 5 IRs each, 2.65 M samples, synchronously at boot); and
+**WaveShaper drive curves** go through `memoizeDriveCurve` (`audio/drive-curve.ts`),
+which quantizes the amount to 64 buckets and caches the table, so dragging DRIVE
+stops allocating an 8 kB `Float32Array` per bus tick. Both return identity-stable
+objects, so callers guard with `!==` rather than tracking a bucket.
 
 **Compressors** — a single `hardware-compressor` AudioWorklet
 (`public/worklets/compressor.js`, wrapped by `audio/compressor/node.ts`)
@@ -295,8 +316,12 @@ stutter remaps). Named localStorage slots (presets, songs) share
 `emptyPatternBanks()` (`state/patterns.ts`), which shares PatternStore's own
 `make*Bank` builders. The four machine tabs share their chrome via
 `ui/panels/step-panel-scaffold.ts` (`bankBarFor`, `wrapGridWithRestOverlay`,
-`wirePlayhead`, `GridCursor`, `clearMenuFor` + the `MachinePanel` return shape)
-plus the one grid gesture controller `ui/components/grid-gestures.ts`
+`wirePlayhead`, `GridCursor`, `clearMenuFor`, `VisibilityGate` + the
+`MachinePanel` return shape). Inactive tabs stay mounted and subscribed, so each
+panel returns a `VisibilityGate` that `buildPatternRow` drives from
+`tabs.onViewChange`; `wirePlayhead` and the Motion graph skip their per-tick /
+per-bar repaints while hidden and re-sync on reveal (never a stale playhead).
+Plus the one grid gesture controller `ui/components/grid-gestures.ts`
 (`attachGridGestures` — tap toggles, drag paints, long-press/right-click selects
 without toggling; see `specs/features/step-grid-editing.md` and ADR-014) plus `paintTriggerCell`
 (`ui/components/step-settings.ts`); the seq panel keeps its own painter because
@@ -439,14 +464,22 @@ it also writes the note name as the label.
   `llms.txt`; see `specs/recipes/evolve-the-song-format.md`. `fromJSON` is
   unchanged and accepts all versions; v1 files (incl. `DEMO_SONGS`) load with
   empty sampler state and default XY axes. JSON file export/import **and** localStorage slots under
-  `websynth.song.*`. Demos (`DEMO_SONGS`) are the two hand-authored `SongFile`
-  literals (Zombie Nation, I Feel Love) **plus** any `*.json` SongFile dropped
-  into `src/state/demos/` (14 today), auto-registered at build time
-  via an `import.meta.glob` (keyed by the file's `name`). Drop-ins are spread
-  *before* the built-ins, so they lead the demo button row (`Object.keys` order).
-  A `*.websynth.zip` project in `src/state/demos/` registers too (`ZIP_DEMOS`,
-  a `?url` glob — fetched on click, not bundled; 1 today); `Song.list()`/`loadSlot()`
-  stay sync + JSON-only, and `loadDemo` delegates zip demos fire-and-forget.
+  `websynth.song.*`. Demos come from **three** sources, all `?url` globs except
+  the built-ins: `DEMO_SONGS` (the two hand-authored `SongFile` literals — Zombie
+  Nation, I Feel Love — bundled and sync), `JSON_DEMOS` (any `*.json` SongFile
+  dropped into `src/state/demos/`, 14 today) and `ZIP_DEMOS` (`*.websynth.zip`
+  projects, 1 today). The latter two are **fetched on click, never bundled** —
+  eagerly importing the drop-ins put 835 kB of JSON (a 227 kB JS chunk) in every
+  boot. Because `?url` can't read a song's `name`, `src/state/demos-index.json`
+  (filename → name) is generated by `scripts/clean-demos.ts` and drift-checked by
+  `npm run check:demos`; without it "Haçienda" would render as
+  `hacienda_neworder`. `demoNames()` is the one source of button order (drop-ins →
+  built-ins → zips). `SongPanel.loadDemo(name)` dispatches across all three and
+  **returns a promise** — callers that act on the loaded song (the tour, the
+  empty-play modal) must await it. `Song.list()` lists the JSON demos so they stay
+  in the slot picker, but `loadSlot()` stays sync and returns built-ins only, so
+  the Load button falls back to `loadDemo`. Test coverage of the drop-ins moved to
+  `tests/state/demo-files.ts` (an eager glob for the test bundle only).
 - **Project export** (`state/project.ts` + `utils/zip.ts`/`utils/compression.ts`,
   see `specs/features/project-export.md`) — Export opens a modal
   (`ui/components/export-song-modal.ts`): **Song (.json)** (default, unchanged)
@@ -523,8 +556,13 @@ it also writes the note name as the label.
   sleeps the per-sample DSP while the voice is silent — voices boot inactive,
   `noteOn` activates unconditionally (a lost deactivate can only cost CPU,
   never a note), release-completion/`kill` deactivate. Any step is masked by
-  the closed downstream amp VCA. See `specs/features/ladder-filter.md`
-  REQ-9/REQ-10.
+  the closed downstream amp VCA. Its per-sample loop carries the saturated pole
+  states across samples (`sat()` 5× per sample instead of 10) and hoists a
+  block-constant cutoff coefficient — both **bit-exact**, which is the standing
+  rule for this file: it is the only always-on per-sample cost that scales with
+  polyphony, so speed work here is pinned against a frozen naive reference in
+  `tests/audio/ladder-filter-worklet.test.ts`. See
+  `specs/features/ladder-filter.md` REQ-9/REQ-10/REQ-11/REQ-12.
 - **The transport clock's wakeup timer runs in a Worker**
   (`audio/transport/tick-timer.ts` + `clock-timer-worker.ts`, Vite-bundled via
   `new URL`) so the look-ahead survives main-thread jank and background-tab

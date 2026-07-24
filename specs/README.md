@@ -247,6 +247,7 @@ specs/
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
+    runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
