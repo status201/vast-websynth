@@ -11,6 +11,15 @@ export interface KnobOptions {
 
 const SWEEP_DEG = 280; // Knob sweeps from -140° to +140°
 
+/**
+ * Decimal places kept when rounding the indicator angle / arc dash for the
+ * repaint guards in `render`. Two places is ~0.005° and ~0.01 px on a 56 px
+ * dial — far below anything a display can resolve, so the rounding is invisible
+ * while collapsing the redundant writes an automated sweep produces.
+ */
+const ROTATION_PRECISION = 2;
+const ARC_PRECISION = 2;
+
 export class Knob {
   readonly el: HTMLElement;
   private readonly indicator: HTMLElement;
@@ -25,6 +34,10 @@ export class Knob {
   private lastTap = 0;
   private disabled = false;
   private circumference: number;
+  /** Last values actually written to the DOM — see `render`. */
+  private lastDeg = '';
+  private lastDash = '';
+  private lastLabel = '';
 
   constructor(private readonly opts: KnobOptions) {
     const bus = opts.bus;
@@ -92,15 +105,41 @@ export class Knob {
     this.unsubscribe = bus.subscribe(opts.paramId, (v) => this.render(v));
   }
 
+  /**
+   * Paint the dial. Each of the three writes is guarded on what it is about to
+   * *write* rather than on the incoming value, so the DOM never lags behind the
+   * latest value at the resolution actually rendered (the same discipline as
+   * `Scope.mirrorPeak` and `StepButton.setViz`; runtime-performance.md REQ-7).
+   *
+   * This matters because a knob is not only dragged: the motion sequencer
+   * automates up to four params at frame rate, and a slow sweep re-writes the
+   * same rounded angle and the same formatted string for many frames running.
+   * The angle is rounded to ROTATION_PRECISION first — finer than a knob 56 px
+   * across can show — which is what turns "almost always different" into
+   * "usually the same".
+   */
   private render(value: number): void {
     const norm = this.normalize(value);
     const startDeg = -SWEEP_DEG / 2;
-    const deg = startDeg + norm * SWEEP_DEG;
-    this.indicator.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+    const deg = (startDeg + norm * SWEEP_DEG).toFixed(ROTATION_PRECISION);
+    if (deg !== this.lastDeg) {
+      this.lastDeg = deg;
+      this.indicator.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+    }
+
     const dashOn = (this.circumference * SWEEP_DEG) / 360;
     const visible = dashOn * norm;
-    this.arc.setAttribute('stroke-dasharray', `${visible} ${this.circumference - visible}`);
-    this.valueLabel.textContent = this.formatValue(value);
+    const dash = `${visible.toFixed(ARC_PRECISION)} ${(this.circumference - visible).toFixed(ARC_PRECISION)}`;
+    if (dash !== this.lastDash) {
+      this.lastDash = dash;
+      this.arc.setAttribute('stroke-dasharray', dash);
+    }
+
+    const label = this.formatValue(value);
+    if (label !== this.lastLabel) {
+      this.lastLabel = label;
+      this.valueLabel.textContent = label;
+    }
   }
 
   private normalize(v: number): number {
