@@ -84,7 +84,7 @@
 /* Visible AT REST, not only on hover — a hover-only affordance is invisible on
    touch, and this ships as an installable PWA used on phones. */
 .arrow {
-  font-size: 0.85em;
+  font-size: 1.25em;
   opacity: 0.5;
   flex-shrink: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
