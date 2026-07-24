@@ -10,12 +10,21 @@ import { makeMockAudioContext } from '../mock-audio-context';
  */
 describe('Reverb IR duration cap', () => {
   type Spy = ReturnType<typeof vi.fn>;
+  // The IR bank is generated lazily and cached per (sampleRate, duration) —
+  // see reverb.test.ts — so sweep every size to observe the whole bank, and give
+  // each case its own sample rate so the shared cache cannot answer for it.
+  let rate = 48000;
   function irSeconds(maxIrS?: number): number[] {
-    const ctx = makeMockAudioContext(48000);
-    new Reverb(ctx as unknown as AudioContext, maxIrS === undefined ? undefined : { maxIrS });
-    return (ctx.createBuffer as unknown as Spy).mock.calls.map(
-      (c) => (c[1] as number) / (c[2] as number),
+    const ctx = makeMockAudioContext(rate++);
+    const reverb = new Reverb(
+      ctx as unknown as AudioContext,
+      maxIrS === undefined ? undefined : { maxIrS },
     );
+    for (let i = 0; i < 5; i++) reverb.setSize(i / 4);
+    return (ctx.createBuffer as unknown as Spy).mock.calls
+      // Length is a whole number of frames, so recover the duration to the ms.
+      .map((c) => Math.round(((c[1] as number) / (c[2] as number)) * 1000) / 1000)
+      .sort((a, b) => a - b);
   }
 
   it('defaults to the full bank [0.4, 0.8, 1.5, 2.5, 4.0]', () => {
@@ -23,7 +32,9 @@ describe('Reverb IR duration cap', () => {
   });
 
   it('caps durations, not the bank size, so setSize index mapping is unchanged', () => {
-    expect(irSeconds(1.5)).toEqual([0.4, 0.8, 1.5, 1.5, 1.5]);
+    // Three sizes collapse onto the 1.5 s cap, so only three IRs are ever built —
+    // but `size` still spans five bank positions, which is what REQ-11 promises.
+    expect(irSeconds(1.5)).toEqual([0.4, 0.8, 1.5]);
   });
 });
 

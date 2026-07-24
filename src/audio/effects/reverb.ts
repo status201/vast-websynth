@@ -1,10 +1,41 @@
 import { BypassWrapper, bindBypassMix, type Effect } from './effect';
 import type { ParamBus } from '../../state/params';
 
+/** The five selectable tail lengths (seconds), shortest → longest. */
+const IR_DURATIONS = [0.4, 0.8, 1.5, 2.5, 4.0];
+
+/** Index `setSize` starts on — the middle of the bank, and the default `size`. */
+const DEFAULT_IR = 2;
+
+/**
+ * Process-wide IR cache (runtime-performance.md REQ-1/REQ-2). An IR is a pure
+ * function of (sampleRate, duration) and a `ConvolverNode` only ever *reads* its
+ * buffer, so the three chains that each own a Reverb — synth, drum, sampler —
+ * share one bank instead of generating identical noise three times over.
+ *
+ * Generation is also **lazy**: only the size actually selected is built. Before
+ * this, each Reverb rendered all five up front in the Engine constructor —
+ * 9.2 s of stereo noise per instance, 2.65 M samples and ~10.6 MB across the
+ * three, synchronously, on the boot path, for sizes most sessions never touch.
+ * The comment this replaces was right that re-rendering on a knob *drag* is too
+ * slow to do live; caching keeps that true after the first touch of each size.
+ */
+const irCache = new Map<string, AudioBuffer>();
+
+function irFor(ctx: AudioContext, durationSec: number): AudioBuffer {
+  const key = `${ctx.sampleRate}|${durationSec}`;
+  let buf = irCache.get(key);
+  if (!buf) {
+    buf = generateIR(ctx, durationSec, 2);
+    irCache.set(key, buf);
+  }
+  return buf;
+}
+
 /**
  * Algorithmic-feel reverb built on a ConvolverNode with a procedurally
- * generated impulse response. `size` selects from a small bank of pre-rendered
- * IRs to avoid expensive re-rendering on knob drags.
+ * generated impulse response. `size` selects from a small bank of IRs, each
+ * generated once on first use and shared across every Reverb (see `irCache`).
  */
 export class Reverb implements Effect {
   readonly input: AudioNode;
@@ -12,7 +43,8 @@ export class Reverb implements Effect {
   private readonly wrap: BypassWrapper;
   private readonly convolver: ConvolverNode;
   private readonly damp: BiquadFilterNode;
-  private readonly irs: AudioBuffer[];
+  /** Longest tail this instance may use; weak perf tiers shorten it. */
+  private readonly maxIrS: number;
 
   constructor(private readonly ctx: AudioContext, opts?: { maxIrS?: number }) {
     this.wrap = new BypassWrapper(ctx, 0.25);
@@ -27,20 +59,26 @@ export class Reverb implements Effect {
 
     // Weak perf tiers cap the IR *durations*, never the bank size, so
     // setSize's 0..1 → index mapping and preset values keep their meaning
-    // (performance-mode.md REQ-11).
-    const maxIrS = opts?.maxIrS ?? 4;
-    this.irs = [0.4, 0.8, 1.5, 2.5, 4.0].map((d) => generateIR(ctx, Math.min(d, maxIrS), 2));
-    this.convolver.buffer = this.irs[2]!;
+    // (performance-mode.md REQ-11). The cap is part of the cache key, so tiers
+    // with different caps never share a buffer.
+    this.maxIrS = opts?.maxIrS ?? 4;
+    this.convolver.buffer = this.irAt(DEFAULT_IR);
 
     this.wrap.processedIn.connect(this.convolver).connect(this.damp).connect(this.wrap.processedOut);
+  }
+
+  /** The (shared, memoized) IR for bank index `idx`, honouring this tier's cap. */
+  private irAt(idx: number): AudioBuffer {
+    return irFor(this.ctx, Math.min(IR_DURATIONS[idx]!, this.maxIrS));
   }
 
   setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setSize(v: number): void {
-    const idx = Math.max(0, Math.min(this.irs.length - 1, Math.round(v * (this.irs.length - 1))));
-    const buf = this.irs[idx];
-    if (buf && this.convolver.buffer !== buf) this.convolver.buffer = buf;
+    const last = IR_DURATIONS.length - 1;
+    const idx = Math.max(0, Math.min(last, Math.round(v * last)));
+    const buf = this.irAt(idx);
+    if (this.convolver.buffer !== buf) this.convolver.buffer = buf;
   }
   setDamp(d: number): void {
     // 0 = bright (12 kHz), 1 = dark (1 kHz)
