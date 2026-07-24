@@ -7,7 +7,7 @@ import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor, VisibilityGate,
   type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -216,7 +216,8 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   root.appendChild(editor.el);
   setSelected(0, 0);
 
-  const highlighter = wirePlayhead(engine, 'sampler', stepBtns, restOverlay);
+  const gate = new VisibilityGate();
+  const highlighter = wirePlayhead(engine, 'sampler', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSamplerBankChange((bank) => {
@@ -245,6 +246,7 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
 
   return {
     el: root,
+    gate,
     clearSelectedStep: () => engine.patterns.setSamplerCell(cursor.selRow, cursor.selCol, { on: false }),
   };
 }

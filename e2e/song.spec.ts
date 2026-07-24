@@ -138,6 +138,31 @@ test.describe('song mode', () => {
     await expect(page.getByTestId('transport-play')).toHaveClass(/\bcue\b/);
   });
 
+  // song-mode.md REQ-12: drop-in demos are no longer bundled — clicking one
+  // fetches its JSON, validates it and applies it. The built-in path above is
+  // synchronous; this is the fetched one, and it is the only place the generated
+  // name index is exercised end to end (the button label IS the index entry).
+  test('a drop-in demo is fetched on click and applies', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+
+    // Labelled with the song's own name, which only demos-index.json knows
+    // (the file is apex-twin.json). Past the 6 inline slots, so reveal it first.
+    await page.getByTestId('song-demo-more').click();
+    const btn = page.getByTestId('song-demo-Apex Twin');
+    await expect(btn).toBeVisible();
+    await btn.click();
+
+    await expect.poll(() => sessionDisplay(page)).toBe('Apex Twin');
+    // Its actual content landed, not just the label: 128 BPM + the 8-step chains.
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__synth.bus.get('transport.bpm')))
+      .toBe(128);
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__synth.engine.arrangement.seq.steps))
+      .toEqual([0, 0, 1, 0, 0, 2, 0, 3]);
+  });
+
   test('Export Song renders and downloads a WAV', async ({ page }) => {
     await gotoAndStart(page);
     // Shorten the render to a single bar (default fallback is 4) via the bridge.

@@ -10,7 +10,7 @@ import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, GridCursor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, GridCursor, VisibilityGate,
   type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -236,7 +236,8 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     setSelected(cursor.selRow, (cursor.selCol + 1) % SEQ_LENGTH);
   });
 
-  const highlighter = wirePlayhead(engine, 'seq', stepBtns, restOverlay);
+  const gate = new VisibilityGate();
+  const highlighter = wirePlayhead(engine, 'seq', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onSeqBankChange((bank) => {
@@ -411,6 +412,7 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
 
   return {
     el: root,
+    gate,
     disarmStepInput: () => setArmed(false),
     clearSelectedStep: () => engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, { on: false }),
   };

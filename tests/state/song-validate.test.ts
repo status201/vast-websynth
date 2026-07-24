@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { validateSongFile } from '../../src/state/song-validate';
 import { Song, DEMO_SONGS } from '../../src/state/song';
+import { DROP_IN_DEMOS } from './demo-files';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
@@ -60,10 +61,13 @@ describe('validateSongFile — accepts', () => {
     expect(validateSongFile(f).ok).toBe(true);
   });
 
-  // Covers the hand-authored v1 built-ins AND every on-disk *.websynth.json
-  // drop-in (auto-registered into DEMO_SONGS by the build-time glob).
-  it.each(Object.keys(DEMO_SONGS))('every shipped demo conforms: %s', (name) => {
-    const res = validateSongFile(clone(DEMO_SONGS[name]!));
+  // Covers the hand-authored built-ins AND every on-disk drop-in. The app fetches
+  // the drop-ins on click rather than bundling them (song-mode.md REQ-11), so they
+  // come from the test-only eager glob — losing this coverage was the one real
+  // risk in making them lazy: nothing else parses them before a user clicks.
+  const shipped = { ...DROP_IN_DEMOS, ...DEMO_SONGS };
+  it.each(Object.keys(shipped))('every shipped demo conforms: %s', (name) => {
+    const res = validateSongFile(clone(shipped[name]!));
     if (!res.ok) throw new Error(`${name} failed validation:\n${res.errors.join('\n')}`);
     expect(res.ok).toBe(true);
   });

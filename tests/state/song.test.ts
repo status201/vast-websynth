@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Song, DEMO_SONGS } from '../../src/state/song';
+import { Song, DEMO_SONGS, JSON_DEMOS, demoNames } from '../../src/state/song';
+import { DROP_IN_DEMOS } from './demo-files';
 import type { SongFile } from '../../src/state/song';
 import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
@@ -492,7 +493,7 @@ describe('Song', () => {
 
   describe('"Fat" drop-in demo', () => {
     it('is a v2 file and round-trips through toJSON/fromJSON', () => {
-      const fat = DEMO_SONGS['Fat'];
+      const fat = DROP_IN_DEMOS['Fat'];
       expect(fat).toBeDefined();
       expect(fat!.version).toBe(2);
       expect(Song.fromJSON(Song.toJSON(fat!))).toEqual(compactSongForExport(fat!));
@@ -504,7 +505,7 @@ describe('Song', () => {
       const patterns = new PatternStore();
       const arr = fakeArr();
 
-      const fat = DEMO_SONGS['Fat']!;
+      const fat = DROP_IN_DEMOS['Fat']!;
       Song.apply(fat, bus, patterns, arr as never);
 
       expect(bus.get('transport.bpm')).toBe(127);
@@ -523,14 +524,24 @@ describe('Song', () => {
 
   describe('"Apex Twin" drop-in demo', () => {
     it('is auto-registered ahead of the built-ins and round-trips', () => {
-      const apex = DEMO_SONGS['Apex Twin'];
+      const apex = DROP_IN_DEMOS['Apex Twin'];
       expect(apex).toBeDefined();
-      // Drop-in demos are spread *before* the hand-authored built-ins, so any
+      // Drop-in demos are listed *before* the hand-authored built-ins, so any
       // drop-in precedes any built-in regardless of how many demos exist.
       // (Asserting a fixed [0] key breaks the moment another drop-in is added.)
-      const keys = Object.keys(DEMO_SONGS);
-      expect(keys.indexOf('Apex Twin')).toBeLessThan(keys.indexOf('Zombie Nation'));
+      const names = demoNames();
+      expect(names.indexOf('Apex Twin')).toBeLessThan(names.indexOf('Zombie Nation'));
       expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(compactSongForExport(apex!));
+    });
+
+    // song-mode.md REQ-11: the drop-ins are fetched on click, so their *names*
+    // come from the generated index rather than from the files at build time.
+    // A drifted index would silently mislabel every button.
+    it('is listed by its song name, resolved through the generated index', () => {
+      expect(JSON_DEMOS.map((d) => d.name)).toEqual(Object.keys(DROP_IN_DEMOS));
+      for (const d of JSON_DEMOS) {
+        expect(d.url, `${d.name} has no url`).toBeTruthy();
+      }
     });
 
     it('applies its params + 8-step chains', () => {
@@ -539,7 +550,7 @@ describe('Song', () => {
       const patterns = new PatternStore();
       const arr = fakeArr();
 
-      Song.apply(DEMO_SONGS['Apex Twin']!, bus, patterns, arr as never);
+      Song.apply(DROP_IN_DEMOS['Apex Twin']!, bus, patterns, arr as never);
 
       expect(bus.get('transport.bpm')).toBe(128);
       expect(patterns.seqBanks[0]![0]![0]!.note).toBe(45);
@@ -590,5 +601,27 @@ describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
     expect(patterns.seqTrack(1)!.every((s) => !s.on)).toBe(true);
     expect(patterns.seqTrack(3)!.every((s) => !s.on)).toBe(true);
     expect(patterns.seqTrack(0)!.some((s) => s.on)).toBe(true);
+  });
+});
+
+/**
+ * song-mode.md REQ-12 — the drop-ins are fetched, not bundled, but they must not
+ * disappear from the slot picker: they were selectable there before the change,
+ * and `Song.list()` is what fills that dropdown.
+ */
+describe('Song.list with fetched demos', () => {
+  it('lists every drop-in and built-in name, sorted, alongside stored slots', () => {
+    const list = Song.list();
+    for (const name of Object.keys(DROP_IN_DEMOS)) expect(list).toContain(name);
+    for (const name of Object.keys(DEMO_SONGS)) expect(list).toContain(name);
+    expect(list).toEqual([...list].sort());
+  });
+
+  it('loadSlot stays sync and returns only built-ins, never a fetched demo', () => {
+    expect(Song.loadSlot('Zombie Nation')).not.toBeNull();
+    // A drop-in is listed but not loadable here — the Song panel's Load button
+    // falls back to loadDemo for exactly this case.
+    expect(Song.loadSlot('Apex Twin')).toBeNull();
+    expect(Song.list()).toContain('Apex Twin');
   });
 });

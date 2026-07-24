@@ -27,7 +27,7 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
-import { Song, DEMO_SONGS, ZIP_DEMOS, type SongFile } from '../../state/song';
+import { Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, type SongFile } from '../../state/song';
 import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
@@ -49,8 +49,13 @@ function el(tag: string, cls?: string, text?: string): HTMLElement {
 
 export interface SongPanel {
   el: HTMLElement;
-  /** Load a demo by name AND sync the slot dropdown (shared with the demo buttons). */
-  loadDemo: (name: string) => void;
+  /**
+   * Load a demo by name AND sync the slot dropdown (shared with the demo
+   * buttons). Resolves once applied — all but the two built-in demos are
+   * fetched on click (song-mode.md REQ-12), so callers that act on the loaded
+   * song must await it.
+   */
+  loadDemo: (name: string) => Promise<void>;
   /**
    * Import raw song/project bytes exactly like the Import button (sniff →
    * parse → apply, errors shown in the same dialogs). Driven by the installed
@@ -255,20 +260,49 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     }
   };
 
+  /** Apply a parsed demo + sync the slot dropdown. The tail every branch ends on. */
+  const applyDemo = (name: string, file: SongFile): void => {
+    applySongWithUndo(file);
+    refreshList();
+    dropdown.setValue(name);
+    bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
+  };
+
+  const loadJsonDemo = async (name: string, url: string): Promise<void> => {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
+      // Same validator the Import button uses, so a corrupt drop-in reports
+      // what is actually wrong with it rather than "not a song".
+      const res = Song.parse(await resp.text());
+      if (!res.ok) throw new Error(res.errors[0] ?? 'not a valid song file');
+      applyDemo(name, res.file);
+    } catch (e) {
+      await alertDialog({
+        title: 'Demo failed to load',
+        message: `Could not load "${name}": ` + (e as Error).message,
+      });
+    }
+  };
+
   // Shared demo-load: apply the song AND sync the slot dropdown. Used by the
-  // demo buttons and by the guided tour (so the dropdown reflects what loaded).
-  // Stays sync (the tour depends on it); zip demos delegate fire-and-forget.
-  const loadDemo = (name: string): void => {
+  // demo buttons, the Load button, the guided tour and the empty-play hint.
+  //
+  // **Resolves when the song has actually been applied.** Only the two built-ins
+  // are immediate; the drop-in JSON and the project zips are fetched on click
+  // (song-mode.md REQ-12), so any caller that acts on the loaded song — the tour
+  // starting the transport, the empty-play modal pressing Play — must await this
+  // or it will run against the song that was there before.
+  const loadDemo = async (name: string): Promise<void> => {
     const file = DEMO_SONGS[name];
     if (file) {
-      applySongWithUndo(file);
-      refreshList();
-      dropdown.setValue(name);
-      bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
+      applyDemo(name, file);
       return;
     }
+    const jsonDemo = JSON_DEMOS.find((d) => d.name === name);
+    if (jsonDemo) return loadJsonDemo(jsonDemo.name, jsonDemo.url);
     const zipDemo = ZIP_DEMOS.find((d) => d.name === name);
-    if (zipDemo) void loadZipDemo(zipDemo.name, zipDemo.url);
+    if (zipDemo) return loadZipDemo(zipDemo.name, zipDemo.url);
   };
 
   const loadBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Load') as HTMLButtonElement;
@@ -278,7 +312,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (f) {
       applySongWithUndo(f);
       bridge.cuePlay(); // a loaded song is silent until Play (play-button-blink.md REQ-3)
+      return;
     }
+    // The list also carries the drop-in demos, which `loadSlot` cannot return
+    // because they are fetched rather than bundled (song-mode.md REQ-12).
+    // `loadDemo` knows all three demo sources and cues Play itself.
+    void loadDemo(dropdown.value);
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;
@@ -436,12 +475,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     d.addEventListener('click', onClick);
     return d;
   };
-  // JSON demos first, then project-zip demos (the latter fetched on click — a
-  // user gesture, so decodeAudioData is unlocked, project-export.md REQ-7).
-  const demoButtons = [
-    ...Object.keys(DEMO_SONGS).map((name) => mkDemoBtn(name, () => loadDemo(name))),
-    ...ZIP_DEMOS.map(({ name, url }) => mkDemoBtn(name, () => { void loadZipDemo(name, url); })),
-  ];
+  // Drop-in JSON, then the built-ins, then the project-zip demos. `demoNames()`
+  // owns that order; everything routes through `loadDemo`, which knows which of
+  // the three a name belongs to (the fetched ones need a user gesture anyway, so
+  // decodeAudioData is unlocked — project-export.md REQ-7).
+  const demoButtons = demoNames().map((name) => mkDemoBtn(name, () => { void loadDemo(name); }));
   // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
   // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-10).
   for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) io.appendChild(d);

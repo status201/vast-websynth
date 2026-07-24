@@ -34,7 +34,7 @@ import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
 import { Presets } from '../state/preset';
 import { openPresetManagerModal } from './components/preset-manager-modal';
-import { Song, DEMO_SONGS } from '../state/song';
+import { Song, DEMO_SONGS, demoNames } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
@@ -76,7 +76,10 @@ export function mountApp(
   };
   // Default loads a demo without UI sync; replaced by the Song panel's own
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
-  let songLoadDemo: (name: string) => void = (name) => {
+  // Only the built-ins are reachable here — the drop-in and zip demos are
+  // fetched on click and so are inherently async (song-mode.md REQ-11) — but
+  // this fallback is replaced a few lines below and never actually used.
+  let songLoadDemo: (name: string) => Promise<void> = async (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
     if (file) {
       Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
@@ -138,7 +141,7 @@ function panel(title: string, build: (body: HTMLElement) => void, helpId?: strin
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
-  previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => void,
+  previewScopeTier: (tier: PerfTier) => void, loadDemo: (name: string) => Promise<void>,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = styles.header!;
@@ -274,9 +277,12 @@ function buildHeader(
         && engine.sync.activeMode === 'off'
         && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
         openEmptyPlayModal({
-          onPlayDemo: () => {
-            const names = Object.keys(DEMO_SONGS);
-            loadDemo(names[Math.floor(Math.random() * names.length)]!);
+          // Awaited: all but the two built-in demos are fetched (song-mode.md
+          // REQ-12), and the re-entry below re-runs the has-anything-to-play
+          // check — clicking Play before the song lands just reopens this modal.
+          onPlayDemo: async () => {
+            const names = demoNames();
+            await loadDemo(names[Math.floor(Math.random() * names.length)]!);
             playBtn.click(); // re-entry: the demo gives the check something to play
           },
         });
@@ -380,7 +386,7 @@ function buildPatternRow(
   patternUndo: PatternUndo,
 ): {
   el: HTMLElement;
-  loadDemo: (name: string) => void;
+  loadDemo: (name: string) => Promise<void>;
   importSongBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 } {
   // One shared XY Pad window controller for every launcher (Song panel, LIVE FX
@@ -395,12 +401,13 @@ function buildPatternRow(
   const seq = buildSeqPanel(bus, engine, patternUndo);
   const drums = buildDrumPanel(bus, engine, patternUndo);
   const sampler = buildSamplerPanel(bus, engine, patternUndo);
+  const motion = buildMotionPanel(bus, engine, xy, xyWin, patternUndo);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },
     { id: 'drums', label: 'Drum Machine', content: drums.el, indicator: true },
     { id: 'sampler', label: 'Sampler', content: sampler.el, indicator: true },
-    { id: 'motion', label: 'Motion', content: buildMotionPanel(bus, engine, xy, xyWin, patternUndo), indicator: true },
+    { id: 'motion', label: 'Motion', content: motion.el, indicator: true },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
@@ -437,6 +444,21 @@ function buildPatternRow(
   // elsewhere — held chords on the Arpeggiator tab, say — can never overwrite
   // the sequencer bank behind the user's back.
   tabs.onViewChange(() => { if (!tabs.isVisible('seq')) seq.disarmStepInput(); });
+
+  // A hidden panel keeps its subscriptions but does no repainting: all four
+  // would otherwise sweep a playhead every 16th (and Motion re-project its SVG
+  // graph every bar) against DOM nobody can see. `isVisible` is false for the
+  // whole row when it is folded too, so a collapsed pattern row costs nothing.
+  // Each gate replays the current state on reveal — see VisibilityGate.
+  // (runtime-performance.md REQ-4)
+  const gated: Array<[string, { gate: { set(v: boolean): void } }]> = [
+    ['seq', seq], ['drums', drums], ['sampler', sampler], ['motion', motion],
+  ];
+  const syncGates = (): void => {
+    for (const [id, panel] of gated) panel.gate.set(tabs.isVisible(id));
+  };
+  tabs.onViewChange(syncGates);
+  syncGates(); // the panels were built before the tabs existed
 
   // The Song panel's lane titles navigate here (machine-status.md REQ-5).
   bridge.showTab = (id) => tabs.reveal(id);
