@@ -55,11 +55,17 @@
   touch-action: none;
 }
 
+/* Full-width and scaled from the left edge rather than resized: a drag repaints
+   this on every pointermove, and transform stays on the compositor where width
+   would relayout (same reason gr-meter.module.css does it). */
 .sliderFill {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
   background: linear-gradient(90deg, #d4602a, #f4cd5e);
   box-shadow: 0 0 6px rgba(232, 116, 46, 0.5);
 }

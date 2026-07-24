@@ -24,8 +24,9 @@ export function emptyPlayHintDismissed(): boolean {
 }
 
 export interface EmptyPlayModalOptions {
-  /** Load a demo and start the transport; called after the modal closes. */
-  onPlayDemo: () => void;
+  /** Load a demo and start the transport; called after the modal closes.
+   *  May be async — most demos are fetched on click (song-mode.md REQ-12). */
+  onPlayDemo: () => void | Promise<void>;
 }
 
 export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
@@ -92,7 +93,7 @@ export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
     testId: 'empty-play-demo',
     onClick: () => {
       modal.close();
-      opts.onPlayDemo();
+      void opts.onPlayDemo();
     },
   });
   btns.appendChild(demoBtn);

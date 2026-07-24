@@ -40,6 +40,24 @@ export function motionAxesFor(
   return { x: ov?.x ?? base.x, y: ov?.y ?? base.y };
 }
 
+/**
+ * Does `bank` drive exactly `axes`? Equivalent to comparing
+ * `motionAxesFor(patterns, bank, base)` field-by-field against `axes`, without
+ * building the intermediate object — the machine asks this twice per frame (once
+ * per carry neighbour) and never needs the pair itself
+ * (runtime-performance.md REQ-6). Kept beside `motionAxesFor` deliberately: the
+ * two must resolve overrides the same way, so they have to be read together.
+ */
+export function motionAxesMatch(
+  patterns: PatternStore,
+  bank: number,
+  base: XyAssign,
+  axes: XyAssign,
+): boolean {
+  const ov = patterns.motionAssign(bank);
+  return (ov?.x ?? base.x) === axes.x && (ov?.y ?? base.y) === axes.y;
+}
+
 export function createEffectiveXy(
   xy: XyPadStore,
   patterns: PatternStore,

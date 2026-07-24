@@ -7,6 +7,7 @@ import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
 import { BANK_LABELS } from '../../state/patterns';
+import { ListenerSet } from '../../utils/listeners';
 
 /**
  * The chrome every machine tab (seq / drum / sampler / motion) wraps around its
@@ -152,25 +153,72 @@ export function wrapGridWithRestOverlay(
 }
 
 /**
+ * Whether a machine panel's content is actually on screen.
+ *
+ * `TabContainer` hides an inactive panel with a class, so all four panels stay
+ * live and subscribed: without this gate every one of them repaints its playhead
+ * on every 16th — ~50 class writes a tick against DOM nobody can see — and the
+ * Motion panel re-projects its SVG graph every bar (runtime-performance.md
+ * REQ-4).
+ *
+ * Panels are built **before** the `TabContainer` exists, so a gate starts
+ * `shown` and is corrected by the first `onViewChange`; a panel can never be
+ * stuck dark. `whenShown` is how deferred work catches up on reveal — the point
+ * of the gate is to skip work, not to show stale state.
+ */
+export class VisibilityGate {
+  private visible = true;
+  private readonly showListeners = new ListenerSet();
+
+  get shown(): boolean { return this.visible; }
+
+  set(visible: boolean): void {
+    if (visible === this.visible) return;
+    this.visible = visible;
+    if (visible) this.showListeners.emit();
+  }
+
+  /** Run `fn` whenever the panel becomes visible again. Returns a disposer. */
+  whenShown(fn: () => void): () => void {
+    return this.showListeners.add(fn);
+  }
+}
+
+/**
  * Drive the playing-step highlight from the machine's `onStep`. The highlight
  * only shows while the edit bank *is* the playing bank (so editing bank C while
  * B plays doesn't chase a phantom playhead) *and* the lane is not resting (a
  * rest bar plays no bank, so the highlight is hidden rather than sweeping under
  * the rest overlay — arrangement-rest.md REQ-4). The rest overlay is refreshed
  * on the same tick so bar boundaries update promptly.
+ *
+ * While `gate` reports hidden the tick does nothing at all; revealing the panel
+ * replays the current step immediately, so it never opens on a stale column or
+ * a missing rest overlay.
  */
 export function wirePlayhead(
   engine: StudioApi,
   lane: StepLane,
   rows: readonly (readonly PlayheadCell[])[],
   restOverlay: RestOverlay,
+  gate?: VisibilityGate,
 ): PlayheadHighlighter {
   const h = laneHooks(engine, lane);
   const highlighter = new PlayheadHighlighter(rows);
-  h.onStep((idx) => {
+  let lastStep = -1;
+
+  const paint = (idx: number): void => {
     highlighter.update(idx, h.getEdit() === h.getPlay() && !h.getResting());
     restOverlay.refresh();
+  };
+
+  h.onStep((idx) => {
+    lastStep = idx;
+    if (gate && !gate.shown) return;
+    paint(idx);
   });
+  gate?.whenShown(() => { if (lastStep >= 0) paint(lastStep); });
+
   return highlighter;
 }
 
@@ -184,6 +232,14 @@ export interface MachinePanel {
   /** Switch the selected step off (Delete/Backspace). Non-destructive: the
    *  step keeps its note/velocity/gate, per REQ-2. */
   clearSelectedStep(): void;
+  /** Driven by `TabContainer.onViewChange`; see {@link VisibilityGate}. */
+  readonly gate: VisibilityGate;
+}
+
+/** What the Motion panel returns — no selection cursor, so no clearSelectedStep. */
+export interface GatedPanel {
+  readonly el: HTMLElement;
+  readonly gate: VisibilityGate;
 }
 
 /** One row-scoped clear a panel offers; `clear` reports whether it did anything. */

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { anchorIndices, valueAt, valueAt1D } from '../../../src/audio/transport/motion-curve';
+import {
+  anchorIndices, createAnchorCache, valueAt, valueAt1D,
+} from '../../../src/audio/transport/motion-curve';
 import { makeMotionBank, SEQ_LENGTH, type MotionStep } from '../../../src/state/patterns';
 
 /** A bank with anchors at the given steps ({step: [x, y]}). */
@@ -204,5 +206,64 @@ describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-14)',
         expect(valueAt1D(track, p / 16, mode)).toBeCloseTo(valueAt(xyBank, p / 16, mode)!.y, 9);
       }
     }
+  });
+});
+
+/**
+ * The frame-loop anchor memo (runtime-performance.md REQ-6). Correctness first:
+ * banks are mutated in place, so a cache that is not cleared serves stale
+ * anchors — the failure mode would be automation silently ignoring an edit.
+ */
+describe('createAnchorCache', () => {
+  it('computes once per bank and returns the identical array after', () => {
+    const cache = createAnchorCache();
+    const b = bank({ 0: [0, 0], 8: [1, 1] });
+    const first = cache.indices(b);
+    expect(first).toEqual([0, 8]);
+    expect(cache.indices(b)).toBe(first);
+  });
+
+  it('keeps separate entries per bank', () => {
+    const cache = createAnchorCache();
+    const a = bank({ 0: [0, 0] });
+    const b = bank({ 4: [0, 0], 12: [0, 0] });
+    expect(cache.indices(a)).toEqual([0]);
+    expect(cache.indices(b)).toEqual([4, 12]);
+    expect(cache.indices(a)).toEqual([0]);
+  });
+
+  it('clear() re-reads an in-place edit (the invalidation contract)', () => {
+    const cache = createAnchorCache();
+    const b = bank({ 0: [0, 0] });
+    expect(cache.indices(b)).toEqual([0]);
+
+    b[8]!.on = true; // mutated in place — identity is unchanged
+    expect(cache.indices(b)).toEqual([0]); // deliberately stale until cleared
+    cache.clear();
+    expect(cache.indices(b)).toEqual([0, 8]);
+  });
+
+  it('produces the same curve as an uncached evaluation, cached or not', () => {
+    const cache = createAnchorCache();
+    const b = bank({ 2: [0.1, 0.9], 11: [0.8, 0.2] });
+    const prev = bank({ 14: [0.4, 0.4] });
+    const next = bank({ 1: [0.6, 0.6] });
+    for (const mode of ['slide', 'step'] as const) {
+      for (let p = 0; p < 16; p += 0.25) {
+        const plain = valueAt(b, p / 16, mode, { prev, next });
+        const cached = valueAt(b, p / 16, mode, { prev, next }, cache);
+        expect(cached).toEqual(plain);
+      }
+    }
+  });
+
+  it('caches the carry neighbours too, not just the playing bank', () => {
+    const cache = createAnchorCache();
+    const b = bank({ 2: [0.1, 0.9] });
+    const prev = bank({ 14: [0.4, 0.4] });
+    valueAt(b, 0, 'slide', { prev }, cache);
+    // The neighbour was reached only through carryFrom, so this proves the cache
+    // is threaded all the way down rather than only covering the top-level bank.
+    expect(cache.indices(prev)).toEqual([14]);
   });
 });

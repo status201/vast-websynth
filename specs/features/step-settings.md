@@ -3,13 +3,14 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 1
+version: 2   # v2: the edit row's sliders are gesture-scoped (REQ-5)
 owner: core
 related:
   - architecture
   - sequencer
   - drum-machine
   - sampler
+  - runtime-performance
 source:
   - src/audio/transport/step-hits.ts     # pure hit math
   - src/state/patterns.ts                # StepSettings shapes + defaults
@@ -40,6 +41,18 @@ already scheduled inside the hit is never disturbed.
   natural decay; `tie` on the last sub-hit rings into the next step (`holds`).
 - **REQ-4** — Defaults (`TRIGGER_CELL_DEFAULTS`) make a plain `{on}` cell behave as
   before per-step settings existed (`gate 1`, `prob 1`, `ratchet 1`, `tie false`).
+- **REQ-5** — **The edit row's sliders are gesture-scoped** (v2). Each slider holds
+  its `window` `pointermove`/`pointerup`/`pointercancel` listeners **only between
+  pointerdown and pointerup/cancel**, exactly as `Knob` and `Strip` do
+  ([add-a-ui-component](../recipes/add-a-ui-component.md),
+  [runtime-performance](runtime-performance.md) REQ-3). This row is mounted three
+  times over (seq / drum / sampler) with three sliders each, so a
+  constructor-scoped handler here is not one stray listener but **nine**, every
+  one running on every pointer move anywhere in the app. The track's box is
+  measured **once per stroke** at pointerdown — re-reading it per move is a forced
+  layout, and the slider cannot move mid-drag — and the fill is painted with
+  `transform: scaleX()` rather than `width`, keeping the repaint on the
+  compositor (the reason `GrMeter` does the same).
 
 ## Technical design
 
@@ -92,11 +105,26 @@ Scenario: gate 1 means no choke, gate < 1 cuts early
   Given a one-shot hit with gate 1 -> chokeAt returns undefined (natural decay)
   And a hit with gate 0.5 and no tie -> chokeAt returns gateEnd
 # pinned by: tests/audio/transport/step-hits.test.ts
+
+Scenario: A slider holds no global listener at rest (REQ-5)
+  Given a mounted edit row and no gesture in progress
+  Then it has registered no pointermove listener on window
+  When a pointerdown lands on a slider track
+  Then the drag listeners attach, and pointerup (or pointercancel) removes every one
+  And a pointermove after the stroke writes nothing
+# pinned by: tests/ui/step-settings.test.ts
+
+Scenario: A drag maps across the measured track box (REQ-5)
+  Given a slider whose track spans 20..220px
+  When the pointer presses at its midpoint and then drags past both ends
+  Then the value is 0.5, then clamps to max, then to min
+# pinned by: tests/ui/step-settings.test.ts
 ```
 
 ## Tests & verification
 
-- `tests/audio/transport/step-hits.test.ts` (pure), `tests/ui/step-button.test.ts`
+- `tests/audio/transport/step-hits.test.ts` (pure), `tests/ui/step-settings.test.ts`
+  (edit row + drag lifecycle), `tests/ui/step-button.test.ts`
   (viz), `e2e/patterns.spec.ts` (grid + viz + clock advance).
 - `npm test` / `npm run e2e`.
 

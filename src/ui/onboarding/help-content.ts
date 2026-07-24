@@ -50,8 +50,11 @@ export const TOUR_STEPS: TourStep[] = [
       'demo song <em>and</em> start it for you. Turn your volume up a touch.',
     placement: 'top',
     precondition: () => clickTestId('tab-song'),
-    action: (ctx) => {
-      ctx.applyDemo(DEMO_FOR_TOUR);
+    // Awaited: the tour demo is a drop-in, so it is fetched rather than bundled
+    // (song-mode.md REQ-12) — starting the transport before it lands would play
+    // whatever was loaded before, which for a first-time visitor is silence.
+    action: async (ctx) => {
+      await ctx.applyDemo(DEMO_FOR_TOUR);
       if (!ctx.engine.clock.playing) ctx.toggleTransport();
     },
   },

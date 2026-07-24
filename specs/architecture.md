@@ -3,7 +3,7 @@
 ```yaml
 id: architecture
 status: implemented
-version: 2
+version: 3   # v3: ParamBus.withoutChangeSignal + flow 4 (machine automation)
 owner: core
 related: []
 source:
@@ -125,6 +125,9 @@ ParamBus:        # src/state/params.ts
   def(id)                        # the ParamDef
   subscribe(id, fn) -> unsub     # fires immediately with current value
   onChange(fn)                   # global "an edit happened" signal
+  withoutChangeSignal(fn)        # run fn with onChange suppressed — the machine is
+                                 #   writing, not the user (motion automation, tape
+                                 #   stop). Per-param listeners still fire.
   snapshot() / restore(snap)     # bulk save/load (restore suppresses onChange)
   resetDefaults()                # every param back to default
   onNote / noteOn / noteOff      # note event path
@@ -187,7 +190,10 @@ bank, the machine's `onStep`), and the exported helpers read from it:
 `bankBarFor` (the A/B/C/D bar, `testidPrefix` = lane), `wrapGridWithRestOverlay`
 (the `position: relative` wrapper + overlay + follow wiring),
 `wirePlayhead` (highlight only while edit bank === play bank, refreshing the
-overlay on the same tick) and `GridCursor` (the drum/sampler 2-D selection
+overlay on the same tick — and only while the panel's `VisibilityGate` reports it
+on screen, re-syncing to the current step on reveal), `VisibilityGate` itself
+(inactive tabs stay mounted, so `app.ts` drives every panel's gate from one
+`tabs.onViewChange`) and `GridCursor` (the drum/sampler 2-D selection
 cursor). `paintTriggerCell` lives with `stepTitle` in
 `ui/components/step-settings.ts`; the seq panel keeps its own painter because it
 also writes the note name as the button label. Every `data-testid` is unchanged.
@@ -220,9 +226,13 @@ are where the subtlety lives**, so they're spelled out here.
   UI control (`knob`, `switch`, `segmented`, `strip`, `param-dropdown`) register
   here. One channel drives **both** audio and visuals, and neither side knows
   about the other (REQ-1).
-- `onChange(id, v)` — **global** "an edit happened" signal. One consumer:
-  `main.ts` → `session.markDirty()` (the active preset becomes dirty). Suppressed
-  during bulk applies via an internal `suppressChange` counter.
+- `onChange(id, v)` — **global** "an edit happened" signal, meaning *the user
+  changed the sound*. Two consumers: `main.ts` → `session.markDirty()` (the active
+  preset becomes dirty) and `SessionAutosave` (arms its debounced capture).
+  Suppressed via a `suppressChange` counter during bulk applies (flow 2 below) and,
+  through the public `withoutChangeSignal(fn)`, while a **machine** writes params
+  (flow 4). Both consumers act on user intent, so a write neither consumer should
+  see must be suppressed at the writer — only the writer knows whose write it is.
 
 **1 — Live edit** (forward + repaint; the common case)
 
@@ -261,6 +271,25 @@ bus.onNote ─→ Engine.playNote / releaseNote ─→ Polyphony
 
 The arp sets `passthroughSuppressed` when it takes ownership of held notes, so
 raw key passthrough is gated while it (or the sequencer) drives the voices.
+
+**4 — Machine automation** (the motion sequencer; Tape Stop's ramp is the same
+shape)
+
+```
+frame loop ─→ bus.withoutChangeSignal(() =>
+                 bus.set(id, v))
+               ├─ per-param listeners ─┬─→ Engine applier ─→ audio graph update
+               │                       └─→ the bound knob / XY dot moves
+               └─ onChange  ✗ SUPPRESSED — the machine wrote this, not the user
+```
+
+Structurally flow 1 with the global signal withheld, and the distinction is not
+cosmetic: this path runs **up to 60×/s for as long as the transport plays**, so
+letting it reach `onChange` re-armed the session-autosave debounce faster than it
+could ever elapse — the session was never written at all — and marked the patch
+dirty just for pressing Play. Contrast the XY Pad's spring-back ramp, which also
+writes per frame but *is* a user gesture and stays on flow 1. See
+[runtime-performance](features/runtime-performance.md) REQ-5.
 
 **Ordering that matters**: `Arrangement` is constructed **before** the
 sequencer/drum/sampler/motion machines in `Engine.init()`, so its `clock.onTick`

@@ -4,6 +4,7 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import { memoizeDriveCurve } from '../drive-curve';
 import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
@@ -165,7 +166,8 @@ export class DrumMachine {
     const post = this.trackDrivePost[track];
     if (!pre || !shaper || !post) return;
     rampTo(pre.gain, 1 + amt * 8, this.ctx, RAMP_MEDIUM);
-    shaper.curve = driveCurve(amt);
+    const curve = driveCurve(amt);
+    if (shaper.curve !== curve) shaper.curve = curve;
     shaper.oversample = amt > 0 && this.fxOversample ? '2x' : 'none';
     rampTo(post.gain, 1 / (1 + amt * 1.5), this.ctx, RAMP_MEDIUM);
   }
@@ -219,8 +221,12 @@ export class DrumMachine {
  * Per-track waveshaper curve. `amount` 0 is the identity line (true bypass),
  * higher saturates via a normalised tanh — same shape as the synth FX
  * distortion, but anchored at a clean no-op so `drive` defaults silently.
+ *
+ * Bucketed + memoized (drive-curve.ts): eight tracks' worth of DRIVE knobs are
+ * dragged like any other, and each drag used to allocate a fresh 1024-tap table
+ * per bus tick. Identity-stable, so `setTrackDrive` can skip an unchanged one.
  */
-function driveCurve(amount: number, samples = 1024): Float32Array<ArrayBuffer> {
+function buildDriveCurve(amount: number, samples = 1024): Float32Array<ArrayBuffer> {
   const curve = new Float32Array(new ArrayBuffer(samples * Float32Array.BYTES_PER_ELEMENT));
   const k = amount * 50;
   const norm = k < 1e-6 ? 1 : Math.tanh(k);
@@ -230,6 +236,8 @@ function driveCurve(amount: number, samples = 1024): Float32Array<ArrayBuffer> {
   }
   return curve;
 }
+
+const driveCurve = memoizeDriveCurve((amount) => buildDriveCurve(amount));
 
 /** Map a `tone` knob (0..1) to a lowpass cutoff in Hz; 1 = open (~no-op). */
 function toneCutoff(tone: number): number {

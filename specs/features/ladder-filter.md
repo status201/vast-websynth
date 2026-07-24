@@ -3,12 +3,13 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 5
+version: 6   # v6: per-sample sat() carry (REQ-12)
 owner: core
 related:
   - architecture
   - envelopes
   - lfo
+  - runtime-performance
   - ../decisions/adr-005-cutoff-as-midi-note
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../recipes/add-a-parameter
@@ -105,6 +106,28 @@ frequencies. The on-screen value is still shown in Hz for the user.
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) — the single
   biggest per-sample saving for the common held-cutoff case, with no audible
   change.
+- **REQ-12** — **Per-sample `sat()` carry** (v6): the naive recurrence calls
+  `sat()` **ten times per sample per channel**, but five of those recompute a
+  value the previous statement — or the previous *sample* — already produced.
+  Each of stages 0–2 saturates its own state twice (once as the feedback term
+  inside its update, once again as the next stage's input `v`), and the
+  half-sample feedback tap's `sat(s4)` is just last sample's `sat(s3)`, since
+  `s4` only ever held the previous `s3`. The processor therefore **carries**
+  `sat(s0)`, `sat(s1)`, `sat(s2)` and the previous `sat(s3)` in per-channel
+  state (a `Float64Array(8)`: four pole states + four carried saturations),
+  computing `sat(s3)` once per sample and using it for both the feedback tap and
+  stage 4's own update — **5 calls instead of 10**, each `sat()` being a divide
+  plus an `abs`. The `s4` slot is gone; the carry replaces it exactly.
+  Output is **bit-identical** (same operands, same order), which is the
+  requirement, not a nicety: this is the only always-on per-sample cost that
+  scales with polyphony (8 voices × 2 channels), so it is tempting to keep
+  shaving — and the spec's promise that low-level/low-resonance response matches
+  the linear ladder, hence that existing presets are preserved, depends on the
+  recurrence not drifting. `sat(0) === 0`, so REQ-10's zero-the-state on
+  deactivate leaves the carries self-consistent with no extra handling. Pinned
+  against a frozen naive reference under drive + resonance, where every `sat()`
+  call actually affects the result (see
+  [`runtime-performance.md`](runtime-performance.md) REQ-8).
 
 ## Technical design
 
@@ -228,6 +251,18 @@ Scenario: A block-constant cutoff hoist is bit-identical to per-sample (REQ-11, 
   And another receives a length-1 cutoffNote array
   Then their outputs are equal sample-for-sample
   And changing the constant cutoff across later blocks stays equal (cache invalidates)
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: The sat() carry is bit-identical to the naive recurrence (REQ-12, perf)
+  Given full-scale noise, a driven input and resonance high enough that every sat() matters
+  When the block is processed
+  Then every output sample equals a frozen reference that recomputes sat() everywhere
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
+
+Scenario: A deactivate clears the carried saturations too (REQ-12, edge)
+  Given a processor with non-zero stage state and carries
+  When it is deactivated and then reactivated
+  Then its output matches a fresh processor on the same input, sample-for-sample
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
 Scenario: A varying cutoff block stays per-sample accurate (REQ-11, edge)

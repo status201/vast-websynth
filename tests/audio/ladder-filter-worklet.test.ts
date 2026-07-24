@@ -181,6 +181,86 @@ describe('ladder-filter worklet DSP', () => {
     expect(full60).toEqual(one60);
   });
 
+  // REQ-12: the per-sample `sat()` carry. The processor caches each stage's
+  // saturated state instead of recomputing it, which must be a pure speed change
+  // — so this pins the FULL nonlinear recurrence (drive + resonance + feedback,
+  // where every sat() call actually matters) against a fixed reference written
+  // out the naive way. Any drift here is a sound change, not an optimisation.
+  const satRef = (x: number): number => x / (1 + Math.abs(x));
+  const RES_MAKEUP = 0.25;
+
+  /** The naive recurrence, sat() recomputed everywhere. The contract, frozen. */
+  function referenceLadder(
+    gen: (n: number) => number,
+    n: number,
+    cutoffNoteIn: number,
+    resIn: number,
+    driveIn: number,
+  ): Float32Array {
+    // The processor reads its params out of Float32Arrays, so single-precision
+    // rounding is part of the values it computes with (4.2 is not 4.2 there).
+    const cutoffNote = Math.fround(cutoffNoteIn);
+    const res = Math.fround(resIn);
+    const drive = Math.fround(driveIn);
+    const freq = 440 * Math.pow(2, (cutoffNote - 69) / 12);
+    const fNorm = Math.min(Math.max(freq / SR, 0.0001), 0.49);
+    const g = 1 - Math.exp(-2 * Math.PI * fNorm);
+    const out = new Float32Array(n);
+    const s = [0, 0, 0, 0, 0];
+    for (let i = 0; i < n; i++) {
+      const fb = (satRef(s[3]!) + satRef(s[4]!)) * 0.5;
+      let v = satRef((gen(i) - res * fb) * drive);
+      s[0]! += g * (v - satRef(s[0]!));
+      v = satRef(s[0]!);
+      s[1]! += g * (v - satRef(s[1]!));
+      v = satRef(s[1]!);
+      s[2]! += g * (v - satRef(s[2]!));
+      v = satRef(s[2]!);
+      s[4] = s[3]!;
+      s[3]! += g * (v - satRef(s[3]!));
+      out[i] = s[3]! * (1 + res * RES_MAKEUP);
+    }
+    return out;
+  }
+
+  it('is bit-identical to the naive sat() recurrence under drive + resonance (REQ-12)', () => {
+    let seed = 7;
+    const noise = (): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x3fffffff - 1;
+    };
+    // Regenerate the same sequence for both runs (the processor consumes it
+    // block-wise, the reference sample-wise).
+    const blocks = 40;
+    const total = blocks * BLOCK;
+    const samples = new Float32Array(total);
+    for (let i = 0; i < total; i++) samples[i] = noise();
+    const gen = (i: number): number => samples[i]!;
+
+    for (const [cutoffNote, res, drive] of [
+      [84, 4.2, 2],   // hard: feedback + saturation dominate
+      [72, 1.5, 1],   // mid
+      [110, 0, 1],    // no resonance — the feedback path still runs
+    ] as const) {
+      const got = run(new Processor(), makeParams({ cutoffNote, resonance: res, drive }), gen, blocks);
+      expect(got).toEqual(referenceLadder(gen, total, cutoffNote, res, drive));
+    }
+  });
+
+  it('carries no stale sat() state across a deactivate (REQ-12)', () => {
+    const gen = (n: number) => 0.6 * Math.sin((2 * Math.PI * 210 * n) / SR);
+    const params = makeParams({ resonance: 3, drive: 2, cutoffNote: 78 });
+
+    const proc = new Processor();
+    run(proc, params, gen, 12);          // build up non-zero stage + carry state
+    proc.port.onmessage!({ data: false }); // zeroes the state — and the carries
+    run(proc, params, gen, 4);           // inactive: DSP skipped
+    proc.port.onmessage!({ data: true });
+
+    // A stale carry would make the restart diverge from a fresh processor.
+    expect(run(proc, params, gen, 12)).toEqual(run(new Processor(), params, gen, 12));
+  });
+
   it('keeps a varying cutoff block per-sample accurate — the hoist does not fire (REQ-11)', () => {
     const tone = (n: number) => 0.5 * Math.sin((2 * Math.PI * 6000 * n) / SR);
     // Low cutoff for the first half of each block, high for the second half.

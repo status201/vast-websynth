@@ -199,6 +199,47 @@ test.describe('pattern grids', () => {
     await expect.poll(() => clockStep(page), { timeout: 4000 }).toBeGreaterThan(2);
     await page.getByTestId('transport-play').click(); // stop
   });
+
+  // step-grid-editing.md REQ-12 / runtime-performance.md REQ-4. Inactive tabs stay
+  // mounted, so without gating all four panels sweep a playhead every 16th against
+  // DOM nobody can see. The risk the gate introduces is staleness, which is why the
+  // reveal half matters as much as the freeze half — and only a real browser
+  // exercises the class toggles on a display:none subtree.
+  test('a hidden grid freezes its playhead and re-syncs when revealed', async ({ page }) => {
+    await gotoAndStart(page);
+    await busSet(page, 'drum.on', 1);
+    await page.getByTestId('tab-drums').click();
+    await page.getByTestId('transport-play').click();
+
+    // Which of track 0's 16 cells currently carries the playing highlight.
+    // CSS Modules hash the class, so match it as a substring.
+    const litColumn = (): Promise<number> => page.evaluate(() => {
+      for (let s = 0; s < 16; s++) {
+        const el = document.querySelector(`[data-testid="drum-step-0-${s}"]`);
+        if (el && /playing/.test(el.className)) return s;
+      }
+      return -1;
+    });
+
+    await expect.poll(litColumn, { timeout: 4000 }).toBeGreaterThanOrEqual(0);
+
+    // Hide first, THEN sample: reading before the click races the next tick,
+    // which is still free to repaint while the panel is visible.
+    await page.getByTestId('tab-arp').click();
+    const frozenAt = await litColumn();
+    const hiddenAt = await clockStep(page);
+
+    // Hidden: the highlight must not move, however many steps elapse.
+    await expect.poll(() => clockStep(page), { timeout: 4000 })
+      .toBeGreaterThan(hiddenAt + 4);
+    expect(await litColumn()).toBe(frozenAt);
+
+    // Revealed: it jumps to the step playing NOW, not the one it was left on.
+    await page.getByTestId('tab-drums').click();
+    await expect.poll(litColumn, { timeout: 2000 }).not.toBe(frozenAt);
+
+    await page.getByTestId('transport-play').click(); // stop
+  });
 });
 
 /**

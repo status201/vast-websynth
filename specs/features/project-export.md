@@ -3,7 +3,7 @@
 ```yaml
 id: project-export
 status: implemented
-version: 2
+version: 3   # v3: JSON demos are fetched on click too; loadDemo is async
 owner: core
 related:
   - song-mode
@@ -70,7 +70,11 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   underscores prettified to spaces (`Run_Away_2.websynth.zip` → "Run Away 2") — the
   zip can't be opened at build time to read the song's own `name`, and export
   filenames are underscore-sanitized (`projectFilename`), so this round-trips the
-  common case. An empty glob (no zip assets) costs nothing.
+  common case. An empty glob (no zip assets) costs nothing. (v2) The **JSON**
+  drop-in demos are fetched on click the same way now — see
+  [song-mode](song-mode.md) REQ-12 — so this is no longer the odd one out; the
+  difference that remains is only the naming, since a `.json` demo's own `name`
+  *can* be recovered at build time (into `demos-index.json`) and a zip's cannot.
 - **REQ-8** — Decode/encode is memory-aware: clips are encoded/decoded
   **sequentially** (8 × multi-MB WAVs), and `decodeAudioData` gets a **copy** of the
   clip bytes (`.slice()`) because entries are subarray views of the whole zip buffer
@@ -150,10 +154,13 @@ help copy (onboarding.md): the song.export / song.import topics in
 demo zips (song.ts + song-panel):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
   name = basename minus .websynth.zip, underscores -> spaces (REQ-7)
-  one button per entry after the DEMO_SONGS row (testid song-demo-<name>)
+  one button per entry, last in demoNames() order (testid song-demo-<name>)
   click -> fetch(url) -> parseProjectZip -> applyProjectBundle
-  Song.list()/loadSlot()/DEMO_SONGS stay sync + JSON-only; loadDemo(name) keeps its
-  sync signature and delegates fire-and-forget for zip demos (guided tour depends on it)
+  Song.list()/loadSlot() stay sync + JSON-only, and list() omits zip demos entirely
+    (a project bundle is not a song file)
+  loadDemo(name) is async and RESOLVES WHEN APPLIED — it dispatches built-in /
+    JSON drop-in / zip; callers that act on the loaded song (the guided tour, the
+    empty-play modal) await it (song-mode.md REQ-12)
 ```
 
 ### Persistence

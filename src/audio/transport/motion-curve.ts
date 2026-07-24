@@ -59,6 +59,49 @@ export function anchorIndices(bank: readonly Anchorable[]): number[] {
   return out;
 }
 
+/**
+ * Memoizes {@link anchorIndices} by bank identity. Optional everywhere — pass one
+ * from a **frame loop** (the machine does), leave it out anywhere the cost does
+ * not matter (the panel, the graph, tests).
+ *
+ * Anchor sets are a pure function of a bank's contents, but a bank evaluation
+ * needs three of them (this bar plus both carry neighbours) and the XY lane
+ * evaluates twice — once per axis — so an uncached 60 fps frame allocated ~9
+ * arrays and rescanned ~144 steps for an answer that only changes when the user
+ * edits a step (runtime-performance.md REQ-6).
+ *
+ * Banks are mutated **in place**, so identity alone cannot detect a change: the
+ * owner must `clear()` on every stream that can alter a bank. That is why this
+ * is handed in rather than being module state — the cache's correctness depends
+ * on invalidation only its owner can see, and a hidden global would silently
+ * serve stale anchors to the next caller.
+ */
+export interface AnchorCache {
+  indices(bank: readonly Anchorable[]): number[];
+  /** Drop everything — call on any mutation that can change a bank's ON steps. */
+  clear(): void;
+}
+
+export function createAnchorCache(): AnchorCache {
+  let map = new WeakMap<object, number[]>();
+  return {
+    indices(bank) {
+      let idx = map.get(bank);
+      if (!idx) {
+        idx = anchorIndices(bank);
+        map.set(bank, idx);
+      }
+      return idx;
+    },
+    clear() {
+      map = new WeakMap();
+    },
+  };
+}
+
+const indicesOf = (bank: readonly Anchorable[], cache?: AnchorCache): number[] =>
+  cache ? cache.indices(bank) : anchorIndices(bank);
+
 /** An adjacent bar's anchors, or null when there is nothing to carry to/from. */
 interface Carry<T> {
   bank: readonly T[];
@@ -70,10 +113,11 @@ interface Carry<T> {
 function carryFrom<T extends Anchorable>(
   neighbour: readonly T[] | null | undefined,
   bank: readonly T[],
+  cache?: AnchorCache,
 ): Carry<T> | null {
   const b = neighbour === undefined ? bank : neighbour;
   if (!b) return null;
-  const idx = anchorIndices(b);
+  const idx = indicesOf(b, cache);
   return idx.length ? { bank: b, idx } : null;
 }
 
@@ -89,8 +133,9 @@ export function scalarAt<T extends Anchorable>(
   mode: MotionMode,
   get: (s: T) => number,
   neighbours: Neighbours<T> = {},
+  cache?: AnchorCache,
 ): number | null {
-  const idx = anchorIndices(bank);
+  const idx = indicesOf(bank, cache);
   if (idx.length === 0) return null;
 
   const n = bank.length;
@@ -98,17 +143,22 @@ export function scalarAt<T extends Anchorable>(
   const firstIdx = idx[0]!;
   const lastIdx = idx[idx.length - 1]!;
 
-  // Last anchor at or before p (-1 when p precedes the first anchor).
+  // Last anchor at or before p (-1 when p precedes the first anchor). `prevAt`
+  // is its position in `idx`, so the slide branch below can step to the next
+  // anchor directly instead of searching `idx` for it a second time.
   let prev = -1;
-  for (const i of idx) {
-    if (i <= p) prev = i;
-    else break;
+  let prevAt = -1;
+  for (let k = 0; k < idx.length; k++) {
+    if (idx[k]! <= p) {
+      prev = idx[k]!;
+      prevAt = k;
+    } else break;
   }
 
   if (mode === 'step') {
     if (prev >= 0) return get(bank[prev]!);
     // Before the first anchor: whatever the previous bar left holds.
-    const carry = carryFrom(neighbours.prev, bank);
+    const carry = carryFrom(neighbours.prev, bank, cache);
     return get(carry ? carry.bank[carry.idx[carry.idx.length - 1]!]! : bank[firstIdx]!);
   }
 
@@ -118,7 +168,7 @@ export function scalarAt<T extends Anchorable>(
   if (prev < 0) {
     // Before the first anchor: still inside the segment carried in from the
     // previous bar, which ends on this bank's first anchor.
-    const carry = carryFrom(neighbours.prev, bank);
+    const carry = carryFrom(neighbours.prev, bank, cache);
     if (!carry) return get(bank[firstIdx]!);
     const a = carry.idx[carry.idx.length - 1]!;
     sa = carry.bank[a]!;
@@ -127,7 +177,7 @@ export function scalarAt<T extends Anchorable>(
     dist = p + n - a;
   } else if (prev === lastIdx) {
     // After the last anchor: head for the next bar's first anchor.
-    const carry = carryFrom(neighbours.next, bank);
+    const carry = carryFrom(neighbours.next, bank, cache);
     if (!carry) return get(bank[lastIdx]!);
     const b = carry.idx[0]!;
     sa = bank[lastIdx]!;
@@ -135,7 +185,7 @@ export function scalarAt<T extends Anchorable>(
     span = n - lastIdx + b;
     dist = p - lastIdx;
   } else {
-    const b = idx[idx.indexOf(prev) + 1]!;
+    const b = idx[prevAt + 1]!;
     sa = bank[prev]!;
     sb = bank[b]!;
     span = b - prev;
@@ -159,10 +209,13 @@ export function valueAt(
   barPos: number,
   mode: MotionMode,
   neighbours: MotionNeighbours = {},
+  cache?: AnchorCache,
 ): MotionXY | null {
-  const x = scalarAt(bank, barPos, mode, getX, neighbours);
+  // Both axes read the same anchor set, so a cache also removes the second
+  // call's rescan — worth passing one here even more than elsewhere.
+  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache);
   if (x === null) return null;
-  return { x, y: scalarAt(bank, barPos, mode, getY, neighbours)! };
+  return { x, y: scalarAt(bank, barPos, mode, getY, neighbours, cache)! };
 }
 
 /** One extra single-param track (motion-sequencer.md REQ-13/REQ-14). */
@@ -171,6 +224,7 @@ export function valueAt1D(
   barPos: number,
   mode: MotionMode,
   neighbours: MotionTrackNeighbours = {},
+  cache?: AnchorCache,
 ): number | null {
-  return scalarAt(steps, barPos, mode, getV, neighbours);
+  return scalarAt(steps, barPos, mode, getV, neighbours, cache);
 }

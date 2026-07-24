@@ -3,9 +3,9 @@ import type { MotionStep, MotionTrackStep, PatternStore } from '../../state/patt
 import { MOTION_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import type { ParamBus } from '../../state/params';
 import type { XyAssign, XyPadStore } from '../../state/xy-pad';
-import { motionAxesFor } from '../../state/xy-effective';
+import { motionAxesFor, motionAxesMatch } from '../../state/xy-effective';
 import { fromNorm } from '../../utils/taper';
-import { valueAt, valueAt1D, type MotionMode, type MotionNeighbours } from './motion-curve';
+import { createAnchorCache, valueAt, valueAt1D, type MotionMode } from './motion-curve';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
@@ -70,6 +70,8 @@ export class MotionMachine {
   private prev: LatchedTick | null = null;
   private readonly baselines = new Map<string, number>();
   private readonly stepListeners = new ListenerSet<[number]>();
+  /** Anchor-index memo for the frame loop; dropped on any bank mutation. */
+  private readonly anchors = createAnchorCache();
 
   private rafId: number | null = null;
   private lastFrameMs = 0;
@@ -117,6 +119,15 @@ export class MotionMachine {
       this.stopLoop();
       this.restoreBaselines();
     });
+
+    // Anchor sets are cached across frames, and banks are mutated in place — so
+    // every stream that can flip a step's `on` must drop the memo. Cheap to be
+    // blunt about it: these fire on user edits and song loads, never per frame.
+    const invalidate = (): void => this.anchors.clear();
+    patterns.onMotionChange(invalidate);
+    patterns.onMotionBankChange(invalidate);
+    patterns.onMotionTrackChange(invalidate);
+    patterns.onBulkRestore(invalidate);
   }
 
   /** Effective-active: enabled (motion.on) and not muted (motion.mute, REQ-12). */
@@ -169,8 +180,20 @@ export class MotionMachine {
   /**
    * One evaluation at audio-clock time `nowS` — the frame loop's body, public
    * so tests can drive it deterministically without a real rAF.
+   *
+   * Every write inside runs under `bus.withoutChangeSignal`: automation is not
+   * a user edit (REQ-15). `frameAt` holds the clock time for the bracketed body
+   * and `runFrame` is bound once in the constructor, so a 60 fps frame
+   * allocates no closure (runtime-performance.md REQ-6).
    */
   frame(nowS: number): void {
+    this.frameAt = nowS;
+    this.bus.withoutChangeSignal(this.runFrame);
+  }
+
+  private frameAt = 0;
+  private readonly runFrame = (): void => {
+    const nowS = this.frameAt;
     if (!this.active || !this.clock.playing) return;
     const curr = this.curr;
     if (!curr) return;
@@ -189,17 +212,24 @@ export class MotionMachine {
     // the fraction of a step elapsed since (negative while that tick is still
     // ahead of now — valueAt wraps, matching the loop seam).
     const pos = tick.idx + (nowS - tick.when) / tick.dur;
-    const v = valueAt(bank, pos / SEQ_LENGTH, this.mode, {
-      prev: this.carryBank(tick.prevBank, tick.prevResting, axes, base),
-      next: this.carryBank(tick.nextBank, tick.nextResting, axes, base),
-    });
+    // `neighbours` is reused rather than rebuilt: this runs up to 60x/s
+    // (runtime-performance.md REQ-6), and valueAt only reads it.
+    this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);
+    this.neighbours.next = this.carryBank(tick.nextBank, tick.nextResting, axes, base);
+    const v = valueAt(bank, pos / SEQ_LENGTH, this.mode, this.neighbours, this.anchors);
     if (v) {
       this.write(axes.x, v.x);
       this.write(axes.y, v.y);
     }
 
     this.frameTracks(tick, pos);
-  }
+  };
+
+  /** Scratch carry pair, refilled each frame (see the comment in runFrame). */
+  private readonly neighbours: { prev: readonly MotionStep[] | null; next: readonly MotionStep[] | null } =
+    { prev: null, next: null };
+  private readonly trackNeighbours: { prev: readonly MotionTrackStep[] | null; next: readonly MotionTrackStep[] | null } =
+    { prev: null, next: null };
 
   /**
    * The extra single-param tracks (REQ-13/REQ-14). Each is evaluated with the
@@ -214,10 +244,11 @@ export class MotionMachine {
       const track = tracks[t];
       const id = track?.param;
       if (!track || !id) continue;
-      const v = valueAt1D(track.steps, pos / SEQ_LENGTH, this.trackModes[t]!, {
-        prev: this.carryTrack(tick.prevBank, tick.prevResting, t, id),
-        next: this.carryTrack(tick.nextBank, tick.nextResting, t, id),
-      });
+      this.trackNeighbours.prev = this.carryTrack(tick.prevBank, tick.prevResting, t, id);
+      this.trackNeighbours.next = this.carryTrack(tick.nextBank, tick.nextResting, t, id);
+      const v = valueAt1D(
+        track.steps, pos / SEQ_LENGTH, this.trackModes[t]!, this.trackNeighbours, this.anchors,
+      );
       if (v !== null) this.write(id, v);
     }
   }
@@ -253,8 +284,9 @@ export class MotionMachine {
     base: XyAssign,
   ): readonly MotionStep[] | null {
     if (resting) return null;
-    const nb = motionAxesFor(this.patterns, bank, base);
-    if (nb.x !== axes.x || nb.y !== axes.y) return null;
+    // `motionAxesMatch`, not `motionAxesFor(...)` compared field-by-field: same
+    // answer, no object per neighbour per frame (runtime-performance.md REQ-6).
+    if (!motionAxesMatch(this.patterns, bank, base, axes)) return null;
     return this.patterns.motionBank(bank);
   }
 
@@ -265,10 +297,16 @@ export class MotionMachine {
     this.bus.set(id, fromNorm(def, norm));
   }
 
+  /** Return every automated param to its pre-automation value. Suppressed like
+   *  the writes it undoes — putting a value back is not a user edit either. */
   private restoreBaselines(): void {
+    this.bus.withoutChangeSignal(this.runRestoreBaselines);
+  }
+
+  private readonly runRestoreBaselines = (): void => {
     for (const [id, v] of this.baselines) this.bus.set(id, v);
     this.baselines.clear();
-  }
+  };
 
   private startLoop(): void {
     if (this.rafId !== null) return;

@@ -16,8 +16,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The app starts faster.** Every visit used to download and unpack all fourteen
+  built-in demo songs — a third of a megabyte of data — before the synth appeared,
+  to play at most one of them. Demos are now fetched the moment you click one, so
+  the app boots with a much smaller download. The trade: a demo you have never
+  opened is not available offline until you have played it once, which is already
+  how the two project demos worked.
+- **Less work between you and the sound.** The reverb used to build all five of its
+  room sizes for each of the three effect chains as the app started — fifteen
+  renders, most of them for sizes you never pick. Each size is now built the first
+  time it is chosen and shared by all three chains. Dragging a DRIVE knob no longer
+  rebuilds its distortion curve on every pixel of the drag, the filter's per-sample
+  maths does half as many saturation calculations (the sound is unchanged — bit for
+  bit), and a pattern grid on a tab you are not looking at stops redrawing its
+  playhead sixteen times a bar. Switching to that tab still shows the step playing
+  right now, not the one it was left on.
+
 ### Fixed
 
+- **Songs with motion automation are saved again.** The Motion sequencer writes to
+  its parameters continuously while the transport runs, and every one of those
+  writes looked like an edit — which kept postponing the automatic save. As long as
+  a motion song was playing, the working session was **never** written, so closing
+  the tab lost everything since the last manual save. Playing a motion song also
+  marked your preset as edited when you had touched nothing. Automation is no longer
+  mistaken for an edit; the knobs still move with it exactly as before.
+- **The per-step Velocity / Gate / Prob sliders no longer slow the whole app down.**
+  Each of the nine sliders (three per machine) was listening to every mouse movement
+  anywhere on the page, not just its own drag.
 - **The Debug panel no longer costs anything while it is folded shut.** Its live
   readout refreshes twice a second, and that kept happening whenever the About
   modal was open — even with the Debug section collapsed and nothing on screen.

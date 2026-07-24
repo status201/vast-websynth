@@ -133,3 +133,59 @@ describe('Knob drag-listener lifecycle', () => {
     expect(b.get('filter.cutoff')).toBe(at);
   });
 });
+
+/**
+ * Repaint guards (runtime-performance.md REQ-7). A knob is not only dragged: the
+ * motion sequencer automates up to four params at frame rate, so `render` runs
+ * ~60x/s per driven knob and most of those frames paint the same pixels.
+ */
+describe('Knob repaint guards', () => {
+  function build() {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.cutoff', label: 'CUT' });
+    const indicator = knob.el.querySelector<HTMLElement>('div > div')!;
+    const arc = knob.el.querySelector('circle:nth-of-type(2)')!;
+    return { b, knob, indicator, arc };
+  }
+
+  it('writes nothing when a repaint would produce identical output', () => {
+    const { b, knob, indicator, arc } = build();
+    b.set('filter.cutoff', 90);
+
+    const setAttr = vi.spyOn(arc, 'setAttribute');
+    const transforms: string[] = [];
+    const styleSpy = vi.spyOn(indicator.style, 'setProperty');
+    void styleSpy; // style.transform is a plain assignment; observe it below
+
+    const beforeTransform = indicator.style.transform;
+    const beforeLabel = knob.el.textContent;
+
+    // A value the taper maps to the same rounded angle and the same label.
+    b.set('filter.cutoff', 90 + 1e-9);
+    expect(setAttr).not.toHaveBeenCalled();
+    expect(indicator.style.transform).toBe(beforeTransform);
+    expect(knob.el.textContent).toBe(beforeLabel);
+    expect(transforms).toEqual([]);
+  });
+
+  it('still repaints on a real change, and lands exactly on the final value', () => {
+    const { b, knob, arc } = build();
+    const setAttr = vi.spyOn(arc, 'setAttribute');
+
+    b.set('filter.cutoff', 40);
+    const at40 = arc.getAttribute('stroke-dasharray');
+    b.set('filter.cutoff', 120);
+    const at120 = arc.getAttribute('stroke-dasharray');
+
+    expect(setAttr).toHaveBeenCalled();
+    expect(at120).not.toBe(at40);
+    // The label tracks the final value, not a rounded-away intermediate.
+    expect(knob.el.textContent).toContain(b.def('filter.cutoff')!.format!(120));
+  });
+
+  it('a fine automated sweep still ends on the true value (no drift)', () => {
+    const { b, knob } = build();
+    for (let i = 0; i <= 400; i++) b.set('filter.cutoff', 30 + (100 * i) / 400);
+    expect(knob.el.textContent).toContain(b.def('filter.cutoff')!.format!(130));
+  });
+});

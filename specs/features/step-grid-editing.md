@@ -3,10 +3,11 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 1
+version: 2   # v2: off-screen grids skip their per-tick repaints (REQ-12)
 owner: core
 related:
   - architecture
+  - runtime-performance
   - ../decisions/adr-014-dont-make-me-think
   - ../recipes/design-an-interaction
   - sequencer
@@ -25,6 +26,7 @@ source:
   - src/ui/panels/drum-panel.ts
   - src/ui/panels/sampler-panel.ts
   - src/ui/panels/motion-panel.ts
+  - src/ui/app.ts                         # drives every gate from onViewChange
   - src/state/patterns.ts                 # bulk clear entry points
 ```
 
@@ -134,6 +136,22 @@ answer to "inspect this step without disturbing it".
   finger and a mouse take the same code path. No gesture is hover-only, and the
   long-press window and travel slop are tuned so a scroll gesture that starts on
   a cell scrolls rather than paints.
+- **REQ-12** — **An off-screen grid repaints nothing** (v2). `TabContainer` hides
+  an inactive panel with a class, so all four machine panels stay mounted and
+  subscribed — meaning every one of them swept a playhead on **every 16th** (~50
+  `classList` writes a tick, plus four rest-overlay refreshes) and the Motion
+  panel re-projected its SVG graph **every bar**, all against DOM nobody could
+  see. Each panel therefore owns a `VisibilityGate`, driven from the single
+  `tabs.onViewChange` in `buildPatternRow`; `wirePlayhead` and the Motion graph
+  skip their work while it reports hidden. `isVisible` is false for *every* panel
+  while the pattern row is folded, so a collapsed row costs nothing at all.
+
+  The gate's real contract is the **reveal**: switching to a tab mid-playback
+  must show the step that is playing *now*, never the one the panel was left on
+  — so the playhead replays the latest step on `whenShown`, and the Motion graph
+  coalesces any redraws requested while hidden into one. A gate starts `shown`
+  because panels are built before the `TabContainer` exists (see
+  [runtime-performance](runtime-performance.md) REQ-4).
 
 ## Technical design
 
@@ -306,13 +324,26 @@ Scenario: Motion keeps drag-to-set and double-tap-to-clear (REQ-9)
   Then it sets an anchor coordinate — it does not toggle or paint
   And Clear ▾ → Clear bank still clears all 16 anchors in one undo entry
 # pinned by: tests/ui/motion-step-pad.test.ts, tests/state/patterns.test.ts, e2e/motion.spec.ts
+
+Scenario: A hidden grid does no per-tick repainting (REQ-12, perf)
+  Given the transport is playing and a machine panel's tab is not the visible one
+  When steps elapse
+  Then its playhead highlight and rest overlay are not touched at all
+# pinned by: tests/ui/step-panel-scaffold.test.ts
+
+Scenario: Revealing a tab shows the step playing NOW (REQ-12, the reveal contract)
+  Given a hidden panel whose playhead was frozen several steps ago
+  When its tab is revealed
+  Then the highlight jumps to the current step, not the one it was left on
+# pinned by: tests/ui/step-panel-scaffold.test.ts, e2e/patterns.spec.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/grid-gestures.test.ts` (the inventory, in jsdom with synthetic
   Pointer Events), `tests/state/patterns.test.ts` (bulk clears + one-mutation
-  emission), `tests/state/pattern-undo.test.ts` (single-entry reversal) —
+  emission), `tests/state/pattern-undo.test.ts` (single-entry reversal),
+  `tests/ui/step-panel-scaffold.test.ts` (the visibility gate + reveal re-sync) —
   `npm test`
 - E2E: `e2e/patterns.spec.ts` (hold-to-edit, paint-drag, Clear + toast Undo,
   tab-scoped Delete), `e2e/motion.spec.ts` (REQ-9) — `npm run e2e`

@@ -9,7 +9,10 @@ import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
 import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
-import { bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor } from './step-panel-scaffold';
+import {
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, VisibilityGate,
+  type GatedPanel,
+} from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
 import { motionAxesFor } from '../../state/xy-effective';
@@ -38,7 +41,7 @@ export function buildMotionPanel(
   xy: XyPadStore,
   xyWin: XyPadWindowController,
   undo: PatternUndo,
-): HTMLElement {
+): GatedPanel {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
   const patterns = engine.patterns;
@@ -380,11 +383,28 @@ export function buildMotionPanel(
     refreshAxes();
   };
 
+  const gate = new VisibilityGate();
+
   // Light the playing column across all three lanes (XY + A + B), not just the XY
   // pads — the tracks were added later (v4) and were never wired in (REQ-16).
   const highlighter = wirePlayhead(
-    engine, 'motion', [pads, ...trackRows.map((r) => r.pads)], restOverlay,
+    engine, 'motion', [pads, ...trackRows.map((r) => r.pads)], restOverlay, gate,
   );
+
+  // Re-project the graph only when it is on screen. `arrangement.onChange` below
+  // fires every bar during playback, and this is an SVG rebuild — off-screen
+  // that is pure waste (runtime-performance.md REQ-4). A redraw requested while
+  // hidden is coalesced into one on reveal, so the graph is never stale.
+  let graphDirty = false;
+  const redrawGraphIfShown = (): void => {
+    if (!gate.shown) { graphDirty = true; return; }
+    redrawGraph();
+  };
+  gate.whenShown(() => {
+    if (!graphDirty) return;
+    graphDirty = false;
+    redrawGraph();
+  });
 
   patterns.onMotionBankChange((bank) => {
     highlighter.clear();
@@ -392,18 +412,18 @@ export function buildMotionPanel(
   });
   patterns.onMotionChange((idx, step) => {
     pads[idx]?.setStep(step);
-    redrawGraph();
+    redrawGraphIfShown();
   });
   xy.onChange(() => {
     refreshAxes();
-    redrawGraph(); // a base reassignment can change which neighbours carry
+    redrawGraphIfShown(); // a base reassignment can change which neighbours carry
   });
   // STEP/SLIDE changes the line's shape (staircase vs ramp) — re-project live.
-  bus.subscribe('motion.slide', redrawGraph);
+  bus.subscribe('motion.slide', redrawGraphIfShown);
   // Chain edits (and each bar's advance) move which banks border this one.
-  engine.arrangement.onChange(redrawGraph);
+  engine.arrangement.onChange(redrawGraphIfShown);
 
   redrawGraph();
   refreshAxes();
-  return root;
+  return { el: root, gate };
 }

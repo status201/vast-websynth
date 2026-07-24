@@ -146,21 +146,33 @@ export class Performance {
     const durMs = on ? 650 : 420;
     const t0 = performance.now();
 
+    // The ramp is the machine bending the pitch, not the user editing a param, so
+    // its per-frame writes stay off `bus.onChange` (runtime-performance.md REQ-5)
+    // — otherwise a 650 ms tape stop re-arms the session autosave ~40 times and
+    // can capture a mid-ramp pitchBend as the saved session. `ease` is carried on
+    // the closure so the suppressed body is allocated once per gesture, not per
+    // frame (REQ-6).
+    let ease = 0;
+    const applyEase = (): void => {
+      // Skip the clock ramp while slaved — an incoming clock owns the tempo.
+      if (this.clockRampAllowed()) this.clock.setBpm(startBpm + (endBpm - startBpm) * ease);
+      this.bus.set('master.pitchBend', startBend + (endBend - startBend) * ease);
+    };
+    const settle = (): void => {
+      // An ungated restore would stomp the followed tempo with the knob value.
+      if (this.clockRampAllowed()) this.clock.setBpm(origBpm);
+      this.bus.set('master.pitchBend', 0);
+    };
+
     const tick = (): void => {
       const k = Math.min(1, (performance.now() - t0) / durMs);
-      const e = on ? k * k : 1 - (1 - k) * (1 - k); // ease
-      // Skip the clock ramp while slaved — an incoming clock owns the tempo.
-      if (this.clockRampAllowed()) this.clock.setBpm(startBpm + (endBpm - startBpm) * e);
-      this.bus.set('master.pitchBend', startBend + (endBend - startBend) * e);
+      ease = on ? k * k : 1 - (1 - k) * (1 - k);
+      this.bus.withoutChangeSignal(applyEase);
       if (k < 1) {
         this.tapeRaf = requestAnimationFrame(tick);
       } else {
         this.tapeRaf = 0;
-        if (!on) {
-          // An ungated restore would stomp the followed tempo with the knob value.
-          if (this.clockRampAllowed()) this.clock.setBpm(origBpm);
-          this.bus.set('master.pitchBend', 0);
-        }
+        if (!on) this.bus.withoutChangeSignal(settle);
       }
     };
     this.tapeRaf = requestAnimationFrame(tick);

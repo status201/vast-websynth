@@ -3,7 +3,7 @@
 ```yaml
 id: add-a-ui-component
 status: implemented
-version: 2
+version: 3   # v3: measure-once-per-gesture + guarded repaints (runtime-performance)
 owner: core
 related:
   - architecture
@@ -83,7 +83,25 @@ descendant selectors target children (`className: 'switch-label ' + styles.label
   the leak above and stops *every* live instance from running its move handler on
   every page pointer move — only the one being dragged listens. `knob.ts` and
   `strip.ts` are the reference implementations (`record-sound-modal.ts` and
-  `floating-window.ts` follow the same shape).
+  `floating-window.ts` follow the same shape). The rule is easy to lose in a
+  helper: `step-settings.ts`'s slider once attached at construction, and because
+  that row is mounted three times with three sliders each, it put **nine**
+  handlers on every pointer move in the app. If a component builds several
+  sub-controls, check each one.
+- **Measure layout once per gesture, not once per move.** Read
+  `getBoundingClientRect()` on `pointerdown` and reuse it for the stroke — the
+  control cannot move mid-drag, and reading it per move forces a layout on every
+  frame of the drag.
+- **Guard repaints on what you write, not on the value.** A control bound to a
+  param can be repainted at *frame rate* — the motion sequencer automates params
+  60×/s — so cache the rounded angle / formatted string / class you last wrote and
+  skip the unchanged ones, each independently. Guarding each write (rather than
+  returning early from `render`) keeps the DOM exactly in step with the newest
+  value. `Knob.render`, `Scope.mirrorPeak` and `StepButton.setViz` all do this;
+  see [runtime-performance](../features/runtime-performance.md) REQ-7. Prefer
+  `transform` over layout-triggering properties (`width`, `top`) for anything
+  repainted continuously — `GrMeter` and the step-settings slider fill use
+  `scaleX`.
 
 ## Scenarios (BDD)
 

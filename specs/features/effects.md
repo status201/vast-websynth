@@ -3,12 +3,15 @@
 ```yaml
 id: effects
 status: implemented
-version: 3   # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
+version: 4   # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-6/REQ-7)
+             # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
 owner: core
 related:
   - architecture
   - compressor
   - performance
+  - performance-mode     # the maxIrS / oversample tier caps REQ-6 keys around
+  - runtime-performance  # REQ-1/REQ-2 — the boot-cost + shared-artefact rules
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
   - fx-patch-decoration  # scenery filling the gap 5 panels leave in the 2-col grid
 source:
@@ -19,6 +22,8 @@ source:
   - src/audio/effects/phaser.ts
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
+  - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-7)
+  - src/audio/transport/drum-machine.ts # the per-track drive, same cache
   - src/state/params.ts
   - src/audio/engine.ts                 # holds synthFx/drumFx/samplerFx; wire + bind
   - src/ui/app.ts / src/ui/panels/*
@@ -59,6 +64,33 @@ subsets, so a song can colour each bus independently.
   sits first so it smashes the dry hits, not the FX wash); sampler bus:
   distortion → phaser → delay → reverb.
 - **REQ-5** — `<fx>.on` < 0.5 means bypassed.
+- **REQ-6** — **The reverb IR bank is lazy and shared** (v4). An impulse response
+  is a pure function of `(sampleRate, duration)` and a `ConvolverNode` only ever
+  *reads* its buffer, so the five bank entries live in one process-wide cache
+  keyed by that pair: every `Reverb` — synth, drum and sampler — shares them, and
+  each is generated on **first selection** of its size, not up front. Only the
+  default size (index 2, 1.5 s) is built at construction. Previously each of the
+  three instances rendered all five in the `Engine` constructor: 9.2 s of stereo
+  noise apiece, **2.65 M samples and ~10.6 MB** generated synchronously on the
+  boot path for sizes most sessions never touch. Selecting a size stays instant
+  after its first use, which is what the "don't re-render on knob drags" rule
+  always meant. The perf-tier `maxIrS` cap (REQ-11 in
+  [performance-mode](performance-mode.md)) is applied *before* the cache key, so
+  capped and uncapped tiers never share a buffer and capped sizes simply collapse
+  onto fewer distinct IRs — the bank still spans five positions, so `size` keeps
+  its meaning.
+- **REQ-7** — **Drive curves are bucketed and memoized** (v4). A `WaveShaper`
+  curve is a table built with a transcendental per tap, and DRIVE is a *knob* —
+  rebuilding per bus tick cost ~60–120 allocations a second (8 kB each at the
+  distortion's 2048 taps, plus the drum machine's eight 1024-tap tracks). The
+  amount is quantized to `DRIVE_CURVE_STEPS` (64) buckets and the table cached
+  per bucket by `memoizeDriveCurve` (`src/audio/drive-curve.ts`); the pre/post
+  gains still track the raw amount continuously, so the *sweep* is unchanged and
+  only the table is stepped — inaudible in an interpolated saturation table
+  (ADR-010). The cache returns identity-stable arrays, so callers skip an
+  unchanged `shaper.curve` assignment with a `!==`. Each caller keeps its own
+  cache and its own curve *shape*: only the drum's is anchored at a true
+  identity, preserving `drive 0` as an exact no-op (ADR-006).
 
 ## Technical design
 
@@ -151,6 +183,37 @@ Scenario: Compressor attach while bypassed-and-disconnected (edge)
   When the compressor is enabled
   Then the wrapper edges reconnect and the spliced worklet path is intact
 # pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Boot builds one IR, not fifteen (REQ-6, perf)
+  Given the three FX chains each construct a Reverb on one context
+  Then exactly one impulse response has been generated
+  And all three convolvers hold the same buffer object
+# pinned by: tests/audio/effects/reverb.test.ts
+
+Scenario: A size is generated once, however long the knob is dragged (REQ-6)
+  Given a reverb whose size knob is swept end to end three times
+  Then each of the five bank entries was generated exactly once
+  And a second reverb selecting the same size generates nothing
+# pinned by: tests/audio/effects/reverb.test.ts
+
+Scenario: A tier's IR cap shortens tails without shrinking the bank (REQ-6, edge)
+  Given a reverb capped at 1.5 s
+  When every size is selected
+  Then no IR is longer than 1.5 s, the sizes above the cap share one buffer
+  And an uncapped reverb on the same context still gets its full-length IR
+# pinned by: tests/audio/effects/reverb.test.ts, tests/audio/effects/fx-cost.test.ts
+
+Scenario: A drive drag reuses curves instead of rebuilding them (REQ-7, perf)
+  Given 500 drive updates across the full range, repeated
+  Then at most DRIVE_CURVE_STEPS curves were built
+  And amounts inside one bucket receive the identical array
+# pinned by: tests/audio/drive-curve.test.ts
+
+Scenario: Drive 0 stays an exact no-op after bucketing (REQ-7, edge)
+  Given the drum machine's identity-anchored curve
+  When drive is 0
+  Then the builder receives exactly 0 and the curve is the identity line
+# pinned by: tests/audio/drive-curve.test.ts
 ```
 
 ## Tests & verification
@@ -158,7 +221,9 @@ Scenario: Compressor attach while bypassed-and-disconnected (edge)
 - `tests/state/params.test.ts` (each effect's params registered + wired),
   `tests/audio/effects/effect-bind.test.ts` (per-prefix bind independence),
   `tests/audio/effects/bypass.test.ts` (true-bypass disconnect state machine,
-  ADR-012), `e2e/controls.spec.ts`.
+  ADR-012), `tests/audio/effects/reverb.test.ts` (the lazy/shared IR bank),
+  `tests/audio/drive-curve.test.ts` (bucketed curve cache),
+  `tests/audio/effects/fx-cost.test.ts` (perf-tier caps), `e2e/controls.spec.ts`.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

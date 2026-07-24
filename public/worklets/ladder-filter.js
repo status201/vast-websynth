@@ -18,6 +18,11 @@ function sat(x) {
 // Make-up gain to offset the passband level lost as resonance rises.
 const RES_MAKEUP = 0.25;
 
+// One channel's filter state: 4 pole states + the 4 carried saturations (REQ-12).
+function newChannelState() {
+  return new Float64Array(8);
+}
+
 class LadderFilterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -47,10 +52,14 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super();
-    this.state = [
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-    ];
+    // Per-channel state, 8 slots (REQ-12):
+    //   0..3  the four pole states s0..s3
+    //   4..6  sat(s0), sat(s1), sat(s2) carried from the previous sample
+    //   7     sat(s3) from the previous sample — the feedback's half-sample tap
+    // The carried saturations are not extra state: each is exactly the value the
+    // previous sample already computed, so caching them is a pure speed change.
+    // sat(0) === 0, so zeroing the whole array leaves it self-consistent.
+    this.state = [newChannelState(), newChannelState()];
     // Idle gating: the voice's oscillators feed us forever and the amp VCA is
     // downstream, so silence detection can never fire — the host posts an
     // explicit active flag instead. Defaults ON so a lost message can only
@@ -119,9 +128,14 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       const outCh = output[ch];
       let s = this.state[ch];
       if (!s) {
-        s = [0, 0, 0, 0, 0];
+        s = newChannelState();
         this.state[ch] = s;
       }
+
+      // Hoist the state into locals for the sample loop — the carried
+      // saturations (q0..q3prev) turn 10 sat() calls per sample into 5 (REQ-12).
+      let s0 = s[0], s1 = s[1], s2 = s[2], s3 = s[3];
+      let q0 = s[4], q1 = s[5], q2 = s[6], q3prev = s[7];
 
       for (let i = 0; i < outCh.length; i++) {
         const res = resStatic ? resArr[0] : resArr[i];
@@ -139,25 +153,34 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
 
         const x = inCh ? inCh[i] : 0;
 
+        // sat(s3) is needed twice — by the feedback tap and by stage 4's own
+        // update — so compute it once. The other half of the half-sample tap is
+        // last sample's sat(s3) (which is what `s4 = s3` used to hold).
+        const q3 = sat(s3);
+
         // Half-sample feedback delay smooths self-oscillation; taking it from
         // saturated states bounds the loop (|fb| < 1, so it can't run away).
-        const fb = (sat(s[3]) + sat(s[4])) * 0.5;
+        const fb = (q3 + q3prev) * 0.5;
 
         // Input drive + saturation, then a saturated one-pole per stage.
-        // `v` carries each stage's saturated output into the next stage's input.
+        // `v` carries each stage's saturated output into the next stage's input
+        // — and that same value is next sample's sat() of this stage's state.
         let v = sat((x - res * fb) * drive);
-        s[0] += g * (v - sat(s[0]));
-        v = sat(s[0]);
-        s[1] += g * (v - sat(s[1]));
-        v = sat(s[1]);
-        s[2] += g * (v - sat(s[2]));
-        v = sat(s[2]);
-        s[4] = s[3];
-        s[3] += g * (v - sat(s[3]));
+        s0 += g * (v - q0);
+        v = q0 = sat(s0);
+        s1 += g * (v - q1);
+        v = q1 = sat(s1);
+        s2 += g * (v - q2);
+        v = q2 = sat(s2);
+        s3 += g * (v - q3);
+        q3prev = q3;
 
         // Level compensation as resonance rises (filter loses passband gain)
-        outCh[i] = s[3] * (1 + res * RES_MAKEUP);
+        outCh[i] = s3 * (1 + res * RES_MAKEUP);
       }
+
+      s[0] = s0; s[1] = s1; s[2] = s2; s[3] = s3;
+      s[4] = q0; s[5] = q1; s[6] = q2; s[7] = q3prev;
     }
     return true;
   }

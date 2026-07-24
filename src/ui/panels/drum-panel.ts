@@ -8,7 +8,7 @@ import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor, VisibilityGate,
   type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -245,7 +245,8 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     });
   }
 
-  const highlighter = wirePlayhead(engine, 'drum', stepBtns, restOverlay);
+  const gate = new VisibilityGate();
+  const highlighter = wirePlayhead(engine, 'drum', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)
   engine.patterns.onDrumBankChange((bank) => {
@@ -268,6 +269,7 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
 
   return {
     el: root,
+    gate,
     clearSelectedStep: () => engine.patterns.setDrumCell(cursor.selRow, cursor.selCol, { on: false }),
   };
 }

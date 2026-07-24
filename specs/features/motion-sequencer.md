@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 7   # v7: the bank bar's content dot counts the A/B track lanes, not just XY
+version: 8   # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
+             #     the frame loop is allocation-free (REQ-19)
+             # v7: the bank bar's content dot counts the A/B track lanes, not just XY
              # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
              #     per-lane help badges (motion.xy / motion.tracks); solid divider above the XY lane
              # v5: per-lane Slide/Step (motion.t<i>.slide) + per-lane header rows
@@ -14,6 +16,8 @@ owner: core
 related:
   - xy-pad
   - arrangement
+  - runtime-performance   # REQ-5/REQ-6 — automation is not an edit; frame-loop cost
+  - session-autosave      # what REQ-18 stopped starving
   - step-grid-editing
   - song-mode
   - banks
@@ -250,6 +254,43 @@ The tab sits between Sampler and Song.
   is default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
   track that is entirely empty *and* unassigned is omitted. The authoring dialect
   gains a matching key; both public schemas and the authoring guide document it.
+- **REQ-18** — **Automation is not an edit** (v8). Every write the machine makes —
+  the XY axes, the extra tracks, and the baseline restore that undoes them — runs
+  inside `ParamBus.withoutChangeSignal`. Per-param listeners still fire, so knobs,
+  the XY pad dot and the audio graph track the automation exactly as before; only
+  the global `onChange` signal, which means *"the user changed the sound"*, is
+  withheld. That signal drives the [session autosave](session-autosave.md)
+  debounce and the header's preset-dirty marker, and at frame rate it starved
+  both: a slide-mode lane re-armed the 1.5 s debounce every ~16 ms, so **the
+  session was never written while the transport ran**, and merely pressing Play on
+  a motion song marked the patch dirty. The suppression belongs at the writer, not
+  at the listener — only the writer knows the write is not the user's. It is the
+  same counter the bulk `restore`/`resetDefaults` applies use, and the bracketed
+  body is pre-bound (not an inline arrow) because this is a 60 fps path; see
+  [`runtime-performance.md`](runtime-performance.md) REQ-5/REQ-6. Contrast the XY
+  Pad's own spring-back ramp, which also writes per frame but *is* a user gesture
+  and stays on the normal path.
+- **REQ-19** — **The frame loop allocates nothing per frame** (v8,
+  [runtime-performance](runtime-performance.md) REQ-6). One evaluation needs three
+  anchor sets (this bar plus both carry neighbours) and the XY lane evaluates
+  twice, once per axis — so the naive form built ~9 arrays and rescanned ~144
+  steps **60 times a second** for an answer that only changes when the user edits
+  a step. Three changes, none of which alter a single output value:
+  - `createAnchorCache()` memoizes `anchorIndices` by bank identity. It is
+    **handed in**, never module state: banks are mutated in place, so identity
+    cannot detect a change and the cache is only correct next to an owner who
+    knows when to `clear()` — the machine does, off `onMotionChange` /
+    `onMotionBankChange` / `onMotionTrackChange` / `onBulkRestore`. A hidden
+    global would serve stale anchors to the panel and the graph.
+  - The carry gate asks `motionAxesMatch` instead of building a `motionAxesFor`
+    pair to compare — same resolution rule, no object per neighbour per frame.
+    The two functions sit together so they cannot drift.
+  - The `Neighbours` pair handed to `valueAt`/`valueAt1D` is a reused scratch
+    object; the curve module only ever reads it.
+
+  The cache is optional throughout `motion-curve.ts`, so the panel, the graph and
+  the tests keep calling the pure functions with no cache and no invalidation
+  duty.
 
 ## Technical design
 
@@ -504,6 +545,26 @@ Scenario: Baselines restore on stop
   When the transport stops
   Then filter.cutoff returns to its pre-play value
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: A cached anchor set still sees an edit (REQ-19, regression)
+  Given the machine has already evaluated a bank this play session
+  When the user adds, removes, or loads over one of its steps
+  Then the next frame automates from the edited anchors, not the memoized ones
+# pinned by: tests/audio/transport/motion-machine.test.ts, tests/audio/transport/motion-curve.test.ts
+
+Scenario: Caching changes no value (REQ-19)
+  Given a bank with both carry neighbours, in slide and in step mode
+  When it is evaluated across the whole bar with and without a cache
+  Then the two agree at every position
+# pinned by: tests/audio/transport/motion-curve.test.ts
+
+Scenario: Automation reaches the knobs but not the change signal (REQ-18)
+  Given a subscriber on filter.cutoff and a global bus.onChange listener
+  When motion slides filter.cutoff across a bar and the transport then stops
+  Then the per-param subscriber saw every written value, including the restore
+  And the global listener saw nothing
+  And a subsequent user edit of filter.cutoff does fire the global listener
+# pinned by: tests/audio/transport/motion-machine.test.ts
 
 Scenario: Per-bank assignment override with fallback
   Given bank B overrides x=fx.delay.time and leaves y unset

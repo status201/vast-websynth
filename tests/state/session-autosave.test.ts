@@ -75,6 +75,31 @@ describe('SessionAutosave', () => {
     expect(capture).toHaveBeenCalledTimes(1);
   });
 
+  // runtime-performance.md REQ-5 / motion-sequencer.md REQ-15. Automation writes
+  // at frame rate; if they reached `onChange` they would re-arm the debounce
+  // faster than it can elapse and the session would never be written at all.
+  it('automation writes never re-arm the debounce', () => {
+    const { bus, capture } = build();
+
+    // 200 frames of a sliding automation lane, well past the debounce window.
+    for (let i = 0; i < 200; i++) {
+      bus.withoutChangeSignal(() => bus.set('filter.cutoff', 40 + (i % 50)));
+      vi.advanceTimersByTime(16);
+    }
+    expect(capture).not.toHaveBeenCalled(); // nothing armed it — nothing to write
+    expect(store.has(SESSION_KEY)).toBe(false);
+
+    // A real edit still arms it, and now the debounce actually elapses even
+    // though automation keeps writing on top.
+    bus.set('transport.bpm', 128);
+    for (let i = 0; i < 200; i++) {
+      bus.withoutChangeSignal(() => bus.set('filter.cutoff', 40 + (i % 50)));
+      vi.advanceTimersByTime(16);
+    }
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(store.has(SESSION_KEY)).toBe(true);
+  });
+
   it('flushes a pending save on pagehide', () => {
     const { bus, capture } = build();
     bus.set('filter.cutoff', 50);

@@ -15,15 +15,14 @@ export default defineConfig({
     sourcemap: true,
     rolldownOptions: {
       output: {
-        // The drop-in demo songs (src/state/demos/*.json) are full song
-        // exports — ~700 kB of JSON eagerly pulled in by the import.meta.glob
-        // in state/song.ts. Inlined into the entry chunk they pushed it past
-        // Vite's 500 kB warning. Split them into their own `demos` chunk so the
-        // app code and the (rarely-changing) demo data are bundled and cached
-        // separately. New JSON dropped into demos/ is absorbed automatically.
+        // The drop-in demo songs (src/state/demos/*.json) used to be imported
+        // eagerly and needed a chunk of their own — ~227 kB of JS (835 kB of
+        // JSON) downloaded and evaluated by every visitor to load at most one.
+        // They are now `?url` assets fetched on click (song-mode.md REQ-11), so
+        // no bundling rule applies to them at all; the JSON lands in
+        // dist/assets/ as plain files.
         codeSplitting: {
           groups: [
-            { name: 'demos', test: /[\\/]state[\\/]demos[\\/].*\.json$/ },
             // The vendored lamejs MP3 encoder is 153 kB of pre-minified JS —
             // 30% of what used to be a single 505 kB entry chunk, downloaded by
             // every visitor whether or not they ever export MP3. It is reached
