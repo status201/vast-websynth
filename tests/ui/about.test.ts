@@ -64,6 +64,15 @@ function closeOpenModal(): void {
   closeBtn?.click();
 }
 
+/**
+ * The section is default-collapsed and only refreshes while expanded
+ * (debug-panel.md REQ-3), so any test that wants *live* rows must open it
+ * first. The header above the body is the click target.
+ */
+function expandDebug(): void {
+  (debugSection()!.previousElementSibling as HTMLElement).click();
+}
+
 describe('About modal — Debug section', () => {
   beforeEach(() => {
     installLocalStorageMock();
@@ -89,6 +98,7 @@ describe('About modal — Debug section', () => {
     const btn = createAboutButton(engine);
     document.body.appendChild(btn);
     btn.click();
+    expandDebug(); // REQ-3 — a folded section reads nothing.
 
     expect(ctxStateRow()?.textContent).toBe('suspended');
 
@@ -200,6 +210,7 @@ describe('About modal — Debug section', () => {
   it('offers the panel actions and follows the context state', () => {
     const { engine, ctx, api } = stubEngine('suspended');
     openAbout(engine);
+    expandDebug(); // REQ-3 — the label only follows the ctx while expanded.
 
     const toggle = byId<HTMLButtonElement>('debug-ctx-toggle');
     expect(byId('debug-actions')).not.toBeNull();
@@ -303,5 +314,61 @@ describe('About modal — Debug section', () => {
     const header = section.previousElementSibling as HTMLElement;
     header.click();
     expect(section.classList.contains('collapsed')).toBe(false);
+  });
+
+  // ---- v4: the panel costs nothing it doesn't have to (REQ-3/REQ-11) ----
+
+  it('reads nothing at all while the Debug section is collapsed (REQ-3)', () => {
+    vi.useFakeTimers();
+    try {
+      const { engine, ctx } = stubEngine('suspended');
+      openAbout(engine);
+      expect(debugSection()!.classList.contains('collapsed')).toBe(true);
+      expect(ctxStateRow()?.textContent).toBe('suspended');
+
+      // The interval keeps firing behind a folded panel — and must do nothing:
+      // opening About for the credits shouldn't pay for an off-screen readout.
+      ctx.state = 'running';
+      vi.advanceTimersByTime(5000);
+      expect(ctxStateRow()?.textContent).toBe('suspended');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('repaints immediately when the section is expanded, before any tick (REQ-3)', () => {
+    const { engine, ctx } = stubEngine('suspended');
+    openAbout(engine);
+
+    ctx.state = 'running';
+    expect(ctxStateRow()?.textContent).toBe('suspended');
+    expandDebug();
+    // No timer was advanced — expanding forces the repaint itself.
+    expect(ctxStateRow()?.textContent).toBe('running');
+  });
+
+  it('re-reads the localStorage-backed rows on the slow tier only (REQ-11)', () => {
+    vi.useFakeTimers();
+    try {
+      const { engine } = stubEngine('running');
+      openAbout(engine);
+      expandDebug();
+
+      const storageRow = byId('debug-storage');
+      const before = storageRow.textContent;
+
+      // A new key changes what storageUsage() would report...
+      localStorage.setItem('websynth.slow-tier.probe', 'x'.repeat(64));
+
+      // ...but a single ~500 ms tick must not walk localStorage looking for it.
+      vi.advanceTimersByTime(500);
+      expect(storageRow.textContent).toBe(before);
+
+      // The ~2 s tier does.
+      vi.advanceTimersByTime(2000);
+      expect(storageRow.textContent).not.toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -89,7 +89,8 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
     }
   };
 
-  // Keep the live Debug readout current only while the modal is open.
+  // Keep the live Debug readout current only while the modal is open — and,
+  // inside it, only while the section is expanded (the hook is a gated tick).
   const onState = () => refreshDebug?.();
 
   function close(): void {
@@ -120,7 +121,8 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
     window.addEventListener('keydown', onKey, true);
     engine.ctx.addEventListener('statechange', onState);
     // Poll while open so values that change without an event (e.g. the silent
-    // loop's currentTime advancing) visibly tick. Cleared in close().
+    // loop's currentTime advancing) visibly tick. Cleared in close(), and a
+    // no-op whenever the Debug section is collapsed.
     refreshTimer = window.setInterval(() => refreshDebug?.(), 500);
   }
 
@@ -480,7 +482,17 @@ function buildDebugSection(engine: StudioApi): {
   actions.append(ctxToggle, panicBtn, toneBtn, copyBtn);
   body.appendChild(actions);
 
-  const refresh = (): void => {
+  // ---- polling tiers (REQ-11) ---------------------------------------------
+  // The rows differ wildly in cost. Most are plain field reads, but the storage
+  // and session rows walk (and JSON.parse) localStorage *synchronously* — far
+  // too expensive to run at the interval's rate behind a playing audio graph.
+  // A row that isn't due simply keeps the text it already has.
+  const SLOW_MS = 2000;
+  const SW_MS = 5000;
+  let slowChecked = 0;
+
+  const refresh = (force = false): void => {
+    // ---- every tick: cheap field reads ----
     stateVal.textContent = engine.ctx.state;
     setButtonLabel(ctxToggle, engine.ctx.state === 'running' ? 'Suspend' : 'Resume');
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
@@ -493,29 +505,10 @@ function buildDebugSection(engine: StudioApi): {
       `${engine.clock.playing ? 'playing' : 'stopped'} · ` +
       `${engine.clock.bpm.toFixed(1)} BPM · sync ${engine.sync.mode}`;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
-    const perf = perfDiagnostics();
-    tierVal.textContent = `${perf.tier} (${perf.pref === 'auto' ? 'auto' : 'forced'})`;
-    coresVal.textContent = perf.cores != null ? String(perf.cores) : 'unknown';
-    memVal.textContent = perf.memoryGb != null ? `${perf.memoryGb} GB` : 'unknown';
-    mobileVal.textContent = perf.mobile ? 'yes' : 'no';
-    const p = perf.profile;
-    profileVal.textContent =
-      `${p.latencyHint} · ${p.voiceCount} voices · ${p.fps} fps · ` +
-      `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
-      `oversample ${p.fxOversample ? 'on' : 'off'}`;
     const clips = clipStats?.();
     clipsVal.textContent = clips ? `${clips.count} · ${MB(clips.bytes)}` : 'n/a';
     // REQ-8 — an action whose source never bound is disabled, not broken.
     clipsBtn.disabled = clips === undefined;
-    const session = SessionAutosave.stats();
-    sessionVal.textContent = session
-      ? `${MB(session.bytes)} · ${ago(session.savedAt)}`
-      : 'none';
-    const store = storageUsage();
-    storageVal.textContent = `${store.keys} keys · ${MB(store.bytes)}`;
-    // getRegistrations() is async: poll it far slower than the 500 ms rows.
-    if (Date.now() - swChecked > 5000) { swChecked = Date.now(); readSw(); }
-    swVal.textContent = swText;
     const midi = midiStats?.();
     midiVal.textContent = midi ? `${midi.inputs} in · ${midi.outputs} out` : 'n/a';
     const wake = wakeState?.();
@@ -524,18 +517,60 @@ function buildDebugSection(engine: StudioApi): {
     unlockVal.textContent = ios.status
       + (ios.routed ? ' · routed' : '')
       + (ios.audioSessionSet ? ' · session:playback' : '');
+    // The reason the tick is as fast as it is: this clock visibly advances.
     loopVal.textContent = ios.paused === null
       ? (ios.active ? 'idle' : 'n/a')
       : (ios.paused ? 'paused' : `playing t=${(ios.currentTime ?? 0).toFixed(1)}`);
+
+    const now = Date.now();
+
+    // ---- ~2 s: synchronous localStorage walks + near-static device info ----
+    if (force || now - slowChecked > SLOW_MS) {
+      slowChecked = now;
+      // Near-static, but re-read so a live Perf-modal change still shows up.
+      const perf = perfDiagnostics();
+      tierVal.textContent = `${perf.tier} (${perf.pref === 'auto' ? 'auto' : 'forced'})`;
+      coresVal.textContent = perf.cores != null ? String(perf.cores) : 'unknown';
+      memVal.textContent = perf.memoryGb != null ? `${perf.memoryGb} GB` : 'unknown';
+      mobileVal.textContent = perf.mobile ? 'yes' : 'no';
+      const p = perf.profile;
+      profileVal.textContent =
+        `${p.latencyHint} · ${p.voiceCount} voices · ${p.fps} fps · ` +
+        `lookahead ${Math.round(p.scheduleAheadS * 1000)}ms · IR ≤${p.reverbIrMaxS}s · ` +
+        `oversample ${p.fxOversample ? 'on' : 'off'}`;
+      const session = SessionAutosave.stats();
+      sessionVal.textContent = session
+        ? `${MB(session.bytes)} · ${ago(session.savedAt)}`
+        : 'none';
+      const store = storageUsage();
+      storageVal.textContent = `${store.keys} keys · ${MB(store.bytes)}`;
+    }
+
+    // ---- ~5 s: getRegistrations() is async, so it caches and rewrites ----
+    if (force || now - swChecked > SW_MS) { swChecked = now; readSw(); }
+    swVal.textContent = swText;
   };
-  refresh();
+  refresh(true);
 
   // Whole-header click toggles (chevron included), persisted; default collapsed.
+  // Folded shut, the rows aren't merely invisible — they go unread (REQ-3):
+  // someone who opened About for the credits shouldn't pay for a readout that
+  // isn't on screen. `onChange` also fires once here with the stored/default
+  // state, so `visible` is correct from the start without a second source.
+  let visible = false;
   const toggle = createCollapseToggle(body, 'websynth.debug.about', {
     defaultCollapsed: () => true,
     trigger: header,
+    onChange: (collapsed) => {
+      visible = !collapsed;
+      // Repaint every tier on expand, so the panel is never shown stale.
+      if (visible) refresh(true);
+    },
   });
   header.appendChild(toggle.el);
+
+  /** What the modal's interval and `statechange` drive — gated per REQ-3. */
+  const tick = (): void => { if (visible) refresh(); };
 
   // REQ-9 — nothing an action started may outlive the modal.
   const dispose = (): void => {
@@ -544,7 +579,7 @@ function buildDebugSection(engine: StudioApi): {
     setButtonLabel(toneBtn, 'Test tone');
   };
 
-  return { header, body, refresh, dispose };
+  return { header, body, refresh: tick, dispose };
 }
 
 /**

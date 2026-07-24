@@ -3,7 +3,7 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 3   # v3: rows and the panel gained interactive actions
+version: 4   # v4: polling is gated on the section being expanded, and tiered
 owner: core
 related:
   - architecture
@@ -61,11 +61,18 @@ instead of transcribing it from a phone screen.
   (`data-testid="debug-ctx-state"`), **Sample rate**, **Latency** (`debug-latency`,
   base/output), **Transport** (`debug-transport`), **iOS** (`isIOS()` yes/no),
   **Local storage** (`debug-storage`, `storageUsage()`).
-- **REQ-3** — Live refresh while the modal is open: a single `refresh()` re-reads every
-  row's source and runs **on open**, on the `ctx` `statechange` event, **and** on a
-  ~500 ms interval (so values that change without an event — e.g. a media element's
-  `currentTime` — visibly tick). The `statechange` listener and the interval are
-  registered on open and **torn down in `close()`** (no leaks when the modal is shut).
+- **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
+  a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
+  `statechange` event, **and** on a ~500 ms interval (so values that change without an
+  event — e.g. a media element's `currentTime` — visibly tick). The `statechange`
+  listener and the interval are registered on open and **torn down in `close()`** (no
+  leaks when the modal is shut). Because the section is default-collapsed (REQ-1), the
+  interval and the `statechange` handler drive a **gated tick** that does nothing while
+  collapsed: a reader who opens About for the credits must not pay for a readout that
+  is not on screen. Expanding forces an immediate, **all-tier** repaint (REQ-11), so
+  the panel is never shown stale. The visibility signal is `createCollapseToggle`'s
+  existing `onChange` — which also fires once at creation with the stored/default
+  state — not a new API.
 - **REQ-4** — **Extension contract**: a feature adds rows inside `buildDebugSection` by
   calling `addRow` and reading either the `StudioApi` passed to
   `createAboutButton(engine)` or, for state that lives outside the Engine, a
@@ -121,6 +128,29 @@ instead of transcribing it from a phone screen.
   `getRegistrations()` is async and the rows refresh every ~500 ms (REQ-3). Its
   value is cached between checks and written synchronously like every other row.
 
+### v4 — cost
+
+- **REQ-11** — **`refresh()` is tiered by row cost**, generalizing REQ-10's guard
+  from "async" to "expensive". A row that is not due keeps the text it already has
+  (no cache-and-rewrite is needed — only the async SW row needs that):
+  - *every tick (~500 ms)* — plain field reads: AudioContext state + the toggle
+    label, sample rate, latency, transport, iOS, sampler clips (in-memory
+    bookkeeping), MIDI, wake lock, and the iOS unlock/silent-loop rows, whose
+    advancing `currentTime` is the reason the tick is this fast at all.
+  - *~2 s* — everything that walks `localStorage` **synchronously** or is
+    near-static: **Local storage** (`storageUsage()` reads *every* `websynth.*`
+    value to sum its length), **Session autosave** (`SessionAutosave.stats()`
+    additionally `JSON.parse`s the whole session payload), and the five
+    performance-mode rows. Perf is re-read rather than computed once so a live
+    Perf-modal change still appears.
+  - *~5 s* — the service worker (REQ-10, unchanged).
+
+  The rationale is that this panel exists for weak, console-less devices: blocking
+  the main thread on a full `localStorage` walk twice a second while audio plays
+  risks dropouts, which would make the diagnostic tool a cause of the very symptom
+  it is opened to diagnose. `refresh(force)` runs **all** tiers, and is used for the
+  initial build and for the expand repaint (REQ-3).
+
 ## Technical design
 
 ### Contract / public interface
@@ -132,6 +162,8 @@ setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bo
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
 # internal: buildDebugSection(engine) -> { header, body, refresh, dispose }
+#   refresh is the *gated* tick (a no-op while collapsed, REQ-3); the ungated
+#   refresh(force?) it wraps runs all polling tiers when force is true (REQ-11)
 #   addRow(name, action?): HTMLElement  # key cell + value cell (+ button); returns
 #                                       # the element `refresh` writes text into
 #   RowAction: { label, testId, onClick, danger?, confirm? }
@@ -213,12 +245,34 @@ Scenario: A destructive action asks first (REQ-6)
   When Clear is pressed and the confirm is cancelled
   Then the session is still stored
 # pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
+
+Scenario: A collapsed section does no work (REQ-3)
+  Given the modal is open and the Debug section is collapsed
+  When the refresh interval fires repeatedly
+  Then no row source is read at all
+# pinned by: tests/ui/about.test.ts
+
+Scenario: Expanding repaints immediately (REQ-3)
+  Given the modal is open and the Debug section is collapsed
+  When the header is clicked to expand it
+  Then every row is repainted before the next interval tick
+# pinned by: tests/ui/about.test.ts
+
+Scenario: Expensive rows are not re-read on every tick (REQ-11)
+  Given the Debug section is expanded
+  When one ~500 ms tick fires
+  Then the transport row is re-read but localStorage is not walked
+  When more than 2 s of ticks have fired
+  Then the Local storage and Session autosave rows are re-read
+# pinned by: tests/ui/about.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/about.test.ts` (presence + default-collapsed + live refresh +
-  expand + every action), `tests/state/session-autosave.test.ts` (`stats`),
+  expand + every action, plus the v4 cost gates: collapsed does nothing, expanding
+  repaints, and the expensive rows tick on the slow schedule — under fake timers),
+  `tests/state/session-autosave.test.ts` (`stats`),
   `tests/state/storage-usage.test.ts` (`storageUsage`) — `npm test`
 - E2E: `e2e/debug-panel.spec.ts` (the actions against a real AudioContext +
   clipboard) — `npm run e2e`

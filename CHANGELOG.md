@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Debug panel no longer costs anything while it is folded shut.** Its live
+  readout refreshes twice a second, and that kept happening whenever the About
+  modal was open — even with the Debug section collapsed and nothing on screen.
+  Two of those rows walk your whole browser storage on every pass, which is real
+  work to do behind a playing track on a slower device. The readout now runs only
+  while the section is actually expanded, and the expensive rows tick on a slower
+  schedule than the live ones.
+
 ## [2.4.0] - 2026-07-24
 
 ### Added
