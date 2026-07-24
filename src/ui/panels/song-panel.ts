@@ -17,7 +17,8 @@ import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } fr
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
-import { describePresetPayload } from '../../state/preset-file';
+import { describePresetPayload, type PresetParse } from '../../state/preset-file';
+import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
 import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
@@ -346,6 +347,17 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   importBtn.dataset.testid = 'song-import';
   importBtn.addEventListener('click', () => fileInput.click());
 
+  // The same two routes the ✨ AI Prompt modal's step 3 uses — songs through the
+  // file path above, presets through the manager's review step (paste-import.md).
+  const pasteRoutes = {
+    onSong: importBytes,
+    onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
+  };
+  const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
+  pasteBtn.dataset.testid = 'song-paste';
+  pasteBtn.title = 'Paste song or preset JSON (e.g. an AI reply)';
+  pasteBtn.addEventListener('click', () => openPasteImportModal(pasteRoutes));
+
   // Export: Song (.json, the unchanged path) or Project (.zip with the loaded
   // sampler clips) — chosen in a modal (project-export.md REQ-4).
   const doExport = async (kind: 'json' | 'project', fmt: 'wav' | 'mp3'): Promise<void> => {
@@ -412,6 +424,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   io.appendChild(loadBtn);
   io.appendChild(saveBtn);
   io.appendChild(importBtn);
+  io.appendChild(pasteBtn);
   io.appendChild(exportBtn);
   io.appendChild(newBtn);
   io.appendChild(fileInput);
@@ -447,7 +460,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     io.appendChild(moreBtn);
     io.appendChild(overflow);
   }
-  io.appendChild(createAiPromptButton(bus));
+  io.appendChild(createAiPromptButton(bus, pasteRoutes));
   root.appendChild(io);
 
   // ---- Audio export (WAV / MP3) ----

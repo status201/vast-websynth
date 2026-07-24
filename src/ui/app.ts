@@ -207,6 +207,16 @@ function buildHeader(
     }),
   });
 
+  // The paste door lives in the Song panel but preset imports belong to this
+  // manager (and must refresh the dropdown above) — so they meet on the bridge
+  // (paste-import.md REQ-7).
+  bridge.openPresetImport = (parse) => openPresetManagerModal({
+    bus,
+    session,
+    onPresetsChanged: () => dropdown.setOptions(Presets.list()),
+    initialImport: parse,
+  });
+
   const presetLabel = document.createElement('span');
   presetLabel.className = styles.presetLabel!;
   presetLabel.textContent = 'Preset:';

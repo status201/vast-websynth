@@ -3,12 +3,13 @@
 ```yaml
 id: presets
 status: implemented
-version: 4   # v4: preset/bank files (export + import) behind one manager modal
+version: 5   # v5: the import wizard is reachable with an already-parsed payload
 owner: core
 related:
   - architecture
   - song-mode
   - param-reset-baseline
+  - paste-import
   - dialog
   - ../decisions/adr-014-dont-make-me-think
 source:
@@ -102,7 +103,11 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   ([song-mode](song-mode.md)) is detected and answered with a pointer to
   Preset ▸ Import rather than a generic "invalid song" — the two file families
   share the `.websynth.json` tail, so users will mix them up
-  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1). The **paste**
+  door ([paste-import](paste-import.md)) has no wrong door to point at: both
+  families arrive through one textarea, so a pasted preset/bank is *routed* into
+  this wizard (opening straight on its review step via
+  `PresetManagerOptions.initialImport`) instead of being refused.
 - **REQ-12** — **Importing never changes the live sound.** Presets land in
   `localStorage` and the dropdown; the currently loaded patch is untouched, so an
   import cannot destroy unsaved work. Loading one afterwards is a normal REQ-4
@@ -131,7 +136,9 @@ preset-file.ts:  # v4 — PURE: no localStorage, no DOM, no ParamBus
   sameSnapshot(a, b): boolean                 # rounded-value equality (REQ-8)
 
 openPresetManagerModal(opts)  # src/ui/components/preset-manager-modal.ts
-  # opts: { bus, session, onPresetsChanged(): void }
+  # opts: { bus, session, onPresetsChanged(): void, initialImport?: PresetParse }
+  # initialImport opens on the review step (or on home showing the parse errors) —
+  # the paste door's entry point (paste-import.md REQ-7)
 ```
 
 `preset-file.ts` holds **no** browser state on purpose: the whole import
@@ -251,6 +258,12 @@ Scenario: A wrong-typed file is refused with a reason (REQ-11)
   When it is parsed
   Then the review step is not reached and the error names the expected format
 # pinned by: tests/state/preset-file.test.ts
+
+Scenario: A pasted bank opens the wizard on its review step (REQ-11)
+  Given a websynth-preset-bank payload pasted into the Song panel's Paste box
+  When the confirm button is pressed
+  Then the preset manager opens directly on the review list, not the file home
+# pinned by: e2e/paste-import.spec.ts
 
 Scenario: A preset file dropped on the song importer points at the right door (REQ-11)
   Given a .preset.websynth.json chosen via the Song panel's Import button

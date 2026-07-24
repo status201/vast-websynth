@@ -12,6 +12,7 @@ import { Song, DEMO_SONGS } from '../../state/song';
 import switchStyles from '../styles/switch.module.css';
 import { createButton } from './button';
 import { copyText, flashCopied } from '../clipboard';
+import { buildPasteImport, type PasteImportOptions } from './paste-import';
 import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
@@ -24,7 +25,14 @@ const BRIEF_PLACEHOLDER =
   '12-bar loop with some crazy breaks. Take advantage of the fact that ' +
   "you're a robot yourself and you'd be dancing to it too.";
 
-export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
+/**
+ * The two routes the embedded paste step hands its payload to — the Song panel
+ * passes the same object it gives its own Paste button, so both doors behave
+ * identically (paste-import.md REQ-5).
+ */
+export type AiPromptRoutes = Pick<PasteImportOptions, 'onSong' | 'onPresets'>;
+
+export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
     label: '✨ AI Prompt',
@@ -54,7 +62,7 @@ export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
 
   function open(): void {
     window.clearTimeout(closeTimer);
-    backdrop ??= buildModal(bus, close);
+    backdrop ??= buildModal(bus, close, routes);
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
@@ -65,7 +73,7 @@ export function createAiPromptButton(bus: ParamBus): HTMLButtonElement {
   return btn;
 }
 
-function buildModal(bus: ParamBus, close: () => void): HTMLElement {
+function buildModal(bus: ParamBus, close: () => void, routes: AiPromptRoutes): HTMLElement {
   const backdrop = document.createElement('div');
   backdrop.className = `${Modal.backdropClass} hidden`;
   backdrop.addEventListener('pointerdown', (e) => {
@@ -87,14 +95,14 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   const tag = document.createElement('div');
   tag.className = Modal.tagClass;
   tag.textContent =
-    'Describe your song, copy the prompt into any AI agent, then import the ' +
-    'JSON it returns via Song → Import.';
+    'Describe your song, copy the prompt into any AI agent, then paste the ' +
+    'JSON it answers with straight back here.';
 
   // Editable creative brief. Seeded only as a placeholder so an un-typed copy
   // never injects the example text; the prompt updates live as the user types.
   const briefLabel = document.createElement('label');
   briefLabel.className = modalStyles.aiLabel!;
-  briefLabel.textContent = 'Describe your song';
+  briefLabel.textContent = '1 · Describe your song';
   briefLabel.htmlFor = 'ai-prompt-brief';
 
   const brief = document.createElement('textarea');
@@ -103,6 +111,10 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   brief.placeholder = BRIEF_PLACEHOLDER;
 
   const example = Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!);
+
+  const promptLabel = document.createElement('div');
+  promptLabel.className = modalStyles.aiLabel!;
+  promptLabel.textContent = '2 · Copy this prompt into any AI agent';
 
   const ta = document.createElement('textarea');
   ta.className = modalStyles.aiText!;
@@ -139,14 +151,26 @@ function buildModal(bus: ParamBus, close: () => void): HTMLElement {
   actions.appendChild(copyPrompt);
   actions.appendChild(copyExample);
   actions.appendChild(downloadExample);
-  actions.appendChild(closeBtn);
+
+  // Step 3 — the shared paste fragment (paste-import.md REQ-5). Agents answer
+  // in chat rather than with a download, so the round trip closes here instead
+  // of via a save-to-disk detour. A successful load closes the modal so the
+  // user sees the song that just landed.
+  const paste = buildPasteImport({
+    ...routes,
+    label: '3 · Paste the reply here',
+    onDone: close,
+  });
 
   card.appendChild(title);
   card.appendChild(tag);
   card.appendChild(briefLabel);
   card.appendChild(brief);
+  card.appendChild(promptLabel);
   card.appendChild(ta);
   card.appendChild(actions);
+  card.appendChild(paste.el);
+  card.appendChild(closeBtn);
   backdrop.appendChild(card);
   return backdrop;
 }

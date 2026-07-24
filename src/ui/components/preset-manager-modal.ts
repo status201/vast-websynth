@@ -7,7 +7,7 @@ import type { PresetSession } from '../../state/preset-session';
 import { Presets, type Snapshot } from '../../state/preset';
 import {
   buildBankFile, buildPresetFile, bankFilename, presetFilename, parsePresetPayload,
-  planImport, type ImportPlan, type ImportPolicy,
+  planImport, type ImportPlan, type ImportPolicy, type PresetParse,
 } from '../../state/preset-file';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -29,6 +29,12 @@ export interface PresetManagerOptions {
   session: PresetSession;
   /** Refresh the header dropdown after the stored set changes. */
   onPresetsChanged: () => void;
+  /**
+   * Open straight on the import review step with an already-parsed payload —
+   * what the paste door hands over (paste-import.md REQ-7). A failed parse
+   * lands on the home step showing its reason, exactly like a bad file.
+   */
+  initialImport?: PresetParse;
 }
 
 type BankScope = 'modified' | 'all';
@@ -354,5 +360,15 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   }
 
   renderHome();
+  // A pasted payload skips step 1 entirely: the user already chose what to
+  // import, so landing on the file-picker home would be a step backwards.
+  if (opts.initialImport) {
+    if (opts.initialImport.ok) {
+      incoming = opts.initialImport.presets;
+      showReview();
+    } else {
+      showErrors(opts.initialImport.errors);
+    }
+  }
   modal.open();
 }

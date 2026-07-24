@@ -1,3 +1,5 @@
+import type { PresetParse } from '../state/preset-file';
+
 export class UiBridge {
   pressKey = (_note: number): void => {};
   releaseKey = (_note: number): void => {};
@@ -7,6 +9,11 @@ export class UiBridge {
    * (pwa-install.md REQ-7, song-share-link.md REQ-3). Resolves to whether the
    * song applied, so a share link only consumes its hash on success. */
   importSongBytes = async (_bytes: Uint8Array, _name: string): Promise<boolean> => false;
+  /** Open the preset import wizard on its review step with an already-parsed
+   * payload (paste-import.md REQ-7). The preset manager is owned by the header
+   * (where the dropdown that must refresh lives) while the paste door is in the
+   * Song panel, so the two meet here rather than importing each other. */
+  openPresetImport = (_parse: PresetParse): void => {};
   /** Undo the active machine tab's last grid edit (Ctrl/Cmd+Z routing —
    * pattern-undo.md REQ-10). Returns whether an undo actually ran, so the
    * shortcut only preventDefaults when it did. Assigned in buildPatternRow;

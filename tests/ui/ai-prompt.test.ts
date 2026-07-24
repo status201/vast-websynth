@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { createAiPromptButton } from '../../src/ui/components/ai-prompt';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { createAiPromptButton, type AiPromptRoutes } from '../../src/ui/components/ai-prompt';
 import { buildSongPrompt } from '../../src/state/authoring-guide';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
@@ -76,8 +76,13 @@ describe('AI Prompt modal', () => {
     document.body.innerHTML = '';
   });
 
+  const routes = (): AiPromptRoutes => ({
+    onSong: vi.fn(async () => true),
+    onPresets: vi.fn(),
+  });
+
   it('opens a card that is both base .card (capped/scrollable) and .cardWide', () => {
-    const btn = createAiPromptButton(bus());
+    const btn = createAiPromptButton(bus(), routes());
     document.body.appendChild(btn);
     btn.click();
     const card = document.querySelector('[role="dialog"]');
@@ -87,5 +92,19 @@ describe('AI Prompt modal', () => {
     // let the modal overflow the viewport.
     expect(card!.className).toContain(modalStyles.card!);
     expect(card!.className).toContain(modalStyles.cardWide!);
+  });
+
+  // paste-import.md REQ-5 — the round trip closes inside this modal: the same
+  // paste fragment the Song row's Paste button opens is embedded as step 3.
+  it('embeds the paste fragment as step 3, above the Close button', () => {
+    const btn = createAiPromptButton(bus(), routes());
+    document.body.appendChild(btn);
+    btn.click();
+
+    const input = document.querySelector('[data-testid="paste-input"]');
+    expect(input).not.toBeNull();
+    const card = document.querySelector('[role="dialog"]')!;
+    expect(card.textContent).toContain('3 · Paste the reply here');
+    expect(card.lastElementChild!.textContent).toBe('Close');
   });
 });

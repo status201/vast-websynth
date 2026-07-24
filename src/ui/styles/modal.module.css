@@ -193,9 +193,42 @@
   margin-top: 12px;
 }
 
+/* Paste import (paste-import.md): the pasted-JSON textarea + its status line. */
+.pasteText {
+  width: 100%;
+  height: 180px;
+  resize: vertical;
+  margin-top: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  background: #0a0805;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.pasteText::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.pasteStatus {
+  min-height: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.pasteStatus.pasteOk { color: var(--accent-secondary); }
+.pasteStatus.pasteBad { color: #ff6a52; }
+
 /* On phones the modal is height-capped + scrollable (the base .card); shrink the
    tall textareas so the actions (incl. Close) come into reach with little scroll. */
 @media (max-width: 720px) {
   .aiText { height: 220px; }
   .aiBrief { height: 64px; }
+  .pasteText { height: 130px; }
 }

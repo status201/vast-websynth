@@ -19,6 +19,7 @@ related:
   - session-autosave
   - toast
   - machine-status
+  - paste-import
 source:
   - src/state/song.ts                         # capture/apply/persist + demos + parse
   - src/state/serialize.ts                    # compactSongForExport (round + default-sparse)
@@ -251,6 +252,14 @@ surface:
   song-panel Import: shows the first N errors via alertDialog (see dialog.md);
                      applySong wrapped in try/catch
 ```
+
+Four surfaces feed bytes into that one path (`SongPanel.importBytes`): the
+**Import** file picker, the installed PWA's `launchQueue`
+([pwa-install](pwa-install.md) REQ-5), share links
+([song-share-link](song-share-link.md) REQ-3), and — for JSON that arrives as
+text rather than a file, which is how AI agents answer — the **Paste** button
+([paste-import](paste-import.md)). None of them re-implements validation or
+apply; they only produce bytes.
 
 The published JSON Schema (`public/schema/websynth-song.schema.json`, draft
 2020-12) encodes the same rules and **ships to `dist/schema/`** via Vite's

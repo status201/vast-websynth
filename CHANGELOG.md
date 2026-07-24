@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Paste a song straight from an AI reply** — AI agents answer with JSON in the
+  chat window and almost never offer it as a download, so you had to save it to a
+  file before the app would look at it. There is now a **Paste** button next to
+  Import in the Song panel, and the ✨ **AI Prompt** modal ends with a third step
+  that takes the reply directly. Paste the whole answer — code fences and the
+  chatter around them are fine, they get stripped — and a line under the box tells
+  you what it recognised before anything is applied. **Preset and bank JSON works
+  in the same box**: it is routed into the preset import review instead of being
+  refused.
 - **Your sampler sounds now survive a reload** — clips loaded into sampler slots
   are kept on the device (in IndexedDB, alongside the existing session autosave),
   so closing the tab and coming back gives you the audio, not just the filename

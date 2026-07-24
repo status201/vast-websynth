@@ -26,6 +26,20 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * Clipboard *read*, or null when unavailable — no API (Firefox/Safari without a
+ * user gesture), permission denied, or an empty clipboard. A convenience only:
+ * the paste textarea is always the supported path (paste-import.md REQ-9).
+ */
+export async function readClipboardText(): Promise<string | null> {
+  try {
+    const text = await navigator.clipboard.readText();
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Swap a button label to "Copied!" / "Press Ctrl+C" briefly after a copy. */
 export function flashCopied(
   btn: HTMLButtonElement,

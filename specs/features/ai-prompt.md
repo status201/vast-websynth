@@ -3,11 +3,12 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 3
+version: 4   # v4: the reply pastes back in (step 3) instead of going via a file
 owner: ui
 related:
   - song-mode
   - song-authoring-dialect
+  - paste-import
   - architecture
   - webrtc-sync
 source:
@@ -33,6 +34,13 @@ The first version embedded an entire demo song (minified) as a worked example,
 which dominated the textarea, and pointed AIs at a relative schema path that only
 resolves inside the app. Version 2 kept the prompt short, let the user state
 their creative brief inline, and emitted an absolute, host-resolved schema URL.
+
+Version 4 closes the loop. Agents answer in chat and essentially never offer a
+download, so "import the JSON it returns via Song → Import" meant saving the
+reply to a file first. The modal now ends with a third step that takes the reply
+directly — the shared paste fragment from
+[paste-import.md](paste-import.md) (REQ-5), the same one behind the Song row's
+Paste button.
 
 Version 3 makes the **compact authoring dialect** (see
 [song-authoring-dialect.md](song-authoring-dialect.md)) the recommended output:
@@ -77,6 +85,14 @@ is ~40 lines. The prompt-building logic moved to the pure
   names + schema URLs, the grid dimensions and drum track names, and points at
   the in-app AI Prompt for the live PARAMS table (which is bus-generated and
   would drift if duplicated).
+- **REQ-9** — (v4) The modal is a **numbered three-step round trip**: *1 · Describe
+  your song* (the brief), *2 · Copy this prompt into any AI agent* (the prompt +
+  its Copy/example actions), *3 · Paste the reply here* — the embedded
+  `buildPasteImport` fragment, wired to the same `onSong`/`onPresets` routes the
+  Song panel gives its own Paste button. A successful load **closes the modal**
+  (`onDone`) so the user sees what landed; a rejected one leaves the modal and the
+  pasted text alone ([paste-import](paste-import.md) REQ-8). The Close button
+  moves below the fragment, staying the card's last child.
 - **REQ-6** — The modal card composes the base `.card` (height-capped to `86vh`,
   internally scrollable) **with** the `.cardWide` width variant — the same
   composition the reusable `Modal` helper uses. So on small/short viewports the card
@@ -95,9 +111,10 @@ is ~40 lines. The prompt-building logic moved to the pure
 - `buildSongPrompt(bus: ParamBus, brief?: string): string` — pure prompt builder:
   intro + `SONG REQUEST` (the brief, or a bracketed placeholder) + the guide.
   Lives in `authoring-guide.ts`; re-exported from `ai-prompt.ts` for the UI/tests.
-- `createAiPromptButton(bus: ParamBus): HTMLButtonElement` — the `✨ AI Prompt`
-  button + lazily-built modal (reuses the `Modal` lifecycle classes + Escape/
-  backdrop close, like `record-sound-modal`).
+- `createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement`
+  — the `✨ AI Prompt` button + lazily-built modal (reuses the `Modal` lifecycle
+  classes + Escape/backdrop close, like `record-sound-modal`). `AiPromptRoutes` is
+  `Pick<PasteImportOptions, 'onSong' | 'onPresets'>` (v4, REQ-9).
 
 Modal wiring: an editable brief `<textarea>` (`.aiBrief`) sits above the read-only
 prompt `<textarea>` (`.aiText`); an `input` listener rebuilds the prompt value via
@@ -139,8 +156,9 @@ prepends the intro + SONG REQUEST.
   modal can reuse them — see [webrtc-sync.md](webrtc-sync.md)).
 - `src/ui/styles/modal.module.css` — `.aiBrief` (small editable textarea) + a small
   label, matching `.aiText` tokens.
-- `src/ui/panels/song-panel.ts` — appends `createAiPromptButton(bus)` to the io row
-  (unchanged by this version).
+- `src/ui/panels/song-panel.ts` — appends `createAiPromptButton(bus, pasteRoutes)`
+  to the io row, passing the *same* routes object its Paste button uses.
+- `src/ui/components/paste-import.ts` — the embedded step 3 (v4).
 
 ### Persistence
 
@@ -177,6 +195,12 @@ Scenario: The prompt no longer embeds a full song
   When buildSongPrompt(bus) is generated
   Then it contains the EXAMPLE SHAPE skeleton marker with "…"
   And it is far shorter than Song.toJSON(DEMO_SONGS['I Feel Love'])
+
+Scenario: The reply pastes back in the same modal (REQ-9)
+  When the AI Prompt modal is opened
+  Then it holds the paste fragment labelled "3 · Paste the reply here"
+  And the Close button is the card's last child
+# pinned by: tests/ui/ai-prompt.test.ts, e2e/paste-import.spec.ts
 
 Scenario: Modal stays usable on a small screen
   When the AI Prompt modal is opened

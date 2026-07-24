@@ -105,7 +105,10 @@ DJ mixer (`song-lane-<seq|drum|sampler>` cards, each with `switch-<lane>.mute`/
 `song-lane-motion` carries chain controls + `switch-motion.mute` only — no solo/volume;
 each card's title is a button `song-lane-title-<seq|drum|sampler|motion>` that opens
 that machine's tab — see `specs/features/machine-status.md`),
-`song-save`/`song-load`/…, `transport-play`, `preset-select`,
+`song-save`/`song-load`/…, `song-paste` + `paste-modal`/`paste-input`/
+`paste-status`/`paste-confirm`/`paste-cancel`/`paste-read-clipboard` (the paste
+door, also embedded as the AI Prompt modal's step 3 — see
+`specs/features/paste-import.md`), `transport-play`, `preset-select`,
 `preset-save` (opens the preset manager) + `preset-manager`/`preset-mgr-save`/
 `preset-mgr-export-preset`/`preset-mgr-export-bank`/`preset-mgr-bank-scope-<modified|all>`/
 `preset-mgr-import`/`preset-mgr-file`/`preset-mgr-close` and the import wizard's
