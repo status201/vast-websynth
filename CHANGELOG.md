@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Sampler filename slots look like inputs again** — the slot showing each
+  sample's name had lost its box (background, border and shadow) in the CSS
+  refactor and read as flat text. It's back to a boxed field matching the Load
+  and ✎ buttons beside it, and the red "reload me" border shows again.
 - **Loading a song no longer leaves the previous song's samples in the sampler**
   — a slot could show the new song's filename (or a blank placeholder) while
   still holding, and playing, audio from the song before it, with no "reload me"
