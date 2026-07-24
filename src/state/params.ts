@@ -84,6 +84,31 @@ export class ParamBus {
     return () => this.changeListeners.delete(listener);
   }
 
+  /**
+   * Run `fn` with the global `onChange` signal suppressed — the machine is
+   * writing, not the user. Per-param listeners still fire, so knobs, the XY pad
+   * and the audio graph all track the value exactly as before; only the "the
+   * user changed the sound" signal is withheld.
+   *
+   * This is the same suppression {@link restore}/{@link resetDefaults} use for a
+   * bulk apply, exposed so the audio layer can reach it: the motion sequencer
+   * writes at frame rate, and letting that reach `onChange` re-armed the session
+   * autosave's debounce every frame — so it never elapsed and the session never
+   * saved (see specs/features/runtime-performance.md REQ-5). Re-entrant, and
+   * `finally`-guarded so a throwing `fn` cannot wedge the counter.
+   *
+   * Callers on a per-frame path should pass a **pre-bound** closure rather than
+   * an inline arrow (REQ-6 — no allocation in a per-frame loop).
+   */
+  withoutChangeSignal(fn: () => void): void {
+    this.suppressChange++;
+    try {
+      fn();
+    } finally {
+      this.suppressChange--;
+    }
+  }
+
   onNote(listener: NoteListener): () => void {
     this.noteListeners.push(listener);
     return () => {

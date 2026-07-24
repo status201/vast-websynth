@@ -3,10 +3,12 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 3   # v3: stats() reads savedAt without parsing the payload
+version: 4   # v4: automation writes never re-arm the debounce (REQ-2b)
 owner: websynth
 related:
   - architecture
+  - runtime-performance  # REQ-5: automation is not an edit (REQ-2b's other half)
+  - motion-sequencer     # the frame-rate writer REQ-2b exists for
   - song-mode        # the SongFile the session serializes to; the guarded panel
   - sample-persistence  # the audio half of the same reload safety net
   - toast            # the undo affordance
@@ -47,6 +49,18 @@ happy path.
   change, and **structural** `Arrangement` changes only — a fingerprint of
   `enabled + steps` per lane gates the per-bar `onChange` firings so playback
   never writes storage.
+- **REQ-2b** — **Playback alone never re-arms the debounce**, param writes
+  included. The two lane gates above cover the `Arrangement`'s per-bar firings;
+  the third source is *param automation* — the [motion
+  sequencer](motion-sequencer.md) writes its lanes at frame rate, and a Tape Stop
+  ramps `master.pitchBend` per frame. Those go through
+  `ParamBus.withoutChangeSignal` at the writer (see
+  [`runtime-performance.md`](runtime-performance.md) REQ-5), so they never reach
+  the trigger in REQ-1 at all. Gating here instead would be the wrong place: the
+  distinction is *who wrote it*, which only the writer knows. Without it a
+  sliding motion lane re-armed the 1.5 s debounce every ~16 ms and the session
+  was **never written for as long as the transport ran** — the failure mode this
+  feature exists to prevent, in exactly the songs most worth saving.
 - **REQ-3** — The key lives **outside** `websynth.song.*`: it never appears in
   `Song.list()`, and slot machinery (save/load/delete/factory reset of slots)
   never touches it. Payload: `{ v: 1, savedAt, file }` with `file` in the
@@ -171,6 +185,13 @@ Scenario: playback never writes storage
   When bars elapse with no user edits
   Then no autosave write occurs (arrangement fingerprint unchanged)
 # pinned by: tests/state/session-autosave.test.ts
+
+Scenario: automation never starves the debounce (REQ-2b, regression)
+  Given a motion lane sliding a param every frame while the transport runs
+  When frames elapse well past the debounce window with no user edit
+  Then no autosave write occurs
+  And a subsequent real edit is still written 1.5 s later, while automation keeps writing
+# pinned by: tests/state/session-autosave.test.ts, tests/audio/transport/motion-machine.test.ts
 
 Scenario: stats reads the age without parsing the session (REQ-13)
   Given a written autosave whose file is large

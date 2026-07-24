@@ -101,6 +101,44 @@ describe('ParamBus', () => {
     expect(seen).toEqual(['a']);
   });
 
+  // runtime-performance.md REQ-5 — the audio layer's door to the same
+  // suppression the bulk applies above use.
+  it('withoutChangeSignal withholds onChange but keeps per-param listeners', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'a', min: 0, max: 10, default: 0 });
+    const global: string[] = [];
+    const perParam: number[] = [];
+    bus.onChange((id) => global.push(id));
+    bus.subscribe('a', (v) => perParam.push(v)); // fires immediately with 0
+
+    bus.withoutChangeSignal(() => {
+      bus.set('a', 3);
+      bus.set('a', 4);
+    });
+    expect(global).toEqual([]);
+    expect(perParam).toEqual([0, 3, 4]); // audio + UI still track every write
+
+    bus.set('a', 5); // outside the bracket → a normal edit again
+    expect(global).toEqual(['a']);
+  });
+
+  it('withoutChangeSignal nests, and a throwing body cannot wedge the counter', () => {
+    const bus = new ParamBus();
+    bus.register({ id: 'a', min: 0, max: 10, default: 0 });
+    const global: string[] = [];
+    bus.onChange((id) => global.push(id));
+
+    bus.withoutChangeSignal(() => {
+      bus.withoutChangeSignal(() => bus.set('a', 1));
+      bus.set('a', 2); // still suppressed — the inner exit must not re-enable
+    });
+    expect(global).toEqual([]);
+
+    expect(() => bus.withoutChangeSignal(() => { throw new Error('boom'); })).toThrow('boom');
+    bus.set('a', 3);
+    expect(global).toEqual(['a']); // the signal came back
+  });
+
   describe('reset baselines', () => {
     it('reset() falls back to the registered default when no baseline is set', () => {
       const bus = new ParamBus();

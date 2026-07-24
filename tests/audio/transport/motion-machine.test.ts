@@ -328,6 +328,98 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
+  // runtime-performance.md REQ-6 — the frame loop memoizes each bank's anchor
+  // set, and banks are mutated in place, so every edit stream must drop the memo.
+  // A stale entry would make automation quietly ignore the user's edit.
+  describe('anchor memo invalidation', () => {
+    const cutoffAt = (bus: ParamBus, n: number): number =>
+      fromNorm(bus.def('filter.cutoff')!, n);
+
+    it('picks up a step added after the bank was first evaluated', () => {
+      const { bus, patterns, clock, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false); // step mode: the value IS the anchor
+      anchor(patterns, 0, 0.2, 0.5);
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+      expect(bus.get('filter.cutoff')).toBeCloseTo(cutoffAt(bus, 0.2), 6);
+
+      // A new anchor at step 4 — same array, mutated in place.
+      anchor(patterns, 4, 0.9, 0.5);
+      clock.fireTick(4);
+      machine.frame(STEP_DUR * 4);
+      expect(bus.get('filter.cutoff')).toBeCloseTo(cutoffAt(bus, 0.9), 6);
+    });
+
+    it('picks up a step removed after the bank was first evaluated', () => {
+      const { bus, patterns, clock, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      anchor(patterns, 0, 0.2, 0.5);
+      anchor(patterns, 4, 0.9, 0.5);
+      clock.fireStart();
+      clock.fireTick(4);
+      machine.frame(STEP_DUR * 4);
+      expect(bus.get('filter.cutoff')).toBeCloseTo(cutoffAt(bus, 0.9), 6);
+
+      patterns.setMotionStep(4, { on: false });
+      clock.fireTick(4);
+      machine.frame(STEP_DUR * 4);
+      // Step 4 is gone, so step 0's anchor holds through it again.
+      expect(bus.get('filter.cutoff')).toBeCloseTo(cutoffAt(bus, 0.2), 6);
+    });
+
+    it('picks up a whole-store restore (song load)', () => {
+      const { bus, patterns, clock, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      anchor(patterns, 0, 0.2, 0.5);
+      clock.fireStart();
+      clock.fireTick(0);
+      machine.frame(0);
+
+      const snap = patterns.snapshot();
+      snap.motionBanks![0]![0] = { on: true, x: 0.7, y: 0.5 };
+      patterns.restore(snap);
+      clock.fireTick(0);
+      machine.frame(0);
+      expect(bus.get('filter.cutoff')).toBeCloseTo(cutoffAt(bus, 0.7), 6);
+    });
+  });
+
+  // REQ-15 / runtime-performance.md REQ-5. The per-param listeners must still
+  // fire (knobs and the XY pad track the automation); only the global "the user
+  // edited the sound" signal is withheld — it drives the session autosave
+  // debounce and the preset dirty marker, and at frame rate it starved both.
+  it('automation writes reach per-param listeners but not onChange (REQ-15)', () => {
+    const { bus, patterns, clock, machine } = build();
+    const perParam: number[] = [];
+    const global: string[] = [];
+    bus.subscribe('filter.cutoff', (v) => perParam.push(v));
+    bus.onChange((id) => global.push(id));
+
+    machine.setEnabled(true);
+    anchor(patterns, 0, 0, 0);
+    anchor(patterns, 8, 1, 1);
+    clock.fireStart();
+    clock.fireTick(0);
+    for (let i = 1; i <= 8; i++) machine.frame(STEP_DUR * (i / 8));
+
+    // subscribe() fires once immediately, then once per distinct written value.
+    expect(perParam.length).toBeGreaterThan(1);
+    expect(global).toEqual([]);
+
+    // The baseline restore is the same kind of write, so it is silent too.
+    clock.fireStop();
+    expect(bus.get('filter.cutoff')).toBe(perParam[0]);
+    expect(global).toEqual([]);
+
+    // A genuine user edit still signals normally.
+    bus.set('filter.cutoff', 55);
+    expect(global).toEqual(['filter.cutoff']);
+  });
+
   it('notifies step listeners with the raw step only while enabled', () => {
     const { clock, machine } = build();
     const seen: number[] = [];
