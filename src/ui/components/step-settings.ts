@@ -129,25 +129,45 @@ function makeSlider(label: string, min: number, max: number, get: () => number, 
   const refresh = () => {
     const v = get();
     const n = (v - min) / (max - min);
-    fill.style.width = `${n * 100}%`;
+    // scaleX, not width — see the .sliderFill comment (compositor, not layout).
+    fill.style.transform = `scaleX(${n})`;
     valLabel.textContent = `${Math.round(n * 100)}%`;
   };
 
-  let dragging = false;
+  // Drag listeners live on `window` only for the duration of a stroke, attached
+  // on pointerdown and removed on up/cancel — the same discipline as Knob and
+  // Strip (specs/recipes/add-a-ui-component.md, runtime-performance.md REQ-3).
+  // Held from the constructor instead, three sliders x three editors put nine
+  // pointermove handlers on every mouse move anywhere on the page.
+  // The track box is measured once per stroke: reading it per move is a forced
+  // layout, and the slider cannot move mid-drag.
+  let bounds: { left: number; width: number } | null = null;
+
   const handle = (clientX: number) => {
-    const rect = track.getBoundingClientRect();
-    const n = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (!bounds || bounds.width === 0) return;
+    const n = Math.max(0, Math.min(1, (clientX - bounds.left) / bounds.width));
     set(min + n * (max - min));
     refresh();
   };
+
+  const onMove = (e: PointerEvent): void => handle(e.clientX);
+  const onUp = (): void => {
+    bounds = null;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+
   track.addEventListener('pointerdown', (e) => {
-    dragging = true;
+    if (bounds) return; // one stroke at a time
+    const rect = track.getBoundingClientRect();
+    bounds = { left: rect.left, width: rect.width };
     (e.target as Element).setPointerCapture?.(e.pointerId);
     handle(e.clientX);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   });
-  window.addEventListener('pointermove', (e) => { if (dragging) handle(e.clientX); });
-  window.addEventListener('pointerup', () => { dragging = false; });
-  window.addEventListener('pointercancel', () => { dragging = false; });
 
   return { el: root, refresh };
 }
