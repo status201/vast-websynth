@@ -147,6 +147,10 @@ export class SessionAutosave {
    * Size + age of the stored session, or null when there is none. Read by the
    * Debug panel (debug-panel.md), which also offers to clear it: an autosave
    * the app chokes on is otherwise only escapable via a full factory reset.
+   *
+   * Deliberately **parse-free** (REQ-13): this is on a poll, and the payload is
+   * the whole session — megabytes once samples are in play — so parsing it to
+   * recover one number is out of all proportion to the answer.
    */
   static stats(): { bytes: number; savedAt: number | null } | null {
     let raw: string | null;
@@ -156,15 +160,27 @@ export class SessionAutosave {
       return null;
     }
     if (!raw) return null;
-    let savedAt: number | null = null;
-    try {
-      const at = (JSON.parse(raw) as Partial<SessionPayload>).savedAt;
-      if (typeof at === 'number') savedAt = at;
-    } catch {
-      // corrupt payload — its size is still the useful half of the answer
-    }
-    return { bytes: raw.length, savedAt };
+    // A payload we can't scan still reports its size — the half that helps.
+    return { bytes: raw.length, savedAt: readSavedAt(raw) };
   }
+}
+
+/**
+ * How far into the payload to look for `savedAt`. `write()` emits
+ * `{"v":1,"savedAt":<13 digits>,"file":…}` — about 31 characters — and
+ * `JSON.stringify` preserves that literal order, so a small window always
+ * contains it. The bound is what makes the scan *correct* as well as cheap:
+ * it cannot reach a `savedAt` occurring later inside `file`.
+ */
+const SAVED_AT_SCAN_CHARS = 96;
+const SAVED_AT_RE = /"savedAt"\s*:\s*(\d+)/;
+
+/** `savedAt` from the raw payload, or null if it isn't where write() puts it. */
+function readSavedAt(raw: string): number | null {
+  const m = SAVED_AT_RE.exec(raw.slice(0, SAVED_AT_SCAN_CHARS));
+  if (!m) return null;
+  const at = Number(m[1]);
+  return Number.isFinite(at) ? at : null;
 }
 
 /** Structural view of the four chain lanes — playback ticks don't change it. */

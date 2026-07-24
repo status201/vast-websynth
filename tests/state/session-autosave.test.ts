@@ -150,6 +150,33 @@ describe('SessionAutosave', () => {
       store.set(SESSION_KEY, 'not json');
       expect(SessionAutosave.stats()).toEqual({ bytes: 8, savedAt: null });
     });
+
+    // REQ-13 — stats() is on the Debug panel's poll and the payload is the
+    // whole session, so the age is scanned out of a prefix, never parsed.
+    it('reads the age without parsing the payload', () => {
+      const { bus } = build();
+      bus.set('filter.cutoff', 60);
+      vi.advanceTimersByTime(1500);
+      const writtenAt = Date.now();
+
+      const parse = vi.spyOn(JSON, 'parse');
+      try {
+        const s = SessionAutosave.stats()!;
+        expect(s.savedAt).toBe(writtenAt);
+        expect(parse).not.toHaveBeenCalled();
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
+    it('reports no age when savedAt is out of the scanned prefix (edge)', () => {
+      // The prefix bound is what stops the scan reaching into `file` — a
+      // payload shaped the other way round must lose the age, not report a
+      // number lifted from the song.
+      const odd = JSON.stringify({ v: 1, file: { pad: 'x'.repeat(200) }, savedAt: 123 });
+      store.set(SESSION_KEY, odd);
+      expect(SessionAutosave.stats()).toEqual({ bytes: odd.length, savedAt: null });
+    });
   });
 });
 

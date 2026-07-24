@@ -3,7 +3,7 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 2
+version: 3   # v3: stats() reads savedAt without parsing the payload
 owner: websynth
 related:
   - architecture
@@ -21,7 +21,8 @@ source:
 when there is none — backs the [debug panel](debug-panel.md)'s Session row and
 its Clear action. A session the app chokes on was otherwise only escapable via a
 full [factory reset](factory-reset.md); the size of a corrupt payload is still
-reported (with `savedAt: null`), since that is the half that still helps.
+reported (with `savedAt: null`), since that is the half that still helps. It is a
+*polled* read, so it is deliberately parse-free (REQ-13).
 
 ## Background / Why
 
@@ -84,6 +85,18 @@ happy path.
   app never breaks because autosave couldn't write.
 - **REQ-12** — Multi-tab is last-writer-wins on the single key. Documented
   limitation, not defended against.
+- **REQ-13** — **`stats()` never parses the payload.** It is called from the
+  [debug panel](debug-panel.md)'s poll, and the payload is the entire session —
+  megabytes once samples are in play — so `JSON.parse`-ing it to recover one
+  number is out of proportion to the answer. `savedAt` is instead read by scanning
+  a short **prefix** of the raw string: `write()` builds its object literal in a
+  fixed order (`{ v, savedAt, file }`, REQ-3) and `JSON.stringify` preserves it, so
+  the value always lands in the first few dozen characters. The prefix bound is
+  also what makes the scan *correct* — it cannot match a `savedAt` occurring later
+  inside `file`. **Constraint: `savedAt` must stay ahead of `file` in `write()`'s
+  literal.** If it ever moves, the scan degrades to `savedAt: null` (the same
+  graceful path as a corrupt payload) rather than reporting a wrong time; `bytes`
+  is unaffected either way.
 
 ## Technical design
 
@@ -157,6 +170,19 @@ Scenario: playback never writes storage
   Given the transport is running with an enabled chain
   When bars elapse with no user edits
   Then no autosave write occurs (arrangement fingerprint unchanged)
+# pinned by: tests/state/session-autosave.test.ts
+
+Scenario: stats reads the age without parsing the session (REQ-13)
+  Given a written autosave whose file is large
+  When stats() is called
+  Then savedAt matches the time it was written
+  And no JSON.parse of the payload occurs
+
+Scenario: stats survives a payload it cannot scan (REQ-13, edge)
+  Given a stored payload that is not the shape write() produces
+  When stats() is called
+  Then bytes is still its true length
+  And savedAt is null
 # pinned by: tests/state/session-autosave.test.ts
 
 Scenario: corrupt autosave falls back to a fresh boot
