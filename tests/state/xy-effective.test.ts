@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEffectiveXy } from '../../src/state/xy-effective';
-import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
+import { createEffectiveXy, motionAxesFor, motionAxesMatch } from '../../src/state/xy-effective';
+import { XyPadStore, XY_DEFAULT_ASSIGN, type XyAssign } from '../../src/state/xy-pad';
 import { PatternStore } from '../../src/state/patterns';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 
@@ -85,5 +85,52 @@ describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
     eff.onChange(cb);
     lane.notify(); // bar advance with no overrides anywhere
     expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The allocation-free companion to `motionAxesFor`, used by the motion machine's
+ * per-frame carry gate (runtime-performance.md REQ-6). It must answer exactly
+ * what comparing `motionAxesFor(...)` field-by-field would — that is the whole
+ * reason the two live in one file.
+ */
+describe('motionAxesMatch', () => {
+  const base: XyAssign = { x: 'filter.cutoff', y: 'filter.resonance' };
+
+  /** The definition it has to agree with, spelled out. */
+  const viaMotionAxesFor = (p: PatternStore, bank: number, axes: XyAssign): boolean => {
+    const a = motionAxesFor(p, bank, base);
+    return a.x === axes.x && a.y === axes.y;
+  };
+
+  it('matches when the bank has no override and the axes are the base', () => {
+    const p = new PatternStore();
+    expect(motionAxesMatch(p, 0, base, base)).toBe(true);
+    expect(motionAxesMatch(p, 0, base, { x: 'fx.delay.time', y: base.y })).toBe(false);
+  });
+
+  it('honours a partial override per axis, like motionAxesFor', () => {
+    const p = new PatternStore();
+    p.setMotionEditBank(1);
+    p.setMotionAssign({ x: 'fx.delay.time' }); // y falls back to base
+    expect(motionAxesMatch(p, 1, base, { x: 'fx.delay.time', y: base.y })).toBe(true);
+    expect(motionAxesMatch(p, 1, base, base)).toBe(false);
+  });
+
+  it('agrees with motionAxesFor across every combination (the contract)', () => {
+    const p = new PatternStore();
+    p.setMotionEditBank(2);
+    p.setMotionAssign({ x: 'fx.delay.time', y: 'fx.reverb.mix' });
+    const candidates: XyAssign[] = [
+      base,
+      { x: 'fx.delay.time', y: 'fx.reverb.mix' },
+      { x: 'fx.delay.time', y: base.y },
+      { x: base.x, y: 'fx.reverb.mix' },
+    ];
+    for (const bank of [0, 1, 2, 3]) {
+      for (const axes of candidates) {
+        expect(motionAxesMatch(p, bank, base, axes)).toBe(viaMotionAxesFor(p, bank, axes));
+      }
+    }
   });
 });
