@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/status201/vast-websynth/schema/websynth-preset.schema.json",
+  "title": "VAST G1-J5 preset file",
+  "description": "One SOUND for the VAST G1-J5 (websynth) synthesizer: a sparse map of synth parameter values. It carries no notes, patterns or tempo — those belong to a websynth-song file. Parameters that are omitted are filled from the synth's own defaults on import, so an authored preset is always a complete, deterministic patch. Parameter ids, ranges and defaults are generated live by the app (Song panel → \"AI Prompt\") and by the repo's MCP server tool `get_preset_format`; they are deliberately not duplicated here, since they grow with the synth.",
+  "type": "object",
+  "required": ["format", "version", "name", "params"],
+  "additionalProperties": false,
+  "properties": {
+    "format": { "const": "websynth-preset" },
+    "version": { "const": 1 },
+    "name": {
+      "type": "string",
+      "description": "Preset name — also the name it is stored under on import."
+    },
+    "params": { "$ref": "#/$defs/params" }
+  },
+  "$defs": {
+    "params": {
+      "type": "object",
+      "description": "Parameter id -> value. Sparse: set only what shapes the sound. Values are clamped to each parameter's registered range; a choice parameter's value is the integer index into its value map.",
+      "additionalProperties": { "type": "number" },
+      "examples": [
+        {
+          "voicing.mode": 0,
+          "osc1.wave": 2,
+          "osc1.octave": -1,
+          "filter.cutoff": 62,
+          "filter.resonance": 2.4,
+          "filter.envAmount": 30,
+          "env.fil.decay": 0.2,
+          "env.fil.sustain": 0,
+          "fx.dist.on": 1
+        }
+      ]
+    }
+  }
+}

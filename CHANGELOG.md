@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   you what it recognised before anything is applied. **Preset and bank JSON works
   in the same box**: it is routed into the preset import review instead of being
   refused.
+- **AI agents can author sounds, not just songs** — the bundled MCP server gains
+  `get_preset_format`, `validate_preset`, `expand_preset` and `save_preset`.
+  Validation is real: a made-up parameter name or a value outside a knob's range
+  is an error the agent can fix, and setting the song's tempo from inside a sound
+  is flagged. A sparse patch ("just these eight parameters") is expanded to a
+  **complete** sound, so it can't inherit leftovers from whatever was loaded
+  before. Both preset and bank formats now have published JSON Schemas.
 - **Your sampler sounds now survive a reload** — clips loaded into sampler slots
   are kept on the device (in IndexedDB, alongside the existing session autosave),
   so closing the tab and coming back gives you the audio, not just the filename

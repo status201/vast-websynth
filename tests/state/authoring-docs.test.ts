@@ -14,6 +14,7 @@ import {
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
 import { SONG_VERSION } from '../../src/state/song';
+import { PRESET_FORMAT, BANK_FORMAT } from '../../src/state/preset-validate';
 
 const read = (rel: string) =>
   readFileSync(fileURLToPath(new URL(`../../public/${rel}`, import.meta.url)), 'utf8');
@@ -91,6 +92,37 @@ describe('the published canonical version', () => {
   });
 });
 
+/**
+ * The preset schemas are the machine-readable mirror of `preset-validate.ts`
+ * (preset-authoring.md REQ-6) — the same drift risk as the song pair.
+ */
+describe('the published preset schemas', () => {
+  const preset = JSON.parse(read('schema/websynth-preset.schema.json')) as Record<string, any>;
+  const bank = JSON.parse(read('schema/websynth-preset-bank.schema.json')) as Record<string, any>;
+
+  it('tag the formats the validator accepts', () => {
+    expect(preset.properties.format.const).toBe(PRESET_FORMAT);
+    expect(bank.properties.format.const).toBe(BANK_FORMAT);
+    for (const s of [preset, bank]) {
+      expect(s.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+      expect(s.properties.version.const).toBe(1);
+    }
+  });
+
+  it('describe params as an open map of numbers, like the validator', () => {
+    expect(preset.$defs.params.additionalProperties).toEqual({ type: 'number' });
+    expect(bank.properties.presets.additionalProperties.additionalProperties).toEqual({ type: 'number' });
+    // A bank with no sounds is refused by validatePresetPayload.
+    expect(bank.properties.presets.minProperties).toBe(1);
+  });
+
+  it('do not duplicate the live param table (it grows with the synth)', () => {
+    for (const raw of [read('schema/websynth-preset.schema.json'), read('schema/websynth-preset-bank.schema.json')]) {
+      expect(raw).not.toMatch(/env\.amp\.attack|fx\.delay\.mix/);
+    }
+  });
+});
+
 describe('llms.txt', () => {
   const txt = read('llms.txt');
 
@@ -99,6 +131,13 @@ describe('llms.txt', () => {
     expect(txt).toContain('`websynth-song`');
     expect(txt).toContain('/schema/websynth-song-author.schema.json');
     expect(txt).toContain('/schema/websynth-song.schema.json');
+  });
+
+  it('names the preset formats and their schema URLs', () => {
+    expect(txt).toContain(`\`${PRESET_FORMAT}\``);
+    expect(txt).toContain(`\`${BANK_FORMAT}\``);
+    expect(txt).toContain('/schema/websynth-preset.schema.json');
+    expect(txt).toContain('/schema/websynth-preset-bank.schema.json');
   });
 
   it('pins the grid dimensions and drum track names', () => {

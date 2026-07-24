@@ -1,5 +1,7 @@
 import { roundParams } from './serialize';
 import type { Snapshot } from './preset';
+import { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-validate';
+import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 
 /**
  * Preset / bank **files** — `specs/features/presets.md` REQ-7..REQ-11.
@@ -9,32 +11,18 @@ import type { Snapshot } from './preset';
  * arguments alone, so the wizard's counts are unit-testable without a Storage
  * mock and the modal is left with nothing but rendering.
  *
+ * The *format* itself (tags, file shapes, validation) lives one module down in
+ * `preset-validate.ts`, which the authoring tools also need with a `ParamBus` in
+ * hand — see `specs/features/preset-authoring.md`. It is re-exported here so
+ * this module stays the one door for preset files.
+ *
  * Vintage naming (REQ-7): a **preset** is one sound, a **bank** is a collection.
  * That is Roland (PATCH/BANK) and Yamaha (VOICE/32-VOICE BANK) usage; "patch"
  * is never used here for a collection.
  */
 
-export const PRESET_FORMAT = 'websynth-preset';
-export const BANK_FORMAT = 'websynth-preset-bank';
-
-export interface PresetFile {
-  format: typeof PRESET_FORMAT;
-  version: 1;
-  name: string;
-  params: Snapshot;
-}
-
-export interface PresetBankFile {
-  format: typeof BANK_FORMAT;
-  version: 1;
-  name: string;
-  presets: Record<string, Snapshot>;
-}
-
-/** A parsed payload, collapsed to one shape: a preset is a one-entry bank. */
-export type PresetParse =
-  | { ok: true; kind: 'preset' | 'bank'; name: string; presets: Record<string, Snapshot> }
-  | { ok: false; errors: string[] };
+export { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-validate';
+export type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 
 export type ImportPolicy = 'rename' | 'overwrite' | 'skip';
 export type ImportStatus = 'new' | 'identical' | 'conflict';
@@ -87,14 +75,11 @@ export function bankFilename(name: string): string {
   return `${safe(name, 'bank')}.bank.websynth.json`;
 }
 
-const isSnapshot = (v: unknown): v is Snapshot =>
-  !!v && typeof v === 'object' && !Array.isArray(v) &&
-  Object.values(v as Record<string, unknown>).every((n) => typeof n === 'number' && Number.isFinite(n));
-
 /**
- * Parse a preset or bank payload. Errors say what was *expected* rather than
- * "invalid" (REQ-11) — these files share the `.websynth.json` tail with songs,
- * so a wrong-door mistake is the likely cause and the message should say so.
+ * Parse a preset or bank **file**: JSON-decode, then validate. No `ParamBus` is
+ * passed, so this is the *structural* layer only — a file written by a newer
+ * build may carry ids this one has never seen, and `restore` ignores them
+ * (see preset-validate.ts).
  */
 export function parsePresetPayload(text: string): PresetParse {
   let parsed: unknown;
@@ -103,45 +88,7 @@ export function parsePresetPayload(text: string): PresetParse {
   } catch (e) {
     return { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] };
   }
-  if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, errors: ['File is not a preset or bank (expected a JSON object).'] };
-  }
-  const obj = parsed as Record<string, unknown>;
-  const format = obj['format'];
-
-  if (format === PRESET_FORMAT) {
-    const name = typeof obj['name'] === 'string' && obj['name'] ? obj['name'] : 'preset';
-    if (!isSnapshot(obj['params'])) {
-      return { ok: false, errors: ['Preset file has no valid `params` map of numbers.'] };
-    }
-    return { ok: true, kind: 'preset', name, presets: { [name]: obj['params'] } };
-  }
-
-  if (format === BANK_FORMAT) {
-    const name = typeof obj['name'] === 'string' && obj['name'] ? obj['name'] : 'bank';
-    const raw = obj['presets'];
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      return { ok: false, errors: ['Bank file has no `presets` map.'] };
-    }
-    const presets: Record<string, Snapshot> = {};
-    for (const [n, snap] of Object.entries(raw as Record<string, unknown>)) {
-      if (!isSnapshot(snap)) return { ok: false, errors: [`Preset "${n}" is not a map of numbers.`] };
-      presets[n] = snap;
-    }
-    if (Object.keys(presets).length === 0) {
-      return { ok: false, errors: ['Bank file contains no presets.'] };
-    }
-    return { ok: true, kind: 'bank', name, presets };
-  }
-
-  // The most common wrong-door case gets its own sentence.
-  if (format === 'websynth-song') {
-    return { ok: false, errors: ['That is a song file — load it from the Song tab’s Import instead.'] };
-  }
-  return {
-    ok: false,
-    errors: [`Not a preset or bank file (expected "format": "${PRESET_FORMAT}" or "${BANK_FORMAT}").`],
-  };
+  return validatePresetPayload(parsed);
 }
 
 /** Is this payload a preset/bank file? Used by the *song* importer to hand the

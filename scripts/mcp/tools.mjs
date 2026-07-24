@@ -44,6 +44,34 @@ function resolveSong(core, song) {
   return core.isAuthorSong(value) ? core.expandAuthorSong(value) : core.validateSongFile(value);
 }
 
+/** The `preset` argument: one sound or a whole bank, object or JSON string. */
+const PRESET_ARG = {
+  description:
+    'The preset: a JSON object in the "websynth-preset" (one sound) or ' +
+    '"websynth-preset-bank" (many) format, or the same as a JSON string.',
+  type: ['object', 'string'],
+};
+
+/**
+ * Parse + validate a preset/bank payload against the live parameter registry
+ * (preset-authoring.md): unknown ids and out-of-range values are errors here,
+ * unlike the app's file import, which must stay forward-compatible.
+ */
+function resolvePreset(core, preset, bus) {
+  let value = preset;
+  if (typeof preset === 'string') {
+    try {
+      value = JSON.parse(preset);
+    } catch (e) {
+      return { ok: false, errors: ['preset is not valid JSON: ' + e.message] };
+    }
+  }
+  if (value === undefined || value === null) {
+    return { ok: false, errors: ['preset is required (an object or a JSON string).'] };
+  }
+  return core.validatePresetPayload(value, bus);
+}
+
 /** Song.download's filename sanitize idiom (song.ts) — kept in sync by test. */
 const safeName = (name) => `${String(name).replace(/[^a-z0-9_-]+/gi, '_') || 'song'}.websynth.json`;
 
@@ -64,6 +92,41 @@ export function makeTools(core, opts = {}) {
   /** Canonical compact JSON text of a validated file (what the app exports). */
   const compactJson = (file) => JSON.stringify(core.compactSongForExport(file), null, 2);
 
+  /** The live parameter registry — stateless here, so one instance serves all. */
+  let busInstance;
+  const bus = () => {
+    if (!busInstance) {
+      busInstance = new core.ParamBus();
+      core.registerDefaults(busInstance);
+    }
+    return busInstance;
+  };
+
+  /**
+   * A validated payload → the file the app would export: params expanded from
+   * the synth defaults, so the sound is complete and deterministic wherever it
+   * is loaded (preset-authoring.md REQ-4).
+   */
+  const presetFileOf = (parse) => {
+    if (parse.kind === 'preset') {
+      const snap = parse.presets[parse.name] ?? Object.values(parse.presets)[0] ?? {};
+      return {
+        kind: 'preset',
+        file: core.buildPresetFile(parse.name, core.expandPresetParams(bus(), snap)),
+        filename: core.presetFilename(parse.name),
+      };
+    }
+    const entries = {};
+    for (const [n, snap] of Object.entries(parse.presets)) {
+      entries[n] = core.expandPresetParams(bus(), snap);
+    }
+    return {
+      kind: 'bank',
+      file: core.buildBankFile(parse.name, entries),
+      filename: core.bankFilename(parse.name),
+    };
+  };
+
   return [
     {
       name: 'get_song_format',
@@ -73,11 +136,7 @@ export function makeTools(core, opts = {}) {
         'ranges/defaults, musical tips, and the canonical format appendix. Call this before ' +
         'writing a song.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-      handler: async () => {
-        const bus = new core.ParamBus();
-        core.registerDefaults(bus);
-        return text(core.buildAuthoringGuide(bus, baseUrl));
-      },
+      handler: async () => text(core.buildAuthoringGuide(bus(), baseUrl)),
     },
     {
       name: 'validate_song',
@@ -162,6 +221,90 @@ export function makeTools(core, opts = {}) {
           deflateRawSync(Buffer.from(JSON.stringify(core.compactSongForExport(res.file)), 'utf8')),
         );
         return json({ ok: true, url: `${baseUrl}/#song=${payload}` });
+      },
+    },
+
+    /* ---------------- presets (preset-authoring.md) ---------------- */
+
+    {
+      name: 'get_preset_format',
+      description:
+        'Get the complete, current websynth/VAST G1-J5 PRESET authoring guide: the preset and bank ' +
+        'file shapes, the live synth parameter table with ranges/defaults, and sound-design notes ' +
+        '(what makes a bass/pad/pluck/acid patch). A preset is a SOUND only — no notes, patterns or ' +
+        'tempo, which belong to a song (see get_song_format). Call this before writing a preset.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      handler: async () => text(core.buildPresetGuide(bus(), baseUrl)),
+    },
+    {
+      name: 'validate_preset',
+      description:
+        'Validate a preset or bank against the live parameter registry. Returns {ok, errors[], ' +
+        'warnings[]} — unknown parameter ids and out-of-range values are errors, song-level ids in a ' +
+        'sound are warnings. A failed validation is a normal result: read the errors, fix, validate again.',
+      inputSchema: {
+        type: 'object',
+        properties: { preset: PRESET_ARG },
+        required: ['preset'],
+        additionalProperties: false,
+      },
+      handler: async ({ preset }) => {
+        const res = resolvePreset(core, preset, bus());
+        return json(res.ok
+          ? { ok: true, kind: res.kind, name: res.name, presets: Object.keys(res.presets), errors: [], warnings: res.warnings ?? [] }
+          : { ok: false, errors: res.errors });
+      },
+    },
+    {
+      name: 'expand_preset',
+      description:
+        'Expand a sparse authored preset/bank into the COMPLETE file the app exports: every parameter ' +
+        'you left out is filled from the synth defaults, so the patch sounds identical wherever it is ' +
+        'loaded instead of inheriting leftovers from the previous sound. Returns the JSON, or ' +
+        '{ok:false, errors[]} to fix.',
+      inputSchema: {
+        type: 'object',
+        properties: { preset: PRESET_ARG },
+        required: ['preset'],
+        additionalProperties: false,
+      },
+      handler: async ({ preset }) => {
+        const res = resolvePreset(core, preset, bus());
+        if (!res.ok) return json({ ok: false, errors: res.errors });
+        return text(JSON.stringify(presetFileOf(res).file, null, 2));
+      },
+    },
+    {
+      name: 'save_preset',
+      description:
+        'Validate a preset/bank, expand it to the complete form, and write it as ' +
+        '<name>.preset.websynth.json (one sound) or <name>.bank.websynth.json (many) — ready to import ' +
+        'from the synth\'s Preset button. Returns the absolute path, or {ok:false, errors[]} to fix.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          preset: PRESET_ARG,
+          dir: {
+            type: 'string',
+            description: 'Directory to write into (default: the server working directory).',
+          },
+        },
+        required: ['preset'],
+        additionalProperties: false,
+      },
+      handler: async ({ preset, dir }) => {
+        const res = resolvePreset(core, preset, bus());
+        if (!res.ok) return json({ ok: false, errors: res.errors });
+        const { kind, file, filename } = presetFileOf(res);
+        const target = resolve(cwd, dir ?? '.');
+        mkdirSync(target, { recursive: true });
+        const path = resolve(target, filename);
+        writeFileSync(path, JSON.stringify(file, null, 2) + '\n');
+        return json({
+          ok: true, path, kind, name: res.name,
+          presets: Object.keys(res.presets),
+          warnings: res.warnings ?? [],
+        });
       },
     },
   ];

@@ -44,7 +44,8 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **AI-friendly authoring format**: import also accepts a compact **authoring dialect** (`websynth-song-author`, its own [JSON Schema](public/schema/websynth-song-author.schema.json)) that any LLM can emit in ~40 lines — note names like `"A2"`, drum hit-lists like `"kick": [0,4,8,12]`, chain strings like `"AABA"` — expanded to a full song on import (input-only, never exported); see [`specs/features/song-authoring-dialect.md`](specs/features/song-authoring-dialect.md)
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that teaches the compact dialect first (with the full format as an appendix) and links both live schema URLs; paste it into any AI agent and import the song it returns
 - **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song after "Tap to start". `#songUrl=<https url>` loads a hosted song/project file
-- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song format, validate/fix, expand, save, and share-link songs — see **MCP server** below
+- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them — see **MCP server** below
+- **Paste, don't save-then-import**: AI agents answer with JSON in the chat window, so the Song panel has a **Paste** button (and the ✨ AI Prompt modal ends with a paste box) that takes the reply as-is — code fences and surrounding chatter are stripped — and tells you what it recognised before anything is applied. Preset and bank JSON goes in the same box and is routed to the preset importer
 - **Presets**: a 16-sound factory bank — basses (bass, upright, pbass, reese, acid), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass), leads/plucks (basic, lead, pluck) and wobble — + user presets saved to `localStorage`. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either. Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI — note velocity, pitch bend, mod wheel, **sustain pedal** (CC64, doubles as an arp latch), and volume/cutoff/resonance CCs
 - **Transport sync (MIDI + WiFi)**: lock two VAST instances (or hardware gear) together — set one **Master** and one **Slave** from the Song tab's Sync section. Over **MIDI** (Start/Stop + 24 PPQN clock) via USB (e.g. an Android tablet in USB-MIDI mode plugged into a laptop) or any virtual/hardware cable; or over **WiFi** with no cable and no server — pair two devices on the same network by scanning a QR code or swapping a copy-pasted link (serverless WebRTC, LAN-only). A slave joins mid-song at the right bar, follows tempo, and rides out dropouts by free-running at the last tempo; while slaved, the BPM knob dims because the tempo is external
@@ -68,14 +69,23 @@ npm run release  # cut a versioned release (see Releasing below)
 Audio starts behind a **"Tap to start"** overlay — browsers require a user
 gesture before an `AudioContext` may produce sound.
 
-## MCP server (songs from AI agents)
+## MCP server (songs and sounds from AI agents)
 
 The repo ships a zero-dependency MCP server (stdio JSON-RPC, hand-rolled — no
-SDK) that gives tool-using AI agents a full authoring loop: `get_song_format`
-(the live parameter table + the compact authoring dialect), `validate_song`
-(field-level errors the agent can fix), `expand_song`, `save_song` (writes an
-importable `.websynth.json`), and `make_share_link` (a `#song=` URL; base from
-`WEBSYNTH_BASE_URL`, default `http://localhost:5173`).
+SDK) that gives tool-using AI agents a full authoring loop.
+
+**Songs**: `get_song_format` (the live parameter table + the compact authoring
+dialect), `validate_song` (field-level errors the agent can fix), `expand_song`,
+`save_song` (writes an importable `.websynth.json`), and `make_share_link` (a
+`#song=` URL; base from `WEBSYNTH_BASE_URL`, default `http://localhost:5173`).
+
+**Presets**: `get_preset_format` (the sound-only parameter table plus
+sound-design notes), `validate_preset` (invented parameter ids and out-of-range
+values are real errors here, unlike a plain file import), `expand_preset` (a
+sparse authored patch → the complete sound, so nothing leaks in from whatever
+was loaded before) and `save_preset` (writes a `.preset.websynth.json` or, for
+several sounds, a `.bank.websynth.json`). See
+[`specs/features/preset-authoring.md`](specs/features/preset-authoring.md).
 
 After `npm install` the server self-builds its song-core bundle on first run —
 no other setup. **Claude Code** picks it up automatically from the committed

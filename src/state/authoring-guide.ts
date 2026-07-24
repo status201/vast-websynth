@@ -5,13 +5,17 @@
  * canonical format as an appendix, and embeds the live PARAMS table generated
  * from `ParamBus` so it can never drift from `registerDefaults()`.
  *
- * Pure and importable anywhere: only `params.ts` + `patterns.ts` — **never**
- * `song.ts`, whose `import.meta.glob` demo registration would poison the MCP
- * server's Node bundle. The ✨ AI Prompt modal (`ui/components/ai-prompt.ts`)
- * and the MCP server's `get_song_format` tool both serve this text.
+ * Pure and importable anywhere: only `params.ts` + `patterns.ts` (plus the
+ * equally pure `preset-session`/`preset-validate` for the preset guide) —
+ * **never** `song.ts`, whose `import.meta.glob` demo registration would poison
+ * the MCP server's Node bundle. The ✨ AI Prompt modal
+ * (`ui/components/ai-prompt.ts`) and the MCP server's `get_song_format` /
+ * `get_preset_format` tools all serve this text.
  */
 import type { ParamBus } from './params';
 import { DRUM_TRACK_LABELS } from './params';
+import { isPatchParam } from './preset-session';
+import { PRESET_FORMAT, BANK_FORMAT } from './preset-validate';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
@@ -36,16 +40,15 @@ function resolveOrigin(origin?: string): string {
 }
 
 /**
- * The format guide: OUTPUT RULES → QUICKSTART → the compact author format →
- * NOTES → live PARAMS table → the canonical full form as an appendix.
+ * The live PARAMS table: one line per registered param with its range, default
+ * and discrete value map. Generated from the bus so it can never drift from
+ * `registerDefaults()`. `filter` narrows it — the preset guide passes
+ * `isPatchParam` so a sound's table lists only the sound's parameters.
  */
-export function buildAuthoringGuide(bus: ParamBus, origin?: string): string {
-  const o = resolveOrigin(origin);
-  const authorSchemaUrl = `${o}/schema/websynth-song-author.schema.json`;
-  const schemaUrl = `${o}/schema/websynth-song.schema.json`;
-
-  const params = bus
+export function paramTable(bus: ParamBus, filter?: (id: string) => boolean): string {
+  return bus
     .ids()
+    .filter((id) => (filter ? filter(id) : true))
     .map((id) => {
       const d = bus.def(id);
       if (!d) return `- "${id}"`;
@@ -58,6 +61,18 @@ export function buildAuthoringGuide(bus: ParamBus, origin?: string): string {
       return `- "${id}": number  // ${parts.join(', ')}`;
     })
     .join('\n');
+}
+
+/**
+ * The format guide: OUTPUT RULES → QUICKSTART → the compact author format →
+ * NOTES → live PARAMS table → the canonical full form as an appendix.
+ */
+export function buildAuthoringGuide(bus: ParamBus, origin?: string): string {
+  const o = resolveOrigin(origin);
+  const authorSchemaUrl = `${o}/schema/websynth-song-author.schema.json`;
+  const schemaUrl = `${o}/schema/websynth-song.schema.json`;
+
+  const params = paramTable(bus);
 
   const drumTracks = DRUM_TRACK_LABELS.map((l, i) => `${i}=${l}`).join(', ');
 
@@ -216,6 +231,72 @@ EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omiss
   "drumChain": { "enabled": false, "steps": [0] }
 }
 Cells are default-sparse: a seq step keeps "on"/"note"/"velocity"/"gate"; a dead drum/sampler cell is just { "on": false }.`;
+}
+
+/**
+ * The **preset** authoring guide — `specs/features/preset-authoring.md`. A
+ * preset is a sound, not a song: same PARAMS machinery, narrowed to the patch
+ * parameters (`isPatchParam`), with the two file shapes and the sound-design
+ * knowledge an agent needs to hit a named timbre. Served by the MCP server's
+ * `get_preset_format`.
+ */
+export function buildPresetGuide(bus: ParamBus, origin?: string): string {
+  const o = resolveOrigin(origin);
+  const presetSchemaUrl = `${o}/schema/websynth-preset.schema.json`;
+  const bankSchemaUrl = `${o}/schema/websynth-preset-bank.schema.json`;
+
+  return `OUTPUT RULES
+- Respond with exactly ONE JSON object and nothing else — no markdown fences, no commentary, no questions.
+- A preset is a SOUND, not a song: oscillators, filter, envelopes, LFO, voicing and the synth insert FX.
+  It carries no notes, no patterns and no tempo — those belong to a song file (ask for the song format).
+- "params" is SPARSE: set only what shapes the sound you were asked for. Everything you omit is filled
+  from the synth's own defaults on import, so the patch is always complete and never inherits leftovers
+  from whatever was loaded before.
+- NEVER truncate the JSON or emit placeholder text such as "…"/"..." — the object must parse as-is.
+- The user imports it from the header's Preset button → Import, or by pasting it into the app.
+- Machine-readable JSON Schemas (draft 2020-12): ${presetSchemaUrl} (one sound) and ${bankSchemaUrl} (many).
+
+QUICKSTART — a complete, valid, importable preset:
+{
+  "format": "websynth-preset", "version": 1, "name": "Rubber Bass",
+  "params": {
+    "voicing.mode": 0, "glide.mode": 1, "mixer.glide": 0.04,
+    "osc1.wave": 2, "osc1.octave": -1, "osc1.level": 0.85,
+    "osc2.wave": 3, "osc2.octave": -1, "osc2.detune": -7, "osc2.level": 0.35,
+    "filter.cutoff": 62, "filter.resonance": 2.4, "filter.drive": 1.8, "filter.envAmount": 30,
+    "env.amp.attack": 0.002, "env.amp.decay": 0.25, "env.amp.sustain": 0.4, "env.amp.release": 0.15,
+    "env.fil.attack": 0.001, "env.fil.decay": 0.2, "env.fil.sustain": 0, "env.fil.release": 0.15,
+    "fx.dist.on": 1, "fx.dist.drive": 0.4, "fx.dist.mix": 0.4
+  }
+}
+
+FILE SHAPES
+Preset — one sound:
+{ "format": "${PRESET_FORMAT}", "version": 1, "name": "string", "params": { "<id>": number } }
+Bank — many sounds in one file (use this when asked for a set, a kit, or several patches):
+{ "format": "${BANK_FORMAT}", "version": 1, "name": "string",
+  "presets": { "<preset name>": { "<id>": number }, … } }
+
+SOUND DESIGN NOTES
+- "filter.cutoff" is a MIDI NOTE NUMBER (0..127), NOT Hz — 60 is middle C, +12 is an octave up. The
+  filter envelope ("filter.envAmount", in semitones) and the LFO add to it in the same semitone space.
+- The shape of a sound is mostly: waveforms + octaves, cutoff/resonance, and the two envelopes.
+  Percussive (pluck/bass stab): tiny attack, short "env.fil.decay", "env.fil.sustain" 0, high
+  "filter.envAmount". Sustained (pad/strings): long attacks and releases, sustain near 1, low envAmount.
+- "voicing.mode": 0 = mono (one note at a time — basses, leads, acid), 1 = poly (chords, pads).
+  Glide only bends between notes in mono: set "glide.mode" 1/2 and "mixer.glide" > 0.
+- Fatten with "unison.voices"/"unison.detune", "analog.drift" (per-voice tuning wander), a detuned
+  osc2, or "sub.level" for weight an octave down. "mixer.noise" adds breath/attack transient.
+- EVERY synth insert effect is gated by its own ".on" flag — "fx.delay.time" does nothing while
+  "fx.delay.on" is 0. Set the flag AND the parameters, and set unused effects' flags to 0 explicitly
+  so the patch sounds the same wherever it is loaded.
+- Acid: saw osc1, mono, high resonance (2.5+), short filter decay, high envAmount, some distortion.
+  Reese: two detuned saws an octave down + sub. Rhodes/bells: sine osc + long decay, sustain 0.
+- Only the parameters below belong in a preset. Song-level ids (transport/seq/drum/sampler/arp) are
+  accepted but will move the user's song when the preset loads — leave them out.
+
+PARAMS (id, range, default, discrete value map)
+${paramTable(bus, isPatchParam)}`;
 }
 
 /**

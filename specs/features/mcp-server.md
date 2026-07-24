@@ -3,10 +3,11 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 1
+version: 2   # v2: preset/bank authoring tools alongside the song ones
 owner: tooling
 related:
   - song-authoring-dialect
+  - preset-authoring
   - song-share-link
   - ai-prompt
   - ../decisions/adr-003-no-runtime-dependencies
@@ -14,7 +15,7 @@ related:
 source:
   - scripts/mcp/websynth-mcp.mjs      # entry: stdio framing + self-build of the core bundle
   - scripts/mcp/rpc.mjs               # pure JSON-RPC 2.0 / MCP dispatch
-  - scripts/mcp/tools.mjs             # makeTools(core) — the five tools
+  - scripts/mcp/tools.mjs             # makeTools(core) — the song + preset tools
   - scripts/mcp/song-core-entry.ts    # the pure song core the lib bundle re-exports
   - scripts/mcp/vite.lib.config.ts    # ES lib build → scripts/mcp/dist/song-core.mjs
   - .mcp.json                         # repo-root registration for Claude Code
@@ -25,7 +26,9 @@ source:
 AI agents that can call tools do far better with a **feedback loop** than with
 one-shot generation: fetch the format, emit a song, validate it, fix the
 errors, save the file. The MCP server exposes exactly that loop over the
-Model Context Protocol. It is **hand-rolled and zero-dependency** (ADR-003):
+Model Context Protocol — v2 exposes it for **sounds** as well as songs
+([preset-authoring](preset-authoring.md)), because a preset is the other half
+of what this synth stores and it was the half an agent could not write. It is **hand-rolled and zero-dependency** (ADR-003):
 plain JSON-RPC 2.0 over stdio with newline-delimited framing, no SDK. The app's
 song core (`src/**`) can't run under plain Node (extensionless TS imports), so
 the server builds a small **Vite lib bundle** of the *pure* song subtree on
@@ -47,12 +50,16 @@ first run and imports that.
   than any file under `scripts/mcp/song-core-entry.ts`, `src/state/**` or
   `src/utils/**`. A clean checkout therefore needs only `npm install` before
   registering the server.
-- **REQ-4** — `song-core-entry.ts` re-exports only the **pure** song core:
+- **REQ-4** — `song-core-entry.ts` re-exports only the **pure** core:
   `validateSongFile`, `isAuthorSong`/`expandAuthorSong`,
-  `compactSongForExport`, `buildAuthoringGuide`, `ParamBus`/`registerDefaults`.
-  It must never (transitively) import `src/state/song.ts` — its
-  `import.meta.glob` demo registration doesn't bundle for Node.
-- **REQ-5** — Five tools, all built by `makeTools(core)` with the core
+  `compactSongForExport`, `buildAuthoringGuide`, `ParamBus`/`registerDefaults`,
+  plus (v2) the preset half — `validatePresetPayload`, `expandPresetParams`,
+  `defaultPatchParams`, `buildPresetGuide`, `buildPresetFile`/`buildBankFile`,
+  `presetFilename`/`bankFilename`. It must never (transitively) import
+  `src/state/song.ts` — its `import.meta.glob` demo registration doesn't bundle
+  for Node. `src/state/preset.ts` is likewise never pulled in (it opens
+  `localStorage`); only its `Snapshot` **type** is used, which erases.
+- **REQ-5** — Five song tools, all built by `makeTools(core)` with the core
   **injected** (unit-testable without the bundle):
   - `get_song_format` — the live authoring guide
     (`new ParamBus()` + `registerDefaults` + `buildAuthoringGuide(bus, baseUrl)`).
@@ -66,6 +73,19 @@ first run and imports that.
   - `make_share_link` — canonical compact JSON → `node:zlib.deflateRawSync` →
     base64url → `<base>/#song=…` (the wire format of song-share-link.md);
     base URL from `$WEBSYNTH_BASE_URL`, default `http://localhost:5173`.
+- **REQ-5b** — (v2) Four **preset** tools, same shape and same "a failed
+  validation is a successful call" rule (see
+  [preset-authoring](preset-authoring.md)), listed after the song five:
+  - `get_preset_format` — `buildPresetGuide(bus, baseUrl)`.
+  - `validate_preset` — `{ok, kind, name, presets[], errors[], warnings[]}`
+    against the live registry (invented ids and out-of-range values are errors).
+  - `expand_preset` — sparse → the **complete** preset/bank file the app exports.
+  - `save_preset` — validate + expand + write `<name>.preset.websynth.json` or
+    `<name>.bank.websynth.json` (chosen by the payload's own format), returning
+    the absolute path. `dir` defaults to the server working directory, like
+    `save_song`.
+  All preset tools and `get_song_format` share **one** `ParamBus` +
+  `registerDefaults` per process — the registry is read-only here.
 - **REQ-6** — Tool *input* errors (unknown tool, missing argument) are JSON-RPC
   errors; tool *runtime* failures return `isError: true` with the message in
   `content` (per MCP). Unparseable `song` JSON strings count as validation
@@ -118,6 +138,17 @@ Scenario: expand_song returns canonical compact JSON
   Then the text payload parses as format "websynth-song", version 3
   And it passes validate_song
 
+Scenario: A preset with an invented parameter id fails validation (v2)
+  When tools/call validate_preset receives params naming "osc1.shape"
+  Then isError is absent/false
+  And the payload is {"ok":false,"errors":[…]} naming that id
+# pinned by: tests/mcp/tools.test.ts, tests/mcp/integration.test.ts
+
+Scenario: save_preset picks the extension from the payload (v2)
+  When tools/call save_preset receives a websynth-preset-bank payload
+  Then the written path ends in .bank.websynth.json
+  And its params are expanded to the complete patch
+
 Scenario: Unknown method
   When the client sends method "resources/list"
   Then the response error code is -32601
@@ -138,7 +169,8 @@ Scenario: Self-build keeps stdout protocol-pure
   the server, drives initialize → tools/list → validate_song over real stdio.
 - Manual: in Claude Code (this repo's `.mcp.json`) run `get_song_format`, feed
   a broken author file to `validate_song`, then `save_song` and import the
-  written file in the app.
+  written file in the app. Same round for `get_preset_format` →
+  `validate_preset` (try a bogus id) → `save_preset` → Preset ▸ Import.
 
 ## Open questions / future
 

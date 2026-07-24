@@ -10,11 +10,13 @@ related:
   - song-mode
   - param-reset-baseline
   - paste-import
+  - preset-authoring
   - dialog
   - ../decisions/adr-014-dont-make-me-think
 source:
   - src/state/preset.ts
   - src/state/preset-file.ts             # v4: pure file build/parse/merge
+  - src/state/preset-validate.ts         # the file format + its validator (preset-authoring.md)
   - src/state/serialize.ts               # roundParams (export precision)
   - src/state/preset-session.ts
   - src/audio/engine.ts                  # main.ts seeds on boot
@@ -130,7 +132,9 @@ Presets:  # src/state/preset.ts
 preset-file.ts:  # v4 — PURE: no localStorage, no DOM, no ParamBus
   buildPresetFile(name, snap): PresetFile
   buildBankFile(name, entries): PresetBankFile
-  parsePresetPayload(text): PresetParse       # tagged union, see below
+  parsePresetPayload(text): PresetParse       # JSON.parse + validatePresetPayload (no bus)
+  # the format tags + file/parse types are defined in preset-validate.ts and
+  # re-exported here, so this stays the one door — see preset-authoring.md REQ-1
   presetFilename(name) / bankFilename(name)   # sanitized, like Song.download
   planImport(incoming, existing, policy): ImportPlan   # REQ-10, pure
   sameSnapshot(a, b): boolean                 # rounded-value equality (REQ-8)

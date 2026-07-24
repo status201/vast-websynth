@@ -65,11 +65,28 @@ describe('websynth MCP server over stdio', () => {
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
   }, 30_000);
 
-  it('tools/list names the five tools', async () => {
+  it('tools/list names the song and preset tools', async () => {
     const res = await request('tools/list');
     expect(res.result.tools.map((t: { name: string }) => t.name)).toEqual([
       'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
+      'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
+  }, 30_000);
+
+  // The preset half rides the same bundle (mcp-server.md REQ-4): proving one
+  // preset tool answers over real stdio proves song-core-entry's new exports
+  // survived the Vite lib build.
+  it('validate_preset: an invented parameter id → ok:false, not isError', async () => {
+    const res = await request('tools/call', {
+      name: 'validate_preset',
+      arguments: {
+        preset: { format: 'websynth-preset', version: 1, name: 'Bad', params: { 'osc1.shape': 1 } },
+      },
+    });
+    expect(res.result.isError).toBeFalsy();
+    const out = JSON.parse(res.result.content[0].text);
+    expect(out.ok).toBe(false);
+    expect(out.errors.join('\n')).toContain('osc1.shape');
   }, 30_000);
 
   it('validate_song: good song → ok:true', async () => {

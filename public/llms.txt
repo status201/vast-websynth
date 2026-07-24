@@ -39,16 +39,36 @@ assigned params through per-step anchors {step, x, y} in normalized 0..1, plus
 two optional single-parameter tracks per bank (motionTracks) that each name
 their own parameter id and carry 16 levels.
 
+## Preset formats
+
+A **preset** is a SOUND only — synth parameters, no notes, patterns or tempo.
+Two JSON formats are accepted, both imported from the header's Preset button ->
+Import (or by pasting them into the app):
+
+- `websynth-preset` (v1) — one sound: `{format, version, name, params}` where
+  `params` is a SPARSE map of parameter id -> number. Anything omitted is filled
+  from the synth's defaults on import, so an authored preset is always a
+  complete, deterministic patch.
+  Schema: /schema/websynth-preset.schema.json
+- `websynth-preset-bank` (v1) — many sounds in one file, keyed by preset name
+  (`presets`). Vintage naming: a preset is one sound, a bank is a collection.
+  Schema: /schema/websynth-preset-bank.schema.json
+
+`filter.cutoff` is a MIDI note number here too. Every synth insert effect is
+gated by its own `.on` flag. Song-level ids (transport/seq/drum/sampler/arp) are
+accepted in a preset but belong in a song.
+
 ## The live parameter table
 
 Synth parameters (ids, ranges, defaults, discrete value maps) are generated
 from the running app and are NOT duplicated here — open the app's Song panel
 -> "✨ AI Prompt" for the complete, always-current authoring prompt including
-the PARAMS table.
+the PARAMS table. Tool-using agents can fetch the same tables from the repo's
+MCP server (`get_song_format`, `get_preset_format`).
 
 ## For developers
 
 - The repository's `specs/` folder is the architectural source of truth
   (specs/features/song-authoring-dialect.md documents the author dialect).
-- An MCP server for song authoring/validation ships in the repo under
-  `scripts/mcp/` (see the README).
+- An MCP server for song *and* preset authoring/validation ships in the repo
+  under `scripts/mcp/` (see the README).

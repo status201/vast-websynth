@@ -13,13 +13,18 @@ import { makeTools } from '../../scripts/mcp/tools.mjs';
 import { validateSongFile } from '../../src/state/song-validate';
 import { isAuthorSong, expandAuthorSong } from '../../src/state/song-author';
 import { compactSongForExport } from '../../src/state/serialize';
-import { buildAuthoringGuide, buildSongPrompt } from '../../src/state/authoring-guide';
+import { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';
 import { ParamBus, registerDefaults } from '../../src/state/params';
+import { validatePresetPayload, expandPresetParams } from '../../src/state/preset-validate';
+import { buildPresetFile, buildBankFile, presetFilename, bankFilename } from '../../src/state/preset-file';
 
 const core = {
   validateSongFile, isAuthorSong, expandAuthorSong,
   compactSongForExport, buildAuthoringGuide, buildSongPrompt,
   ParamBus, registerDefaults,
+  // presets (preset-authoring.md)
+  buildPresetGuide, validatePresetPayload, expandPresetParams,
+  buildPresetFile, buildBankFile, presetFilename, bankFilename,
 };
 
 type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean };
@@ -51,10 +56,11 @@ const textOf = (r: ToolResult) => r.content[0]!.text;
 const jsonOf = (r: ToolResult) => JSON.parse(textOf(r)) as Record<string, any>;
 
 describe('makeTools', () => {
-  it('exposes the five tools with object schemas', () => {
+  it('exposes the song and preset tools with object schemas', () => {
     const tools = makeTools(core) as Tool[];
     expect(tools.map((t) => t.name)).toEqual([
       'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
+      'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
     for (const t of tools) expect(t.inputSchema).toMatchObject({ type: 'object' });
   });
@@ -167,6 +173,129 @@ describe('make_share_link', () => {
       expect(jsonOf(res).url).toMatch(/^http:\/\/localhost:5173\/#song=/);
     } finally {
       if (prev !== undefined) process.env.WEBSYNTH_BASE_URL = prev;
+    }
+  });
+});
+
+/* ---------------- presets (preset-authoring.md) ---------------- */
+
+const PRESET = {
+  format: 'websynth-preset',
+  version: 1,
+  name: 'Tool Bass',
+  params: { 'filter.cutoff': 62, 'filter.resonance': 2.4, 'voicing.mode': 0 },
+};
+
+const BANK = {
+  format: 'websynth-preset-bank',
+  version: 1,
+  name: 'Tool Set',
+  presets: { one: { 'filter.cutoff': 60 }, two: { 'filter.cutoff': 90 } },
+};
+
+describe('get_preset_format', () => {
+  it('returns the preset guide with the configured base URL', async () => {
+    const guide = textOf(await tool('get_preset_format', { baseUrl: 'https://synth.example' }).handler({}));
+    expect(guide).toContain('"format": "websynth-preset"');
+    expect(guide).toContain('https://synth.example/schema/websynth-preset.schema.json');
+    expect(guide).toContain('"filter.cutoff"'); // the live PARAMS table
+    // A preset is a sound: song-level params are deliberately absent from its table.
+    expect(guide).not.toContain('"transport.bpm"');
+  });
+});
+
+describe('validate_preset', () => {
+  it('ok for a valid preset and bank (object or JSON string)', async () => {
+    const t = tool('validate_preset');
+    expect(jsonOf(await t.handler({ preset: PRESET })).ok).toBe(true);
+    expect(jsonOf(await t.handler({ preset: JSON.stringify(PRESET) })).ok).toBe(true);
+    const bank = jsonOf(await t.handler({ preset: BANK }));
+    expect(bank).toMatchObject({ ok: true, kind: 'bank', presets: ['one', 'two'] });
+  });
+
+  it('catches invented ids and out-of-range values (the authoring contract)', async () => {
+    const res = await tool('validate_preset').handler({
+      preset: { ...PRESET, params: { 'osc1.shape': 1, 'filter.cutoff': 999 } },
+    });
+    expect(res.isError).toBeFalsy(); // a failed validation is a successful call
+    const out = jsonOf(res);
+    expect(out.ok).toBe(false);
+    expect(out.errors.join('\n')).toContain('osc1.shape');
+    expect(out.errors.join('\n')).toMatch(/filter\.cutoff.*must be/);
+  });
+
+  it('warns about song-level ids in a sound without failing', async () => {
+    const out = jsonOf(await tool('validate_preset').handler({
+      preset: { ...PRESET, params: { ...PRESET.params, 'transport.bpm': 140 } },
+    }));
+    expect(out.ok).toBe(true);
+    expect(out.warnings.join('\n')).toContain('transport.bpm');
+  });
+
+  it('points a song file at the right tool', async () => {
+    const out = jsonOf(await tool('validate_preset').handler({ preset: { format: 'websynth-song' } }));
+    expect(out.ok).toBe(false);
+    expect(out.errors[0]).toContain('song file');
+  });
+});
+
+describe('expand_preset', () => {
+  it('fills every patch param from the defaults, keeping the authored values', async () => {
+    const file = jsonOf(await tool('expand_preset').handler({ preset: PRESET }));
+    expect(file.format).toBe('websynth-preset');
+    expect(file.name).toBe('Tool Bass');
+    expect(file.params['filter.cutoff']).toBe(62);
+    // Unmentioned patch params arrive at their registered defaults…
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    expect(file.params['osc1.wave']).toBe(bus.def('osc1.wave')!.default);
+    // …and song-level params stay out of a sound entirely.
+    expect(file.params['transport.bpm']).toBeUndefined();
+  });
+
+  it('expands every entry of a bank', async () => {
+    const file = jsonOf(await tool('expand_preset').handler({ preset: BANK }));
+    expect(file.format).toBe('websynth-preset-bank');
+    expect(Object.keys(file.presets)).toEqual(['one', 'two']);
+    expect(file.presets.one['filter.cutoff']).toBe(60);
+    expect(file.presets.two['env.amp.attack']).toBeTypeOf('number');
+  });
+});
+
+describe('save_preset', () => {
+  it('writes <name>.preset.websynth.json, importable by the app', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    try {
+      const out = jsonOf(await tool('save_preset', { cwd: dir }).handler({ preset: PRESET }));
+      expect(out.ok).toBe(true);
+      expect(out.path.endsWith('Tool_Bass.preset.websynth.json')).toBe(true);
+      // Round-trips through the app's own file parser.
+      const parsed = validatePresetPayload(JSON.parse(readFileSync(out.path, 'utf8')));
+      expect(parsed.ok).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes a bank under the bank extension', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    try {
+      const out = jsonOf(await tool('save_preset', { cwd: dir }).handler({ preset: BANK }));
+      expect(out).toMatchObject({ ok: true, kind: 'bank' });
+      expect(out.path.endsWith('Tool_Set.bank.websynth.json')).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('an invalid preset writes nothing and reports the errors', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    try {
+      const out = jsonOf(await tool('save_preset', { cwd: dir }).handler({ preset: { format: 'nope' } }));
+      expect(out.ok).toBe(false);
+      expect(existsSync(join(dir, 'preset.preset.websynth.json'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

@@ -13,8 +13,26 @@ export { validateSongFile } from '../../src/state/song-validate';
 export type { SongValidation } from '../../src/state/song-validate';
 export { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/song-author';
 export { compactSongForExport } from '../../src/state/serialize';
-export { buildAuthoringGuide, buildSongPrompt } from '../../src/state/authoring-guide';
+export { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';
 export { ParamBus, registerDefaults } from '../../src/state/params';
+// Presets are the other half of what the synth stores (preset-authoring.md).
+// The subtree is preset-validate → preset-session (pure) and preset-file →
+// serialize; `preset.ts` itself is never pulled in (localStorage), only its
+// `Snapshot` type, which erases.
+export {
+  validatePresetPayload,
+  expandPresetParams,
+  defaultPatchParams,
+  PRESET_FORMAT,
+  BANK_FORMAT,
+} from '../../src/state/preset-validate';
+export type { PresetParse, PresetFile, PresetBankFile } from '../../src/state/preset-validate';
+export {
+  buildPresetFile,
+  buildBankFile,
+  presetFilename,
+  bankFilename,
+} from '../../src/state/preset-file';
 export {
   SEQ_LENGTH,
   BANK_COUNT,
