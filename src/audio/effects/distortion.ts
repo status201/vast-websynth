@@ -1,7 +1,8 @@
 import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { memoizeDriveCurve } from '../drive-curve';
 import type { ParamBus } from '../../state/params';
 
-function tanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
+function buildTanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
   const k = 1 + amount * 50;
   const curve = new Float32Array(new ArrayBuffer(samples * Float32Array.BYTES_PER_ELEMENT));
   for (let i = 0; i < samples; i++) {
@@ -10,6 +11,9 @@ function tanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
   }
   return curve;
 }
+
+/** Bucketed + shared across every Distortion instance — see drive-curve.ts. */
+const tanhCurve = memoizeDriveCurve((amount) => buildTanhCurve(amount));
 
 export class Distortion implements Effect {
   readonly input: AudioNode;
@@ -52,8 +56,12 @@ export class Distortion implements Effect {
   setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setDrive(amount: number): void {
+    // The gains track `amount` continuously (that is what makes a drag sound
+    // smooth); only the table is bucketed, and re-assigning the same one is
+    // skipped outright.
     this.preGain.gain.setTargetAtTime(1 + amount * 8, this.ctx.currentTime, 0.02);
-    this.shaper.curve = tanhCurve(amount);
+    const curve = tanhCurve(amount);
+    if (this.shaper.curve !== curve) this.shaper.curve = curve;
     this.postGain.gain.setTargetAtTime(1 / (1 + amount * 1.5), this.ctx.currentTime, 0.02);
   }
   setTone(hz: number): void {
