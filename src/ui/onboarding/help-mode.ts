@@ -83,6 +83,17 @@ const ANCHORS: Anchor[] = [
   { topic: 'song.new', find: () => byTestId('song-new') },
   { topic: 'song.exportAudio', find: () => byTestId('song-export-audio') },
   { topic: 'song.record', find: () => byTestId('song-record') },
+  // The playhead ruler on each machine tab (transport-position.md REQ-9). One
+  // per lane because only the visible tab's anchor has a box — the others
+  // measure 0×0 and their badges hide, so a single shared badge would be
+  // reachable on exactly one tab.
+  { topic: 'transport.ruler.seq', find: () => byTestId('ruler-seq') },
+  { topic: 'transport.ruler.drum', find: () => byTestId('ruler-drum') },
+  { topic: 'transport.ruler.sampler', find: () => byTestId('ruler-sampler') },
+  { topic: 'transport.ruler.motion', find: () => byTestId('ruler-motion') },
+  // The Song tab's transport row; the launcher doubles as its section title, so
+  // the badge lands on the row's leading control (transport-window.md REQ-3).
+  { topic: 'transport.song', find: () => byTestId('transport-open') },
   // Transport-sync section (Song tab): the mode control + the WiFi pairing button.
   { topic: 'sync', find: () => byTestId('sync-mode-master') },
   { topic: 'sync.wifi', find: () => byTestId('sync-wifi-link') },

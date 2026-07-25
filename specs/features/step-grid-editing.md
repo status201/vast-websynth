@@ -3,11 +3,13 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 2   # v2: off-screen grids skip their per-tick repaints (REQ-12)
+version: 3   # v3: a position ruler sits above every grid; its click is a seek (REQ-13)
+             # v2: off-screen grids skip their per-tick repaints (REQ-12)
 owner: core
 related:
   - architecture
   - runtime-performance
+  - transport-position
   - ../decisions/adr-014-dont-make-me-think
   - ../recipes/design-an-interaction
   - sequencer
@@ -152,6 +154,16 @@ answer to "inspect this step without disturbing it".
   coalesces any redraws requested while hidden into one. A gate starts `shown`
   because panels are built before the `TabContainer` exists (see
   [runtime-performance](runtime-performance.md) REQ-4).
+- **REQ-13** — **The position ruler is separate chrome with its own gesture**
+  (v3, [transport-position](transport-position.md) REQ-9). The cell gestures below
+  are **saturated** — tap, drag, long-press, right-click, double-tap and wheel all
+  already have an outcome — so "move the playhead" cannot become a modifier on a
+  cell without breaking [ADR-014](../decisions/adr-014-dont-make-me-think.md)
+  law 2. It gets its own 16-column strip **above** the grid instead, where a plain
+  click is unambiguously a seek. The strip is not part of the grid: it is never
+  painted, never selected, and neither `Delete` (REQ-5) nor `Clear ▾` (REQ-6)
+  reaches it. It obeys the same `VisibilityGate` as REQ-12, with the same reveal
+  contract.
 
 ## Technical design
 
@@ -173,7 +185,10 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
 
 Every gesture has exactly one outcome, independent of hidden state — there is no
-mode anywhere in this table.
+mode anywhere in this table. Note that it is **full**: every gesture a cell can
+receive is spoken for, which is why the position ruler (REQ-13) is a separate
+target rather than a modifier here. Its own one-row inventory lives in
+[transport-position](transport-position.md).
 
 ### Contract / public interface
 

@@ -3,11 +3,12 @@
 ```yaml
 id: performance
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
   - transport
+  - transport-position
   - song-mode
   - xy-pad
   - live-fx-window
@@ -49,6 +50,17 @@ so the Song panel can drive momentary controls without reaching into the machine
   wires `perf.clockRampAllowed = () => sync.mode !== 'slave'`, so a slaved
   instance's Tape Stop bends pitch only and never fights the followed clock
   ([midi-clock-sync.md](midi-clock-sync.md) REQ-13).
+- **REQ-7** (v4) — **A transport seek re-anchors stutter.** `mapStep` returns
+  `anchor + ((rawStep - anchor) mod n)`, and `anchor` is captured from the live
+  clock when stutter engages. After a playhead jump
+  ([transport-position.md](transport-position.md) REQ-4) that anchor belongs to the
+  old position, so the mapping silently clamps the new position back into the old
+  window — a backwards jump replays it forever and a forward jump goes nowhere.
+  `Performance` subscribes `clock.onSeek` and, **while stutter is engaged**,
+  re-anchors to the new `clock.step`; with stutter off there is nothing to do
+  (`mapStep` is the identity). Fill / Drop / DJ Filter hold no position state and
+  are unaffected; Tape Stop's rAF ramp is a BPM ramp, not a position, so it too is
+  untouched.
 
 ## Technical design
 
@@ -65,6 +77,7 @@ Performance:  # src/audio/transport/performance.ts
   setTapeStop(on)                   # BPM + pitch ramp via rAF
   clockRampAllowed: () => boolean   # v3: default () => true; gates Tape Stop's clock ramp + restore
 ctor deps: (ctx, clock, bus, djFilter: BiquadFilterNode)
+# v4: subscribes clock.onSeek -> re-anchor the stutter window (REQ-7)
 ```
 
 ### Data shapes (registry)
@@ -112,6 +125,13 @@ Scenario: Tape Stop gated while slaved ramps pitch only (v3)
   When the user holds then releases Tape Stop
   Then clock.setBpm is never called (per-frame nor the restore)
    And the pitch-bend ramp still runs
+# pinned by: tests/audio/transport/performance.test.ts
+
+Scenario: A seek under active stutter re-anchors (v4, REQ-7)
+  Given stutter is engaged at anchor step a
+  When the playhead is seeked backwards past a
+  Then the window re-anchors to the new step instead of replaying [a, a+n)
+  And with stutter off a seek changes nothing (mapStep stays the identity)
 # pinned by: tests/audio/transport/performance.test.ts
 ```
 

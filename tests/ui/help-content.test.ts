@@ -154,3 +154,40 @@ describe('the tour', () => {
     expect(TOUR_STEPS.findIndex((s) => s.title === 'Arrange a full song')).toBeGreaterThan(i);
   });
 });
+
+/** Playhead-ruler + Song-transport badges (onboarding.md REQ-16). */
+describe('help-content transport-position topics', () => {
+  const LANES = ['seq', 'drum', 'sampler', 'motion'] as const;
+
+  it('has one ruler topic per machine tab', () => {
+    for (const lane of LANES) {
+      const t = HELP_TOPICS[`transport.ruler.${lane}`];
+      expect(t, lane).toBeTruthy();
+    }
+  });
+
+  it('shares ONE topic object across the four ids (identical copy by construction)', () => {
+    const first = HELP_TOPICS['transport.ruler.seq'];
+    for (const lane of LANES) expect(HELP_TOPICS[`transport.ruler.${lane}`]).toBe(first);
+  });
+
+  it('the ruler copy covers what the grid playhead cannot say, plus the keys', () => {
+    const body = bodyOf('transport.ruler.seq');
+    expect(body).toContain('stopped');            // it shows position while stopped
+    expect(body).toMatch(/switched off/);         // …and on a disabled machine
+    expect(body).toMatch(/bank/);                 // …and across banks
+    expect(body).toContain('Home');
+    expect(body).toContain('Shift');
+  });
+
+  it('has a `transport.song` topic covering the scrubber and the window', () => {
+    const t = HELP_TOPICS['transport.song'];
+    expect(t).toBeTruthy();
+    expect(t.title.toLowerCase()).toContain('transport');
+    const body = bodyOf('transport.song');
+    expect(body).toContain('bar.step');
+    expect(body).toMatch(/chains? above|chain/);  // cells line up with chain slots
+    expect(body).toMatch(/floating window|window/);
+    expect(body).toMatch(/external clock|export|render/); // when seeking is refused
+  });
+});

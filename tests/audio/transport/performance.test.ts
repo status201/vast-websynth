@@ -78,6 +78,41 @@ function makePerf() {
   return { ctx, clock, bus, djFilter, perf };
 }
 
+// performance.md REQ-7 — the stutter window is anchored to an ABSOLUTE step, so
+// a playhead jump would otherwise be folded back into the old window.
+describe('Performance stutter re-anchor on seek', () => {
+  it('re-anchors to the new position instead of replaying the old window', () => {
+    const { clock, perf } = makePerf();
+    clock.step = 4;
+    perf.setStutterSize(2);
+    perf.setStutter(true);            // anchor = 4 → the window is [4, 6)
+    expect(perf.mapStep(9)).toBe(5);  // folded back into the old window
+
+    clock.fireSeek(40);
+    expect(perf.mapStep(40)).toBe(40);
+    expect(perf.mapStep(41)).toBe(41);
+    expect(perf.mapStep(42)).toBe(40); // a fresh window at the new position
+  });
+
+  it('handles a backwards jump (the case that used to replay forever)', () => {
+    const { clock, perf } = makePerf();
+    clock.step = 100;
+    perf.setStutterSize(4);
+    perf.setStutter(true);
+    clock.fireSeek(8);
+    expect(perf.mapStep(8)).toBe(8);
+    expect(perf.mapStep(11)).toBe(11);
+    expect(perf.mapStep(12)).toBe(8);
+  });
+
+  it('changes nothing while stutter is off (mapStep stays the identity)', () => {
+    const { clock, perf } = makePerf();
+    clock.fireSeek(37);
+    expect(perf.mapStep(5)).toBe(5);
+    expect(perf.mapStep(99)).toBe(99);
+  });
+});
+
 describe('Performance.setFill', () => {
   it('toggles the fillActive flag the machines read', () => {
     const { perf } = makePerf();

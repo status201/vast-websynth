@@ -117,6 +117,18 @@
   white-space: nowrap;
 }
 
+/* Arrows etc. inside a key combo. Courier New has no glyph for them, so the
+   browser substitutes a fallback face at its own (much smaller) size — at 11px
+   the arrows became illegible dashes. Draw them in the UI sans, bigger, and
+   nudge them onto the monospace baseline. */
+.glyph {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1;
+  vertical-align: -2px;
+  letter-spacing: 0.12em;
+}
+
 .act {
   font-size: 12px;
   color: var(--text-dim);

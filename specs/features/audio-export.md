@@ -3,7 +3,7 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 5
+version: 6   # v6: exportSong pins start(0) and refuses a playhead seek (REQ-2)
 owner: core
 related:
   - architecture
@@ -41,7 +41,13 @@ already-slow action, so the fetch is invisible next to the encode itself.
 - **REQ-1** — A zero-output recorder worklet, tapped off `master` post-volume.
 - **REQ-2** — `exportSong(fmt)` restarts from the top, renders exactly one pass of
   the longest enabled [arrangement](arrangement.md) chain (or `FALLBACK_BARS` = 4
-  when none enabled), auto-stops, and downloads.
+  when none enabled), auto-stops, and downloads. "From the top" means
+  **`clock.start(0)` explicitly**: the capture's end is `step >= stopAtStep`, an
+  absolute step number, and since [transport](transport.md) REQ-7 a plain `start()`
+  begins from the user's cue rather than 0 — so a cued transport would silently
+  truncate the export. For the same reason a **playhead seek is refused while this
+  capture is in flight** ([transport-position](transport-position.md) REQ-6);
+  `RecorderController` exposes its capture state for that guard.
 - **REQ-3** — A `TAIL_MS` (350 ms) grace period after the last bar captures
   look-ahead + reverb/release tails.
 - **REQ-4** — `toggleManual(fmt)` is a free-form record toggle; the second call

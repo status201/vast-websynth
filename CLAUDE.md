@@ -90,7 +90,11 @@ stable testids minted at the factory level: `knob-<paramId>`,
 `switch-<paramId>`, `seg-<paramId>`(+`-<idx>`), `strip-<paramId>`,
 `tab-<id>`/`panel-<id>`, plus per-instance ones in the panels (`seq-step-<i>`,
 `drum-step-<t>-<s>`, `sampler-step-<slot>-<s>`, `motion-step-<s>` (mini XY
-pads), `motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
+pads), `ruler-<seq|drum|sampler|motion>` + `-<0..15>`/`-bar` (the transport-position
+ruler above every grid — click a tick to seek; the lit tick carries the *global*
+`playing` class, so e2e can find it despite CSS-Module hashing — see
+`specs/features/transport-position.md`),
+`motion-trk-<0|1>-param`/`-step-<s>`/`-graph` + `seg-motion.t<0|1>.slide`
 (the extra tracks) + `motion-view(-x|-y)`/`motion-graph`/`motion-assign-<x|y|reset>`/
 `motion-xypad` (the Motion tab),
 `<seq|drum|sampler>-vel/-gate/-prob/-ratchet-<n>/-tie` (the shared
@@ -122,6 +126,11 @@ door, also embedded as the AI Prompt modal's step 3 — see
 `preset-mgr-import`/`preset-mgr-file`/`preset-mgr-close` and the import wizard's
 `preset-import-review`/`preset-import-row-<name>`/`preset-import-policy-<rename|overwrite|skip>`/
 `preset-import-confirm`/`preset-import-back` (see `specs/features/presets.md`),
+`transport-open`/`transport-window` + `transport-tostart`/`-readout`/`-scrub`/
+`-scrub-<bar>` (the Song panel's compact transport row; the floating window
+mirrors them under `transportw-*` and adds `transportw-toggle` — deliberately
+**not** `-play`, which is the header button's id — see
+`specs/features/transport-window.md`),
 `sync-mode-<off|master|slave>`/`sync-status` (the Song panel's MIDI clock-sync
 section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 "Import into sampler" resample section), `export-modal`/`export-kind-<json|project>`/
@@ -569,6 +578,20 @@ it also writes the note name as the label.
   timer throttling; the scheduling logic itself stays on the main thread.
   `TimeoutTimer` is the no-`Worker` fallback and the unit-test double (jsdom
   has no `Worker`). `Clock` takes `{ timer?, scheduleAheadS? }` opts.
+- **Moving the playhead goes through `Engine.seekTo(step)`, never `clock.seek`**
+  (`specs/features/transport-position.md`). `Clock.seek` changes *which* step is
+  next without touching `nextStepTime` — the tempo grid survives a live jump —
+  and sets the **cue**, which is what a plain `start()` now begins from (`_cue`
+  is 0 until the first seek, so nothing changes for a transport nobody moved;
+  `RecorderController.exportSong` and `BankRenderController` must therefore call
+  `start(0)` **explicitly**, since they bound their captures by absolute step).
+  It fires `onSeek` synchronously, and every consumer that counts position
+  *relatively* re-bases there: `Arrangement.seekTo` (lane positions +
+  `expectFirstBar`), `StepSequencer` (release held notes / clear `prevTied`),
+  `MotionMachine` (drop the `prev`/`curr` latch — **never** `restoreBaselines()`,
+  which would lose the pre-automation values for the session) and `Performance`
+  (re-anchor stutter). `Engine.seekTo` owns the refusals (sync slave, recorder
+  capturing, bank render) and the sync-master `songposition`+`continue` announce.
 - **Bypassed effects are truly disconnected** (ADR-012): `BypassWrapper` keeps
   the click-free dry/wet crossfade but, 150 ms after bypassing, disconnects
   its own two edges (`input → processedIn`, `processedOut → wet`) so the

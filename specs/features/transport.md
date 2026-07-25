@@ -3,7 +3,7 @@
 ```yaml
 id: transport
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -12,6 +12,7 @@ related:
   - arrangement
   - performance-mode
   - midi-clock-sync
+  - transport-position
 source:
   - src/audio/transport/clock.ts
   - src/audio/transport/tick-timer.ts
@@ -60,6 +61,24 @@ untouched.
   clock-sync's Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md)
   REQ-10). `TickSubscriber.start(): void` keeps its no-arg signature (the
   concrete `Clock` accepts the optional param).
+- **REQ-6** (v4) — **`seek(step)` moves a *running* clock.** It sets `_step` (and
+  the cue, REQ-7) but **never** `nextStepTime`, so the tempo grid is preserved and
+  a live jump neither retriggers nor shifts phase — the deliberate contrast with
+  `start()`, which re-origins `nextStepTime` to `ctx.currentTime + 0.05`. Valid
+  while playing *and* while stopped. It fires a **new** listener channel
+  `onSeek(fn)` **synchronously**, mirroring `onStart`'s ordering guarantee, so the
+  [arrangement](arrangement.md) (constructed first) re-seeks its lanes before any
+  machine reacts. `TickSubscriber` grows `onSeek` alongside `onStart`/`onStop`.
+  Every consumer that counts position *relatively* must react — see
+  [transport-position.md](transport-position.md) REQ-4.
+- **REQ-7** (v4) — **The cue is the position a plain `start()` begins from.**
+  `seek(step)` sets it, `get cue` reads it, and `start(fromStep = this.cue)`
+  honours it; `stop()` leaves it alone, so Stop → Play resumes from the last
+  seeked position. It defaults to `0`, so with no seek ever performed every REQ-5
+  guarantee above holds unchanged. **Callers that require step 0 must now say so**:
+  `RecorderController.exportSong` and `BankRenderController` both derive their
+  capture bounds from absolute step numbers and call `start(0)` explicitly — a
+  cued clock would otherwise truncate the capture silently.
 
 ## Technical design
 
@@ -75,9 +94,13 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
                        # (midi-clock-sync.md); surfaced by debug-panel.md
   setBpm(b)            # clamped 20..400 internally
   setSwing(s)          # 0 (straight) .. 1
-  start(fromStep = 0) / stop()   # v3: fromStep seeds _step (& 0xffff) before onStart
+  get cue: number      # v4: where a plain start() begins; 0 until the first seek
+  start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step (& 0xffff) before
+                       # onStart. v4: the default is the cue, not the literal 0
+  seek(step)           # v4: _cue = _step = step & 0xffff; nextStepTime UNTOUCHED;
+                       # fires onSeek synchronously. Playing or stopped.
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
-  onTick(fn) / onStart(fn) / onStop(fn) -> unsubscribe
+  onTick(fn) / onStart(fn) / onStop(fn) / onSeek(fn) -> unsubscribe
 constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1 (default; perf tier may widen it)
 TickListener: (step, when) => void        # tick-source.ts
 TickTimer:   # src/audio/transport/tick-timer.ts — the wakeup source
@@ -107,6 +130,12 @@ engine (subscribeParams): transport.bpm -> clock.setBpm; transport.swing -> cloc
 construction order (engine): new Arrangement(...) BEFORE the machines, so on each
   tick the play banks are settled before the machines read them (see arrangement.md)
 UI: header transport-play button toggles clock.start()/stop()
+v4 seek fan-out (order guaranteed by the same construction order):
+  clock.seek -> Arrangement (play banks settle) -> machines -> the UI ruler
+  UI never calls clock.seek directly; it goes through Engine.seekTo, which owns
+  the refusal states + the sync-master announce (transport-position.md REQ-6/7)
+recorders: RecorderController.exportSong / BankRenderController call start(0)
+  EXPLICITLY (REQ-7) — they bound their captures by absolute step number
 ```
 
 Note the registry clamps BPM to `40..240` for the UI knob, while `Clock.setBpm`
@@ -141,6 +170,20 @@ Scenario: start(fromStep) seeds the step before onStart (v3)
    And start() / start(0) still begins at step 0 (regression)
 # pinned by: tests/audio/transport/clock.test.ts
 
+Scenario: seek moves the step without disturbing the grid (v4)
+  Given the clock is playing
+  When seek(37) is called
+  Then clock.step is 37, nextStepTime is unchanged, and onSeek fired once
+   And the next tick continues on the same tempo grid (no retrigger)
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A seek while stopped cues the next start (v4)
+  Given the clock is stopped and has never been seeked
+  When seek(64) is called and then start() (no argument)
+  Then the first tick fires for step 64
+   And with no seek at all, start() still begins at step 0 (REQ-5 regression)
+# pinned by: tests/audio/transport/clock.test.ts
+
 Scenario: Transport survives a backgrounded tab (device)
   Given the transport is playing on a phone
   When the tab is backgrounded for 30s and foregrounded again
@@ -161,4 +204,8 @@ Scenario: Transport survives a backgrounded tab (device)
 ## Open questions / future
 
 - `step` is a monotonically increasing 16th counter; bar logic is `step %
-  SEQ_LENGTH` (consumed by the arrangement + step machines).
+  SEQ_LENGTH` (consumed by the arrangement + step machines). `0x10000 %
+  SEQ_LENGTH === 0`, so the 16-bit wrap is bar-aligned and never glitches phase.
+- `nudge` and `seek` are deliberately different tools: `nudge` shifts *when* the
+  future grid ticks (sub-10 ms, phase only); `seek` changes *which* step, leaving
+  the grid alone. Neither is expressible in terms of the other.

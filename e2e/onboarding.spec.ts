@@ -131,6 +131,32 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(renderDialog).toContainText('twice');
   await renderDialog.getByRole('button', { name: 'Close' }).click();
 
+  // The playhead ruler carries a badge on every machine tab (onboarding.md
+  // REQ-16) — one topic id per lane, because a hidden tab's anchor measures 0×0
+  // and takes its badge with it. Check two tabs so the per-lane wiring is real.
+  await page.getByTestId('ruler-seq').scrollIntoViewIfNeeded();
+  const seqRulerBadge = page.getByTestId('help-badge-transport.ruler.seq');
+  await expect(seqRulerBadge).toBeVisible();
+  await seqRulerBadge.click();
+  const rulerDialog = page.getByRole('dialog', { name: 'Playhead ruler' });
+  await expect(rulerDialog).toContainText('Home');
+  await rulerDialog.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByTestId('tab-drums').click();
+  await page.getByTestId('ruler-drum').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('help-badge-transport.ruler.drum')).toBeVisible();
+  await expect(page.getByTestId('help-badge-transport.ruler.seq')).toBeHidden();
+
+  // The Song tab's transport row, badged on its launcher (transport-window REQ-10).
+  await page.getByTestId('tab-song').click();
+  await page.getByTestId('transport-open').scrollIntoViewIfNeeded();
+  const transportBadge = page.getByTestId('help-badge-transport.song');
+  await expect(transportBadge).toBeVisible();
+  await transportBadge.click();
+  const transportDialog = page.getByRole('dialog', { name: 'Transport & song position' });
+  await expect(transportDialog).toContainText('bar.step');
+  await transportDialog.getByRole('button', { name: 'Close' }).click();
+
   // The Song panel's file buttons each carry their own badge; the Save and
   // Export copy must distinguish the two (the whole reason they exist). Open
   // the Song tab and scroll the I/O row into view so the fixed-position badges

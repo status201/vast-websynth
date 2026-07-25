@@ -372,3 +372,60 @@ describe('About modal — Debug section', () => {
     }
   });
 });
+
+// onboarding.md REQ-17 — the About list is the canonical on-screen shortcut
+// reference, and its arrow rows were unreadable.
+describe('About modal — keyboard shortcut list', () => {
+  beforeEach(() => {
+    installLocalStorageMock();
+    document.body.innerHTML = '';
+  });
+  afterEach(() => closeOpenModal());
+
+  function openAbout() {
+    const { engine } = stubEngine();
+    document.body.appendChild(createAboutButton(engine));
+    (document.body.firstElementChild as HTMLButtonElement).click();
+    // The key/value grid is the element preceding the factory-reset button.
+    const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
+    return reset.previousElementSibling as HTMLElement;
+  }
+
+  it('names every global shortcut, including the transport ones', () => {
+    const text = openAbout().textContent ?? '';
+    for (const s of [
+      'Play / stop transport',
+      'Move the playhead to bar 1',
+      'Move the playhead one bar',
+      'Clear the selected step',
+      'Undo the last grid edit',
+      'Panic — all notes off',
+    ]) {
+      expect(text, s).toContain(s);
+    }
+    expect(text).toContain('Home');
+    expect(text).toContain('Ctrl/Cmd + Z');
+  });
+
+  it('draws arrow runs in the glyph span, not the bare monospace face', () => {
+    const keys = openAbout();
+    const glyphs = [...keys.querySelectorAll('span')];
+    expect(glyphs.length).toBeGreaterThan(0);
+    // Every arrow in the list lives inside a glyph span — the monospace face
+    // has no glyph for them, so a bare one renders as an illegible fallback.
+    for (const g of glyphs) expect(g.textContent).toMatch(/^[←→↑↓⌫⏮\s]+$/);
+    const bare = [...keys.children].filter(
+      (k) => /[←→↑↓]/.test(k.textContent ?? '') && k.querySelector('span') === null,
+    );
+    expect(bare).toEqual([]);
+  });
+
+  it('keeps the non-symbol part of a combo as plain monospace text', () => {
+    const keys = openAbout();
+    const shiftArrow = [...keys.children].find((k) => k.textContent?.startsWith('Shift + ←'));
+    expect(shiftArrow).toBeTruthy();
+    // "Shift + " is a text node; only the arrows are wrapped.
+    expect(shiftArrow!.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+    expect(shiftArrow!.querySelectorAll('span')).toHaveLength(1);
+  });
+});

@@ -68,6 +68,15 @@ export interface StudioApi {
 
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;
+  /**
+   * Move the playhead to an absolute 16th; `false` when refused (slaved, or a
+   * capture is in flight — transport-position.md REQ-6/REQ-8). UI surfaces call
+   * this, never `clock.seek`, so the guard and the sync-master announce live in
+   * exactly one place.
+   */
+  seekTo(step: number): boolean;
+  /** Whether `seekTo` would be accepted — for disabling controls up front. */
+  canSeek(): boolean;
   /** Resume the AudioContext from within a user gesture. */
   resume(): Promise<void>;
 }

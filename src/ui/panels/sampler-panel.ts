@@ -7,8 +7,8 @@ import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor, VisibilityGate,
-  type MachinePanel,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, GridCursor, clearMenuFor,
+  VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import { openRecordSoundModal } from '../components/record-sound-modal';
@@ -75,6 +75,24 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   header.appendChild(fx);
 
   root.appendChild(header);
+
+  // Declared here rather than beside wirePlayhead below, because the ruler is
+  // built before the grid and needs the same gate.
+  const gate = new VisibilityGate();
+
+  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
+  // but where the transport is stays readable.
+  const ruler = playheadRulerFor(engine, 'sampler', gate);
+  const rulerRow = document.createElement('div');
+  rulerRow.className = drumStyles.row!;
+  const rulerCtrls = document.createElement('div');
+  rulerCtrls.className = drumStyles.rowCtrls!;
+  rulerCtrls.appendChild(ruler.barEl);
+  rulerRow.appendChild(rulerCtrls);
+  ruler.cellsEl.classList.add(drumStyles.cells!);
+  rulerRow.appendChild(ruler.cellsEl);
+  root.appendChild(rulerRow);
 
   // ---- Slot rows ----
   const grid = document.createElement('div');
@@ -216,7 +234,6 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   root.appendChild(editor.el);
   setSelected(0, 0);
 
-  const gate = new VisibilityGate();
   const highlighter = wirePlayhead(engine, 'sampler', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)

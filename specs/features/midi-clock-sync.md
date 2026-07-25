@@ -3,12 +3,13 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 4
+version: 5
 owner: core
 related:
   - architecture
   - input-control
   - transport
+  - transport-position
   - performance
   - arrangement
   - webrtc-sync
@@ -318,6 +319,27 @@ while there is a live link.
   arriving), `Master armed — nothing connected` (no output port). The armed BPM
   knob is enabled and carries an explanatory tooltip instead of the slaved one.
 
+## v5 — a local playhead seek
+
+[transport-position](transport-position.md) lets the user move the playhead. That
+is a transport event, so sync has to have an opinion about it in both roles.
+
+- **REQ-23 — A master announces its seek.** After a local
+  `Clock.seek` while `activeMode === 'master'`, `SyncController` fans
+  `SyncMaster.announceTo` out over every transport, which sends `songposition` +
+  `continue` (REQ-10's existing join primitive — no new message types). Without it
+  a slave keeps counting pulses from *its* start and stays exactly the jump
+  distance behind for the rest of the session. It deliberately does **not** send
+  `start`: REQ-3 makes a slave restart at **bar 0** on `start`, which is the one
+  thing a mid-song jump must not do.
+- **REQ-24 — A slave refuses to seek locally.** While `activeMode === 'slave'` the
+  remote transport owns the playhead: `Engine.seekTo` returns `false` and
+  `canSeek()` is `false`, so every UI surface disables itself rather than fighting
+  REQ-5's phase correction — a local `_step` jump invalidates the slave's
+  `tickTimes` mapping and drives it into a `reanchor()` for a beat or two. This
+  mirrors REQ-13's `clockRampAllowed` gate on Tape Stop: local transport *controls*
+  stay live (REQ-3), local transport *position* does not.
+
 ## Technical design
 
 ### Contract / public interface
@@ -372,6 +394,9 @@ SyncController(clock, { toPerfMs, toAudioTime, localBpm, persist?,
   activeMode: SyncMode            # v4: the running role (REQ-19); 'off' while armed
   setMode(m): void                # persist, re-derive the role (explicit: no tempo adopt), emit
   addTransport(id, t): void       # v2: replaces attachTransport; Map keyed by TransportId (same id replaces)
+  announcePosition(): void        # v5 (REQ-23): while master, fan master.announceTo out
+                                  # over every transport (songposition + continue).
+                                  # No-op in any other role. Called by Engine.seekTo.
   status: SyncStatus
   onStatus(cb): unsubscribe
 
@@ -384,6 +409,10 @@ MidiSyncTransport(access) implements SyncTransport:
 
 # src/audio/transport/clock.ts (additions)
 Clock.nudge(seconds): void        # nextStepTime += clamp(s, ±0.05); no-op stopped
+# v5 note: Clock.seek/onSeek (transport.md REQ-6) is a *local* user gesture, not a
+# sync primitive. A slave refuses it (REQ-24); a master announces it (REQ-23).
+# It is NOT how incoming songposition is applied — that still goes through
+# restart -> clock.start(pendingBeat), which must reset the follow state (REQ-10).
 Clock.start(fromStep = 0): void   # v2: seeds _step = fromStep & 0xffff before firing onStart
 
 # src/ui/components/sync-section.ts
@@ -672,6 +701,20 @@ Scenario: An armed mode stays selected and says why
   Then the Slave segment is still marked active, plus an `armed` class
   And the status line reads "Slave armed — no link"
 # pinned by: tests/ui/sync-section.test.ts, e2e/sync.spec.ts
+
+Scenario: A master announces a local playhead seek (v5, REQ-23)
+  Given sync mode is master and the transport is playing
+  When the user moves the playhead
+  Then songposition + continue are broadcast to every transport
+  And `start` is NOT sent (it would realign slaves to bar 0)
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts
+
+Scenario: A slave refuses a local playhead seek (v5, REQ-24)
+  Given activeMode is 'slave'
+  When Engine.seekTo is called
+  Then it returns false, clock.step is unchanged, and canSeek() is false
+  But the local Play button and arp auto-start still work (REQ-3 unchanged)
+# pinned by: tests/audio/engine-seek.test.ts
 ```
 
 ## Tests & verification

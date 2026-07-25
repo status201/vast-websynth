@@ -3,7 +3,8 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 2   # v2: a `seq.render` help badge explains the section + the two-pass tail bake
+version: 3   # v3: explicit start(0) + a render blocks a playhead seek (REQ-2/REQ-6)
+             # v2: a `seq.render` help badge explains the section + the two-pass tail bake
 owner: core
 related:
   - architecture
@@ -44,8 +45,10 @@ the loop drifts against the grid and is unusable.
   recorder worklet posts `currentFrame` with each chunk;
   `startSample = round(step0Time × sampleRate) − firstCapturedFrame` maps the
   scheduled (sample-accurate) time of step 0 into the captured stream. The node
-  is armed *before* `clock.start()`, whose 50 ms pre-roll guarantees
-  `firstCapturedFrame ≤ startSample`.
+  is armed *before* `clock.start(0)`, whose 50 ms pre-roll guarantees
+  `firstCapturedFrame ≤ startSample`. The `0` is **explicit**: since
+  [transport](transport.md) REQ-7 a plain `start()` resumes from the user's cue,
+  and this capture's origin is the absolute `step === 0`.
 - **REQ-3 (two-pass loop bake)** — The bank plays **twice**; the kept bar is the
   **second** (`[step0 + barSamples, step0 + 2·barSamples)`), so bar 1's
   delay/reverb/release tail is baked into the loop's start and the sample wraps
@@ -65,7 +68,10 @@ the loop drifts against the grid and is unusable.
   `RecorderController` capture is in flight. The UI additionally disables the
   action when the edit bank has no active steps and when MIDI sync mode is
   `slave` (a slave does not own the clock, and estimator BPM writes would break
-  REQ-1).
+  REQ-1). Conversely a **playhead seek is refused while a render is in flight**
+  ([transport-position](transport-position.md) REQ-6) — the crop is pure frame
+  arithmetic off `step === 0` and `stopAtStep`, so a jump would truncate or
+  unbound it.
 - **REQ-7 (slot load contract)** — On success the buffer lands in the chosen
   slot via the settled pair `SamplerMachine.setBuffer(slot, buf)` +
   `PatternStore.setSampleName(slot, name)`, name `seq-<bank letter>-<bpm>bpm`.

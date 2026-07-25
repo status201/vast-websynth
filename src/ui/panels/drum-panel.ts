@@ -8,8 +8,8 @@ import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, GridCursor, clearMenuFor, VisibilityGate,
-  type MachinePanel,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, GridCursor, clearMenuFor,
+  VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import { fxGroup } from '../components/fx-group';
@@ -70,6 +70,25 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
   ]));
   header.appendChild(fx);
   root.appendChild(header);
+
+  // Declared here rather than beside wirePlayhead below, because the ruler is
+  // built before the grid and needs the same gate.
+  const gate = new VisibilityGate();
+
+  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
+  // but where the transport is stays readable. It borrows the panel's own row
+  // and cells classes, so its ticks line up with the steps beneath them.
+  const ruler = playheadRulerFor(engine, 'drum', gate);
+  const rulerRow = document.createElement('div');
+  rulerRow.className = styles.row!;
+  const rulerCtrls = document.createElement('div');
+  rulerCtrls.className = styles.rowCtrls!;
+  rulerCtrls.appendChild(ruler.barEl);
+  rulerRow.appendChild(rulerCtrls);
+  ruler.cellsEl.classList.add(styles.cells!);
+  rulerRow.appendChild(ruler.cellsEl);
+  root.appendChild(rulerRow);
 
   // ---- Track rows ----
   const grid = document.createElement('div');
@@ -245,7 +264,6 @@ export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUn
     });
   }
 
-  const gate = new VisibilityGate();
   const highlighter = wirePlayhead(engine, 'drum', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)

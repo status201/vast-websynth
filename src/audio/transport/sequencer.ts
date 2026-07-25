@@ -52,6 +52,11 @@ export class StepSequencer {
     private readonly perf: Performance,
   ) {
     clock.onTick((step, when) => this.onTick(step, when));
+    // A playhead jump makes the per-track tie/held-note state meaningless: it
+    // only ever describes the *adjacent* step. Left alone, a note tied at the
+    // old position slurs into the new one — or never gets released at all
+    // (sequencer.md REQ-14).
+    clock.onSeek(() => this.releaseAll());
   }
 
   setEnabled(on: boolean): void {

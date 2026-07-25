@@ -31,11 +31,13 @@ export class Clock implements TickSubscriber {
   private _playing = false;
   private nextStepTime = 0;
   private _step = 0;
+  private _cue = 0;
   private readonly timer: TickTimer;
   private readonly scheduleAheadS: number;
   private readonly listeners = new Set<TickListener>();
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
+  private readonly seekListeners = new Set<() => void>();
 
   constructor(private readonly ctx: AudioContext, opts?: ClockOptions) {
     this.timer = opts?.timer ?? defaultTickTimer();
@@ -44,6 +46,9 @@ export class Clock implements TickSubscriber {
 
   get playing(): boolean { return this._playing; }
   get step(): number { return this._step; }
+  /** Where a plain `start()` begins. 0 until the first `seek` (transport.md
+   *  REQ-7), so a transport nobody has moved behaves exactly as it always did. */
+  get cue(): number { return this._cue; }
   /** The tempo the transport is actually running at. Worth reading directly:
    *  a slaved clock is driven by `setBpm` from incoming MIDI pulses and never
    *  touches the bus, so `transport.bpm` can legitimately disagree with this
@@ -63,9 +68,14 @@ export class Clock implements TickSubscriber {
    * Start the transport. `fromStep` seeds the step counter *before* start
    * listeners fire, so a subscriber (the Arrangement) can read `clock.step` in
    * `onStart` and seek to the implied bar — used by clock-sync's Song-Position
-   * join (midi-clock-sync REQ-10). Plain `start()` / `start(0)` is unchanged.
+   * join (midi-clock-sync REQ-10).
+   *
+   * The default is the **cue** (transport.md REQ-7), i.e. wherever the user last
+   * moved the playhead — 0 until they do, so `start()` on an untouched transport
+   * is unchanged. Callers that genuinely require step 0 (the recorders, which
+   * bound their captures by absolute step number) must pass `0` explicitly.
    */
-  start(fromStep = 0): void {
+  start(fromStep = this._cue): void {
     if (this._playing) return;
     this._playing = true;
     this.nextStepTime = this.ctx.currentTime + 0.05;
@@ -73,6 +83,22 @@ export class Clock implements TickSubscriber {
     for (const l of this.startListeners) l();
     this.tick(); // schedule the first horizon synchronously
     this.timer.start(this.tick, LOOKAHEAD_MS);
+  }
+
+  /**
+   * Move the playhead (transport.md REQ-6). Deliberately does **not** touch
+   * `nextStepTime`: the tempo grid is preserved, so a jump mid-play stays in
+   * time — it changes *which* step is next, never *when* it sounds. (That is the
+   * whole difference from `start()`, which re-origins the grid, and from
+   * `nudge()`, which shifts the grid without changing the step.)
+   *
+   * Valid playing or stopped; while stopped it simply cues the next `start()`.
+   * Listeners fire synchronously so the Arrangement — which subscribes first —
+   * has settled the play banks before any machine reacts.
+   */
+  seek(step: number): void {
+    this._cue = this._step = step & 0xffff;
+    for (const l of this.seekListeners) l();
   }
 
   stop(): void {
@@ -103,6 +129,12 @@ export class Clock implements TickSubscriber {
   onStop(listener: () => void): () => void {
     this.stopListeners.add(listener);
     return () => { this.stopListeners.delete(listener); };
+  }
+
+  /** Fired synchronously from `seek()`, before the next tick drains. */
+  onSeek(listener: () => void): () => void {
+    this.seekListeners.add(listener);
+    return () => { this.seekListeners.delete(listener); };
   }
 
   private tick = (): void => {

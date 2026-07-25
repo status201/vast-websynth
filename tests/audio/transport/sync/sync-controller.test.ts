@@ -65,6 +65,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** One bar of 16ths — the unit a playhead jump moves in. */
+const SEQ_LENGTH_BARS = 16;
+
 const clockBpm = (clock: Clock): number => 15 / clock.sixteenthDuration();
 const intervalMs = (bpm: number): number => 60000 / (bpm * 24);
 
@@ -300,6 +303,45 @@ describe('SyncController', () => {
     // The activating enable() already announced — the targeted per-transport
     // join must not fire on top of it.
     expect(transport.sent.map((s) => s.msg.type)).toEqual(['tempo', 'songposition', 'continue']);
+    clock.stop();
+  });
+
+  // midi-clock-sync.md REQ-23 — a slave counts pulses from its own start, so an
+  // unannounced local jump leaves it permanently behind.
+  it('announcePosition tells peers where the playhead went (v5)', () => {
+    const { clock, ctrl, transport } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('master');
+    clock.start();
+    transport.sent.length = 0;
+
+    clock.seek(SEQ_LENGTH_BARS * 2);
+    ctrl.announcePosition();
+
+    const types = transport.sent.map((s) => s.msg.type);
+    expect(types).toContain('songposition');
+    expect(types).toContain('continue');
+    // `start` would realign every slave to bar 0 — the one thing a mid-song
+    // jump must never do (REQ-3).
+    expect(types).not.toContain('start');
+    const spp = transport.sent.find((s) => s.msg.type === 'songposition');
+    expect(spp && 'beat' in spp.msg ? spp.msg.beat : -1).toBe(clock.step);
+    clock.stop();
+  });
+
+  it('announcePosition is a no-op in any role but a running master (v5)', () => {
+    const { clock, ctrl, transport } = setup();
+    ctrl.addTransport('midi', transport);
+    clock.start();
+    transport.sent.length = 0;
+
+    ctrl.announcePosition();          // mode 'off'
+    expect(transport.sent).toEqual([]);
+
+    ctrl.setMode('slave');
+    transport.sent.length = 0;
+    ctrl.announcePosition();
+    expect(transport.sent).toEqual([]);
     clock.stop();
   });
 

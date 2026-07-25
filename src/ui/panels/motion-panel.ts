@@ -10,8 +10,8 @@ import { Dropdown } from '../components/dropdown';
 import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, VisibilityGate,
-  type GatedPanel,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, clearMenuFor,
+  VisibilityGate, type GatedPanel,
 } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
@@ -110,10 +110,23 @@ export function buildMotionPanel(
     }
     return out;
   }));
+  // Declared here rather than beside wirePlayhead below, because the ruler is
+  // built before the pads and needs the same gate.
+  const gate = new VisibilityGate();
+
+  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // The bar readout belongs to the machine header (position is transport-wide,
+  // not an XY-lane setting); the ticks span the full width above the pads, which
+  // have no left control column of their own. Outside the rest-overlay wrapper
+  // on purpose: a rest bar dims the *pattern*, not where the transport is.
+  const ruler = playheadRulerFor(engine, 'motion', gate);
+  header.appendChild(ruler.barEl);
   root.appendChild(header);
   // Populated further down by the axes block; placed here so it renders between
   // the machine header and the pads it belongs to.
   root.appendChild(xyHeader);
+  ruler.cellsEl.classList.add(drumStyles.cells!);
+  root.appendChild(ruler.cellsEl);
 
   // ---- Step grid: one row of 16 mini XY pads ----
   const cells = document.createElement('div');
@@ -382,8 +395,6 @@ export function buildMotionPanel(
     redrawGraph();
     refreshAxes();
   };
-
-  const gate = new VisibilityGate();
 
   // Light the playing column across all three lanes (XY + A + B), not just the XY
   // pads — the tracks were added later (v4) and were never wired in (REQ-16).

@@ -10,8 +10,8 @@ import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, clearMenuFor, GridCursor, VisibilityGate,
-  type MachinePanel,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, clearMenuFor, GridCursor,
+  VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import { noteName } from '../components/keyboard';
@@ -111,6 +111,28 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   /** Re-run on every bank change / song load: reveal a track that has content
    *  but no explicit user preference (REQ-11). */
   const trackAutoReveal: (() => void)[] = [];
+
+  // Declared here rather than beside wirePlayhead below, because the ruler is
+  // built before the grid and needs the same gate.
+  const gate = new VisibilityGate();
+
+  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
+  // but where the transport is stays readable. It borrows the panel's own track
+  // row / step-grid classes so its ticks line up with the steps beneath them.
+  const ruler = playheadRulerFor(engine, 'seq', gate);
+  const rulerRow = document.createElement('div');
+  rulerRow.className = styles.trackRow!;
+  const rulerCtrls = document.createElement('div');
+  rulerCtrls.className = styles.trackCtrls!;
+  rulerCtrls.appendChild(ruler.barEl);
+  rulerRow.appendChild(rulerCtrls);
+  const rulerBody = document.createElement('div');
+  rulerBody.className = styles.trackBody!;
+  ruler.cellsEl.classList.add(styles.stepRow!);
+  rulerBody.appendChild(ruler.cellsEl);
+  rulerRow.appendChild(rulerBody);
+  root.appendChild(rulerRow);
 
   const grid = document.createElement('div');
   grid.className = styles.trackGrid!;
@@ -236,7 +258,6 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
     setSelected(cursor.selRow, (cursor.selCol + 1) % SEQ_LENGTH);
   });
 
-  const gate = new VisibilityGate();
   const highlighter = wirePlayhead(engine, 'seq', stepBtns, restOverlay, gate);
 
   // Full bank repaint (bank switch / song restore)

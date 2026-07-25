@@ -47,6 +47,12 @@ export const sessionDisplay = (page: Page): Promise<string> =>
 export async function dragKnobUp(page: Page, testid: string): Promise<void> {
   const knob = page.getByTestId(testid);
   await expect(knob).toBeVisible();
+  // `toBeVisible` is satisfied by an element that is merely BELOW the fold, and
+  // page.mouse works in viewport coordinates — so without this a knob pushed off
+  // screen by a layout change makes the drag land on nothing and silently do
+  // nothing, failing the assertion far from the cause. Scroll first, then read
+  // the box (scrolling moves it).
+  await knob.scrollIntoViewIfNeeded();
   const box = await knob.boundingBox();
   if (!box) throw new Error(`${testid} has no bounding box`);
   const cx = box.x + box.width / 2;

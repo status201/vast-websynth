@@ -123,8 +123,14 @@ built `dist/`.
 - **Arrow Left/Right**: shift keyboard octave
 - **`.` / `/`**: pitch bend up / down (springs back on release)
 - **Space**: transport play / stop
+- **Home**: move the playhead back to bar 1
+- **Shift + Arrow Left/Right**: move the playhead one bar back / forward
 - **F** (hold): drum fill
 - **Esc**: panic (all notes off)
+- **Playhead ruler**: the strip above every step grid — click a tick to move the
+  playhead there (mid-play it jumps in time; stopped it sets where Play starts).
+  The Song tab adds a bar-by-bar scrubber for the whole arrangement, and a
+  **TRANSPORT** button that floats it over any tab
 - **Double-tap a knob**: reset it to the loaded preset/song's value (or the
   factory default if none set it); Shift-drag for fine adjustment
 - **Step grids** — tap: toggle a step · drag across cells: paint them on/off in

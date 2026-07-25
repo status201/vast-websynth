@@ -1,0 +1,71 @@
+/* The Song panel's transport row and the TRANSPORT floating window's body
+   (transport-window.md). Both render the same builder, so the styling lives
+   here rather than in either host. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-top: 12px;
+}
+
+/* Same row inside the floating window — the title bar frames it, so no divider. */
+.window {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* bar.step. Tabular figures so the readout does not jitter as digits change. */
+.readout {
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 62px;
+  text-align: center;
+}
+
+.scrub {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.bar {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.08s linear, color 0.08s linear;
+}
+
+.bar:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
+
+/* The bar the transport is in — the global `playing` state class, as the
+   machine-tab rulers use, so both surfaces are found the same way. */
+.bar:global(.playing) {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  color: #120a04;
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+/* Seeking refused (slaved, or a capture in flight) — say so rather than
+   swallowing the click (transport-position.md REQ-6). */
+.off { opacity: 0.4; }
+.off .bar, .off button { cursor: default; }
+.off .bar:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-dim); }

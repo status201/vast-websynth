@@ -1,6 +1,7 @@
 import type { StudioApi } from '../studio-api';
 import { BankBar } from '../components/bank-bar';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
+import { buildPlayheadRuler, type PlayheadRuler } from '../components/playhead-ruler';
 import { buildRestOverlay, type RestLane, type RestOverlay } from '../components/rest-overlay';
 import { StepButton } from '../components/step-button';
 import { createClearMenu } from '../components/clear-menu';
@@ -220,6 +221,23 @@ export function wirePlayhead(
   gate?.whenShown(() => { if (lastStep >= 0) paint(lastStep); });
 
   return highlighter;
+}
+
+/**
+ * The lane's transport-position ruler (transport-position.md REQ-9), testids
+ * namespaced by lane exactly like `bankBarFor`/`clearMenuFor`.
+ *
+ * The panel places the two pieces itself — `barEl` in its row-label slot,
+ * `cellsEl` wearing the panel's own steps-grid class — because the four grids
+ * have different label widths and column gaps, and reusing each panel's real
+ * grid class is what keeps the ticks aligned with the steps beneath them.
+ */
+export function playheadRulerFor(
+  engine: StudioApi,
+  lane: StepLane,
+  gate?: VisibilityGate,
+): PlayheadRuler {
+  return buildPlayheadRuler(engine, lane, gate);
 }
 
 /**

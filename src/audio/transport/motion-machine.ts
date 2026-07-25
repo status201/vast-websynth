@@ -145,6 +145,14 @@ export class MotionMachine {
       this.stopLoop();
       this.restoreBaselines();
     });
+    // A playhead jump leaves `prev` and `curr` non-adjacent, so the frame loop
+    // would interpolate across the gap — an audible glide to a value the curve
+    // never contains. Drop the latch and let the next tick re-fill it, exactly
+    // as onStart does. Emphatically NOT restoreBaselines(): those record each
+    // param's value from before automation first touched it, for the whole play
+    // session, and re-capturing them from automated values would lose the user's
+    // original sound for good (motion-sequencer.md REQ-21).
+    clock.onSeek(() => { this.curr = this.prev = null; });
 
     // Anchor sets are cached across frames, and banks are mutated in place — so
     // every stream that can flip a step's `on` must drop the memo. Cheap to be

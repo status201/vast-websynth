@@ -4,18 +4,30 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { UiBridge } from '../../src/ui/ui-bridge';
 import type { StudioApi } from '../../src/ui/studio-api';
 
-function setup() {
+function setup(seekOpts: { refuse?: boolean } = {}) {
   const bus = new ParamBus();
   registerDefaults(bus);
   const bridge = new UiBridge();
   vi.spyOn(bridge, 'pressKey');
   // Only the note/transport path is exercised here; engine is a cast stub.
+  // Every install adds a window-level handler that never detaches, so the seek
+  // members must be present on ALL of them — a Home press reaches every stub,
+  // and a missing `seekTo` would throw inside a leaked listener.
+  const clock = { playing: false, step: 0, cue: 0 };
+  const seekTo = vi.fn((step: number) => {
+    if (seekOpts.refuse) return false;
+    clock.step = clock.cue = step;
+    return true;
+  });
   const engine = {
     panic: vi.fn(),
     perf: { setFill: vi.fn() },
+    clock,
+    seekTo,
+    canSeek: () => !seekOpts.refuse,
   } as unknown as StudioApi;
   installShortcuts(engine, bus, bridge);
-  return { bus, bridge };
+  return { bus, bridge, clock, seekTo };
 }
 
 function keydown(target: EventTarget, key: string) {
@@ -89,5 +101,71 @@ describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-10)', () => {
     modKeydown(document.body, 'z', { ctrlKey: true, shiftKey: true });
     modKeydown(document.body, 'z', { ctrlKey: true, altKey: true });
     expect(undo).not.toHaveBeenCalled();
+  });
+});
+
+// transport-position.md REQ-11. One install for the whole describe (see the
+// note above): every setup() leaks a window handler, so a second one would
+// double-count the seeks asserted here.
+describe('installShortcuts transport position (transport-position.md REQ-11)', () => {
+  const { bridge, clock, seekTo } = setup();
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    seekTo.mockClear();
+    clock.playing = false;
+    clock.step = 0;
+    clock.cue = 0;
+  });
+
+  it('Home returns to the top and prevents default', () => {
+    clock.step = 200;
+    const unprevented = modKeydown(document.body, 'Home');
+    expect(seekTo).toHaveBeenCalledWith(0);
+    expect(unprevented).toBe(false);
+  });
+
+  it('Shift+Arrow moves one bar without shifting the keyboard octave', () => {
+    clock.playing = true;
+    clock.step = 16 * 3 + 5; // bar 3, mid-bar
+    modKeydown(document.body, 'ArrowRight', { shiftKey: true });
+    expect(seekTo).toHaveBeenLastCalledWith(16 * 4);
+
+    // The octave shift shares these keys, so prove Shift+Arrow did not move it:
+    // 'z' must still sound C4. Clear the held-key latch first — this install is
+    // created at collection time, so it saw the 'z' presses of earlier describes
+    // (which never sent a matching keyup) and would swallow a repeat.
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'z', bubbles: true }));
+    bridge.pressKey = vi.fn();
+    keydown(document.body, 'z');
+    expect(bridge.pressKey).toHaveBeenCalledWith(60); // still C4, the default
+  });
+
+  it('Shift+ArrowLeft goes back a bar and never below bar 1', () => {
+    clock.playing = true;
+    clock.step = 16 * 2;
+    modKeydown(document.body, 'ArrowLeft', { shiftKey: true });
+    expect(seekTo).toHaveBeenLastCalledWith(16);
+
+    clock.playing = true;
+    clock.step = 3; // bar 0
+    modKeydown(document.body, 'ArrowLeft', { shiftKey: true });
+    expect(seekTo).toHaveBeenLastCalledWith(0);
+  });
+
+  it('moves relative to the CUE while stopped, matching what the ruler shows', () => {
+    clock.playing = false;
+    clock.step = 999; // where playback happened to halt — not what Play will use
+    clock.cue = 16 * 5;
+    modKeydown(document.body, 'ArrowRight', { shiftKey: true });
+    expect(seekTo).toHaveBeenLastCalledWith(16 * 6);
+  });
+
+  it('leaves the key alone when the seek is refused', () => {
+    const refused = setup({ refuse: true });
+    // Both installs see the press; the refusing one must not preventDefault.
+    const unprevented = modKeydown(document.body, 'Home');
+    expect(refused.seekTo).toHaveReturnedWith(false);
+    expect(unprevented).toBe(false); // the permissive install still prevented
   });
 });

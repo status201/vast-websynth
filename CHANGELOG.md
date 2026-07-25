@@ -16,8 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **You can move the playhead.** Every machine tab now has a position ruler above
+  its grid: click a column to jump the transport there, while playing or while
+  stopped. Stopped, it sets where Play will begin — so auditioning bar 3 of an
+  A-A-B-A song no longer means playing from the top and waiting. `Home` returns to
+  the start and `Shift`+`←`/`→` step a bar at a time. The ruler also shows where
+  the transport is in cases the grid highlight never could: while stopped, on a
+  machine that is switched off, and while you edit one bank as another plays.
+  Moving the playhead is refused while following an external clock, or while a
+  song export or a bank render is capturing.
+- **A transport you can undock.** The Song tab gains a one-line transport row —
+  back-to-start, a `bar.step` readout and a scrubber with one cell per bar of the
+  song, so you can jump straight to bar 3 of an `A A B A` chain. Its **TRANSPORT**
+  button opens a floating window (like LIVE FX) carrying the full set — Play/Stop,
+  BPM and SWING included — which keeps working on every other tab, so the Song
+  panel gives that height back rather than duplicating it.
+- **Help badges for both**, in help mode: one on every machine tab's ruler and one
+  on the Song tab's TRANSPORT button.
+
 ### Fixed
 
+- **The arrow keys are readable in the About box.** The keyboard-shortcut list is
+  set in a monospace face that has no arrow glyph, so the browser substituted a
+  much smaller one and `←  →` came out as unreadable dashes. Arrows are now drawn
+  at a legible size. The list also gained the shortcuts it had been missing —
+  `Home` and `Shift`+arrows for the playhead, `Delete` and `Ctrl/Cmd+Z`.
 - **Motion automation no longer freezes when you switch away.** Backgrounding the
   tab (or leaving the installed app) stopped the motion sequencer dead while
   everything else kept playing, so the song came back missing its filter sweeps —

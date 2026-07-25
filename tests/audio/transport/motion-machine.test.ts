@@ -110,6 +110,49 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
+  // motion-sequencer.md REQ-21 — a seek clears the tick latch and NOTHING else.
+  // Copying onStop's reset here (the obvious mistake, since the two hooks sit
+  // side by side) would lose the user's original sound for the whole session.
+  it('keeps the baselines across a seek, so stop still restores the ORIGINAL value', () => {
+    const { bus, patterns, clock, machine } = build();
+    machine.setEnabled(true);
+    const cutoff0 = bus.get('filter.cutoff');
+    anchor(patterns, 0, 1, 1);
+    anchor(patterns, 8, 0, 0);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+    expect(bus.get('filter.cutoff')).not.toBe(cutoff0); // automation took over
+
+    clock.fireSeek(8);
+    clock.fireTick(STEP_DUR * 8);
+    machine.frame(STEP_DUR * 8);
+
+    clock.fireStop();
+    // Not "whatever automation had written when we seeked" — the pre-play value.
+    expect(bus.get('filter.cutoff')).toBe(cutoff0);
+  });
+
+  it('drops the tick latch on a seek so no value glides across the jump', () => {
+    const { bus, patterns, clock, machine } = build();
+    machine.setEnabled(true);
+    anchor(patterns, 0, 0, 0);
+    anchor(patterns, 8, 1, 1);
+    clock.fireStart();
+    clock.fireTick(0);
+    machine.frame(0);
+
+    // Jump to the far anchor. With a stale prev/curr pair the loop would
+    // interpolate from step 0's anchor toward it; with the latch cleared the
+    // first frame after the jump lands ON the new position's curve value.
+    clock.fireSeek(8);
+    clock.fireTick(STEP_DUR * 8);
+    machine.frame(STEP_DUR * 8);
+
+    const defX = bus.def('filter.cutoff')!;
+    expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(defX, 1), 6);
+  });
+
   it('resolves per-bank assignment overrides with per-axis fallback', () => {
     const { bus, patterns, clock, machine } = build();
     machine.setEnabled(true);

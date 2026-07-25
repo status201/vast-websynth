@@ -3,11 +3,12 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 3   # v3: four tracks (poly-gated), per-track mute + collapse, SongFile v6
+version: 4   # v4: release held notes on a transport seek (REQ-14)
 owner: core
 related:
   - architecture
   - transport
+  - transport-position
   - step-settings
   - step-grid-editing
   - banks
@@ -120,6 +121,15 @@ and tracks 2–4 start empty and silent.
   with **index 0 always null** (track 1 lives in `seqBanks`); that costs one
   `null` per bank and removes the off-by-one that an "extra tracks" array would
   invite. An empty track writes as `null`.
+- **REQ-14** (v4) — **A transport seek releases every track's held note.** The
+  per-track `SeqTrackState` carries `lastPlayedNote` and `prevTied` between steps
+  (REQ-2), which are only meaningful for *adjacent* steps. When the playhead jumps
+  ([transport-position](transport-position.md) REQ-4) a note tied at the old
+  position would otherwise slur into the new one, or a held note would never be
+  released at all. `StepSequencer` therefore subscribes `clock.onSeek` in its
+  constructor and runs the same per-track release `setMuted(true)` uses — keeping
+  `releaseAll`/`releaseTrack` private rather than widening the public surface for
+  one caller.
 
 ## Technical design
 
@@ -134,6 +144,7 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   onStep(fn) / onSeqNote(fn) -> unsubscribe   # playhead + note viz
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick
   # per-track held-note/tie state lives in one SeqTrackState[] (v3)
+  # subscribes clock.onSeek to release held notes + clear prevTied (v4, REQ-14)
 
 PatternStore (v3):     # src/state/patterns.ts
   seqBanks[bank][track][step]        # was [bank][step]
@@ -241,6 +252,12 @@ Scenario: DJ mute stops notes but the playhead keeps moving (edge)
   Given the sequencer is muted via the lane mixer
   Then no sequenced notes sound, the playhead still advances, and live keys still play
 # pinned by: tests/audio/transport/sequencer.test.ts, e2e/song-mixer.spec.ts
+
+Scenario: A tied note does not slur across a transport seek (v4, REQ-14)
+  Given a step tied into the next one is currently sounding
+  When the playhead is seeked elsewhere
+  Then the held note is released and prevTied is cleared on every track
+# pinned by: tests/audio/transport/sequencer.test.ts
 
 Scenario: Step Input fills steps from played notes and advances
   Given the Sequencer tab is open and Step Input is armed with the cursor at step 0

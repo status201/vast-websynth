@@ -27,10 +27,41 @@ const SHORTCUTS: Array<[string, string]> = [
   ['←  →', 'Shift keyboard octave down / up'],
   ['.  /', 'Pitch bend up / down'],
   ['Space', 'Play / stop transport'],
+  ['Home', 'Move the playhead to bar 1'],
+  ['Shift + ←  →', 'Move the playhead one bar'],
   ['F (hold)', 'Drum fill'],
   ['Esc', 'Panic — all notes off'],
+  ['Delete', 'Clear the selected step'],
+  ['Ctrl/Cmd + Z', 'Undo the last grid edit'],
   ['Shift + drag', 'Fine knob control'],
 ];
+
+/**
+ * Arrows and other symbols have no glyph in Courier New, so the browser falls
+ * back per character and draws them at a different (much smaller) size than the
+ * surrounding monospace — unreadable at the key row's 11px. Draw those runs in
+ * the UI sans at a legible size instead, and leave everything else alone.
+ */
+// A run starts at a symbol and swallows the whitespace *between* symbols, so
+// `←  →` is one span rather than two with monospace-spaced air between them.
+const SYMBOL_RUN = /([←→↑↓⌫⏮][←→↑↓⌫⏮\s]*)/;
+
+function keyCell(combo: string): HTMLElement {
+  const k = document.createElement('div');
+  k.className = Modal.keyClass;
+  for (const part of combo.split(SYMBOL_RUN)) {
+    if (!part) continue;
+    if (SYMBOL_RUN.test(part)) {
+      const s = document.createElement('span');
+      s.className = Modal.glyphClass;
+      s.textContent = part;
+      k.appendChild(s);
+    } else {
+      k.appendChild(document.createTextNode(part));
+    }
+  }
+  return k;
+}
 
 /**
  * Late-bound source for the Debug panel's "Sampler clips" row — `main.ts` binds
@@ -177,9 +208,7 @@ function buildModal(close: () => void, engine: StudioApi): {
   const keys = document.createElement('div');
   keys.className = Modal.keysClass;
   for (const [combo, action] of SHORTCUTS) {
-    const k = document.createElement('div');
-    k.className = Modal.keyClass;
-    k.textContent = combo;
+    const k = keyCell(combo);
     const a = document.createElement('div');
     a.className = Modal.actClass;
     a.textContent = action;

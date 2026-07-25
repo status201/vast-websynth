@@ -1,0 +1,63 @@
+/* Transport-position ruler above every machine grid (transport-position.md).
+   Deliberately has NO grid of its own: the panel puts its own `cells`/`stepRow`
+   class on the container, so the ticks inherit that grid's column count and gap
+   and can never drift out of alignment with the steps below. */
+
+.tick {
+  height: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px 3px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 7px;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: background 0.08s linear, color 0.08s linear;
+}
+
+/* Beat columns (1/5/9/13) read as the bar's skeleton, matching the drum grid's
+   red beat columns without competing with them. */
+.beat {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+}
+
+.tick:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
+
+/* Where the transport is. While stopped this is the cue — the step Play will
+   begin from — so the ruler is never blank and never lies. Uses the global
+   `playing` state class, the same one StepButton's playhead carries. */
+.tick:global(.playing) {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  color: #120a04;
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+
+/* Seeking is refused while slaved or mid-capture (REQ-6): say so, don't just
+   silently ignore the click. */
+.off .tick {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.off .tick:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-faint); }
+.off .beat:hover { background: rgba(255, 255, 255, 0.08); }
+
+.bar {
+  font-family: var(--serif);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.bar b {
+  color: var(--accent-secondary);
+  font-weight: 700;
+}

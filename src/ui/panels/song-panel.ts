@@ -16,6 +16,9 @@ import type { XyPadWindowController } from '../components/xy-pad-window';
 import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
+import {
+  buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
+} from '../components/transport-controls';
 import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
@@ -164,6 +167,20 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Motion sits outside audibleLanes (it makes no sound) — its dim visual is
   // driven straight off its own mute param.
   bus.subscribe('motion.mute', (v) => motionEl.classList.toggle(styles.silenced!, v >= 0.5));
+
+  // ---- Transport (transport-window.md) ----
+  // Directly under the four machine lanes, above Live FX: the scrubber is a
+  // bar-per-slot view of the chains right above it, so it reads as their ruler.
+  // Deliberately compact — the launcher doubles as the section title, and
+  // Play/Stop, BPM and SWING live only in the floating window; the point of
+  // undocking is to give this panel's height back, not to duplicate it.
+  const transport = el('div', transportRowClass);
+  transport.appendChild(createTransportWindowLauncher(engine, bus, bridge));
+  for (const c of buildTransportControls(engine, bus, bridge, { compact: true })) {
+    transport.appendChild(c);
+  }
+  bindSeekAvailability(engine, transport);
+  root.appendChild(transport);
 
   // ---- Live DJ FX ----
   // The shared XY Pad window controller comes from app.ts: the Song panel's

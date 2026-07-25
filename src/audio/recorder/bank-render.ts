@@ -94,7 +94,9 @@ export class BankRenderController {
             }, RENDER_TAIL_MS);
           }
         });
-        this.clock.start(); // resets step to 0
+        // Explicit 0: the crop is frame arithmetic off the absolute `step === 0`,
+        // and a plain start() now resumes from the user's cue (transport.md REQ-7).
+        this.clock.start(0);
       });
     } finally {
       if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }

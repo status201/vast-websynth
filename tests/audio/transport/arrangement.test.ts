@@ -108,6 +108,75 @@ describe('Arrangement', () => {
     expect(arr.seqPlayBank).toBe(0);
   });
 
+  // arrangement.md REQ-7 — lane positions are counted relatively (+1 per bar
+  // line), so a mid-play playhead jump has to re-base them or every chain stays
+  // wrong for the rest of the song.
+  it('a mid-play seek re-seeks the lanes to the implied bar (v4)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 0, 1, 0], true);
+    clock.fireStart();
+    playBar(clock, 0);
+    expect(arr.seqPlayBank).toBe(0);
+
+    clock.fireSeek(SEQ_LENGTH * 2); // jump to bar 2 — the "B" slot
+    expect(arr.seqChainPos).toBe(2);
+    expect(arr.seqPlayBank).toBe(1); // B, immediately — not at the next bar line
+    playBar(clock, 2);               // this bar's boundary is suppressed
+    expect(arr.seqPlayBank).toBe(1);
+    playBar(clock, 3);               // the genuine next bar advances to slot 3
+    expect(arr.seqPlayBank).toBe(0);
+  });
+
+  it('a seek onto a bar line does not double-advance (v4, edge)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1, 2], true);
+    clock.fireStart();
+    clock.fireSeek(SEQ_LENGTH * 1); // exactly a bar line
+    expect(arr.seqChainPos).toBe(1);
+    playBar(clock, 1);              // expectFirstBar re-armed: no increment here
+    expect(arr.seqChainPos).toBe(1);
+    playBar(clock, 2);              // the next boundary increments by exactly one
+    expect(arr.seqChainPos).toBe(2);
+  });
+
+  it('a mid-bar seek increments on the next boundary (v4, edge)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1, 2], true);
+    clock.fireStart();
+    clock.fireSeek(SEQ_LENGTH * 1 + 7); // bar 1, mid-bar
+    expect(arr.seqChainPos).toBe(1);
+    for (let i = 0; i < SEQ_LENGTH - 7; i++) clock.fireTick();
+    playBar(clock, 2);
+    expect(arr.seqChainPos).toBe(2);
+  });
+
+  it('re-seeks every lane, not just the sequencer (v4)', () => {
+    const clock = new TestClock();
+    const patterns = new PatternStore();
+    const arr = new Arrangement(patterns, clock);
+
+    arr.setSeqChain([0, 1], true);
+    arr.setDrumChain([0, 1, 2], true);
+    arr.setSamplerChain([3, 2], true);
+    arr.setMotionChain([0, 1, 2, 3], true);
+    clock.fireStart();
+    clock.fireSeek(SEQ_LENGTH * 5); // bar 5
+
+    expect(arr.seqChainPos).toBe(5 % 2);
+    expect(arr.drumChainPos).toBe(5 % 3);
+    expect(arr.samplerChainPos).toBe(5 % 2);
+    expect(arr.motionChainPos).toBe(5 % 4);
+  });
+
   it('a mid-bar nonzero start seeks to that bar and increments on the next boundary (v3)', () => {
     const clock = new TestClock();
     const patterns = new PatternStore();

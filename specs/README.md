@@ -199,6 +199,8 @@ specs/
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock
+    transport-position.md · moving the playhead (seek, position ruler, Home/Shift+arrows)
+    transport-window.md · the Song-panel transport row + its floating window
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
     drum-machine.md    ·  8-track synth drums

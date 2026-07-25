@@ -39,7 +39,13 @@ export class Performance {
     private readonly clock: TickSubscriber,
     private readonly bus: ParamBus,
     private readonly djFilter: BiquadFilterNode,
-  ) {}
+  ) {
+    // The stutter window is anchored to an absolute step, so after a playhead
+    // jump `mapStep` would fold the new position back into the *old* window —
+    // a backwards jump replaying it forever (performance.md REQ-7). Nothing to
+    // do while stutter is off: mapStep is the identity then.
+    clock.onSeek(() => { if (this.stutterOn) this.anchor = this.clock.step; });
+  }
 
   // ---- Stutter ----
 

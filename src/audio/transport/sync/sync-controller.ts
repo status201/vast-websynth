@@ -160,6 +160,20 @@ export class SyncController {
   }
 
   /**
+   * Tell every peer where the playhead now is (REQ-23). Called after a **local**
+   * seek: slaves count pulses from their own start, so without this they stay
+   * exactly the jump distance behind for the rest of the session.
+   *
+   * `announceTo` sends `songposition` + `continue` — deliberately not `start`,
+   * which REQ-3 makes a slave honour by restarting at bar 0, the one thing a
+   * mid-song jump must not do. A no-op in any role but a running master.
+   */
+  announcePosition(): void {
+    if (this._activeMode !== 'master') return;
+    this.master?.announceTo((msg, atMs) => this.broadcast(msg, atMs));
+  }
+
+  /**
    * The gate stays on the **selection** (REQ-7/REQ-20), never on `activeMode`:
    * an arriving message is exactly what proves the link is alive, so it re-arms
    * the role — and it must do so *before* being handled, or the freshly-built

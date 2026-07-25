@@ -412,6 +412,39 @@ export class Engine {
     this.polyphony.killAll();
   }
 
+  // ---------- Transport position (transport-position.md) ----------
+
+  /**
+   * Whether moving the playhead is currently allowed. Three states say no, and
+   * they are all "something else owns the step counter right now"
+   * (transport-position.md REQ-6):
+   *  - **slaved** — the remote transport owns the playhead, and a local jump
+   *    drives the slave's phase tracking into a re-anchor (midi-clock-sync REQ-24);
+   *  - **exporting / rendering** — both bound their capture by absolute step
+   *    number, so a jump truncates or unbounds it silently.
+   */
+  canSeek(): boolean {
+    return this.sync.activeMode !== 'slave'
+      && !this.recorder.isRecording()
+      && !this.bankRender.isRendering();
+  }
+
+  /**
+   * Move the playhead to an absolute 16th. Returns `false` when refused, so the
+   * caller can fall through (a keyboard shortcut leaves the key alone) rather
+   * than pretending it worked. The single entry point for every UI surface —
+   * nothing reaches past this to `clock.seek`, or the guard and the master
+   * announce would have to be re-implemented per control.
+   */
+  seekTo(step: number): boolean {
+    if (!this.canSeek()) return false;
+    this.clock.seek(Math.max(0, Math.round(step)));
+    // Slaves count pulses from their own start, so a silent jump leaves them
+    // permanently behind (midi-clock-sync REQ-23). A no-op unless mastering.
+    this.sync.announcePosition();
+    return true;
+  }
+
   // ---------- Param subscriptions ----------
 
   private subscribeParams(): void {

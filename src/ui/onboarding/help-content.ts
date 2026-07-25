@@ -161,6 +161,25 @@ const GRID_GESTURES =
   'or just the row you have selected, and <strong>Ctrl+Z</strong> undoes the last edit on the tab ' +
   'you are looking at — even a bulk clear comes back in one press.</p>';
 
+/**
+ * The playhead ruler above every machine grid (transport-position.md). One
+ * constant behind four topic ids: the control is identical on all four tabs, so
+ * four paraphrases of the same copy would only drift apart.
+ */
+const RULER_HELP: HelpTopic = {
+  title: 'Playhead ruler',
+  body:
+    '<p>The strip above the grid is the <strong>transport position</strong>. Click any tick to ' +
+    'move the playhead there — while the song is playing it jumps in time, and while it is ' +
+    'stopped it sets where <strong>Play</strong> will start from.</p>' +
+    '<p>Unlike the lit step in the grid below it, this always tells you where you are — even ' +
+    'when the transport is stopped, this machine is switched off, or you are editing one bank ' +
+    'while another one plays. <strong>BAR</strong> on the left counts bars through the song.</p>' +
+    '<p><strong>Home</strong> jumps back to bar 1, and <strong>Shift</strong> + <strong>←</strong> / ' +
+    '<strong>→</strong> steps one bar at a time. The Song tab has a scrubber for the whole ' +
+    'arrangement.</p>',
+};
+
 export type TopicId =
   | 'transport'
   | 'transport.swing'
@@ -207,6 +226,15 @@ export type TopicId =
   | 'motion'
   | 'motion.xy'
   | 'motion.tracks'
+  // One ruler per machine tab, and only the visible tab's badge is on screen
+  // (a hidden anchor measures 0×0 and its badge hides), so each lane needs its
+  // own topic id — the ids differ, the copy does not. Same shape as the
+  // per-machine fx.drum.* / fx.sampler.* topics.
+  | 'transport.ruler.seq'
+  | 'transport.ruler.drum'
+  | 'transport.ruler.sampler'
+  | 'transport.ruler.motion'
+  | 'transport.song'
   | 'song'
   | 'song.load'
   | 'song.save'
@@ -657,6 +685,26 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Drag a cell up or down to set its level, double-click to clear it. Each lane has its own ' +
       '<strong>SLIDE / STEP</strong>, so it can move differently from the XY sweep and from the ' +
       'other track.</p>',
+  },
+  // One body, four ids — see RULER_HELP.
+  'transport.ruler.seq': RULER_HELP,
+  'transport.ruler.drum': RULER_HELP,
+  'transport.ruler.sampler': RULER_HELP,
+  'transport.ruler.motion': RULER_HELP,
+  'transport.song': {
+    title: 'Transport & song position',
+    body:
+      '<p>Where you are in the <strong>whole song</strong>, not just the bar. The readout is ' +
+      '<strong>bar.step</strong>, and the numbered cells beside it are one per bar of your ' +
+      'arrangement — click one to jump straight to that bar instead of playing from the top and ' +
+      'waiting. <strong>⏮</strong> goes back to the start.</p>' +
+      '<p>Each cell lines up with a slot in the chains above, so cell&nbsp;3 and the third chip ' +
+      'in a lane are the same bar.</p>' +
+      '<p><strong>TRANSPORT</strong> opens all of this in a floating window — with Play/Stop, ' +
+      'BPM and Swing as well — that keeps working on every other tab, so you can start, stop and ' +
+      'relocate while designing a sound.</p>' +
+      '<p>Moving the playhead is unavailable while an external clock is driving the transport, ' +
+      'or while a song export or bank render is recording.</p>',
   },
   song: {
     title: 'Song mode',

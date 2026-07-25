@@ -82,6 +82,11 @@ test.describe('master bus compressor (SSL G VCA style)', () => {
   test('its help badge opens the SSL explanation', async ({ page }) => {
     await page.getByTestId('help-button').click();
     await page.getByTestId('help-toggle-badges').click();
+    // Badges are `position: fixed` and reflow on scroll, so one whose anchor is
+    // below the fold cannot be scrolled into view directly — scroll the ANCHOR,
+    // and the badge follows. Keeps this spec independent of where in the Song
+    // panel the master COMP group happens to sit.
+    await page.getByTestId('fxgroup-fx.master.comp').scrollIntoViewIfNeeded();
     const badge = page.getByTestId('help-badge-fx.master.comp');
     await expect(badge).toBeVisible();
     await badge.click();

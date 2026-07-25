@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 10  # v10: TourCtx.applyDemo is async (demos are fetched on click)
+version: 11  # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
+             #      About modal's key list (REQ-16/REQ-17)
+             # v10: TourCtx.applyDemo is async (demos are fetched on click)
              # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
              # v8: per-lane Motion help badges (motion.xy / motion.tracks)
              # v7: grid-gesture copy, a `presets` topic, and a "Paint a pattern" tour step
@@ -123,6 +125,29 @@ never reads DEV-only globals.
   reverb/delay tail into the loop — behaviour that reads as a hang unless the
   copy says so. The badge must also cover the two reasons the button greys out.
   See [render-to-sampler.md](render-to-sampler.md) REQ-10.
+- **REQ-16** (v11) — **The playhead ruler carries a badge on every machine tab**,
+  and the Song panel's transport row carries one on its launcher
+  ([transport-position.md](transport-position.md) REQ-9,
+  [transport-window.md](transport-window.md) REQ-3). The ruler's is **four topic
+  ids** (`transport.ruler.<seq|drum|sampler|motion>`, anchored to
+  `ruler-<lane>`) sharing **one** `HelpTopic` object: a hidden tab's anchor
+  measures 0×0 so its badge hides, meaning a single shared badge would be
+  reachable on exactly one tab — while four paraphrases of identical copy would
+  drift. (Precedent: the per-machine `fx.drum.*` / `fx.sampler.*` topics.) The
+  ruler copy must cover the thing the grid playhead cannot say — that it shows
+  the position while stopped, on a switched-off machine, and across banks — plus
+  the `Home` / `Shift`+arrow keys. `transport.song` (anchored to
+  `transport-open`) covers the bar readout, the scrubber's one-cell-per-chain-slot
+  correspondence, the floating window, and the states where seeking is refused.
+- **REQ-17** (v11) — **Symbols in the About modal's key list are legible.** The
+  key column is Courier New at 11px, which has no glyph for `← → ↑ ↓`: the
+  browser substitutes per character at its own much smaller size, and the arrow
+  rows rendered as unreadable dashes. A run of such symbols is wrapped in
+  `Modal.glyphClass` and drawn in the UI sans at 15px on the monospace baseline.
+  The list is also the canonical on-screen shortcut reference, so it must name
+  every global key — including `Home` / `Shift`+arrows
+  ([transport-position.md](transport-position.md) REQ-11), `Delete` and
+  `Ctrl/Cmd+Z`, which were missing.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -229,6 +254,27 @@ Scenario: Motion tab carries per-lane help badges (v8)
     badge anchors to the A track's row, each a short explainer distinct from the
     machine-level `motion` topic
 # pinned by: tests/ui/help-content.test.ts (topic presence)
+
+Scenario: Every machine tab's ruler carries a badge (v11, REQ-16)
+  Given help mode is on
+  When the user opens each machine tab in turn
+  Then a `transport.ruler.<lane>` badge anchors to that tab's ruler
+   And all four resolve to the same copy — one HelpTopic behind four ids
+# pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
+
+Scenario: The Song tab's transport row explains the scrubber (v11, REQ-16)
+  Given help mode is on and the Song tab is open
+  When the user clicks the badge on the TRANSPORT launcher
+  Then the modal explains bar.step, the one-cell-per-chain-slot scrubber, the
+    floating window, and when seeking is refused
+# pinned by: tests/ui/help-content.test.ts
+
+Scenario: Arrow keys are readable in the About shortcut list (v11, REQ-17)
+  Given the About modal is open
+  Then each arrow run is wrapped in the glyph class rather than left to the
+    monospace face, which has no glyph for it
+   And the list names Home, Shift+arrows, Delete and Ctrl/Cmd+Z
+# pinned by: tests/ui/about.test.ts
 
 Scenario: The Render button says why it takes two bars (v9)
   Given help mode is on and the Sequencer tab is open

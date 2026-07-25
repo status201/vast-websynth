@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 9   # v9: the frame loop is visibility-independent — worker timer while the
+version: 10  # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-21)
+             # v9: the frame loop is visibility-independent — worker timer while the
              #     document is hidden, rAF while visible (REQ-20)
              # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
              #     the frame loop is allocation-free (REQ-19)
@@ -20,6 +21,7 @@ related:
   - arrangement
   - runtime-performance   # REQ-5/REQ-6/REQ-9 — automation is not an edit; frame-loop cost; hidden-document loops
   - transport             # REQ-20 shares the clock's worker-timer guarantee
+  - transport-position    # REQ-21 — the seek reaction
   - session-autosave      # what REQ-18 stopped starving
   - step-grid-editing
   - song-mode
@@ -316,6 +318,21 @@ The tab sits between Sampler and Song.
   interval, so it bypasses the rAF throttle rather than dropping every other wakeup
   to jitter. The `TickTimer`'s Worker is spawned on its first `start()`, so a session
   that is never backgrounded pays nothing for this.
+- **REQ-21** — **A transport seek clears the tick latch and nothing else** (v10,
+  [transport-position](transport-position.md) REQ-5). The frame loop derives its
+  position by interpolating between the two latched ticks `prev` and `curr`; after
+  a playhead jump those two are no longer adjacent, so for up to `scheduleAheadS`
+  the loop would ramp a param from the old position's anchor toward the new one —
+  an audible glide to a value the curve never contains. `clock.onSeek` therefore
+  sets `curr = prev = null`, exactly as `clock.onStart` does, and the next tick
+  re-latches cleanly.
+  It **must not** call `restoreBaselines()`. The baseline map (REQ-5) records each
+  automated param's value from *before* automation first touched it, for the whole
+  play session; restoring mid-seek would snap every automated param and then
+  re-capture baselines **from automated values**, so the user's original sound
+  would be unrecoverable on stop. Copying `onStop`'s reset here — the obvious
+  mistake, since `onStart` and `onStop` sit side by side — is a data-losing bug,
+  not a cosmetic one.
 
 ## Technical design
 
@@ -325,7 +342,9 @@ The tab sits between Sampler and Song.
   `setEnabled(on)`, `setMuted(m)` (v2 — effective-active = enabled ∧ ¬muted; either
   deactivation restores baselines), `setSlide(on)` (the XY lane) and
   `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
-  `stop()` restore hook via `clock.onStop`. Constructed by `Engine.init()` after
+  `stop()` restore hook via `clock.onStop`, plus a `clock.onSeek` hook that clears
+  the `prev`/`curr` latch **without** touching the baselines (v10, REQ-21).
+  Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
   `motion`. `MotionMachineOpts` carries the injectable seams the loop needs:
   `now` (audio-clock time) + `fps` (Engine passes both), and `raf`/`caf`, plus (v9)
@@ -577,6 +596,15 @@ Scenario: Baselines restore on stop
   When the transport stops
   Then filter.cutoff returns to its pre-play value
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: A seek keeps the baselines (v10, REQ-21)
+  Given motion drove filter.cutoff away from its saved value
+  When the playhead is seeked mid-play
+  Then the prev/curr latch is cleared, so cutoff jumps to the curve's value at the
+       new position instead of gliding from the old anchor
+  And the recorded baseline is untouched — stopping afterwards still restores the
+       ORIGINAL pre-play value, not an automated one
+# pinned by: tests/audio/transport/motion-machine.test.ts
 
 Scenario: A cached anchor set still sees an edit (REQ-19, regression)
   Given the machine has already evaluated a bank this play session

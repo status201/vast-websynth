@@ -113,6 +113,89 @@ describe('Clock start(fromStep) (Song-Position seek)', () => {
   });
 });
 
+// transport.md REQ-6/REQ-7 — moving the playhead (transport-position.md).
+describe('Clock seek', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125s
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    return { ctx, clock, ev };
+  }
+
+  it('moves the step while playing without disturbing the grid', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();                 // step 0 at 0.05
+    ctx.currentTime += 0.125;
+    vi.advanceTimersByTime(25);    // step 1 at 0.175
+    expect(ev.map((e) => e.step)).toEqual([0, 1]);
+
+    clock.seek(40);
+    expect(clock.step).toBe(40);
+    ctx.currentTime += 0.125;
+    vi.advanceTimersByTime(25);
+    // The jump changed WHICH step is next, not WHEN it sounds: the grid time is
+    // exactly where it would have been without the seek.
+    expect(ev[2]!.step).toBe(40);
+    expect(ev[2]!.when).toBeCloseTo(0.05 + 2 * 0.125, 6);
+    clock.stop();
+  });
+
+  it('fires onSeek synchronously, before any further tick', () => {
+    const { clock } = startedClock();
+    const seen: number[] = [];
+    clock.onSeek(() => seen.push(clock.step));
+    clock.start();
+    clock.seek(37);
+    expect(seen).toEqual([37]); // already recorded by the time seek() returns
+    clock.stop();
+  });
+
+  it('cues the next start when seeked while stopped', () => {
+    const { clock, ev } = startedClock();
+    clock.seek(64);
+    expect(clock.cue).toBe(64);
+    clock.start();              // no argument: begins at the cue
+    expect(ev[0]!.step).toBe(64);
+    clock.stop();
+  });
+
+  it('leaves a plain start() at step 0 when nothing was seeked (REQ-5 regression)', () => {
+    const { clock, ev } = startedClock();
+    expect(clock.cue).toBe(0);
+    clock.start();
+    expect(ev[0]!.step).toBe(0);
+    clock.stop();
+  });
+
+  it('keeps the cue across a stop, so Stop then Play resumes there', () => {
+    const { clock, ev } = startedClock();
+    clock.start();
+    clock.seek(32);
+    clock.stop();
+    clock.start();
+    expect(ev.at(-1)!.step).toBe(32);
+    clock.stop();
+  });
+
+  it('start(0) still overrides a cue explicitly (the recorders rely on this)', () => {
+    const { clock, ev } = startedClock();
+    clock.seek(48);
+    clock.start(0);
+    expect(ev[0]!.step).toBe(0);
+    clock.stop();
+  });
+
+  it('masks the target to 16 bits', () => {
+    const { clock } = startedClock();
+    clock.seek(0x1_0005);
+    expect(clock.step).toBe(5);
+    expect(clock.cue).toBe(5);
+  });
+});
+
 describe('Clock swing', () => {
   it('emits a straight grid when swing is 0', () => {
     const ev = collectTicks(0);

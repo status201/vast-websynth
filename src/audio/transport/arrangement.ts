@@ -19,6 +19,10 @@ export interface ChainLane {
   steps: number[]; // bank indices
 }
 
+export type LaneName = 'seq' | 'drum' | 'sampler' | 'motion';
+
+const ALL_LANES: readonly LaneName[] = ['seq', 'drum', 'sampler', 'motion'];
+
 export class Arrangement {
   readonly seq: ChainLane = { enabled: false, steps: [0] };
   readonly drum: ChainLane = { enabled: false, steps: [0] };
@@ -54,22 +58,16 @@ export class Arrangement {
   private readonly changeListeners = new Set<() => void>();
 
   constructor(private readonly patterns: PatternStore, private readonly clock: TickSubscriber) {
-    clock.onStart(() => {
-      // Seek to the bar implied by the start step (0 for a plain start, nonzero
-      // for a clock-sync Song-Position join — arrangement.md REQ-4). Reading
-      // clock.step here is safe: Clock.start seeds _step before firing onStart.
-      const bar = Math.floor(this.clock.step / SEQ_LENGTH);
-      this.seqPos = laneSeek(this.seq, bar);
-      this.drumPos = laneSeek(this.drum, bar);
-      this.samplerPos = laneSeek(this.sampler, bar);
-      this.motionPos = laneSeek(this.motion, bar);
-      // A bar-aligned start suppresses the first boundary's increment (that
-      // boundary IS this bar); a mid-bar start lets the next boundary — the
-      // genuine next bar — advance.
-      this.expectFirstBar = this.clock.step % SEQ_LENGTH === 0;
-      this.recompute();
-      this.notify();
-    });
+    // Seek to the bar implied by the start step (0 for a plain start, nonzero
+    // for a clock-sync Song-Position join — arrangement.md REQ-4). Reading
+    // clock.step here is safe: Clock.start seeds _step before firing onStart.
+    clock.onStart(() => this.seekTo(this.clock.step));
+
+    // A manual playhead move needs the identical re-base (arrangement.md REQ-7).
+    // Lane positions are counted *relatively* — +1 per bar line — so without
+    // this a jump leaves every chain off by (bars jumped - 1) and keeps playing
+    // the wrong banks for the rest of the song.
+    clock.onSeek(() => this.seekTo(this.clock.step));
 
     clock.onTick((step) => {
       if (step % SEQ_LENGTH !== 0) return;
@@ -95,6 +93,44 @@ export class Arrangement {
     });
 
     this.recompute();
+  }
+
+  /**
+   * Re-base every lane onto the bar `step` implies. Shared by `clock.onStart`
+   * and `clock.onSeek` (arrangement.md REQ-4/REQ-7) — the two moments the
+   * absolute step number changes without a bar line having elapsed.
+   */
+  seekTo(step: number): void {
+    const bar = Math.floor(step / SEQ_LENGTH);
+    this.seqPos = laneSeek(this.seq, bar);
+    this.drumPos = laneSeek(this.drum, bar);
+    this.samplerPos = laneSeek(this.sampler, bar);
+    this.motionPos = laneSeek(this.motion, bar);
+    // A bar-aligned position suppresses the first boundary's increment (that
+    // boundary IS this bar); a mid-bar one lets the next boundary — the genuine
+    // next bar — advance.
+    this.expectFirstBar = step % SEQ_LENGTH === 0;
+    this.recompute();
+    this.notify();
+  }
+
+  /**
+   * How many bars the song runs before it repeats: the longest **enabled** lane,
+   * or `0` when no lane is enabled (each caller applies its own fallback).
+   *
+   * `lanes` narrows which lanes count, because "how long is the song" has two
+   * legitimate answers here. The transport scrubber
+   * ([transport-window.md](../../../specs/features/transport-window.md)) asks
+   * about all four; audio export asks only about the three audible ones, since
+   * that is the length it has always rendered.
+   */
+  songBars(lanes: readonly LaneName[] = ALL_LANES): number {
+    let bars = 0;
+    for (const name of lanes) {
+      const lane = this[name];
+      if (lane.enabled && lane.steps.length > bars) bars = lane.steps.length;
+    }
+    return bars;
   }
 
   get seqChainPos(): number { return this.seqPos; }

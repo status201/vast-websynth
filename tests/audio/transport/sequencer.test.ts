@@ -52,6 +52,44 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125);
   });
 
+  // sequencer.md REQ-14 — tie/held-note state only ever describes the ADJACENT
+  // step, so a playhead jump must not carry it across.
+  it('releases the held note on a transport seek (v4)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote: vi.fn(), releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 1, tie: true });
+
+    clock.fireTick(0);
+    releaseNote.mockClear();
+    clock.fireSeek(64);
+    expect(releaseNote).toHaveBeenCalledWith(60, undefined);
+  });
+
+  it('does not slur a tied note across a seek (v4, edge)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    // Step 0 ties into step 1, which holds a different note.
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 1, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 67, velocity: 0.8, gate: 1 });
+
+    clock.fireTick(0);       // 60 sounds, prevTied latched
+    clock.fireSeek(1);       // jump — the tie must not survive it
+    playNote.mockClear();
+    clock.fireTick(0.125);   // now step 1
+    // prevTied cleared, so step 1 is played fresh rather than treated as a
+    // continuation of the note that was tied into it.
+    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125);
+  });
+
   it('does nothing when disabled', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();

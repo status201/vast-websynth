@@ -8,9 +8,11 @@ import type { TickSubscriber, TickListener } from '../../../src/audio/transport/
 export class TestClock implements TickSubscriber {
   playing = false;
   step = 0;
+  cue = 0;
   private readonly tickListeners = new Set<TickListener>();
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
+  private readonly seekListeners = new Set<() => void>();
   private bpm = 120;
 
   onTick(fn: TickListener): () => void {
@@ -26,6 +28,11 @@ export class TestClock implements TickSubscriber {
   onStop(fn: () => void): () => void {
     this.stopListeners.add(fn);
     return () => { this.stopListeners.delete(fn); };
+  }
+
+  onSeek(fn: () => void): () => void {
+    this.seekListeners.add(fn);
+    return () => { this.seekListeners.delete(fn); };
   }
 
   sixteenthDuration(): number {
@@ -58,6 +65,14 @@ export class TestClock implements TickSubscriber {
     for (const l of this.stopListeners) l();
   }
 
-  start(fromStep = 0): void { this.fireStart(fromStep); }
+  /** Mirrors Clock.seek: moves the step + cue, leaves the grid alone
+   *  (transport.md REQ-6/REQ-7). */
+  fireSeek(step: number): void {
+    this.cue = this.step = step & 0xffff;
+    for (const l of this.seekListeners) l();
+  }
+
+  start(fromStep = this.cue): void { this.fireStart(fromStep); }
   stop(): void { this.fireStop(); }
+  seek(step: number): void { this.fireSeek(step); }
 }

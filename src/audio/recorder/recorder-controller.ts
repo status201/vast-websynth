@@ -1,5 +1,5 @@
 import type { Clock } from '../transport/clock';
-import type { Arrangement, ChainLane } from '../transport/arrangement';
+import type { Arrangement } from '../transport/arrangement';
 import type { RecorderNode } from './node';
 import { SEQ_LENGTH } from '../../state/patterns';
 import { encodeWav, encodeMp3, triggerDownload } from './encode';
@@ -85,13 +85,10 @@ export class RecorderController {
   /** Render one full pass of the song and download it. */
   exportSong(format: ExportFormat): void {
     if (this.armed) return; // a recording is already in flight
-    const barsFor = (lane: ChainLane) =>
-      lane.enabled && lane.steps.length ? lane.steps.length : 0;
-    const bars = Math.max(
-      barsFor(this.arrangement.seq),
-      barsFor(this.arrangement.drum),
-      barsFor(this.arrangement.sampler),
-    ) || FALLBACK_BARS;
+    // The three AUDIBLE lanes only — the motion lane is param automation, and
+    // widening the rendered length to include it would change what every
+    // existing song exports (audio-export.md REQ-2, transport-window.md).
+    const bars = this.arrangement.songBars(['seq', 'drum', 'sampler']) || FALLBACK_BARS;
     const stopAtStep = bars * SEQ_LENGTH;
 
     this.clock.stop();
@@ -102,6 +99,9 @@ export class RecorderController {
         window.setTimeout(() => void this.finish(format), TAIL_MS);
       }
     });
-    this.clock.start();       // resets step to 0, fires onStart → arrangement
+    // The 0 is explicit: `stopAtStep` is an ABSOLUTE step number, and a plain
+    // start() now resumes from the user's cue (transport.md REQ-7), which would
+    // truncate the export silently. Fires onStart → arrangement.
+    this.clock.start(0);
   }
 }

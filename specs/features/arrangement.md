@@ -3,7 +3,7 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 3
+version: 4
 owner: core
 related:
   - architecture
@@ -12,6 +12,7 @@ related:
   - song-mode
   - arrangement-rest
   - midi-clock-sync
+  - transport-position
 source:
   - src/audio/transport/arrangement.ts
   - src/state/patterns.ts
@@ -54,6 +55,15 @@ tick listener settles the play banks first.
 - **REQ-6** — A chain step may be the `REST` sentinel (an always-empty bar); an
   enabled lane whose current step is `REST` exposes `*Resting = true` and its machine
   plays silence for that bar. See [arrangement-rest.md](arrangement-rest.md).
+- **REQ-7** (v4) — **A mid-play seek re-seeks every lane.** REQ-4's body is
+  extracted into `seekTo(step)` and called from **both** `clock.onStart` (as
+  `seekTo(clock.step)`, unchanged behaviour) and the new `clock.onSeek`
+  ([transport](transport.md) REQ-6). Without it, lane positions — which advance
+  `+1` per bar line and are never derived from `clock.step` — end up off by
+  (bars jumped − 1), and a seek landing exactly on a bar line double-advances,
+  because `expectFirstBar` was not re-armed. The Arrangement subscribes `onSeek`
+  in its constructor, so — like `onTick` — it runs before the machines'
+  (REQ-5) and the play banks are settled by the time they read them.
 
 ## Technical design
 
@@ -65,8 +75,11 @@ Arrangement:  # src/audio/transport/arrangement.ts
   seqPlayBank / drumPlayBank / samplerPlayBank / motionPlayBank: number   # read by the machines
   seqResting / drumResting / samplerResting / motionResting: boolean      # rest slot -> silence (arrangement-rest.md)
   setSeqChain(steps, enabled) / setDrumChain(...) / setSamplerChain(...) / setMotionChain(...)
+  seekTo(step): void        # v4: re-seek every lane to floor(step/SEQ_LENGTH),
+                            # re-arm expectFirstBar, recompute + notify
   onChange(fn) -> unsubscribe
-  # subscribes clock.onStart (reset) + clock.onTick (advance per bar)
+  # subscribes clock.onStart (seekTo(clock.step)) + clock.onSeek (v4)
+  #          + clock.onTick (advance per bar)
 ChainLane: { enabled: boolean, steps: number[] }   # steps ∈ { REST, 0..BANK_COUNT-1 }
 ```
 
@@ -106,6 +119,18 @@ Scenario: A nonzero start seeks to the implied bar (v3)
   When the clock starts from a bar-aligned nonzero step (bar 2)
   Then the seq lane plays slot 2 immediately and advances to slot 0 (wrap) next bar
   And a mid-bar nonzero start seeks to that bar and increments on the next boundary
+# pinned by: tests/audio/transport/arrangement.test.ts
+
+Scenario: A mid-play seek re-seeks the lanes (v4)
+  Given seqChain = { enabled: true, steps: [0,0,1,0] } and the transport is playing
+  When the clock is seeked to bar 2
+  Then seqPlayBank is B immediately, and A on the next bar
+# pinned by: tests/audio/transport/arrangement.test.ts
+
+Scenario: A seek onto a bar line does not double-advance (v4, edge)
+  Given an enabled chain and a seek to an exactly bar-aligned step
+  Then that bar plays the slot the seek implies (expectFirstBar re-armed)
+  And the NEXT bar line advances it by exactly one
 # pinned by: tests/audio/transport/arrangement.test.ts
 ```
 
