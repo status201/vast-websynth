@@ -582,3 +582,164 @@ describe('MotionMachine — per-lane Slide/Step (motion-sequencer.md REQ-2)', ()
     expect(() => { machine.setTrackSlide(9, false); }).not.toThrow();
   });
 });
+
+/**
+ * The frame loop's *driver* (REQ-20) — the half `build()` deliberately bypasses.
+ * Browsers suspend rAF for a hidden document, so a bare rAF loop froze motion
+ * whenever the tab was backgrounded while every other machine (worker-driven
+ * clock) kept playing. Here the drivers are all injected, so the swap is
+ * observable without a real frame loop or a real `document`.
+ */
+describe('MotionMachine frame driver', () => {
+  function buildDriven(fps = 30) {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const clock = new TestClock();
+    const arrangement = new Arrangement(patterns, clock);
+    const xy = new XyPadStore();
+
+    // A fake document whose visibility the test flips by hand.
+    let onVisibility: (() => void) | null = null;
+    const doc = {
+      hidden: false,
+      addEventListener: (_t: 'visibilitychange', fn: () => void) => { onVisibility = fn; },
+    };
+    const setHidden = (h: boolean): void => { doc.hidden = h; onVisibility?.(); };
+
+    // A fake TickTimer recording what the hidden driver asks of it.
+    const timer = {
+      starts: [] as number[],
+      stops: 0,
+      cb: null as (() => void) | null,
+      start(cb: () => void, intervalMs: number) { this.cb = cb; this.starts.push(intervalMs); },
+      stop() { this.cb = null; this.stops++; },
+    };
+
+    const rafCbs: Array<() => void> = [];
+    const cancelled: number[] = [];
+    let nextRafId = 0;
+
+    // The audio clock, advanced by the test.
+    let now = 0;
+    const machine = new MotionMachine(clock, patterns, arrangement, xy, bus, {
+      fps,
+      now: () => now,
+      raf: (cb) => { rafCbs.push(cb); return ++nextRafId; },
+      caf: (id) => { cancelled.push(id); },
+      timer,
+      doc,
+    });
+    return {
+      bus, patterns, clock, machine, timer, rafCbs, cancelled,
+      setHidden,
+      advance: (t: number) => { now = t; },
+    };
+  }
+
+  /** Enabled, anchored and playing — the state in which the loop is armed. */
+  function play(h: ReturnType<typeof buildDriven>): void {
+    anchor(h.patterns, 0, 0, 0);
+    anchor(h.patterns, 8, 1, 1);
+    h.machine.setEnabled(true);
+    h.clock.fireStart();
+    h.clock.fireTick(0);
+  }
+
+  it('drives on rAF while the document is visible', () => {
+    const h = buildDriven();
+    play(h);
+    expect(h.rafCbs.length).toBe(1);
+    expect(h.timer.starts).toEqual([]);
+  });
+
+  it('swaps to the worker-backed timer at the perf fps when hidden (REQ-20, regression)', () => {
+    const h = buildDriven(30);
+    play(h);
+    h.setHidden(true);
+
+    expect(h.cancelled).toEqual([1]);          // the rAF driver was released
+    expect(h.timer.starts).toEqual([1000 / 30]);
+    expect(h.rafCbs.length).toBe(1);           // and not re-armed
+  });
+
+  it('keeps writing the assigned params while hidden', () => {
+    const h = buildDriven();
+    play(h);
+    h.setHidden(true);
+    const before = h.bus.get('filter.cutoff');
+
+    // Two wakeups a quarter-bar apart: the slide must have moved between them.
+    h.advance(2 * STEP_DUR);
+    h.timer.cb?.();
+    const mid = h.bus.get('filter.cutoff');
+    h.advance(4 * STEP_DUR);
+    h.timer.cb?.();
+    const later = h.bus.get('filter.cutoff');
+
+    expect(mid).not.toBe(before);
+    expect(later).not.toBe(mid);
+    expect(later).toBeCloseTo(fromNorm(h.bus.def('filter.cutoff')!, 0.5), 6);
+  });
+
+  it('does not restore baselines when the document is merely hidden (REQ-5)', () => {
+    const h = buildDriven();
+    const base = h.bus.get('filter.cutoff');
+    play(h);
+    h.advance(4 * STEP_DUR);
+    h.machine.frame(4 * STEP_DUR);
+    const automated = h.bus.get('filter.cutoff');
+    expect(automated).not.toBe(base);
+
+    h.setHidden(true);
+    expect(h.bus.get('filter.cutoff')).toBe(automated);
+  });
+
+  it('returns to rAF when the document is shown again', () => {
+    const h = buildDriven();
+    play(h);
+    h.setHidden(true);
+    h.setHidden(false);
+
+    expect(h.timer.stops).toBeGreaterThan(0);
+    expect(h.timer.cb).toBe(null);
+    expect(h.rafCbs.length).toBe(2);
+  });
+
+  it('stopping while hidden stops the timer and restores the baselines', () => {
+    const h = buildDriven();
+    const base = h.bus.get('filter.cutoff');
+    play(h);
+    h.setHidden(true);
+    h.advance(4 * STEP_DUR);
+    h.timer.cb?.();
+    expect(h.bus.get('filter.cutoff')).not.toBe(base);
+
+    h.clock.fireStop();
+    expect(h.timer.cb).toBe(null);
+    expect(h.bus.get('filter.cutoff')).toBe(base);
+  });
+
+  it('a wakeup arriving after stop writes nothing', () => {
+    const h = buildDriven();
+    const base = h.bus.get('filter.cutoff');
+    play(h);
+    h.setHidden(true);
+    const wake = h.timer.cb;          // captured while running, as a real one would be
+    h.clock.fireStop();
+    h.advance(4 * STEP_DUR);
+    wake?.();
+
+    expect(h.bus.get('filter.cutoff')).toBe(base);
+  });
+
+  it('arms the hidden driver directly when play starts on a hidden document', () => {
+    const h = buildDriven(60);
+    h.setHidden(true);                // nothing armed yet — setHidden is a no-op here
+    expect(h.timer.starts).toEqual([]);
+    play(h);
+
+    expect(h.timer.starts).toEqual([1000 / 60]);
+    expect(h.rafCbs.length).toBe(0);
+  });
+});

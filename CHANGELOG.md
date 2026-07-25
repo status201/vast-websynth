@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Motion automation no longer freezes when you switch away.** Backgrounding the
+  tab (or leaving the installed app) stopped the motion sequencer dead while
+  everything else kept playing, so the song came back missing its filter sweeps —
+  the params stayed stuck wherever they were the moment you looked away. Motion now
+  keeps running in the background like the rest of the transport, at the same rate,
+  and is exactly where the curve says when you return.
+
 ## [2.4.1] - 2026-07-24
 
 ### Changed

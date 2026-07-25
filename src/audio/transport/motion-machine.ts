@@ -6,10 +6,17 @@ import type { XyAssign, XyPadStore } from '../../state/xy-pad';
 import { motionAxesFor, motionAxesMatch } from '../../state/xy-effective';
 import { fromNorm } from '../../utils/taper';
 import { createAnchorCache, valueAt, valueAt1D, type MotionMode } from './motion-curve';
+import { defaultTickTimer, type TickTimer } from './tick-timer';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
 export type MotionStepListener = (step: number) => void;
+
+/** The slice of `document` the frame loop's driver swap needs (REQ-20). */
+export interface VisibilitySource {
+  readonly hidden: boolean;
+  addEventListener(type: 'visibilitychange', fn: () => void): void;
+}
 
 /** One scheduled tick plus the arrangement state captured with it — that state
  *  flips ahead of audible time, so frame() applies it only once `now` crosses
@@ -35,6 +42,10 @@ interface MotionMachineOpts {
   /** rAF/cAF injection for tests (jsdom has no real frame loop). */
   raf?: (cb: () => void) => number;
   caf?: (id: number) => void;
+  /** Wakeup source driving the loop while the document is hidden (REQ-20). */
+  timer?: TickTimer;
+  /** Visibility source; injectable so the driver swap is testable (REQ-20). */
+  doc?: VisibilitySource;
 }
 
 /**
@@ -48,7 +59,11 @@ interface MotionMachineOpts {
  * frame loop (throttled to the perf-tier fps) evaluates the pure motion curve
  * at the audio clock's *now* each frame — slide mode moves every frame, step
  * mode only produces a new value at anchor boundaries (`bus.set` no-ops on
- * unchanged values, so idle frames cost nothing). Arrangement state (rest
+ * unchanged values, so idle frames cost nothing). That one loop body has **two
+ * drivers** (REQ-20): rAF while the document is visible, and the worker-backed
+ * `TickTimer` while it is hidden, since browsers suspend rAF for a hidden
+ * document and this loop decides what is *heard*, not what is drawn.
+ * Arrangement state (rest
  * gate, play bank) advances with the scheduled tick too, so it is latched per
  * tick and applied at the tick's audible time (REQ-7) — reading it live would
  * truncate the final scheduleAheadS of every bar before a rest. The neighbouring
@@ -73,12 +88,16 @@ export class MotionMachine {
   /** Anchor-index memo for the frame loop; dropped on any bank mutation. */
   private readonly anchors = createAnchorCache();
 
+  /** Whether the frame loop is armed — independent of *which* driver holds it. */
+  private looping = false;
   private rafId: number | null = null;
   private lastFrameMs = 0;
   private readonly minFrameMs: number;
   private readonly now: () => number;
   private readonly raf: (cb: () => void) => number;
   private readonly caf: (id: number) => void;
+  private readonly timer: TickTimer;
+  private readonly doc: VisibilitySource | null;
 
   constructor(
     private readonly clock: TickSubscriber,
@@ -92,6 +111,13 @@ export class MotionMachine {
     this.now = opts.now ?? (() => 0);
     this.raf = opts.raf ?? ((cb) => requestAnimationFrame(cb));
     this.caf = opts.caf ?? ((id) => cancelAnimationFrame(id));
+    // Lazy by construction: WorkerTimer spawns its Worker on the first start(),
+    // so a session that is never backgrounded pays nothing for this.
+    this.timer = opts.timer ?? defaultTickTimer();
+    this.doc = opts.doc ?? (typeof document !== 'undefined' ? document : null);
+    // One low-frequency global listener (runtime-performance.md REQ-3 exempts
+    // these). Never removed: the machine lives as long as the page does.
+    this.doc?.addEventListener('visibilitychange', this.onVisibility);
 
     clock.onTick((step, when) => {
       // Raw step, not perf.mapStep: automation must not follow stutter remaps.
@@ -309,20 +335,59 @@ export class MotionMachine {
   };
 
   private startLoop(): void {
-    if (this.rafId !== null) return;
-    const step = (): void => {
-      this.rafId = this.raf(step);
-      const nowMs = Date.now();
-      if (nowMs - this.lastFrameMs < this.minFrameMs) return;
-      this.lastFrameMs = nowMs;
-      this.frame(this.now());
-    };
-    this.rafId = this.raf(step);
+    if (this.looping) return;
+    this.looping = true;
+    this.attachDriver();
   }
 
   private stopLoop(): void {
-    if (this.rafId === null) return;
-    this.caf(this.rafId);
-    this.rafId = null;
+    if (!this.looping) return;
+    this.looping = false;
+    this.detachDriver();
   }
+
+  /**
+   * Arm whichever driver suits the document's current visibility (REQ-20).
+   * rAF is suspended for a hidden document, and this loop drives what is heard —
+   * so hidden falls back to the worker timer the transport clock already uses.
+   */
+  private attachDriver(): void {
+    if (this.doc?.hidden) this.timer.start(this.wake, this.minFrameMs);
+    else this.rafId = this.raf(this.rafStep);
+  }
+
+  private detachDriver(): void {
+    this.timer.stop();
+    if (this.rafId !== null) {
+      this.caf(this.rafId);
+      this.rafId = null;
+    }
+  }
+
+  /** Swap drivers under a running loop — never start, stop or restore anything:
+   *  hiding the tab is not a transport event, and restoring baselines here would
+   *  jump the sound on every tab switch (REQ-5). */
+  private readonly onVisibility = (): void => {
+    if (!this.looping) return;
+    this.detachDriver();
+    this.attachDriver();
+  };
+
+  /** Bound once, so re-arming the loop allocates no closure (REQ-19). */
+  private readonly rafStep = (): void => {
+    this.rafId = this.raf(this.rafStep);
+    const nowMs = Date.now();
+    if (nowMs - this.lastFrameMs < this.minFrameMs) return;
+    this.lastFrameMs = nowMs;
+    this.frame(this.now());
+  };
+
+  /** The hidden driver already fires at `minFrameMs`, so it skips that throttle:
+   *  a wakeup landing a millisecond early would otherwise drop every other frame
+   *  and halve the rate. A wakeup in flight past `stop()` is harmless — `frame`
+   *  early-returns unless playing ∧ active. */
+  private readonly wake = (): void => {
+    this.lastFrameMs = Date.now();
+    this.frame(this.now());
+  };
 }

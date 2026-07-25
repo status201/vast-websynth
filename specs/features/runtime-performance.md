@@ -3,7 +3,8 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 1
+version: 2   # v2: visibility gating is for pixels, not for sound (REQ-9);
+             #     REQ-4 scoped explicitly to repaints
 owner: core
 related:
   - architecture
@@ -14,6 +15,7 @@ related:
   - session-autosave
   - step-settings
   - song-mode
+  - transport            # REQ-9 — the worker-timer guarantee it generalises
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -25,6 +27,7 @@ source:
   - src/audio/transport/motion-machine.ts
   - src/audio/transport/motion-curve.ts
   - src/audio/transport/performance.ts
+  - src/audio/transport/tick-timer.ts        # the worker-backed wakeup REQ-9 mandates
   - src/ui/components/knob.ts
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
@@ -77,7 +80,8 @@ so a reviewer has something concrete to hold a new feature against.
   panels with a class, so they stay live and subscribed. Any per-tick or per-bar repaint
   MUST be gated on visibility (`TabContainer.isVisible` via the panel's
   `VisibilityGate`) and MUST re-sync once on reveal, so a revealed panel shows the
-  current state immediately rather than a stale one.
+  current state immediately rather than a stale one. The rule governs **repaints
+  only** — see REQ-9 for the loops it must never be applied to.
 
 - **REQ-5 — Automation is not an edit.** A param write made by the machine
   (motion-sequencer automation, a Tape Stop pitch ramp) MUST fire the per-param
@@ -101,6 +105,22 @@ so a reviewer has something concrete to hold a new feature against.
   per-sample DSP for speed MUST produce identical output for identical input (same
   operands, same order) and be pinned by an equivalence test. Anything that alters the
   output is a sound change and needs its own spec + ADR-010 justification.
+
+- **REQ-9 — Visibility gating is for pixels, not for sound** (v2). A loop that only
+  *draws* SHOULD stop while the document is hidden (`Scope` is the reference: it
+  pauses its redraw on `visibilitychange`). A loop that changes **what is heard** MUST
+  NOT — and therefore MUST NOT be driven by `requestAnimationFrame` alone, because
+  browsers suspend rAF entirely for a hidden document. Such a loop drives itself from
+  the worker-backed `TickTimer` (`audio/transport/tick-timer.ts`) while
+  `document.hidden`, at the same rate it uses when visible; rAF may drive it only
+  while visible, for the vsync alignment the knobs get for free. This is the same
+  guarantee [`transport.md`](transport.md) REQ-4 gives the clock, generalised: the
+  transport survived backgrounding while the motion sequencer — the one machine on a
+  bare rAF loop — froze mid-sweep and left its params stuck until the tab came back.
+  Deactivating on hide is doubly wrong for an automation loop: it would also have to
+  decide what to do with the values it wrote, and restoring them is an audible jump.
+  Gesture-scoped ramps (Tape Stop, the XY pad's spring-back) are exempt — they last
+  well under a second with the user watching.
 
 ## Technical design
 
@@ -135,6 +155,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` |
 | REQ-7 | `ui/components/knob.ts` |
 | REQ-8 | `public/worklets/*.js` |
+| REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden) |
 
 The `VisibilityGate` is created by each panel builder and returned on its
 `MachinePanel`; `buildPatternRow` wires every gate from one `tabs.onViewChange`, which
@@ -177,6 +198,16 @@ Scenario: the reverb IR bank is shared and lazily built
   Then that IR is generated once and reused by every reverb thereafter
 # pinned by: tests/audio/effects/reverb.test.ts
 
+Scenario: an audio-affecting loop survives a hidden document (REQ-9, regression)
+  Given the motion sequencer is enabled with anchors and the transport is playing
+  When the document becomes hidden and rAF stops being delivered
+  Then the loop is driven by the worker-backed timer at the same perf-tier fps
+  And the automated params keep moving
+  And no baseline is restored (nothing is deactivated)
+  When the document becomes visible again
+  Then the timer stops and rAF drives the loop again
+# pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
 Scenario: a worklet speed rewrite changes no samples
   Given a block of noisy input and a swept cutoff
   When it is processed by the optimised recurrence
@@ -187,7 +218,8 @@ Scenario: a worklet speed rewrite changes no samples
 ## Tests & verification
 
 - Unit: `tests/state/session-autosave.test.ts`, `tests/audio/ladder-filter-worklet.test.ts`,
-  `tests/audio/effects/reverb.test.ts`, `tests/ui/step-settings.test.ts` — `npm test`
+  `tests/audio/effects/reverb.test.ts`, `tests/ui/step-settings.test.ts`,
+  `tests/audio/transport/motion-machine.test.ts` (REQ-9's driver swap) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-1 metric.

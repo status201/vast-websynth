@@ -67,6 +67,51 @@ test('anchors drive the assigned params while playing and restore on stop', asyn
   await expect.poll(() => busGet(page, 'filter.resonance')).toBe(resBefore);
 });
 
+test('automation keeps running while the document is hidden (REQ-20)', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  await setAnchor(page, 0, 0.5, 0);
+  await setAnchor(page, 8, 0.5, 1);
+  await page.getByTestId('switch-motion.on').click();
+  const resBefore = await busGet(page, 'filter.resonance');
+  await page.getByTestId('transport-play').click();
+  await expect.poll(() => busGet(page, 'filter.resonance'), { timeout: 5_000 })
+    .not.toBe(resBefore);
+
+  // Headless Chromium keeps delivering rAF to a "hidden" page, so the suspension
+  // has to be faked: neuter requestAnimationFrame *and* report hidden, then fire
+  // the event the machine listens on. Without the fix the loop is now dead.
+  await page.evaluate(() => {
+    const w = window as unknown as { __raf?: typeof requestAnimationFrame };
+    w.__raf = window.requestAnimationFrame;
+    window.requestAnimationFrame = () => 0;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  const hiddenA = await busGet(page, 'filter.resonance');
+  await page.waitForTimeout(500);
+  const hiddenB = await busGet(page, 'filter.resonance');
+  expect(hiddenB).not.toBe(hiddenA);
+
+  // Back to visible: rAF drives it again, and stopping still restores.
+  await page.evaluate(() => {
+    const w = window as unknown as { __raf?: typeof requestAnimationFrame };
+    if (w.__raf) window.requestAnimationFrame = w.__raf;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const shownA = await busGet(page, 'filter.resonance');
+  await page.waitForTimeout(400);
+  expect(await busGet(page, 'filter.resonance')).not.toBe(shownA);
+
+  await page.getByTestId('transport-play').click();
+  await expect.poll(() => busGet(page, 'filter.resonance')).toBe(resBefore);
+});
+
 test('the playhead lights the A/B track cells while playing (v6)', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);

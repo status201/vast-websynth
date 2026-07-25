@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 8   # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
+version: 9   # v9: the frame loop is visibility-independent — worker timer while the
+             #     document is hidden, rAF while visible (REQ-20)
+             # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
              #     the frame loop is allocation-free (REQ-19)
              # v7: the bank bar's content dot counts the A/B track lanes, not just XY
              # v6: A/B lanes visually distinct (wider grid gap, no fill animation) + playhead;
@@ -16,7 +18,8 @@ owner: core
 related:
   - xy-pad
   - arrangement
-  - runtime-performance   # REQ-5/REQ-6 — automation is not an edit; frame-loop cost
+  - runtime-performance   # REQ-5/REQ-6/REQ-9 — automation is not an edit; frame-loop cost; hidden-document loops
+  - transport             # REQ-20 shares the clock's worker-timer guarantee
   - session-autosave      # what REQ-18 stopped starving
   - step-grid-editing
   - song-mode
@@ -25,6 +28,7 @@ related:
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
+  - src/audio/transport/tick-timer.ts       # the hidden-document frame driver (v9)
   - src/audio/transport/arrangement.ts      # 4th chain lane
   - src/state/patterns.ts                   # motion banks + per-bank assigns
   - src/utils/taper.ts                      # norm<->value mapping (extracted from ui)
@@ -109,8 +113,9 @@ The tab sits between Sampler and Song.
   controls plus a **Mute** switch (v2, REQ-12) but no solo/volume (nothing to
   mix). The card dims (the same `silenced` visual as the audio lanes) while
   muted.
-- **REQ-7** — Both modes evaluate on **one rAF frame loop** (active only while
-  playing ∧ enabled, throttled to the perf-tier fps) against the **audio clock's
+- **REQ-7** — Both modes evaluate on **one frame loop** (active only while
+  playing ∧ enabled, throttled to the perf-tier fps; what *drives* that loop is
+  REQ-20) against the **audio clock's
   now** — clock ticks arrive with `when` scheduled ahead, so tick-time writes would
   run early relative to the heard step. Slide moves every frame; step mode's curve
   only changes value at anchor boundaries and `bus.set` early-returns unchanged
@@ -291,6 +296,26 @@ The tab sits between Sampler and Song.
   The cache is optional throughout `motion-curve.ts`, so the panel, the graph and
   the tests keep calling the pure functions with no cache and no invalidation
   duty.
+- **REQ-20** — **The frame loop is visibility-independent** (v9,
+  [runtime-performance](runtime-performance.md) REQ-9). Browsers suspend
+  `requestAnimationFrame` entirely for a hidden document, so a bare rAF loop stopped
+  writing the moment the tab was backgrounded or the PWA left the foreground — every
+  other machine kept playing (they ride `Clock`, whose wakeups come from a Worker,
+  [transport](transport.md) REQ-4) and the song simply lost its automation, params
+  frozen at whatever the last visible frame wrote. The loop therefore carries **two
+  drivers for one body**: rAF while the document is visible (free vsync alignment for
+  the knob and XY-dot repaints the writes trigger), and the worker-backed `TickTimer`
+  while it is hidden, at the **same** perf-tier fps — so motion sounds identical
+  whether or not anyone is looking. One `visibilitychange` listener swaps between them
+  (a low-frequency global listener, exempt under runtime-performance REQ-3), and it
+  swaps *only* the driver: hiding MUST NOT deactivate the machine or restore baselines
+  (REQ-5) — that would be an audible jump on every tab switch. Nothing else needs
+  repair on return, because the tick latch keeps running while hidden (ticks are
+  worker-driven) and position is recomputed from `(tick.idx, tick.when, now)` on every
+  evaluation, never accumulated. The hidden driver already fires at the frame
+  interval, so it bypasses the rAF throttle rather than dropping every other wakeup
+  to jitter. The `TickTimer`'s Worker is spawned on its first `start()`, so a session
+  that is never backgrounded pays nothing for this.
 
 ## Technical design
 
@@ -302,7 +327,14 @@ The tab sits between Sampler and Song.
   `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
   `stop()` restore hook via `clock.onStop`. Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
-  `motion`.
+  `motion`. `MotionMachineOpts` carries the injectable seams the loop needs:
+  `now` (audio-clock time) + `fps` (Engine passes both), and `raf`/`caf`, plus (v9)
+  `timer?: TickTimer` — the hidden-document driver, defaulting to
+  `defaultTickTimer()` — and `doc?` — the visibility source, defaulting to
+  `document`, injectable so the REQ-20 swap is unit-testable under jsdom. Engine
+  passes neither: the defaults are the production wiring. The machine lives as long
+  as the page, so its one `visibilitychange` listener is never removed (there is no
+  `destroy()`).
 - `motion-curve.ts` (pure): `anchorIndices(bank)`,
   `valueAt(bank, barPos, mode, neighbours?) → {x,y} | null` — all
   interpolation/carry math, no AudioContext. (v4) The engine underneath is the
@@ -558,6 +590,23 @@ Scenario: Caching changes no value (REQ-19)
   Then the two agree at every position
 # pinned by: tests/audio/transport/motion-curve.test.ts
 
+Scenario: Motion keeps automating while the document is hidden (REQ-20, regression)
+  Given the transport is playing and motion is enabled with anchors
+  When the document becomes hidden
+  Then the rAF driver is cancelled and the worker-backed timer drives the loop at the perf fps
+  And the assigned params keep moving as the audio clock advances
+  And no baseline is restored
+  When the document becomes visible again
+  Then the timer is stopped and the rAF driver is re-armed
+# pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
+
+Scenario: Stopping while hidden still restores the baselines (REQ-20/REQ-5)
+  Given the transport is playing with the document hidden and motion writing
+  When the transport stops
+  Then the hidden driver is stopped
+  And every automated param is back at its pre-automation value
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
 Scenario: Automation reaches the knobs but not the change signal (REQ-18)
   Given a subscriber on filter.cutoff and a global bus.onChange listener
   When motion slides filter.cutoff across a bar and the transport then stops
@@ -612,6 +661,11 @@ Scenario: Dialect motion bank expands
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.
+- Device (REQ-20): play a motion song, background the tab/PWA for ~30 s and listen —
+  the sweep must continue and be where the curve says on return. Headless Chromium
+  never truly suspends rAF, so `e2e/motion.spec.ts` fakes it (neuters
+  `requestAnimationFrame` + `document.hidden`); only a real backgrounded window
+  proves the whole path.
 
 ## Pitfalls (documented behaviour)
 

@@ -126,7 +126,10 @@ differ only by live-applied scope fps + fftSize).
   [motion sequencer](motion-sequencer.md)'s write loop also throttles to the
   profile `fps`, but it reads it **once at boot** (`EngineOptions.motionFps`) —
   a tier change updates it on reload only (accepted: it is a cost cap, not a
-  visual).
+  visual). Being a cost cap and not a visual is also why that loop does **not**
+  pause while the tab is hidden the way the scope does: the same `fps` governs its
+  worker-backed hidden-document driver, so automation runs at one rate either way
+  (motion-sequencer REQ-20).
 - **REQ-7** — The canvas **drop-shadow is removed for all tiers** (it was the v1
   perf-only "lightening"; now a baseline cost cut everywhere). Wave and Spectrum draw
   with no `shadowBlur`/`shadowColor`.
