@@ -243,6 +243,9 @@ function buildHeader(
       onHelpModeChange: onboarding.onHelpModeChange,
     }),
   );
+  // The `?` key's route to the badges (input-control.md REQ-9) — here rather
+  // than in shortcuts.ts, which must not import the onboarding layer.
+  bridge.toggleHelpBadges = onboarding.toggleHelpMode;
   // Last in the row; absent (null) where the Fullscreen API is missing — iPhone Safari.
   const fullscreenBtn = createFullscreenButton();
   if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);

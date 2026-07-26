@@ -104,6 +104,44 @@ describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-10)', () => {
   });
 });
 
+// input-control.md REQ-9 / onboarding.md REQ-19. One install for the describe,
+// like the others above: every setup() leaks a window handler.
+describe('installShortcuts ? toggles the help badges (input-control.md REQ-9)', () => {
+  const { bus, bridge } = setup();
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    bus.set('master.pitchBend', 0);
+  });
+
+  it('routes ? to the bridge without bending pitch', () => {
+    const toggle = vi.fn();
+    bridge.toggleHelpBadges = toggle;
+    const unprevented = modKeydown(document.body, '?', { shiftKey: true });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(unprevented).toBe(false);
+    // The '/' pitch-bend branch must never see it — e.key for Shift+/ is '?'.
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  it('leaves ? alone inside an editable field', () => {
+    const toggle = vi.fn();
+    bridge.toggleHelpBadges = toggle;
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    modKeydown(input, '?', { shiftKey: true });
+    expect(toggle).not.toHaveBeenCalled();
+  });
+
+  it('still bends pitch on a bare / (regression)', () => {
+    const toggle = vi.fn();
+    bridge.toggleHelpBadges = toggle;
+    keydown(document.body, '/');
+    expect(bus.get('master.pitchBend')).toBe(-1);
+    expect(toggle).not.toHaveBeenCalled();
+  });
+});
+
 // transport-position.md REQ-11. One install for the whole describe (see the
 // note above): every setup() leaks a window handler, so a second one would
 // double-count the seeks asserted here.

@@ -40,8 +40,9 @@ import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 
-/** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10). */
-const DEMO_ROW_LIMIT = 6;
+/** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10).
+ *  Was 6 when there were 8 demos; at 17 that hid two thirds of the library. */
+const DEMO_ROW_LIMIT = 10;
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
   const e = document.createElement(tag);
@@ -501,6 +502,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const demoButtons = demoNames().map((name) => mkDemoBtn(name, () => { void loadDemo(name); }));
   // Only the first DEMO_ROW_LIMIT stay inline; the rest tuck behind an
   // "All Demos" toggle so the row doesn't crowd the panel (song-mode.md REQ-10).
+  // `.io` is a wrapping flex, so a higher limit costs horizontal space only.
   for (const d of demoButtons.slice(0, DEMO_ROW_LIMIT)) io.appendChild(d);
   const overflowDemos = demoButtons.slice(DEMO_ROW_LIMIT);
   if (overflowDemos.length > 0) {
@@ -519,6 +521,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   }
   io.appendChild(createAiPromptButton(bus, pasteRoutes));
   root.appendChild(io);
+
+  // ---- Sync + Audio ----
+  // One wrapper so the two rows can pair up on a wide screen — Sync hard left,
+  // Audio hard right — and dissolve back into two stacked rows below the
+  // breakpoint (`display: contents`, song-mode.md REQ-13). Sync leads in DOM
+  // order, which is also the stacked order.
+  const ioPair = el('div', styles.ioPair!);
 
   // ---- Audio export (WAV / MP3) ----
   const aio = el('div', styles.io!);
@@ -572,10 +581,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   aio.appendChild(fmtSel);
   aio.appendChild(expSongBtn);
   aio.appendChild(recBtn);
-  root.appendChild(aio);
 
   // ---- Transport sync (MIDI master/slave + WiFi) ----
-  root.appendChild(buildSyncSection(engine.sync, engine.rtcSync));
+  ioPair.appendChild(buildSyncSection(engine.sync, engine.rtcSync));
+  ioPair.appendChild(aio);
+  root.appendChild(ioPair);
 
   return { el: root, loadDemo, importBytes };
 }

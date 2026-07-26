@@ -104,6 +104,34 @@ test.describe('song mode', () => {
     await expect.poll(seqSteps).toBe(1);
   });
 
+  // song-mode.md REQ-13: Sync leads Audio (export is the tab's terminal action),
+  // and above 1280px the two short rows share one line instead of spending two.
+  test('Sync leads Audio, sharing one row only on a wide screen', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+
+    // Anchor on a control inside each row rather than the row itself — the rows
+    // carry only hashed CSS-Module classes.
+    const syncBox = () => page.getByTestId('sync-mode-master').boundingBox();
+    const audioBox = () => page.getByTestId('song-export-audio').boundingBox();
+    const both = async () => {
+      const [s, a] = await Promise.all([syncBox(), audioBox()]);
+      if (!s || !a) throw new Error('Sync/Audio row controls have no box');
+      return { s, a };
+    };
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    let { s, a } = await both();
+    // One line: vertically overlapping, and Audio starts to the right of Sync.
+    expect(Math.abs(s.y - a.y)).toBeLessThan(s.height);
+    expect(a.x).toBeGreaterThan(s.x + s.width);
+
+    await page.setViewportSize({ width: 1024, height: 900 });
+    ({ s, a } = await both());
+    // Stacked, Sync first — Audio is a full row below it.
+    expect(a.y).toBeGreaterThan(s.y + s.height);
+  });
+
   test('loading a demo labels the preset selector with the song name', async ({ page }) => {
     await gotoAndStart(page);
     expect(await sessionDisplay(page)).toBe('basic');
@@ -113,8 +141,9 @@ test.describe('song mode', () => {
     await expect(page.getByTestId('transport-play')).toHaveClass(/\battract\b/);
 
     await page.getByTestId('tab-song').click();
-    // Only the first 6 demos are inline; Zombie Nation (a built-in, after the
-    // drop-ins) hides behind the "All Demos" toggle (song-mode.md REQ-10).
+    // Only the first DEMO_ROW_LIMIT (10) demos are inline; Zombie Nation (a
+    // built-in, after all 13 drop-ins) hides behind the "All Demos" toggle
+    // (song-mode.md REQ-10).
     await expect(page.getByTestId('song-demo-Zombie Nation')).toBeHidden();
     await page.getByTestId('song-demo-more').click();
     await page.getByTestId('song-demo-Zombie Nation').click();
@@ -147,8 +176,7 @@ test.describe('song mode', () => {
     await page.getByTestId('tab-song').click();
 
     // Labelled with the song's own name, which only demos-index.json knows
-    // (the file is apex-twin.json). Past the 6 inline slots, so reveal it first.
-    await page.getByTestId('song-demo-more').click();
+    // (the file is apex-twin.json). Inline since DEMO_ROW_LIMIT rose to 10.
     const btn = page.getByTestId('song-demo-Apex Twin');
     await expect(btn).toBeVisible();
     await btn.click();

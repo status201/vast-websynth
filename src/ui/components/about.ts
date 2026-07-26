@@ -33,6 +33,8 @@ const SHORTCUTS: Array<[string, string]> = [
   ['Esc', 'Panic — all notes off'],
   ['Delete', 'Clear the selected step'],
   ['Ctrl/Cmd + Z', 'Undo the last grid edit'],
+  ['?', 'Show / hide the help badges'],
+  ['Shift + click Help', 'Show / hide the help badges (or hold it)'],
   ['Shift + drag', 'Fine knob control'],
 ];
 

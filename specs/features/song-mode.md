@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 11  # v11: drop-in demos fetched on click, not bundled (REQ-12)
+version: 13  # v13: Sync then Audio, sharing one row above 1280px (REQ-13)
+             # v12: DEMO_ROW_LIMIT 6 -> 10 (REQ-10) — 6 hid two thirds of 17 demos
+             # v11: drop-in demos fetched on click, not bundled (REQ-12)
              # v10: apply() evicts stale sampler audio (REQ-3b)
 owner: core
 related:
@@ -118,15 +120,19 @@ demos, the load path **must stay backward compatible** as the format grows.
   **default-sparse**, producing the *canonical compact* form. The output must still
   `apply()` to identical-sounding state (rounding is inaudible; sparse cells re-expand
   via `restore`). See [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
-- **REQ-10 (demo row overflow, v6)** — The Song panel's demo row shows at most
-  `DEMO_ROW_LIMIT` (6) demo buttons inline; any further demos (JSON drop-ins,
-  built-ins and zip demos alike, in their usual order) hide behind an
-  **"All Demos"** toggle button (testid `song-demo-more`) that expands/collapses
-  them in place (label flips to "Less" while open). With ≤ 6 demos the toggle is
-  absent. `SongPanel.loadDemo(name)` (used by the guided tour) keeps working for
-  hidden demos — visibility only affects the buttons. Loading a demo — like
-  every song load/import — also fires `UiBridge.cuePlay`
-  (see [play-button-blink](play-button-blink.md)).
+- **REQ-10 (demo row overflow, v6; limit raised in v12)** — The Song panel's demo
+  row shows at most `DEMO_ROW_LIMIT` (**10**) demo buttons inline; any further
+  demos (JSON drop-ins, built-ins and zip demos alike, in their usual order) hide
+  behind an **"All Demos"** toggle button (testid `song-demo-more`) that
+  expands/collapses them in place (label flips to "Less" while open). With
+  ≤ `DEMO_ROW_LIMIT` demos the toggle is absent. `SongPanel.loadDemo(name)` (used
+  by the guided tour) keeps working for hidden demos — visibility only affects
+  the buttons. Loading a demo — like every song load/import — also fires
+  `UiBridge.cuePlay` (see [play-button-blink](play-button-blink.md)).
+  The limit was 6 when there were 8 demos; at 17 it hid two thirds of the
+  library behind a click. The row is a wrapping flex (`.io`), so the only cost of
+  a higher limit is horizontal space, and 10 is what fits a desktop row before
+  wrapping.
 - **REQ-11 (lane titles navigate, v8)** — Each lane card's title is a button
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
   tab, and the tab bar carries a per-machine status LED. Both are governed by
@@ -166,6 +172,19 @@ demos, the load path **must stay backward compatible** as the format grows.
   drop-in until a user clicks it, so `tests/state/demo-files.ts` eagerly globs
   them for the **test** bundle and every one is still asserted against
   `validateSongFile`.
+- **REQ-13 (Sync and Audio pair up, v13)** — The panel's last two rows are
+  **Sync** then **Audio**, in that order: Audio export is the tab's terminal
+  action (render the finished thing), so it reads last, while Sync is setup that
+  belongs with the transport rows above it.
+  Above **1280 px** — the boundary the rest of the panel already uses — the two
+  **share one row**, `justify-content: space-between`, Sync pinned to the left
+  edge and Audio to the right. Both are short rows, so two of them were spending
+  a whole row of height on air.
+  Mechanism: one `.ioPair` wrapper that is `display: contents` at ≤ 1280 px, so
+  each `.io` is a `.panel` flex item with its own dashed rule exactly as before
+  and the DOM order *is* the stacked order. Above the breakpoint the wrapper
+  becomes the flex row and takes over the single dashed rule from its two halves.
+  `display: contents` has precedent in this module (`.demoOverflow.demoOpen`).
 
 ## Technical design
 
@@ -539,10 +558,17 @@ Scenario: Clicking a drop-in demo fetches and applies it (REQ-12)
   And a fetch or validation failure surfaces in the demo-failed dialog
 # pinned by: e2e/song.spec.ts
 
-Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6)
-  Given more than DEMO_ROW_LIMIT (6) demos are registered
+Scenario: Sync leads Audio, and they share a row on a wide screen (UI, v13)
+  Given the Song tab is open at 1440px wide
+  Then the Sync row and the Audio row sit on one line, Sync left and Audio right
+  When the viewport narrows to 1024px
+  Then they stack, Sync above Audio, each with its own dashed rule
+# pinned by: e2e/song.spec.ts
+
+Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6/v12)
+  Given more than DEMO_ROW_LIMIT (10) demos are registered
   When the Song panel renders
-  Then only the first 6 demo buttons are visible plus an "All Demos" toggle
+  Then only the first 10 demo buttons are visible plus an "All Demos" toggle
    And clicking the toggle reveals the remaining demo buttons (and flips to "Less")
    And a hidden demo button, once revealed, loads its demo like any other
 # pinned by: e2e/song.spec.ts

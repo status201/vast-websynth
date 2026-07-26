@@ -407,6 +407,18 @@ describe('About modal — keyboard shortcut list', () => {
     expect(text).toContain('Ctrl/Cmd + Z');
   });
 
+  it('names both routes to the help badges (onboarding.md REQ-19)', () => {
+    const keys = openAbout();
+    const text = keys.textContent ?? '';
+    expect(text).toContain('Show / hide the help badges');
+    // The gesture route too — a Shift+click is as reachable as the key, and the
+    // list already carries a mouse row (Shift + drag for fine knob control).
+    expect(text).toContain('Shift + click Help');
+    // The key itself must be listed, not just described.
+    const cells = [...keys.children].map((k) => k.textContent);
+    expect(cells).toContain('?');
+  });
+
   it('draws arrow runs in the glyph span, not the bare monospace face', () => {
     const keys = openAbout();
     const glyphs = [...keys.querySelectorAll('span')];

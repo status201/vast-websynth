@@ -256,9 +256,34 @@
   color: var(--text-dim);
 }
 
+/* Sync + Audio (song-mode.md REQ-13). Narrow: the wrapper dissolves, so each
+   row is a `.panel` flex item exactly as it was on its own — Sync then Audio,
+   each with its own dashed rule. */
+.ioPair { display: contents; }
+
+/* Wide (> 1280px, the same boundary the rest of the panel uses): the two share
+   one row, pinned to the outer edges, so the widest section of the tab stops
+   costing two rows of height. The pair carries the single dashed rule. */
+@media (min-width: 1281px) {
+  .ioPair {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    border-top: 1px dashed rgba(244, 205, 94, 0.18);
+    padding-top: 12px;
+  }
+  /* The rule and its inset now belong to the pair, not to each half. */
+  .ioPair > .io {
+    border-top: none;
+    padding-top: 0;
+  }
+}
+
 .demo { color: var(--accent-secondary); }
 
-/* Demos past the first 6 hide behind the "All Demos" toggle; display: contents
+/* Demos past DEMO_ROW_LIMIT hide behind the "All Demos" toggle; display: contents
    keeps the revealed buttons flowing in the io row's flex wrap (song-mode.md REQ-10). */
 .demoOverflow { display: none; }
 .demoOverflow.demoOpen { display: contents; }

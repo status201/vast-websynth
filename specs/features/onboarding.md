@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 12  # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
+version: 13  # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
+             #      button, plus the `?` key; no modal round-trip (REQ-19)
+             # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
              #      section on the Song tab (REQ-18)
              # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
              #      About modal's key list (REQ-16/REQ-17)
@@ -76,9 +78,10 @@ never reads DEV-only globals.
     destination is aimed at: wobble (cutoff), vibrato (pitch), tremolo (amp) or
     PWM movement (pulse) — and that it does nothing while the LFO destination
     is off.
-  - The Help button's tooltip while help mode is **inactive** is
-    "Help & Demo Tour" (it opens the tour/badges chooser, not a shortcuts
-    list); the active-state tooltip stays "Turn off help badges" (REQ-8).
+  - The Help button's tooltip while help mode is **inactive** names the door it
+    opens *and* the shortcut past it — "Help & Demo Tour — Shift+click or hold
+    for badges" (v13, REQ-19); it is not a shortcuts list. The active-state
+    tooltip stays "Turn off help badges" (REQ-8).
 - **REQ-10** (v6) — The tour showcases the Song tab before its closing step: one
   step spotlights the arrangement **chain lanes** (`song-lane-seq` — banks chained
   one per bar, plus the per-lane mute/solo/level mixer) and the next the **live DJ
@@ -158,7 +161,44 @@ never reads DEV-only globals.
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-11), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing.
+  `Ctrl/Cmd+Z`, which were missing, and (v13) `?` plus `Shift`+click on Help
+  (REQ-19). It already carries non-key gestures (`Shift`+drag for fine knob
+  control), so a mouse row is in keeping.
+- **REQ-19** (v13) — **Switching the badges on is one gesture, not a modal round
+  trip.** Switching them *off* has been one click since REQ-8; turning them on
+  cost Help → modal → "Toggle help badges" → close, and there was no keyboard
+  route at all. So the Help button carries a second gesture that **toggles the
+  badges and never opens a modal**, and a global key does the same:
+
+  | Gesture (on `help-button`) | Outcome                          | Precedent                          |
+  | -------------------------- | -------------------------------- | ---------------------------------- |
+  | click, badges off          | open the Help chooser modal      | REQ-8 (unchanged)                  |
+  | click, badges on           | badges off                       | REQ-8 (unchanged)                  |
+  | Shift / Ctrl / ⌘ + click   | **toggle badges, no modal**      | modifier-click = skip the dialog   |
+  | long-press (350 ms)        | **toggle badges, no modal**      | step grids (`grid-gestures.ts`)    |
+  | right-click                | — (`contextmenu` is globally suppressed) | —                          |
+  | double-click               | — (reads as two toggles)         | —                                  |
+  | `?` (global key)           | **toggle badges**                | `?` = help, near-universal         |
+
+  Load-bearing details:
+  - The new gesture's outcome is **toggle** in both states — one gesture, one
+    outcome ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2). It is
+    not "reveal": a second Shift+click hides the badges again, matching what a
+    plain click does while they show.
+  - **Long-press must swallow the trailing `click`**, or the badges would toggle
+    and the chooser modal would open behind them. The hold cancels on pointer
+    travel past ~6 px slop and on `pointerup`/`pointercancel`; the pointerdown is
+    **not** `preventDefault`ed, since that would break the plain-click path.
+  - `?` reaches the app because `e.key` for Shift+`/` is `?`, so the `/`
+    pitch-bend branch never sees it, and the `ctrl/meta/alt` bail-out in
+    `installShortcuts` does not test `shiftKey`. It routes through
+    `UiBridge.toggleHelpBadges` rather than importing onboarding into
+    `shortcuts.ts` (the `toggleTransport`/`undoActiveMachine` precedent), and it
+    is suppressed inside editable fields like every other key
+    ([input-control](input-control.md) REQ-5).
+  - Discoverability (`../recipes/design-an-interaction.md` step 4): the inactive
+    tooltip names the gesture (REQ-9), and **both** routes are listed in the
+    About modal's key list (REQ-17) — the canonical on-screen reference.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -227,6 +267,35 @@ Scenario: Inactive Help button opens the chooser modal
   When the user clicks the Help button
   Then the Help chooser modal opens (tour / toggle badges)
 # pinned by: e2e/onboarding.spec.ts
+
+Scenario: Shift+click switches the badges on without a modal (v13, REQ-19)
+  Given help mode is off
+  When the user Shift+clicks the Help button
+  Then the badges appear and no Help modal opens
+  When the user Shift+clicks it again
+  Then the badges disappear, still without a modal
+# pinned by: tests/ui/help.test.ts, e2e/onboarding.spec.ts
+
+Scenario: A long press toggles the badges and eats its own click (v13, REQ-19)
+  Given help mode is off
+  When the user presses the Help button and holds for 350 ms, then releases
+  Then the badges appear
+  And the release's click does NOT open the chooser modal behind them
+# pinned by: tests/ui/help.test.ts
+
+Scenario: A press that turns into a drag is not a long press (edge, v13)
+  Given the user presses the Help button
+  When the pointer travels past the slop threshold before the hold fires
+  Then no toggle happens and the click behaves normally
+# pinned by: tests/ui/help.test.ts
+
+Scenario: The ? key toggles the badges (v13, REQ-19)
+  Given no editable field has focus
+  When the user presses ?
+  Then the badges toggle
+  And master.pitchBend stays 0 — the '/' pitch-bend branch never sees it
+  And pressing ? inside a textarea does nothing
+# pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: The tour ends on the Song tab, ready to play (v6)
   Given the tour is running
@@ -307,6 +376,9 @@ Scenario: The Render button says why it takes two bars (v9)
 
 - `tests/ui/tour-place.test.ts` (placement math), `e2e/onboarding.spec.ts`
   (interactive flow).
+- `tests/ui/help.test.ts` (the Help button's gesture inventory, REQ-19),
+  `tests/ui/shortcuts.test.ts` (the `?` key), `tests/ui/about.test.ts` (the key
+  list names both routes).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

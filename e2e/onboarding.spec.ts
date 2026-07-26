@@ -202,6 +202,44 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(page.getByTestId('tour-callout')).toBeVisible();
 });
 
+test('Shift+click on Help toggles the badges without a modal round trip', async ({ page }) => {
+  // onboarding.md REQ-19: switching badges OFF has been one click since REQ-8;
+  // switching them ON cost Help -> modal -> Toggle -> close. A modifier click is
+  // the same gesture in both directions and never opens the chooser.
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('websynth.onboarding.done', '1'); // no auto-tour overlay
+    } catch {
+      /* ignore */
+    }
+  });
+  await page.goto('/');
+  await startBtn(page).click();
+
+  const help = page.getByTestId('help-button');
+  await help.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('help-badge-layer')).toBeVisible();
+  await expect(page.getByTestId('help-badge-arp')).toBeVisible();
+  await expect(help).toHaveClass(/toggleActive/);
+  await expect(page.getByTestId('help-start-tour')).toHaveCount(0); // no modal
+
+  // Same gesture again hides them — one gesture, one outcome (ADR-014 law 2).
+  await help.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('help-badge-layer')).toHaveCount(0);
+  await expect(help).not.toHaveClass(/toggleActive/);
+  await expect(page.getByTestId('help-start-tour')).toHaveCount(0);
+
+  // The `?` key is the keyboard route to the same toggle (input-control.md REQ-9).
+  await page.keyboard.press('Shift+Slash');
+  await expect(page.getByTestId('help-badge-layer')).toBeVisible();
+  await page.keyboard.press('Shift+Slash');
+  await expect(page.getByTestId('help-badge-layer')).toHaveCount(0);
+
+  // A plain click still opens the chooser, unchanged (REQ-8).
+  await help.click();
+  await expect(page.getByTestId('help-start-tour')).toBeVisible();
+});
+
 test('the tour showcases the Song tab and ends there, ready to play', async ({ page }) => {
   await page.addInitScript(() => {
     try {

@@ -63,6 +63,44 @@ test.describe('XY Pad', () => {
     await expect(gear).toHaveAttribute('aria-expanded', 'false');
   });
 
+  test('the axis picker filters its ~200 param ids down to one match', async ({ page }) => {
+    // dropdown.md REQ-7: the assign pickers list every bus param id, so they
+    // carry a live filter. Before it, choosing a param meant scrolling ~20
+    // screens — which is why the other specs here set axes via __synth.xy.
+    await page.getByTestId('perf-xypad').click();
+    await page.getByTestId('xypad-gear').click();
+
+    const picker = page.getByTestId('xypad-assign-x');
+    await picker.locator('button').first().click(); // the toggle
+    const filter = picker.getByTestId('dropdown-filter');
+    await expect(filter).toBeFocused();
+
+    await filter.fill('delay.mix');
+    // Three buses carry a delay mix; pick the synth one by exact text.
+    await picker.getByText('fx.delay.mix', { exact: true }).click();
+    expect(await xyX(page)).toBe('fx.delay.mix');
+    await expect(page.getByTestId('xypad-axis-x')).toHaveText('mix');
+
+    // Reopening starts from the whole list again, never a stale query.
+    await picker.locator('button').first().click();
+    await expect(filter).toHaveValue('');
+    await expect(picker.getByText('lfo.rate', { exact: true })).toBeVisible();
+
+    // dropdown.md REQ-8: each arrow moves one option. The bug this pins is a
+    // second ArrowDown only scrolling the menu instead of advancing the cursor.
+    await page.keyboard.press('ArrowDown');
+    const first = await page.evaluate(() => document.activeElement?.textContent);
+    await page.keyboard.press('ArrowDown');
+    const second = await page.evaluate(() => document.activeElement?.textContent);
+    await page.keyboard.press('ArrowDown');
+    const third = await page.evaluate(() => document.activeElement?.textContent);
+    expect(new Set([first, second, third]).size).toBe(3); // three distinct options
+
+    // Enter takes the focused one, so the whole pick is keyboard-only.
+    await page.keyboard.press('Enter');
+    expect(await xyX(page)).toBe(third);
+  });
+
   test('dragging the pad sweeps a param, which springs back on release', async ({ page }) => {
     await page.getByTestId('perf-xypad').click();
     const surface = page.getByTestId('xypad-surface');

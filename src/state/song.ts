@@ -389,7 +389,7 @@ const IFL_DRUM_B = drumFrom({
  * dropped-in songs lead the demo button row.
  *
  * **Fetched on click, not bundled** (song-mode.md REQ-11). Eagerly importing
- * them put ~835 kB of JSON — 14 songs — into the boot payload, parsed as JS
+ * them put ~835 kB of JSON — 13 songs — into the boot payload, parsed as JS
  * object literals and held resident, so that the user could load at most one.
  * A `?url` glob keeps only the URLs (a handful of strings); the same treatment
  * `ZIP_DEMOS` below has always had.
@@ -491,7 +491,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
  * The demos that ship *inside the bundle* — the two hand-authored literals.
  * They stay synchronous because callers depend on it: the guided tour applies
  * one mid-step, and `ai-prompt.ts` renders `DEMO_SONGS['I Feel Love']` as its
- * worked example. The 14 drop-ins are `JSON_DEMOS` (fetched on click) and the
+ * worked example. The 13 drop-ins are `JSON_DEMOS` (fetched on click) and the
  * project bundles are `ZIP_DEMOS`; `SongPanel.loadDemo` dispatches across all
  * three, and `demoNames()` lists them in button order.
  */

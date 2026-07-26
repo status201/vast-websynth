@@ -52,7 +52,10 @@
   position: fixed;
   min-width: 100%;
   max-height: 280px;
-  overflow-y: auto;
+  /* Column so the filter row can stay pinned above the scrolling option box;
+     `.list` owns the overflow, not this element (dropdown.md REQ-7). */
+  flex-direction: column;
+  overflow: hidden;
   background: linear-gradient(180deg, #221c16 0%, #15110d 100%);
   border: 1px solid var(--panel-border);
   border-radius: 4px;
@@ -65,7 +68,71 @@
 }
 
 .root:global(.open) .menu {
-  display: block;
+  display: flex;
+}
+
+.list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0; /* or the flex item refuses to shrink and the menu overflows */
+  overflow-y: auto;
+}
+
+/* --- Live filter (dropdown.md REQ-7) --- */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 4px 6px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.searchIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  fill: none;
+  stroke-linecap: round;
+  color: var(--text-dim);
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: var(--accent-secondary);
+}
+
+.filterInput::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0.06em;
+}
+
+.empty {
+  flex: none;
+  padding: 7px 10px;
+  color: var(--text-faint);
+  font-family: var(--serif);
+  font-size: 10px;
+  font-style: italic;
+  letter-spacing: 0.08em;
 }
 
 .option {
@@ -83,6 +150,12 @@
   text-align: left;
   cursor: pointer;
   border-radius: 3px;
+}
+
+/* Filtered out. `.option`'s own `display: block` outranks the UA `[hidden]`
+   rule, so the hide has to be spelled out (dropdown.md REQ-7). */
+.option[hidden] {
+  display: none;
 }
 
 .option:hover {

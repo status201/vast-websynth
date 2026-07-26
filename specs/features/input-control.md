@@ -3,13 +3,14 @@
 ```yaml
 id: input-control
 status: implemented
-version: 7
+version: 8  # v8: the `?` key toggles the help badges via UiBridge (REQ-9)
 owner: core
 related:
   - architecture
   - voicing
   - midi-clock-sync
   - sequencer
+  - onboarding
 source:
   - src/ui/components/keyboard.ts
   - src/ui/shortcuts.ts
@@ -81,6 +82,15 @@ notes played on another tab no longer overwrite its bank.
   computer keys are unaffected) and every bus consumer sees the deferral — with
   the arpeggiator on, the pedal behaves as an arp latch (accepted behaviour).
   State lives in the pure `SustainPedal` helper (`src/audio/sustain-pedal.ts`).
+- **REQ-9** (v8) — **`?` toggles the help badges.** It is free by construction:
+  `e.key` for Shift+`/` is `?`, so neither the `/` pitch-bend branch nor its
+  `keyup` twin matches, and the blanket `ctrlKey || metaKey || altKey` bail-out
+  does not test `shiftKey`. It is still ordered **above** the `.`/`/` branch so a
+  future layout quirk can't turn a help request into a pitch bend. Like every
+  other non-note key it goes through the `UiBridge` (`toggleHelpBadges`) rather
+  than importing the onboarding layer into `shortcuts.ts` — same reason as
+  `toggleTransport` / `undoActiveMachine`. Behaviour is owned by
+  [onboarding](onboarding.md) REQ-19.
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -96,8 +106,10 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   LOWER: z s x d c v g b h n j m ,    # semitone offsets from C
   UPPER: q 2 w 3 e r 5 t 6 y 7 u i    # one octave up
   baseOctave (shiftable); ignores e.repeat
+  '?' -> bridge.toggleHelpBadges()   # REQ-9; ordered above the '.'/'/' bend branch
 UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboard.highlight(note, on)
   # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-2)
+  toggleHelpBadges()                 # -> Onboarding.toggleHelpMode (REQ-9)
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
   status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-7, before the mask
@@ -206,6 +218,13 @@ Scenario: CC64 63/64 boundary (edge)
   Given CC64 value 63 arrives instead
   Then sustained notes flush and later note-offs pass through (63 is "up")
 # pinned by: tests/audio/sustain-pedal.test.ts
+
+Scenario: ? toggles the help badges without bending pitch (v8, REQ-9)
+  Given no editable field has focus
+  When the user presses ? (Shift + /)
+  Then UiBridge.toggleHelpBadges is called once
+  And master.pitchBend is still 0
+# pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: Typing in a text field does not play notes
   Given a textarea is focused (e.g. the AI Prompt "Describe your song" field)

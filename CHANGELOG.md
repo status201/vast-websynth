@@ -41,6 +41,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Song tab that didn't have one. It covers the DJ filter, Fill, Stutter and its
   slice sizes, Drop, Tape Stop and the XY Pad, and reads as the companion to the
   TRANSPORT badge on the row above.
+- **Long dropdowns can be typed into.** The pickers that list every parameter —
+  the XY Pad's two axis assignments and the Motion sequencer's per-track params —
+  hold about 200 entries, so choosing one meant scrolling roughly twenty screens.
+  They now open with a search field focused: type `delay`, press Enter, done. It
+  appears only on lists long enough to need it, so the small pickers (LFO
+  destination, drum model, kit) look exactly as before.
+- **Every dropdown answers to the arrow keys.** `↑`/`↓` step through the options
+  one at a time, `Home`/`End` jump to either end, and `Enter` takes the one
+  you've landed on — so any dropdown can be driven without the mouse. On a
+  filtered list the arrows skip whatever the search has hidden, and running off
+  the bottom puts you back in the search field.
+- **Help badges are one gesture away.** Switching them off has always been a
+  single click on the lit Help button; switching them *on* meant opening the Help
+  box first. Now `Shift`-click the Help button — or press and hold it on a phone —
+  and the badges appear immediately, with no dialog in between. The same gesture
+  switches them back off, and the `?` key does either. Both are listed in the
+  About box's shortcut list.
+
+### Changed
+
+- **Ten demo songs are visible on the Song tab**, up from six. The library has
+  grown to seventeen; six inline meant two thirds of it sat behind the
+  "All Demos" toggle, which still reveals the rest.
+- **Sync and Audio share a row on the Song tab.** Audio export now comes last —
+  it's the tab's final step — with Sync above it, and on screens wider than
+  1280px the two sit on one line, Sync at the left edge and Audio at the right.
+  Two short rows were spending a whole row of height on empty space.
 
 ### Fixed
 

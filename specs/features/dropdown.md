@@ -3,7 +3,9 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 1
+version: 3  # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
+            # v2: a live filter row on long lists (REQ-7); REQ-5's focus target
+            #     moves to that input where it exists
 owner: ui
 related:
   - architecture
@@ -28,6 +30,16 @@ Some option lists are long (the XY Pad axis pickers list every bus param id),
 so the menu scrolls — and the current selection must be brought into view on
 open, not left for the user to hunt down.
 
+Scroll-to-selection (REQ-5) only helps a user who wants to keep or nudge the
+current value. Choosing a *different* one out of ~198 param ids meant dragging
+through a 280 px window ~20 screens deep, with no way to jump: the option
+buttons carry no type-ahead and the list has no structure to skim. The e2e suite
+had already conceded the point — `e2e/motion.spec.ts` sets axis assignments
+through the dev bridge rather than the UI, noting "the dropdown UI is a 200-item
+list". So a long list grows a **live filter** (REQ-7), and it does so by option
+count rather than by a flag at each call site, so the next long list gets it
+without anyone remembering to ask.
+
 ## Requirements
 
 - **REQ-1** — The control renders a toggle button showing the current value and
@@ -45,13 +57,61 @@ open, not left for the user to hunt down.
   scroll/resize while open. It is capped at `max-height: 280px` with
   `overflow-y: auto`.
 - **REQ-5** — **On open, the currently selected option is scrolled into view
-  within the menu and receives keyboard focus** (falling back to the first
-  option when nothing is active). Focus makes Enter select it natively and
-  gives arrow-free keyboard users a starting point; the scroll must move only
-  the menu, never the page.
+  within the menu**, and keyboard focus lands on the **filter input** where one
+  exists (REQ-7) and on the selected option otherwise (falling back to the first
+  option when nothing is active). Focusing an option makes Enter select it
+  natively and gives arrow-free keyboard users a starting point; the scroll must
+  move only the menu, never the page. Scroll-to-selection happens either way —
+  a filtered list still opens showing where the current value is.
 - **REQ-6** — Closing the menu returns focus to the toggle when focus was
   inside the dropdown, so keyboard flow isn't dropped on the floor after
   Escape or a selection.
+- **REQ-7** (v2) — **A list of `FILTER_MIN_OPTIONS` (20) or more options carries a
+  live filter row** at the top of the menu: a magnifier glyph plus a text input
+  (`data-testid="dropdown-filter"`). Typing hides every option whose label does
+  not contain the query (case-insensitive substring); when nothing matches, a
+  single "No match" line shows instead of an empty box. Details that are load-
+  bearing:
+  - The threshold is deliberately well above the ~9–10 rows the 280 px menu
+    fits, so a *slightly* scrolling list keeps its zero-chrome look. `new
+    Dropdown(opts, initial, { filter })` overrides the count either way.
+  - `setOptions` may cross the threshold in both directions (`Presets.list()`
+    grows as the user saves), so the row is created/removed per call — and
+    options must therefore render into their **own container**, never as direct
+    children of the scrolling menu.
+  - The query **resets on every open**, so the menu always opens complete. A
+    filter that persisted would be invisible state hiding options
+    ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5).
+  - `Enter` selects the first still-visible option; the arrow keys move into the
+    list (REQ-8); `Escape` closes the menu (REQ-3) rather than clearing the query
+    first — one gesture, one outcome.
+  - The row contains **no `<button>`**. Consumers select the toggle as the
+    dropdown's first button (`e2e/onboarding.spec.ts` does), so a clear "✕"
+    would break them; open-reset and Escape make one unnecessary anyway.
+  - `dropdown-filter` is a **per-instance** testid, not a unique one — six live
+    on the page at once. E2E must scope it to the dropdown root
+    (`picker.getByTestId('dropdown-filter')`), or Playwright's strict mode fails
+    the locator.
+- **REQ-8** (v3) — **The arrow keys move the selection through the list, in every
+  dropdown** — filtered or not. While the menu is open:
+  - `ArrowDown` / `ArrowUp` move focus to the next / previous **visible** option
+    (a filtered-out option is skipped, never landed on and never counted).
+  - `Home` / `End` jump to the first / last visible option.
+  - From the filter field, an arrow **enters the list** at the end it points at:
+    Down → first option, Up → last.
+  - Past either end: where a filter row exists, focus returns **to the field** —
+    that is where the user narrows the list, so it belongs in the cycle. Without
+    one, the list **wraps** (last → first, first → last).
+  - Focus *is* the selection cursor here: the options are native `<button>`s, so
+    `Enter`/`Space` activate the focused one for free (REQ-2's path), and the
+    focused option scrolls into view as it moves.
+  - Handled keys are `preventDefault`ed — otherwise the browser scrolls the menu
+    out from under the focus move, which is what made a second `ArrowDown` look
+    like it did nothing — **and `stopPropagation`ed**, so they never reach
+    `installShortcuts` on `window`. `Home` there seeks the transport
+    ([transport-position](transport-position.md) REQ-11); an open dropdown must
+    not move the playhead. (`Escape` deliberately keeps its old bubbling
+    behaviour — panic-on-Escape is harmless and pre-dates this.)
 
 ## Technical design
 
@@ -59,7 +119,8 @@ open, not left for the user to hunt down.
 
 `class Dropdown` (`src/ui/components/dropdown.ts`):
 
-- `constructor(options: string[], initial?: string)`
+- `constructor(options: string[], initial?: string, opts?: DropdownOptions)`
+  — `DropdownOptions = { filter?: boolean }` (omitted ⇒ auto by option count)
 - `el: HTMLElement` — root (`styles.root` + global `dropdown` class)
 - `setOptions(options: string[]): void`
 - `setValue(v: string): void` / `get value(): string`
@@ -69,15 +130,49 @@ open, not left for the user to hunt down.
 `ParamDropdown` (`src/ui/components/param-dropdown.ts`) wraps a `Dropdown` and
 keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label).
 
+### Data shapes — the menu's DOM
+
+```yaml
+div.root.dropdown:           # + global `open` class while open
+  button.toggle:             # MUST stay the first <button> child (REQ-7)
+    span.label               # current value
+    span.caret               # ▾
+  div.menu:                  # position:fixed, flex column, max-height 280px
+    div.filterRow:           # present only above the threshold (REQ-7)
+      span.searchIcon        # inline SVG, currentColor
+      input.filterInput      # data-testid="dropdown-filter"
+    div.list:                # the only scrolling box (overflow-y:auto)
+      button.option[.active] # one per option; [hidden] while filtered out
+      div.empty              # "No match", hidden unless zero matches
+```
+
 ### Layer touchpoints & ordering
 
 - Options are native `<button>`s, so `focus()`/Enter work without extra ARIA
   plumbing. REQ-5 runs in `setOpen(true)` *after* `position()` (the menu must
-  be display-block and anchored before it can be scrolled/focused).
+  be displayed and anchored before it can be scrolled/focused).
 - `scrollIntoView` is called as an optional (`item.scrollIntoView?.(…)`,
   `block: 'nearest'`) because jsdom — where the unit tests run — doesn't
   implement it; `focus({ preventScroll: true })` prevents the page itself from
   scrolling to the fixed-position menu.
+- `.list` owns the scroll (not `.menu`) so the filter row stays pinned while the
+  options scroll under it, and so `setOptions` can clear the options without
+  touching the row.
+- Arrow navigation (REQ-8) lives in the **one document-level `keydown`** the
+  component already had for Escape, not on the input and the options separately:
+  the keydown bubbles there from either focus target, so "the next option" has a
+  single definition. The handler is gated on `open`, so a closed dropdown's
+  listener is inert.
+- Filtering hides options with the native `hidden` property, which needs an
+  explicit `.option[hidden] { display: none }` — `.option`'s own
+  `display: block` outranks the UA `[hidden]` rule.
+- The filter input is an `<input>`, so `installShortcuts`' editable-target guard
+  ([input-control](input-control.md) REQ-5) already stops a typed `z` from
+  playing a note. `Escape` must be left to bubble to the component's existing
+  document `keydown` handler.
+- The magnifier glyph is **local to this component**, not in `header-icons.ts`
+  (that module is the header's utility buttons, and its `svg.hdr-icon` CSS is
+  sized for 15 px header slots).
 
 ### Persistence
 
@@ -104,18 +199,83 @@ Scenario: Selecting an option
   When I click an option
   Then the value updates, the menu closes, and onChange fires once
 # pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A long list carries a filter; a short one does not (v2, REQ-7)
+  Given a Dropdown with 20 options and another with 19
+  Then only the 20-option menu contains a `dropdown-filter` input
+  And the `{ filter }` option forces either answer regardless of count
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Typing narrows the list live (v2, REQ-7)
+  Given an open Dropdown whose filter input is focused
+  When I type "cut"
+  Then only options whose label contains "cut" (any case) stay visible
+  And pressing Enter selects the first of them, closing the menu
+# pinned by: tests/ui/dropdown.test.ts, e2e/xy-pad.spec.ts
+
+Scenario: A query that matches nothing says so (edge, v2)
+  Given an open filtered Dropdown
+  When I type a string no option contains
+  Then every option is hidden and a single "No match" line shows
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Reopening starts from the whole list (v2, REQ-7)
+  Given a Dropdown that was closed while a query was filtering it
+  When I open it again
+  Then the input is empty and every option is visible again
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: setOptions across the threshold keeps the menu coherent (edge, v2)
+  Given a filtered Dropdown
+  When setOptions is called with fewer than 20 options
+  Then the filter row is removed and every new option renders
+  And calling it again with 20+ restores the row (the input is not a stale node)
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Arrow keys walk the list, not just its first row (v3, REQ-8)
+  Given an open Dropdown with the second option focused
+  When I press ArrowDown twice
+  Then focus lands on the fourth option — each press moves one step
+  And Home jumps to the first option, End to the last
+# pinned by: tests/ui/dropdown.test.ts, e2e/xy-pad.spec.ts
+
+Scenario: Arrows skip filtered-out options (v3, REQ-8)
+  Given an open filtered Dropdown narrowed to two matches
+  When I press ArrowDown from the filter field twice
+  Then focus lands on the second match, never on a hidden option
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Past the end, a filtered list returns to its field and a plain one wraps (edge, v3)
+  Given the last visible option is focused
+  When I press ArrowDown
+  Then focus returns to the filter field if there is one, else to the first option
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: An open dropdown swallows Home instead of seeking (regression, v3)
+  Given an open Dropdown with an option focused
+  When I press Home
+  Then focus moves to the first option
+  And the key does not reach installShortcuts, so the playhead does not move
+# pinned by: tests/ui/dropdown.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/dropdown.test.ts`, `tests/ui/param-dropdown.test.ts` — `npm test`
-- E2E (indirect): `e2e/controls.spec.ts` (preset select), `e2e/drum-kit.spec.ts`
+- E2E: `e2e/xy-pad.spec.ts` (filter an axis picker down to one match and pick it);
+  indirect — `e2e/controls.spec.ts` (preset select), `e2e/drum-kit.spec.ts`
   (KIT picker) — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Manual: open an XY Pad axis dropdown with a value deep in the param list —
-  the list opens scrolled to the highlighted value.
+  the list opens scrolled to the highlighted value, with the filter focused;
+  typing narrows it and Enter picks the top hit. Open the LFO DEST (5 options)
+  and drum MODEL (13) pickers — neither shows a filter row.
 
 ## Open questions / future
 
-- Arrow-key navigation between options (Home/End, type-ahead) — focus-on-open
-  is the foundation for it.
+- ~~Arrow-key navigation between options (Home/End, wrap-around)~~ — done in v3
+  (REQ-8). Still absent: **type-ahead** on an unfiltered dropdown (jump to the
+  next option starting with a typed letter), which the long lists no longer need
+  now that they have a filter.
+- Fuzzy/subsequence matching instead of substring (`fdc` → `fx.drum.comp`).
+  Substring is enough for dotted param ids, where the user knows a fragment.

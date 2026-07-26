@@ -476,7 +476,7 @@ it also writes the note name as the label.
   `websynth.song.*`. Demos come from **three** sources, all `?url` globs except
   the built-ins: `DEMO_SONGS` (the two hand-authored `SongFile` literals — Zombie
   Nation, I Feel Love — bundled and sync), `JSON_DEMOS` (any `*.json` SongFile
-  dropped into `src/state/demos/`, 14 today) and `ZIP_DEMOS` (`*.websynth.zip`
+  dropped into `src/state/demos/`, 13 today) and `ZIP_DEMOS` (`*.websynth.zip`
   projects, 1 today). The latter two are **fetched on click, never bundled** —
   eagerly importing the drop-ins put 835 kB of JSON (a 227 kB JS chunk) in every
   boot. Because `?url` can't read a song's `name`, `src/state/demos-index.json`

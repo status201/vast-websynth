@@ -85,6 +85,15 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
+    // `?` — show/hide the help badges (input-control.md REQ-9). Ordered ABOVE
+    // the pitch-bend branch below: `e.key` for Shift+/ is '?', so '/' never
+    // matches today, but a layout quirk must not turn a help request into a bend.
+    if (k === '?') {
+      e.preventDefault();
+      bridge.toggleHelpBadges();
+      return;
+    }
+
     // Pitch bend (springs back on release)
     if (k === '.') { bus.set('master.pitchBend', 1); return; }
     if (k === '/') { bus.set('master.pitchBend', -1); return; }
