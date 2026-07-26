@@ -15,7 +15,10 @@
   font-size: 7px;
   line-height: 1;
   color: var(--text-faint);
-  transition: background 0.08s linear, color 0.08s linear;
+  /* No transition, deliberately. The lit class moves every 16th — at 130 BPM
+     that is ~9 cross-fades a second, on every mounted panel's ruler — and a
+     playhead that fades into place reads as lag, not polish. Hover is instant
+     for the same reason. */
 }
 
 /* Beat columns (1/5/9/13) read as the bar's skeleton, matching the drum grid's

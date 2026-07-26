@@ -24,9 +24,9 @@ test.describe('TRANSPORT window', () => {
     await expect(page.getByTestId('transport-tostart')).toBeVisible();
     await expect(page.getByTestId('transport-readout')).toHaveText('1.01');
     await expect(page.getByTestId('transport-scrub')).toBeVisible();
-    // Play/Stop, BPM and SWING live in the window, not here (REQ-4). Note the
-    // builder's toggle is `-toggle`, never `-play`: `transport-play` is the
-    // header's own button, which must stay the one and only holder of that id.
+    // Play/Stop lives in the window, not here (REQ-4). Note the builder's
+    // toggle is `-toggle`, never `-play`: `transport-play` is the header's own
+    // button, which must stay the one and only holder of that id.
     await expect(page.getByTestId('transport-toggle')).toHaveCount(0);
     await expect(page.getByTestId('transport-play')).toHaveCount(1);
   });
@@ -42,7 +42,12 @@ test.describe('TRANSPORT window', () => {
     await expect(win.getByTestId('transportw-tostart')).toBeVisible();
     await expect(win.getByTestId('transportw-readout')).toBeVisible();
     await expect(win.getByTestId('transportw-scrub')).toBeVisible();
-    await expect(win.getByTestId('knob-transport.bpm')).toBeVisible();
+    // REQ-2: BPM/SWING are the header's alone. A copy here would be a second
+    // control for one param that does not know to disable itself while slaved —
+    // and a duplicate testid that breaks strict-mode locators elsewhere.
+    await expect(win.getByTestId('knob-transport.bpm')).toHaveCount(0);
+    await expect(win.getByTestId('knob-transport.swing')).toHaveCount(0);
+    await expect(page.getByTestId('knob-transport.bpm')).toHaveCount(1);
 
     // Floating windows mount on document.body, so it survives a tab switch.
     await page.getByTestId('tab-seq').click();

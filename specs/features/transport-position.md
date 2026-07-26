@@ -133,7 +133,11 @@ counter silently desynchronises all four.
   `VisibilityGate` like `wirePlayhead` does
   ([runtime-performance](runtime-performance.md) REQ-4,
   [step-grid-editing](step-grid-editing.md) REQ-12): no DOM writes while hidden,
-  and a re-sync to the live position on reveal — never a stale column.
+  and a re-sync to the live position on reveal — never a stale column. The ticks
+  also carry **no CSS transition**: the lit class moves every 16th, so a
+  cross-fade would repaint two ticks ~9 times a second per visible ruler and make
+  the playhead read as lagging. Same rule as the song scrubber
+  ([transport-window](transport-window.md) REQ-11).
 - **REQ-11** — **Keyboard: `Home` and `Shift`+arrows.** `Home` returns to bar 1
   step 1; `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/± one bar. The shifted
   arrows must be handled **before** the existing bare-arrow octave shift, which

@@ -29,15 +29,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   song export or a bank render is capturing.
 - **A transport you can undock.** The Song tab gains a one-line transport row —
   back-to-start, a `bar.step` readout and a scrubber with one cell per bar of the
-  song, so you can jump straight to bar 3 of an `A A B A` chain. Its **TRANSPORT**
-  button opens a floating window (like LIVE FX) carrying the full set — Play/Stop,
-  BPM and SWING included — which keeps working on every other tab, so the Song
-  panel gives that height back rather than duplicating it.
+  song, so you can jump straight to bar 3 of an `A A B A` chain. The scrubber is
+  laid out as a timeline: square segments on a black bed, one line however long
+  the song is, scrolling to follow the playhead. Its **TRANSPORT** button opens a
+  floating window (like LIVE FX) carrying Play/Stop as well, which keeps working
+  on every other tab, so the Song panel gives that height back rather than
+  duplicating it. BPM and Swing stay where they always are — in the header.
 - **Help badges for both**, in help mode: one on every machine tab's ruler and one
   on the Song tab's TRANSPORT button.
 
 ### Fixed
 
+- **The playhead no longer fades into place.** The position rulers and the song
+  scrubber cross-faded every time the playhead moved — 9 times a second on every
+  visible ruler — which read as lag and repainted for nothing. They now move
+  instantly. The compressor gain-reduction meters lost their smoothing for the
+  same reason and a better one: it was slower than the meter's own update rate,
+  so a fast transient's peak was never actually reached and the compressors
+  looked like they were working less than they were. The Play button's idle
+  pulse — the app's only always-on animation — was re-cut to fade a lit overlay
+  instead of repainting the LED every frame. It looks the same; it just stops
+  costing anything while the app sits idle.
 - **The arrow keys are readable in the About box.** The keyboard-shortcut list is
   set in a monospace face that has no arrow glyph, so the browser substituted a
   much smaller one and `←  →` came out as unreadable dashes. Arrows are now drawn

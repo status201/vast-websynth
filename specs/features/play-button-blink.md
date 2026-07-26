@@ -59,8 +59,15 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
   starting the transport clears both and consumes the cue; stopping returns to
   `attract`. The beat blink runs only while playing (unchanged).
 - **REQ-5 (reduced motion)** — Under `prefers-reduced-motion: reduce` the
-  animations are disabled; the LED holds the steady state colour instead
-  (orange for attract, green for cue).
+  animations are disabled; the LED holds its lit face instead (orange for
+  attract, green for cue) — the signal stays, only the motion goes.
+- **REQ-6 (compositor-only)** — Both blinks pulse the **opacity** of a lit
+  `::after` overlay on the LED; they must never animate `background` or
+  `box-shadow` directly. These are the only infinite animations in the app and
+  the attract pulse runs the entire time the transport is stopped, so a
+  paint-bound property would repaint the LED every frame for as long as the app
+  sits idle. Opacity on a promoted layer costs nothing per frame and looks
+  identical ([runtime-performance](runtime-performance.md)).
 
 ## Technical design
 
@@ -87,8 +94,11 @@ song-panel.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
   fetched JSON drop-in, and the tour), the Load button, applyProjectBundle
   (imports + zip demos + share links + OS launches) and buildChainLane's
   Chain-enable click call bridge.cuePlay().
-layout.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate
-  the :global(.switch-led) dot; keyframes are module-scoped.
+layout.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate the
+  OPACITY of a lit ::after overlay on the :global(.switch-led) dot (REQ-6) —
+  ledPulse / ledFlash, module-scoped. The dot itself is only made
+  `position: relative` so the overlay can sit on it; its base colour, inset and
+  outer ring stay in switch.module.css and show through at opacity 0.
 ```
 
 Note the machine-switch trigger listens on the **bus**, so any surface that

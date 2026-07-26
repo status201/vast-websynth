@@ -42,6 +42,9 @@
     );
   --serif: 'Georgia', 'Times New Roman', serif;
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Readouts and pasted text. Also the only face with reliable tabular figures:
+     Georgia's are proportional old-style, so a serif counter jitters per digit. */
+  --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   /* Responsive sizing tokens — overridden per-breakpoint on `.app`
      (layout.css). Inherit down to knobs / section margins / wood cheeks. */

@@ -16,5 +16,9 @@
   transform: scaleX(0);
   transform-origin: right;
   background: linear-gradient(to left, var(--accent-secondary), #e0633a);
-  transition: transform 60ms linear;
+  /* No transition, deliberately. The worklet posts gain reduction every ~32ms,
+     so a 60ms ease never finished before the next value overrode it: the fill
+     lagged permanently and a fast transient's peak was never actually reached,
+     making the compressor look like it was working less than it was. A meter
+     that under-reads is worse than a meter that jumps. */
 }

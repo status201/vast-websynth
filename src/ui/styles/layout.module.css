@@ -206,54 +206,57 @@
 /* Idle blinks (specs/features/play-button-blink.md): the transport is easy to
    miss, so while stopped the LED pulses orange slowly; a freshly loaded demo
    escalates to a fast green "press play" cue. Playing keeps the red beat
-   blink above. */
-.playBtn:global(.attract) :global(.switch-led) {
-  animation: playAttract 2s ease-in-out infinite;
+   blink above.
+
+   Both pulse a lit `::after` overlay's OPACITY rather than animating the LED's
+   own background/box-shadow. These are the only infinite animations in the app
+   — the attract pulse runs the whole time the transport is stopped — and
+   background/box-shadow are paint-bound, so the old keyframes repainted the LED
+   every frame, forever. Opacity on a composited layer costs nothing per frame
+   and the LED looks identical. */
+.playBtn :global(.switch-led) { position: relative; }
+
+.playBtn:global(.attract) :global(.switch-led)::after,
+.playBtn:global(.cue) :global(.switch-led)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+  /* The base `.led` keeps the outer 1px ring underneath; this is the lit face. */
+  box-shadow: 0 0 8px rgba(232, 116, 46, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: #e8742e;
+  will-change: opacity;
 }
 
-.playBtn:global(.cue) :global(.switch-led) {
-  animation: playCue 0.4s linear infinite;
+.playBtn:global(.attract) :global(.switch-led)::after {
+  animation: ledPulse 2s ease-in-out infinite;
 }
 
-@keyframes playAttract {
-  0%, 100% {
-    background: var(--led-off);
-    box-shadow:
-      inset 0 1px 1px rgba(0, 0, 0, 0.9),
-      0 0 0 1px rgba(0, 0, 0, 0.6);
-  }
-  50% {
-    background: #e8742e;
-    box-shadow:
-      0 0 8px rgba(232, 116, 46, 0.85),
-      inset 0 1px 1px rgba(255, 255, 255, 0.4),
-      0 0 0 1px rgba(0, 0, 0, 0.6);
-  }
+.playBtn:global(.cue) :global(.switch-led)::after {
+  background: #4ade50;
+  box-shadow: 0 0 8px rgba(74, 222, 80, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  animation: ledFlash 0.4s linear infinite;
 }
 
-@keyframes playCue {
-  0%, 49% {
-    background: #4ade50;
-    box-shadow:
-      0 0 8px rgba(74, 222, 80, 0.9),
-      inset 0 1px 1px rgba(255, 255, 255, 0.4),
-      0 0 0 1px rgba(0, 0, 0, 0.6);
-  }
-  50%, 100% {
-    background: var(--led-off);
-    box-shadow:
-      inset 0 1px 1px rgba(0, 0, 0, 0.9),
-      0 0 0 1px rgba(0, 0, 0, 0.6);
-  }
+@keyframes ledPulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
+@keyframes ledFlash {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Reduced motion: hold the lit face rather than dropping the signal entirely —
+   the point of both states is "the transport is over here". */
 @media (prefers-reduced-motion: reduce) {
-  .playBtn:global(.attract) :global(.switch-led),
-  .playBtn:global(.cue) :global(.switch-led) {
+  .playBtn:global(.attract) :global(.switch-led)::after,
+  .playBtn:global(.cue) :global(.switch-led)::after {
     animation: none;
+    opacity: 1;
   }
-  .playBtn:global(.attract) :global(.switch-led) { background: #e8742e; }
-  .playBtn:global(.cue) :global(.switch-led) { background: #4ade50; }
 }
 
 /* ===== Main panel grid ===== */

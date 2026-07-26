@@ -11,57 +11,82 @@
   padding-top: 12px;
 }
 
-/* Same row inside the floating window — the title bar frames it, so no divider. */
+/* Same row inside the floating window — the title bar frames it, so no divider.
+   The window is shrink-to-fit (floating-window.module.css sets only a min-width),
+   so it needs the cap: without one a 64-bar song would grow the window past the
+   viewport instead of scrolling the timeline inside it (REQ-11). */
 .window {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  max-width: min(90vw, 880px);
 }
 
-/* bar.step. Tabular figures so the readout does not jitter as digits change. */
+/* bar.step. Monospaced, NOT `--serif` (REQ-6): Georgia's figures are
+   proportional old-style with no `tnum`, so tabular-nums bought nothing there
+   and the counter shifted sideways on every 16th. */
 .readout {
-  font-family: var(--serif);
+  font-family: var(--mono);
   font-size: 15px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: var(--accent-secondary);
   font-variant-numeric: tabular-nums;
-  min-width: 62px;
+  min-width: 58px;
   text-align: center;
 }
 
+/* A timeline, not a row of links (REQ-11): a near-black bed — the same recessed
+   inset `#0c0905` the bank bar and segmented controls sit in — whose 2px gaps
+   read as the dividers between bars. One line; a long song scrolls (scrollbars
+   are themed globally in base.css). `position: relative` makes it the cells'
+   offsetParent, so the keep-in-view math measures against this scroller. */
 .scrub {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 3px;
-  flex-wrap: wrap;
-  max-width: 100%;
+  gap: 2px;
+  /* Shrink (then scroll) but never grow: the bed IS the song, so a four-bar
+     song must not stretch it across the row with empty black after bar 4. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px;
+  background: #0c0905;
+  border-radius: 2px;
 }
 
 .bar {
+  flex: 0 0 auto;
   min-width: 22px;
-  height: 22px;
+  height: 35px;
   padding: 0 4px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 3px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-dim);
   font-family: var(--sans);
   font-size: 9px;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.08s linear, color 0.08s linear;
+  /* No transition, deliberately. The playhead moves the lit class once per bar,
+     and a cross-fade would repaint two cells for 80ms after every move while
+     telling the user nothing the instant swap does not. Hover reads better
+     instant too — this is a position display, not a link. */
 }
 
 .bar:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
 
 /* The bar the transport is in — the global `playing` state class, as the
-   machine-tab rulers use, so both surfaces are found the same way. */
+   machine-tab rulers use, so both surfaces are found the same way. The rulers'
+   outer glow would be clipped by the scroller's overflow, so this one lights as
+   a solid segment with an inset rim instead. */
 .bar:global(.playing) {
   background: var(--accent-secondary);
   border-color: var(--accent-secondary);
   color: #120a04;
-  box-shadow: 0 0 6px var(--accent-secondary-glow);
+  box-shadow: inset 0 0 0 1px rgba(255, 246, 214, 0.45);
 }
 
 /* Seeking refused (slaved, or a capture in flight) — say so rather than

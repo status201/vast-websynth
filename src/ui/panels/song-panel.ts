@@ -171,12 +171,14 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // ---- Transport (transport-window.md) ----
   // Directly under the four machine lanes, above Live FX: the scrubber is a
   // bar-per-slot view of the chains right above it, so it reads as their ruler.
-  // Deliberately compact — the launcher doubles as the section title, and
-  // Play/Stop, BPM and SWING live only in the floating window; the point of
-  // undocking is to give this panel's height back, not to duplicate it.
+  // Deliberately compact — the launcher doubles as the section title and
+  // Play/Stop lives only in the floating window; the point of undocking is to
+  // give this panel's height back, not to duplicate it. BPM and SWING are on
+  // neither surface: they are permanently in the header, and only that copy
+  // knows to disable itself while slaved (transport-window.md REQ-2).
   const transport = el('div', transportRowClass);
-  transport.appendChild(createTransportWindowLauncher(engine, bus, bridge));
-  for (const c of buildTransportControls(engine, bus, bridge, { compact: true })) {
+  transport.appendChild(createTransportWindowLauncher(engine, bridge));
+  for (const c of buildTransportControls(engine, bridge, { compact: true })) {
     transport.appendChild(c);
   }
   bindSeekAvailability(engine, transport);

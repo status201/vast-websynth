@@ -1,7 +1,5 @@
-import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
-import { Knob } from './knob';
 import { FloatingWindow } from './floating-window';
 import { SEQ_LENGTH } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
@@ -21,7 +19,7 @@ import styles from '../styles/transport-controls.module.css';
 export interface TransportControlsOpts {
   /** Namespaces every testid so two instances coexist. Default `'transport'`. */
   testIdPrefix?: string;
-  /** Song-panel row: drop Play/Stop, BPM and SWING (they live in the window). */
+  /** Song-panel row: drop Play/Stop (it lives in the window). */
   compact?: boolean;
 }
 
@@ -38,17 +36,21 @@ function djButton(label: string, testid: string): HTMLButtonElement {
 }
 
 /**
- * `[Play/Stop, ⏮, bar.step, scrubber, BPM, SWING]` — or just `[⏮, bar.step,
- * scrubber]` when `compact`.
+ * `[Play/Stop, ⏮, bar.step, scrubber]` — or just `[⏮, bar.step, scrubber]`
+ * when `compact`.
  *
  * Takes the `UiBridge` rather than touching the clock, because Play/Stop must
  * click the *real* header button (transport-window.md REQ-5): that is what
  * carries the empty-play hint and the LED blink state machine, and it is the
  * only way two Play buttons can be guaranteed to agree.
+ *
+ * Takes no `ParamBus` for the same reason in the other direction: it owns no
+ * params, so it cannot mint a second BPM/SWING knob behind the header's back
+ * (transport-window.md REQ-2 — the header's copy is the one that knows to
+ * disable itself while slaved).
  */
 export function buildTransportControls(
   engine: StudioApi,
-  bus: ParamBus,
   bridge: UiBridge,
   opts: TransportControlsOpts = {},
 ): HTMLElement[] {
@@ -117,6 +119,23 @@ export function buildTransportControls(
     litBar = -1;
   };
 
+  /**
+   * The timeline is one scrolling line (REQ-11), so a long song can put the
+   * current bar off-screen. Scrolled by hand rather than with `scrollIntoView`,
+   * which is free to scroll *ancestors* too and would yank the page. Guarded on
+   * a laid-out scroller, so a hidden tab (and jsdom) simply skip it — and it
+   * only ever runs on a bar change, never per tick.
+   */
+  const keepInView = (cell: HTMLElement): void => {
+    if (scrub.clientWidth <= 0) return;
+    const left = cell.offsetLeft;
+    const right = left + cell.offsetWidth;
+    if (left < scrub.scrollLeft) scrub.scrollLeft = Math.max(0, left - 2);
+    else if (right > scrub.scrollLeft + scrub.clientWidth) {
+      scrub.scrollLeft = right - scrub.clientWidth + 2;
+    }
+  };
+
   const paint = (): void => {
     // 0 bars = no chain lane enabled: the song is one repeating bar.
     const bars = engine.arrangement.songBars() || 1;
@@ -130,8 +149,10 @@ export function buildTransportControls(
     const cell = bars ? bar % bars : 0;
     if (cell !== litBar) {
       cells[litBar]?.classList.remove(AT_CLASS);
-      cells[cell]?.classList.add(AT_CLASS);
+      const at = cells[cell];
+      at?.classList.add(AT_CLASS);
       litBar = cell;
+      if (at) keepInView(at);
     }
   };
 
@@ -140,11 +161,6 @@ export function buildTransportControls(
   engine.clock.onStart(paint);
   engine.clock.onStop(paint);
   engine.arrangement.onChange(paint);
-
-  if (!opts.compact) {
-    out.push(new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' }).el);
-    out.push(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
-  }
 
   paint();
   return out;
@@ -169,12 +185,11 @@ export const transportRowClass = styles.row!;
 /**
  * The "TRANSPORT" launcher (Song panel). Doubles as the section title and opens
  * a non-modal FloatingWindow carrying the full control set — including the
- * Play/Stop, BPM and SWING the compact row deliberately drops. Built lazily and
- * kept alive across closes, exactly like the LIVE FX launcher.
+ * Play/Stop the compact row deliberately drops. Built lazily and kept alive
+ * across closes, exactly like the LIVE FX launcher.
  */
 export function createTransportWindowLauncher(
   engine: StudioApi,
-  bus: ParamBus,
   bridge: UiBridge,
 ): HTMLButtonElement {
   const b = djButton('TRANSPORT', 'transport-open');
@@ -197,7 +212,7 @@ export function createTransportWindowLauncher(
         onClose: () => b.classList.remove('on'),
       });
       win.body.className += ` ${styles.window!}`;
-      for (const c of buildTransportControls(engine, bus, bridge, { testIdPrefix: 'transportw' })) {
+      for (const c of buildTransportControls(engine, bridge, { testIdPrefix: 'transportw' })) {
         win.body.appendChild(c);
       }
       bindSeekAvailability(engine, win.body);

@@ -3,7 +3,7 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - transport
@@ -38,23 +38,36 @@ while you edit a patch on the Synth tab.
 It differs from LIVE FX in one deliberate way. LIVE FX renders the **same full
 control set** in both places; this one keeps the Song-panel row **compact** — a
 launcher, a return-to-start button, a position readout and the bar scrubber —
-with Play/Stop, BPM and SWING living only in the window. The Song panel is
-already the tallest tab in the app, and the point of undocking is to give that
-space back, not to duplicate it.
+with Play/Stop living only in the window. The Song panel is already the tallest
+tab in the app, and the point of undocking is to give that space back, not to
+duplicate it.
+
+**BPM and SWING are not here, on either surface.** They are permanently in the
+header, they are set once per song rather than performed, and a second pair
+bought no reach — only height, in the one window whose whole point is to be
+small. The duplicate was also a *silent disagreement*: the header's BPM knob is
+disabled while the transport is slaved to an external clock
+([midi-clock-sync](midi-clock-sync.md) REQ-14) and this copy was not, so it
+stayed writable in the one state where BPM is not the user's to set. Two
+controls for one param where only one of them shows that the param is locked is
+[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5 (state is visible)
+failing; deleting the copy fixes it without a second `setDisabled` wiring to
+keep in step.
 
 ## Requirements
 
-- **REQ-1** — **Shared builder.** `buildTransportControls(engine, bus, bridge,
+- **REQ-1** — **Shared builder.** `buildTransportControls(engine, bridge,
   opts?)` renders the transport control set from one source; `opts.testIdPrefix`
   namespaces every testid so two instances coexist (the Song row uses
   `transport`, the window `transportw`), the same mechanism
-  [live-fx-window](live-fx-window.md) REQ-1 uses. `opts.compact` omits the
-  controls the Song-panel row does not carry (Play/Stop, BPM, SWING).
+  [live-fx-window](live-fx-window.md) REQ-1 uses. `opts.compact` omits the one
+  control the Song-panel row does not carry: Play/Stop.
 - **REQ-2** — **TRANSPORT floating window.** A launcher (`transport-open`)
   toggles a `FloatingWindow` titled **TRANSPORT** (`testId: transport-window`),
   built lazily on first open and kept alive across closes. Contents in order:
-  Play/Stop, ⏮ return-to-start, the `bar.step` readout, the bar scrubber, then
-  BPM and SWING knobs.
+  Play/Stop, ⏮ return-to-start, the `bar.step` readout, the bar scrubber. It
+  takes no `ParamBus` — **neither surface mints a second `transport.bpm` or
+  `transport.swing` knob** (see *Background*); the header's are the only ones.
 - **REQ-3** — **The launcher doubles as the section title**, leading the Song
   panel's transport row and carrying the same ❐ "opens a new window" glyph as
   the LIVE FX launcher (aria-hidden; the button's `aria-label` carries the
@@ -76,7 +89,11 @@ space back, not to duplicate it.
   top). Playing, it shows the live step; stopped, the **cue** — where Play will
   begin — matching the machine-tab rulers
   ([transport-position](transport-position.md) REQ-9), so the two surfaces can
-  never disagree about "where are we?".
+  never disagree about "where are we?". It is set in a **monospaced** face
+  (`--mono`), so it moves only when the digit *count* changes (bar 9 → 10) and
+  never step to step. `--serif` (Georgia) ships proportional old-style figures
+  and carries no `tnum` feature, so `font-variant-numeric: tabular-nums` bought
+  nothing there and the readout wiggled on every 16th.
 - **REQ-7** — **Bar scrubber.** One cell per bar of the song, current bar lit,
   click to seek to the top of that bar. Song length is
   `Arrangement.songBars()` — the longest **enabled** chain lane across all four
@@ -96,22 +113,38 @@ space back, not to duplicate it.
   seek to it would give one gesture two outcomes, which
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids. The
   scrubber is a separate target sitting above them.
+- **REQ-11** — **The scrubber presents as a timeline, not a row of links.**
+  Square cells (no border radius) the height of the buttons beside them, sitting
+  on a near-black bed whose gaps read as the segment dividers between bars — the
+  transport strip of a DAW ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
+  law 4, follow precedent), not a paginator. It is **one line**: a song longer
+  than the row scrolls horizontally rather than wrapping into a block, so the
+  row's height is the same for a 4-bar song and a 64-bar one. The lit cell is
+  scrolled back into view when it leaves it — computed on the scroller's own
+  `scrollLeft` (never `scrollIntoView`, which may scroll the page too), inside
+  the same *bar changed* guard as the lit class, so it costs nothing per tick
+  ([runtime-performance](runtime-performance.md)). The cells carry **no CSS
+  transition**: the lit class moves under the playhead, so a cross-fade would
+  repaint two cells for the length of the fade after every move while conveying
+  nothing the instant swap does not — an animation that costs paints without
+  serving the user is a defect, not polish.
 
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
-buildTransportControls(engine, bus, bridge, opts?): HTMLElement[]
+buildTransportControls(engine, bridge, opts?): HTMLElement[]
   # opts: { testIdPrefix?: string (default 'transport'), compact?: boolean }
-  # full:    [Play/Stop, ⏮, readout, scrubber, BPM, SWING]
+  # full:    [Play/Stop, ⏮, readout, scrubber]
   # compact: [⏮, readout, scrubber]
   # testids: `${p}-toggle`, `${p}-tostart`, `${p}-readout`, `${p}-scrub`,
   #          `${p}-scrub-<bar>`
   # NOT `${p}-play`: the header's own Play button is `transport-play`, and a
   # default-prefixed instance would mint a duplicate of it.
+  # NO ParamBus: it owns no params, so it cannot duplicate a header knob (REQ-2).
 
-createTransportWindowLauncher(engine, bus, bridge): HTMLButtonElement
+createTransportWindowLauncher(engine, bridge): HTMLButtonElement
   # the `transport-open` toggle; owns the TRANSPORT FloatingWindow lazily
 
 Arrangement:                                  # src/audio/transport/arrangement.ts
@@ -124,11 +157,11 @@ Arrangement:                                  # src/audio/transport/arrangement.
 ### Layer touchpoints & ordering
 
 ```yaml
-song-panel: transport row = createTransportWindowLauncher(engine, bus, bridge)
-  -> buildTransportControls(engine, bus, bridge, { compact: true })
+song-panel: transport row = createTransportWindowLauncher(engine, bridge)
+  -> buildTransportControls(engine, bridge, { compact: true })
   section order: chain lanes -> TRANSPORT -> Live FX -> Song I/O -> Audio -> Sync
   (REQ-4: it belongs against the chains it scrubs, not against Sync)
-window body: buildTransportControls(engine, bus, bridge, { testIdPrefix:'transportw' })
+window body: buildTransportControls(engine, bridge, { testIdPrefix:'transportw' })
 play: UiBridge.toggleTransport -> the header button's click (REQ-5) — never
   clock.toggle() directly, or the empty-play hint and the LED blink are bypassed
 seek: StudioApi.seekTo only (REQ-8)
@@ -160,10 +193,17 @@ Song panel, top down — the transport row sits against the chains it scrubs
                                                     Audio, Sync
 
 FloatingWindow "TRANSPORT"
- ┌────────────────────────────────────────┐
- │ −  TRANSPORT                          ✕ │
- │ [Play] [⏮] 3.09  ▏1▕2▕3▕4▏ (BPM) (SWING)│   transportw-*
- └────────────────────────────────────────┘
+ ┌──────────────────────────────────────────┐
+ │ −  TRANSPORT                            ✕ │
+ │ [Stop] [⏮] 3.09 ███████████████████████  │   transportw-*
+ └──────────────────────────────────────────┘
+
+The scrubber (REQ-11) — square cells the height of the buttons beside them, on a
+near-black bed whose 2px gaps are the dividers. One line; a long song scrolls:
+
+  ┌─────────────────────────────────────────────┐
+  │ │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │▓7▓│ 8 │ 9 │10 │11 │→   #0c0905 bed, 35px cells
+  └─────────────────────────────────────────────┘    ▓ = the global `playing`
 ```
 
 ## Scenarios (BDD)
@@ -172,9 +212,15 @@ FloatingWindow "TRANSPORT"
 Scenario: The launcher opens a floating transport usable off the Song tab
   Given the Song tab is open
   When the user clicks TRANSPORT (transport-open)
-  Then a transport-window appears with Play, ⏮, a readout, a scrubber, BPM and SWING
+  Then a transport-window appears with Play, ⏮, a readout and a scrubber
   And switching to the Synth tab leaves it visible and live
 # pinned by: e2e/transport-window.spec.ts
+
+Scenario: Neither surface duplicates a header knob (REQ-2)
+  Given the TRANSPORT window is open
+  Then it carries no transport.bpm or transport.swing knob
+  And the document still holds exactly one of each — the header's
+# pinned by: tests/ui/transport-controls.test.ts, e2e/transport-window.spec.ts
 
 Scenario: The window's Play button and the header's stay in sync (REQ-5)
   Given the transport is stopped
@@ -200,6 +246,13 @@ Scenario: The scrubber grows and shrinks with the song (REQ-7)
   Then the scrubber shows a single bar
   When a six-bar drum chain is enabled
   Then it shows six, rebuilt once — not on every tick
+# pinned by: tests/ui/transport-controls.test.ts
+
+Scenario: A long song scrolls the timeline rather than growing the row (REQ-11)
+  Given a chain longer than the scrubber is wide
+  When the transport reaches a bar outside the view
+  Then that cell is scrolled back into view, clamped at the origin going left
+  And a tick within the same bar writes no scroll position
 # pinned by: tests/ui/transport-controls.test.ts
 
 Scenario: Transport controls go inert while slaved (REQ-8)

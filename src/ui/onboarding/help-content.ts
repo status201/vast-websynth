@@ -700,9 +700,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'waiting. <strong>⏮</strong> goes back to the start.</p>' +
       '<p>Each cell lines up with a slot in the chains above, so cell&nbsp;3 and the third chip ' +
       'in a lane are the same bar.</p>' +
-      '<p><strong>TRANSPORT</strong> opens all of this in a floating window — with Play/Stop, ' +
-      'BPM and Swing as well — that keeps working on every other tab, so you can start, stop and ' +
-      'relocate while designing a sound.</p>' +
+      '<p><strong>TRANSPORT</strong> opens all of this in a floating window — with Play/Stop ' +
+      'as well — that keeps working on every other tab, so you can start, stop and relocate ' +
+      'while designing a sound.</p>' +
       '<p>Moving the playhead is unavailable while an external clock is driving the transport, ' +
       'or while a song export or bank render is recording.</p>',
   },
