@@ -157,6 +157,16 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await expect(transportDialog).toContainText('bar.step');
   await transportDialog.getByRole('button', { name: 'Close' }).click();
 
+  // The Live FX row directly below it, badged the same way — its launcher is
+  // its section title too (live-fx-window REQ-7). The two read as a pair.
+  await page.getByTestId('livefx-open').scrollIntoViewIfNeeded();
+  const fxBadge = page.getByTestId('help-badge-song.fx');
+  await expect(fxBadge).toBeVisible();
+  await fxBadge.click();
+  const fxDialog = page.getByRole('dialog', { name: 'Live FX' });
+  await expect(fxDialog).toContainText('Tape Stop');
+  await fxDialog.getByRole('button', { name: 'Close' }).click();
+
   // The Song panel's file buttons each carry their own badge; the Save and
   // Export copy must distinguish the two (the whole reason they exist). Open
   // the Song tab and scroll the I/O row into view so the fixed-position badges

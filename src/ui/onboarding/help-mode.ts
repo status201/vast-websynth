@@ -94,6 +94,10 @@ const ANCHORS: Anchor[] = [
   // The Song tab's transport row; the launcher doubles as its section title, so
   // the badge lands on the row's leading control (transport-window.md REQ-3).
   { topic: 'transport.song', find: () => byTestId('transport-open') },
+  // The Live FX row directly below it — same arrangement, so the same rule:
+  // the LIVE FX launcher doubles as the section title (live-fx-window.md
+  // REQ-6/REQ-7), so its badge leads the row too.
+  { topic: 'song.fx', find: () => byTestId('livefx-open') },
   // Transport-sync section (Song tab): the mode control + the WiFi pairing button.
   { topic: 'sync', find: () => byTestId('sync-mode-master') },
   { topic: 'sync.wifi', find: () => byTestId('sync-wifi-link') },

@@ -190,4 +190,19 @@ describe('help-content transport-position topics', () => {
     expect(body).toMatch(/floating window|window/);
     expect(body).toMatch(/external clock|export|render/); // when seeking is refused
   });
+
+  // live-fx-window.md REQ-7 — the sibling badge on the row below the transport.
+  it('has a `song.fx` topic naming every control in the Live FX row', () => {
+    const t = HELP_TOPICS['song.fx'];
+    expect(t).toBeTruthy();
+    const body = bodyOf('song.fx');
+    for (const control of ['DJ', 'Fill', 'Stutter', 'Drop', 'Tape', 'XY']) {
+      expect(body).toContain(control);
+    }
+    expect(body).toMatch(/momentary|hold/);        // the buttons are not latches
+    expect(body).toMatch(/floating window|window/); // what LIVE FX adds
+    expect(body).toContain('external clock');       // Tape Stop while slaved
+    // The compressor sharing the row has its own badge; don't duplicate it.
+    expect(body).not.toMatch(/compressor/i);
+  });
 });

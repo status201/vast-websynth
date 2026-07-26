@@ -236,6 +236,7 @@ export type TopicId =
   | 'transport.ruler.motion'
   | 'transport.song'
   | 'song'
+  | 'song.fx'
   | 'song.load'
   | 'song.save'
   | 'song.import'
@@ -717,6 +718,31 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Not sure what a button does? <strong>Save</strong>, <strong>Export</strong> and the ' +
       'audio <strong>Export Song</strong> are easy to mix up — each file button has its own (i) ' +
       'badge with the details.</p>',
+  },
+  // Deliberately the sibling of `transport.song` above: same shape — what the
+  // row is, then each control, then what the floating window adds, then where
+  // it is reduced. The two rows sit next to each other, so their badges should
+  // read as a pair (live-fx-window.md REQ-7).
+  'song.fx': {
+    title: 'Live FX',
+    body:
+      '<p>Hands on the <strong>whole song</strong> while it plays — the DJ moves you make on ' +
+      'top of an arrangement rather than editing into it. Nothing here is recorded: the four ' +
+      'buttons are <strong>momentary</strong>, so an effect lasts exactly as long as you hold ' +
+      'it and the song is untouched when you let go.</p>' +
+      '<p><strong>DJ&nbsp;FLT</strong> sweeps one filter across everything — left of centre ' +
+      'takes the top off, right takes the bottom out, centre is off. <strong>Fill</strong> ' +
+      'rolls the drums. <strong>Stutter</strong> loops the slice you are on, and the ' +
+      '<strong>1 / 1/8 / 1/4</strong> buttons set how long that slice is. ' +
+      '<strong>Drop</strong> dives the filter for a build. <strong>Tape&nbsp;Stop</strong> ' +
+      'drags the tempo and the pitch down together, then winds back up on release. ' +
+      '<strong>XY&nbsp;Pad</strong> opens the two-axis controller for whichever pair of ' +
+      'parameters it is assigned.</p>' +
+      '<p><strong>LIVE FX</strong> opens all of this in a floating window that keeps working ' +
+      'on every other tab, so you can perform while a different tab is in front of you.</p>' +
+      '<p>They need the transport running to do much — Fill and Stutter act on the steps as ' +
+      'they play. While an external clock is driving the transport, Tape&nbsp;Stop bends the ' +
+      'pitch only and leaves the tempo to the clock.</p>',
   },
   'song.load': {
     title: 'Load',

@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   duplicating it. BPM and Swing stay where they always are — in the header.
 - **Help badges for both**, in help mode: one on every machine tab's ruler and one
   on the Song tab's TRANSPORT button.
+- **A help badge for Live FX**, on the LIVE FX button — the last section of the
+  Song tab that didn't have one. It covers the DJ filter, Fill, Stutter and its
+  slice sizes, Drop, Tape Stop and the XY Pad, and reads as the companion to the
+  TRANSPORT badge on the row above.
 
 ### Fixed
 

@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 11  # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
+version: 12  # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
+             #      section on the Song tab (REQ-18)
+             # v11: playhead-ruler + Song-transport badges; symbol glyphs in the
              #      About modal's key list (REQ-16/REQ-17)
              # v10: TourCtx.applyDemo is async (demos are fetched on click)
              # v9: a `seq.render` badge on the Sequencer's "Import into sampler" Render button
@@ -139,6 +141,15 @@ never reads DEV-only globals.
   the `Home` / `Shift`+arrow keys. `transport.song` (anchored to
   `transport-open`) covers the bar readout, the scrubber's one-cell-per-chain-slot
   correspondence, the floating window, and the states where seeking is refused.
+- **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
+  anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
+  written as `transport.song`'s **sibling** — the two rows sit against each other
+  on the Song tab, both led by a launcher that doubles as its section title, so
+  their copy follows the same order: what the row is, each control, what the
+  floating window adds, where it is reduced. It stays out of the two topics that
+  overlap its row: the master compressor (`fx.master.comp`) and the XY Pad's
+  axis assignment (`motion.xy`). Before it, Live FX was the only unbadged
+  section on the Song tab.
 - **REQ-17** (v11) — **Symbols in the About modal's key list are legible.** The
   key column is Courier New at 11px, which has no glyph for `← → ↑ ↓`: the
   browser substitutes per character at its own much smaller size, and the arrow
@@ -268,6 +279,14 @@ Scenario: The Song tab's transport row explains the scrubber (v11, REQ-16)
   Then the modal explains bar.step, the one-cell-per-chain-slot scrubber, the
     floating window, and when seeking is refused
 # pinned by: tests/ui/help-content.test.ts
+
+Scenario: The Live FX row below it explains the DJ controls (v12, REQ-18)
+  Given help mode is on and the Song tab is open
+  When the user clicks the badge on the LIVE FX launcher
+  Then the modal names DJ Filter, Fill, Stutter, Drop, Tape Stop and the XY Pad,
+    says the buttons are momentary, and says what the floating window adds
+   And it leaves the master compressor to its own badge
+# pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 
 Scenario: Arrow keys are readable in the About shortcut list (v11, REQ-17)
   Given the About modal is open

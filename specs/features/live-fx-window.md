@@ -3,13 +3,15 @@
 ```yaml
 id: live-fx-window
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - performance
   - floating-window
   - xy-pad
   - song-mode
+  - onboarding
+  - transport-window
 source:
   - src/ui/components/live-fx.ts          # shared DJ-control builder + LIVE FX window launcher
   - src/ui/components/xy-pad-window.ts     # single shared XY Pad window controller
@@ -63,6 +65,16 @@ shared controller so both launchers toggle one instance (never two).
   visible and interactive after switching to another tab.
 - **REQ-5** — **Minimise**: the LIVE FX window inherits the built-in minimise button
   from [FloatingWindow](floating-window.md) REQ-7 (no extra work here).
+- **REQ-7** — **The row carries a help badge** on its launcher — which is also its
+  section title (REQ-6), so the badge sits on the row's leading control, exactly as
+  the transport row's does ([transport-window](transport-window.md) REQ-10). Topic
+  `song.fx` ([onboarding](onboarding.md) REQ-16), written as that topic's sibling
+  and covering the same ground in the same order: what the row is, each control
+  (DJ&nbsp;Filter, Fill, Stutter + its size, Drop, Tape&nbsp;Stop, XY&nbsp;Pad),
+  what the floating window adds, and the states where an effect is reduced. It
+  must **not** re-explain the master compressor sharing the row — `fx.master.comp`
+  is its own badge — nor the XY Pad's assignment, which is `motion.xy`'s.
+  Without it, Live FX was the only unbadged section on the Song tab.
 
 ## Technical design
 
@@ -148,6 +160,12 @@ Scenario: The LIVE FX window stays usable after switching tabs
   When the user switches to the Synth tab
   Then the LIVE FX window is still visible and its controls still drive the engine
 # pinned by: e2e/live-fx.spec.ts
+
+Scenario: The row carries a help badge on its launcher (REQ-7)
+  Given help mode is on and the Song tab is open
+  Then a `song.fx` badge anchors to the LIVE FX launcher
+  And its topic names every control in the row and what the window adds
+# pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 ```
 
 ## Tests & verification
