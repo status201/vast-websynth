@@ -401,10 +401,10 @@ function buildPatternRow(
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
   // Hoisted out of the tabs array: the panel is built before the TabContainer
   // exists, so this is the only way to keep a handle on it (see below).
-  const seq = buildSeqPanel(bus, engine, patternUndo);
-  const drums = buildDrumPanel(bus, engine, patternUndo);
-  const sampler = buildSamplerPanel(bus, engine, patternUndo);
-  const motion = buildMotionPanel(bus, engine, xy, xyWin, patternUndo);
+  const seq = buildSeqPanel(bus, engine, patternUndo, bridge);
+  const drums = buildDrumPanel(bus, engine, patternUndo, bridge);
+  const sampler = buildSamplerPanel(bus, engine, patternUndo, bridge);
+  const motion = buildMotionPanel(bus, engine, xy, xyWin, patternUndo, bridge);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
     { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },

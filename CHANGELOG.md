@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The playhead ruler above each grid now says what it means.** It had two
+  problems that made it read as inert. The mark showing "where Play will start"
+  looked identical to the one showing "the transport is here", so clicking a tick
+  while stopped gave no feedback at all — there are now **two** marks: a filled
+  tick is the playhead, an outlined one is your start point, and while stopped you
+  see only the outline, because nothing is playing. And the `BAR n` counter
+  climbed forever — 1, 2, 3 … 37 — on a song that was one bank looping, which is
+  what you have until you switch a Chain on. It now reads **BANK A**, matching the
+  A/B/C/D buttons, and only becomes **BAR 3/4** once a chain gives you real bars —
+  wrapped at the song's length, so it finally agrees with the Song tab's scrubber.
+- **You can change bar from the ruler.** In bar mode the readout gains `‹` `›`
+  arrows that step one bar while keeping the same step within it — the one move
+  `Shift`+`←`/`→` cannot make, since those jump to the top of the bar. Previously
+  the ruler could only move you *inside* the bar you were already in, and changing
+  bar meant going to the Song tab.
+- **Chain, Mute and Solo are on every machine's own tab**, right after its on/off
+  switch — the same three controls the Song tab's lane card carries, sharing the
+  same buttons and the same state, so the two surfaces always agree. Silencing a
+  machine, or soloing it to hear what you are editing, no longer means a trip to
+  the Song tab. Motion has no Solo, exactly as on the Song tab: it makes no sound
+  of its own.
+
+### Fixed
+
+- A refused playhead move (while following an external clock, or mid-export) no
+  longer leaves the ruler's tooltips promising a move that will not happen.
+
 ## [2.5.0] - 2026-07-26
 
 ### Added

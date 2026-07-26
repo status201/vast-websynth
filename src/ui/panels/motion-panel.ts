@@ -3,6 +3,7 @@ import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { XyPadWindowController } from '../components/xy-pad-window';
 import type { PatternUndo } from '../../state/pattern-undo';
+import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Segmented } from '../components/segmented';
@@ -10,7 +11,7 @@ import { Dropdown } from '../components/dropdown';
 import { MotionStepPad } from '../components/motion-step-pad';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor,
   VisibilityGate, type GatedPanel,
 } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
@@ -41,6 +42,7 @@ export function buildMotionPanel(
   xy: XyPadStore,
   xyWin: XyPadWindowController,
   undo: PatternUndo,
+  bridge: UiBridge,
 ): GatedPanel {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
@@ -53,6 +55,9 @@ export function buildMotionPanel(
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'motion.on', 'motion').el);
+  // Chain / Mute / Solo, right after the machine switch — the same three
+  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  header.appendChild(laneControlsFor(bus, engine, 'motion', bridge).el);
 
   // ---- XY lane header (REQ-8) ----
   // Everything that belongs to the XY lane rather than the machine: its

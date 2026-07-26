@@ -25,6 +25,7 @@ import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
 import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
+import { createChainToggle } from '../components/chain-toggle';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -621,15 +622,17 @@ function buildChainLane(
   titleBtn.addEventListener('click', () => { bridge.showTab(MACHINE_TAB[prefix]); });
   head.appendChild(titleBtn);
 
-  const enableBtn = document.createElement('button');
-  enableBtn.type = 'button';
-  enableBtn.className = `${switchStyles.root!} ${styles.ctl!}`;
-  enableBtn.innerHTML = `<span class="${switchStyles.led!}"></span><span class="${switchStyles.label!}">Chain</span>`;
-  enableBtn.addEventListener('click', () => {
-    if (!lane.enabled) bridge.cuePlay(); // enabling is silent until Play (play-button-blink.md REQ-3)
-    setChain([...lane.steps], !lane.enabled);
+  // Shared with the machine headers' Chain button (machine-status.md REQ-9), so
+  // the two surfaces cannot drift. `.ctl` keeps this one compact for the lane
+  // card; the machine headers take the default switch size beside their switches.
+  const chainToggle = createChainToggle({
+    getLane: () => lane,
+    setChain,
+    cuePlay: () => bridge.cuePlay(), // enabling is silent until Play (play-button-blink.md REQ-3)
+    testId: `song-chain-${prefix}`,
+    className: styles.ctl!,
   });
-  head.appendChild(enableBtn);
+  head.appendChild(chainToggle.el);
   root.appendChild(head);
 
   // DJ mixer strip: mute / solo / volume, so the lane is operable from the Song
@@ -714,7 +717,7 @@ function buildChainLane(
   let lastKey = '';
 
   const renderPlayState = () => {
-    enableBtn.classList.toggle('on', lane.enabled);
+    chainToggle.refresh();
     if (sel >= lane.steps.length) sel = -1;
     const pos = getPos();
     chipEls.forEach((c, idx) => {

@@ -1,13 +1,14 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { PatternUndo } from '../../state/pattern-undo';
+import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, GridCursor, clearMenuFor,
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -21,7 +22,12 @@ import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
 
-export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): MachinePanel {
+export function buildSamplerPanel(
+  bus: ParamBus,
+  engine: StudioApi,
+  undo: PatternUndo,
+  bridge: UiBridge,
+): MachinePanel {
   const root = document.createElement('div');
   root.className = layout.patternPanel!;
 
@@ -29,6 +35,9 @@ export function buildSamplerPanel(bus: ParamBus, engine: StudioApi, undo: Patter
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
+  // Chain / Mute / Solo, right after the machine switch — the same three
+  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  header.appendChild(laneControlsFor(bus, engine, 'sampler', bridge).el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
   const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);

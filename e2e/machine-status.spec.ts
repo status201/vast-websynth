@@ -72,6 +72,49 @@ test.describe('machine status', () => {
     await expect(led(page, 'motion')).toHaveAttribute('data-state', 'on');
   });
 
+  // --- v2: the lane controls live on both surfaces (REQ-9) ---
+  test('every machine header carries Chain / Mute / Solo, motion without Solo', async ({ page }) => {
+    for (const [tab, lane] of [['seq', 'seq'], ['drums', 'drum'], ['sampler', 'sampler']] as const) {
+      await page.getByTestId(`tab-${tab}`).click();
+      const header = page.getByTestId(`panel-${tab}`);
+      await expect(header.getByTestId(`machine-${lane}-chain`)).toBeVisible();
+      await expect(header.getByTestId(`machine-${lane}-mute`)).toBeVisible();
+      await expect(header.getByTestId(`machine-${lane}-solo`)).toBeVisible();
+    }
+
+    await page.getByTestId('tab-motion').click();
+    await expect(page.getByTestId('machine-motion-chain')).toBeVisible();
+    await expect(page.getByTestId('machine-motion-mute')).toBeVisible();
+    // Motion is not an audio lane, so there is nothing to solo — same as its
+    // Song-tab card (motion-sequencer.md REQ-6/REQ-12).
+    await expect(page.getByTestId('machine-motion-solo')).toHaveCount(0);
+  });
+
+  test('the header controls and the Song tab drive the same state', async ({ page }) => {
+    await busSet(page, 'drum.on', 1);
+    await page.getByTestId('tab-drums').click();
+
+    // Mute from the machine header: the tab LED and the Song tab must both agree,
+    // because every surface binds the same `drum.mute` param.
+    await page.getByTestId('machine-drum-mute').click();
+    await expect(led(page, 'drums')).toHaveAttribute('data-state', 'muted');
+    await page.getByTestId('tab-song').click();
+    await expect(page.getByTestId('switch-drum.mute')).toHaveClass(/\bon\b/);
+
+    // Chain from the machine header: one shared toggle, so the Song tab's Chain
+    // button lights too (it is a different element on the same Arrangement state).
+    await page.getByTestId('tab-drums').click();
+    await page.getByTestId('machine-drum-chain').click();
+    await expect(page.getByTestId('machine-drum-chain')).toHaveClass(/\bon\b/);
+    await page.getByTestId('tab-song').click();
+    await expect(page.getByTestId('song-chain-drum')).toHaveClass(/\bon\b/);
+
+    // And back the other way — the Song tab's button drives the header's.
+    await page.getByTestId('song-chain-drum').click();
+    await page.getByTestId('tab-drums').click();
+    await expect(page.getByTestId('machine-drum-chain')).not.toHaveClass(/\bon\b/);
+  });
+
   test('the LED is inert — clicking it navigates and changes no param (REQ-3)', async ({ page }) => {
     await busSet(page, 'drum.on', 1);
     await expect(led(page, 'drums')).toHaveAttribute('data-state', 'on');

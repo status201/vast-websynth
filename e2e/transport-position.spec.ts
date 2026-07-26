@@ -16,15 +16,20 @@ const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
 const SEQ_LENGTH = 16;
 
 /**
- * Index of the ruler tick the transport is on. The marker is the **global**
- * `playing` state class — every other class on these buttons is CSS-Module
- * hashed — so exactly one tick carries it.
+ * Index of the tick carrying a given marker class, or -1. Both markers are
+ * **global** state classes — every other class on these buttons is CSS-Module
+ * hashed — so they are the only selectable thing here.
+ *
+ * `playing` is the live playhead and exists **only while playing**; `cue` is
+ * where Play will begin (transport-position.md REQ-14). v1 conflated the two.
  */
-const litTick = (page: Page, lane: string): Promise<number> =>
-  page.evaluate((l) => {
+const markedTick = (page: Page, lane: string, cls: string): Promise<number> =>
+  page.evaluate(([l, c]) => {
     const ticks = [...document.querySelectorAll(`[data-testid="ruler-${l}"] button`)];
-    return ticks.findIndex((t) => t.classList.contains('playing'));
-  }, lane);
+    return ticks.findIndex((t) => t.classList.contains(c!));
+  }, [lane, cls]);
+const litTick = (page: Page, lane: string): Promise<number> => markedTick(page, lane, 'playing');
+const cueTick = (page: Page, lane: string): Promise<number> => markedTick(page, lane, 'cue');
 
 /**
  * Moving the playhead (transport-position.md): the per-grid ruler and the
@@ -69,11 +74,17 @@ test.describe('transport position', () => {
     // ruler is the only surface that answers "where are we?".
     await page.getByTestId('ruler-sampler-9').click();
     expect(await clockStep(page)).toBe(9);
-    await expect(page.getByTestId('ruler-sampler-bar')).toContainText('1');
+    expect(await cueTick(page, 'sampler')).toBe(9);
+    // No chain is enabled, so the readout names the bank rather than inventing a
+    // bar number for a one-bank loop (REQ-15).
+    await expect(page.getByTestId('ruler-sampler-bar')).toHaveText('Bank A');
   });
 
   test('Home returns to the top and Shift+Arrow moves a bar', async ({ page }) => {
     await gotoAndStart(page);
+    // A chain makes bars real, which is the only state where a bar readout means
+    // anything — without one the readout names the bank instead (REQ-15).
+    await setSeqChain(page, [0, 0, 1, 0]);
     await page.getByTestId('tab-drums').click();
 
     await page.getByTestId('ruler-drum-5').click();
@@ -90,6 +101,56 @@ test.describe('transport position', () => {
     await page.keyboard.press('Home');
     expect(await clockStep(page)).toBe(0);
     await expect(page.getByTestId('ruler-drum-bar')).toContainText('1');
+  });
+
+  // --- v2: the cue is its own mark (REQ-14) ---
+  test('a stopped ruler shows a cue and no playhead, and Play starts there', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    await page.getByTestId('ruler-drum-6').click();
+    expect(await cueTick(page, 'drum')).toBe(6);
+    // Nothing is playing, so nothing may look like it is — this is the confusion
+    // v1 caused by painting the cue with the `playing` class.
+    expect(await litTick(page, 'drum')).toBe(-1);
+
+    await page.getByTestId('transport-play').click();
+    await expect.poll(() => playing(page)).toBe(true);
+    await expect.poll(() => litTick(page, 'drum')).toBeGreaterThanOrEqual(0);
+    // The cue ring stays put while the playhead runs, so Stop → Play is legible.
+    expect(await cueTick(page, 'drum')).toBe(6);
+    await page.getByTestId('transport-play').click();
+  });
+
+  // --- v2: the readout names the bank, and the stepper walks bars (REQ-15/16) ---
+  test('the readout follows the bank, then becomes a bar stepper once chained', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    const readout = page.getByTestId('ruler-drum-bar');
+    await expect(readout).toHaveText('Bank A');
+    await expect(page.getByTestId('ruler-drum-bar-next')).toBeHidden();
+
+    // The readout tracks the same bank the A/B/C/D bar selects.
+    await page.getByTestId('bank-drum-2').click();
+    await expect(readout).toHaveText('Bank C');
+
+    // Chaining makes bars real: the stepper appears and the bar wraps at length.
+    await setSeqChain(page, [0, 0, 1, 0]);
+    await expect(readout).toHaveText('Bar 1/4');
+    const next = page.getByTestId('ruler-drum-bar-next');
+    await expect(next).toBeVisible();
+
+    // Park mid-bar, then step a bar: the 16th must survive (Shift+Arrow zeroes it).
+    await page.getByTestId('ruler-drum-5').click();
+    await next.click();
+    expect(await clockStep(page)).toBe(SEQ_LENGTH + 5);
+    await expect(readout).toHaveText('Bar 2/4');
+
+    // Clamped at bar 1 rather than going negative.
+    await page.getByTestId('ruler-drum-bar-prev').click();
+    await page.getByTestId('ruler-drum-bar-prev').click();
+    expect(await clockStep(page)).toBe(5);
   });
 
   test('Shift+Arrow does not shift the keyboard octave', async ({ page }) => {
@@ -140,9 +201,12 @@ test.describe('transport position', () => {
 
   test('the ruler re-syncs to the current step when its tab is revealed', async ({ page }) => {
     await gotoAndStart(page);
+    // Chained, so the bar readout is a bar (REQ-15) and this still asserts it.
+    await setSeqChain(page, [0, 0, 1, 0]);
     await page.getByTestId('tab-drums').click();
     await page.getByTestId('ruler-drum-2').click();
-    expect(await litTick(page, 'drum')).toBe(2);
+    // Stopped, so the mark is the cue rather than a playhead (REQ-14).
+    expect(await cueTick(page, 'drum')).toBe(2);
 
     // Move the playhead while the drum panel is off screen. Its ruler must not
     // repaint there (transport-position.md REQ-10) but must catch up on reveal,
@@ -151,7 +215,7 @@ test.describe('transport position', () => {
     await page.evaluate((n) => (window as any).__synth.engine.seekTo(n), SEQ_LENGTH * 3 + 12);
     await page.getByTestId('tab-drums').click();
 
-    expect(await litTick(page, 'drum')).toBe(12);
+    expect(await cueTick(page, 'drum')).toBe(12);
     await expect(page.getByTestId('ruler-drum-bar')).toContainText('4');
   });
 });

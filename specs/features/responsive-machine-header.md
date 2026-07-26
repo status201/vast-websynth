@@ -3,7 +3,8 @@
 ```yaml
 id: responsive-machine-header
 status: implemented
-version: 2   # v2: the wide row's fit is font-metric-dependent, so REQ-4 is pinned from computed style
+version: 3   # v3: .laneControls joins .fxCluster as a wrapped header cluster (REQ-8)
+             # v2: the wide row's fit is font-metric-dependent, so REQ-4 is pinned from computed style
 owner: ui
 related:
   - responsive-header
@@ -86,6 +87,16 @@ somewhere predictable rather than mid-cluster.
 - **REQ-5** — `.fxCluster` itself wraps internally (`flex-wrap: wrap`,
   `min-width: 0`), so once it owns a row its groups tile onto as many lines as
   needed rather than overflowing that row.
+- **REQ-8** (v3) — **`.laneControls` is the header's second cluster.** The
+  Chain / Mute / Solo trio ([machine-status](machine-status.md) REQ-9) is wrapped
+  the same way `.fxCluster` is and for the same reason: the row's wrap points
+  belong *between* groups, not through the middle of one, so the three never split
+  across lines while space remains. It sits directly after the machine switch, is
+  content-sized at every width (no `flex-basis: 100%` step — it is short), and
+  wraps internally as a last resort. This consumes header slack, which REQ-4's
+  budget note already warns is thin: ~57 px in the sampler header at 1280 px. The
+  row wrapping (REQ-1) absorbs it — that is exactly what REQ-1 exists for — so a
+  narrower fit is expected and correct, not a regression.
 - **REQ-6** — Every `fxgroup-<prefix>` root stays rendered and non-zero-size at
   all widths. Nothing is `display: none`d. This is load-bearing:
   [fx-group](fx-group.md) REQ-5 anchors help badges to the group root precisely

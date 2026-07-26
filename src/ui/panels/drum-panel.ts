@@ -1,6 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { PatternUndo } from '../../state/pattern-undo';
+import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
@@ -8,7 +9,7 @@ import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, GridCursor, clearMenuFor,
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -23,12 +24,20 @@ import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
 
-export function buildDrumPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): MachinePanel {
+export function buildDrumPanel(
+  bus: ParamBus,
+  engine: StudioApi,
+  undo: PatternUndo,
+  bridge: UiBridge,
+): MachinePanel {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} drum-panel`;
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'drum.on', 'drums').el);
+  // Chain / Mute / Solo, right after the machine switch — the same three
+  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  header.appendChild(laneControlsFor(bus, engine, 'drum', bridge).el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
   const bankBar = bankBarFor(engine, 'drum');
   header.appendChild(bankBar.el);

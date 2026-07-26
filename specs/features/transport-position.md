@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 1
+version: 2  # v2: the ruler stops conflating cue with playhead and stops counting
+            #     bars that don't exist — cue ring (REQ-14), mode-aware readout
+            #     (REQ-15), bar stepper (REQ-16), refusal honesty (REQ-17)
 owner: core
 related:
   - architecture
@@ -124,8 +126,8 @@ counter silently desynchronises all four.
 - **REQ-9** — **A position ruler above every machine grid.** 16 columns aligned to
   the step columns, showing the transport position **unconditionally** — while
   stopped, on a disabled machine, and whatever the edit/play bank relationship —
-  plus the current bar number. Clicking column `i` seeks to that 16th of the
-  current bar. It is built once (`playhead-ruler.ts`, wired from
+  plus a readout naming where you are (REQ-15). Clicking column `i` seeks to that
+  16th of the current bar. It is built once (`playhead-ruler.ts`, wired from
   `step-panel-scaffold.ts`) and inherited by all four machines, and it is driven by
   the **clock**, not by the machines' `onStep` (which is silent exactly when the
   ruler is most needed).
@@ -152,6 +154,63 @@ counter silently desynchronises all four.
   the README. That is the [recipe](../recipes/design-an-interaction.md)'s
   discoverability triple: a gesture with none of them does not exist for the
   user, and clicking a ruler is not self-evident the way tapping a step is.
+- **REQ-14** (v2) — **The cue and the live playhead are two marks, not one.** v1
+  painted both with the global `playing` class, picked by
+  `playing ? clock.step : clock.cue`, so a stopped ruler sitting on its cue was
+  pixel-identical to a running one on the live step. Clicking a tick while stopped
+  therefore gave no "Play starts here" feedback — the single most-reported
+  confusion about this feature. So:
+  - **`AT_CLASS = 'playing'`** marks `clock.step` and is applied **only while
+    playing**. A stopped ruler carries it nowhere: nothing may look like it is
+    playing when it is not.
+  - **`CUE_CLASS = 'cue'`** marks `clock.cue` whenever it differs from the live
+    mark, playing or stopped — so you can also see where Stop → Play will resume,
+    and the recorders' explicit `start(0)` (REQ-2) becomes legible rather than a
+    mystery jump back on stop.
+  - Both are **global** (un-hashed) classes, the existing `AT_CLASS` rationale:
+    every other class here is CSS-Module hashed, so E2E has nothing else to
+    select. `cue` is already a global state class in this app (the Play button's
+    demo cue — [play-button-blink](play-button-blink.md)), so the vocabulary is
+    reused, not invented.
+  - One tick may carry **both** (stopped, then played from that exact step); the
+    style must stay legible in that case.
+- **REQ-15** (v2) — **The readout names where you are, and never invents bars.**
+  v1 printed `Bar floor(step/16)+1`, absolute and unwrapped. With **no chain lane
+  enabled** — the default, and how pattern editing is done — a disabled lane plays
+  the **edit bank** ([arrangement](arrangement.md) `resolveLane`), so the song is
+  one bank looping: that counter climbed 1, 2, 3 … 37 for a song with one bar, and
+  disagreed with the Song scrubber, which wraps at `songBars()`. Two modes:
+  - `arrangement.songBars() === 0` (no lane chained) → **`BANK A`**, naming *this
+    machine's* bank via the same `laneHooks` accessor the `BankBar` uses, so the two
+    can never disagree. Bars are musically meaningless here, so none is shown. The
+    ruler's job in this mode is the **cue** — exactly what the grid cannot show.
+    Read the **edit** bank, not `Arrangement.<lane>PlayBank`: the latter is the
+    semantic-looking choice and the wrong one, because it is a cached field
+    recomputed only on tick / seek / chain change and therefore reads **stale**
+    after a bank click while stopped. A disabled lane plays its edit bank
+    (`resolveLane`), so edit *is* what sounds in this mode.
+  - Otherwise → **`BAR n/N`** with `n = bar % songBars() + 1`, agreeing with the
+    Song scrubber ([transport-window](transport-window.md)) instead of
+    contradicting it.
+- **REQ-16** (v2) — **A bar stepper, only where bars exist.** In `BAR` mode the
+  readout becomes `‹ BAR n/N ›`; the arrows seek ∓/± one bar **preserving the
+  16th** (`(bar ± 1) * SEQ_LENGTH + pos % SEQ_LENGTH`), clamped to
+  `[0, songBars())`. That is the one move `Shift`+arrows cannot make — they zero
+  the column (REQ-11) — and it is why the ruler previously could not change bar at
+  all: its bar term is implicit in the click arithmetic, so bar navigation lived
+  only on the Song tab and the keyboard.
+  In `BANK` mode the arrows are **hidden**. They must **not** double as a bank
+  switcher there: one button whose outcome depends on invisible state is
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 inverted, and
+  switching the *edit* bank is a pattern-editing act, not a transport one — the
+  `BankBar` beside it already owns that, with its own play-bank dot and Follow.
+- **REQ-17** (v2) — **A refused seek says so.** REQ-6's refusal only dimmed the
+  strip (`opacity: .4`) while every tick's `title` still promised "Move the
+  playhead to step N". While `!canSeek()` the ticks and the stepper carry
+  `aria-disabled` and a title naming the reason. The ticks stay un-`disabled`
+  (the silent-no-op path is unchanged), so nothing about the seek contract moves.
+  Related honesty fix: ticks print beats `1 2 3 4` while the old title said
+  "step N", two numbering systems on one control — the title now names the beat.
 - **REQ-12** — **The look-ahead horizon is not cancelled.** Ticks are scheduled up
   to `scheduleAheadS` ahead (0.1 s; 0.2 s on the weak perf tier) and the machines
   commit hits to absolute AudioContext times with no retained handles, so roughly
@@ -182,13 +241,23 @@ Engine / StudioApi:
   seekTo(step: number): boolean   # false = refused (REQ-6); guards + master announce
   canSeek(): boolean              # same predicate, for disabling UI
 
-buildPlayheadRuler(engine, lane, gate?): PlayheadRuler   # src/ui/components/playhead-ruler.ts
+buildPlayheadRuler(engine, lane, gate?, hooks?): PlayheadRuler  # src/ui/components/playhead-ruler.ts
+  hooks: { getBank(): number; onBankChange(fn): () => void }   # v2, REQ-15
+    # Supplied by playheadRulerFor from `laneHooks` (getEdit/onEditChange) — the
+    # SAME accessor BankBar uses, so the letter can never disagree with the bank
+    # bar beside it. The EDIT bank, not <lane>PlayBank, which is cached and stale
+    # while stopped (REQ-15). The component must not import the scaffold (the
+    # scaffold imports it).
 PlayheadRuler:
-  el: HTMLElement          # ONLY the 16-column strip (see alignment below)
-  barEl: HTMLElement       # the "BAR n" readout, for the panel's label slot
+  cellsEl: HTMLElement     # ONLY the 16-column strip (see alignment below)
+  barEl: HTMLElement       # the readout group, for the panel's label slot:
+                           #   BANK mode -> a label; BAR mode -> ‹ label ›
   destroy(): void
 playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-panel-scaffold.ts
-  # testids: ruler-<lane>-<0..15>, ruler-<lane>-bar
+  # testids: ruler-<lane>-<0..15>, ruler-<lane>-bar (the label — text asserted),
+  #          ruler-<lane>-bar-prev, ruler-<lane>-bar-next (v2, REQ-16)
+  # state classes: `playing` (live step, playing only) + `cue` (v2, REQ-14),
+  #          both GLOBAL so E2E can select them past CSS-Module hashing
 ```
 
 ### The four reactions (REQ-4)
@@ -243,10 +312,13 @@ decision, not an omission.
 | double-tap | — (tap already seeks) | — |
 | wheel | — | — |
 | `Home` | seek to bar 1 step 1 | DAW return-to-start |
-| `Shift`+`←`/`→` | ∓/± one bar | DAW bar navigation |
+| `Shift`+`←`/`→` | ∓/± one bar, column zeroed | DAW bar navigation |
+| click `‹` / `›` (v2) | ∓/± one bar, **column preserved** | DAW bar-locate buttons |
 
 No row's outcome depends on hidden state, so the inventory satisfies
-[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2.
+[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2. The stepper is
+*absent* in `BANK` mode rather than repurposed (REQ-16) — hiding a control keeps
+law 2; giving it a second meaning would break it.
 
 ### Persistence
 
@@ -257,17 +329,27 @@ so it can never leak into a preset or a `SongFile`.
 
 ## Visual aids
 
-```
-Sequencer / drum / sampler / motion tab, above the grid:
+The strip prints beat numbers (`1 2 3 4`) on columns 0/4/8/12 and nothing on the
+rest — sixteen numerals do not fit at tick width.
 
-  BAR 3   ▏ 1 ▕ 2 ▕ 3 ▕ 4 ▕ 5 ▕ 6 ▕ 7 ▕ 8 ▕ 9 ▕10 ▕11 ▕12 ▕13 ▕14 ▕15 ▕16 ▏
-  ruler-drum-bar        ▲ ruler-drum-6 (lit = transport is here)
+```
+No chain lane enabled (the default) — bars do not exist, so none is claimed:
+
+  BANK A  ▏ 1 ▕   ▕   ▕   ▕ 2 ▕   ▕   ▕   ▕ 3 ▕   ▕   ▕   ▕ 4 ▕   ▕   ▕   ▏
+  ruler-drum-bar    ▲ █ = playing (clock.step)   ▲ ◌ = cue (Play starts here)
   ┌──────────┬────────────────────────────────────────────────────────────┐
   │ KICK mute│ ■ · · · ■ · · · ■ · · · ■ · · ·                            │  the grid
+
+A chain is enabled — the stepper appears and the bar wraps at song length:
+
+  ‹ BAR 3/4 ›  ▏ 1 ▕   ▕   ▕   ▕ 2 ▕ █ ▕   ▕   ▕ 3 ▕   ▕   ▕   ▕ 4 ▕   ▕   ▕   ▏
+  ▲ -bar-prev / -bar-next: same 16th, previous/next bar
 ```
 
-The ruler lights while stopped and on a disabled machine; the cell highlight below
-it does not — that one still means "this bank's step is sounding".
+The ruler shows position while stopped and on a disabled machine; the cell
+highlight below it does not — that one still means "this bank's step is sounding".
+While stopped the ruler carries **no** `playing` mark at all (REQ-14): only the cue
+ring, because nothing is playing.
 
 ## Scenarios (BDD)
 
@@ -359,6 +441,40 @@ Scenario: Shift+Arrow moves a bar without shifting the keyboard octave (edge, RE
   Then the playhead advances exactly one bar
   And the on-screen keyboard's octave is unchanged
 # pinned by: e2e/transport-position.spec.ts
+
+Scenario: A stopped ruler shows a cue, never a playhead (v2, REQ-14)
+  Given the transport is stopped
+  When the user clicks ruler column 6
+  Then that tick carries the `cue` class
+  And NO tick on the strip carries the `playing` class
+  When the user presses Play
+  Then a `playing` mark advances from column 6 while the cue ring stays there
+# pinned by: tests/ui/playhead-ruler.test.ts, e2e/transport-position.spec.ts
+
+Scenario: The readout names the bank when no chain is enabled (v2, REQ-15)
+  Given no lane's chain is enabled and the drum edit bank is B
+  Then the drum ruler's readout reads "BANK B" and shows no bar stepper
+  When the edit bank changes to C
+  Then the readout follows, agreeing with the BankBar beside it
+# pinned by: tests/ui/playhead-ruler.test.ts, e2e/transport-position.spec.ts
+
+Scenario: The readout wraps at song length once a chain exists (v2, REQ-15)
+  Given seqChain = { enabled: true, steps: [0,0,1,0] }
+  When the playhead is at absolute bar 6
+  Then the readout reads "BAR 3/4" — the same bar the Song scrubber lights
+# pinned by: tests/ui/playhead-ruler.test.ts
+
+Scenario: The bar stepper keeps the 16th (v2, REQ-16)
+  Given a chain is enabled and the playhead is at bar 2, step 5 of that bar
+  When the user clicks the ruler's next-bar arrow
+  Then it seeks to bar 3 step 5 — unlike Shift+Arrow, which would zero the step
+  And clicking prev-bar at bar 1 is clamped, never negative
+# pinned by: tests/ui/playhead-ruler.test.ts
+
+Scenario: A refused seek stops promising it will work (v2, REQ-17)
+  Given sync mode is slave, so canSeek() is false
+  Then the ticks and the stepper are aria-disabled and their titles name the reason
+# pinned by: tests/ui/playhead-ruler.test.ts
 ```
 
 ## Tests & verification

@@ -1,5 +1,11 @@
 import type { StudioApi } from '../studio-api';
+import type { ParamBus } from '../../state/params';
+import type { UiBridge } from '../ui-bridge';
+import type { Arrangement, ChainLane } from '../../audio/transport/arrangement';
 import { BankBar } from '../components/bank-bar';
+import { Switch } from '../components/switch';
+import { createChainToggle } from '../components/chain-toggle';
+import layout from '../styles/layout.module.css';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
 import { buildPlayheadRuler, type PlayheadRuler } from '../components/playhead-ruler';
 import { buildRestOverlay, type RestLane, type RestOverlay } from '../components/rest-overlay';
@@ -232,12 +238,81 @@ export function wirePlayhead(
  * have different label widths and column gaps, and reusing each panel's real
  * grid class is what keeps the ticks aligned with the steps beneath them.
  */
+/** Per-lane chain setters — `Arrangement` exposes one method per lane, not a
+ *  generic one, so the switch lives here beside the rest of the lane plumbing. */
+const SET_CHAIN: Record<StepLane, (a: Arrangement, steps: number[], on: boolean) => void> = {
+  seq: (a, s, on) => a.setSeqChain(s, on),
+  drum: (a, s, on) => a.setDrumChain(s, on),
+  sampler: (a, s, on) => a.setSamplerChain(s, on),
+  motion: (a, s, on) => a.setMotionChain(s, on),
+};
+
+export interface LaneControls {
+  readonly el: HTMLElement;
+  destroy(): void;
+}
+
+/**
+ * The **Chain / Mute / Solo** cluster for a machine header (machine-status.md
+ * REQ-8) — the same three controls the Song tab's lane card carries, built from
+ * the same `createChainToggle` and `Switch` so behaviour, state and looks cannot
+ * drift between the two surfaces.
+ *
+ * Motion gets no Solo, exactly as on the Song tab: it is not an audio lane, so
+ * there is nothing to solo (`audibleLanes` has no motion entry).
+ */
+export function laneControlsFor(
+  bus: ParamBus,
+  engine: StudioApi,
+  lane: StepLane,
+  bridge: UiBridge,
+): LaneControls {
+  const el = document.createElement('div');
+  el.className = layout.laneControls!;
+
+  const chain = createChainToggle({
+    getLane: () => engine.arrangement[lane] as ChainLane,
+    setChain: (steps, on) => SET_CHAIN[lane](engine.arrangement, steps, on),
+    cuePlay: () => bridge.cuePlay(),
+    testId: `machine-${lane}-chain`,
+  });
+  el.appendChild(chain.el);
+
+  // Distinct testids: the same params are already switchable from the Song tab,
+  // and two elements sharing a testid break Playwright strict mode. The two
+  // instances stay in lock-step because each subscribes to the bus.
+  const switches = [new Switch(bus, `${lane}.mute`, 'Mute', `machine-${lane}-mute`)];
+  if (lane !== 'motion') {
+    switches.push(new Switch(bus, `${lane}.solo`, 'Solo', `machine-${lane}-solo`));
+  }
+  for (const s of switches) el.appendChild(s.el);
+
+  // A chain's enabled flag is Arrangement state, not a bus param, so the LED has
+  // to be refreshed from the arrangement's own change signal.
+  const off = engine.arrangement.onChange(() => chain.refresh());
+
+  return {
+    el,
+    destroy(): void {
+      off();
+      for (const s of switches) s.destroy();
+    },
+  };
+}
+
 export function playheadRulerFor(
   engine: StudioApi,
   lane: StepLane,
   gate?: VisibilityGate,
 ): PlayheadRuler {
-  return buildPlayheadRuler(engine, lane, gate);
+  // The ruler's readout names the bank while nothing is chained
+  // (transport-position.md REQ-15). Hand it the SAME accessors `bankBarFor` uses,
+  // so the letter can never disagree with the bank bar sitting beside it.
+  const h = laneHooks(engine, lane);
+  return buildPlayheadRuler(engine, lane, gate, {
+    getBank: h.getEdit,
+    onBankChange: h.onEditChange,
+  });
 }
 
 /**

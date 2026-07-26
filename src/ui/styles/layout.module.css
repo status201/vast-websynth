@@ -95,6 +95,17 @@
   min-width: 0;
 }
 
+/* Chain / Mute / Solo in a machine header (machine-status.md REQ-9). One cluster
+   so the header's wrap points stay between groups rather than splitting these
+   three (responsive-machine-header.md). */
+.laneControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 /* ===== Header ===== */
 
 .header {

@@ -172,12 +172,21 @@ const RULER_HELP: HelpTopic = {
     '<p>The strip above the grid is the <strong>transport position</strong>. Click any tick to ' +
     'move the playhead there — while the song is playing it jumps in time, and while it is ' +
     'stopped it sets where <strong>Play</strong> will start from.</p>' +
+    '<p>There are <strong>two marks</strong>. A filled tick is the playhead, moving as the song ' +
+    'plays. An <strong>outlined</strong> tick is the <em>cue</em> — where Play begins. So while ' +
+    'stopped you see only the outline: that is your start point, and nothing is playing. Stop ' +
+    'and Play again and you return to it.</p>' +
+    '<p>The readout on the left says where you are. With no chains switched on, your song is ' +
+    'one bank looping, so it names that bank — <strong>BANK A</strong> — matching the A/B/C/D ' +
+    'buttons. Switch on a <strong>Chain</strong> and it becomes <strong>BAR 3/4</strong> with ' +
+    '<strong>‹</strong> <strong>›</strong> arrows that step a bar at a time, keeping the same ' +
+    'step within the bar.</p>' +
     '<p>Unlike the lit step in the grid below it, this always tells you where you are — even ' +
     'when the transport is stopped, this machine is switched off, or you are editing one bank ' +
-    'while another one plays. <strong>BAR</strong> on the left counts bars through the song.</p>' +
-    '<p><strong>Home</strong> jumps back to bar 1, and <strong>Shift</strong> + <strong>←</strong> / ' +
-    '<strong>→</strong> steps one bar at a time. The Song tab has a scrubber for the whole ' +
-    'arrangement.</p>',
+    'while another one plays.</p>' +
+    '<p><strong>Home</strong> jumps back to the start, and <strong>Shift</strong> + ' +
+    '<strong>←</strong> / <strong>→</strong> steps one bar (from the top of the bar). The Song ' +
+    'tab has a scrubber for the whole arrangement.</p>',
 };
 
 export type TopicId =

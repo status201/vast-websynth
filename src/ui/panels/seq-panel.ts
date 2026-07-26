@@ -5,12 +5,13 @@ import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { PatternUndo } from '../../state/pattern-undo';
+import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, clearMenuFor, GridCursor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor, GridCursor,
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -46,7 +47,12 @@ export interface SeqPanel extends MachinePanel {
   disarmStepInput(): void;
 }
 
-export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUndo): SeqPanel {
+export function buildSeqPanel(
+  bus: ParamBus,
+  engine: StudioApi,
+  undo: PatternUndo,
+  bridge: UiBridge,
+): SeqPanel {
   const root = document.createElement('div');
   root.className = `${layout.patternPanel!} seq-panel`;
 
@@ -54,6 +60,9 @@ export function buildSeqPanel(bus: ParamBus, engine: StudioApi, undo: PatternUnd
   const header = document.createElement('div');
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'seq.on', 'seq').el);
+  // Chain / Mute / Solo, right after the machine switch — the same three
+  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  header.appendChild(laneControlsFor(bus, engine, 'seq', bridge).el);
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));

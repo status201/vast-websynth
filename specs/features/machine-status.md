@@ -3,15 +3,20 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 1
+version: 2  # v2: Chain/Mute/Solo in every machine header, shared with the Song
+            #     tab's lane cards (REQ-9)
 owner: core
 related:
   - song-mode
   - arrangement
   - motion-sequencer
+  - responsive-machine-header
   - architecture
 source:
   - src/ui/machine-status.ts              # the pure three-state rule + bus adapter
+  - src/ui/components/chain-toggle.ts     # the Chain button, shared by both surfaces
+  - src/ui/components/switch.ts           # testId override for the duplicated params
+  - src/ui/panels/step-panel-scaffold.ts  # laneControlsFor (the header cluster)
   - src/ui/components/tabs.ts             # the tab LED + reveal()
   - src/ui/styles/tabs.module.css         # LED states
   - src/ui/panels/song-panel.ts           # clickable lane titles
@@ -69,6 +74,34 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
 - **REQ-8 (no new dim behaviour)** — The Song panel's existing "silenced" dimming
   continues to key off audibility only. A machine whose `<m>.on` is 0 does **not**
   dim its card; that state is carried by the LED alone.
+- **REQ-9 (the lane controls live on both surfaces, v2)** — **Chain, Mute and
+  Solo** sit in every machine header, immediately after that machine's on/off
+  switch (`SEQ` / `DRUMS` / `SAMPLER` / `MOTION`) — the same three controls the
+  Song tab's lane card carries, in the same order.
+  The LED indicator (REQ-3) answers *"is this on?"* but the fix for it was always
+  "go to where the toggle lives", and for mute/solo/chain that meant the Song tab.
+  Reading a machine's own tab and wanting to silence it, or to hear it in
+  isolation while editing, meant a round trip. Duplicating the controls where the
+  work happens removes it.
+  - **Motion gets no Solo**, exactly as on the Song tab: it is not an audio lane,
+    so there is nothing to solo (`audibleLanes` has no motion entry —
+    [motion-sequencer](motion-sequencer.md) REQ-6/REQ-12). Volume stays off the
+    machine headers entirely: each already has its own `MASTER` knob.
+  - **One implementation, two hosts.** Mute/Solo are the same `Switch` bound to
+    the same `<lane>.mute` / `.solo` params, so the two surfaces stay in lock-step
+    for free — each instance subscribes to the bus. Chain goes through a shared
+    `createChainToggle` (`src/ui/components/chain-toggle.ts`) rather than a second
+    hand-rolled button, so behaviour, LED state and looks cannot drift. It is a
+    switch-styled `<button>`, not a `Switch`, because a chain's `enabled` flag is
+    `Arrangement` state, not a `ParamBus` param — which also means its LED must be
+    refreshed from `arrangement.onChange`, not a bus subscription.
+  - **Testids must differ per surface**: `switch-<lane>.mute` stays on the Song
+    tab, the header copies are `machine-<lane>-mute` / `-solo` / `-chain` (and the
+    Song tab's Chain button gains `song-chain-<lane>`, which it never had). Two
+    elements sharing a testid break Playwright's strict mode.
+  - Sizing is the one deliberate difference: the Song tab's compact `.ctl` padding
+    exists for its cramped lane cards, so the header copies take the default
+    switch size and match the switches beside them.
 
 ## Technical design
 
@@ -175,6 +208,26 @@ Scenario: The LED tracks the bus without being clickable (REQ-3)
   Then tab-drums' LED carries the 'off' state and its aria-label says so
   And the LED element is not an event target (pointer-events: none)
 # pinned by: e2e/machine-status.spec.ts, tests/ui/tabs.test.ts
+
+Scenario: Every machine header carries Chain, Mute and Solo (v2, REQ-9)
+  Given the Sequencer, Drums and Sampler tabs
+  Then each header holds machine-<lane>-chain, -mute and -solo, in that order,
+    directly after that machine's on/off switch
+# pinned by: e2e/machine-status.spec.ts
+
+Scenario: Motion's header has no Solo (edge, v2, REQ-9)
+  Given the Motion tab
+  Then its header holds machine-motion-chain and machine-motion-mute
+  And machine-motion-solo does not exist — motion is not an audio lane
+# pinned by: e2e/machine-status.spec.ts
+
+Scenario: The header controls and the Song tab stay in lock-step (v2, REQ-9)
+  Given help of neither surface — both bind the same params
+  When the user mutes from the Drums header
+  Then the Song tab's drum lane Mute reads muted too, and the tab LED goes amber
+  When the user enables the chain from the Drums header
+  Then the Song tab's drum Chain button lights, because both share one toggle
+# pinned by: e2e/machine-status.spec.ts
 
 Scenario: A tab without an indicator renders no LED (edge)
   Given a tab registered without `indicator`

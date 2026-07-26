@@ -31,9 +31,20 @@
 
 .tick:hover { background: rgba(244, 205, 94, 0.18); color: var(--accent); }
 
-/* Where the transport is. While stopped this is the cue — the step Play will
-   begin from — so the ruler is never blank and never lies. Uses the global
-   `playing` state class, the same one StepButton's playhead carries. */
+/* The CUE — where Play (or Stop → Play) will begin. An outline, deliberately not
+   a fill, so it reads as a marker rather than "this is sounding" and stays
+   readable underneath the solid playhead when both land on one tick
+   (transport-position.md REQ-14). Set whether stopped or playing. */
+.tick:global(.cue) {
+  border-color: var(--accent-secondary);
+  box-shadow: inset 0 0 0 1px var(--accent-secondary);
+  color: var(--accent-secondary);
+}
+
+/* The live playhead — only ever present while PLAYING (REQ-14). Listed after
+   `.cue` so a tick carrying both reads as the playhead, with the cue's border
+   still showing through. Uses the global `playing` state class, the same one
+   StepButton's playhead carries. */
 .tick:global(.playing) {
   background: var(--accent-secondary);
   border-color: var(--accent-secondary);
@@ -51,6 +62,15 @@
 .off .tick:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-faint); }
 .off .beat:hover { background: rgba(255, 255, 255, 0.08); }
 
+/* Readout group: `‹ BAR n/N ›`, or just the label while nothing is chained and
+   the arrows are hidden (transport-position.md REQ-16). */
+.barGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
 .bar {
   font-family: var(--serif);
   font-size: 9px;
@@ -63,4 +83,41 @@
 .bar b {
   color: var(--accent-secondary);
   font-weight: 700;
+}
+
+/* Bar stepper. Sized to the readout, not to a normal button: this sits in a
+   cramped row-label slot beside the bank bar. */
+.barNav {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.barNav:hover {
+  background: rgba(244, 205, 94, 0.18);
+  border-color: var(--accent-secondary);
+  color: var(--accent);
+}
+
+/* Same refusal treatment the ticks get (REQ-6/REQ-17). */
+.off .barNav,
+.off.barGroup .barNav {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.off .barNav:hover,
+.off.barGroup .barNav:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-dim);
 }
