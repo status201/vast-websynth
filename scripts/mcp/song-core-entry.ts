@@ -11,6 +11,9 @@
  */
 export { validateSongFile } from '../../src/state/song-validate';
 export type { SongValidation } from '../../src/state/song-validate';
+// The canonical version, from the import-free module (never from `song.ts`), so
+// server-side text can cite it instead of hardcoding a literal that goes stale.
+export { SONG_VERSION, KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
 export { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/song-author';
 export { compactSongForExport } from '../../src/state/serialize';
 export { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';

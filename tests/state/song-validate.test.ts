@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { validateSongFile } from '../../src/state/song-validate';
+import { KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import { DROP_IN_DEMOS } from './demo-files';
 import type { SongFile } from '../../src/state/song';
@@ -242,8 +243,9 @@ describe('published JSON Schema file', () => {
     for (const def of ['stepSettings', 'seqStep', 'triggerCell', 'chainData']) {
       expect(schema.$defs).toHaveProperty(def);
     }
-    // v3: the version enum must know 3, and the optional xy property is defined.
-    expect(schema.properties.version.enum).toEqual(expect.arrayContaining([1, 2, 3]));
+    // The schema's enum must be exactly what the validator accepts — an
+    // arrayContaining check here would not notice a version dropped from either.
+    expect(schema.properties.version.enum).toEqual(KNOWN_SONG_VERSIONS);
     expect(schema.properties.xy?.properties).toHaveProperty('x');
     expect(schema.properties.xy?.properties).toHaveProperty('y');
   });

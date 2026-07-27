@@ -487,6 +487,31 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
     expect(res.file.seqTracks![0]![2]![0]!.note).toBe(55);   // G3
   });
 
+  // REQ-12: the author *form* does not pick the version — ON steps on tracks
+  // 2-4 do. A single-list `tracks` bank must still expand to the v3 file it
+  // would have been before v6 existed.
+  it('a one-track "tracks" bank stays a v3 file', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Solo',
+      seq: [{ tracks: [['C3', null, 'E3']] }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.version).toBe(3);
+    expect(res.file.seqTracks).toBeUndefined();
+    expect(res.file.seqBanks[0]![0]!.note).toBe(48);
+  });
+
+  it('rejects tracks combined with bank-level settings', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Mixed',
+      seq: [{ tracks: [['C3']], gate: 0.9 }],
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.errors.join('\n')).toMatch(/gate cannot be combined with tracks/);
+  });
+
   it('the bank-defaults form still works and is not mistaken for tracks', () => {
     const res = expandAuthorSong({
       format: 'websynth-song-author', version: 1, name: 'Defaults',

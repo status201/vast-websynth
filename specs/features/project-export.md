@@ -3,7 +3,8 @@
 ```yaml
 id: project-export
 status: implemented
-version: 3   # v3: JSON demos are fetched on click too; loadDemo is async
+version: 4   # v4: REQ-1 names no canonical version (it had frozen at "v4")
+             # v3: JSON demos are fetched on click too; loadDemo is async
 owner: core
 related:
   - song-mode
@@ -35,8 +36,8 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
 - **REQ-1** — A project zip contains the **unmodified canonical compact** song JSON
   (`Song.toJSON`, ADR-011) as `song.json`, plus one `samples/<slot>-<name>.<ext>`
   entry per loaded sampler slot. `SongFile` stays whatever the current canonical
-  version is (v4 as of the motion sequencer) — the zip is a container,
-  never a new song format. Clip slot assignment is keyed by the **slot index in the
+  version is — the zip is a container, never a new song format, so a format bump
+  needs no edit here. Clip slot assignment is keyed by the **slot index in the
   entry name**; `sampleNames` in `song.json` remains the display-name source of truth.
 - **REQ-2** — The zip codec is **hand-written and dependency-free** (ADR-003):
   writer emits method 0 (stored) for audio + method 8 (deflate, via

@@ -403,7 +403,7 @@ describe('Song', () => {
   });
 
   describe('XY Pad (v3)', () => {
-    it('capture() writes version 3 and the store\'s current axis assignment', () => {
+    it('capture() writes SONG_VERSION and the store\'s current axis assignment', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();

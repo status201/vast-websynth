@@ -15,6 +15,7 @@
  * tests (every demo must pass `validateSongFile`).
  */
 import type { SongFile } from './song';
+import { KNOWN_SONG_VERSIONS } from './song-version';
 import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 
 export type SongValidation =
@@ -242,9 +243,8 @@ export function validateSongFile(value: unknown): SongValidation {
   const o = value;
 
   if (o.format !== 'websynth-song') add(`format must be "websynth-song" (got ${describe(o.format)})`);
-  const KNOWN_VERSIONS = [1, 2, 3, 4, 5, 6];
-  if (!KNOWN_VERSIONS.includes(o.version as number)) {
-    add(`version must be one of ${KNOWN_VERSIONS.join(', ')} (got ${describe(o.version)})`);
+  if (!KNOWN_SONG_VERSIONS.includes(o.version as number)) {
+    add(`version must be one of ${KNOWN_SONG_VERSIONS.join(', ')} (got ${describe(o.version)})`);
   }
   if (typeof o.name !== 'string') add(`name must be a string (got ${describe(o.name)})`);
 

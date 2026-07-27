@@ -464,13 +464,20 @@ it also writes the note name as the label.
   v2 adds optional `samplerBanks`/`samplerChain`/`sampleNames`, v3 the optional
   `xy` axis assignment (XY Pad), v4 the optional
   `motionBanks`/`motionAssigns`/`motionChain` (motion sequencer), v5
-  `motionTracks` and v6 `seqTracks`. `capture` writes the exported
-  **`SONG_VERSION`**, never a literal — the published
-  `public/schema/websynth-song.schema.json` + `public/llms.txt` advertise it and
-  are pinned to it by `tests/state/authoring-docs.test.ts` (they fell a version
-  behind twice before that). Bumping the format is four edits — `SONG_VERSION`,
-  the `SongFile` union, `KNOWN_VERSIONS` in `song-validate.ts`, the schema — plus
-  `llms.txt`; see `specs/recipes/evolve-the-song-format.md`. `fromJSON` is
+  `motionTracks` and v6 `seqTracks`. `capture` writes **`SONG_VERSION`**, never a
+  literal. That constant and the derived `KNOWN_SONG_VERSIONS` (`1..SONG_VERSION`,
+  what the validator accepts) live alone in **`state/song-version.ts`** — pure and
+  import-free, so `authoring-guide.ts` and the MCP bundle can read it without
+  dragging in `song.ts`'s `import.meta.glob`; `song.ts` re-exports `SONG_VERSION`.
+  Bumping the format is **two** code edits — the constant, and the `SongFile`
+  union (TS can't derive `1|…|N` from a number) — plus the published mirrors:
+  `public/schema/websynth-song.schema.json` and `public/llms.txt`.
+  `tests/state/authoring-docs.test.ts` pins both mirrors *and* every canonical
+  example in the authoring guide to the constant; they fell a version behind
+  twice, and the guide's example block sat at 4 while its own shape block said 6.
+  Never hardcode the version in agent-facing text (the MCP `expand_song`
+  description advertised "v3" through three bumps). See
+  `specs/recipes/evolve-the-song-format.md`. `fromJSON` is
   unchanged and accepts all versions; v1 files (incl. `DEMO_SONGS`) load with
   empty sampler state and default XY axes. JSON file export/import **and** localStorage slots under
   `websynth.song.*`. Demos come from **three** sources, all `?url` globs except
@@ -513,8 +520,10 @@ it also writes the note name as the label.
   positional note lists (`"A2"`, `null` = rest, C4 = 60), drum/sampler hit
   lists keyed by track name (`kick`/`chat`/`s1`…), chain strings (`"AABA"`,
   `.`/`-` = rest). `Song.parse` detects it (`isAuthorSong`) and expands it
-  (`expandAuthorSong`) into a canonical file (v3; v4 with motion content)
-  before `validateSongFile`, so
+  (`expandAuthorSong`) into a canonical file at the **lowest version that holds
+  what was authored** — 6 with seq tracks 2-4, else 5 with `motionTracks`, else 4
+  with motion content, else 3, so a simple song keeps expanding to the same v3
+  file it always did — before `validateSongFile`, so
   **every** import surface accepts it; nothing ever exports it. The module is
   pure and must never import `song.ts` (its `import.meta.glob` would poison the
   MCP bundle) — same rule for `state/authoring-guide.ts`, which builds the ✨

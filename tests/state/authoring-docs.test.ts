@@ -14,6 +14,9 @@ import {
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
 import { SONG_VERSION } from '../../src/state/song';
+import { KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
+import { ParamBus, registerDefaults } from '../../src/state/params';
+import { buildAuthoringGuide } from '../../src/state/authoring-guide';
 import { PRESET_FORMAT, BANK_FORMAT } from '../../src/state/preset-validate';
 
 const read = (rel: string) =>
@@ -70,9 +73,12 @@ describe('websynth-song-author.schema.json', () => {
 });
 
 /**
- * The canonical format version reaches the outside world through two published
- * files. Both fell behind `capture()` twice (v5 and v6 shipped without them), so
- * they are pinned to `SONG_VERSION` rather than trusted — song-mode.md REQ-2.
+ * The canonical format version reaches the outside world through three surfaces:
+ * the two published files, and the authoring guide the ✨ AI Prompt modal and the
+ * MCP `get_song_format` tool serve. The published pair fell behind `capture()`
+ * twice (v5 and v6 shipped without them) and the guide's canonical EXAMPLE SHAPE
+ * sat at 4 while its own TOP-LEVEL SHAPE said 6 — so all three are pinned to
+ * `SONG_VERSION` rather than trusted (song-mode.md REQ-2).
  */
 describe('the published canonical version', () => {
   it('is the top of the schema version enum', () => {
@@ -80,6 +86,8 @@ describe('the published canonical version', () => {
     const versions = schema.properties.version.enum as number[];
     expect(Math.max(...versions)).toBe(SONG_VERSION);
     expect(versions).toEqual([...Array(SONG_VERSION).keys()].map((i) => i + 1));
+    // The runtime validator accepts exactly the set the schema advertises.
+    expect(versions).toEqual(KNOWN_SONG_VERSIONS);
     // The prose beside the enum names the written version too.
     expect(schema.properties.version.description).toContain(`writes ${SONG_VERSION}`);
   });
@@ -89,6 +97,20 @@ describe('the published canonical version', () => {
     expect(txt).toContain(`\`websynth-song\` (v${SONG_VERSION})`);
     expect(txt).toContain('seqTracks');
     expect(txt).toContain('motionTracks');
+  });
+
+  it('is what EVERY canonical example in the authoring guide names', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const guide = buildAuthoringGuide(bus);
+    // Each `"format": "websynth-song"` block is followed by its own "version".
+    // The author dialect's own `version: 1` blocks are excluded by the format tag.
+    const versions = [...guide.matchAll(/"format":\s*"websynth-song"[^]*?"version":\s*(\d+)/g)]
+      .map((m) => Number(m[1]));
+    expect(versions.length).toBeGreaterThanOrEqual(2);   // TOP-LEVEL SHAPE + EXAMPLE SHAPE
+    for (const v of versions) expect(v).toBe(SONG_VERSION);
+    // The author dialect stays at its own version 1, untouched by song bumps.
+    expect(guide).toContain('"format": "websynth-song-author", "version": 1');
   });
 });
 

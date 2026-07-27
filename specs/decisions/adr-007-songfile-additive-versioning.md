@@ -61,3 +61,17 @@ new files degrade gracefully. The procedure is captured in
 > ([`features/motion-sequencer`](../features/motion-sequencer.md)); v1–v3 files
 > keep loading with empty motion state (and `motion.on` defaults to 0, so
 > nothing is written). The decision is unchanged.
+
+> **Follow-up (2026-07-27):** two more, both still additive-optional. **v5** —
+> `motionTracks`, motion's two extra single-param tracks per bank
+> ([`features/motion-sequencer`](../features/motion-sequencer.md) REQ-17); absent
+> means the tracks are unassigned and write nothing. **v6** — `seqTracks`,
+> sequencer tracks 2-4 ([`features/sequencer`](../features/sequencer.md) REQ-13);
+> `seqBanks` keeps its exact v1–v5 meaning (track 1), the new field is **omitted
+> entirely** when unused, so a one-track song serializes byte-identically to its
+> pre-v6 form. v1–v5 files load as one-track songs. The decision is unchanged.
+>
+> The follow-ups above lapsed for v5 and v6 until this audit, which is the same
+> class of drift the trade-off below warns about: the contract holds in code, but
+> the *record* of it has to be maintained deliberately. The mechanical parts are
+> now pinned by `tests/state/authoring-docs.test.ts`; this narrative is not.

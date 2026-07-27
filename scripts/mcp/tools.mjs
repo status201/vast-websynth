@@ -26,8 +26,9 @@ const SONG_ARG = {
 };
 
 /**
- * Parse + validate either song format. Returns
- * `{ok:true, file}` (file = canonical v3) or `{ok:false, errors}`.
+ * Parse + validate either song format. Returns `{ok:true, file}` — a canonical
+ * `websynth-song`, at whatever version the expander picked (the lowest that
+ * holds the content; song-authoring-dialect.md REQ-12) — or `{ok:false, errors}`.
  */
 function resolveSong(core, song) {
   let value = song;
@@ -156,8 +157,10 @@ export function makeTools(core, opts = {}) {
     },
     {
       name: 'expand_song',
+      // No version literal in this text: it is model-visible and drifted from v3
+      // through three format bumps before anyone noticed (mcp-server.md REQ-5).
       description:
-        'Expand a compact "websynth-song-author" song into the canonical "websynth-song" v3 ' +
+        'Expand a compact "websynth-song-author" song into the canonical "websynth-song" ' +
         'JSON the app exports (also accepts an already-canonical song and returns its compact ' +
         'form). Returns the JSON, or {ok:false, errors[]} to fix.',
       inputSchema: {

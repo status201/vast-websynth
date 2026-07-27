@@ -5,17 +5,24 @@
  * canonical format as an appendix, and embeds the live PARAMS table generated
  * from `ParamBus` so it can never drift from `registerDefaults()`.
  *
- * Pure and importable anywhere: only `params.ts` + `patterns.ts` (plus the
- * equally pure `preset-session`/`preset-validate` for the preset guide) —
- * **never** `song.ts`, whose `import.meta.glob` demo registration would poison
+ * Pure and importable anywhere: only `params.ts` + `patterns.ts` + the
+ * import-free `song-version.ts` (plus the equally pure
+ * `preset-session`/`preset-validate` for the preset guide) — **never**
+ * `song.ts`, whose `import.meta.glob` demo registration would poison
  * the MCP server's Node bundle. The ✨ AI Prompt modal
  * (`ui/components/ai-prompt.ts`) and the MCP server's `get_song_format` /
  * `get_preset_format` tools all serve this text.
+ *
+ * Every canonical `"version"` here interpolates `SONG_VERSION` — a literal in
+ * this file is read by agents and drifts silently (the EXAMPLE SHAPE below sat
+ * at 4 while the shape above it said 6). `tests/state/authoring-docs.test.ts`
+ * now fails on any canonical example that names a different version.
  */
 import type { ParamBus } from './params';
 import { DRUM_TRACK_LABELS } from './params';
 import { isPatchParam } from './preset-session';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-validate';
+import { SONG_VERSION } from './song-version';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
@@ -170,7 +177,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": 6,                        // 6 (5 lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (5 lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -215,7 +222,7 @@ On import, any omitted "gate"/"prob"/"ratchet"/"tie" falls back to its default, 
 EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)
 {
   "format": "websynth-song",
-  "version": 4,
+  "version": ${SONG_VERSION},
   "name": "My Song",
   "params": { "mixer.glide": 0, "filter.cutoff": 60, "…": 0 },
   "seqBanks": [
