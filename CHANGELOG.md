@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `SONG_VERSION` and the set of versions the importer accepts now live in one
+  place, so the published schema, `llms.txt` and the authoring guide can't drift
+  from it again — the test suite fails if any of them names a different version.
+
 ### Fixed
 
 - **The song format's version is no longer misreported to AI agents.** Two places
@@ -27,11 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   to the **lowest** version that can hold what you wrote (3, 4, 5 or 6), not "the
   latest". Nothing about how songs load or save changed.
 
-### Changed
-
-- `SONG_VERSION` and the set of versions the importer accepts now live in one
-  place, so the published schema, `llms.txt` and the authoring guide can't drift
-  from it again — the test suite fails if any of them names a different version.
+## [2.5.1] - 2026-07-26
 
 ### Changed
 
