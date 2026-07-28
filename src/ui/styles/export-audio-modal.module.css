@@ -1,0 +1,93 @@
+/* Export-audio modal (audio-export.md REQ-9). The format/runs rows reuse
+   export-song-modal.module.css's `.fmtRow`/`.fmtLabel`/`.note`; only the
+   checkbox row and this body spacing are new. */
+
+/* `Modal` sets no margin under its title, and the export-song chooser gets away
+   with it because its first child is a padded card. This modal's first child is
+   a bare label+control row, which collides with the 24px serif title. */
+.body {
+  padding-top: 14px;
+}
+
+/* The Format row sits last, hard against the actions it renames — a little more
+   air above it separates "how it renders" from "what it writes". */
+.body .fmtLast {
+  margin-bottom: 14px;
+  padding-top: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.check input {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* ---- the in-flight view (REQ-10) ---- */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Hold roughly the options view's height so swapping to it doesn't make the
+     card jump — the modal is centred, so a height change moves the whole thing. */
+  min-height: 118px;
+  justify-content: center;
+}
+
+.progress[hidden] { display: none; }
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  height: 8px;
+  border-radius: 4px;
+  background: #0c0905;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  /* The bar advances once per 16th (~8 Hz), so a short ease reads as motion
+     rather than a stutter — and it is the one thing on screen saying the app is
+     still working. Dropped for the indeterminate stripe, which animates itself. */
+  transition: width 0.12s linear;
+}
+
+/* Encoding: lamejs reports no progress, so a filled bar would be a lie. Stripes
+   moving over a full bar say "working, length unknown" without claiming one. */
+.track.indeterminate .fill {
+  transition: none;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--accent) 0 10px,
+    var(--accent-secondary) 10px 20px
+  );
+  background-size: 28px 100%;
+  animation: exportStripes 0.7s linear infinite;
+}
+
+@keyframes exportStripes {
+  from { background-position: 0 0; }
+  to { background-position: 28px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill { transition: none; }
+  .track.indeterminate .fill { animation: none; }
+}

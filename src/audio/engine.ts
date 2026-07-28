@@ -291,7 +291,9 @@ export class Engine {
       this.clock,
       bankRenderNode,
       () => this.prepareBankRender(),
-      () => this.recorder.isRecording(),
+      // Any capture, manual or automatic: both drive the transport, and a bank
+      // render would fight whichever one is holding it.
+      () => this.recorder.isCapturing(),
     );
 
     // Stop cuts the sampler's in-flight one-shots (sampler.md REQ-8). A tied (or
@@ -302,7 +304,7 @@ export class Engine {
     // rendering the tail, and chopping the last bar's one-shots out of an export
     // would be a worse bug than the one this fixes.
     this.clock.onStop(() => {
-      if (this.recorder.isRecording() || this.bankRender.isRendering()) return;
+      if (this.recorder.isCapturing() || this.bankRender.isRendering()) return;
       this.sampler.stopAll();
     });
 
@@ -434,10 +436,14 @@ export class Engine {
    *    drives the slave's phase tracking into a re-anchor (midi-clock-sync REQ-24);
    *  - **exporting / rendering** — both bound their capture by absolute step
    *    number, so a jump truncates or unbounds it silently.
+   *
+   * Deliberately `isExporting()`, not `isCapturing()`: a free-form manual take
+   * is bounded by nothing, so it has no step arithmetic to protect — and jumping
+   * around the arrangement mid-take is what recording one is for.
    */
   canSeek(): boolean {
     return this.sync.activeMode !== 'slave'
-      && !this.recorder.isRecording()
+      && !this.recorder.isExporting()
       && !this.bankRender.isRendering();
   }
 

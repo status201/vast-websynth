@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 13  # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
+version: 14  # v14: the two audio topics rewritten for the Record window + export
+             #      modal, and Shift+R added to the key list (REQ-16b/REQ-17)
+             # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
              #      button, plus the `?` key; no modal round-trip (REQ-19)
              # v12: a `song.fx` badge on the Live FX launcher — the last unbadged
              #      section on the Song tab (REQ-18)
@@ -24,6 +26,8 @@ related:
   - sequencer
   - render-to-sampler
   - presets
+  - audio-export
+  - record-window
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/help-mode.ts
@@ -144,6 +148,17 @@ never reads DEV-only globals.
   the `Home` / `Shift`+arrow keys. `transport.song` (anchored to
   `transport-open`) covers the bar readout, the scrubber's one-cell-per-chain-slot
   correspondence, the floating window, and the states where seeking is refused.
+- **REQ-16b** (v14) — **The Song tab's two audio buttons keep their badges, and
+  both topics are rewritten**, because neither button does what it used to:
+  `song.record` now opens the [Record window](record-window.md) and
+  `song.exportAudio` opens the export options modal
+  ([audio-export](audio-export.md) REQ-9). The old copy said "Press **Record** …
+  press **Stop** to finish and download", which is now wrong twice over — a take
+  is stopped, then explicitly saved or discarded. The record topic must cover the
+  four phases, that **pause pauses the recorder and not the transport**, the
+  discard-on-close confirm, and `Shift`+`R`; the export topic must cover runs and
+  what the tail bar is for. The anchors (`song-record`, `song-export-audio`) are
+  unchanged.
 - **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
   anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
   written as `transport.song`'s **sibling** — the two rows sit against each other
@@ -161,8 +176,9 @@ never reads DEV-only globals.
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-11), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing, and (v13) `?` plus `Shift`+click on Help
-  (REQ-19). It already carries non-key gestures (`Shift`+drag for fine knob
+  `Ctrl/Cmd+Z`, which were missing, (v13) `?` plus `Shift`+click on Help
+  (REQ-19), and (v14) `Shift`+`R` for the
+  [Record window](record-window.md) (REQ-9 there). It already carries non-key gestures (`Shift`+drag for fine knob
   control), so a mouse row is in keeping.
 - **REQ-19** (v13) — **Switching the badges on is one gesture, not a modal round
   trip.** Switching them *off* has been one click since REQ-8; turning them on

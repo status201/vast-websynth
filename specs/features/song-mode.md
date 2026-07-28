@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 14  # v14: every load — and New — returns the playhead to bar 1 (REQ-14)
+version: 15  # v15: the Audio row's two buttons open surfaces instead of writing
+             #      files; its Format is now the global default (REQ-13 note)
+             # v14: every load — and New — returns the playhead to bar 1 (REQ-14)
              # v13: Sync then Audio, sharing one row above 1280px (REQ-13)
              # v12: DEMO_ROW_LIMIT 6 -> 10 (REQ-10) — 6 hid two thirds of 17 demos
              # v11: drop-in demos fetched on click, not bundled (REQ-12)
@@ -188,6 +190,12 @@ demos, the load path **must stay backward compatible** as the format grows.
   and the DOM order *is* the stacked order. Above the breakpoint the wrapper
   becomes the flex row and takes over the single dashed rule from its two halves.
   `display: contents` has precedent in this module (`.demoOverflow.demoOpen`).
+  (v15) The Audio row's **contents** changed with
+  [audio-export](audio-export.md) v7 — its `Format:` segmented is now the *global
+  default* seeding the export modal and the [Record window](record-window.md),
+  and its two buttons open those surfaces rather than writing files — but its
+  shape, position and pairing behaviour are untouched, and `song-export-audio`
+  remains the probe this REQ's layout scenario measures.
 - **REQ-14 (a load lands on bar 1, v14)** — **Every path that replaces the song
   returns the playhead to the top**: the demo buttons, Load, Import / Paste /
   share link / PWA file-launch, the Undo toast's restore, and **New**. A song

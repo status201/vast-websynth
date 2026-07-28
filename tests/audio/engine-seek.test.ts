@@ -14,7 +14,7 @@ import { Engine } from '../../src/audio/engine';
  */
 function engineLike(over: {
   activeMode?: string;
-  recording?: boolean;
+  exporting?: boolean;
   rendering?: boolean;
 } = {}) {
   const stub = {
@@ -23,7 +23,7 @@ function engineLike(over: {
       activeMode: over.activeMode ?? 'off',
       announcePosition: vi.fn(),
     },
-    recorder: { isRecording: () => over.recording ?? false },
+    recorder: { isExporting: () => over.exporting ?? false },
     bankRender: { isRendering: () => over.rendering ?? false },
     // Both live on the stub, not just borrowed per call: `seekTo` delegates to
     // `this.canSeek()`, so the guard has to be reachable through `this`.
@@ -67,11 +67,22 @@ describe('Engine.seekTo guard', () => {
 
   // audio-export.md REQ-2 / render-to-sampler.md REQ-6 — both bound their
   // capture by absolute step, so a jump would truncate it silently.
-  it('refuses while the song recorder is capturing', () => {
-    const { stub, seekTo, canSeek } = engineLike({ recording: true });
+  it('refuses while a song EXPORT is in flight', () => {
+    const { stub, seekTo, canSeek } = engineLike({ exporting: true });
     expect(canSeek()).toBe(false);
     expect(seekTo(32)).toBe(false);
     expect(stub.clock.seek).not.toHaveBeenCalled();
+  });
+
+  // transport-position.md REQ-6 (v3): the guard narrowed from "a capture is
+  // running" to "an EXPORT is running". A free-form take has no step bounds to
+  // protect, and jumping around mid-take is what recording one is for — it used
+  // to lock the playhead and every machine ruler for the whole take.
+  it('allows a seek during a free-form manual take', () => {
+    const { stub, seekTo, canSeek } = engineLike({ exporting: false });
+    expect(canSeek()).toBe(true);
+    expect(seekTo(32)).toBe(true);
+    expect(stub.clock.seek).toHaveBeenCalledWith(32);
   });
 
   it('refuses while a bank render is in flight', () => {
@@ -92,7 +103,7 @@ describe('Engine.seekTo guard', () => {
   });
 
   it('does not announce when the seek was refused', () => {
-    const { stub, seekTo } = engineLike({ activeMode: 'master', recording: true });
+    const { stub, seekTo } = engineLike({ activeMode: 'master', exporting: true });
     expect(seekTo(96)).toBe(false);
     expect(stub.sync.announcePosition).not.toHaveBeenCalled();
   });

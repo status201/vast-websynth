@@ -151,7 +151,11 @@ section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 `export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`/
 `song-share-link` (the Export chooser opened by `song-export`; `song-share-link`
 is its Copy Link action), `song-export-audio`/`song-export-fmt-<wav|mp3>`/
-`song-record` (the Song panel's Audio section — render/record the master bus)).
+`song-record` (the Song panel's Audio section — both buttons now open surfaces:
+the export options modal `export-audio-modal`/`export-audio-fmt-<wav|mp3>`/
+`-runs`/`-tail`/`-length`/`-confirm`/`-cancel`, and the RECORD floating window
+`record-window`/`record-toggle`/`-stop`/`-save`/`-discard`/`-status`/`-timer`/
+`record-fmt-<wav|mp3>` — see `specs/features/record-window.md`)).
 Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
@@ -276,9 +280,38 @@ by stubbing the worklet globals and importing the file.
 **Audio export** — a zero-output `recorder` AudioWorklet
 (`public/worklets/recorder.js`, wrapped by `audio/recorder/node.ts`) is tapped
 off `master` (post master-volume) as a pure sink. `RecorderController`
-(`audio/recorder/recorder-controller.ts`) drives capture: `exportSong()` plays
-one full pass of the longest enabled arrangement chain then auto-stops;
-`toggleManual()` is a free-form record toggle. Encoding is **pure** and
+(`audio/recorder/recorder-controller.ts`) drives capture through an explicit
+five-phase machine — `idle → recording ⇄ paused → review → encoding → idle`
+(an export skips `review`). **`encoding` is held across the encode+download
+await**, never flipped to `idle` first: an MP3's seconds in lamejs are work, and
+reporting them as nothing made every surface look stalled.
+`exportSong(fmt, opts?)` is the automatic path: `opts.runs` (1..`MAX_RUNS` 10)
+passes of the longest enabled arrangement chain, then auto-stop, then download;
+`opts.tailBar` holds the capture open a **whole bar** instead of `TAIL_MS` so
+reverb/delay tails decay (it is a longer *wait*, not an extra arrangement bar —
+bar N+1 would replay chain slot 0). **`opts` is optional and defaults to
+one pass + 350 ms**, because `scripts/audio-bench.mjs` calls it bare and
+`verify-audio-by-ear.md` needs those takes bar-exact; the UI checkbox defaults
+the other way. The manual path is verbs — `startManual`/`pauseManual`/
+`resumeManual`/`stopManual`, then `saveTake(fmt)` or `discardTake()` — and
+**stopping writes nothing**: the take parks in `review` until you choose.
+`pause()`/`resume()` on `RecorderNode` post the worklet's existing `stop`/`start`
+*without* clearing the chunk list, so the paused stretch is simply absent from
+the take (splice-out, no worklet change) — which is also why `firstFrame`
+arithmetic is only valid for an un-paused capture. Two predicates, not one:
+`isCapturing()` (recording|paused → the sampler choke and bank render stand off)
+and `isExporting()` (only an export bounds itself by absolute step, so only an
+export refuses a playhead seek). UI: the Song tab's Audio row now *opens*
+surfaces rather than writing files — `export-audio-modal.ts` (format/runs/tail),
+which **does not close on confirm**: it becomes the render's own progress
+surface (determinate bar off `exportProgress()`, repainted on `clock.onTick`,
+then an indeterminate "preparing your download" for the encode) with a Cancel
+wired to `cancelExport()`, and closing it mid-render cancels — and the RECORD
+floating window (`ui/components/record-window.ts`, `Shift`+`R`
+via `UiBridge.toggleRecordWindow`), whose close is guarded by
+`FloatingWindow`'s `confirmClose`. Its `Format:` segmented is the **global
+default** both surfaces seed from and may override per use without writing back.
+See `specs/features/record-window.md`. Encoding is **pure** and
 AudioContext-free (`audio/recorder/encode.ts` — `encodeWav` is dependency-free;
 `encodeMp3` uses the vendored lamejs) so it is unit-testable under jsdom.
 lamejs is 153 kB of pre-minified JS, so `encodeMp3` pulls it in with a

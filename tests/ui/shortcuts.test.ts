@@ -257,3 +257,50 @@ describe('installShortcuts octave shift mid-hold (input-control.md REQ-11)', () 
     expect(notes).toEqual([[true, 72], [false, 72]]);
   });
 });
+
+// record-window.md REQ-9. Same one-install-per-describe shape as above.
+describe('installShortcuts Shift+R toggles the Record window', () => {
+  const { bus, bridge } = setup();
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    bus.set('master.pitchBend', 0);
+  });
+
+  it('routes Shift+R to the bridge and prevents default', () => {
+    const toggle = vi.fn();
+    bridge.toggleRecordWindow = toggle;
+    const unprevented = modKeydown(document.body, 'R', { shiftKey: true });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(unprevented).toBe(false);
+  });
+
+  // The branch has to sit ABOVE keyToMidi: `keyId` case-folds, so 'R' would
+  // otherwise reach the note map as 'r' and play a note instead.
+  it('does not play the r note', () => {
+    bridge.toggleRecordWindow = vi.fn();
+    const played: number[] = [];
+    bus.onNote((on, note) => { if (on) played.push(note); });
+    modKeydown(document.body, 'R', { shiftKey: true });
+    expect(played).toEqual([]);
+  });
+
+  it('leaves a BARE r playing its note (regression)', () => {
+    const toggle = vi.fn();
+    bridge.toggleRecordWindow = toggle;
+    const played: number[] = [];
+    bus.onNote((on, note) => { if (on) played.push(note); });
+    keydown(document.body, 'r');
+    expect(toggle).not.toHaveBeenCalled();
+    expect(played).toHaveLength(1);
+  });
+
+  it('leaves Shift+R alone inside an editable field', () => {
+    const toggle = vi.fn();
+    bridge.toggleRecordWindow = toggle;
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    modKeydown(input, 'R', { shiftKey: true });
+    expect(toggle).not.toHaveBeenCalled();
+  });
+});

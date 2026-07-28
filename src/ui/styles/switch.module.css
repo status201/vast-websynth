@@ -19,6 +19,15 @@
     0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
+/* `display: inline-flex` above out-specifies the UA's `[hidden] { display:none }`,
+   so a switch-styled button set `hidden` stayed fully visible — which is never
+   what the property means. Restore it for every user of this style at once,
+   rather than each caller rediscovering it. */
+.root[hidden],
+:global(.switch[hidden]) {
+  display: none;
+}
+
 /* One shared disabled look for every switch-styled button (the export modal's
    Copy Link, the render-to-sampler button, wizard steps, …) — dim + inert. */
 .root:disabled,

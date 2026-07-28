@@ -22,6 +22,13 @@ export interface FloatingWindowOptions {
   leading?: HTMLElement;
   /** Called once per close transition (caller cleanup). */
   onClose?: () => void;
+  /**
+   * Asked before every close; resolving `false` **aborts** it — the window stays
+   * open, `onClose` never fires and `isOpen` never flips (REQ-9). Because the
+   * check lives inside `close()`, it guards every door at once: the ✕, the
+   * launcher's toggle, a keyboard shortcut. For a window holding unsaved work.
+   */
+  confirmClose?: () => Promise<boolean>;
 }
 
 export class FloatingWindow {
@@ -31,9 +38,12 @@ export class FloatingWindow {
   private readonly root: HTMLElement;
   private readonly minBtn: HTMLButtonElement;
   private readonly onCloseCb?: () => void;
+  private readonly confirmCloseCb?: () => Promise<boolean>;
   private closeTimer: number | undefined;
   private _isOpen = false;
   private _collapsed = false;
+  /** A confirm is on screen — further close() calls must not stack a second. */
+  private confirming = false;
 
   // Drag state.
   private dragging = false;
@@ -53,6 +63,7 @@ export class FloatingWindow {
 
   constructor(opts: FloatingWindowOptions) {
     this.onCloseCb = opts.onClose;
+    this.confirmCloseCb = opts.confirmClose;
     this.pos = opts.initial ?? {
       left: Math.max(24, Math.round((typeof window !== 'undefined' ? window.innerWidth : 800) / 2 - 150)),
       top: 96,
@@ -131,7 +142,26 @@ export class FloatingWindow {
     window.addEventListener('orientationchange', this.onViewportResize);
   }
 
+  /**
+   * Idempotent. With a `confirmClose` (REQ-9) this defers to it and does nothing
+   * at all when it resolves `false` — so a vetoed close leaves the window
+   * byte-for-byte as it was. Stays `void`-returning: every caller fires and
+   * forgets, and the veto is the window's business, not theirs.
+   */
   close(): void {
+    if (!this._isOpen || this.confirming) return;
+    if (this.confirmCloseCb) {
+      this.confirming = true;
+      void this.confirmCloseCb().then((ok) => {
+        this.confirming = false;
+        if (ok) this.doClose();
+      });
+      return;
+    }
+    this.doClose();
+  }
+
+  private doClose(): void {
     if (!this._isOpen) return;
     this._isOpen = false;
     this.endDrag();

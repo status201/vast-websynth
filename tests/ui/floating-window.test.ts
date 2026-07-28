@@ -221,6 +221,66 @@ describe('FloatingWindow', () => {
     expect(root.style.left).toBe('30px');
   });
 
+  // REQ-9 (v4) — the first window able to refuse its own close, for one holding
+  // unsaved work. Until v4 the ✕ closed unconditionally and onClose was pure
+  // after-the-fact cleanup, so there was nowhere to ask.
+  describe('confirmClose (REQ-9)', () => {
+    const closeBtn = () => inDoc()!.querySelector(`.${FloatingWindow.closeBtnClass}`) as HTMLButtonElement;
+
+    it('a false answer aborts the close entirely', async () => {
+      const onClose = vi.fn();
+      let allow = false;
+      const w = mk({ title: 'X', onClose, confirmClose: () => Promise.resolve(allow) });
+      w.open();
+
+      closeBtn().click();
+      await Promise.resolve();
+      expect(w.isOpen).toBe(true);
+      expect(onClose).not.toHaveBeenCalled();
+      expect(inDoc()!.classList.contains('hidden')).toBe(false);
+
+      // …and the very next click closes it once the answer flips.
+      allow = true;
+      closeBtn().click();
+      await Promise.resolve();
+      expect(w.isOpen).toBe(false);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('guards a caller-driven close too, not just the ✕', async () => {
+      const w = mk({ title: 'X', confirmClose: () => Promise.resolve(false) });
+      w.open();
+      w.close(); // what a launcher toggle / keyboard shortcut calls
+      await Promise.resolve();
+      expect(w.isOpen).toBe(true);
+    });
+
+    it('stacks nothing when close is called again while the confirm is pending', async () => {
+      let settle!: (ok: boolean) => void;
+      const confirmClose = vi.fn(() => new Promise<boolean>((res) => { settle = res; }));
+      const w = mk({ title: 'X', confirmClose });
+      w.open();
+
+      w.close();
+      w.close();
+      closeBtn().click();
+      expect(confirmClose).toHaveBeenCalledTimes(1);
+
+      settle(true);
+      await Promise.resolve();
+      expect(w.isOpen).toBe(false);
+    });
+
+    it('leaves a window without confirmClose synchronous (regression)', () => {
+      const onClose = vi.fn();
+      const w = mk({ title: 'X', onClose });
+      w.open();
+      w.close();
+      expect(w.isOpen).toBe(false); // no await needed — the v3 path is untouched
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('stops re-clamping on resize once closed (listener removed)', () => {
     vi.useFakeTimers();
     const w = mk({ title: 'X', initial: { left: 100, top: 100 } });

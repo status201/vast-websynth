@@ -45,9 +45,16 @@ the acceptance test.
 Capture goes through the app's own `RecorderController`, so a take is the same
 file the Export button produces — there is no second recording path to keep
 honest. `--demo` takes are **bar-exact and repeatable**: they call `exportSong`,
-which renders exactly one pass of the longest enabled chain and auto-stops.
-`--note` takes are a fixed wall-clock duration (`toggleManual`), so compare them
-by character rather than sample-for-sample.
+which by default renders exactly one pass of the longest enabled chain and
+auto-stops. `--note` takes are a fixed wall-clock duration (the manual capture
+verbs), so compare them by character rather than sample-for-sample.
+
+`--runs` and `--tail-bar` expose the two export options
+([audio-export](../features/audio-export.md) REQ-2/REQ-3), and both default
+**off** precisely so a plain take stays bar-exact and comparable with every take
+rendered before they existed. Reach for `--tail-bar` when the thing you are
+judging is a *decay* — the default 350 ms grace cuts a long reverb mid-tail, and
+you would be listening to the cut rather than the effect.
 
 ```bash
 # hold a note (isolates one voice + the FX chain)
@@ -64,6 +71,8 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--note <spec>` | notes to hold: `A2`, `C#3`, a MIDI number, or a comma-separated chord (default `A2`) |
 | `--seconds <n>` | take length in note mode (default 6) |
 | `--demo <name>` | load a demo song and render one full pass instead |
+| `--runs <n>` | passes to render in `--demo` mode, 1..10 (default 1) |
+| `--tail-bar` | hold the capture open a whole bar after the last step so tails decay (default off — a plain take stays bar-exact) |
 | `--set id=value` | a `ParamBus` write applied before the take — repeatable |
 | `--url <url>` | drive an already-running server instead of spawning vite |
 | `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |

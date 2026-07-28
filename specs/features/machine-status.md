@@ -3,7 +3,8 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 2  # v2: Chain/Mute/Solo in every machine header, shared with the Song
+version: 3  # v3: the lane-title ↗ glyph is dropped below 720px (REQ-6)
+            # v2: Chain/Mute/Solo in every machine header, shared with the Song
             #     tab's lane cards (REQ-9)
 owner: core
 related:
@@ -68,6 +69,13 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
   ships as an installable PWA used on phones. The glyph is `aria-hidden` — the
   button's `aria-label` already names the destination, so it must not be
   announced as "north east arrow".
+  (v3) **It is dropped below 720 px**, the app's phone breakpoint. The four lane
+  cards are already two-up by 992 px, so on a phone each title shares a very
+  narrow card with its Chain/Mute/Solo controls, and the glyph costs width the
+  machine's *name* needs more. Nothing is lost there that the arrow was carrying:
+  the affordance it exists to replace is hover, which a touch device does not
+  have, and the whole card is visibly a control surface. `display: none`, not
+  `visibility: hidden` — the point is to give the width back.
 - **REQ-7 (reveal beats activate)** — `TabContainer.reveal(id)` expands a
   collapsed tab bar *then* activates, matching what a real tab click does. Plain
   `activate()` does not expand and must not be the external entry point.

@@ -30,6 +30,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ['Home', 'Move the playhead to bar 1'],
   ['Shift + ←  →', 'Move the playhead one bar'],
   ['F (hold)', 'Drum fill'],
+  ['Shift + R', 'Open / close the Record window'],
   ['Esc', 'Panic — all notes off'],
   ['Delete', 'Clear the selected step'],
   ['Ctrl/Cmd + Z', 'Undo the last grid edit'],

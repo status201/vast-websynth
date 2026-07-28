@@ -178,7 +178,7 @@ export function buildTransportControls(
 export function bindSeekAvailability(engine: StudioApi, host: HTMLElement): void {
   const refresh = (): void => { host.classList.toggle(styles.off!, !engine.canSeek()); };
   engine.sync.onStatus(refresh);
-  engine.recorder.onState(refresh);
+  engine.recorder.onPhase(refresh);
   engine.bankRender.onState(refresh);
   refresh();
 }

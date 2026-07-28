@@ -3,10 +3,12 @@
 ```yaml
 id: floating-window
 status: implemented
-version: 3
+version: 4  # v4: a window may veto its own close (REQ-9)
 owner: core
 related:
   - architecture
+  - dialog            # REQ-9's confirm is a Modal, which outranks a window
+  - record-window     # REQ-9's first and only user
   - ../recipes/add-a-floating-window.md
 source:
   - src/ui/components/floating-window.ts
@@ -70,6 +72,26 @@ matrix) reuse it.
   Restoring from minimised also re-clamps (the body re-grows `offsetHeight`, which
   could otherwise overflow the bottom edge). All clamping shares one helper with
   the drag so the bounds are identical.
+- **REQ-9 (a window may veto its own close, v4)** — Optional
+  `opts.confirmClose?: () => Promise<boolean>`; when present, `close()` awaits it
+  and **aborts the close entirely** on `false` — the window stays open, `onClose`
+  does not fire, and `isOpen` never flips. Until v4 a close could not be
+  questioned: the ✕ handler called `close()` unconditionally and `onClose` fired
+  *after* the fact, purely as cleanup. A window holding unsaved work
+  ([record-window](record-window.md), the only user) needs to ask first.
+  Three rules keep it honest:
+    - **One guard, every door.** The check lives inside `close()`, so the ✕, the
+      launcher's toggle and any keyboard shortcut inherit it — nothing can route
+      around it by calling `close()` directly.
+    - **Re-entrancy is latched.** A second ✕ click while the confirm is up must
+      not stack a second dialog; the pending check is tracked and the extra call
+      is a no-op. Idempotence (REQ-2) is preserved: a vetoed close leaves the
+      window exactly as it was.
+    - **Layering already works.** The confirm is a [`Modal`](dialog.md) at
+      z-index 1000 against the window's 950, so it renders above the window it is
+      asking about — no special casing needed.
+  Without `confirmClose` the path is byte-for-byte v3: synchronous, no await, no
+  behaviour change for the three existing windows.
 
 ## Technical design
 
@@ -81,6 +103,7 @@ FloatingWindow:   # src/ui/components/floating-window.ts (a class, like Modal)
   readonly body: HTMLElement          # caller appends content here
   open(): void                        # idempotent; mounts + reveals; always EXPANDED
   close(): void                       # idempotent; hides, fires onClose once, removes after fade
+                                      # with confirmClose: awaits it; false aborts (REQ-9)
   get isOpen(): boolean
   get isCollapsed(): boolean          # true while minimised (body hidden)
   # static class getters (parity with Modal, for consistent markup/testing):
@@ -93,6 +116,7 @@ FloatingWindowOptions:
   windowClass?: string                # extra class on the root (width/layout variant)
   leading?: HTMLElement               # caller control inserted as the title bar's first child (pointerdown stopped)
   onClose?: () => void                # caller cleanup, once per close
+  confirmClose?: () => Promise<boolean>   # REQ-9; false vetoes the close (guards EVERY door)
 ```
 
 ### Layer touchpoints & ordering
@@ -166,6 +190,20 @@ Scenario: close() is idempotent
   Given an open FloatingWindow with onClose
   When close() is called twice
   Then onClose fires exactly once
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: A confirmClose that resolves false vetoes the close (v4, REQ-9)
+  Given an open FloatingWindow whose confirmClose resolves false
+  When the user clicks the ✕
+  Then the window is still open, onClose never fired, and isOpen is true
+  When confirmClose then resolves true
+  Then the very next ✕ click closes it normally
+# pinned by: tests/ui/floating-window.test.ts
+
+Scenario: A second close while the confirm is pending stacks nothing (v4, edge)
+  Given an open FloatingWindow with a confirmClose that has not settled
+  When close() is called twice more
+  Then confirmClose was invoked exactly once
 # pinned by: tests/ui/floating-window.test.ts
 
 Scenario: A leading control renders in the title bar and never starts a drag

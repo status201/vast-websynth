@@ -231,7 +231,8 @@ specs/
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file
     paste-import.md    ·  paste song/preset JSON (AI reply) instead of importing a file
     # — audio I/O —
-    audio-export.md    ·  WAV/MP3 capture of the master
+    audio-export.md    ·  WAV/MP3 capture of the master (phases, runs, tail bar)
+    record-window.md   ·  floating record transport: pause, timer, save-or-discard
     sample-recorder.md ·  mic record + buffer editor
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —

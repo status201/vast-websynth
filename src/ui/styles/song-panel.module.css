@@ -96,6 +96,15 @@
   transform: translate(1px, -1px);
 }
 
+/* Phones (machine-status.md REQ-6 v3): the cards are already two-up by 992px, so
+   the glyph is spending width the machine's NAME needs. It exists to replace a
+   hover affordance, which a touch device hasn't got anyway. */
+@media (max-width: 720px) {
+  .arrow {
+    display: none;
+  }
+}
+
 /* Per-lane DJ mixer strip: mute / solo / volume. */
 .mix {
   display: flex;

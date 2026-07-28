@@ -216,7 +216,7 @@ export function buildPlayheadRuler(
   };
   unsubs.push(
     api.sync.onStatus(refreshEnabled),
-    api.recorder.onState(refreshEnabled),
+    api.recorder.onPhase(refreshEnabled),
     api.bankRender.onState(refreshEnabled),
   );
   refreshEnabled();

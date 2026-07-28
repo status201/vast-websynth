@@ -86,6 +86,16 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
+    // Shift+R — the RECORD window, from any tab (record-window.md REQ-9).
+    // Above the note handling for the same reason the Shift+Arrow branch is:
+    // `keyId` case-folds, so a bare `r` is a note key and Shift+R would
+    // otherwise play it. Shift makes it un-typable by accident while playing.
+    if (e.shiftKey && (k === 'R' || k === 'r')) {
+      e.preventDefault();
+      bridge.toggleRecordWindow();
+      return;
+    }
+
     // Delete/Backspace — clear the selected step on the active machine tab
     // (step-grid-editing.md REQ-5). Scoped exactly like Ctrl+Z above, so it can
     // never reach a grid that is off screen.

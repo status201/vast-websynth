@@ -804,21 +804,33 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   'song.exportAudio': {
     title: 'Export Song (audio)',
     body:
-      '<p>Renders the arrangement to an <strong>audio file</strong> you can play anywhere — pick ' +
-      '<strong>WAV</strong> (lossless) or <strong>MP3</strong> with the Format switch. It plays ' +
-      'one full pass of the longest chain, then downloads automatically.</p>' +
-      '<p>This is the actual <em>sound</em>. To save the editable project instead, use ' +
+      '<p>Renders the arrangement to an <strong>audio file</strong> you can play anywhere. It opens ' +
+      'a small dialog first, because there are three things worth choosing:</p>' +
+      '<p><strong>Format</strong> — WAV (lossless) or MP3. <strong>Runs</strong> — how many times ' +
+      'the song plays through, up to 10, for when one pass is too short to be a track. ' +
+      '<strong>An empty bar at the end</strong> — leave this on and the recording keeps rolling for ' +
+      'one silent bar after the last step, so a long reverb or delay <em>decays</em> instead of ' +
+      'being chopped off mid-tail.</p>' +
+      '<p>It renders in <em>real time</em> — the dialog shows how long that will take before you ' +
+      'commit. This is the actual <em>sound</em>; to save the editable project instead, use ' +
       '<strong>Export</strong> (a <strong>.json</strong> file) up above.</p>',
   },
   'song.record': {
     title: 'Record',
     body:
-      '<p>A free-form audio recorder. Press <strong>Record</strong> and it captures everything ' +
-      'that plays — live notes, patterns, knob tweaks — to a <strong>WAV</strong> or ' +
-      '<strong>MP3</strong> file (set the Format), starting the transport if it is stopped. Press ' +
-      '<strong>Stop</strong> to finish and download.</p>' +
-      '<p>Use it to grab a jam or a take; use <strong>Export Song</strong> for a clean, automatic ' +
-      'render of the whole arrangement.</p>',
+      '<p>Opens the <strong>RECORD</strong> window, which captures everything that plays — live ' +
+      'notes, patterns, knob tweaks. It floats above the app, so once it is open you can record ' +
+      'while working on <em>any</em> tab. <strong>Shift + R</strong> opens and closes it from ' +
+      'anywhere.</p>' +
+      '<p><strong>Record</strong> starts the take (and the transport, if it is stopped) and a timer ' +
+      'shows how much you have. <strong>Pause</strong> pauses the <em>recorder</em> — the music ' +
+      'keeps playing, and the paused stretch is simply left out of the file, so you can drop out ' +
+      'and punch back in.</p>' +
+      '<p><strong>Stop</strong> ends the take but writes nothing yet: you then choose ' +
+      '<strong>Save</strong> or <strong>Discard</strong>, so a fluffed take never lands in your ' +
+      'downloads. Closing the window with a take still unsaved asks first.</p>' +
+      '<p>Use it to grab a jam; use <strong>Export Song</strong> for a clean, automatic render of ' +
+      'the whole arrangement.</p>',
   },
   sync: {
     title: 'Sync (Master / Slave)',

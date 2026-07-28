@@ -37,6 +37,8 @@ import {
   type ProjectClipOut, type ProjectClipIn,
 } from '../../state/project';
 import { openExportSongModal } from '../components/export-song-modal';
+import { openExportAudioModal } from '../components/export-audio-modal';
+import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
@@ -550,36 +552,32 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // order, which is also the stacked order.
   const ioPair = el('div', styles.ioPair!);
 
-  // ---- Audio export (WAV / MP3) ----
+  // ---- Audio (WAV / MP3) ----
+  // Neither button writes a file any more: one opens the export options modal,
+  // the other the Record window (audio-export.md REQ-9, record-window.md). The
+  // Format switch below is therefore the GLOBAL DEFAULT both surfaces seed from
+  // — each may override it for one use without writing back here.
   const aio = el('div', styles.io!);
   aio.appendChild(el('div', styles.sectionLabel!, 'Audio'));
 
   let fmt: ExportFormat = 'wav';
 
+  // Names the format even though the modal can still override it: this button
+  // sits a few pixels from the Song panel's other `Export` (the .json one), and
+  // "as WAV" is what tells them apart at a glance (audio-export.md REQ-8).
   const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
   expSongBtn.dataset.testid = 'song-export-audio';
-  expSongBtn.title = 'Render one full pass of the arrangement, then download';
-  expSongBtn.addEventListener('click', () => engine.recorder.exportSong(fmt));
+  expSongBtn.title = 'Render the arrangement to audio — choose runs and format';
+  expSongBtn.addEventListener('click', () => openExportAudioModal(engine, fmt));
 
-  const recBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
-  recBtn.dataset.testid = 'song-record';
-  recBtn.title = 'Free-form record toggle (starts the transport if stopped)';
-  recBtn.addEventListener('click', () => engine.recorder.toggleManual(fmt));
+  const recLauncher = createRecordWindowLauncher(engine, () => fmt);
+  // Reach was the original complaint: a floating window only solves it once
+  // open, so Shift+R opens it from any tab (record-window.md REQ-9).
+  bridge.toggleRecordWindow = recLauncher.toggle;
 
-  // Both labels name the format they will write (audio-export.md REQ-8), so the
-  // Format switch is never the only clue. One writer for both, since the record
-  // button's text is also driven by the recorder's state.
-  let recording = false;
-  const syncAudioLabels = (): void => {
-    const f = fmt.toUpperCase();
-    expSongBtn.textContent = `Export Song as ${f}`;
-    recBtn.textContent = recording ? 'Stop' : `Record as ${f}`;
+  const syncExportLabel = (): void => {
+    expSongBtn.textContent = `Export Song as ${fmt.toUpperCase()}…`;
   };
-  engine.recorder.onState((rec) => {
-    recording = rec;
-    recBtn.classList.toggle('on', rec);
-    syncAudioLabels();
-  });
 
   const fmtSel = el('div', segmentedStyles.root!);
   ([['WAV', 'wav'], ['MP3', 'mp3']] as Array<[string, ExportFormat]>).forEach(([lbl, f], i) => {
@@ -592,16 +590,18 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       fmt = f;
       for (const c of Array.from(fmtSel.children)) c.classList.remove('active');
       b.classList.add('active');
-      syncAudioLabels();
+      syncExportLabel();
     });
     fmtSel.appendChild(b);
   });
-  syncAudioLabels();
+  syncExportLabel();
 
-  aio.appendChild(el('span', styles.ioLabel!, 'Format:'));
+  const fmtLabel = el('span', styles.ioLabel!, 'Format:');
+  fmtLabel.title = 'The default format for exports and recordings — each can override it';
+  aio.appendChild(fmtLabel);
   aio.appendChild(fmtSel);
   aio.appendChild(expSongBtn);
-  aio.appendChild(recBtn);
+  aio.appendChild(recLauncher.el);
 
   // ---- Transport sync (MIDI master/slave + WiFi) ----
   ioPair.appendChild(buildSyncSection(engine.sync, engine.rtcSync));

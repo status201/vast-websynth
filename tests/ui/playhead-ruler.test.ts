@@ -27,7 +27,7 @@ function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {})
     seekTo,
     canSeek: () => over.canSeek !== false,
     sync: { onStatus: () => () => {} },
-    recorder: { onState: () => () => {} },
+    recorder: { onPhase: () => () => {} },
     bankRender: { onState: () => () => {} },
     arrangement: {
       songBars: () => state.bars,

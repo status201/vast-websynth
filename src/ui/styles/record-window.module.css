@@ -1,0 +1,108 @@
+/* The RECORD floating window (record-window.md). Body layout lives here rather
+   than in floating-window.module.css, which owns only the chrome — the same
+   split transport-controls.module.css `.window` follows. */
+
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* The window is shrink-to-fit (floating-window sets only a min-width), and
+     the PAUSED status line is the widest thing in here. */
+  max-width: min(92vw, 460px);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* The phase word. `data-phase` colours it, so the status and the dot can never
+   disagree about which phase they are describing. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--sans);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.status[data-phase='recording'] { color: var(--accent-bad); }
+.status[data-phase='paused'] { color: var(--accent-secondary); }
+.status[data-phase='review'] { color: var(--accent-good); }
+
+.dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+}
+
+/* The one animation in this window, and it earns its cost: "a capture is
+   running" is exactly what a static dot fails to carry across a tab switch.
+   `opacity` only, so it stays on the compositor, and the class comes off the
+   instant the phase leaves `recording`. */
+.dot.live {
+  opacity: 1;
+  box-shadow: 0 0 8px var(--accent-bad);
+  animation: recPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.28; }
+}
+
+/* Respect a stated preference for less motion: the colour and glow still say
+   "recording", so nothing is lost but the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .dot.live { animation: none; }
+}
+
+/* Elapsed. Monospaced tabular figures for the same reason the transport readout
+   is (transport-window.md REQ-6): it must not shift sideways as it counts. */
+.timer {
+  font-family: var(--mono);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+
+/* The window body is a column flex, so a block-level segmented control would
+   stretch the full width and read as a third row of buttons rather than a small
+   setting. Shrink to content and centre it under the transport row. */
+.fmt {
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+/* One width across Record / Pause / Resume so the row doesn't reflow every time
+   the label changes — but the shared switch style is `flex-start`, so the label
+   sat hard left with a gap after it and read as a button missing its icon.
+   Centre it: the width is deliberate, and it should look that way. */
+.action {
+  flex: 0 0 auto;
+  min-width: 74px;
+  justify-content: center;
+}
+
+.danger {
+  border-color: rgba(224, 64, 58, 0.45);
+  color: var(--accent-bad);
+}
+
+.danger:hover:not(:disabled) {
+  background: rgba(224, 64, 58, 0.16);
+  border-color: var(--accent-bad);
+}

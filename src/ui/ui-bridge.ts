@@ -40,4 +40,8 @@ export class UiBridge {
    * fast-blinks the Play LED green while stopped (play-button-blink.md
    * REQ-3). Assigned in buildHeader; the default is a safe no-op. */
   cuePlay = (): void => {};
+  /** Open/close the RECORD floating window (Shift+R — record-window.md REQ-9).
+   * Same late-bound seam as `toggleHelpBadges`, so `shortcuts.ts` never reaches
+   * into a panel: the Song panel assigns it when it builds the launcher. */
+  toggleRecordWindow = (): void => {};
 }

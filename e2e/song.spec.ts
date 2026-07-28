@@ -238,17 +238,105 @@ test.describe('song mode', () => {
     await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
 
     await page.getByTestId('tab-song').click();
-    // audio-export.md REQ-8: the label names the format it will write.
-    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as WAV');
-    const wavDownload = page.waitForEvent('download', { timeout: 20000 });
+    // v7: the button opens the options modal but keeps naming the format —
+    // that is what tells it apart from the neighbouring Export (.json) button
+    // (audio-export.md REQ-8) — and the confirm names the overridable one.
+    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as WAV…');
     await page.getByTestId('song-export-audio').click();
-    const download = await wavDownload;
+    await expect(page.getByTestId('export-audio-modal')).toBeVisible();
+    await expect(page.getByTestId('export-audio-confirm')).toHaveText('Export as WAV');
+    // 1 bar + the default tail bar ≈ 4 s at 120 BPM.
+    await expect(page.getByTestId('export-audio-length')).toContainText('1 tail bar');
 
+    const wavDownload = page.waitForEvent('download', { timeout: 20000 });
+    await page.getByTestId('export-audio-confirm').click();
+
+    // REQ-10: the modal STAYS and reports the render, rather than vanishing for
+    // however long a real-time render takes.
+    await expect(page.getByTestId('export-audio-progress')).toBeVisible();
+    await expect(page.getByTestId('export-audio-status')).toContainText(/Rendering… bar \d+ of \d+/);
+
+    const download = await wavDownload;
     expect(download.suggestedFilename()).toMatch(/\.wav$/);
     const path = await download.path();
     const head = readFileSync(path);
     expect(head.subarray(0, 4).toString('ascii')).toBe('RIFF');
     expect(head.subarray(8, 12).toString('ascii')).toBe('WAVE');
+
+    // …and it closes itself once the file is written.
+    await expect(page.getByTestId('export-audio-modal')).toBeHidden();
+  });
+
+  /**
+   * audio-export.md REQ-10: a ten-minute render needs a Cancel that genuinely
+   * cancels, not a dead button beside a progress bar.
+   */
+  test('a render in flight can be cancelled, and writes nothing', async ({ page }) => {
+    await gotoAndStart(page);
+    // Long enough that the render is still going when we abort it.
+    await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0, 1, 2, 3], true));
+    await page.getByTestId('tab-song').click();
+
+    let downloaded = false;
+    page.on('download', () => { downloaded = true; });
+
+    await page.getByTestId('song-export-audio').click();
+    await page.getByTestId('export-audio-confirm').click();
+    await expect(page.getByTestId('export-audio-progress')).toBeVisible();
+    await page.getByTestId('export-audio-abort').click();
+
+    await expect(page.getByTestId('export-audio-modal')).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__synth.engine.recorder.phase))
+      .toBe('idle');
+    expect(await page.evaluate(() => (window as any).__synth.engine.clock.playing)).toBe(false);
+    await page.waitForTimeout(500);
+    expect(downloaded).toBe(false);
+  });
+
+  /**
+   * audio-export.md REQ-2/REQ-3 (v7): nothing pinned the rendered *length* in a
+   * real browser before. The WAV header's data-chunk size gives it exactly, so
+   * two runs of a one-bar song must be ~2× one run, and the tail bar must add
+   * roughly a bar on top.
+   */
+  test('Runs and the tail bar change how much audio is rendered', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
+    await page.getByTestId('tab-song').click();
+
+    /** Seconds of stereo 16-bit audio in a downloaded WAV, from its header. */
+    const renderSeconds = async (runs: string, tail: boolean): Promise<number> => {
+      // The modal now lingers on its "Done" state and then fades (REQ-10), so
+      // wait for the previous one to fully detach before opening the next —
+      // otherwise its testids are still in the DOM. Same idiom the Save/New
+      // dialogs above use.
+      await expect(page.getByTestId('export-audio-modal')).toHaveCount(0);
+      await page.getByTestId('song-export-audio').click();
+      // Dropdown options are plain buttons; scope to the dropdown so the row
+      // "1" can't collide with anything else on the page.
+      const dd = page.getByTestId('export-audio-runs');
+      await dd.click();
+      await dd.getByRole('button', { name: runs, exact: true }).click();
+      if (!tail) await page.getByTestId('export-audio-tail').click();
+      const dl = page.waitForEvent('download', { timeout: 30000 });
+      await page.getByTestId('export-audio-confirm').click();
+      const bytes = readFileSync(await (await dl).path());
+      const rate = bytes.readUInt32LE(24);
+      return bytes.readUInt32LE(40) / (rate * 4); // dataSize / (rate × 2ch × 2B)
+    };
+
+    // 120 BPM: one bar is 2 s. One run, no tail ≈ 2 s (plus the worklet's
+    // look-ahead grace), so compare shapes rather than exact values.
+    const oneBare = await renderSeconds('1', false);
+    expect(oneBare).toBeGreaterThan(1.5);
+    expect(oneBare).toBeLessThan(3);
+
+    const oneTailed = await renderSeconds('1', true);
+    expect(oneTailed).toBeGreaterThan(oneBare + 1.5); // a whole extra bar
+
+    const twoBare = await renderSeconds('2', false);
+    expect(twoBare).toBeGreaterThan(oneBare + 1.5);   // the second pass
   });
 
   // audio-export.md REQ-7: the MP3 encoder (lamejs) is a lazily-imported chunk,
@@ -260,11 +348,14 @@ test.describe('song mode', () => {
     await page.evaluate(() => (window as any).__synth.engine.arrangement.setSeqChain([0], true));
 
     await page.getByTestId('tab-song').click();
+    // The Song tab's Format is the global DEFAULT (REQ-9): the modal opens
+    // seeded from it rather than always on WAV.
     await page.getByTestId('song-export-fmt-mp3').click();
-    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as MP3');
-    await expect(page.getByTestId('song-record')).toHaveText('Record as MP3');
-    const mp3Download = page.waitForEvent('download', { timeout: 20000 });
+    await expect(page.getByTestId('song-export-audio')).toHaveText('Export Song as MP3…');
     await page.getByTestId('song-export-audio').click();
+    await expect(page.getByTestId('export-audio-confirm')).toHaveText('Export as MP3');
+    const mp3Download = page.waitForEvent('download', { timeout: 20000 });
+    await page.getByTestId('export-audio-confirm').click();
     const download = await mp3Download;
 
     expect(download.suggestedFilename()).toMatch(/\.mp3$/);

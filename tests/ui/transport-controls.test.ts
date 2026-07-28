@@ -28,7 +28,7 @@ function harness(over: { canSeek?: boolean } = {}) {
     seekTo,
     canSeek: () => over.canSeek !== false,
     sync: { onStatus: () => () => {} },
-    recorder: { onState: () => () => {} },
+    recorder: { onPhase: () => () => {} },
     bankRender: { onState: () => () => {} },
   } as unknown as StudioApi;
 

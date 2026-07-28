@@ -17,6 +17,10 @@
 //   --note <spec>      notes to hold: "A2", "45", "45,52,57"         [default A2]
 //   --seconds <n>      take length in note mode                      [default 6]
 //   --demo <name>      load a demo song and render one full pass instead
+//   --runs <n>         passes to render in --demo mode (1..10)        [default 1]
+//   --tail-bar         hold the capture open a whole bar after the last step,
+//                      so reverb/delay tails decay instead of being cut at
+//                      350 ms. Off by default: a plain take stays bar-exact.
 //   --set id=value     ParamBus write applied before the take (repeatable)
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
@@ -56,6 +60,11 @@ const opts = {
   format: flag('format', 'wav'),
   headed: argv.includes('--headed'),
   sets: flags('set').filter(Boolean),
+  // Export options (audio-export.md REQ-2/REQ-3), --demo mode only. Both
+  // default OFF so a plain `--demo` take stays bar-exact and comparable with
+  // every take rendered before they existed.
+  runs: Number(flag('runs', 1)),
+  tailBar: argv.includes('--tail-bar'),
 };
 
 if (!opts.name) {
@@ -161,15 +170,21 @@ try {
   if (opts.demo) {
     // One full pass of the longest enabled chain, then auto-stop — deterministic
     // and directly comparable between takes.
-    console.log('audio-bench: rendering one song pass…');
-    await page.evaluate((f) => window.__synth.engine.recorder.exportSong(f), opts.format);
+    console.log(
+      `audio-bench: rendering ${opts.runs} song pass${opts.runs === 1 ? '' : 'es'}`
+      + `${opts.tailBar ? ' + a tail bar' : ''}…`,
+    );
+    await page.evaluate(
+      (a) => window.__synth.engine.recorder.exportSong(a.format, { runs: a.runs, tailBar: a.tailBar }),
+      { format: opts.format, runs: opts.runs, tailBar: opts.tailBar },
+    );
   } else {
     console.log(`audio-bench: holding ${notes.join(', ')} for ${opts.seconds}s…`);
     await page.evaluate((a) => {
       const bus = window.__synth.bus;
-      window.__synth.engine.recorder.toggleManual(a.format);
+      window.__synth.engine.recorder.startManual();
       for (const n of a.notes) bus.noteOn(n, 0.9);
-    }, { notes, format: opts.format });
+    }, { notes });
     // Release a little early so the take includes the envelope + FX tail rather
     // than being cut mid-sustain.
     await page.waitForTimeout(Math.max(0, opts.seconds - 1) * 1000);
@@ -177,7 +192,13 @@ try {
       for (const n of a.notes) window.__synth.bus.noteOff(n);
     }, { notes });
     await page.waitForTimeout(1000);
-    await page.evaluate((f) => window.__synth.engine.recorder.toggleManual(f), opts.format);
+    // Stop parks the take in `review` and writes nothing — saving is the
+    // separate, explicit step now (audio-export.md REQ-4).
+    await page.evaluate((f) => {
+      const rec = window.__synth.engine.recorder;
+      rec.stopManual();
+      return rec.saveTake(f);
+    }, opts.format);
   }
 
   await (await download).saveAs(outPath);

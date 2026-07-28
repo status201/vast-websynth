@@ -43,7 +43,8 @@ export interface StudioApi {
   readonly sampler: SamplerMachine;
   /** Motion sequencer — XY param automation (onStep for the playhead). */
   readonly motion: MotionMachine;
-  /** Audio export (exportSong / toggleManual / onState). */
+  /** Audio capture — the export pass and the manual take's phase machine
+   *  (exportSong / startManual… / saveTake / phase / onPhase). */
   readonly recorder: RecorderController;
   /** Resample the seq edit bank into a bar-exact buffer (render / onState). */
   readonly bankRender: BankRenderController;

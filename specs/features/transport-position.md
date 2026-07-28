@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 2  # v2: the ruler stops conflating cue with playhead and stops counting
+version: 3  # v3: only an EXPORT blocks a seek — a free manual take no longer
+            #     locks the playhead (REQ-6)
+            # v2: the ruler stops conflating cue with playhead and stops counting
             #     bars that don't exist — cue ring (REQ-14), mode-aware readout
             #     (REQ-15), bar stepper (REQ-16), refusal honesty (REQ-17)
 owner: core
@@ -109,11 +111,21 @@ counter silently desynchronises all four.
     - **sync slave** (`sync.activeMode === 'slave'`) — the remote transport owns
       the playhead, and a local jump would fight the slave's phase tracking into a
       re-anchor. Precedent: `Performance.clockRampAllowed`.
-    - **the song recorder is capturing** and **a bank render is in flight** — both
-      key off absolute step bounds ([audio-export](audio-export.md),
+    - **a song *export* is in flight** and **a bank render is in flight** — both
+      bound their capture by an **absolute step number**
+      ([audio-export](audio-export.md) REQ-2,
       [render-to-sampler](render-to-sampler.md)), so a jump truncates or unbounds
       the capture.
   A refused seek is a **silent no-op returning `false`**, never an error.
+  (v3) A **free-form manual take does not take this guard.** Until
+  [audio-export](audio-export.md) v7 the predicate was `recorder.isRecording()`,
+  which could not tell an export from a manual take and so locked the playhead for
+  both. Only the export has step bounds to protect; a manual capture is bounded by
+  nothing, and jumping around the arrangement mid-take is what free-form recording
+  is *for*. The guard therefore reads `recorder.isExporting()`, not
+  `isCapturing()` — the sampler-choke suppression on `clock.onStop` still reads
+  the wider `isCapturing()`, because that one really does mean "samples are being
+  taken, do not cut them".
 - **REQ-7** — **A sync master announces its seek.** While `master`, a seek
   broadcasts `songposition` + `continue` (reusing `SyncMaster.announceTo`), or
   every slave drifts by the jump distance for the rest of the session. It must

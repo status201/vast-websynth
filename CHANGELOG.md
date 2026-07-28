@@ -16,6 +16,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A floating RECORD window.** Free-form recording used to be one button on the
+  Song tab, which meant going there to start a take and going back to stop one.
+  It now opens a window that floats above the app and stays live on every tab —
+  or press **Shift + R** to open and close it from anywhere. It has a running
+  timer, a red light that actually tells you it is recording, and a **Pause**
+  that pauses the *recorder* rather than the music: the transport plays on and
+  the paused stretch is simply left out of the file, so you can drop out and
+  punch back in.
+  **Stop no longer writes the file.** It ends the take and offers **Save** or
+  **Discard**, so a fluffed take never lands in your downloads uninvited —
+  closing the window with one still unsaved asks before throwing it away.
+- **Export Song asks how you want it rendered.** A small dialog now offers the
+  format, how many times the song should play through (up to 10, for when one
+  pass is too short to be a track), and **an empty bar at the end** — on by
+  default — so a long reverb or delay *decays* instead of being chopped off
+  350 ms after the last step. It shows how long the render will take before you
+  commit, since it renders in real time.
+  The Song tab's WAV/MP3 switch is now the **default** for both surfaces: each
+  can override it for one export or one take without changing it.
+  The dialog then **stays open and shows the render happening** — a progress bar
+  and the bar it is on, then "preparing your download" while it encodes. It used
+  to close and leave you watching an app that looked frozen for as long as the
+  render took. There is a Cancel that genuinely cancels, and closing the dialog
+  cancels too.
+- Recording a free-form take **no longer locks the playhead**. Scrubbing and the
+  machine rulers stayed greyed out for the whole take before; only Export Song
+  and Import-into-sampler need that, because only they measure their capture in
+  bars.
+
+### Changed
+
+- On phones, the Song tab's machine links (Sequencer, Drums, …) drop their `↗`
+  glyph. The four cards are already two-up on a narrow screen, and the arrow was
+  spending width the machine's name needed — it exists to advertise a hover
+  affordance, which a touch device hasn't got.
+
 ### Fixed
 
 - **Loading a song — or starting a new one — now returns the playhead to the
