@@ -11,6 +11,7 @@ import type { BankRenderController } from '../audio/recorder/bank-render';
 import type { SyncController } from '../audio/transport/sync/sync-controller';
 import type { WebRtcSyncTransport } from '../audio/webrtc-sync-transport';
 import type { Compressor } from '../audio/effects/compressor';
+import type { Zoetrope } from '../audio/effects/zoetrope';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 
 /**
@@ -62,6 +63,12 @@ export interface StudioApi {
   readonly drumComp: Compressor;
   /** Master-bus compressor; UI reads its gain reduction via `onGr`. */
   readonly masterComp: Compressor;
+  /**
+   * The synth chain's cycle splicer. Here for the same reason as the two
+   * compressors: it pushes telemetry *upward* from the audio thread (the cycle
+   * library), which `ParamBus` cannot carry. Its controls are all plain params.
+   */
+  readonly zoetrope: Zoetrope;
 
   /** iOS audio-session diagnostics (inert off iOS); read by the Debug panel. */
   readonly iosAudio: IosAudioDiagnostics;

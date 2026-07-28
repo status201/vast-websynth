@@ -6,6 +6,7 @@ import { Distortion } from './distortion';
 import { Phaser } from './phaser';
 import { Reverb } from './reverb';
 import { Wah } from './wah';
+import { Zoetrope } from './zoetrope';
 
 /**
  * One bus's insert chain, built and self-wired as a unit.
@@ -35,6 +36,7 @@ export interface FxChain<E extends Record<string, Effect>> {
 export interface FxChainOpts {
   dist?: { oversample?: boolean };
   reverb?: { maxIrS?: number };
+  zoetrope?: { maxTaps?: number };
 }
 
 /** Shared construction: keep the declared order as *the* signal order. */
@@ -52,24 +54,40 @@ function makeChain<E extends Record<string, Effect>>(
   };
 }
 
-/** Synth voice bus: distortion → wah → phaser → delay → reverb. */
+/**
+ * Synth voice bus: distortion → wah → phaser → delay → reverb → zoetrope.
+ *
+ * Zoetrope is last because it re-assembles whatever reaches it: put ahead of
+ * the reverb it would splice a dry signal and the tail would smear the joins
+ * back together, which is the opposite of the point. Being last also makes it
+ * the chain's `tail`, so the bank-render tap captures it (render-to-sampler.md).
+ */
 export function createSynthChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb }> {
+): FxChain<{
+  dist: Distortion;
+  wah: Wah;
+  phaser: Phaser;
+  delay: Delay;
+  reverb: Reverb;
+  zoetrope: Zoetrope;
+}> {
   const fx = {
     dist: new Distortion(ctx, opts.dist),
     wah: new Wah(ctx),
     phaser: new Phaser(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
+    zoetrope: new Zoetrope(ctx, opts.zoetrope),
   };
-  return makeChain(fx, ['dist', 'wah', 'phaser', 'delay', 'reverb'], (bus) => {
+  return makeChain(fx, ['dist', 'wah', 'phaser', 'delay', 'reverb', 'zoetrope'], (bus) => {
     fx.dist.bind(bus, 'fx.dist');
     fx.wah.bind(bus, 'fx.wah');
     fx.phaser.bind(bus, 'fx.phaser');
     fx.delay.bind(bus, 'fx.delay');
     fx.reverb.bind(bus, 'fx.reverb');
+    fx.zoetrope.bind(bus, 'fx.zoetrope');
   });
 }
 

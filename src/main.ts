@@ -35,8 +35,10 @@ async function boot() {
   // latency/polyphony/FX cost for a glitch-resistant graph on weak hardware.
   // The audio fields are read once here because they are fixed when the
   // AudioContext/graph are built (scope fps is applied live; see perf-mode.ts).
-  const { latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample, analyserFftSize, fps } =
-    PERF_PROFILES[resolveTier()];
+  const {
+    latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample, analyserFftSize,
+    zoetropeMaxTaps, fps,
+  } = PERF_PROFILES[resolveTier()];
 
   // XY Pad axis assignment — pure state, persisted in songs (SongFile v3). Lives
   // outside the Engine (assignment survives while the pad window is closed) and
@@ -45,7 +47,7 @@ async function boot() {
 
   const engine = new Engine(bus, {
     latencyHint, voiceCount, scheduleAheadS, reverbIrMaxS, fxOversample, analyserFftSize,
-    xy, motionFps: fps,
+    zoetropeMaxTaps, xy, motionFps: fps,
   });
   await engine.init();
 

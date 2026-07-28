@@ -7,9 +7,20 @@ export interface KnobOptions {
   paramId: string;
   label?: string;
   size?: number;
+  /**
+   * Draw the value arc outward from the centre of the sweep and add a centre
+   * detent to the drag (param-controls.md REQ-1..3). Opt-in: a bipolar param
+   * drawn unipolar reads "neutral" as "half on", but changing that for the
+   * existing bipolar params is a separate decision, so nothing is inferred from
+   * the range. Assumes a symmetric range on a linear taper, where normalized
+   * 0.5 is the param's zero.
+   */
+  bipolar?: boolean;
 }
 
 const SWEEP_DEG = 280; // Knob sweeps from -140° to +140°
+/** Normalized half-width of the bipolar centre detent (~2% of the sweep). */
+const DETENT = 0.02;
 
 /**
  * Decimal places kept when rounding the indicator angle / arc dash for the
@@ -37,6 +48,7 @@ export class Knob {
   /** Last values actually written to the DOM — see `render`. */
   private lastDeg = '';
   private lastDash = '';
+  private lastOffset = '';
   private lastLabel = '';
 
   constructor(private readonly opts: KnobOptions) {
@@ -127,12 +139,21 @@ export class Knob {
       this.indicator.style.transform = `translateX(-50%) rotate(${deg}deg)`;
     }
 
+    // Unipolar fills from the sweep start; bipolar fills outward from the centre,
+    // which needs a dash *offset* as well as a length.
     const dashOn = (this.circumference * SWEEP_DEG) / 360;
-    const visible = dashOn * norm;
+    const bipolar = this.opts.bipolar === true;
+    const visible = dashOn * (bipolar ? Math.abs(norm - 0.5) : norm);
+    const start = bipolar ? dashOn * Math.min(norm, 0.5) : 0;
     const dash = `${visible.toFixed(ARC_PRECISION)} ${(this.circumference - visible).toFixed(ARC_PRECISION)}`;
     if (dash !== this.lastDash) {
       this.lastDash = dash;
       this.arc.setAttribute('stroke-dasharray', dash);
+    }
+    const offset = (-start).toFixed(ARC_PRECISION);
+    if (offset !== this.lastOffset) {
+      this.lastOffset = offset;
+      this.arc.setAttribute('stroke-dashoffset', offset);
     }
 
     const label = this.formatValue(value);
@@ -201,11 +222,15 @@ export class Knob {
   private onPointerMove = (e: PointerEvent): void => {
     if (!this.dragging) return;
     const dy = this.startY - e.clientY;
-    const sensitivity = this.fine || e.shiftKey ? 600 : 200;
+    const fine = this.fine || e.shiftKey;
+    const sensitivity = fine ? 600 : 200;
     const deltaNorm = dy / sensitivity;
     const startNorm = this.normalize(this.startValue);
-    const newValue = this.denormalize(startNorm + deltaNorm);
-    this.opts.bus.set(this.opts.paramId, newValue);
+    let norm = startNorm + deltaNorm;
+    // Centre detent — shift already means "fine control", so it also means
+    // "let me sit just off centre" (param-controls.md REQ-2).
+    if (this.opts.bipolar && !fine && Math.abs(norm - 0.5) < DETENT) norm = 0.5;
+    this.opts.bus.set(this.opts.paramId, this.denormalize(norm));
   };
 
   private onPointerUp = (_: PointerEvent): void => {

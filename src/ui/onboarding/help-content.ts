@@ -216,6 +216,7 @@ export type TopicId =
   | 'fx.delay'
   | 'fx.delay.time'
   | 'fx.reverb'
+  | 'fx.zoetrope'
   | 'fx.drum.comp'
   | 'fx.drum.comp.threshold'
   | 'fx.drum.phaser.rate'
@@ -458,6 +459,29 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<ul><li><strong>SIZE</strong> — how big the space feels.</li>' +
       '<li><strong>DAMP</strong> — how quickly the tail darkens (soft furnishings vs tile).</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend.</li></ul>',
+  },
+  'fx.zoetrope': {
+    title: 'Zoetrope',
+    body:
+      '<p>Chops the sound into single waveform cycles, keeps a library of them, ' +
+      'and rebuilds the sound out of cycles pulled from anywhere in that history. ' +
+      'The pitch never changes — only which moment you are hearing.</p>' +
+      '<ul><li><strong>SCATTER</strong> — how often it reaches back for an older cycle. ' +
+      'At 0 you hear the newest one, which sounds close to untouched.</li>' +
+      '<li><strong>CHAOS</strong> — how it chooses. Low locks onto a short repeating ' +
+      'orbit; high scatters everywhere. Watch the cycle library to see it.</li>' +
+      '<li><strong>SMEAR</strong> — crossfade between spliced cycles; longer is smoother.</li>' +
+      '<li><strong>SIEVE</strong> — a tone control. Left averages cycles together toward ' +
+      'the harmonic skeleton; right subtracts that average and leaves the grit. ' +
+      'Centre is neutral.</li>' +
+      '<li><strong>MIX</strong> — wet vs dry blend.</li>' +
+      '<li><strong>Freeze</strong> — stops recording, so the library loops forever. ' +
+      'Click to latch it on; hold it for a momentary stab.</li>' +
+      '<li><strong>Depth</strong> — how many cycles back Scatter can reach.</li>' +
+      '<li><strong>Source</strong> — chop the synth itself, or the drum bus. Drum cycles ' +
+      'replay at the synth’s pitch, which is the fun one.</li></ul>' +
+      '<p>The bars are the cycle library: each one a stored cycle at its loudness, ' +
+      'the blue bar the cycle playing right now, the white bar the newest.</p>',
   },
   'fx.drum.comp': {
     title: 'Drum Compressor (1176 style)',

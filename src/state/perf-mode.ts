@@ -36,13 +36,15 @@ export interface PerfProfile {
   fxOversample: boolean;
   /** fftSize of the 3 scope analysers (applied live) — smaller cuts always-on FFT + per-draw copy cost. */
   analyserFftSize: number;
+  /** Ceiling on Zoetrope's sieve tap count — its one per-sample cost that scales. */
+  zoetropeMaxTaps: number;
 }
 
 /** The single source of truth for every tier-dependent knob. */
 export const PERF_PROFILES: Record<PerfTier, PerfProfile> = {
-  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15, scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false, analyserFftSize: 256 },
-  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 512 },
-  strong: { latencyHint: 'interactive', voiceCount: 8, fps: 60, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 1024 },
+  weak: { latencyHint: 'playback', voiceCount: 5, fps: 15, scheduleAheadS: 0.2, reverbIrMaxS: 1.5, fxOversample: false, analyserFftSize: 256, zoetropeMaxTaps: 8 },
+  medium: { latencyHint: 'interactive', voiceCount: 8, fps: 30, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 512, zoetropeMaxTaps: 16 },
+  strong: { latencyHint: 'interactive', voiceCount: 8, fps: 60, scheduleAheadS: 0.1, reverbIrMaxS: 4, fxOversample: true, analyserFftSize: 1024, zoetropeMaxTaps: 16 },
 };
 
 const TIERS: readonly PerfTier[] = ['weak', 'medium', 'strong'];
@@ -123,7 +125,8 @@ export function sameAudioProfile(a: PerfTier, b: PerfTier): boolean {
     x.voiceCount === y.voiceCount &&
     x.scheduleAheadS === y.scheduleAheadS &&
     x.reverbIrMaxS === y.reverbIrMaxS &&
-    x.fxOversample === y.fxOversample
+    x.fxOversample === y.fxOversample &&
+    x.zoetropeMaxTaps === y.zoetropeMaxTaps
   );
 }
 

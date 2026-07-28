@@ -3,7 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 3   # v3: ParamBus.withoutChangeSignal + flow 4 (machine automation)
+version: 4   # v4: zoetrope closes the synth chain; the drum tail also feeds its input 1
+             # v3: ParamBus.withoutChangeSignal + flow 4 (machine automation)
 owner: core
 related: []
 source:
@@ -300,15 +301,20 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb ─┐
-            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─┤
-            samplerBus  (+ sampler dist/phaser/delay/reverb) ─────┤
-                                                                   ▼
+voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb → zoetrope ─┐
+            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─┬──────┤
+            samplerBus  (+ sampler dist/phaser/delay/reverb) ──────────┼──────┤
+                                                                      │      ▼
+   (drum tail also feeds zoetrope input 1) ◄──────────────────────────┘
         preMaster ─→ djFilter ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
+- The **drum chain's tail fans out a second edge into `zoetrope`'s input 1**, its
+  optional external source ([zoetrope](features/zoetrope.md) REQ-4). The `Engine`
+  owns that edge, so neither chain knows about the other; true bypass covers it
+  for free, since nothing reachable from the destination is rendered.
 - The **analyser taps pre-master**, so the scope is independent of the master
   volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
   analyser` so the scope can also show per-channel L/R (see

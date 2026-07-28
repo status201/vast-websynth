@@ -259,4 +259,39 @@ describe('ParamBus', () => {
       expect(bus.def(`drum.t${i}.pan`)?.default).toBe(0); // centre
     }
   });
+
+  it('registers the zoetrope params, bypassed and inaudible by default', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    expect(bus.get('fx.zoetrope.on')).toBe(0); // ADR-006: existing sounds unchanged
+    // Scatter 0 always reads the newest cycle, so engaging it is near-passthrough.
+    expect(bus.get('fx.zoetrope.scatter')).toBe(0);
+    expect(bus.get('fx.zoetrope.sieve')).toBe(0); // neutral tone
+    expect(bus.get('fx.zoetrope.sub')).toBe(0); // no sub-octave
+    expect(bus.get('fx.zoetrope.freeze')).toBe(0);
+    expect(bus.get('fx.zoetrope.source')).toBe(0); // SELF
+    expect(bus.get('fx.zoetrope.clearOnNote')).toBe(0);
+    expect(bus.get('fx.zoetrope.pitchlock')).toBe(1); // tracking is the useful default
+  });
+
+  it('makes zoetrope depth/taps/xfade integer-stepped', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (const id of ['fx.zoetrope.depth', 'fx.zoetrope.taps', 'fx.zoetrope.xfadeFloor']) {
+      expect(bus.def(id)?.step, id).toBe(1);
+    }
+    expect(bus.def('fx.zoetrope.depth')?.min).toBe(1);
+    expect(bus.def('fx.zoetrope.depth')?.max).toBe(64);
+  });
+
+  it('formats the bipolar sieve as a tone control', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const def = bus.def('fx.zoetrope.sieve')!;
+    expect(def.min).toBe(-1);
+    expect(def.max).toBe(1);
+    expect(def.format!(0)).toBe('NEUTRAL');
+    expect(def.format!(-0.45)).toBe('AVG 45%');
+    expect(def.format!(0.2)).toBe('RES 20%');
+  });
 });

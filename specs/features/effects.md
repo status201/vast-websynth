@@ -3,7 +3,8 @@
 ```yaml
 id: effects
 status: implemented
-version: 4   # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-6/REQ-7)
+version: 5   # v5: zoetrope joins the synth chain as its last insert (REQ-3)
+             # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-6/REQ-7)
              # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
 owner: core
 related:
@@ -14,6 +15,7 @@ related:
   - runtime-performance  # REQ-1/REQ-2 — the boot-cost + shared-artefact rules
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
   - fx-patch-decoration  # scenery filling the gap 5 panels leave in the 2-col grid
+  - zoetrope   # the synth chain's last insert; specified separately (worklet + UI)
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
@@ -22,6 +24,7 @@ source:
   - src/audio/effects/phaser.ts
   - src/audio/effects/delay.ts
   - src/audio/effects/reverb.ts
+  - src/audio/effects/zoetrope.ts      # see features/zoetrope.md for its contract
   - src/audio/drive-curve.ts            # bucketed WaveShaper curve cache (REQ-7)
   - src/audio/transport/drum-machine.ts # the per-track drive, same cache
   - src/state/params.ts
@@ -59,7 +62,11 @@ subsets, so a song can colour each bus independently.
   touched — internal splices like `Compressor.attachWorklet()` survive, even
   when attach happens while bypassed-and-disconnected.
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
-  reverb.
+  reverb → **zoetrope** (v5). The cycle splicer is last because it re-assembles
+  whatever reaches it: ahead of the reverb it would splice a dry signal and the
+  tail would smear the joins back together. Being last also makes it the chain's
+  `tail`, so the bank-render tap captures it — see [zoetrope](zoetrope.md) and
+  [render-to-sampler](render-to-sampler.md).
 - **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
   sits first so it smashes the dry hits, not the FX wash); sampler bus:
   distortion → phaser → delay → reverb.

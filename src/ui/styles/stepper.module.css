@@ -1,0 +1,43 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  touch-action: none;
+}
+
+.label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* A readout you drag, not a knob — the box says "discrete value", the
+   ns-resize cursor says "draggable". */
+.box {
+  min-width: 46px;
+  padding: 5px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: var(--knob-bg);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(244, 205, 94, 0.05);
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-align: center;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.root:global(.dragging) .box {
+  color: var(--accent);
+  border-color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}

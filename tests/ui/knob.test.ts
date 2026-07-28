@@ -189,3 +189,85 @@ describe('Knob repaint guards', () => {
     expect(knob.el.textContent).toContain(b.def('filter.cutoff')!.format!(130));
   });
 });
+
+/**
+ * Bipolar mode (param-controls.md REQ-1..3): the arc grows outward from the
+ * centre of the sweep instead of from its start, and the drag has a centre
+ * detent. Opt-in — nothing infers it from the range.
+ */
+describe('Knob bipolar mode', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const PARAM = 'fx.zoetrope.sieve'; // min -1, max 1, default 0
+
+  function build(bipolar: boolean) {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: PARAM, bipolar });
+    const arc = knob.el.querySelector('circle:nth-of-type(2)')!;
+    const visible = (): number => Number(arc.getAttribute('stroke-dasharray')!.split(' ')[0]);
+    const offset = (): number => Number(arc.getAttribute('stroke-dashoffset'));
+    return { b, knob, visible, offset };
+  }
+
+  it('draws no arc at centre and grows symmetrically either way', () => {
+    const { b, visible } = build(true);
+    b.set(PARAM, 0);
+    expect(visible()).toBeCloseTo(0, 5);
+
+    b.set(PARAM, 0.5);
+    const right = visible();
+    b.set(PARAM, -0.5);
+    const left = visible();
+    expect(right).toBeGreaterThan(0);
+    expect(left).toBeCloseTo(right, 5);
+  });
+
+  it('offsets the arc start so it hangs off the centre, not the sweep start', () => {
+    const { b, offset } = build(true);
+    b.set(PARAM, 1);
+    const atMax = offset();
+    b.set(PARAM, -1);
+    const atMin = offset();
+    // Full right starts at the centre; full left starts back at the sweep start.
+    expect(atMax).toBeLessThan(0);
+    expect(atMin).toBeCloseTo(0, 5);
+  });
+
+  it('leaves a unipolar knob filling from the sweep start (regression)', () => {
+    const { b, visible, offset } = build(false);
+    b.set(PARAM, 0);
+    // Normalized 0.5 at centre → half the arc, measured from the start.
+    expect(visible()).toBeGreaterThan(0);
+    expect(offset()).toBeCloseTo(0, 5);
+  });
+
+  // A fresh knob per gesture: performance.now is pinned, so two pointerdowns on
+  // the same instance would read as a double-tap reset.
+  it('snaps to exact centre inside the detent', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000);
+    const { b, knob } = build(true);
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+
+    // From the bottom end (norm 0), 102px at sensitivity 200 lands on norm 0.51
+    // — inside the 0.02 detent, so it must snap to exactly centre.
+    b.set(PARAM, -1);
+    dial.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200 }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 98 }));
+    expect(b.get(PARAM)).toBe(0);
+    window.dispatchEvent(new MouseEvent('pointerup'));
+  });
+
+  it('lets shift place a value just off centre', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000);
+    const { b, knob } = build(true);
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+
+    // The same landing point (306px at the fine sensitivity of 600 is also
+    // norm 0.51), but fine control means no detent.
+    b.set(PARAM, -1);
+    dial.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200, shiftKey: true }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: -106, shiftKey: true }));
+    expect(b.get(PARAM)).toBeCloseTo(0.02, 6);
+    window.dispatchEvent(new MouseEvent('pointerup'));
+  });
+});

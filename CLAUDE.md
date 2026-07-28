@@ -137,7 +137,12 @@ section), `seq-import-slot`/`seq-import-render` (the Sequencer tab's
 `export-project-note`/`export-fmt-<wav|mp3>`/`export-confirm`/`export-cancel`/
 `song-share-link` (the Export chooser opened by `song-export`; `song-share-link`
 is its Copy Link action), `song-export-audio`/`song-export-fmt-<wav|mp3>`/
-`song-record` (the Song panel's Audio section — render/record the master bus)).
+`song-record` (the Song panel's Audio section — render/record the master bus)),
+`fxgroup-fx.zoetrope` (the Zoetrope module root — a full-width band *below* the
+`.fxRow` grid, so the patch-decoration parity guard still counts only the five
+boxed effects) + `zoetrope-freeze`/`-strip`/`-hz`/`-reading`/`-adv`/`-adv-toggle`
+alongside the auto-minted `switch-fx.zoetrope.on`/`.pitchlock`,
+`knob-fx.zoetrope.*`, `seg-fx.zoetrope.source` and `stepper-fx.zoetrope.depth`.
 Prefer testids
 over labels — capitalised button text collides with lowercase siblings under
 Playwright's case-insensitive matching (the header `Play` vs the Arpeggiator's
@@ -210,15 +215,37 @@ Two long-lived objects are created once in `main.ts` and threaded everywhere:
 Audio graph:
 
 ```
-voices → voiceBus → distortion → wah → phaser → delay → reverb ─┐
+voices → voiceBus → distortion → wah → phaser → delay → reverb → zoetrope ─┐
                 drumBus → drumComp → drumPhaser → drumDelay → drumReverb ─┤
      samplerBus → samplerDist → samplerPhaser → samplerDelay → samplerReverb ─┤
                                                           preMaster → djFilter → masterComp → analyser → master → destination
 ```
 
+The drum chain's `tail` also fans a second edge into **zoetrope's input 1** (its
+optional external source). Engine owns that cross-chain edge, so neither chain
+knows about the other.
+
 The analyser taps **pre-master** so the scope is independent of the volume
 knob. The drum bus **and** the sampler bus join at `preMaster`, bypassing the
 synth FX chain.
+
+**Zoetrope** (`specs/features/zoetrope.md`) — the synth chain's last insert and
+its only *structural* effect: a `zoetrope` AudioWorklet
+(`public/worklets/zoetrope.js`, wrapped by `audio/zoetrope/node.ts`) that slices
+the bus at exact cycle boundaries derived from the sounding pitch, keeps a
+rolling library of cycles, and rebuilds the output from cycles pulled anywhere in
+that history. Splices land at matched phase, so pitch stays exact. The cycle
+clock is `Polyphony.pitchHz` (a `ConstantSourceNode` holding the last note's Hz,
+ramped like the oscillators) connected to the worklet's a-rate `frequency`; the
+**pitch lock** chip disconnects it and the worklet falls back to zero-crossing
+detection — switching either way **re-anchors the write cursors** (each detection
+mode tracks a grid the other never advances). `source` = DRUMS records the drum
+bus instead, so drum cycles replay at the synth's pitch. The worklet posts one
+cycle-library frame per ~32 ms (`{type:'cycles', peaks, head, lag, count, hz}`)
+for the canvas strip — **off by default**, requested only while the module is
+engaged, the FX rack is open and the tab is visible. Its one per-sample cost that
+scales is the sieve tap average, skipped entirely at the default sieve of 0 and
+capped by `PERF_PROFILES[tier].zoetropeMaxTaps`.
 
 The three insert chains are built as units by `audio/effects/fx-chain.ts`
 (`createSynthChain`/`createDrumChain`/`createSamplerChain`), held on Engine as
@@ -649,6 +676,14 @@ it also writes the note name as the label.
   (`sameAudioProfile`, which compares every boot-time field). The About → Debug panel
   surfaces `perfDiagnostics()` (tier, cores, memory, mobile, and the full profile incl.
   lookahead/IR cap/oversample). See `specs/features/performance-mode.md`.
+- **Shared param controls** beyond the originals (`specs/features/param-controls.md`):
+  `Knob` takes an opt-in `bipolar` (arc from the centre + a centre detent, shift
+  bypasses it) — opt-in so `fx.djfilter`/`filter.envAmount`/`master.pitchBend`
+  keep their current look; `Stepper` (`ui/components/stepper.ts`) is a boxed
+  integer readout you drag, with magnet detents, for params that are a **count**
+  rather than a continuum; `createHoldButton` (`ui/components/hold-button.ts`) is
+  the latch-or-momentary button — a click toggles, a hold past 300 ms is
+  momentary — and `live-fx.ts`'s DJ buttons are its `mode: 'momentary'`.
 - Dialogs use the shared **`Modal`** (`ui/components/modal.ts`), extracted
   from the previously-duplicated about/start-modal pattern (`.about-backdrop`/
   `.about` CSS, Escape captured to beat the panic handler, backdrop-click +

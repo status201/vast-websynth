@@ -3,7 +3,8 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 3   # v3: explicit start(0) + a render blocks a playhead seek (REQ-2/REQ-6)
+version: 4   # v4: the synth-chain tail is now zoetrope, so a render captures it too
+             # v3: explicit start(0) + a render blocks a playhead seek (REQ-2/REQ-6)
              # v2: a `seq.render` help badge explains the section + the two-pass tail bake
 owner: core
 related:
@@ -54,9 +55,13 @@ the loop drifts against the grid and is unusable.
   delay/reverb/release tail is baked into the loop's start and the sample wraps
   seamlessly.
 - **REQ-4 (synth-only, post-FX tap)** — Capture taps the synth FX chain output
-  (`reverb.output`, before `preMaster`) via a dedicated second zero-output
+  (`synthFx.tail`, before `preMaster`) via a dedicated second zero-output
   `RecorderNode`. Drums/sampler live on other buses and are never captured; they
-  keep playing audibly during the render (monitoring).
+  keep playing audibly during the render (monitoring). The tail is whatever the
+  chain ends with — since [zoetrope](zoetrope.md) that is the cycle splicer
+  rather than the reverb (v4), so an engaged Zoetrope is rendered into the
+  sample. That is the correct reading of "the synth chain's output", and it is
+  inert while bypassed (the default).
 - **REQ-5 (forced preconditions, restored after)** — For the duration of the
   render the engine forces: sequencer enabled, seq lane audible (mute/solo
   overridden at the `LaneMixer`), and the **seq chain lane disabled** — an
@@ -121,8 +126,8 @@ constants: RENDER_BARS = 2, RENDER_TAIL_MS = 350, RENDER_FADE_MS = 3
 ### Layer touchpoints & ordering
 
 ```yaml
-graph: reverb.output -> bankRender RecorderNode (zero-output sink; fan-out
-  alongside the existing reverb.output -> preMaster edge)
+graph: synthFx.tail -> bankRender RecorderNode (zero-output sink; fan-out
+  alongside the existing tail -> preMaster edge)
 engine: Engine.init() creates the node + controller after the transport modules;
   the prepare() closure lives in Engine so LaneMixer / private state never leaks
   into the controller (ADR-008/009)

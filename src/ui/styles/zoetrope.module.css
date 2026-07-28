@@ -1,0 +1,211 @@
+/* The Zoetrope module — a full-width band under the FX grid. Dark substrate,
+   condensed-mono labels, and Freeze as the one illuminated control (the eye
+   should land on whatever is actually doing something). */
+
+.root {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: var(--panel-shadow);
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-bottom: 5px;
+}
+
+.title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+/* Status/toggle pills. Deliberately quiet: they report, they don't shout. */
+.chip {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Bypassed: header + switch only (zoetrope.md REQ-10, the fx-group mechanism). */
+.root:global(.collapsed) .body {
+  display: none;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knobs {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-evenly;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* The only illuminated element on the module. */
+.freeze {
+  min-width: 108px;
+  padding: 10px 18px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.freeze:global(.on) {
+  background: linear-gradient(180deg, #14406f 0%, #0d2b4d 100%);
+  border-color: #4a9eff;
+  color: #cfe6ff;
+  box-shadow:
+    0 0 12px rgba(74, 158, 255, 0.45),
+    inset 0 1px 0 rgba(160, 205, 255, 0.25);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fieldLabel {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+
+.depth {
+  margin-left: auto;
+}
+
+/* ---------- Cycle library ---------- */
+
+.stripWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid rgba(244, 205, 94, 0.1);
+  padding-top: 8px;
+}
+
+.stripHead,
+.stripEnds {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.strip {
+  display: block;
+  width: 100%;
+  height: 58px;
+  background: rgba(0, 0, 0, 0.32);
+  border-radius: 3px;
+}
+
+/* ---------- Advanced expander ---------- */
+
+.adv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.advBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.advBody {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 6px 0 2px;
+  border-top: 1px solid rgba(244, 205, 94, 0.08);
+}
+
+.adv:global(.collapsed) .advBody {
+  display: none;
+}
+
+/* ---------- Reflow ----------
+   The module is always full width; below the FX grid's 2-column breakpoint it
+   simply takes more vertical room (zoetrope.md REQ-11). */
+
+@media (max-width: 992px) {
+  .controls {
+    gap: 12px;
+  }
+
+  .strip {
+    height: 48px;
+  }
+}
+
+@media (max-width: 720px) {
+  /* Five knobs across a phone are too small to aim at — break 3 + 2. */
+  .knobs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: center;
+  }
+
+  .depth {
+    margin-left: 0;
+  }
+
+  .freeze {
+    min-width: 92px;
+  }
+}

@@ -3,11 +3,12 @@
 ```yaml
 id: voicing
 status: implemented
-version: 2
+version: 3   # v3: Polyphony owns glide time (setGlideTime) + exposes pitchHz
 owner: core
 related:
   - architecture
   - oscillators
+  - zoetrope   # the only consumer of pitchHz
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
@@ -34,7 +35,14 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   no notes hang across the mode change.
 - **REQ-2** — Unison stacks `1..4` detuned copies per note (`unison.detune` cents).
 - **REQ-3** — Glide time + mode control portamento; defaults reproduce the legacy
-  no-glide behaviour.
+  no-glide behaviour. `Polyphony` owns both (v3): `setGlideTime` fans the seconds
+  out to the voices *and* keeps the number, because `pitchHz` (REQ-6) has to ramp
+  on the same curve the oscillators do.
+- **REQ-6** — (v3) `Polyphony.pitchHz` is a `ConstantSourceNode` carrying the
+  frequency of the most recent note-on, written in `playNote` with the same
+  `when` and ramp shape as `Osc.setFrequency`. It is a control signal, not a
+  param: nothing renders it unless a consumer connects to it, so it is a no-op
+  addition for anything that doesn't.
 - **REQ-4** — Analogue drift adds subtle per-voice pitch wander (default 0 = off).
   The 110 ms drift interval runs **only while drift > 0** (v2): `setDrift`
   starts it on a 0→>0 transition and on >0→0 clears it after settling the
@@ -72,11 +80,14 @@ engine (subscribeParams) -> Polyphony setters (poly/unison/glide/drift live ther
   voicing.mode  -> polyphony.setPoly(v >= 0.5)        # kills all voices on change
   unison.voices -> polyphony.setUnisonCount(x)        # max(1, round(x))
   unison.detune -> polyphony.setUnisonDetune(x)
-  mixer.glide   -> all((v, x) => v.setGlide(x))        # per-voice, stays in Engine
+  mixer.glide   -> polyphony.setGlideTime(x)           # v3: fans out to the voices there
   glide.mode    -> polyphony.setGlideMode(x)
   analog.drift  -> polyphony.setDrift(x)               # drift source owned by Polyphony
   master.pitchBend -> rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, FAST)
 note flow: bus.onNote -> Engine.playNote/ releaseNote -> Polyphony (unless passthroughSuppressed)
+pitchHz (v3): a ConstantSourceNode on Polyphony carrying the latest note's Hz,
+  written in playNote with the same when + glide ramp as Osc.setFrequency. Inert
+  unless something connects to it (zoetrope.md REQ-3 is the only consumer today).
 ui: src/ui/app.ts (VOICE / UNISON / GLIDE controls; pitch-bend + transpose)
 ```
 

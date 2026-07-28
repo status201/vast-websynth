@@ -4,6 +4,8 @@ import { LFO } from './lfo';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
+import type { Zoetrope } from './effects/zoetrope';
+import { ZoetropeNode } from './zoetrope/node';
 import { ParamBus, registerDefaults } from '../state/params';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 import { Polyphony } from './polyphony';
@@ -45,6 +47,8 @@ export interface EngineOptions {
   reverbIrMaxS?: number;
   /** Allow WaveShaper oversampling in the distortions + drum tracks (default true). */
   fxOversample?: boolean;
+  /** Ceiling on Zoetrope's sieve tap count — its only cost that scales (default 16). */
+  zoetropeMaxTaps?: number;
   /** fftSize for the 3 scope analysers; smaller on weak cuts always-on FFT cost (default 1024). */
   analyserFftSize?: number;
   /** XY Pad axis assignment (main.ts's instance, shared with the UI) — consumed
@@ -74,6 +78,9 @@ export class Engine {
 
   /** The drum-bus compressor. Kept as a named accessor for `StudioApi`. */
   get drumComp(): Compressor { return this.drumFx.fx.comp; }
+
+  /** The synth chain's cycle splicer — named for `StudioApi` (it pushes telemetry up). */
+  get zoetrope(): Zoetrope { return this.synthFx.fx.zoetrope; }
 
   readonly preMaster!: GainNode;
   readonly drumBus!: GainNode;
@@ -135,7 +142,8 @@ export class Engine {
     const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
     const distOpts = { oversample: this.fxOversample };
 
-    const chainOpts = { dist: distOpts, reverb: reverbOpts };
+    const zoetropeOpts = { maxTaps: opts.zoetropeMaxTaps ?? 16 };
+    const chainOpts = { dist: distOpts, reverb: reverbOpts, zoetrope: zoetropeOpts };
     this.synthFx = createSynthChain(this.ctx, chainOpts);
     this.drumFx = createDrumChain(this.ctx, chainOpts);
     this.samplerFx = createSamplerChain(this.ctx, chainOpts);
@@ -180,6 +188,12 @@ export class Engine {
     this.drumFx.wire(this.drumBus, this.preMaster);
     this.samplerFx.wire(this.samplerBus, this.preMaster);
 
+    // Zoetrope's optional external source (zoetrope.md REQ-4). The Engine owns
+    // this cross-chain edge so neither chain has to know about the other; the
+    // effect only routes it into the worklet while DRUMS is selected, and true
+    // bypass covers it for free (nothing reachable from the destination).
+    this.drumFx.tail.connect(this.synthFx.fx.zoetrope.extInput);
+
     // DJ performance filter — transparent by default, swept live.
     this.djFilter = this.ctx.createBiquadFilter();
     this.djFilter.type = 'lowpass';
@@ -221,12 +235,17 @@ export class Engine {
     await LadderFilterNode.loadModule(this.ctx);
     await RecorderNode.loadModule(this.ctx);
     await CompressorNode.loadModule(this.ctx);
+    await ZoetropeNode.loadModule(this.ctx);
     this.drumComp.attachWorklet();
     this.masterComp.attachWorklet();
+    this.zoetrope.attachWorklet();
 
     // Polyphony owns the voice pool + the analogue-drift source; it shares the
     // `this.voices` array (Engine fans per-voice params over the same array).
     this.polyphony = new Polyphony(this.ctx, this.voices);
+    // Zoetrope's cycle clock: the pitch of whatever is sounding. Connected here
+    // and gated by its own `pitchlock` param (zoetrope.md REQ-3).
+    this.zoetrope.setPitchSource(this.polyphony.pitchHz);
 
     for (let i = 0; i < this.voiceCount; i++) {
       const v = await Voice.create(this.ctx);
@@ -399,6 +418,10 @@ export class Engine {
   /** Play a note at the given audio time (defaults to now). Delegates to Polyphony. */
   playNote(note: number, velocity = 0.8, when?: number): void {
     this.polyphony.playNote(note, velocity, when);
+    // Every note source funnels through here — keyboard/MIDI via bus.onNote, the
+    // arpeggiator and sequencer via SynthOutput — so this is the one place that
+    // sees them all. A no-op unless fx.zoetrope.clearOnNote is engaged.
+    this.zoetrope.noteOn();
   }
 
   /** Release a note at the given audio time (defaults to now). */
@@ -482,7 +505,9 @@ export class Engine {
 
     // Mixer
     bus.subscribe('mixer.noise', all((v, x) => v.setNoiseLevel(x)));
-    bus.subscribe('mixer.glide', all((v, x) => v.setGlide(x)));
+    // Glide time fans out through Polyphony (it owns the voicing controls and
+    // needs the number itself for `pitchHz`), not per-voice from here.
+    bus.subscribe('mixer.glide', (x) => this.polyphony.setGlideTime(x));
 
     // Filter
     bus.subscribe('filter.cutoff', all((v, x) => v.setFilterCutoff(x)));

@@ -17,6 +17,8 @@
     "clean:demos": "vitest run --config scripts/clean-demos.config.ts",
     "check:demos": "vitest run --config scripts/check-demos.config.ts",
     "spec:lint": "node scripts/spec-lint.mjs",
+    "bench:audio": "node scripts/audio-bench.mjs",
+    "bench:metrics": "node scripts/audio-metrics.mjs",
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {

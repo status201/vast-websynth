@@ -16,6 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Zoetrope's sub-octave no longer clicks.** Gating or inverting alternate
+  cycles stepped the level at every splice; it now rides the same Smear
+  crossfade as the audio.
+- **Zoetrope tracks pitch far better with pitch lock off.** The fallback
+  detector was chasing individual harmonics on chords, chopping at wildly
+  inconsistent cycle lengths. It now locks onto one period and stays there.
+
+### Added
+
+- **A new effect: Zoetrope.** It sits at the bottom of the FX rack and does
+  something none of the others do — it chops the synth into single waveform
+  cycles, keeps a library of them, and rebuilds the sound out of cycles pulled
+  from anywhere in that history. The pitch never moves; only *which moment*
+  you're hearing does. Scatter decides how far it reaches back, Chaos decides how
+  it chooses, Smear softens the joins, Sieve is a tone control that averages
+  cycles toward the harmonic skeleton one way and leaves only the grit the other.
+  Freeze locks the library so it loops forever — click it to latch, hold it for a
+  momentary stab. Set Source to Drums and the drum bus gets chopped instead, with
+  its cycles replayed at the synth's pitch.
+- **You can see what Zoetrope is doing.** The cycle library strip draws one bar
+  per stored cycle, marks the one playing right now, and shows the write head at
+  the right. Turn Chaos down and watch the playhead bounce between two or three
+  fixed spots; turn it up and it goes everywhere. It's the fastest way to
+  understand the effect.
+
 ## [2.5.2] - 2026-07-27
 
 ### Changed

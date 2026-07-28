@@ -1,5 +1,6 @@
 import { Voice } from './voice';
 import { assertIndex } from '../utils/array';
+import { midiToHz } from '../utils/math';
 
 /**
  * Voice allocation + the "how it plays" voicing controls: poly/mono, unison
@@ -16,6 +17,7 @@ export class Polyphony {
   private unisonCount = 1;
   private unisonDetune = 12;
   private glideMode = 1; // 0 off · 1 always · 2 legato
+  private glideTime = 0; // seconds, fanned out to the voices by setGlideTime
   private readonly heldNotes = new Map<number, Voice[]>();
 
   // Analogue oscillator drift — slow random detune summed into all oscs.
@@ -23,12 +25,25 @@ export class Polyphony {
   private driftAmount = 0;
   private driftTimer: number | null = null;
 
+  /**
+   * The pitch of the most recent note-on, in Hz, as a control signal — written
+   * with the same time and glide ramp as the oscillators, so anything reading it
+   * tracks a glide. It lives here because this is the module that already knows
+   * what is sounding; nothing renders it unless something connects to it
+   * (Zoetrope's cycle clock is the only consumer today).
+   */
+  readonly pitchHz: ConstantSourceNode;
+
   constructor(private readonly ctx: AudioContext, private readonly voices: Voice[]) {
     this.drift = ctx.createConstantSource();
     this.drift.offset.value = 0;
     this.drift.start();
     // The 110 ms wander interval only runs while drift > 0 (voicing.md REQ-4);
     // setDrift owns its lifecycle. Default drift is 0 → no recurring timer.
+
+    this.pitchHz = ctx.createConstantSource();
+    this.pitchHz.offset.value = 0;
+    this.pitchHz.start();
   }
 
   /** Sum the analogue-drift detune source into a voice's oscillators. */
@@ -48,6 +63,15 @@ export class Polyphony {
   setUnisonCount(n: number): void { this.unisonCount = Math.max(1, Math.round(n)); }
   setUnisonDetune(cents: number): void { this.unisonDetune = cents; }
   setGlideMode(mode: number): void { this.glideMode = Math.round(mode); }
+  /**
+   * Glide time fans out to the voices from here rather than from the Engine, so
+   * the one module that owns "how it plays" also knows the number — `pitchHz`
+   * has to ramp on the same curve the oscillators do.
+   */
+  setGlideTime(seconds: number): void {
+    this.glideTime = Math.max(0, seconds);
+    for (const v of this.voices) v.setGlide(seconds);
+  }
   setDrift(amount: number): void {
     this.driftAmount = amount;
     if (amount > 0) {
@@ -68,6 +92,8 @@ export class Polyphony {
     // Legato = glide only when another note is already sounding.
     const anySounding = this.heldNotes.size > 0;
     const glide = this.glideMode === 1 ? true : this.glideMode === 2 ? anySounding : false;
+
+    this.writePitch(midiToHz(note), t, glide ? this.glideTime : 0);
 
     if (!this.polyMode) {
       const used: Voice[] = [];
@@ -114,6 +140,18 @@ export class Polyphony {
   }
 
   // ---------- Internals ----------
+
+  /**
+   * Mirror the note onto `pitchHz`, matching `Osc.setFrequency`'s ramp exactly
+   * (jump when glide is off, `setTargetAtTime` at glide/3 otherwise) so a
+   * consumer's idea of the period never drifts from the oscillators'.
+   */
+  private writePitch(hz: number, when: number, glideSec: number): void {
+    const p = this.pitchHz.offset;
+    p.cancelScheduledValues(when);
+    if (glideSec <= 0.001) p.setValueAtTime(hz, when);
+    else p.setTargetAtTime(hz, when, glideSec / 3);
+  }
 
   /** Symmetric detune spread in cents for unison copy i of n. */
   private unisonOffset(i: number, n: number): number {

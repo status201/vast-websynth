@@ -14,6 +14,7 @@ import { HEADER_ICONS } from './components/header-icons';
 import { fxPatchDecoration } from './components/fx-patch-decoration';
 import { ParamDropdown } from './components/param-dropdown';
 import { createCollapseToggle } from './components/collapse-toggle';
+import { buildZoetropeRow } from './components/zoetrope-row';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
@@ -107,7 +108,7 @@ export function mountApp(
     (name) => songLoadDemo(name),
   ));
   root.appendChild(buildMain(bus));
-  const fx = buildFx(bus);
+  const fx = buildFx(bus, engine);
   fxExpand = fx.expand;
   root.appendChild(fx.el);
   const patternRow = buildPatternRow(engine, bus, session, xy, bridge, patternUndo);
@@ -558,10 +559,12 @@ function buildMain(bus: ParamBus): HTMLElement {
   return main;
 }
 
-function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
+function buildFx(bus: ParamBus, engine: StudioApi): { el: HTMLElement; expand: () => void } {
   const section = document.createElement('div');
   section.className = styles.fxSection!;
   section.dataset.testid = 'fx';
+
+  const zoetrope = buildZoetropeRow(bus, engine);
 
   const bar = document.createElement('div');
   bar.className = styles.fxSectionBar!;
@@ -572,6 +575,9 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
     defaultCollapsed: isCompact,
     trigger: bar, // whole FX bar toggles, not just the chevron
+    // Folding the rack hides the cycle strip, so stop paying for its telemetry
+    // (zoetrope.md REQ-9). Fires once on creation, so the initial state is right.
+    onChange: (collapsed) => zoetrope.setSectionCollapsed(collapsed),
   });
   bar.appendChild(collapse.el);
   section.appendChild(bar);
@@ -616,6 +622,10 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
 
   section.appendChild(fx);
+  // Sibling of the grid, not a cell in it — the cycle strip needs the width, and
+  // this keeps the parity guard above counting only the five boxed effects.
+  zoetrope.el.classList.add(styles.zoetropeRow!);
+  section.appendChild(zoetrope.el);
   return { el: section, expand: collapse.expand };
 }
 

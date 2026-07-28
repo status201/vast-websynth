@@ -2,6 +2,7 @@ import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { XyPadWindowController } from './xy-pad-window';
 import { Knob } from './knob';
+import { createHoldButton } from './hold-button';
 import { FloatingWindow } from './floating-window';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -16,20 +17,20 @@ import styles from '../styles/song-panel.module.css';
  * `specs/features/live-fx-window.md` and `specs/features/performance.md`.
  */
 
-/** Press-and-hold button: pointerdown -> on(), pointerup/leave/cancel -> off(). */
+/**
+ * Press-and-hold button, in the DJ skin. The behaviour lives in the shared
+ * `createHoldButton` (param-controls.md REQ-10); this just supplies the styling
+ * these controls have always had.
+ */
 function momentary(label: string, on: () => void, off: () => void, testid: string): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = `${switchStyles.root!} ${styles.djBtn!}`;
-  b.textContent = label;
-  b.dataset.testid = testid;
-  const start = (e: Event): void => { e.preventDefault(); if (!b.classList.contains('on')) { b.classList.add('on'); on(); } };
-  const end = (): void => { if (b.classList.contains('on')) { b.classList.remove('on'); off(); } };
-  b.addEventListener('pointerdown', start);
-  b.addEventListener('pointerup', end);
-  b.addEventListener('pointerleave', end);
-  b.addEventListener('pointercancel', end);
-  return b;
+  return createHoldButton({
+    mode: 'momentary',
+    label,
+    testId: testid,
+    className: `${switchStyles.root!} ${styles.djBtn!}`,
+    onPress: on,
+    onRelease: off,
+  }).el;
 }
 
 /** A plain DJ-styled toggle button (used by the XY Pad / LIVE FX launchers). */

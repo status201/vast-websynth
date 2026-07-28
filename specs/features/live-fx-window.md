@@ -3,7 +3,7 @@
 ```yaml
 id: live-fx-window
 status: implemented
-version: 2
+version: 3   # v3: the press-and-hold behaviour moved to the shared createHoldButton
 owner: core
 related:
   - performance
@@ -12,8 +12,10 @@ related:
   - song-mode
   - onboarding
   - transport-window
+  - param-controls   # createHoldButton — the press-and-hold behaviour, shared
 source:
   - src/ui/components/live-fx.ts          # shared DJ-control builder + LIVE FX window launcher
+  - src/ui/components/hold-button.ts       # the press-and-hold behaviour (mode: 'momentary')
   - src/ui/components/xy-pad-window.ts     # single shared XY Pad window controller
   - src/ui/panels/song-panel.ts           # hosts both launchers in the Live FX row
   - src/ui/components/floating-window.ts   # the host window
@@ -40,7 +42,9 @@ shared controller so both launchers toggle one instance (never two).
 - **REQ-1** — **Shared DJ-control builder**: `buildLiveFxControls(engine, opts?)`
   builds the momentary DJ controls — Fill, Stutter (+ bar-size segmented 1 / 1/8 /
   1/4), Drop, Tape Stop — bound to `engine.perf.*`, identical in behaviour to the
-  old inline Song-panel controls. `opts.testIdPrefix` (default `'perf'`) prefixes
+  old inline Song-panel controls. The press-and-hold behaviour itself is
+  `createHoldButton({ mode: 'momentary' })` ([param-controls](param-controls.md)
+  REQ-10, v3); `live-fx.ts` supplies only the DJ skin via `className`. `opts.testIdPrefix` (default `'perf'`) prefixes
   every testid so a second instance can coexist without id collisions. The Song
   panel keeps `perf-*`; the LIVE FX window uses `livefx-*`. The DJ Filter knob is
   NOT part of the builder (it needs `bus`); each caller adds its own one-liner.

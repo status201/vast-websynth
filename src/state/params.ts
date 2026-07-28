@@ -202,6 +202,10 @@ const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
 const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
 const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
+// Bipolar tone control: one knob, three readings (zoetrope.md).
+const fmtSieve = (v: number) =>
+  Math.abs(v) < 0.005 ? 'NEUTRAL' : `${v < 0 ? 'AVG' : 'RES'} ${Math.round(Math.abs(v) * 100)}%`;
+const fmtCycles = (v: number) => `${v.toFixed(0)} cyc`;
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse'];
@@ -304,6 +308,27 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.reverb.size', min: 0, max: 1, default: 0.6, format: fmtPct },
     { id: 'fx.reverb.damp', min: 0, max: 1, default: 0.4, format: fmtPct },
     { id: 'fx.reverb.mix', min: 0, max: 1, default: 0.25, format: fmtPct },
+
+    // ----- FX: Zoetrope (period-locked cycle splicer; see specs/features/zoetrope.md)
+    { id: 'fx.zoetrope.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // Scatter 0 always reads the newest cycle, which is near-passthrough — the
+    // safe thing to hear the moment the effect is engaged (ADR-006 in spirit).
+    { id: 'fx.zoetrope.scatter', min: 0, max: 1, default: 0, format: fmtPct },
+    { id: 'fx.zoetrope.chaos', min: 0, max: 1, default: 0.5, format: fmtPct },
+    { id: 'fx.zoetrope.smear', min: 0, max: 1, default: 0.25, format: fmtPct },
+    // Bipolar: below 0 averages toward the harmonic skeleton, above 0 subtracts
+    // that average and leaves the residue. Reads as a tone control.
+    { id: 'fx.zoetrope.sieve', min: -1, max: 1, default: 0, format: fmtSieve },
+    { id: 'fx.zoetrope.mix', min: 0, max: 1, default: 1, format: fmtPct },
+    { id: 'fx.zoetrope.depth', min: 1, max: 64, default: 12, step: 1, format: fmtCycles },
+    { id: 'fx.zoetrope.freeze', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    { id: 'fx.zoetrope.source', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['SELF', 'DRUMS'] },
+    { id: 'fx.zoetrope.pitchlock', min: 0, max: 1, default: 1, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // Advanced (behind the module's expander)
+    { id: 'fx.zoetrope.taps', min: 2, max: 16, default: 8, step: 1, format: (v) => v.toFixed(0) },
+    { id: 'fx.zoetrope.sub', min: 0, max: 1, default: 0, format: fmtPct },
+    { id: 'fx.zoetrope.xfadeFloor', min: 4, max: 256, default: 16, step: 1, unit: 'smp', format: (v) => `${v.toFixed(0)}smp` },
+    { id: 'fx.zoetrope.clearOnNote', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
 
     // ----- Drum FX: Phaser -----
     { id: 'fx.drum.phaser.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

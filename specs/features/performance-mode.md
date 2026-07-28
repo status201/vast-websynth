@@ -3,7 +3,8 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 6   # v6: analyser fftSize halved per tier (256/512/1024)
+version: 7   # v7: zoetropeMaxTaps caps the cycle splicer's sieve loop per tier
+             # v6: analyser fftSize halved per tier (256/512/1024)
 owner: core
 related:
   - architecture
@@ -70,9 +71,9 @@ differ only by live-applied scope fps + fftSize).
 - **REQ-2** — `PERF_PROFILES: Record<PerfTier, PerfProfile>` is the single source of
   truth for every tier-dependent knob (v3 added three FX-cost fields; v4 added
   `analyserFftSize`):
-  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:256 }`,
-  `medium = { 'interactive', 8, 30, 0.1, 4, true, 512 }`,
-  `strong = { 'interactive', 8, 60, 0.1, 4, true, 1024 }`.
+  `weak = { latencyHint:'playback', voiceCount:5, fps:15, scheduleAheadS:0.2, reverbIrMaxS:1.5, fxOversample:false, analyserFftSize:256, zoetropeMaxTaps:8 }`,
+  `medium = { 'interactive', 8, 30, 0.1, 4, true, 512, 16 }`,
+  `strong = { 'interactive', 8, 60, 0.1, 4, true, 1024, 16 }`.
   Strong and medium share the same **audio** profile; they differ only by the
   live-applied scope fps + analyser fftSize.
 - **REQ-3** — `detectTier()` errs toward **medium** (the safe, normal-latency default).
@@ -85,8 +86,9 @@ differ only by live-applied scope fps + fftSize).
 - **REQ-4** — `resolveTier(pref)` returns the effective tier: a concrete tier passes
   through; `auto` → `detectTier()`. `sameAudioProfile(a, b)` is true iff two tiers share
   **every boot-time field**: `latencyHint`, `voiceCount`, `scheduleAheadS`,
-  `reverbIrMaxS`, `fxOversample` (v3). `fps` and `analyserFftSize` are **excluded** —
-  they are applied live, not at boot, so they never force a reload.
+  `reverbIrMaxS`, `fxOversample` (v3), `zoetropeMaxTaps` (v7). `fps` and
+  `analyserFftSize` are **excluded** — they are applied live, not at boot, so they
+  never force a reload.
 - **REQ-5** — The **audio** profile (buffer, voice count, and the v3 FX-cost fields)
   is tuned **at boot** only (chosen when the `AudioContext`/graph are built): boot
   reads `PERF_PROFILES[resolveTier()]` and passes all boot-time fields to the Engine.
@@ -106,6 +108,11 @@ differ only by live-applied scope fps + fftSize).
   - **Universal (all tiers):** a drum-track shaper runs `oversample = 'none'`
     while its curve is the identity (drive 0, the default) and only steps up to
     `'2x'` when drive > 0 — oversampling an identity curve is pure waste.
+  - `zoetropeMaxTaps` (v7) caps the cycle splicer's sieve average at 8 taps on
+    weak (16 elsewhere). That loop is Zoetrope's only per-sample cost that
+    scales, and it runs at all only when the user moves SIEVE off centre; the
+    cap clamps the param in the effect's binder, so nothing in a preset or song
+    becomes invalid — the sieve just averages fewer cycles.
   Presets/songs are untouched by construction: none of these are `ParamBus`
   params, and every param's range/default is unchanged.
 - **REQ-12** — (v4/v5, halved in v6) `analyserFftSize` sets the `fftSize` of all
@@ -161,7 +168,8 @@ PerfTier: 'weak' | 'medium' | 'strong'
 PerfPref: 'auto' | PerfTier
 PerfProfile: { latencyHint: AudioContextLatencyCategory; voiceCount: number; fps: number;
                scheduleAheadS: number; reverbIrMaxS: number; fxOversample: boolean;  # v3
-               analyserFftSize: number }                                             # v4 (applied live, v5)
+               analyserFftSize: number;                                              # v4 (applied live, v5)
+               zoetropeMaxTaps: number }                                             # v7
 PERF_PROFILES: Record<PerfTier, PerfProfile>   # single source of truth
 readPerfPref(): PerfPref                        # validates + migrates legacy on/off
 writePerfPref(pref: PerfPref): void
@@ -172,7 +180,7 @@ PerfDiagnostics: { cores; memoryGb; mobile; pref; detected; tier; profile }
 perfDiagnostics(): PerfDiagnostics
 
 # src/audio/engine.ts
-EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample?; analyserFftSize? }
+EngineOptions: { latencyHint?; voiceCount?; scheduleAheadS?; reverbIrMaxS?; fxOversample?; analyserFftSize?; zoetropeMaxTaps? }
 new Engine(bus, opts?: EngineOptions)
   # latencyHint→AudioContext, voiceCount→pool, scheduleAheadS→Clock,
   # reverbIrMaxS→the 3 Reverbs, fxOversample→the 2 Distortions + DrumMachine (v3),

@@ -309,7 +309,13 @@
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 
-.fxSection:global(.collapsed) .fxRow { display: none; }
+.fxSection:global(.collapsed) .fxRow,
+.fxSection:global(.collapsed) .zoetropeRow { display: none; }
+
+/* Zoetrope is a sibling of the 5-effect grid, not a cell in it: it needs the
+   full width for its cycle-library strip, and staying outside .fxRow leaves the
+   patch-decoration parity guard alone (zoetrope.md REQ-11). */
+.zoetropeRow { min-width: 0; }
 
 .fxRow {
   display: grid;

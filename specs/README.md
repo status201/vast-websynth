@@ -197,6 +197,7 @@ specs/
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
+    zoetrope.md        ·  period-locked cycle splicer + its cycle-library display
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock
     transport-position.md · moving the playhead (seek, position ruler, Home/Shift+arrows)
@@ -236,6 +237,7 @@ specs/
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
+    param-controls.md  ·  bipolar knob · integer stepper · latch-or-momentary button
     toast.md           ·  transient bottom-center notification with one action (Undo)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
@@ -272,6 +274,7 @@ specs/
     add-a-tour-step.md        ·  a guided-tour / help step
     evolve-the-song-format.md ·  bump the SongFile version, stay back-compat
     write-a-test.md           ·  unit (Vitest) + E2E (Playwright) conventions
+    verify-audio-by-ear.md    ·  render a take through the real graph, listen, measure
   decisions/           ← Architecture Decision Records (the "why")
     README.md                                 ·  the ADR index (number / title / status)
     _adr-template.md                          ·  copy this to start a new ADR
