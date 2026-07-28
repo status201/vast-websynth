@@ -57,6 +57,13 @@ export class StepSequencer {
     // old position slurs into the new one — or never gets released at all
     // (sequencer.md REQ-14).
     clock.onSeek(() => this.releaseAll());
+    // A tie schedules no release of its own — that is the NEXT tick's job — so a
+    // stop stranded the voice until the user reached for Panic (REQ-15). Release
+    // at each track's own gate end rather than `now`: the note-on may still be
+    // sitting in the look-ahead, and a release scheduled before its attack is
+    // simply overwritten by it — the very hang this fixes. A release, not a kill,
+    // so the amp tail and the FX tails ring out as they always did.
+    clock.onStop(() => this.releaseAllAtGateEnd());
   }
 
   setEnabled(on: boolean): void {
@@ -91,6 +98,12 @@ export class StepSequencer {
 
   private releaseAll(when?: number): void {
     for (const st of this.tracks) this.releaseTrack(st, when);
+  }
+
+  /** Release every track where its last hit's gate said it would end (REQ-15).
+   *  A stale past value is harmless — the envelope anchors at `max(when, now)`. */
+  private releaseAllAtGateEnd(): void {
+    for (const st of this.tracks) this.releaseTrack(st, st.lastReleaseAt);
   }
 
   /**
@@ -165,6 +178,8 @@ export class StepSequencer {
     st.lastPlayedNote = s.note;
     st.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
     st.prevTied = s.tie;
-    this.noteListeners.emit(s.note, when, hits[0]!.gateEnd);
+    // The LAST sub-hit's gate end, so a ratcheted step's key viz doesn't go dark
+    // after the first sub-hit while the step is still sounding.
+    this.noteListeners.emit(s.note, when, st.lastReleaseAt);
   }
 }

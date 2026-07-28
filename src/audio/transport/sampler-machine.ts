@@ -9,6 +9,10 @@ import { ListenerSet } from '../../utils/listeners';
 
 export type SamplerStepListener = (step: number) => void;
 
+/** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
+const CHOKE_FADE = 0.005;
+const CHOKE_STOP = 0.03;
+
 /**
  * Multi-track sampler — structurally a sibling of the DrumMachine, but each
  * of the SAMPLER_SLOT_COUNT slots plays a user-loaded AudioBuffer one-shot
@@ -23,6 +27,9 @@ export class SamplerMachine {
   private enabled = false;
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly bufferListeners = new ListenerSet<[number]>();
+  /** Hits still sounding (or still scheduled), so a transport stop can cut them
+   *  (REQ-8). Drums self-terminate; a user sample is any length at all. */
+  private readonly inFlight = new Set<{ src: AudioBufferSourceNode; g: GainNode }>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -87,10 +94,33 @@ export class SamplerMachine {
     if (chokeAt !== undefined) {
       // Step gate < 1 chokes the sample early with a fast fade.
       g.gain.setValueAtTime(vel, chokeAt);
-      g.gain.linearRampToValueAtTime(0, chokeAt + 0.005);
-      src.stop(chokeAt + 0.03);
+      g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
+      src.stop(chokeAt + CHOKE_STOP);
     }
-    src.onended = () => { src.disconnect(); g.disconnect(); };
+    const hit = { src, g };
+    this.inFlight.add(hit);
+    src.onended = () => { this.inFlight.delete(hit); src.disconnect(); g.disconnect(); };
+  }
+
+  /**
+   * Cut every hit still sounding, with the same short fade the gate choke uses so
+   * the cut never clicks (REQ-8). The fade is on the per-hit gain, upstream of
+   * `samplerBus`, so the FX tails ring out untouched — Stop silences the source,
+   * not the room. A hit still scheduled inside the look-ahead simply never plays.
+   *
+   * Public because *when* to cut is the Engine's call, not the machine's: a stop
+   * that ends a capture is deliberately rendering the tail and must not chop the
+   * last bar's one-shots out of it.
+   */
+  stopAll(): void {
+    const now = this.ctx.currentTime;
+    for (const { src, g } of this.inFlight) {
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime(0, now + CHOKE_FADE);
+      src.stop(now + CHOKE_STOP);
+    }
+    // `onended` empties the set as each source actually stops.
   }
 
   private onTick(step: number, when: number): void {

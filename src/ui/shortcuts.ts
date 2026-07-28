@@ -25,11 +25,20 @@ function isEditableTarget(e: Event): boolean {
 
 export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBridge): void {
   let baseOctave = 4; // bottom row starts at C4
-  const held = new Set<string>();
+  // key → the note it PRESSED, never the note the current baseOctave now names
+  // (input-control.md REQ-11): an octave shift mid-hold used to make keyup miss
+  // this map entirely, so the note was never released and its key stayed lit
+  // until the window lost focus.
+  const held = new Map<string, number>();
   let fillHeld = false;
 
+  /** Case-folded key identity. Shift can be pressed or released mid-hold, which
+   *  flips `e.key` between 'z' and 'Z' — keying `held` on the raw value would
+   *  strand the note exactly like the octave shift did. */
+  const keyId = (k: string): string => (k.length === 1 ? k.toLowerCase() : k);
+
   function keyToMidi(k: string): number | null {
-    const lk = k.length === 1 ? k.toLowerCase() : k;
+    const lk = keyId(k);
     if (lk in LOWER) return (baseOctave + 1) * 12 + LOWER[lk]!;
     if (lk in UPPER) return (baseOctave + 1) * 12 + UPPER[lk]!;
     return null;
@@ -127,9 +136,9 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
 
     const note = keyToMidi(k);
     if (note === null) return;
-    const id = `${k}:${note}`;
+    const id = keyId(k);
     if (held.has(id)) return;
-    held.add(id);
+    held.set(id, note);
     press(note);
     e.preventDefault();
   });
@@ -142,10 +151,10 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
       return;
     }
-    const note = keyToMidi(k);
-    if (note === null) return;
-    const id = `${k}:${note}`;
-    if (!held.has(id)) return;
+    // Deliberately NOT keyToMidi(k) — baseOctave may have shifted since keydown.
+    const id = keyId(k);
+    const note = held.get(id);
+    if (note === undefined) return;
     held.delete(id);
     release(note);
   });
@@ -161,10 +170,7 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   window.addEventListener('blur', () => {
     // Release everything when window loses focus
     if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
-    for (const id of held) {
-      const [, noteStr] = id.split(':');
-      if (noteStr) release(Number(noteStr));
-    }
+    for (const note of held.values()) release(note);
     held.clear();
   });
 }

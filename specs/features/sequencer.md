@@ -3,7 +3,7 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 4   # v4: release held notes on a transport seek (REQ-14)
+version: 5   # v5: release held notes on a transport stop, too (REQ-15)
 owner: core
 related:
   - architecture
@@ -14,6 +14,7 @@ related:
   - banks
   - arrangement
   - input-control
+  - envelopes
 source:
   - src/audio/transport/sequencer.ts
   - src/state/patterns.ts
@@ -130,6 +131,24 @@ and tracks 2–4 start empty and silent.
   constructor and runs the same per-track release `setMuted(true)` uses — keeping
   `releaseAll`/`releaseTrack` private rather than widening the public surface for
   one caller.
+- **REQ-15** (v5) — **A transport stop releases every track's held note.** A tied
+  step deliberately schedules **no** `releaseNote` (REQ-2): the release is the
+  *next* tick's job. After a stop that tick never comes, so the voice sustained
+  until the user hit Panic. `StepSequencer` subscribes `clock.onStop` alongside
+  REQ-14's `onSeek`, but releases at the track's **own last gate end**
+  (`SeqTrackState.lastReleaseAt`), not at `now`:
+    - the note-on may still be sitting in the transport look-ahead, and a release
+      scheduled *before* its attack is overwritten by that attack — which would
+      re-create the very hang this fixes;
+    - the note then ends where its gate always said it would (at most one 16th
+      later) instead of being truncated under the player;
+    - a stale past value is harmless — `Envelope.anchor` clamps with
+      `Math.max(when, now)` ([envelopes](envelopes.md) REQ-4).
+  This is a **release**, not a kill: the amp envelope's release stage runs and the
+  reverb/delay tails ([effects](effects.md)) are downstream, so a stop never cuts
+  the tail off a song. It also fixes stop's silent partner — `Engine.panic()` calls
+  `clock.stop()` first, so the stale `lastPlayedNote`/`prevTied` that used to
+  survive a panic (and slur the first step after the next Play) is now cleared too.
 
 ## Technical design
 
@@ -142,9 +161,12 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   setTrackMuted(track, muted)   # v3, REQ-10
   setPolyphonic(poly)           # v3, REQ-9 — gates tracks 2..4
   onStep(fn) / onSeqNote(fn) -> unsubscribe   # playhead + note viz
+  # onNote's releaseAt is the LAST sub-hit's gate end (v5) — same value
+  # lastReleaseAt carries, so a ratcheted step's key viz outlives its first sub-hit
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick
   # per-track held-note/tie state lives in one SeqTrackState[] (v3)
   # subscribes clock.onSeek to release held notes + clear prevTied (v4, REQ-14)
+  # subscribes clock.onStop to release each track at its lastReleaseAt (v5, REQ-15)
 
 PatternStore (v3):     # src/state/patterns.ts
   seqBanks[bank][track][step]        # was [bank][step]
@@ -257,6 +279,21 @@ Scenario: A tied note does not slur across a transport seek (v4, REQ-14)
   Given a step tied into the next one is currently sounding
   When the playhead is seeked elsewhere
   Then the held note is released and prevTied is cleared on every track
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: Stopping the song ends a tied note instead of hanging it (v5, REQ-15, regression)
+  Given a step tied into the next one is currently sounding
+  When the transport stops
+  Then the note is released at that step's own gate end, not left ringing
+  And the reverb/delay tail keeps ringing out, because a release is not a kill
+  And the user never has to reach for Panic to silence it
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: The stop release is never scheduled before the note-on (v5, edge)
+  Given a note-on is still sitting in the transport look-ahead when the user stops
+  Then the release is scheduled at the step's gate end, which is at or after that
+    note-on — a release anchored at `now` would be overwritten by the attack and
+    the note would hang exactly as before
 # pinned by: tests/audio/transport/sequencer.test.ts
 
 Scenario: Step Input fills steps from played notes and advances

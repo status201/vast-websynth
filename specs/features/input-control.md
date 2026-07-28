@@ -3,7 +3,7 @@
 ```yaml
 id: input-control
 status: implemented
-version: 8  # v8: the `?` key toggles the help badges via UiBridge (REQ-9)
+version: 9  # v9: lit keys + note-offs survive an OCT change (REQ-10, REQ-11)
 owner: core
 related:
   - architecture
@@ -91,6 +91,38 @@ notes played on another tab no longer overwrite its bank.
   than importing the onboarding layer into `shortcuts.ts` — same reason as
   `toggleTransport` / `undoActiveMachine`. Behaviour is owned by
   [onboarding](onboarding.md) REQ-19.
+- **REQ-10** (v9) — **A lit key is remembered as an element, never re-derived.**
+  `keyboard.transpose` (the OCT strip) shifts the note→element mapping: an element
+  sounds `note + transpose * 12`, so the key *for* a sounding note is
+  `note - transpose * 12`. Both highlight APIs resolve that through **one**
+  private `keyFor(note)` — including `highlight`, which previously did not
+  de-transpose and so disagreed with `seqHighlight` about where the same MIDI note
+  lives. (Visible consequence, and correct: at OCT +2 a computer key playing C4 has
+  no key on the drawn board and lights nothing, rather than lighting the key that
+  actually sounds C6.)
+  The light-up **stores the resolved element**; the light-down removes the class
+  from *that* element rather than resolving the note again. Re-deriving was the
+  bug: the sequencer's viz schedules its on and its off as two separate deferred
+  timers (`app.ts`, at the notes' audible moments), so any OCT change in between —
+  including a **song/demo load**, since `Song.apply` restores `keyboard.transpose`
+  and most demos ship a non-zero one — resolved the off to a different element, or
+  to none at all (`keys.get` misses silently). The key stayed lit until the next
+  transport stop, the only caller of `clearSeqHighlights`. Lit entries are
+  **refcounted**, so two of the four sequencer tracks sounding the same note cannot
+  have the first release dim a key the second is still holding.
+- **REQ-11** (v9) — **A note-off always names the note that was pressed.** Two
+  sources re-computed it at release time against mutable state and stranded the
+  note when that state moved mid-hold:
+    - the **on-screen keyboard** stores the sounding note alongside the element at
+      `pointerdown` and releases *that*, so moving OCT while a key is held no
+      longer sends `noteOff` for a different MIDI number (a hung voice);
+    - **`installShortcuts`** keys its held-note map by the *case-folded key* and
+      stores the note it pressed, so neither the `←`/`→` octave shift nor a Shift
+      press mid-hold (which flips `e.key` between `z` and `Z`) can make `keyup`
+      compute a different identity, miss the map, and skip `release()` entirely
+      (a hung voice *and* a stuck-lit key until the window lost focus).
+  This is the input-layer twin of [sequencer](sequencer.md) REQ-15: nothing may
+  hold a note whose release depends on state that is free to change underneath it.
 - **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
   editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
   reach the field and never play a note, toggle transport, bend pitch, shift
@@ -106,6 +138,9 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   LOWER: z s x d c v g b h n j m ,    # semitone offsets from C
   UPPER: q 2 w 3 e r 5 t 6 y 7 u i    # one octave up
   baseOctave (shiftable); ignores e.repeat
+  keyId(k) = k.length === 1 ? k.toLowerCase() : k   # v9: one key identity
+  held: Map<keyId, note>             # v9, REQ-11: the note PRESSED, so keyup never
+                                     # recomputes it against a shifted baseOctave
   '?' -> bridge.toggleHelpBadges()   # REQ-9; ordered above the '.'/'/' bend branch
 UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboard.highlight(note, on)
   # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-2)
@@ -137,6 +172,11 @@ boot (main.ts): builds the UiBridge, installShortcuts(...)
 start gesture (main.ts showStartModal): initMIDI(...) fires on tap-to-start (REQ-6)
 on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
   keyboard.highlight(note, on): visual-only key toggle (the UiBridge target; no bus call)
+  keyFor(note) = keys.get(note - transpose * 12)   # v9, REQ-10 — the ONE resolver,
+    shared by highlight + seqHighlight; lit elements are stored, never re-derived
+  litActive / litSeq: Map<note, {el, count}>       # v9 — refcounted, cleared by
+    clearSeqHighlights() (litSeq only; its sole caller is clock.onStop in app.ts)
+  activeByPointer: Map<pointerId, {key, sounding}> # v9, REQ-11 — release `sounding`
 app.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
 arp/seq ownership: when passthroughSuppressed, the engine gates raw note passthrough
 ```
@@ -157,6 +197,38 @@ Scenario: A single computer key fires exactly one note-on (regression, no double
   # because the UiBridge highlight is visual-only — the key emits one bus.noteOn,
   # not two (which would fill two steps / play two voices)
 # pinned by: e2e/patterns.spec.ts, tests/ui/keyboard.test.ts
+
+Scenario: Moving OCT mid-playback leaves no key lit (v9, REQ-10, regression)
+  Given the sequencer is playing and has lit a key for a sounding note
+  When keyboard.transpose changes before that note's light-off is due
+  Then the light-off clears the key that was actually lit
+  And no key is left glowing until the next transport stop
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: Loading a demo mid-playback leaves no key lit (v9, REQ-10, regression)
+  Given a demo is playing with keys lit by the sequencer
+  When another demo is loaded, restoring its own keyboard.transpose
+  Then every previously lit key still clears on its own schedule
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: Two tracks on the same note do not dim each other (v9, edge)
+  Given two sequencer tracks sound the same note with different gates
+  When the shorter one releases
+  Then the key stays lit until the longer one releases too
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: Moving OCT while a key is held does not hang the voice (v9, REQ-11)
+  Given a key on the on-screen keyboard is held down
+  When keyboard.transpose changes and the pointer is then released
+  Then bus.noteOff names the note that pointerdown played, so no voice hangs
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: Shifting octave while a computer key is held releases it (v9, REQ-11, regression)
+  Given the user holds 'z'
+  When they press the right-arrow octave shift and then release 'z'
+  Then exactly one bus.noteOff fires, for the note 'z' originally played
+  And the on-screen key un-lights — previously both waited for a window blur
+# pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Given a MIDI device sends 0x90 note 60 velocity 0

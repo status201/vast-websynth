@@ -3,7 +3,7 @@
 ```yaml
 id: sampler
 status: implemented
-version: 3
+version: 4   # v4: a transport stop cuts in-flight one-shots (REQ-8)
 owner: core
 related:
   - architecture
@@ -16,6 +16,8 @@ related:
   - project-export
   - sample-persistence
   - dialog
+  - transport
+  - effects
 source:
   - src/audio/transport/sampler-machine.ts
   - src/state/patterns.ts
@@ -60,6 +62,28 @@ the song format.
   [song-mode](song-mode.md) REQ-3b). The `.needs-reload` hint is therefore
   trustworthy: it appears whenever a named slot has no matching audio, and a
   slot showing no hint really is playing what it says.
+- **REQ-8** (v4) — **A transport stop cuts in-flight one-shots.** Unlike a drum
+  voice, a slot plays a user-supplied buffer of arbitrary length, and a **tied**
+  cell gets no choke at all (`chokeAt` returns `undefined` when the hit holds), so
+  a long sample kept playing to its end after Stop — with no way to silence it,
+  since Panic only kills synth voices. `SamplerMachine` therefore keeps a handle
+  on every hit still in flight (`{src, g}`, added in `play` and removed by the
+  `onended` it already installs) and `stopAll()` fades each one out over the same
+  5 ms the choke uses before `src.stop()` — no click, and a hit still scheduled
+  inside the look-ahead simply never plays. The fade is on the per-hit gain,
+  upstream of `samplerBus`, so the [FX](effects.md) tails ring out untouched: Stop
+  silences the *source*, never the room.
+  **`stopAll` is public and `Engine` subscribes `clock.onStop`, not the machine**
+  ([ADR-008](../decisions/adr-008-engine-coordinates.md)) — because the one
+  exception is Engine's to know. A stop that *ends a capture*
+  ([audio-export](audio-export.md), [render-to-sampler](render-to-sampler.md)) is
+  deliberately rendering the tail, so the cut is skipped while
+  `recorder.isRecording()` or `bankRender.isRendering()` — the same pair
+  `canSeek()` already guards on. Chopping the last bar's one-shots out of an
+  export would be a worse bug than the hang this fixes.
+  **Drums need no equivalent**: every drum voice already schedules a finite
+  `src.stop()` via `chokeRoute(...).stopAt(natural)`, so a tied drum cell decays
+  naturally and terminates. Cutting that decay would remove a tail, not a hang.
 
 ## Technical design
 
@@ -74,6 +98,10 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
   triggerSlot(slot, velocity?)     # manual audition
   onStep(fn) -> unsubscribe
   onBufferChange(fn) -> unsubscribe   # slot's buffer replaced/cleared
+  stopAll()                        # v4, REQ-8: fade + stop every in-flight hit
+engine (init):                     # v4 — the POLICY, so the capture exception fits
+  clock.onStop(() => { if (recorder.isRecording() || bankRender.isRendering()) return;
+                       sampler.stopAll(); })
 ```
 
 ### Data shapes (registry + store)
@@ -122,6 +150,19 @@ Scenario: Loading another song does not leave the old song's audio behind (regre
   Then slot 0 is empty and its label reverts to the placeholder — never the new
     name over the old audio
 # pinned by: e2e/song.spec.ts, tests/state/song.test.ts
+
+Scenario: Stopping the transport cuts a long tied sample (v4, REQ-8, regression)
+  Given a tied step is playing a long sample, so no choke was ever scheduled
+  When the transport stops
+  Then the hit fades out over the choke fade and its source is stopped
+  And the FX tails keep ringing, because the fade is upstream of the sampler bus
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A song export keeps its final one-shot (v4, REQ-8, edge)
+  Given the last bar of a song triggers a long sample
+  When the export's own clock.stop ends the rendered pass
+  Then the one-shot is NOT cut, so the render tail captures it as it always did
+# pinned by: engine.ts clock.onStop guard (recorder.isRecording / bankRender.isRendering)
 
 Scenario: Filling a slot notifies exactly once
   Given a listener registered via onBufferChange

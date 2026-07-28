@@ -69,6 +69,72 @@ describe('StepSequencer', () => {
     expect(releaseNote).toHaveBeenCalledWith(60, undefined);
   });
 
+  // sequencer.md REQ-15 — a tie schedules NO release of its own (that is the next
+  // tick's job), so before this the note rang on forever after Stop and only Panic
+  // silenced it.
+  it('releases a tied note on a transport stop (v5, regression)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote: vi.fn(), releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 1, tie: true });
+
+    clock.fireTick(0);
+    releaseNote.mockClear();
+    clock.fireStop();
+    // Released at the step's own gate end (one 16th at 120 BPM), NOT at `now`:
+    // the note-on may still sit in the look-ahead, and a release scheduled before
+    // its attack would be overwritten by it — the very hang this fixes.
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
+  });
+
+  it('stop-releases each track at its own gate end, never before its note-on (v5, edge)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    // Two tracks, different gates, both tied — each must be released on its own
+    // schedule rather than all of them sharing one moment.
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 1, tie: true });
+    patterns.setSeqStep(1, 0, { on: true, note: 67, velocity: 0.8, gate: 0.5, tie: true });
+
+    // Ticked at a future audio time, as the look-ahead really does.
+    clock.fireTick(2);
+    releaseNote.mockClear();
+    clock.fireStop();
+
+    expect(releaseNote).toHaveBeenCalledWith(60, 2.125);
+    expect(releaseNote).toHaveBeenCalledWith(67, 2.0625);
+    for (const [, when] of releaseNote.mock.calls) expect(when).toBeGreaterThanOrEqual(2);
+  });
+
+  it('clears tie state on stop, so the next Play does not slur (v5, edge)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 1, tie: true });
+    patterns.setSeqStep(0, 1, { on: true, note: 67, velocity: 0.8, gate: 1 });
+
+    clock.fireTick(0);   // 60 sounds, prevTied latched
+    clock.fireStop();    // stale prevTied used to survive this (and a panic)
+    releaseNote.mockClear();
+    clock.fireStart(1);
+    clock.fireTick(0.125);
+
+    expect(playNote).toHaveBeenCalledWith(67, 0.8, 0.125);
+    // prevTied was cleared by the stop, so nothing is left to slur out of.
+    expect(releaseNote).not.toHaveBeenCalledWith(60, 0.125);
+  });
+
   it('does not slur a tied note across a seek (v4, edge)', () => {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const playNote = vi.fn();
@@ -220,6 +286,25 @@ describe('StepSequencer', () => {
     expect(notes[0]![0]).toBe(72);
     expect(notes[0]![1]).toBe(0);
     expect(notes[0]![2]).toBeCloseTo(0.03125, 5); // 0.125 * 0.25
+  });
+
+  // v5: releaseAt is the LAST sub-hit's gate end. It used to be the first, so a
+  // ratcheted step's on-screen key went dark while the step was still sounding.
+  it('reports a ratcheted step releaseAt at its last sub-hit (v5)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const output: SynthOutput = { playNote: vi.fn(), releaseNote: vi.fn() };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 72, velocity: 0.9, gate: 1, ratchet: 4 });
+
+    const notes: Array<[number, number, number]> = [];
+    seq.onNote((n, w, r) => notes.push([n, w, r]));
+
+    clock.fireTick(0);
+    // 4 sub-hits across one 16th: the last starts at 0.09375 and ends at 0.125,
+    // not the first sub-hit's 0.03125.
+    expect(notes[0]![2]).toBeCloseTo(0.125, 5);
   });
 
   it('plays nothing during an arrangement rest bar', () => {

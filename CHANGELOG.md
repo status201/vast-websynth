@@ -16,6 +16,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stopping a song no longer leaves a note hanging.** A step tied into the next
+  one deliberately schedules no note-off — the release is the *next* step's job —
+  so when the transport stopped, that step never came and the note rang on until
+  you hit Panic or loaded a demo. Stop now releases every sequencer track's held
+  note at the point its own gate said it would end. It is a release, not a kill:
+  the reverb and delay tails ring out exactly as before. A long sample on a tied
+  (or full-gate) sampler step had the same problem and not even Panic could
+  silence it; those are now faded out on Stop too — except during a song export or
+  a bank render, where the tail is deliberately being captured.
+- **Keys no longer stay lit on the on-screen keyboard.** The OCT slider shifts
+  which key plays which note, and a lit key was looked up by note *again* when it
+  came time to unlight it — so moving OCT while the sequencer ran, or loading a
+  demo (which restores that song's own OCT), sent the unlight to a different key
+  and stranded the original one until the next Stop. A lit key is now remembered
+  as the key it lit, so it always clears. Two follow-ons from the same cause: OCT
+  no longer hangs a voice when moved while a key is held, and the `←`/`→` octave
+  shortcuts no longer strand a note when pressed mid-hold. A ratcheted step also
+  keeps its key lit for the whole step instead of just the first sub-hit.
+
 ### Added
 
 - **An audio bench, so a change to the sound gets heard before it ships.**

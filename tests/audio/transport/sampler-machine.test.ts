@@ -124,6 +124,58 @@ describe('SamplerMachine', () => {
     rnd.mockRestore();
   });
 
+  // sampler.md REQ-8 — a tied cell gets no choke at all, so before this a long
+  // sample played out in full after Stop, and Panic could not silence it either
+  // (that only kills synth voices). Engine owns *when* to call this: a stop that
+  // ends a capture must keep its tail, so the machine only owns the mechanism.
+  describe('stopAll cuts in-flight one-shots (v4, REQ-8)', () => {
+    it('fades and stops a tied hit that had no choke of its own', () => {
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+
+      const src = ctx.createBufferSource.mock.results[0]!.value;
+      const g = ctx.createGain.mock.results.at(-1)!.value; // per-hit velocity gain
+      expect(src.stop).not.toHaveBeenCalled(); // tie ⇒ nothing scheduled
+
+      ctx.currentTime = 4;
+      sm.stopAll();
+
+      expect(g.gain.cancelScheduledValues).toHaveBeenCalledWith(4);
+      expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 4.005);
+      expect(src.stop).toHaveBeenCalledWith(4.03);
+    });
+
+    it('leaves a finished hit alone — onended drops it from the in-flight set', () => {
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6 });
+      clock.fireTick(0);
+
+      const src = ctx.createBufferSource.mock.results[0]!.value;
+      src.onended?.();          // the sample ran out on its own
+      sm.stopAll();
+
+      expect(src.stop).not.toHaveBeenCalled();
+      expect(src.disconnect).toHaveBeenCalled();
+    });
+
+    it('is not wired to the clock itself — the stop policy lives in Engine', () => {
+      const { ctx, clock, patterns, sm } = build();
+      sm.setEnabled(true);
+      sm.setBuffer(0, makeStubBuffer());
+      patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 1, tie: true });
+      clock.fireTick(0);
+
+      const src = ctx.createBufferSource.mock.results[0]!.value;
+      clock.fireStop();
+      expect(src.stop).not.toHaveBeenCalled();
+    });
+  });
+
   // sampler.md REQ-6 — the single hook sample-persistence.md mirrors slots off.
   it('notifies onBufferChange for a filled and a cleared slot', () => {
     const { sm } = build();

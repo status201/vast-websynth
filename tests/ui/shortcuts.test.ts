@@ -207,3 +207,53 @@ describe('installShortcuts transport position (transport-position.md REQ-11)', (
     expect(unprevented).toBe(false); // the permissive install still prevented
   });
 });
+
+/**
+ * input-control.md REQ-11. `keyup` used to recompute the note with `keyToMidi(k)`
+ * against the CURRENT baseOctave, so an arrow-key octave shift mid-hold produced a
+ * different note, missed the held-key latch and skipped `release()` entirely — the
+ * voice hung and the on-screen key stayed lit until the window lost focus.
+ */
+describe('installShortcuts octave shift mid-hold (input-control.md REQ-11)', () => {
+  const keyup = (key: string) =>
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+
+  it('releases the note that was pressed, not the one the new octave names', () => {
+    const { bus, bridge } = setup();
+    const notes: Array<[boolean, number]> = [];
+    bus.onNote((on, note) => notes.push([on, note]));
+    bridge.releaseKey = vi.fn();
+
+    keydown(document.body, 'z');       // C4 = 60 at the default base octave
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    keyup('z');                        // 'z' now names 72 — must not matter
+
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+    expect(bridge.releaseKey).toHaveBeenCalledWith(60); // the key un-lights too
+  });
+
+  it('releases a note even if Shift flipped the key case mid-hold', () => {
+    const { bus } = setup();
+    const notes: Array<[boolean, number]> = [];
+    bus.onNote((on, note) => notes.push([on, note]));
+
+    keydown(document.body, 'z');
+    keyup('Z');   // Shift went down while the key was held
+
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+  });
+
+  it('still tracks the shifted octave for the next press', () => {
+    const { bus } = setup();
+    const notes: Array<[boolean, number]> = [];
+
+    keydown(document.body, 'z');
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    keyup('z');
+
+    bus.onNote((on, note) => notes.push([on, note]));
+    keydown(document.body, 'z');
+    keyup('z');
+    expect(notes).toEqual([[true, 72], [false, 72]]);
+  });
+});

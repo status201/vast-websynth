@@ -18,10 +18,22 @@ export interface KeyboardOptions {
   octaves?: number;      // default 3
 }
 
+/** A key currently carrying one of the lit classes, remembered as the ELEMENT it
+ *  was resolved to (input-control.md REQ-10) — `count` because two of the four
+ *  sequencer tracks can sound the same note with different gates. */
+interface LitKey {
+  el: HTMLElement;
+  count: number;
+}
+
 export class Keyboard {
   readonly el: HTMLElement;
   private readonly keys: Map<number, HTMLElement> = new Map(); // midi → element
-  private readonly activeByPointer: Map<number, number> = new Map();
+  /** pointerId → the element's own note and the (transposed) note it sounded.
+   *  Both, because OCT may move between press and release (REQ-11). */
+  private readonly activeByPointer: Map<number, { key: number; sounding: number }> = new Map();
+  private readonly litActive: Map<number, LitKey> = new Map();
+  private readonly litSeq: Map<number, LitKey> = new Map();
   private readonly bus: ParamBus;
   private _transpose = 0;
   private readonly labelKeys: HTMLElement[] = [];
@@ -84,6 +96,10 @@ export class Keyboard {
     this.el.addEventListener('pointerleave', this.onPointerUp);
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    // Moving OCT re-points the note→element mapping under everything currently
+    // lit or held. Nothing needs clearing: lit keys remember their element and
+    // pointer holds remember the note they sounded (REQ-10/REQ-11), so every
+    // pending release still lands on what it took. Only the labels move.
     opts.bus.subscribe('keyboard.transpose', (v) => {
       this._transpose = Math.round(v);
       this.updateLabels();
@@ -92,6 +108,33 @@ export class Keyboard {
 
   private tr(note: number): number {
     return note + this._transpose * 12;
+  }
+
+  /**
+   * The key that *sounds* `note` — the one resolver behind both highlight APIs
+   * (input-control.md REQ-10). An element sounds `note + transpose * 12`, so the
+   * inverse is the lookup. Callers must resolve **once**, when lighting up, and
+   * remember the element: OCT is free to move before the light-off is due.
+   */
+  private keyFor(note: number): HTMLElement | undefined {
+    return this.keys.get(note - this._transpose * 12);
+  }
+
+  /** Add/remove a lit class, bookkeeping the resolved element in `lit`. */
+  private setLit(lit: Map<number, LitKey>, cls: string, note: number, on: boolean): void {
+    const held = lit.get(note);
+    if (on) {
+      if (held) { held.count++; return; }
+      const el = this.keyFor(note);
+      if (!el) return;               // outside the drawn range — nothing to light
+      el.classList.add(cls);
+      lit.set(note, { el, count: 1 });
+      return;
+    }
+    if (!held) return;
+    if (--held.count > 0) return;    // another voice still holds this note
+    held.el.classList.remove(cls);
+    lit.delete(note);
   }
 
   private updateLabels(): void {
@@ -110,40 +153,43 @@ export class Keyboard {
     return raw ? Number(raw) : null;
   }
 
-  private setKeyActive(note: number, active: boolean): void {
-    const el = this.keys.get(note);
-    if (!el) return;
-    if (active) el.classList.add('active');
-    else el.classList.remove('active');
+  /** Press the key element `note`, remembering the note it actually sounded so the
+   *  release names that one even if OCT moved meanwhile (REQ-11). */
+  private pressKey(pointerId: number, note: number): void {
+    const sounding = this.tr(note);
+    this.activeByPointer.set(pointerId, { key: note, sounding });
+    // Through the same lit bookkeeping the computer keyboard uses, so a key held
+    // by both a finger and a computer key stays lit until the last one lets go.
+    this.setLit(this.litActive, 'active', sounding, true);
+    this.bus.noteOn(sounding);
+  }
+
+  private releasePointer(pointerId: number): void {
+    const held = this.activeByPointer.get(pointerId);
+    if (!held) return;
+    this.activeByPointer.delete(pointerId);
+    this.setLit(this.litActive, 'active', held.sounding, false);
+    this.bus.noteOff(held.sounding);
   }
 
   private onPointerDown = (e: PointerEvent): void => {
     e.preventDefault();
     const note = this.noteAt(e.clientX, e.clientY);
     if (note === null) return;
-    this.activeByPointer.set(e.pointerId, note);
-    this.setKeyActive(note, true);
-    this.bus.noteOn(this.tr(note));
+    this.pressKey(e.pointerId, note);
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (!this.activeByPointer.has(e.pointerId)) return;
+    const held = this.activeByPointer.get(e.pointerId);
+    if (!held) return;
     const note = this.noteAt(e.clientX, e.clientY);
-    const current = this.activeByPointer.get(e.pointerId)!;
-    if (note === null || note === current) return;
-    this.setKeyActive(current, false);
-    this.bus.noteOff(this.tr(current));
-    this.activeByPointer.set(e.pointerId, note);
-    this.setKeyActive(note, true);
-    this.bus.noteOn(this.tr(note));
+    if (note === null || note === held.key) return;
+    this.releasePointer(e.pointerId);
+    this.pressKey(e.pointerId, note);
   };
 
   private onPointerUp = (e: PointerEvent): void => {
-    const note = this.activeByPointer.get(e.pointerId);
-    if (note === undefined) return;
-    this.setKeyActive(note, false);
-    this.bus.noteOff(this.tr(note));
-    this.activeByPointer.delete(e.pointerId);
+    this.releasePointer(e.pointerId);
   };
 
   /**
@@ -154,7 +200,7 @@ export class Keyboard {
    * here would double-fire the note funnel. See input-control.md REQ-2.
    */
   highlight(note: number, on: boolean): void {
-    this.setKeyActive(note, on);
+    this.setLit(this.litActive, 'active', note, on);
   }
 
   /**
@@ -163,12 +209,12 @@ export class Keyboard {
    * outside the visible range.
    */
   seqHighlight(note: number, on: boolean): void {
-    const el = this.keys.get(note - this._transpose * 12);
-    if (el) el.classList.toggle('seq', on);
+    this.setLit(this.litSeq, 'seq', note, on);
   }
 
   clearSeqHighlights(): void {
-    for (const el of this.keys.values()) el.classList.remove('seq');
+    for (const { el } of this.litSeq.values()) el.classList.remove('seq');
+    this.litSeq.clear();
   }
 }
 

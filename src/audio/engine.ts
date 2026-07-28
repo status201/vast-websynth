@@ -294,6 +294,18 @@ export class Engine {
       () => this.recorder.isRecording(),
     );
 
+    // Stop cuts the sampler's in-flight one-shots (sampler.md REQ-8). A tied (or
+    // gate-1) cell schedules no choke of its own, so a long user sample used to
+    // play on with nothing able to silence it — not even Panic, which only kills
+    // synth voices. The policy lives here rather than in the machine because the
+    // exception is Engine's to know: a stop that ends a capture is deliberately
+    // rendering the tail, and chopping the last bar's one-shots out of an export
+    // would be a worse bug than the one this fixes.
+    this.clock.onStop(() => {
+      if (this.recorder.isRecording() || this.bankRender.isRendering()) return;
+      this.sampler.stopAll();
+    });
+
     // MIDI clock sync (master/slave). Built before subscribeParams() so the
     // gated transport.bpm subscription can read `this.sync.mode`. The Web MIDI
     // transport is attached later by initMIDI (post-gesture); until then the
