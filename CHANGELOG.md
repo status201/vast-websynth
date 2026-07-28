@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **An audio bench, so a change to the sound gets heard before it ships.**
+  `npm run bench:audio` renders a take through the *real* engine — voices,
+  filter, FX chain, the app's own recorder — straight to a `.wav` you can play,
+  and `npm run bench:metrics` measures or A/B-compares two takes. Nothing user-
+  facing changes; it closes a gap in how this project is verified. The test
+  suite proves DSP is bounded, finite and cheap, and says nothing at all about
+  whether it sounds like anything — which is the *first* priority in ADR-010 and
+  the one thing nothing automated was covering. See
+  `specs/recipes/verify-audio-by-ear.md`.
+
 ## [2.5.2] - 2026-07-27
 
 ### Changed
