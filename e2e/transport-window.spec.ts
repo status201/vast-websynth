@@ -88,6 +88,9 @@ test.describe('TRANSPORT window', () => {
 
   test('the return-to-start button goes back to bar 1', async ({ page }) => {
     await gotoAndStart(page);
+    // An eight-bar chain, so bar 6 is a bar the song actually has: the readout
+    // wraps at song length (REQ-6) and would otherwise report bar 1 here.
+    await setSeqChain(page, [0, 0, 1, 0, 0, 0, 1, 0]);
     await page.getByTestId('tab-song').click();
     await page.evaluate((n) => (window as any).__synth.engine.seekTo(n), SEQ_LENGTH * 5 + 7);
     await expect(page.getByTestId('transport-readout')).toHaveText('6.08');
@@ -95,6 +98,18 @@ test.describe('TRANSPORT window', () => {
     await page.getByTestId('transport-tostart').click();
     expect(await clockStep(page)).toBe(0);
     await expect(page.getByTestId('transport-readout')).toHaveText('1.01');
+  });
+
+  // REQ-6 (regression): the readout printed the ABSOLUTE bar, so with no chain
+  // enabled — the default — it counted 1.01, 2.01, 3.01 … beside a scrubber that
+  // had exactly one cell. The two now name the same bar by construction.
+  test('the readout never counts a bar the song does not have', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    await expect(page.locator('[data-testid="transport-scrub"] button')).toHaveCount(1);
+
+    await page.evaluate((n) => (window as any).__synth.engine.seekTo(n), SEQ_LENGTH * 36 + 4);
+    await expect(page.getByTestId('transport-readout')).toHaveText('1.05');
   });
 
   test('the readout agrees with the machine-tab ruler', async ({ page }) => {

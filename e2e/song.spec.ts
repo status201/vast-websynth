@@ -80,6 +80,47 @@ test.describe('song mode', () => {
     expect(loaded).toBe(false);
   });
 
+  /**
+   * song-mode.md REQ-14 (regression): a song carries no playhead, so an apply
+   * that leaves the old one in place hands the incoming song a position it never
+   * had. New was the worst case — the readout kept quoting a bar number from the
+   * song it had just cleared, beside a scrubber that now had one cell.
+   */
+  test('New and a demo load both return the playhead to bar 1', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const readout = page.getByTestId('transport-readout');
+    const cue = () => page.evaluate(() => (window as any).__synth.engine.clock.cue);
+
+    // An 8-bar chain so bar 5 genuinely exists, then move there.
+    const toBar5 = async (): Promise<void> => {
+      await page.evaluate(() => {
+        const s = (window as any).__synth;
+        s.engine.arrangement.setSeqChain([0, 1, 2, 3, 0, 1, 2, 3], true);
+        s.engine.seekTo(4 * 16);
+      });
+      await expect(readout).toHaveText('5.01');
+    };
+
+    await toBar5();
+    await page.getByTestId('song-new').click();
+    await page.getByTestId('dialog-confirm').click();
+    await expect(readout).toHaveText('1.01');
+    expect(await cue()).toBe(0);
+
+    // …and the same for a load. (Dismiss New's Undo toast target by waiting the
+    // confirm out first, as the round-trip test above does.)
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    await toBar5();
+    await page.getByTestId('song-demo-Apex Twin').click();
+    await expect(readout).toHaveText('1.01');
+    expect(await cue()).toBe(0);
+    // The incoming chain starts at its own slot 0, not wherever the old one was.
+    expect(
+      await page.evaluate(() => (window as any).__synth.engine.arrangement.seqChainPos),
+    ).toBe(0);
+  });
+
   test('per-lane Clear confirms before wiping the arrangement chain', async ({ page }) => {
     await gotoAndStart(page);
     const seqSteps = () =>

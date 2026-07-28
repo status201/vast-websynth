@@ -3,7 +3,8 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 2
+version: 3  # v3: the readout wraps at song length — it no longer counts bars the
+            #     song does not have (REQ-6)
 owner: core
 related:
   - transport
@@ -89,7 +90,19 @@ keep in step.
   top). Playing, it shows the live step; stopped, the **cue** — where Play will
   begin — matching the machine-tab rulers
   ([transport-position](transport-position.md) REQ-9), so the two surfaces can
-  never disagree about "where are we?". It is set in a **monospaced** face
+  never disagree about "where are we?".
+  **The bar wraps at song length** (v3): it is the *same* `bar % bars` value that
+  lights the scrubber cell (REQ-7), computed once and used for both, so the
+  number and the lit cell cannot drift apart. v1 printed the absolute bar, so a
+  one-bar song — the default, with no chain lane enabled — counted
+  `1.01, 2.01, 3.01 … 37.01` beside a single lit cell labelled `1`: the readout
+  inventing bars the song does not have, which
+  [transport-position](transport-position.md) REQ-15 had already ruled out for
+  the machine-tab rulers and which
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5 forbids (what is on
+  screen must be what is true). The step term is untouched — it is the 16th
+  within the bar and has always wrapped.
+  It is set in a **monospaced** face
   (`--mono`), so it moves only when the digit *count* changes (bar 9 → 10) and
   never step to step. `--serif` (Georgia) ships proportional old-style figures
   and carries no `tnum` feature, so `font-variant-numeric: tabular-nums` bought
@@ -231,8 +244,18 @@ Scenario: The window's Play button and the header's stay in sync (REQ-5)
 # pinned by: e2e/transport-window.spec.ts
 
 Scenario: The readout shows the cue while stopped (REQ-6)
-  Given the transport is stopped and the user seeks to bar 3 step 9
+  Given a four-bar chain is enabled
+  And the transport is stopped and the user seeks to bar 3 step 9
   Then the readout reads 3.09 — where Play will begin
+# pinned by: tests/ui/transport-controls.test.ts
+
+Scenario: The readout never counts a bar the song does not have (REQ-6, regression)
+  Given no chain lane is enabled, so the song is one repeating bar
+  When the transport has played past the end of bar 1
+  Then the readout still reads bar 1 — the scrubber has one cell, and the two
+    must name the same bar
+  And with a three-bar chain enabled, bar 5 reads 2.xx (5 % 3), agreeing with the
+    lit cell rather than climbing past the end of the song
 # pinned by: tests/ui/transport-controls.test.ts
 
 Scenario: Clicking a scrubber bar jumps the song there (REQ-7)

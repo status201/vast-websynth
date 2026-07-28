@@ -144,9 +144,13 @@ export function buildTransportControls(
     const pos = position();
     const bar = Math.floor(pos / SEQ_LENGTH);
     const step = pos % SEQ_LENGTH;
-    readout.textContent = `${bar + 1}.${String(step + 1).padStart(2, '0')}`;
+    // The SAME wrapped bar the scrubber lights (REQ-6): computed once, so the
+    // number and the lit cell cannot disagree. Printing the absolute bar made a
+    // one-bar song count 1.01, 2.01, 3.01 … beside a single lit cell — a bar the
+    // song does not have (transport-position.md REQ-15, same rule for the rulers).
+    const cell = bar % bars;
+    readout.textContent = `${cell + 1}.${String(step + 1).padStart(2, '0')}`;
 
-    const cell = bars ? bar % bars : 0;
     if (cell !== litBar) {
       cells[litBar]?.classList.remove(AT_CLASS);
       const at = cells[cell];

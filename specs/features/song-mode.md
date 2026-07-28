@@ -3,7 +3,8 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 13  # v13: Sync then Audio, sharing one row above 1280px (REQ-13)
+version: 14  # v14: every load — and New — returns the playhead to bar 1 (REQ-14)
+             # v13: Sync then Audio, sharing one row above 1280px (REQ-13)
              # v12: DEMO_ROW_LIMIT 6 -> 10 (REQ-10) — 6 hid two thirds of 17 demos
              # v11: drop-in demos fetched on click, not bundled (REQ-12)
              # v10: apply() evicts stale sampler audio (REQ-3b)
@@ -23,6 +24,8 @@ related:
   - toast
   - machine-status
   - paste-import
+  - transport-position   # REQ-14: the seek contract a load reuses
+  - transport-window     # REQ-14: the readout/scrubber a stale position contradicts
   - runtime-performance   # REQ-1: boot pays only for what the user asks for
   - pwa-install           # offline behaviour of the fetched-on-click demos
 source:
@@ -185,6 +188,32 @@ demos, the load path **must stay backward compatible** as the format grows.
   and the DOM order *is* the stacked order. Above the breakpoint the wrapper
   becomes the flex row and takes over the single dashed rule from its two halves.
   `display: contents` has precedent in this module (`.demoOverflow.demoOpen`).
+- **REQ-14 (a load lands on bar 1, v14)** — **Every path that replaces the song
+  returns the playhead to the top**: the demo buttons, Load, Import / Paste /
+  share link / PWA file-launch, the Undo toast's restore, and **New**. A song
+  carries no playhead — the cue is transient by design
+  ([transport-position](transport-position.md) → *Persistence*) — so with no
+  reset the incoming song silently inherits the outgoing one's position *and*
+  cue. Both halves were visibly wrong: New'ing a 37-bar song down to a blank one
+  left the readout reading `5.01` beside a single scrubber cell (a bar that no
+  longer exists — [transport-window](transport-window.md) REQ-6), and a demo
+  clicked mid-play started from wherever the previous arrangement happened to
+  have reached.
+  Three details are load-bearing:
+    - It goes through **`StudioApi.seekTo(0)`**, never `clock.seek` — the one
+      entry point ([transport-position](transport-position.md) REQ-8), so the
+      three refusals (slaved / exporting / rendering, REQ-6 there) still hold and
+      all four relative-position consumers re-base (REQ-4 there). A refused seek
+      stays a silent no-op: the song still loads.
+    - It runs **after** `Song.apply`, not before. `set*Chain` zeroes each lane
+      position but leaves `expectFirstBar` untouched, so a seek that follows also
+      re-arms it — the incoming chain plays slot 0 for a *whole* bar instead of
+      advancing at the next bar line.
+    - It lives on the **one apply funnel** (`song-panel.applySong`, which every
+      load surface already routes through for `session.setActive`) plus New,
+      which deliberately does not route through it (it restores the blank
+      snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
+      no clock, and pushing one in would move the refusal guard out of `Engine`.
 
 ## Technical design
 
@@ -398,6 +427,10 @@ load-undo safety net (see session-autosave.md): every destructive apply —
           AudioBuffer refs) and shows an Undo toast (song-undo-toast, toast.md).
           Loads themselves stay confirm-free by design; New keeps its danger
           confirm because it also nulls the sampler buffers.
+playhead reset (REQ-14): applySong ends `Song.apply(...)` -> `engine.seekTo(0)`
+          (AFTER apply, so the chain re-seat re-arms expectFirstBar); New does
+          the same after its own restore + chain resets. Both via StudioApi,
+          so transport-position.md REQ-6's refusals are inherited, not re-stated.
 ```
 
 ## Visual aids
@@ -439,6 +472,27 @@ Scenario: Destructive applies offer a toast Undo (session-autosave.md REQ-7)
   And a toast (song-undo-toast) offers Undo, which restores the prior session
     including the sampler's decoded buffers
 # pinned by: e2e/session.spec.ts
+
+Scenario: Loading a song returns the playhead to bar 1 (REQ-14, regression)
+  Given the playhead has been moved to bar 5 of an 8-bar chain
+  When the user clicks a demo button (or Load, or Import)
+  Then the transport readout reads 1.01 and clock.cue is 0
+  And the chain's first bar plays slot 0 in full — the next bar line advances it
+    by exactly one
+# pinned by: e2e/song.spec.ts
+
+Scenario: New Song returns the playhead to bar 1 (REQ-14, regression)
+  Given the playhead has been moved to bar 5 and the chains are several bars long
+  When the user confirms New
+  Then the readout reads 1.01 — not the bar count remembered from the cleared song,
+    which the one-cell scrubber beside it no longer has
+# pinned by: e2e/song.spec.ts
+
+Scenario: A load while seeking is refused still loads (REQ-14, edge)
+  Given the song recorder is capturing (seekTo returns false)
+  When a song is applied
+  Then the song applies normally and the refused seek is a silent no-op
+# pinned by: tests/ui/transport-controls.test.ts (the refusal contract)
 
 Scenario: Clearing a lane chain asks for confirmation first
   Given a lane chain with several steps

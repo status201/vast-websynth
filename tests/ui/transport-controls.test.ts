@@ -102,10 +102,11 @@ describe('buildTransportControls', () => {
 
   // REQ-6 — the readout and the machine-tab rulers must agree.
   it('reads bar.step, 1-based, and shows the CUE while stopped', () => {
-    const { api, bridge, clock } = harness();
+    const { api, bridge, clock, arrangement } = harness();
     const root = host(buildTransportControls(api, bridge, { compact: true }));
     expect(byId(root, 'transport-readout').textContent).toBe('1.01');
 
+    arrangement.setDrumChain([0, 1, 2, 3], true); // bar 3 has to exist to be shown
     clock.fireSeek(SEQ_LENGTH * 2 + 8); // bar 3, step 9
     expect(byId(root, 'transport-readout').textContent).toBe('3.09');
 
@@ -114,6 +115,24 @@ describe('buildTransportControls', () => {
     clock.step = 999;
     clock.fireStop();
     expect(byId(root, 'transport-readout').textContent).toBe('3.09');
+  });
+
+  // REQ-6 (regression) — the readout used to print the ABSOLUTE bar, so a
+  // one-bar song counted 1.01, 2.01, 3.01 … next to a single lit scrubber cell.
+  it('wraps the bar at song length — never a bar the song does not have', () => {
+    const { api, bridge, clock, arrangement } = harness();
+    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const readout = byId(root, 'transport-readout');
+
+    // Nothing enabled: the song is one repeating bar, whatever the step counter says.
+    clock.fireSeek(SEQ_LENGTH * 36 + 4);
+    expect(readout.textContent).toBe('1.05');
+
+    // With a three-bar chain, bar 5 is slot 2 — the same cell the scrubber lights.
+    arrangement.setSeqChain([0, 1, 2], true);
+    clock.fireSeek(SEQ_LENGTH * 4);
+    expect(readout.textContent).toBe('2.01');
+    expect(scrubCells(root).findIndex((c) => c.classList.contains('playing'))).toBe(1);
   });
 
   // REQ-7 — the scrubber is the song, not the bar.

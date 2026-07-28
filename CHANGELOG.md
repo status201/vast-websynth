@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Loading a song — or starting a new one — now returns the playhead to the
+  start.** A song file carries patterns and chains but no position, so every load
+  used to hand the incoming song the *previous* song's playhead: a demo clicked
+  mid-play picked up wherever the old arrangement had reached, and after New the
+  transport readout still quoted a bar from the song you had just cleared. Load,
+  the demo buttons, Import/Paste/share links and New all land on bar 1 now — and
+  the incoming arrangement plays its first bar in full rather than jumping a slot
+  at the next bar line.
+- **The transport readout no longer counts bars the song doesn't have.** It
+  printed the absolute bar, so a one-bar song — the default, with no chain lane
+  enabled — climbed 1.01, 2.01, 3.01 … next to a scrubber with a single cell. It
+  now wraps at song length, reading the same bar the lit cell shows.
 - **Stopping a song no longer leaves a note hanging.** A step tied into the next
   one deliberately schedules no note-off — the release is the *next* step's job —
   so when the transport stopped, that step never came and the note rang on until

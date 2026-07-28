@@ -85,7 +85,23 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // slot's label can never outlive the sound under it (song-mode.md REQ-3b).
     Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
     session.setActive(file.name);
+    toTop();
   };
+
+  /**
+   * Return the playhead to bar 1 (song-mode.md REQ-14). A song carries no
+   * position — the cue is transient (transport-position.md → Persistence) — so
+   * without this the incoming song inherits the outgoing one's playhead and cue:
+   * a demo clicked mid-play started wherever the last arrangement had reached,
+   * and the readout kept quoting a bar the new song no longer has.
+   *
+   * Via `StudioApi.seekTo`, never `clock.seek`, so the three refusals (slaved /
+   * exporting / rendering) hold — a refused seek is a silent no-op and the song
+   * still loads. Called AFTER the apply: `set*Chain` zeroes each lane position
+   * but leaves `expectFirstBar`, and only a following seek re-arms it, so the
+   * incoming chain plays slot 0 for a full bar.
+   */
+  const toTop = (): void => { engine.seekTo(0); };
 
   // ---- Load-undo safety net (session-autosave.md REQ-7/REQ-8) ----
   // Every destructive apply stashes the session it overwrites — the captured
@@ -476,6 +492,10 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     engine.arrangement.setDrumChain([0], false);
     engine.arrangement.setSamplerChain([0], false);
     engine.arrangement.setMotionChain([0], false);
+    // New does not route through applySong, so it resets the playhead itself
+    // (song-mode.md REQ-14) — otherwise a blank one-bar song kept the cleared
+    // song's bar number in the readout.
+    toTop();
     showUndoToast('Started a new song', stash);
   });
 
