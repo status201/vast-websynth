@@ -12,6 +12,10 @@ test-results/
 playwright-report/
 /playwright/.cache/
 
+# Rendered audio takes from `npm run bench:audio` — local listening material,
+# regenerated on demand (see specs/recipes/verify-audio-by-ear.md).
+bench/
+
 # SDD guard: local trivial-change bypass sentinel + machine-local Claude settings
 .sdd-skip
 .claude/settings.local.json

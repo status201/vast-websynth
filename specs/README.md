@@ -272,6 +272,7 @@ specs/
     add-a-tour-step.md        ·  a guided-tour / help step
     evolve-the-song-format.md ·  bump the SongFile version, stay back-compat
     write-a-test.md           ·  unit (Vitest) + E2E (Playwright) conventions
+    verify-audio-by-ear.md    ·  render a take through the real graph, listen, measure
   decisions/           ← Architecture Decision Records (the "why")
     README.md                                 ·  the ADR index (number / title / status)
     _adr-template.md                          ·  copy this to start a new ADR
