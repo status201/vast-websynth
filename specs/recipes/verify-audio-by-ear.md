@@ -44,8 +44,10 @@ the acceptance test.
 
 Capture goes through the app's own `RecorderController`, so a take is the same
 file the Export button produces — there is no second recording path to keep
-honest. Takes are deterministic: `exportSong` renders exactly one pass of the
-longest enabled chain.
+honest. `--demo` takes are **bar-exact and repeatable**: they call `exportSong`,
+which renders exactly one pass of the longest enabled chain and auto-stops.
+`--note` takes are a fixed wall-clock duration (`toggleManual`), so compare them
+by character rather than sample-for-sample.
 
 ```bash
 # hold a note (isolates one voice + the FX chain)
@@ -56,10 +58,19 @@ npm run bench:audio -- --name after  --note A2 --seconds 6 --set fx.reverb.on=1
 npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set sampler.mute=1
 ```
 
-`--set id=value` writes any `ParamBus` id before the take; `--demo` loads a demo
-song; `--note` holds one or more notes (`A2`, `C#3`, or a MIDI number, comma
-separated); `--url` reuses an already-running dev server instead of spawning one.
-Output lands in `bench/` (gitignored).
+| flag | meaning |
+| --- | --- |
+| `--name <id>` | output basename → `bench/<id>.wav` (**required**) |
+| `--note <spec>` | notes to hold: `A2`, `C#3`, a MIDI number, or a comma-separated chord (default `A2`) |
+| `--seconds <n>` | take length in note mode (default 6) |
+| `--demo <name>` | load a demo song and render one full pass instead |
+| `--set id=value` | a `ParamBus` write applied before the take — repeatable |
+| `--url <url>` | drive an already-running server instead of spawning vite |
+| `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |
+| `--headed` | show the browser, for debugging |
+
+Output lands in `bench/` (gitignored), and the metrics summary prints straight
+away so a take is never just an opaque file.
 
 ### 2. Listen
 
@@ -105,9 +116,27 @@ cannot come back silently. The render finds it; the unit test keeps it found.
 - Takes are **real time** — a 16-bar song is ~16 s. That is the cost of
   measuring the real graph, and it is worth it.
 
+## Scenarios (BDD)
+
+```gherkin
+Scenario: A change that measures clean is still heard before it ships
+  Given a DSP or routing change that alters the instrument's sound
+  When a take is rendered through the real graph alongside a bypassed baseline
+  Then the two are compared by ear, and the metrics only guard the regression
+# pinned by: scripts/audio-bench.mjs, scripts/audio-metrics.mjs (manual loop)
+
+Scenario: A discontinuity is caught as a rate, not a maximum
+  Given an effect that steps a gain or splices at a cycle boundary
+  When its take is measured against the same material rendered bypassed
+  Then its discontinuity-burst rate stands far above that baseline
+# pinned by: the delta between two `npm run bench:audio` takes
+```
+
 ## Tests & verification
 
 - `npm run bench:audio` / `npm run bench:metrics` — the loop itself. Manual by
   design, because the acceptance test is a person listening.
 - Whatever regression a take exposes gets pinned in `tests/audio/` on synthetic
   material, so CI keeps it fixed.
+- `npm run typecheck` is unaffected — `scripts/**` is outside `tsconfig`'s
+  include, and both scripts are plain ESM with no build step.

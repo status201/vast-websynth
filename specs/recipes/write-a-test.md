@@ -60,6 +60,13 @@ Run: `npm run e2e` (or `npm run e2e:ui`).
 - Keep tests **outside `src/`** — a test under `src/` would change `tsc` output.
 - Don't reach for a real `AudioContext` in unit tests; use the mock.
 - `window.__synth` exists only in DEV builds — fine for E2E against the dev server.
+- **The mock proves wiring, not sound.** No suite here can tell you whether a
+  change is *musical* — that is [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s
+  first priority and nothing automated covers it. A DSP or routing change is not
+  verified until it has been heard: render a take through the real graph with
+  `npm run bench:audio` and listen to it
+  ([verify-audio-by-ear](verify-audio-by-ear.md)). Tests are the regression
+  guard; the acceptance test is a person.
 
 ## Scenarios (BDD)
 
@@ -74,3 +81,5 @@ Scenario: A new unit test pins behaviour without real audio
 ## Tests & verification
 
 - `npm test` (Vitest), `npm run e2e` (Playwright), `npm run typecheck`.
+- For anything that changes the *sound*: `npm run bench:audio` +
+  `npm run bench:metrics` ([verify-audio-by-ear](verify-audio-by-ear.md)).

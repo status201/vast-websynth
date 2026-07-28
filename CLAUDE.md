@@ -48,8 +48,22 @@ npm run build      # tsc --noEmit && vite build
 npm test           # vitest run — pure-logic + component unit tests
 npm run e2e        # playwright test — browser smoke + control-surface specs
 npm run build:mcp  # bundle the pure song core for the MCP server (scripts/mcp/dist/)
+npm run bench:audio   # render a take through the REAL graph into bench/<name>.wav
+npm run bench:metrics # measure/compare takes (bursts, out-of-band energy, tonality)
 npm run release    # bump version + CHANGELOG, build, zip dist/, print publish steps
 ```
+
+**Anything that changes how the instrument *sounds* is verified by listening**,
+not by a green suite — `npm run bench:audio -- --name x --note A2 --set fx.reverb.on=1`
+drives the real engine (voices → filter → FX chain → the app's own
+`RecorderController`) and writes `bench/x.wav`. The tests cover *stable* and
+*cheap*; ADR-010 ranks **musical** first and nothing automated covers it. Two
+traps, both learned the hard way: always render a **bypassed baseline on the same
+material** (a demo with drums measures ~1300 discontinuity bursts/s with the
+effect switched *off* — those are transients, so only deltas mean anything), and
+**mute the lanes you aren't testing** (`--set drum.mute=1 --set sampler.mute=1`)
+or a synth-chain insert is buried in the mix. See
+`specs/recipes/verify-audio-by-ear.md`.
 
 `npm run release -- <version|major|minor|patch>` (`scripts/release.mjs`, zero
 deps) bumps `package.json` + promotes the CHANGELOG, then builds and zips `dist/`
