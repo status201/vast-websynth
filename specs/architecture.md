@@ -3,7 +3,7 @@
 ```yaml
 id: architecture
 status: implemented
-version: 3   # v3: ParamBus.withoutChangeSignal + flow 4 (machine automation)
+version: 4   # v4: UiBridge in the layer contracts; testids/write-a-test delegation
 owner: core
 related: []
 source:
@@ -146,6 +146,21 @@ StudioApi:       # src/ui/studio-api.ts  (the UI's narrow view of Engine — ADR
   # masterComp, iosAudio + panic()/resume().
   # Engine satisfies it structurally;
   # UI signatures take StudioApi so Engine internals stay invisible to the UI.
+
+UiBridge:        # src/ui/ui-bridge.ts  (the UI's *internal* seam — see features/input-control.md)
+  # A bag of late-bound no-op callbacks, created in main.ts and threaded through
+  # the UI. Whoever owns a surface assigns the callback when it builds that
+  # surface; whoever needs to drive it calls through the bridge. This is how one
+  # UI region reaches another WITHOUT importing it (shortcuts.ts never imports
+  # onboarding; the Song panel never imports the header's TabContainer).
+  pressKey / releaseKey          # visual-only keyboard highlight (no bus call)
+  toggleTransport                # clicks the real header Play button, keeping its visuals in sync
+  showTab(id)                    # reveal a pattern-row tab   (machine-status.md)
+  toggleHelpBadges / cuePlay     # onboarding.md · play-button-blink.md
+  toggleRecordWindow             # Shift+R                    (record-window.md)
+  undoActiveMachine / clearSelectedStep -> boolean  # tab-scoped keys; false ⇒ key falls through
+  importSongBytes(bytes, name) -> Promise<boolean>  # OS file launch + share link -> SongPanel.importBytes
+  openPresetImport(parse)        # paste door -> the header-owned preset wizard
 
 PatternStore:    # src/state/patterns.ts
   # 4 seq + 4 drum + 4 sampler + 4 motion banks; edit-bank (UI) vs play-bank (transport)
@@ -420,7 +435,8 @@ into the committed demos and share links.)
   (`.on`, `.active`, `.playing`, …) are global — match with `:global(...)`.
 - **Stable `data-testid`s** are minted at the factory level (`knob-<paramId>`,
   `switch-<paramId>`, `seg-<paramId>`, `tab-<id>`, `seq-step-<i>`, …). E2E specs
-  select by testid/text/role because CSS Module class names are hashed.
+  select by testid/text/role because CSS Module class names are hashed. The id set
+  is a contract with its own spec — [`features/testids.md`](features/testids.md).
 - **Dev bridge** — `main.ts` exposes `window.__synth = { engine, bus, patterns,
   session, xy, patternUndo }` gated on `import.meta.env.DEV` (absent in
   production). Use it for E2E
@@ -480,4 +496,9 @@ load-bearing ones:
   `AudioContext` + DOM components in jsdom).
 - `npm run e2e` — Playwright smoke + control-surface + flow specs.
 
-See `CLAUDE.md` for the exhaustive testid catalogue and testing notes.
+How to write either kind (mocks, the test clock, dialogs, downloads, fake media
+devices) is [`recipes/write-a-test.md`](recipes/write-a-test.md); the selector
+contract those specs read is [`features/testids.md`](features/testids.md). Nothing
+automated can tell you whether a change is *musical* — that needs
+[`recipes/verify-audio-by-ear.md`](recipes/verify-audio-by-ear.md) and a listen
+([ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md)).

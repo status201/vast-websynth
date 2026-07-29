@@ -78,7 +78,7 @@ export class MotionStepPad {
 
   /** Repaint from the store's cell: lit state + dot position. */
   setStep(step: MotionStep): void {
-    this.el.classList.toggle('on', step.on); // global state class (see CLAUDE.md CSS conventions)
+    this.el.classList.toggle('on', step.on); // global state class (see src/ui/CLAUDE.md)
     this.dot.style.left = `${step.x * 100}%`;
     this.dot.style.top = `${(1 - step.y) * 100}%`;
     this.el.title = step.on

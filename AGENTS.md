@@ -1,53 +1,38 @@
 # AGENTS.md
 
-This file contains project guidance for opencode. For detailed conventions,
-architecture notes, and gotchas, **read `CLAUDE.md`** — it is the canonical
-reference for this project.
+Project guidance for opencode and other non-Claude agents. **Read `CLAUDE.md`
+first** — it is the routing map for this repo, and everything below points at the
+same places it does.
 
-## Quick reference
+## What this is
 
-### Commands
-```bash
-npm run dev        # dev server (vite --host)
-npm run typecheck  # tsc --noEmit — verify changes
-npm run build      # tsc --noEmit && vite build
-npm test           # vitest run — unit tests (jsdom)
-npm run e2e        # playwright test — browser E2E (Chromium)
-```
+A Web Audio synthesizer (+ drum machine, sampler, motion sequencer) in vanilla
+TypeScript. No framework, **zero runtime dependencies**; Vite + `tsc` only. Three
+libraries are *vendored* under `src/vendor/` (`lamejs`, `qr`, `jsqr`) — see
+`specs/decisions/adr-003-no-runtime-dependencies.md`.
 
-### What this is
-A Web Audio synthesizer in vanilla TypeScript. No framework, no runtime
-dependencies. Build tooling is Vite + `tsc` only. Three libraries are vendored
-under `src/vendor/` (see `specs/decisions/adr-003-no-runtime-dependencies.md`):
-`lamejs` (MP3 encoder), `qr` (QR encoder) and `jsqr` (QR decoder).
+In-app the product is **VAST G1-J5**; the package/repo is `websynth`. Same thing.
 
-### Architecture (tl;dr)
-- **`ParamBus`** (`state/params.ts`) — single source of truth for every scalar
-  parameter. UI calls `bus.set(...)`; `Engine` subscribes.
-- **`Engine`** (`audio/engine.ts`) — owns AudioContext, 8-voice pool, FX chain,
-  transport modules. Note events: `bus.onNote` → `playNote` / `releaseNote`.
-- **`PatternStore`** (`state/patterns.ts`) — non-scalar state (step grids),
-  separate listener mechanism.
-- **`Song`** (`state/song.ts`) — `capture`/`apply` full song state.
+## Spec-Driven Development is enforced
 
-Audio graph: `voices → voiceBus → FX chain (distortion → wah → phaser → delay → reverb) → preMaster → analyser → master → destination`. Drum bus & sampler bus join at preMaster (bypass synth FX).
+A change that edits production code (`src/**`, `public/worklets/**`) must
+create/update a spec under `specs/` in the *same* change. `scripts/sdd-guard.mjs`
+enforces this via Claude Code hooks **and** a CI job, so it applies to every agent
+and to direct commits. Exempt: anything outside `src/` + `public/worklets/`, plus
+`*.md`, `*.css`, `src/vendor/**` and `src/state/demos/**`. Bypass a genuinely
+trivial production tweak with `touch .sdd-skip` (local) or `[skip-sdd]` in the
+commit message (CI).
 
-### Project layout
-```
-src/
-  main.ts            boot: create Engine + ParamBus, mount UI
-  audio/             AudioContext graph, voice, FX, drums, transport, recorder
-  state/             ParamBus, PatternStore, preset, song, project (zip bundle)
-  utils/             dependency-free helpers (zip codec, deflate-raw streams)
-  ui/                hand-built DOM components + panels
-  ui/styles/         CSS Modules (*.module.css)
-public/worklets/     ladder-filter.js (audio thread, no TS imports)
-```
+## Where everything is
 
-### CSS Module conventions
-All component/panel styling is in `src/ui/styles/*.module.css`. Global CSS is
-only `src/styles/base.css` (reset), `theme.css` (custom properties), and
-`layout.css` (`.app` grid). See `CLAUDE.md` for detailed gotchas.
+| File | What it holds |
+| --- | --- |
+| `CLAUDE.md` | The map: commands, invariants, and a "code area → spec" routing table |
+| `specs/architecture.md` | System-wide contracts, audio graph, event flows, conventions |
+| `specs/README.md` | The SDD method + an annotated map of all 98 specs |
+| `specs/decisions/README.md` | ADR index (the *why*) |
+| `src/ui/CLAUDE.md` | CSS Module conventions |
+| `e2e/CLAUDE.md` | Playwright conventions |
+| `DEPLOYMENT.md` | Build, host and release |
 
-### Branding
-In-app: **"VAST G1-J5"**; package/repo name: `websynth`.
+Commands live in `package.json`; `npm run typecheck` is the primary gate.

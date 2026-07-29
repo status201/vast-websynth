@@ -3,8 +3,8 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 7.1 # v7.1: `encoding` is a real phase, and the export modal stays open
-             #       as the render's progress surface with a working Cancel (REQ-10)
+version: 8   # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
+             #     open as the render's progress surface with a working Cancel (REQ-10)
              # v7: a phase machine replaces the armed bool (REQ-4), export takes
              #     runs + a tail bar behind an options modal (REQ-2/3/9), and the
              #     format-echoing labels extend to the buttons that write (REQ-8)

@@ -69,9 +69,13 @@ and indent costs tokens and latency.
   JSON/XML for deep nesting. Prefer flat key paths over deep trees.
 - Reference code **by symbol name** (`registerDefaults`, `Engine.subscribeParams`,
   `Song.apply`) and file path, **not** by line number — line numbers rot.
-- Don't restate things that belong in code comments or `CLAUDE.md` verbatim; link
-  to them. Specs are standalone enough to read on their own, but they should not
-  duplicate the entire conventions list — point at it.
+- **Specs are where the detail lives.** `CLAUDE.md` is a routing map (what to read
+  when you touch a given area) plus the few directory-scoped conventions files it
+  points at (`src/ui/CLAUDE.md`, `e2e/CLAUDE.md`); it deliberately does **not**
+  restate architecture. So a detail belongs in the governing spec, not in
+  `CLAUDE.md` — and a spec should link to `architecture.md` for the system-wide
+  contracts rather than re-deriving them, while staying standalone enough to read
+  on its own.
 
 ## BDD — scenarios in Gherkin
 
@@ -237,6 +241,7 @@ specs/
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
+    dialog.md          ·  shared confirm/prompt/alert dialog (replaces the native ones)
     toast.md           ·  transient bottom-center notification with one action (Undo)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
@@ -245,6 +250,7 @@ specs/
     responsive-synth-panels.md ·  4-knob panels: 2x2 desktop, single row on tablets
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
+    testids.md         ·  the stable `data-testid` contract + full catalogue
     onboarding.md      ·  guided tour + help mode
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out

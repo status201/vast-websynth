@@ -83,7 +83,7 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   If the panel needs something the facade doesn't expose, widen `studio-api.ts`
   rather than reaching for the concrete engine.
 - **`appendChild` every sub-container to the root.** A built-but-unappended
-  subtree renders blank — the known `drum-panel` bug (see CLAUDE.md).
+  subtree renders blank — the known `drum-panel` bug (see `src/ui/CLAUDE.md`).
 - Style with a `*.module.css` and the shared `layout.patternPanel` /
   `patternPanelHeader` classes; reference global state classes (`.on`,
   `.active`) via `:global(...)`.
