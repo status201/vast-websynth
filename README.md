@@ -1,12 +1,12 @@
 # WebSynth — VAST G1-J5
 
-A browser-based polyphonic subtractive synthesizer — with a step-sequenced
+An open source browser-based polyphonic subtractive synthesizer — with a step-sequenced
 drum machine and multi-track sampler — built on the Web Audio API.
 Vanilla TypeScript + Vite, zero runtime dependencies.
 
 <p align="center">
   <a href="https://vast.status201.com/">
-    <img src="public/og-card.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="640">
+    <img src="public/vast-websynth.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="640">
   </a>
 </p>
 
