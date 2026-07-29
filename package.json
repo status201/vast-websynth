@@ -22,7 +22,7 @@
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
