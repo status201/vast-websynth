@@ -6,13 +6,33 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 <p align="center">
   <a href="https://vast.status201.com/">
-    <img src="public/vast-websynth.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="640">
+    <img src="public/vast-websynth.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="960">
   </a>
 </p>
 
 <p align="center">
   <strong><a href="https://vast.status201.com/">▶ Launch VAST G1-J5 in your browser →</a></strong><br>
-  Free. No install, no signup — open it and play.
+  Free, as in Free Speech <em>and</em> Free Beer.<br>
+  No install, no signup — open it and play.
+</p>
+
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-song-tab.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="960">
+  </a>
+</p>
+
+<p align="center">
+  Make songs (arrangements) out of your sequencer, drum/motion machines and sampler lanes.<br>
+  Share, save and load them using JSON files and zip project files when using sampler audio.<br>
+  Or export as WAV/MP3.
+</p>
+
+
+<p align="center">
+  <a href="https://vast.status201.com/">
+    <img src="public/vast-websynth-drum-machine.png" alt="VAST G1-J5 — free in-browser synthesizer, sequencer, drum machine and sampler" width="960">
+  </a>
 </p>
 
 ## Features
