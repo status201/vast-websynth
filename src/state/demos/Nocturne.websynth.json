@@ -118,7 +118,7 @@
     "seq.t0.mute": 0,
     "seq.t1.mute": 0,
     "seq.t2.mute": 0,
-    "seq.t3.mute": 1,
+    "seq.t3.mute": 0,
     "seq.solo": 0,
     "drum.on": 1,
     "drum.master": 0.895,
@@ -217,7 +217,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.6187,
         "gate": 0.96
       },
       {
@@ -229,7 +229,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5666,
         "gate": 0.96
       },
       {
@@ -241,7 +241,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5874,
         "gate": 0.96
       },
       {
@@ -253,7 +253,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5978,
         "gate": 0.96
       },
       {
@@ -265,7 +265,7 @@
       {
         "on": true,
         "note": 48,
-        "velocity": 0.74,
+        "velocity": 0.5562,
         "gate": 0.96
       },
       {
@@ -277,7 +277,7 @@
       {
         "on": true,
         "note": 48,
-        "velocity": 0.74,
+        "velocity": 0.5457,
         "gate": 0.96
       },
       {
@@ -289,7 +289,7 @@
       {
         "on": true,
         "note": 47,
-        "velocity": 0.74,
+        "velocity": 0.6187,
         "gate": 0.96
       },
       {
@@ -315,7 +315,7 @@
       {
         "on": true,
         "note": 45,
-        "velocity": 0.74,
+        "velocity": 0.5978,
         "gate": 0.96
       },
       {
@@ -327,7 +327,7 @@
       {
         "on": true,
         "note": 45,
-        "velocity": 0.74,
+        "velocity": 0.5978,
         "gate": 0.96
       },
       {
@@ -339,7 +339,7 @@
       {
         "on": true,
         "note": 53,
-        "velocity": 0.74,
+        "velocity": 0.5041,
         "gate": 0.96
       },
       {
@@ -351,7 +351,7 @@
       {
         "on": true,
         "note": 53,
-        "velocity": 0.74,
+        "velocity": 0.5249,
         "gate": 0.96
       },
       {
@@ -363,7 +363,7 @@
       {
         "on": true,
         "note": 47,
-        "velocity": 0.74,
+        "velocity": 0.6187,
         "gate": 0.96
       },
       {
@@ -375,7 +375,7 @@
       {
         "on": true,
         "note": 49,
-        "velocity": 0.74,
+        "velocity": 0.6499,
         "gate": 0.96
       },
       {
@@ -387,7 +387,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5562,
         "gate": 0.96
       },
       {
@@ -413,7 +413,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.6499,
         "gate": 0.96
       },
       {
@@ -425,7 +425,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.6291,
         "gate": 0.96
       },
       {
@@ -437,7 +437,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.6291,
         "gate": 0.96
       },
       {
@@ -449,7 +449,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5666,
         "gate": 0.96
       },
       {
@@ -461,7 +461,7 @@
       {
         "on": true,
         "note": 48,
-        "velocity": 0.74,
+        "velocity": 0.5874,
         "gate": 0.96
       },
       {
@@ -473,7 +473,7 @@
       {
         "on": true,
         "note": 48,
-        "velocity": 0.74,
+        "velocity": 0.6187,
         "gate": 0.96
       },
       {
@@ -485,7 +485,7 @@
       {
         "on": true,
         "note": 47,
-        "velocity": 0.74,
+        "velocity": 0.6082,
         "gate": 0.96
       },
       {
@@ -511,7 +511,7 @@
       {
         "on": true,
         "note": 45,
-        "velocity": 0.74,
+        "velocity": 0.5666,
         "gate": 0.96
       },
       {
@@ -523,7 +523,7 @@
       {
         "on": true,
         "note": 45,
-        "velocity": 0.74,
+        "velocity": 0.6395,
         "gate": 0.96
       },
       {
@@ -535,7 +535,7 @@
       {
         "on": true,
         "note": 53,
-        "velocity": 0.74,
+        "velocity": 0.5457,
         "gate": 0.96
       },
       {
@@ -547,7 +547,7 @@
       {
         "on": true,
         "note": 53,
-        "velocity": 0.74,
+        "velocity": 0.6291,
         "gate": 0.96
       },
       {
@@ -559,7 +559,7 @@
       {
         "on": true,
         "note": 47,
-        "velocity": 0.74,
+        "velocity": 0.5666,
         "gate": 0.96
       },
       {
@@ -571,7 +571,7 @@
       {
         "on": true,
         "note": 49,
-        "velocity": 0.74,
+        "velocity": 0.5353,
         "gate": 0.96
       },
       {
@@ -583,7 +583,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5353,
         "gate": 0.96
       },
       {
@@ -595,7 +595,7 @@
       {
         "on": true,
         "note": 52,
-        "velocity": 0.74,
+        "velocity": 0.5457,
         "gate": 0.96
       }
     ]
@@ -2564,7 +2564,8 @@
           "on": true,
           "note": 71,
           "velocity": 0.96,
-          "gate": 0.6
+          "gate": 1,
+          "tie": true
         },
         {
           "on": false,
@@ -2624,7 +2625,8 @@
           "on": true,
           "note": 64,
           "velocity": 0.96,
-          "gate": 0.8
+          "gate": 1,
+          "tie": true
         },
         {
           "on": false,
@@ -2837,7 +2839,8 @@
           "on": true,
           "note": 74,
           "velocity": 0.96,
-          "gate": 0.7
+          "gate": 1,
+          "tie": true
         },
         {
           "on": false,
@@ -2873,7 +2876,8 @@
           "on": true,
           "note": 69,
           "velocity": 0.96,
-          "gate": 0.75
+          "gate": 1,
+          "tie": true
         },
         {
           "on": false,
@@ -2921,7 +2925,8 @@
           "on": true,
           "note": 69,
           "velocity": 0.96,
-          "gate": 0.9
+          "gate": 1,
+          "tie": true
         },
         {
           "on": false,
