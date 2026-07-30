@@ -86,7 +86,7 @@ describe('BackgroundAudioWatchdog', () => {
 
     h.hide();
     expect(h.watchdog.diagnostics.watching).toBe(true);
-    expect(h.renderCapacity.start).toHaveBeenCalledWith({ updateInterval: 0.5 });
+    expect(h.renderCapacity.start).toHaveBeenCalledWith({ updateInterval: 0.25 });
     expect(h.isSampling()).toBe(true);
 
     h.show();
@@ -98,7 +98,7 @@ describe('BackgroundAudioWatchdog', () => {
   it('suspends after two consecutive underrunning windows', () => {
     const h = harness();
     h.hide();
-    h.underruns(0.08);
+    h.underruns(0.08);   // bad, but under the severe bar
     expect(h.onGlitch).not.toHaveBeenCalled(); // one window is not a verdict
     h.underruns(0.06);
     expect(h.onGlitch).toHaveBeenCalledTimes(1);
@@ -118,6 +118,31 @@ describe('BackgroundAudioWatchdog', () => {
     }
     expect(h.onGlitch).not.toHaveBeenCalled();
     expect(h.watchdog.diagnostics.watching).toBe(true);
+  });
+
+  // The Pixel that prompted all this measured its audio clock at 36 % of real
+  // time: waiting a second window only buys confirmation, paid for in crackle.
+  it('trips on the first window when the reading is severe', () => {
+    const h = harness();
+    h.hide();
+    h.underruns(0.4);
+    expect(h.onGlitch).toHaveBeenCalledTimes(1);
+  });
+
+  it('trips on the first window when the audio clock is barely running', () => {
+    const h = harness({ renderCapacity: false });
+    h.hide();
+    h.tick(1, 0.36); // 36 % of real time — the measured Pixel 8a case
+    expect(h.onGlitch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still needs two windows for a marginal reading (edge)', () => {
+    const h = harness({ renderCapacity: false });
+    h.hide();
+    h.tick(1, 0.8); // bad (< 90 %) but not severe
+    expect(h.onGlitch).not.toHaveBeenCalled();
+    h.tick(1, 0.8);
+    expect(h.onGlitch).toHaveBeenCalledTimes(1);
   });
 
   it('resets on a clean window between two bad ones (edge)', () => {
@@ -141,9 +166,8 @@ describe('BackgroundAudioWatchdog', () => {
     const h = harness({ renderCapacity: false });
     h.hide();
     expect(h.watchdog.diagnostics.supported).toBe(false);
-    // The renderer is frozen: wall time runs, audio time barely moves.
-    h.tick(30, 0.2);
-    expect(h.onGlitch).not.toHaveBeenCalled();
+    // The renderer is frozen: wall time runs, audio time barely moves. Severe
+    // by any measure, so one window is the whole verdict.
     h.tick(30, 0.2);
     expect(h.onGlitch).toHaveBeenCalledTimes(1);
   });
@@ -160,11 +184,14 @@ describe('BackgroundAudioWatchdog', () => {
     const h = harness({ renderCapacity: false });
     h.hide();
     // Three wakeups inside one sampling window, each showing a stalled audio
-    // clock — too little elapsed wall time to mean anything.
-    h.tick(0.1, 0);
-    h.tick(0.1, 0);
-    h.tick(0.1, 0);
+    // clock — too little elapsed wall time to mean anything. (They accumulate
+    // rather than reset, so the verdict lands once the window is long enough.)
+    h.tick(0.05, 0);
+    h.tick(0.05, 0);
+    h.tick(0.05, 0);
     expect(h.onGlitch).not.toHaveBeenCalled();
+    h.tick(0.15, 0); // now past SAMPLE_S — and stalled is as severe as it gets
+    expect(h.onGlitch).toHaveBeenCalledTimes(1);
   });
 
   it('stops watching a context the OS suspended under it', () => {

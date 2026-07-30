@@ -3,8 +3,9 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 3   # v3: REQ-9..REQ-11 — the background watchdog: measure underruns while
-             #     hidden and suspend when the audio is genuinely breaking up
+version: 4   # v4: REQ-10 — a severe reading trips on ONE window (measured: a Pixel
+             #     8a runs its backgrounded audio clock at 36% of real time)
+             # v3: REQ-9..REQ-12 — the background watchdog
 owner: core
 related:
   - architecture
@@ -108,7 +109,7 @@ the session alive, and what the Debug panel shows.
 - **REQ-9** (v3) — **Backgrounded audio that is measurably breaking up is
   suspended, not left to crackle.** While the page is **hidden** and the context
   is **running**, a watchdog samples how the audio thread is actually doing every
-  `SAMPLE_S` (0.5 s) and, when two consecutive windows come back bad, fades the
+  `SAMPLE_S` (0.25 s) and, when the windows come back bad (REQ-10), fades the
   master out and suspends the context. Returning to the foreground resumes and
   fades back in through the existing path (REQ-4/REQ-1), and because a suspended
   context freezes `currentTime`, the transport's grid is untouched — it picks up
@@ -119,7 +120,9 @@ the session alive, and what the Debug panel shows.
     fraction of render quanta that missed their deadline, i.e. the crackle itself.
     A window is bad at `underrunRatio > 0.01` (≈4 glitches a second at a 128-frame
     quantum, already plainly audible). Started on hide, stopped on show, so it
-    costs nothing in the foreground.
+    costs nothing in the foreground. **Not universal**: the Pixel 8a this was
+    built for runs a Chrome that does not expose it, which is why the fallback
+    below is not optional.
   - **Audio-clock drift** — `ctx.currentTime` advancing slower than
     `performance.now()` over the window, bad below 90 %. This is the fallback
     where `renderCapacity` is absent, and the only signal that catches an outright
@@ -127,6 +130,14 @@ the session alive, and what the Debug panel shows.
     running at all). Sampled from a **worker-backed** `TickTimer`, the same
     facility [`transport`](transport.md) REQ-4 uses, so throttled main-thread
     timers cannot blind it.
+
+  **Two bad windows trip — or one, when the reading is severe** (v4:
+  `underrunRatio > 0.1`, or the audio clock under `SEVERE_DRIFT` = 50 % of real
+  time). The second window only ever bought *confirmation*, and it is paid for in
+  audible crackle: the device this exists for measured **35.7 %** — a third of
+  real time — so there was nothing left to confirm. A false trip is close to free
+  (the page is hidden, and returning resumes and fades in either way), while a
+  slow trip is heard. Marginal readings still need their second window.
 
   **No user-agent check anywhere.** The failing device was a Pixel 8a while a
   Samsung tablet on the same build played through a screen-off fine; gating on
@@ -170,7 +181,8 @@ Engine.installContextRearm(): void   # private, called from init(); replaces ins
 Clock.dropouts: number               # recoveries this session (monotonic, never reset)
 
 # src/audio/background-watchdog.ts   — v3
-SAMPLE_S = 0.5, UNDERRUN_TRIP = 0.01, DRIFT_TRIP = 0.9, BAD_WINDOWS = 2
+SAMPLE_S = 0.25, UNDERRUN_TRIP = 0.01, DRIFT_TRIP = 0.9, BAD_WINDOWS = 2
+SEVERE_UNDERRUN = 0.1, SEVERE_DRIFT = 0.5      # v4: one window is enough
 WatchdogDiagnostics: { supported, watching, underrunRatio, worstUnderrunRatio, driftRatio, suspensions }
 class BackgroundAudioWatchdog:
   constructor(ctx, opts: { onGlitch(): void; isBusy?(): boolean; doc?; timer?; now? })
@@ -255,6 +267,13 @@ Scenario: One bad window is not a trip (v3, edge)
   Given the page has just been hidden
   When a single window reports underruns and the next is clean
   Then the context keeps running
+# pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: A severe window is a trip on its own (v4)
+  Given the page is hidden
+  When one window reports the audio clock at 36% of real time
+  Then the context is suspended without waiting for a second window
+   And a merely marginal reading (80%) still waits for its second
 # pinned by: tests/audio/background-watchdog.test.ts
 
 Scenario: A capture in a backgrounded tab is never cut short (v3, REQ-11)

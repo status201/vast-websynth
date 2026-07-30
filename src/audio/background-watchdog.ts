@@ -23,8 +23,8 @@ import { type TickTimer, defaultTickTimer } from './transport/tick-timer';
  *    is not running at all.
  */
 
-/** Sampling window, seconds. Two bad ones in a row trip, so ~1 s to act. */
-const SAMPLE_S = 0.5;
+/** Sampling window, seconds. Short, because every window is audible crackle. */
+const SAMPLE_S = 0.25;
 /** Fraction of render quanta underrunning that counts as "breaking up". At a
  *  128-frame quantum that is ~4 glitches a second — plainly audible. */
 const UNDERRUN_TRIP = 0.01;
@@ -32,6 +32,17 @@ const UNDERRUN_TRIP = 0.01;
 const DRIFT_TRIP = 0.9;
 /** Consecutive bad windows before acting — one absorbs the hide transition itself. */
 const BAD_WINDOWS = 2;
+
+/**
+ * Past these, one window is enough: waiting for a second only buys confirmation
+ * of something already unambiguous, and the price of that confirmation is paid
+ * in audible crackle. A Pixel 8a measured its audio clock running at **36 % of
+ * real time** while backgrounded — a third of a render deadline met, which no
+ * buffer size can disguise. A false trip here is nearly free: the page is
+ * hidden, and coming back resumes and fades in either way.
+ */
+const SEVERE_DRIFT = 0.5;
+const SEVERE_UNDERRUN = 0.1;
 
 /** The slice of `document` this needs; injectable so jsdom tests can drive it. */
 export interface VisibilityDoc {
@@ -145,7 +156,7 @@ export class BackgroundAudioWatchdog {
     if (!this.watching) return;
     this.lastUnderrun = e.underrunRatio;
     if (e.underrunRatio > this.worstUnderrun) this.worstUnderrun = e.underrunRatio;
-    this.judge(e.underrunRatio > UNDERRUN_TRIP);
+    this.judge(e.underrunRatio > UNDERRUN_TRIP, e.underrunRatio > SEVERE_UNDERRUN);
   };
 
   /**
@@ -166,16 +177,19 @@ export class BackgroundAudioWatchdog {
     this.rebase();
     // With renderCapacity present, drift only escalates a window that signal
     // cannot see at all (a frozen thread reports no updates, so no underruns).
-    this.judge(this.lastDrift < DRIFT_TRIP);
+    this.judge(this.lastDrift < DRIFT_TRIP, this.lastDrift < SEVERE_DRIFT);
   };
 
-  /** Two bad windows in a row is the trip; anything clean resets the count. */
-  private judge(bad: boolean): void {
+  /**
+   * Two bad windows in a row is the trip — or one, if that window was severe
+   * enough to leave nothing to confirm. Anything clean resets the count.
+   */
+  private judge(bad: boolean, severe: boolean): void {
     if (!bad) { this.badWindows = 0; return; }
     // A capture is recording the live output in real time — suspending mid-take
     // truncates the file, which is worse than a damaged one (REQ-11).
     if (this.isBusy()) return;
-    if (++this.badWindows < BAD_WINDOWS) return;
+    if (++this.badWindows < BAD_WINDOWS && !severe) return;
     this.endWatch();
     this.suspensions++;
     this.opts.onGlitch();
