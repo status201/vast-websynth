@@ -5,6 +5,7 @@ import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
 import type { IosAudioDiagnostics } from '../../src/audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../../src/audio/media-session';
+import type { WatchdogDiagnostics } from '../../src/audio/background-watchdog';
 
 // The About modal wires the factory-reset button to this helper; the helper's
 // own behaviour (clear + reload) is pinned by tests/state/factory-reset.test.ts.
@@ -14,6 +15,9 @@ const INERT_IOS: IosAudioDiagnostics = { active: false, status: 'n/a', routed: f
 const INERT_MEDIA: MediaSessionDiagnostics = {
   active: false, status: 'n/a', playbackState: 'n/a', handlers: 0, paused: null, currentTime: null,
 };
+const IDLE_BG: WatchdogDiagnostics = {
+  supported: true, watching: false, underrunRatio: 0, worstUnderrunRatio: 0, driftRatio: 1, suspensions: 0,
+};
 
 /** Minimal StudioApi — the Debug panel reads the context, the clock/sync state,
  *  the iOS + Android session diagnostics, and (for its actions) panic/resume/sampler. */
@@ -21,6 +25,7 @@ function stubEngine(
   state: AudioContextState = 'running',
   iosAudio: IosAudioDiagnostics = INERT_IOS,
   mediaSession: MediaSessionDiagnostics = INERT_MEDIA,
+  backgroundAudio: WatchdogDiagnostics = IDLE_BG,
 ) {
   const osc = {
     frequency: { value: 0 },
@@ -52,6 +57,7 @@ function stubEngine(
     ctx,
     iosAudio,
     mediaSession,
+    backgroundAudio,
     clock: { playing: false, bpm: 120, dropouts: 0 },
     sync: { mode: 'off' },
     sampler: { setBuffer: vi.fn() },
@@ -65,6 +71,7 @@ const debugSection = () => document.querySelector('[data-testid="debug-section"]
 const ctxStateRow = () => document.querySelector('[data-testid="debug-ctx-state"]') as HTMLElement | null;
 const unlockRow = () => document.querySelector('[data-testid="debug-ios-unlock"]') as HTMLElement | null;
 const mediaRow = () => document.querySelector('[data-testid="debug-media-session"]') as HTMLElement | null;
+const bgRow = () => document.querySelector('[data-testid="debug-background"]') as HTMLElement | null;
 const clipsRow = () => document.querySelector('[data-testid="debug-sampler-clips"]') as HTMLElement | null;
 const clipsClearBtn = () => document.querySelector('[data-testid="debug-clips-clear"]') as HTMLButtonElement | null;
 
@@ -144,6 +151,25 @@ describe('About modal — Debug section', () => {
     const { engine: off } = stubEngine('running');
     document.body.appendChild(createAboutButton(off)).click();
     expect(mediaRow()?.textContent).toBe('n/a');
+  });
+
+  // audio-lifecycle.md REQ-12 — the reading that says whether a background
+  // crackle is even ours: zero underruns means it happened downstream of us.
+  it('renders the background-watchdog readings', () => {
+    const bg: WatchdogDiagnostics = {
+      supported: true, watching: true, underrunRatio: 0.0312, worstUnderrunRatio: 0.081,
+      driftRatio: 0.994, suspensions: 2,
+    };
+    const { engine } = stubEngine('running', INERT_IOS, INERT_MEDIA, bg);
+    document.body.appendChild(createAboutButton(engine)).click();
+    expect(bgRow()?.textContent)
+      .toBe('watching · underrun 3.1% (worst 8.1%) · clock 99.4% · 2 suspends');
+
+    // Without renderCapacity the drift fallback is all there is; say so.
+    document.body.innerHTML = '';
+    const { engine: noCap } = stubEngine('running', INERT_IOS, INERT_MEDIA, { ...bg, supported: false });
+    document.body.appendChild(createAboutButton(noCap)).click();
+    expect(bgRow()?.textContent).toContain('underrun n/a');
   });
 
   // debug-panel.md REQ-4/REQ-5 — the late-bound row idiom, used by

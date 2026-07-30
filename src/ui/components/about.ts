@@ -440,6 +440,10 @@ function buildDebugSection(engine: StudioApi): {
   // Android keep-alive (owned by media-session.md; inert off Android).
   const mediaVal = addRow('Media session');
   mediaVal.dataset.testid = 'debug-media-session';
+  // What the audio thread reports about itself while the page is hidden — the
+  // one reading that says whether a background crackle is ours (audio-lifecycle).
+  const bgVal = addRow('Background audio');
+  bgVal.dataset.testid = 'debug-background';
 
   // ---- service-worker state (async, so polled far slower than the rows) ----
   let swText = 'unsupported';
@@ -561,6 +565,12 @@ function buildDebugSection(engine: StudioApi): {
       : (ios.paused ? 'paused' : `playing t=${(ios.currentTime ?? 0).toFixed(1)}`);
     // Android: did the session actually form? The keep-alive loop's own clock
     // advances beside it, which is what says the element is really playing.
+    const bg = engine.backgroundAudio;
+    const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
+    bgVal.textContent =
+      `${bg.watching ? 'watching' : 'idle'} · `
+      + (bg.supported ? `underrun ${pct(bg.underrunRatio)} (worst ${pct(bg.worstUnderrunRatio)})` : 'underrun n/a')
+      + ` · clock ${pct(bg.driftRatio)} · ${bg.suspensions} suspends`;
     const media = engine.mediaSession;
     mediaVal.textContent = !media.active
       ? 'n/a'

@@ -58,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it. Phones and tablets that already played fine with the screen off are
   unaffected. Coming back to the app also wakes the audio up again on Android,
   which it previously only did on iOS.
+- **The synth now goes quiet instead of crackling when a device can't cope with
+  running it in the background.** Some phones throttle an app the moment it is
+  hidden — screen off, or just switched away from — and starve its audio no matter
+  how much slack you give it (a bigger buffer, fewer voices and registering as a
+  media player all failed to help on a Pixel 8a, while a Samsung tablet on the same
+  build plays through it fine). So the app now *listens to itself*: while it is in
+  the background it watches how the audio is actually doing, and if it is genuinely
+  breaking up it fades out and pauses rather than making that noise. Come back to
+  the app and it picks up exactly where it was. Nothing is switched on by device
+  type — a device that plays cleanly in the background is never interrupted, so
+  playing with the screen off keeps working wherever it already worked. About →
+  Debug now shows the readings behind that decision.
+
 - **Opening the app could pop or click.** Sound started at full volume the
   instant the audio device woke up, so the device's own start-up transient
   arrived at full level. It now fades up over a sixth of a second — inaudible as

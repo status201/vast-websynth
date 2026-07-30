@@ -3,8 +3,8 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 2   # v2: REQ-8 — the Android keep-alive (media-session.md) joins the
-             #     in-gesture unlock and the foreground re-arm
+version: 3   # v3: REQ-9..REQ-11 — the background watchdog: measure underruns while
+             #     hidden and suspend when the audio is genuinely breaking up
 owner: core
 related:
   - architecture
@@ -16,8 +16,11 @@ related:
   - debug-panel
 source:
   - src/audio/engine.ts
+  - src/audio/background-watchdog.ts
   - src/audio/transport/clock.ts
   - src/audio/ios-audio-session.ts
+  - src/types/pwa.d.ts                # AudioRenderCapacity ambient types
+  - src/ui/studio-api.ts
   - src/ui/components/about.ts
 ```
 
@@ -102,6 +105,47 @@ the session alive, and what the Debug panel shows.
   for the session and is appended to the Debug panel's Transport row
   ([`debug-panel`](debug-panel.md)), so the failure this spec exists for can be
   confirmed from a phone with no console — which is the only place it reproduces.
+- **REQ-9** (v3) — **Backgrounded audio that is measurably breaking up is
+  suspended, not left to crackle.** While the page is **hidden** and the context
+  is **running**, a watchdog samples how the audio thread is actually doing every
+  `SAMPLE_S` (0.5 s) and, when two consecutive windows come back bad, fades the
+  master out and suspends the context. Returning to the foreground resumes and
+  fades back in through the existing path (REQ-4/REQ-1), and because a suspended
+  context freezes `currentTime`, the transport's grid is untouched — it picks up
+  exactly where it was, the same "a dropout is a pause" contract as REQ-6.
+- **REQ-10** (v3) — **The trip is measured, never inferred from the device.** Two
+  signals, in order of precision:
+  - **`AudioContext.renderCapacity`** (Chrome 115+) reports `underrunRatio` — the
+    fraction of render quanta that missed their deadline, i.e. the crackle itself.
+    A window is bad at `underrunRatio > 0.01` (≈4 glitches a second at a 128-frame
+    quantum, already plainly audible). Started on hide, stopped on show, so it
+    costs nothing in the foreground.
+  - **Audio-clock drift** — `ctx.currentTime` advancing slower than
+    `performance.now()` over the window, bad below 90 %. This is the fallback
+    where `renderCapacity` is absent, and the only signal that catches an outright
+    *frozen* renderer (where the audio thread is not underrunning, it is not
+    running at all). Sampled from a **worker-backed** `TickTimer`, the same
+    facility [`transport`](transport.md) REQ-4 uses, so throttled main-thread
+    timers cannot blind it.
+
+  **No user-agent check anywhere.** The failing device was a Pixel 8a while a
+  Samsung tablet on the same build played through a screen-off fine; gating on
+  "is Android" would have stopped the tablet too. A device that does not underrun
+  never trips.
+- **REQ-11** (v3) — **It never interrupts a real-time capture.** The trip is
+  refused while `recorder.isCapturing()` or `bankRender.isRendering()`
+  ([audio-export](audio-export.md), [render-to-sampler](render-to-sampler.md)):
+  both record the live output in real time, so suspending mid-take would silently
+  truncate the file. A capture running in a backgrounded tab keeps whatever
+  crackle the device gives it — a damaged take beats a truncated one, and the
+  Debug row still shows what happened.
+- **REQ-12** (v3) — **The measurement is visible whether or not it trips.**
+  `Engine.backgroundAudio` (`{ supported, watching, underrunRatio, worstUnderrunRatio,
+  driftRatio, suspensions }`) is part of `StudioApi` and renders as the **Background
+  audio** row (`debug-background`) in the [`debug-panel`](debug-panel.md). This is
+  deliberate: if a device crackles while its `underrunRatio` reads **zero**, the
+  glitching is happening downstream of the renderer and nothing in this app can
+  reach it — which is a finding, not a dead end.
 - **REQ-8** (v2) — **The OS is told there is a player here.** `resume()` also
   unlocks the [`media-session`](media-session.md) keep-alive, and the foreground
   re-arm (REQ-4) re-arms it, both alongside their iOS counterparts and both
@@ -124,6 +168,20 @@ Engine.installContextRearm(): void   # private, called from init(); replaces ins
 
 # src/audio/transport/clock.ts       — see transport.md REQ-9
 Clock.dropouts: number               # recoveries this session (monotonic, never reset)
+
+# src/audio/background-watchdog.ts   — v3
+SAMPLE_S = 0.5, UNDERRUN_TRIP = 0.01, DRIFT_TRIP = 0.9, BAD_WINDOWS = 2
+WatchdogDiagnostics: { supported, watching, underrunRatio, worstUnderrunRatio, driftRatio, suspensions }
+class BackgroundAudioWatchdog:
+  constructor(ctx, opts: { onGlitch(): void; isBusy?(): boolean; doc?; timer?; now? })
+  start(): void                      # install the visibilitychange listener
+  get diagnostics(): WatchdogDiagnostics
+Engine.backgroundAudio: WatchdogDiagnostics
+
+# src/types/pwa.d.ts                 — ambient, not in lib.dom
+AudioRenderCapacity: start({ updateInterval }) / stop() / 'update' event
+  AudioRenderCapacityEvent: { timestamp, averageLoad, peakLoad, underrunRatio }
+AudioContext.renderCapacity?: AudioRenderCapacity
 ```
 
 ### Layer touchpoints & ordering
@@ -135,6 +193,10 @@ engine.resume():   iosSession.unlock(); media.unlock()       # sync, inside the 
                    await ctx.resume()                        # ramp already on the timeline (REQ-3)
 engine.init():     installContextRearm()                     # after the graph + voices exist
                    #   on foreground: resume() as below, plus media.rearm() (REQ-8)
+                   watchdog.start()                          # v3: AFTER recorder/bankRender —
+                   #   isBusy() reads them (REQ-11)
+watchdog trip:     master.gain → 0 over GLITCH_FADE_S, then ctx.suspend()
+                   #   the fade first so the exit is not itself a click (REQ-1's sibling)
 main.ts:           unchanged — the start handler still awaits engine.resume()
 ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
 wake lock:         unchanged — it follows ctx.state from main.ts and the OS drops it
@@ -175,6 +237,37 @@ Scenario: A deliberate suspend stays suspended (edge, off iOS)
   When the statechange event fires
   Then the context is NOT auto-resumed
 # pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A backgrounded tab that underruns is suspended (v3)
+  Given the page is hidden with the context running
+  When two consecutive sample windows report underrunRatio above the trip
+  Then the master is faded out and the context is suspended
+   And returning to the foreground resumes it and fades back in
+   And the transport continues from the step it was on
+# pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: A device that plays cleanly in the background is left alone (v3)
+  Given the page is hidden and every window reports no underruns
+  Then nothing is suspended, however long it stays hidden
+# pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: One bad window is not a trip (v3, edge)
+  Given the page has just been hidden
+  When a single window reports underruns and the next is clean
+  Then the context keeps running
+# pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: A capture in a backgrounded tab is never cut short (v3, REQ-11)
+  Given an export is running and the page is hidden
+  When the windows report underruns
+  Then the context is NOT suspended
+# pinned by: tests/audio/background-watchdog.test.ts
+
+Scenario: A frozen renderer trips on drift where underruns cannot (v3)
+  Given no renderCapacity support
+  When the audio clock advances far slower than wall time while hidden
+  Then the context is suspended
+# pinned by: tests/audio/background-watchdog.test.ts
 
 Scenario: Screen off on a device that freezes the renderer (device)
   Given the transport is playing on a Pixel 8a

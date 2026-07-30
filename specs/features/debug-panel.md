@@ -3,7 +3,8 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 6   # v6: + the Media session row (media-session.md REQ-8); v5 put
+version: 7   # v7: + the Background audio row (audio-lifecycle.md REQ-12)
+             # v6: + the Media session row (media-session.md REQ-8); v5 put
              #     Clock.dropouts on the Transport row (audio-lifecycle REQ-7)
 owner: core
 related:
@@ -68,8 +69,10 @@ instead of transcribing it from a phone screen.
   wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
   (`isIOS()` yes/no), **Media session** (`debug-media-session` — v6, the Android
   keep-alive's status/`playbackState`, `n/a` elsewhere; see
-  [media-session](media-session.md) REQ-8), **Local storage** (`debug-storage`,
-  `storageUsage()`).
+  [media-session](media-session.md) REQ-8), **Background audio**
+  (`debug-background` — v7, the watchdog's underrun/drift readings while hidden
+  and any suspends it made; [audio-lifecycle](audio-lifecycle.md) REQ-12),
+  **Local storage** (`debug-storage`, `storageUsage()`).
 - **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
   a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
   `statechange` event, **and** on a ~500 ms interval (so values that change without an
@@ -189,6 +192,7 @@ WakeLockManager.held: boolean                                       # utils/wake
 Clock.bpm: number                                                   # transport clock
 Clock.dropouts: number                              # v5: stalled-wakeup recoveries (transport.md REQ-9)
 Engine.mediaSession: MediaSessionDiagnostics        # v6: Android keep-alive (media-session.ts)
+Engine.backgroundAudio: WatchdogDiagnostics         # v7: background-watchdog.ts
 initMIDI(engine, bus): Promise<MIDIAccess | null>                   # resolves the handle
 ```
 

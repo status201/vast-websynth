@@ -26,6 +26,7 @@ import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } f
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
+import { BackgroundAudioWatchdog, type WatchdogDiagnostics } from './background-watchdog';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -37,6 +38,13 @@ const PITCH_BEND_RANGE_CENTS = 200;
  * as a fade after a deliberate tap.
  */
 const RESUME_FADE_S = 0.15;
+
+/**
+ * Fade before the watchdog suspends a backgrounded context that is breaking up
+ * (audio-lifecycle.md REQ-9). Short — the audio is already glitching, so the
+ * point is only that the exit isn't itself a click.
+ */
+const GLITCH_FADE_S = 0.06;
 
 /**
  * Boot-time tuning chosen by Performance mode (see `state/perf-mode.ts`). Both
@@ -128,6 +136,8 @@ export class Engine {
   private readonly iosSession: IosAudioSession;
   /** Android-only Media Session keep-alive; inert on every other platform. */
   private readonly media: MediaSessionKeepAlive;
+  /** Watches a backgrounded context for real underruns (audio-lifecycle REQ-9). */
+  private watchdog!: BackgroundAudioWatchdog;
 
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
@@ -357,6 +367,14 @@ export class Engine {
     });
 
     this.installContextRearm();
+
+    // Built here, not in the constructor: `isBusy` reads the recorder and the
+    // bank renderer, which only exist by now (audio-lifecycle.md REQ-11).
+    this.watchdog = new BackgroundAudioWatchdog(this.ctx, {
+      onGlitch: () => this.suspendForGlitch(),
+      isBusy: () => this.recorder.isCapturing() || this.bankRender.isRendering(),
+    });
+    this.watchdog.start();
   }
 
   /**
@@ -467,6 +485,27 @@ export class Engine {
 
   /** Android keep-alive diagnostics for the Debug panel (see media-session.md REQ-8). */
   get mediaSession(): MediaSessionDiagnostics { return this.media.diagnostics; }
+
+  /** Background-watchdog readings for the Debug panel (audio-lifecycle.md REQ-12). */
+  get backgroundAudio(): WatchdogDiagnostics { return this.watchdog.diagnostics; }
+
+  /**
+   * The watchdog's verdict: this device cannot keep a backgrounded audio thread
+   * fed, so go quiet rather than crackle (audio-lifecycle.md REQ-9). Fade first
+   * so the exit is clean, then suspend — `currentTime` freezes with it, so the
+   * transport's grid is preserved and the foreground re-arm picks up where it
+   * left off. The suspend is deferred past the fade; a throttled background timer
+   * can only make it *later*, which is inaudible at zero gain.
+   */
+  private suspendForGlitch(): void {
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    this.master.gain.linearRampToValueAtTime(0, t + GLITCH_FADE_S);
+    setTimeout(() => {
+      void this.ctx.suspend().catch(() => { /* already gone — nothing to do */ });
+    }, GLITCH_FADE_S * 1000);
+  }
 
   // ---------- Note handling ----------
 

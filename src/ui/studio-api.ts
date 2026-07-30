@@ -13,6 +13,7 @@ import type { WebRtcSyncTransport } from '../audio/webrtc-sync-transport';
 import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../audio/media-session';
+import type { WatchdogDiagnostics } from '../audio/background-watchdog';
 
 /**
  * The UI's narrow view of the `Engine` (ADR-009). UI panels/components depend on
@@ -70,6 +71,9 @@ export interface StudioApi {
 
   /** Android Media Session keep-alive diagnostics (inert off Android). */
   readonly mediaSession: MediaSessionDiagnostics;
+
+  /** Background-audio watchdog readings — underruns while hidden, and any suspends. */
+  readonly backgroundAudio: WatchdogDiagnostics;
 
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;
