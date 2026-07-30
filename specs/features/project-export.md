@@ -3,7 +3,9 @@
 ```yaml
 id: project-export
 status: implemented
-version: 4   # v4: REQ-1 names no canonical version (it had frozen at "v4")
+version: 5   # v5: REQ-2 budgets the reader (entry count, declared-size pre-flight,
+             #     capped inflate, running total) — a zip is untrusted input
+             # v4: REQ-1 names no canonical version (it had frozen at "v4")
              # v3: JSON demos are fetched on click too; loadDemo is async
 owner: core
 related:
@@ -12,6 +14,8 @@ related:
   - audio-export
   - sample-recorder
   - dialog
+  - untrusted-input
+  - ../decisions/adr-015-untrusted-input-is-bounded
 source:
   - src/utils/compression.ts            # shared deflate-raw helpers (extracted from webrtc-signaling)
   - src/utils/zip.ts                    # minimal dependency-free ZIP codec
@@ -45,6 +49,14 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   methods 0 + 8, locates the EOCD by backward scan (tolerates trailing bytes),
   trusts central-directory metadata, verifies CRC-32, and throws a typed `ZipError`
   on zip64 / unknown methods / bad CRC / truncation.
+  **A zip is an untrusted container (v5)**, so the reader is also *budgeted*
+  ([untrusted-input](untrusted-input.md) REQ-2): it refuses a central directory
+  declaring more than `MAX_ZIP_ENTRIES`, uses each entry's **declared
+  uncompressed size as a pre-flight budget** against `MAX_ZIP_ENTRY_BYTES`
+  *before* inflating, caps the inflate itself at the same figure, and refuses
+  once the running total across entries passes `MAX_ZIP_TOTAL_BYTES`. Previously
+  the declared size was read but only compared *after* a full uncapped inflate,
+  so a deflate bomb was spent before it was noticed.
 - **REQ-3** — The shared deflate helpers live in `src/utils/compression.ts`
   (extracted from `webrtc-signaling.ts`, behaviour identical) so the zip module does
   not depend on an audio/signaling module.
@@ -213,6 +225,15 @@ Scenario: Corrupt zips are rejected with a typed error (failure)
   Given bytes with a bad CRC, an unknown compression method, or a zip64 EOCD
   When zipRead runs
   Then it throws ZipError (and the import UI shows the alertDialog bullet list)
+# pinned by: tests/utils/zip.test.ts
+
+Scenario: A zip bomb is refused before it is materialized (v5)
+  Given an entry whose declared size — or whose actual inflate — exceeds
+    MAX_ZIP_ENTRY_BYTES
+  When zipRead runs
+  Then it throws ZipError without buffering the full output
+  And a central directory declaring more than MAX_ZIP_ENTRIES is refused up front
+  And entries summing past MAX_ZIP_TOTAL_BYTES are refused part-way through
 # pinned by: tests/utils/zip.test.ts
 
 Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)

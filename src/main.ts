@@ -13,7 +13,9 @@ import { Song } from './state/song';
 import { XyPadStore } from './state/xy-pad';
 import { UiBridge } from './ui/ui-bridge';
 import { parseSongLink, decodeSongPayload } from './state/song-link';
+import { MAX_SONG_JSON_BYTES } from './state/limits';
 import { Modal } from './ui/components/modal';
+import { alertDialog, confirmDialog } from './ui/components/dialog';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast } from './ui/components/toast';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './ui/components/about';
@@ -21,6 +23,9 @@ import type { Onboarding } from './ui/onboarding';
 
 // Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
 declare const __APP_VERSION__: string;
+
+/** Bounded wait for a `#songUrl=` download, so a dead host can't hang boot. */
+const SONG_FETCH_TIMEOUT_MS = 15_000;
 
 async function boot() {
   // Build the synth and mount the full UI immediately. The AudioContext is
@@ -143,33 +148,43 @@ async function boot() {
   // Shareable song links (song-share-link.md): #song=<payload> embeds the
   // song, #songUrl=<https url> points at a hosted song/project file. Both
   // funnel through the same import path as the Import button / launchQueue,
-  // so parse errors surface in the normal import dialog. Applying is pure
-  // state, so it works behind the start modal — like launchQueue above. The
-  // hash is consumed only on success (REQ-4), so a bad link stays visible in
-  // the address bar for the user to inspect/copy.
+  // so parse errors surface in the normal import dialog. The hash is consumed
+  // only on success (REQ-4), so a bad link stays visible in the address bar for
+  // the user to inspect/copy.
   const link = parseSongLink(window.location.hash);
-  if (link) {
-    void (async () => {
-      try {
-        let bytes: Uint8Array;
-        let name = 'shared-song.json';
-        if (link.kind === 'data') {
-          bytes = new TextEncoder().encode(await decodeSongPayload(link.payload));
-        } else {
-          const resp = await fetch(link.url);
-          if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
-          bytes = new Uint8Array(await resp.arrayBuffer());
-          // Keep the URL's filename tail so a .zip project routes through the
-          // magic-byte sniff with its extension fallback intact.
-          name = link.url.replace(/[?#].*$/, '').replace(/^.*\//, '') || name;
-        }
-        const ok = await bridge.importSongBytes(bytes, name);
-        if (ok) history.replaceState(null, '', window.location.pathname + window.location.search);
-      } catch (e) {
-        alert('Could not load the shared song: ' + (e as Error).message);
+
+  const applySongLink = async (l: NonNullable<typeof link>): Promise<void> => {
+    try {
+      let bytes: Uint8Array;
+      let name = 'shared-song.json';
+      if (l.kind === 'data') {
+        // Self-contained: no network, no third party. The payload is size-capped
+        // in decodeSongPayload.
+        bytes = new TextEncoder().encode(await decodeSongPayload(l.payload));
+      } else {
+        const fetched = await fetchSharedSong(l.url);
+        if (!fetched) return; // declined — leave the hash for the user to inspect
+        bytes = fetched;
+        // Keep the URL's filename tail so a .zip project routes through the
+        // magic-byte sniff with its extension fallback intact.
+        name = l.url.replace(/[?#].*$/, '').replace(/^.*\//, '') || name;
       }
-    })();
-  }
+      const ok = await bridge.importSongBytes(bytes, name);
+      if (ok) history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (e) {
+      await alertDialog({
+        title: 'Could not load the shared song',
+        message: (e as Error).message,
+      });
+    }
+  };
+
+  // An embedded payload applies at boot: it is pure state, so it works behind
+  // the start modal (like launchQueue above). A #songUrl= link cannot — it has
+  // to ASK first (REQ-7), and a dialog raised now would render *under* the start
+  // modal, unreachable. So it waits for the start gesture, the same reason the
+  // restored-clips toast does.
+  if (link?.kind === 'data') void applySongLink(link);
 
   // MIDI is initialized from the start gesture, not at boot: Chrome ≥124
   // gates all Web MIDI behind a permission prompt, and prompting on page
@@ -189,6 +204,9 @@ async function boot() {
         testId: 'clips-restored-toast',
       });
     }
+    // A #songUrl= link needs consent (song-share-link.md REQ-7), and its dialog
+    // would be trapped under the start modal if it were raised at boot.
+    if (link?.kind === 'url') void applySongLink(link);
   });
 
   // Offline support — PRODUCTION-ONLY: the dev server (and Playwright, which
@@ -306,7 +324,52 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   startBtn.focus();
 }
 
+/**
+ * Fetch a `#songUrl=` target, but only with the user's say-so
+ * (song-share-link.md REQ-7, untrusted-input.md REQ-7).
+ *
+ * Without consent, one link made any visitor's browser issue an attacker-chosen
+ * GET the moment the page loaded — a beacon, or a probe of the visitor's own
+ * LAN. `parseSongLink` already restricts the scheme to `https:`; this adds the
+ * gate and the request hardening. Resolves `null` when the user declines.
+ */
+async function fetchSharedSong(url: string): Promise<Uint8Array | null> {
+  const origin = new URL(url).origin;
+  const ok = await confirmDialog({
+    title: 'Load a song from the web?',
+    message: `This link asks to download a song from ${origin}.`,
+    detail: 'That site will see your IP address. Only continue if you trust whoever sent you the link.',
+    confirmLabel: 'Download song',
+  });
+  if (!ok) return null;
+
+  const resp = await fetch(url, {
+    // No ambient credentials, no following a redirect somewhere else, and a
+    // bounded wait — a hostile or merely dead host must not hang boot.
+    credentials: 'omit',
+    redirect: 'error',
+    mode: 'cors',
+    signal: AbortSignal.timeout(SONG_FETCH_TIMEOUT_MS),
+  });
+  if (!resp.ok) throw new Error(`The download failed (HTTP ${resp.status}).`);
+
+  // Refuse an oversized body before buffering it. `Content-Length` is advisory —
+  // a hostile server can omit it — so the post-read length is checked too, and
+  // a zip inside is capped again by the zip reader.
+  const declared = Number(resp.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_SONG_JSON_BYTES) {
+    throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
+  }
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  if (bytes.length > MAX_SONG_JSON_BYTES) {
+    throw new Error(`That song is larger than the ${MAX_SONG_JSON_BYTES} byte limit.`);
+  }
+  return bytes;
+}
+
 boot().catch((err) => {
   console.error(err);
+  // Deliberately the native alert(): this is the failure path for boot ITSELF,
+  // so the app's own dialog component may be exactly what did not come up.
   alert('WebSynth failed to start: ' + (err as Error).message);
 });

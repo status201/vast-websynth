@@ -11,7 +11,7 @@
  */
 import { deflateRawSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, relative, isAbsolute } from 'node:path';
 
 /** MCP text content payload. */
 const text = (s) => ({ content: [{ type: 'text', text: s }] });
@@ -75,6 +75,26 @@ function resolvePreset(core, preset, bus) {
 
 /** Song.download's filename sanitize idiom (song.ts) — kept in sync by test. */
 const safeName = (name) => `${String(name).replace(/[^a-z0-9_-]+/gi, '_') || 'song'}.websynth.json`;
+
+/**
+ * Resolve a caller-supplied `dir` **inside** the working directory
+ * (mcp-server.md REQ-5c). `safeName` only sanitizes the filename; `dir` was
+ * unconstrained, and `mkdirSync(…, {recursive:true})` would happily build the
+ * path on the way out — an absolute path or `../../..` wrote anywhere the
+ * process could. The caller here is a model, and a model summarising a hostile
+ * song file is a prompt-injection route to an arbitrary file write.
+ *
+ * `isAbsolute(rel)` is the Windows case: for a different drive letter
+ * `relative()` returns an absolute path rather than something starting `..`.
+ */
+function containedDir(cwd, dir) {
+  const target = resolve(cwd, dir ?? '.');
+  const rel = relative(cwd, target);
+  if (rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`dir must stay inside the server working directory (${cwd}).`);
+  }
+  return target;
+}
 
 const toBase64Url = (buf) => buf.toString('base64url');
 
@@ -196,7 +216,7 @@ export function makeTools(core, opts = {}) {
       handler: async ({ song, dir }) => {
         const res = resolveSong(core, song);
         if (!res.ok) return json({ ok: false, errors: res.errors });
-        const target = resolve(cwd, dir ?? '.');
+        const target = containedDir(cwd, dir);
         mkdirSync(target, { recursive: true });
         const path = resolve(target, safeName(res.file.name));
         writeFileSync(path, compactJson(res.file));
@@ -299,7 +319,7 @@ export function makeTools(core, opts = {}) {
         const res = resolvePreset(core, preset, bus());
         if (!res.ok) return json({ ok: false, errors: res.errors });
         const { kind, file, filename } = presetFileOf(res);
-        const target = resolve(cwd, dir ?? '.');
+        const target = containedDir(cwd, dir);
         mkdirSync(target, { recursive: true });
         const path = resolve(target, filename);
         writeFileSync(path, JSON.stringify(file, null, 2) + '\n');

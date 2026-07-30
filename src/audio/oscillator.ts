@@ -22,8 +22,16 @@ export class Osc {
     this.osc.start();
   }
 
-  /** Set carrier frequency. Optional glide via setTargetAtTime. */
+  /** Set carrier frequency. Optional glide via setTargetAtTime.
+   *
+   *  Non-finite input is dropped rather than written: an `AudioParam` value is a
+   *  WebIDL *restricted* float, so `setValueAtTime(Infinity)` throws a TypeError
+   *  — and `midiToHz` returns Infinity for a big enough note. Import validation
+   *  bounds notes to 0..127 and the clock isolates a throwing listener
+   *  (ADR-015); this is the third, cheapest layer, and it keeps a silent note
+   *  from becoming an exception in the first place. */
   setFrequency(hz: number, when: number, glideSec: number): void {
+    if (!Number.isFinite(hz)) return;
     const f = this.osc.frequency;
     if (glideSec <= 0.001) {
       f.cancelScheduledValues(when);

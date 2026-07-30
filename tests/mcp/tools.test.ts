@@ -4,7 +4,7 @@
 // runs them against the real src modules directly under Vitest — no lib
 // bundle needed.
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
@@ -296,6 +296,58 @@ describe('save_preset', () => {
       expect(existsSync(join(dir, 'preset.preset.websynth.json'))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// mcp-server.md REQ-5c / untrusted-input.md REQ-11. safeName only sanitizes the
+// FILENAME; `dir` was unconstrained and mkdirSync(…, {recursive:true}) would
+// build the path on the way out. The caller is a model, and a model summarising
+// a hostile song file is a prompt-injection route to an arbitrary file write.
+describe('save_song / save_preset directory containment', () => {
+  const escapes = ['..', '../..', '../../../evil', 'a/../../../evil'];
+
+  it('refuses a dir that resolves outside the working directory', async () => {
+    for (const dir of escapes) {
+      const cwd = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+      try {
+        await expect(
+          tool('save_song', { cwd }).handler({ song: AUTHOR, dir }),
+          dir,
+        ).rejects.toThrow(/must stay inside/);
+        await expect(
+          tool('save_preset', { cwd }).handler({ preset: PRESET, dir }),
+          dir,
+        ).rejects.toThrow(/must stay inside/);
+      } finally {
+        rmSync(cwd, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('refuses an absolute dir', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    const outside = mkdtempSync(join(tmpdir(), 'websynth-outside-'));
+    try {
+      await expect(tool('save_song', { cwd }).handler({ song: AUTHOR, dir: outside }))
+        .rejects.toThrow(/must stay inside/);
+      // Nothing was created on the way out, either.
+      expect(readdirSync(outside)).toEqual([]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('still writes into a nested dir inside cwd (regression)', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'websynth-mcp-'));
+    try {
+      const out = jsonOf(await tool('save_song', { cwd }).handler({ song: AUTHOR, dir: 'sub/dir' }));
+      expect(out.ok).toBe(true);
+      expect(existsSync(out.path)).toBe(true);
+      expect(out.path.startsWith(cwd)).toBe(true);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
     }
   });
 });

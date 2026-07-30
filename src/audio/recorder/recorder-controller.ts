@@ -53,6 +53,8 @@ export class RecorderController {
   private unsubTick: (() => void) | null = null;
   /** Absolute step the in-flight export ends at; 0 when none. Drives progress. */
   private stopAtStep = 0;
+  /** Ticks seen since this export began — the wrap-free counterpart to `stopAtStep`. */
+  private elapsedSteps = 0;
   /** The tail-grace timeout, so a cancel can disarm it. */
   private tailTimer: number | undefined;
   /** The finished take awaiting Save/Discard; null in every other phase. */
@@ -200,16 +202,29 @@ export class RecorderController {
     this.clock.stop();
     this.exporting = true;
     this.stopAtStep = stopAtStep;
+    this.elapsedSteps = 0;
     this.begin();             // arm before audio so nothing is clipped
-    this.unsubTick = this.clock.onTick((step) => {
+    // Count steps ELAPSED rather than testing the clock's absolute step: `_step`
+    // wraps at `& 0xffff` (transport.md REQ-5), so `step >= stopAtStep` was
+    // unreachable once `bars × runs > 4096` and the export simply never stopped,
+    // recording into memory indefinitely. `bars` is the arrangement chain length,
+    // which an imported song controls — so counting removes the ceiling instead
+    // of capping the song (audio-export.md REQ-2).
+    this.unsubTick = this.clock.onTick(() => {
+      // Post-increment, so `step` is 0,1,2,… — exactly what `clock.step` read
+      // before, just without the 16-bit wrap. The rendered length is therefore
+      // byte-identical to v8's (it stops on the FIRST tick at or past the
+      // bound, so that step is the last one rendered), which the audio bench
+      // and verify-audio-by-ear.md depend on.
+      const step = this.elapsedSteps++;
       if (step >= stopAtStep) {
         this.clock.stop();
         this.tailTimer = window.setTimeout(() => void this.finishExport(format), tailMs);
       }
     });
-    // The 0 is explicit: `stopAtStep` is an ABSOLUTE step number, and a plain
-    // start() now resumes from the user's cue (transport.md REQ-7), which would
-    // truncate the export silently. Fires onStart → arrangement.
+    // The 0 is explicit: the capture must begin at the top of the arrangement,
+    // and a plain start() now resumes from the user's cue (transport.md REQ-7),
+    // which would truncate the export silently. Fires onStart → arrangement.
     this.clock.start(0);
   }
 
@@ -220,7 +235,7 @@ export class RecorderController {
    */
   exportProgress(): number {
     if (this._phase !== 'recording' || !this.exporting || this.stopAtStep <= 0) return 0;
-    return clamp(this.clock.step / this.stopAtStep, 0, 1);
+    return clamp(this.elapsedSteps / this.stopAtStep, 0, 1);
   }
 
   /**
@@ -247,6 +262,7 @@ export class RecorderController {
     }
     this.exporting = false;
     this.stopAtStep = 0;
+    this.elapsedSteps = 0;
   }
 
   /** An export is automatic, so it never parks in `review` — it stops, encodes
@@ -261,6 +277,7 @@ export class RecorderController {
     if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
     this.tailTimer = undefined;
     this.stopAtStep = 0;
+    this.elapsedSteps = 0;
     this.setPhase('encoding');
     try {
       await download(captured, format);

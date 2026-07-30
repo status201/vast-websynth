@@ -21,7 +21,9 @@
     },
     "params": {
       "type": "object",
-      "description": "Flat ParamBus snapshot: dotted parameter id -> scalar value (e.g. 'filter.cutoff', 'fx.delay.mix', 'drum.t0.tune'). Keys are intentionally NOT restricted, so files that carry params from a newer build still load.",
+      "description": "Flat ParamBus snapshot: dotted parameter id -> scalar value (e.g. 'filter.cutoff', 'fx.delay.mix', 'drum.t0.tune'). Key NAMES are intentionally NOT restricted, so files that carry params from a newer build still load; the count is capped at 512 (the bus registers ~150) and '__proto__' / 'constructor' / 'prototype' are refused.",
+      "maxProperties": 512,
+      "propertyNames": { "not": { "enum": ["__proto__", "constructor", "prototype"] } },
       "additionalProperties": {
         "type": "number",
         "description": "A finite scalar. (JSON cannot encode NaN/Infinity, so non-finite values cannot appear here.)"
@@ -201,7 +203,7 @@
       "allOf": [{ "$ref": "#/$defs/stepSettings" }],
       "properties": {
         "on": { "type": "boolean", "description": "Whether this step triggers a note." },
-        "note": { "type": "number", "description": "MIDI note number." }
+        "note": { "type": "integer", "minimum": 0, "maximum": 127, "description": "MIDI note number, 0..127." }
       }
     },
     "triggerCell": {
@@ -232,7 +234,8 @@
         "steps": {
           "type": "array",
           "minItems": 1,
-          "description": "Ordered bank indices (0..3 = A/B/C/D), or -1 for a rest (an always-empty bar).",
+          "maxItems": 1024,
+          "description": "Ordered bank indices (0..3 = A/B/C/D), or -1 for a rest (an always-empty bar). At most 1024 slots — 1024 bars is ~34 minutes at 120 BPM.",
           "items": { "type": "integer", "minimum": -1, "maximum": 3 }
         }
       }

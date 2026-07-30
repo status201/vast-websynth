@@ -223,6 +223,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)
     song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
     mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
@@ -298,6 +299,7 @@ specs/
     adr-012-true-bypass-disconnects.md         ·  bypassed FX disconnect their processed path
     adr-013-authoring-dialect-input-only.md    ·  the authoring dialect is input-only
     adr-014-dont-make-me-think.md              ·  interaction design: six ordered UX laws
+    adr-015-untrusted-input-is-bounded.md      ·  bound every payload; no listener wedges the clock
 ```
 
 > Coverage note: the feature set above documents the current system. New features

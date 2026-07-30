@@ -2,6 +2,7 @@ import type { ParamBus } from './params';
 import { roundParams } from './serialize';
 import { sameSnapshot } from './preset-file';
 import { SlotStore } from './slot-store';
+import { RESERVED_KEYS } from './limits';
 
 const store = new SlotStore('websynth.preset.');
 
@@ -270,11 +271,29 @@ export const Presets = {
     if (changed) store.writeIndex(ix);
   },
 
+  /**
+   * A stored snapshot, else the factory one of that name.
+   *
+   * Validated, not cast (untrusted-input.md REQ-8). The *import* path already
+   * validates, so this only guards tampered/corrupt storage — but a string value
+   * here survives `clamp` (`'abc' < 30` is false) and reaches an `AudioParam` as
+   * `NaN`, which throws. Non-numeric entries are dropped rather than failing the
+   * whole preset: a partially-readable sound still loads, and every id the bus
+   * knows has a default underneath it (ADR-006).
+   */
   load(name: string): Snapshot | null {
     const raw = store.readRaw(name);
     if (!raw) return FACTORY[name] ?? null;
-    try { return JSON.parse(raw) as Snapshot; }
-    catch { return null; }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+      const snap: Snapshot = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (RESERVED_KEYS.includes(k)) continue;
+        if (typeof v === 'number' && Number.isFinite(v)) snap[k] = v;
+      }
+      return snap;
+    } catch { return null; }
   },
 
   save(name: string, snap: Snapshot): void {

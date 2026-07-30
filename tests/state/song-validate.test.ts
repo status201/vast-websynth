@@ -8,6 +8,7 @@ import { DROP_IN_DEMOS } from './demo-files';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
+import { MAX_CHAIN_STEPS, MAX_PARAM_KEYS } from '../../src/state/limits';
 
 /** Deep clone so a test never mutates the shared DEMO_SONGS objects. */
 function clone<T>(v: T): T {
@@ -296,5 +297,70 @@ describe('validateSongFile — v4 motion fields', () => {
     const f = withMotion();
     (f.motionChain as { steps: unknown[] }).steps = [9];
     expectReject(f, 'motionChain.steps[0]');
+  });
+});
+
+// specs/features/untrusted-input.md — a song arrives by link, so the validator
+// is the last place a range can be enforced (ADR-004: PatternStore never does).
+describe('validateSongFile — bounds, not just shapes (untrusted-input)', () => {
+  it('rejects an out-of-range note before it can reach the oscillator', () => {
+    // The whole chain this closes: midiToHz(1e6) is Infinity ->
+    // AudioParam.setValueAtTime throws -> the throw used to escape Clock.tick
+    // and wedge the transport until a reload. One step object did it (ADR-015).
+    for (const note of [1e6, 128, -1, 60.5]) {
+      const f = clone(captureValid());
+      (f.seqBanks[0]![0] as { note: number }).note = note;
+      expectReject(f, 'seqBanks[0][0].note', '0..127');
+    }
+  });
+
+  it('still accepts the whole legal MIDI range', () => {
+    for (const note of [0, 60, 127]) {
+      const f = clone(captureValid());
+      (f.seqBanks[0]![0] as { note: number }).note = note;
+      expect(validateSongFile(f).ok, `note ${note}`).toBe(true);
+    }
+  });
+
+  it('rejects a chain longer than MAX_CHAIN_STEPS', () => {
+    const f = clone(captureValid());
+    // Compresses ~1000:1, so this fits in an address bar — and each step became
+    // a button + listener in the transport scrubber on import.
+    f.seqChain.steps = new Array<number>(MAX_CHAIN_STEPS + 1).fill(0);
+    expectReject(f, 'seqChain.steps', String(MAX_CHAIN_STEPS));
+  });
+
+  it('accepts a chain exactly at the limit (boundary)', () => {
+    const f = clone(captureValid());
+    f.seqChain.steps = new Array<number>(MAX_CHAIN_STEPS).fill(0);
+    expect(validateSongFile(f).ok).toBe(true);
+  });
+
+  it('rejects reserved keys on a cell and on params', () => {
+    // JSON.parse makes __proto__ an OWN property, so it survives to
+    // Object.assign(cell, DEFAULTS, cell) in PatternStore.restore — which
+    // invokes the setter and re-points that cell's prototype.
+    const cell = JSON.parse('{"on":true,"note":60,"__proto__":{"velocity":9}}') as unknown;
+    const f = clone(captureValid());
+    (f.seqBanks[0] as unknown[])[0] = cell;
+    expectReject(f, '__proto__');
+
+    const g = clone(captureValid());
+    g.params = JSON.parse('{"__proto__":{"x":1}}') as Record<string, number>;
+    expectReject(g, '__proto__');
+  });
+
+  it('rejects a params map with more than MAX_PARAM_KEYS entries', () => {
+    const f = clone(captureValid());
+    const params: Record<string, number> = {};
+    for (let i = 0; i <= MAX_PARAM_KEYS; i++) params[`junk.${i}`] = 0;
+    f.params = params;
+    expectReject(f, 'params has', String(MAX_PARAM_KEYS));
+  });
+
+  it('still accepts unknown param ids (ADR-007 stays additive)', () => {
+    const f = clone(captureValid());
+    f.params['from.a.newer.build'] = 0.5;
+    expect(validateSongFile(f).ok).toBe(true);
   });
 });

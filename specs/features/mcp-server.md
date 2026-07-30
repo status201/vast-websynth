@@ -3,7 +3,8 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 3   # v3: expand_song's description names no song version (it drifted to "v3")
+version: 4   # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
+             # v3: expand_song's description names no song version (it drifted to "v3")
              # v2: preset/bank authoring tools alongside the song ones
 owner: tooling
 related:
@@ -11,6 +12,7 @@ related:
   - preset-authoring
   - song-share-link
   - ai-prompt
+  - untrusted-input
   - ../decisions/adr-003-no-runtime-dependencies
   - ../decisions/adr-013-authoring-dialect-input-only
 source:
@@ -89,6 +91,17 @@ first run and imports that.
     `save_song`.
   All preset tools and `get_song_format` share **one** `ParamBus` +
   `registerDefaults` per process — the registry is read-only here.
+- **REQ-5c** — (v4) **A write stays inside the working directory.** Both
+  `save_song` and `save_preset` sanitize the *filename* (`safeName`) **and**
+  contain the `dir` argument: `resolve(cwd, dir)` must remain under `cwd` or the
+  call fails without writing (`isAbsolute(relative(cwd, target))` is what catches
+  another Windows drive letter, where `relative` returns an absolute path rather
+  than `..`). `dir` is already documented as "the server working directory", so
+  containment is the contract — it just wasn't enforced, and
+  `mkdirSync(…, {recursive:true})` would happily create the path on the way out.
+  The caller is a model, and a model summarising a hostile song file is a
+  prompt-injection route to an arbitrary file write
+  ([untrusted-input](untrusted-input.md) REQ-11).
 - **REQ-6** — Tool *input* errors (unknown tool, missing argument) are JSON-RPC
   errors; tool *runtime* failures return `isError: true` with the message in
   `content` (per MCP). Unparseable `song` JSON strings count as validation
@@ -153,6 +166,12 @@ Scenario: save_preset picks the extension from the payload (v2)
   When tools/call save_preset receives a websynth-preset-bank payload
   Then the written path ends in .bank.websynth.json
   And its params are expanded to the complete patch
+
+Scenario: A save cannot escape the working directory (v4)
+  Given save_song (or save_preset) called with dir '../..' or an absolute path
+  Then the call fails and no file or directory is created
+  And dir 'sub/dir' still writes normally
+# pinned by: tests/mcp/tools.test.ts
 
 Scenario: Unknown method
   When the client sends method "resources/list"

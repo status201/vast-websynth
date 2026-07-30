@@ -16,13 +16,28 @@ describe('parseSongLink', () => {
     expect(parseSongLink('song=j:eyJ9')).toEqual({ kind: 'data', payload: 'j:eyJ9' });
   });
 
-  it('recognises #songUrl= http(s) URLs only', () => {
+  it('recognises #songUrl= https URLs only (v3)', () => {
     expect(parseSongLink('#songUrl=https://example.com/x.websynth.json'))
       .toEqual({ kind: 'url', url: 'https://example.com/x.websynth.json' });
-    expect(parseSongLink('#songUrl=http://localhost:5173/demo.zip'))
-      .toEqual({ kind: 'url', url: 'http://localhost:5173/demo.zip' });
-    expect(parseSongLink('#songUrl=javascript:alert(1)')).toBeNull();
-    expect(parseSongLink('#songUrl=ftp://example.com/x.json')).toBeNull();
+    expect(parseSongLink('#songUrl=HTTPS://example.com/x.json'))
+      .toEqual({ kind: 'url', url: 'HTTPS://example.com/x.json' });
+  });
+
+  // untrusted-input.md REQ-7: plain http was the LAN-probe shape — a link could
+  // make the visitor's browser GET their own router at page load.
+  it('refuses every non-https #songUrl= scheme (v3, regression)', () => {
+    for (const url of [
+      'http://localhost:5173/demo.zip',
+      'http://192.168.1.1/admin/reboot',
+      'javascript:alert(1)',
+      'ftp://example.com/x.json',
+      'file:///etc/passwd',
+      'data:application/json,{}',
+      '//evil.example/song.json',          // protocol-relative
+      ' https://example.com/x.json',       // leading space must not sneak past ^
+    ]) {
+      expect(parseSongLink(`#songUrl=${encodeURIComponent(url)}`), url).toBeNull();
+    }
   });
 
   it('returns null for empty/unrelated hashes', () => {

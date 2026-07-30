@@ -3,7 +3,8 @@
 ```yaml
 id: transport
 status: implemented
-version: 4
+version: 5   # v5: REQ-8 listener isolation (a throwing subscriber can't wedge the
+             #     clock) + REQ-3 non-finite bpm/swing refusal
 owner: core
 related:
   - architecture
@@ -13,6 +14,8 @@ related:
   - performance-mode
   - midi-clock-sync
   - transport-position
+  - untrusted-input
+  - ../decisions/adr-015-untrusted-input-is-bounded
 source:
   - src/audio/transport/clock.ts
   - src/audio/transport/tick-timer.ts
@@ -49,6 +52,25 @@ untouched.
 - **REQ-2** — `onStart` fires before the first tick; `onStop` on stop. Order
   matters: the [arrangement](arrangement.md) subscribes first.
 - **REQ-3** — BPM and swing are live-settable; swing delays off-beat 16ths.
+  `setBpm` clamps to `20..400` and `setSwing` to `0..1` — and both **reject
+  non-finite input first** (v5). `Math.max(20, Math.min(400, NaN))` is `NaN`, so
+  the clamp idiom used app-wide does not survive a `NaN`, and a `NaN` tempo makes
+  `sixteenth` `NaN` and stalls the scheduler. The reachable source is a peer:
+  the WiFi sync wire carries `{t:'tempo', bpm}` ([webrtc-sync](webrtc-sync.md)).
+- **REQ-8** (v5) — **A subscriber may not wedge the transport.** `tick()` calls
+  each listener inside its own `try`, and advances `nextStepTime` / `_step`
+  **whether or not one throws**. Previously a throwing listener escaped the
+  `while` body *before* those two lines, leaving `_playing` true and
+  `nextStepTime` unmoved — so the worker re-entered the same step every 25 ms
+  forever and every later-registered lane (drums, sampler, motion, arrangement,
+  the UI playhead) stopped, unrecoverable without a reload. A song with an
+  out-of-range `note` reached this through a throwing `AudioParam` write; the
+  range is now validated at import ([untrusted-input](untrusted-input.md) REQ-4),
+  but this requirement is the structural half — it closes every future variant,
+  not just that one. A caught error is reported **once per listener**, not once
+  per tick: at 40 Hz the latter is a console flood that hides the first, most
+  useful stack. See [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md)
+  for why isolation lives here rather than around each `AudioParam` write.
 - **REQ-4** — The wakeup timer runs off the main thread (Worker `setInterval`)
   wherever `Worker` is available, so the transport survives main-thread jank
   and background-tab timer throttling. A main-thread `setTimeout` loop is the
@@ -92,7 +114,7 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   get bpm: number      # the tempo actually running — a slaved clock writes it
                        # directly, so it can differ from the bus's transport.bpm
                        # (midi-clock-sync.md); surfaced by debug-panel.md
-  setBpm(b)            # clamped 20..400 internally
+  setBpm(b)            # non-finite refused (v5), then clamped 20..400
   setSwing(s)          # 0 (straight) .. 1
   get cue: number      # v4: where a plain start() begins; 0 until the first seek
   start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step (& 0xffff) before
@@ -154,6 +176,20 @@ Scenario: Ticks carry absolute audio time ahead of now
 Scenario: Swing delays the off-beat 16ths (edge)
   Given setSwing(0.5)
   Then even steps keep their time and odd steps are pushed later
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A throwing subscriber cannot wedge the clock (v5, regression)
+  Given a running clock with a subscriber that throws on every tick
+  When the timer fires
+  Then the step counter still advances and nextStepTime still moves
+  And the other subscribers still receive their ticks
+  And the error is reported once for that listener, not once per tick
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A non-finite tempo leaves the clock alone (v5, edge)
+  Given a clock at 120 BPM
+  When setBpm(NaN) — or setSwing(NaN) — is called
+  Then the tempo and swing are unchanged
 # pinned by: tests/audio/transport/clock.test.ts
 
 Scenario: No ticks after stop, even from an in-flight wakeup (edge)

@@ -35,6 +35,8 @@ export class Clock implements TickSubscriber {
   private readonly timer: TickTimer;
   private readonly scheduleAheadS: number;
   private readonly listeners = new Set<TickListener>();
+  /** Listeners already reported as throwing this run (see reportListenerError). */
+  private readonly faultedListeners = new Set<TickListener>();
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
   private readonly seekListeners = new Set<() => void>();
@@ -55,12 +57,18 @@ export class Clock implements TickSubscriber {
    *  (midi-clock-sync.md) — which is exactly what the Debug panel shows. */
   get bpm(): number { return this._bpm; }
 
+  /** Non-finite is refused before the clamp: `Math.max(20, Math.min(400, NaN))`
+   *  is `NaN`, which would make `sixteenth` NaN and stall the scheduler. The
+   *  reachable source is a peer — the WiFi sync wire carries `{t:'tempo', bpm}`
+   *  (transport.md REQ-3, untrusted-input.md REQ-8). */
   setBpm(b: number): void {
+    if (!Number.isFinite(b)) return;
     this._bpm = Math.max(20, Math.min(400, b));
   }
 
   /** Shuffle amount, 0 (straight) .. 1. Delays the off-beat 16ths. */
   setSwing(s: number): void {
+    if (!Number.isFinite(s)) return;
     this.swing = Math.max(0, Math.min(1, s));
   }
 
@@ -78,6 +86,7 @@ export class Clock implements TickSubscriber {
   start(fromStep = this._cue): void {
     if (this._playing) return;
     this._playing = true;
+    this.faultedListeners.clear(); // a new run reports its faults afresh
     this.nextStepTime = this.ctx.currentTime + 0.05;
     this._step = fromStep & 0xffff;
     for (const l of this.startListeners) l();
@@ -145,11 +154,31 @@ export class Clock implements TickSubscriber {
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an
       // off-beat never crosses the next on-beat.
       const off = (this._step & 1) === 1 ? this.swing * 0.5 * sixteenth : 0;
-      for (const l of this.listeners) l(this._step, this.nextStepTime + off);
+      // Each listener is isolated, and the two lines below run either way
+      // (transport.md REQ-8). A throw used to escape this loop *before* them,
+      // leaving _playing true and nextStepTime unmoved — so the timer re-entered
+      // the same step every 25 ms forever and every later-registered lane went
+      // silent, unrecoverable without a reload. See ADR-015.
+      for (const l of this.listeners) {
+        try {
+          l(this._step, this.nextStepTime + off);
+        } catch (e) {
+          this.reportListenerError(l, e);
+        }
+      }
       this.nextStepTime += sixteenth;
       this._step = (this._step + 1) & 0xffff; // monotonic; subscribers do their own modulo
     }
   };
+
+  /** Report a listener throw **once per listener**, not once per tick: at ~40 Hz
+   *  the latter is a console flood that buries the first (and most useful) stack.
+   *  The set is cleared on start, so a fresh run reports afresh. */
+  private reportListenerError(l: TickListener, e: unknown): void {
+    if (this.faultedListeners.has(l)) return;
+    this.faultedListeners.add(l);
+    console.error('Clock: a tick listener threw and was isolated; the transport continues.', e);
+  }
 
   /** Duration of one 16th note at the current BPM, in seconds. */
   sixteenthDuration(): number {

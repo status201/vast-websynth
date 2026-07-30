@@ -4,7 +4,12 @@
  * Hand-rolled and dependency-free (ADR-003 — no runtime deps). It mirrors the
  * *additive* loader contract (ADR-007): strict on types / structure / ranges /
  * dimensions, but lenient on the optional per-step fields, so legacy v1 files
- * that `PatternStore.restore` happily defaults still pass here. Errors are
+ * that `PatternStore.restore` happily defaults still pass here.
+ *
+ * That leniency is about **shape, never magnitude** (ADR-015): a song is an
+ * untrusted document (it arrives by link), and ADR-004 guarantees `PatternStore`
+ * will not re-check a range below us — so every bound has to hold here. The
+ * numbers live in `limits.ts`. Errors are
  * collected with a path prefix (e.g. `drumBanks[1][3][7].ratchet`) so the import
  * UI can tell the user *what* is wrong instead of a single generic message.
  *
@@ -17,6 +22,9 @@
 import type { SongFile } from './song';
 import { KNOWN_SONG_VERSIONS } from './song-version';
 import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import {
+  MAX_CHAIN_STEPS, MAX_PARAM_KEYS, MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
+} from './limits';
 
 export type SongValidation =
   | { ok: true; file: SongFile }
@@ -71,17 +79,35 @@ function checkStepSettings(path: string, c: Record<string, unknown>, add: AddErr
   checkBool(`${path}.tie`, c.tie, add, true);
 }
 
+/**
+ * Refuse a payload object carrying `__proto__` / `constructor` / `prototype`
+ * (untrusted-input.md REQ-5). Returns true when the object is clean.
+ */
+function checkKeys(path: string, o: object, add: AddError): boolean {
+  const bad = reservedKeyIn(o);
+  if (bad === null) return true;
+  add(`${path} must not carry a "${bad}" key`);
+  return false;
+}
+
 const validateSeqStep: CellValidator = (path, value, add) => {
   if (!isObject(value)) { add(`${path} must be an object (got ${describe(value)})`); return; }
+  if (!checkKeys(path, value, add)) return;
   checkBool(`${path}.on`, value.on, add, false);
-  if (typeof value.note !== 'number' || !Number.isFinite(value.note)) {
-    add(`${path}.note must be a finite number/MIDI note (got ${describe(value.note)})`);
+  // Bounded, not merely finite: midiToHz(1e6) is Infinity, and a non-finite
+  // AudioParam write throws — which used to escape the clock's tick loop and
+  // wedge the transport for good (ADR-015). The authoring dialect already
+  // enforced 0..127; this is the canonical format catching up.
+  if (typeof value.note !== 'number' || !Number.isInteger(value.note)
+    || value.note < MIDI_NOTE_MIN || value.note > MIDI_NOTE_MAX) {
+    add(`${path}.note must be an integer MIDI note ${MIDI_NOTE_MIN}..${MIDI_NOTE_MAX} (got ${describe(value.note)})`);
   }
   checkStepSettings(path, value, add);
 };
 
 const validateTriggerCell: CellValidator = (path, value, add) => {
   if (!isObject(value)) { add(`${path} must be an object (got ${describe(value)})`); return; }
+  if (!checkKeys(path, value, add)) return;
   checkBool(`${path}.on`, value.on, add, false);
   checkStepSettings(path, value, add);
 };
@@ -114,7 +140,17 @@ function check3D(path: string, v: unknown, rows: number, steps: number, cell: Ce
 
 function checkParams(v: unknown, add: AddError): void {
   if (!isObject(v)) { add(`params must be an object of name -> number (got ${describe(v)})`); return; }
-  for (const [k, val] of Object.entries(v)) {
+  if (!checkKeys('params', v, add)) return;
+  const keys = Object.keys(v);
+  // Unknown ids stay accepted (ADR-007: a file from a newer build still loads),
+  // but the COUNT is bounded — ParamBus keeps unregistered ids in its snapshot,
+  // so a payload full of junk keys would otherwise persist through every save.
+  if (keys.length > MAX_PARAM_KEYS) {
+    add(`params has ${keys.length} entries — the limit is ${MAX_PARAM_KEYS}`);
+    return;
+  }
+  for (const k of keys) {
+    const val = v[k];
     if (typeof val !== 'number' || !Number.isFinite(val)) {
       add(`params.${k} must be a finite number (got ${describe(val)})`);
     }
@@ -128,6 +164,13 @@ function checkChain(path: string, v: unknown, optional: boolean, add: AddError):
   const steps = v.steps;
   if (!Array.isArray(steps)) { add(`${path}.steps must be an array (got ${describe(steps)})`); return; }
   if (steps.length < 1) add(`${path}.steps must have at least 1 entry`);
+  // Upper bound too: the chain length becomes Arrangement.songBars(), which the
+  // transport scrubber turns into one button + listener PER BAR on import — and
+  // an array of zeros compresses ~1000:1, so a share link can carry millions.
+  if (steps.length > MAX_CHAIN_STEPS) {
+    add(`${path}.steps has ${steps.length} entries — the limit is ${MAX_CHAIN_STEPS}`);
+    return;
+  }
   steps.forEach((s: unknown, i) => {
     // A step is a bank index 0..BANK_COUNT-1 or the REST sentinel (an empty bar).
     const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= BANK_COUNT - 1));

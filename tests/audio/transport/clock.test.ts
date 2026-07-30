@@ -224,3 +224,69 @@ describe('Clock swing', () => {
     }
   });
 });
+
+// transport.md REQ-8 / ADR-015. The bug this pins: a throwing listener escaped
+// the tick loop BEFORE `nextStepTime += sixteenth` and `_step++`, leaving
+// _playing true and the grid unmoved — so the timer re-entered the same step
+// every 25 ms forever and every lane registered after the thrower went silent.
+// An imported song with an out-of-range note reached it via an AudioParam throw.
+describe('Clock listener isolation (untrusted-input)', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125s
+    return { ctx, clock };
+  }
+
+  it('keeps the transport running when a listener throws every tick', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, clock } = startedClock();
+    const seenByGood: number[] = [];
+    clock.onTick(() => { throw new Error('an AudioParam refused a value'); });
+    clock.onTick((step) => seenByGood.push(step));
+
+    clock.start(); // emits step 0 synchronously
+    for (let i = 0; i < 4; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    clock.stop();
+
+    // The step counter advanced rather than re-entering step 0 forever...
+    expect(clock.step).toBeGreaterThan(1);
+    // ...and the listener registered AFTER the thrower still ran, every tick.
+    expect(seenByGood).toEqual([0, 1, 2, 3, 4]);
+    err.mockRestore();
+  });
+
+  it('reports a faulting listener once, not once per tick', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, clock } = startedClock();
+    clock.onTick(() => { throw new Error('boom'); });
+
+    clock.start();
+    for (let i = 0; i < 5; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    clock.stop();
+
+    // At ~40 Hz, once-per-tick would bury the first (most useful) stack.
+    expect(err).toHaveBeenCalledTimes(1);
+    err.mockRestore();
+  });
+
+  it('ignores a non-finite tempo or swing instead of stalling', () => {
+    // Math.max(20, Math.min(400, NaN)) is NaN, which makes `sixteenth` NaN and
+    // stops the scheduler. A paired WiFi peer can send {t:'tempo', bpm}.
+    const { clock } = startedClock();
+    clock.setBpm(NaN);
+    expect(clock.bpm).toBe(120);
+    clock.setBpm(Number.POSITIVE_INFINITY);
+    expect(clock.bpm).toBe(120);
+    clock.setSwing(NaN); // no throw, and swing stays usable
+    clock.setBpm(140);
+    expect(clock.bpm).toBe(140);
+  });
+});

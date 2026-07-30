@@ -378,11 +378,43 @@ function candFromStat(r: RTCStats): CandInfo {
   return { type: c.candidateType ?? '?', protocol: c.protocol ?? '?', address: c.address ?? c.ip ?? '?' };
 }
 
+/** Finite-number field check — `NaN`/`Infinity` cannot survive JSON, but `null`,
+ *  a string, or a missing key all can, and each becomes `NaN` downstream. */
+function num(o: Record<string, unknown>, k: string): boolean {
+  return typeof o[k] === 'number' && Number.isFinite(o[k]);
+}
+
+/**
+ * Validate an inbound wire message (webrtc-sync.md REQ-1, untrusted-input.md
+ * REQ-8). A **guard**, not a cast: `JSON.parse(data) as Wire` let a peer send
+ * `{t:'tempo', bpm:'fast'}` straight through to `Clock.setBpm`, whose clamp
+ * returns `NaN` for `NaN` and stalls the scheduler. A paired peer is
+ * semi-trusted — pairing proves someone scanned a code, not that they are
+ * friendly — so every field is checked and anything malformed is dropped.
+ */
+function isWire(v: unknown): v is Wire {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  switch (o.t) {
+    case 'start': case 'continue': case 'stop': return true;
+    case 'songposition': return num(o, 'beat');
+    case 'tempo': return num(o, 'bpm');
+    case 'pulse': return num(o, 'at');
+    case 'ping': return num(o, 'a');
+    case 'pong': return num(o, 'a') && num(o, 'b');
+    default: return false;
+  }
+}
+
+/** Parse + guard one channel message. `null` means "drop it" — both channels
+ *  already tolerate loss, so dropping is cheaper and safer than repairing. */
 function parse(data: unknown): Wire | null {
   if (typeof data !== 'string') return null;
+  let parsed: unknown;
   try {
-    return JSON.parse(data) as Wire;
+    parsed = JSON.parse(data);
   } catch {
     return null;
   }
+  return isWire(parsed) ? parsed : null;
 }

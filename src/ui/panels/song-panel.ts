@@ -243,6 +243,34 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     });
   };
 
+  /**
+   * Persist an imported song to its slot — but never *silently* over an existing
+   * one (session-autosave.md REQ-11, untrusted-input.md REQ-9).
+   *
+   * The name comes from the file, so with a share link it is attacker-chosen: a
+   * song called "My Song" would otherwise destroy the user's slot of that name
+   * at boot, and the load-undo toast cannot bring it back — it restores the
+   * in-memory session, not localStorage. Declining still leaves the song
+   * applied; only the persistence is skipped, so nothing is lost either way.
+   * Returns whether the slot was written.
+   */
+  const saveImportedSlot = async (file: SongFile): Promise<boolean> => {
+    const plan = Song.planImportSave(file);
+    if (plan.conflict) {
+      const ok = await confirmDialog({
+        title: 'Replace your saved song?',
+        message: `You already have a saved song called "${plan.name}". Saving this import would replace it.`,
+        detail: 'The imported song is loaded either way — declining just keeps your saved copy.',
+        confirmLabel: 'Replace it',
+        cancelLabel: 'Keep mine',
+        danger: true,
+      });
+      if (!ok) return false;
+    }
+    Song.saveSlot(file.name, file);
+    return true;
+  };
+
   // Shared project-bundle apply (import + demo zips): apply/save the song like
   // a JSON import, then decode the clips into the sampler — sequentially (8 ×
   // multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
@@ -252,9 +280,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // Undo (or any newer apply) during the sequential decodes below must win:
     // a late clip may not touch the restored session's slots (REQ-9).
     const token = applyToken;
-    Song.saveSlot(file.name, file); // JSON only — after a reload, .needs-reload correctly reappears
-    refreshList();
-    dropdown.setValue(file.name);
+    // JSON only — after a reload, .needs-reload correctly reappears.
+    const saved = await saveImportedSlot(file);
+    if (saved) {
+      refreshList();
+      dropdown.setValue(file.name);
+    }
     bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-3)
     const failures: string[] = [];
     for (const clip of clips) {

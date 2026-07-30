@@ -1,0 +1,22 @@
+# Response headers (specs/features/untrusted-input.md REQ-10).
+#
+# The CSP itself is a <meta> in index.html so it works on every static host with
+# no config. These three CANNOT be expressed that way — `frame-ancestors` and
+# `X-Frame-Options` are ignored in <meta>, and the other two are transport-level
+# — so they need a real header.
+#
+# This file's format is Netlify / Cloudflare Pages. It is an inert plain-text
+# asset everywhere else, so it costs nothing to ship. DEPLOYMENT.md carries the
+# nginx / Vercel / Apache equivalents.
+
+/*
+  # No framing at all. The app has a mic-permission button and a WebRTC pairing
+  # wizard — both are worth clickjacking, and nothing here needs to be embedded.
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  # Song payloads ride in the URL *hash*, which is never sent to a server — but a
+  # #songUrl= fetch is cross-origin, and the referrer would leak the referring
+  # page to a host the user only agreed to download from.
+  Referrer-Policy: no-referrer
+  # Nothing here uses these; deny them rather than inherit a permissive default.
+  Permissions-Policy: geolocation=(), payment=(), interest-cohort=()

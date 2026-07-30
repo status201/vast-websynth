@@ -37,11 +37,20 @@ export class SlotStore {
     this.indexKey = prefix + 'index';
   }
 
-  /** The slot names, in insertion order. Empty when absent or corrupt. */
+  /** The slot names, in insertion order. Empty when absent or corrupt.
+   *
+   *  Validated, not cast (untrusted-input.md REQ-8): the parsed value only has
+   *  to be *JSON* to get here, and a non-array — or an array of non-strings —
+   *  would reach every caller as a slot name and break the dropdown. Non-string
+   *  entries are dropped rather than failing the whole index, so one bad row
+   *  cannot hide the user's other songs. */
   readIndex(): string[] {
     try {
       const raw = localStorage.getItem(this.indexKey);
-      return raw ? (JSON.parse(raw) as string[]) : [];
+      if (!raw) return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((n): n is string => typeof n === 'string');
     } catch { return []; }
   }
 

@@ -16,6 +16,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **A shared song can no longer take the instrument down.** Songs travel as
+  links, files and project zips, so a song is a document written by whoever sent
+  it — and the loader trusted it further than it should have. It now checks
+  *magnitude*, not just shape: notes must be real MIDI notes, arrangements have a
+  ceiling of 1024 bars, and a link or zip that unpacks to more than its size
+  budget is refused while it unpacks rather than after. A link small enough to
+  paste into a chat message could previously unpack to gigabytes and take the tab
+  with it.
+- **A `#songUrl=` link asks before it downloads anything.** These point at a song
+  hosted elsewhere, and they used to fetch it the instant the page opened, before
+  you had touched anything. Now you get told which site it wants to talk to and
+  can say no — and the link has to be `https`, which also stops one being aimed
+  at a device on your own network.
+- **Importing a song no longer quietly replaces one you saved under the same
+  name.** The song's name comes from the file, so a link could name itself after
+  a song of yours and overwrite it at load. If the names clash you are asked
+  first, and the import still loads either way — declining only keeps your saved
+  copy.
+- The app now ships a Content-Security-Policy and, on hosts that support response
+  headers, refuses to be embedded in a frame. Nothing here was exploitable — it
+  is the seatbelt for a future mistake. See `DEPLOYMENT.md` if you self-host.
+- A WiFi-synced peer can no longer send a malformed tempo that stalls your
+  transport, and the MCP server's `save_song` / `save_preset` can no longer be
+  talked into writing outside their working directory.
+
+### Fixed
+
+- **One bad note in a shared song could stop the transport dead until you
+  reloaded.** A note far outside the audible range asked the oscillator for an
+  impossible frequency; that raised an error inside the scheduler, which then got
+  stuck re-running the same step forever — silencing the drums, sampler, motion
+  lane and playhead along with it. The note is refused at import now, and, more
+  to the point, the clock keeps running even when something downstream of it
+  fails: one broken lane can no longer stop the others.
+- **Export Song could never finish on a very long arrangement.** Past about 4096
+  bars its stopping point was one the transport counted straight past, so the
+  render simply kept going, filling memory until you gave up. It now counts the
+  bars it has rendered rather than watching for a number that never arrives.
+- A tempo of "not a number" — reachable over WiFi sync — used to be accepted and
+  stall the scheduler; it is now ignored, as is a corrupt saved preset value.
+
 ## [2.6.0] - 2026-07-28
 
 ### Added

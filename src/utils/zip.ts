@@ -15,7 +15,8 @@
  * methods 0 + 8, skips `…/` directory entries, CRC-verifies every entry, and
  * throws a typed `ZipError` on zip64, unknown methods, bad CRC or truncation.
  */
-import { hasCompression, deflateRaw, inflateRaw } from './compression';
+import { hasCompression, deflateRaw, inflateRaw, InflateLimitError } from './compression';
+import { MAX_ZIP_ENTRIES, MAX_ZIP_ENTRY_BYTES, MAX_ZIP_TOTAL_BYTES } from '../state/limits';
 
 export interface ZipEntry {
   name: string;
@@ -178,8 +179,14 @@ export async function zipRead(bytes: Uint8Array): Promise<ZipEntry[]> {
     throw new ZipError('Zip64 archives are not supported.');
   }
   if (centralOffset >= bytes.length) throw new ZipError('Corrupt zip (central directory out of range).');
+  // A zip is untrusted input (untrusted-input.md REQ-2): refuse an absurd entry
+  // count before walking it, so the loop below can never be the attack.
+  if (count > MAX_ZIP_ENTRIES) {
+    throw new ZipError(`Zip has ${count} entries — the limit is ${MAX_ZIP_ENTRIES}.`);
+  }
 
   const entries: ZipEntry[] = [];
+  let totalBytes = 0;
   let pos = centralOffset;
   for (let i = 0; i < count; i++) {
     if (pos + 46 > eocd || view.getUint32(pos, true) !== SIG_CENTRAL) {
@@ -200,6 +207,17 @@ export async function zipRead(bytes: Uint8Array): Promise<ZipEntry[]> {
     pos += 46 + nameLen + extraLen + commentLen;
 
     if (name.endsWith('/')) continue; // directory entry
+
+    // Pre-flight budget: the central directory already declares the uncompressed
+    // size, so an oversized entry is refused BEFORE it is inflated. (The inflate
+    // is capped too — a lying header must not buy a bomb — but checking the
+    // declaration first turns the common case into a cheap refusal.)
+    if (size > MAX_ZIP_ENTRY_BYTES) {
+      throw new ZipError(`Zip entry "${name}" declares ${size} bytes — the limit is ${MAX_ZIP_ENTRY_BYTES}.`);
+    }
+    if (totalBytes + size > MAX_ZIP_TOTAL_BYTES) {
+      throw new ZipError(`Zip contents exceed the ${MAX_ZIP_TOTAL_BYTES} byte total limit.`);
+    }
 
     // The local header's own name/extra lengths may differ from the central
     // record's — read them to locate the data.
@@ -222,8 +240,14 @@ export async function zipRead(bytes: Uint8Array): Promise<ZipEntry[]> {
         throw new ZipError('This browser cannot inflate compressed zip entries (no DecompressionStream).');
       }
       try {
-        data = await inflateRaw(compressed);
-      } catch {
+        data = await inflateRaw(compressed, MAX_ZIP_ENTRY_BYTES);
+      } catch (e) {
+        // Separate the two failures: a bomb is not a corrupt file, and telling
+        // the user "corrupt" for an oversized entry would send them fixing the
+        // wrong thing.
+        if (e instanceof InflateLimitError) {
+          throw new ZipError(`Zip entry "${name}" expands past the ${MAX_ZIP_ENTRY_BYTES} byte limit.`);
+        }
         throw new ZipError(`Corrupt zip (bad deflate stream for "${name}").`);
       }
     } else {
@@ -232,6 +256,7 @@ export async function zipRead(bytes: Uint8Array): Promise<ZipEntry[]> {
     if (data.length !== size || crc32(data) !== crc) {
       throw new ZipError(`Corrupt zip (CRC mismatch for "${name}").`);
     }
+    totalBytes += data.length;
     entries.push({ name, data });
   }
   return entries;

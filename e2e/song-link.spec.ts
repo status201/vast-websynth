@@ -86,6 +86,57 @@ test.describe('song share links', () => {
     expect(await page.evaluate(() => window.location.hash)).toBe(`#song=${payload}`);
   });
 
+  // untrusted-input.md REQ-7. Before this, a #songUrl= link made any visitor's
+  // browser issue an attacker-chosen GET at page load, with no interaction.
+  test('a #songUrl= link asks before it fetches, naming the origin', async ({ page }) => {
+    let requested = 0;
+    // Fail the test loudly if anything is requested before consent is given.
+    await page.route('**/hosted-song.json', async (route) => {
+      requested++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          format: 'websynth-song-author', version: 1, name: 'Hosted Song',
+          params: { 'transport.bpm': 128 },
+        }),
+      });
+    });
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('websynth.onboarding.done', '1');
+        localStorage.setItem('websynth.perf', 'off');
+      } catch { /* ignore */ }
+    });
+
+    // The prompt waits for the start gesture: raised at boot it would render
+    // *under* the start modal, unreachable (main.ts).
+    await gotoLinkAndStart(page, '#songUrl=https://songs.example.com/hosted-song.json');
+    // The dialog names the ORIGIN — that is the whole point of the prompt.
+    await expect(page.getByText('songs.example.com')).toBeVisible();
+    expect(requested).toBe(0);
+
+    await page.getByRole('button', { name: 'Download song' }).click();
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(128);
+    expect(requested).toBe(1);
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('');
+  });
+
+  test('declining a #songUrl= link fetches nothing and keeps the hash', async ({ page }) => {
+    let requested = 0;
+    await page.route('**/hosted-song.json', async (route) => {
+      requested++;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    const hash = '#songUrl=https://songs.example.com/hosted-song.json';
+    await gotoLinkAndStart(page, hash);
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    expect(requested).toBe(0);
+    // The hash survives so the user can inspect or retry it (REQ-4).
+    expect(await page.evaluate(() => window.location.hash)).toBe(hash);
+  });
+
   test('Copy Link puts a decodable share URL on the clipboard', async ({ page, context, baseURL }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await gotoAndStart(page);
