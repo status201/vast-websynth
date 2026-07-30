@@ -316,3 +316,21 @@ Scenario: Screen off on a device that freezes the renderer (device)
 - ~~A `MediaSession`-backed keep-alive would let playback continue rather than go
   quiet.~~ **Built** (v2) — see [`media-session`](media-session.md). REQ-6 stayed:
   it is the safe outcome whenever the keep-alive is not enough (or not enabled).
+- **Remembering the verdict per device — considered and deliberately not built.**
+  The watchdog measures afresh on every backgrounding, so a device that starves
+  its audio pays a short burst of crackle *each time* before the trip (v4 cut that
+  to roughly a quarter-second). Persisting the verdict — a `localStorage` flag set
+  the first time it trips, after which hiding the page fades and suspends
+  immediately with no measurement — would take that to **zero**.
+
+  It is not built because the failure mode is worse than the symptom it removes: a
+  single false trip (a device momentarily starved by something else entirely) would
+  silently disable background playback on hardware that is perfectly capable of it,
+  permanently, via a flag nobody would think to look for. The measurement is
+  self-correcting; a remembered verdict is not.
+
+  If it is ever wanted, the shape that bounds the downside is: **re-measure once
+  per app launch** (the flag only skips measurement for *subsequent* backgroundings
+  within a session) and surface it in the Debug row + clear it on factory reset, so
+  a wrong verdict can never outlive the session that formed it. Cost/benefit says
+  wait for a device where a quarter-second is genuinely unacceptable.
