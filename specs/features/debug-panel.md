@@ -3,12 +3,14 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 5   # v5: the Transport row also carries Clock.dropouts (audio-lifecycle REQ-7)
+version: 6   # v6: + the Media session row (media-session.md REQ-8); v5 put
+             #     Clock.dropouts on the Transport row (audio-lifecycle REQ-7)
 owner: core
 related:
   - architecture
   - ios-audio
   - audio-lifecycle
+  - media-session
   - transport
   - performance-mode
   - sample-persistence
@@ -64,8 +66,10 @@ instead of transcribing it from a phone screen.
   base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm` ·
   sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
   wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
-  (`isIOS()` yes/no),
-  **Local storage** (`debug-storage`, `storageUsage()`).
+  (`isIOS()` yes/no), **Media session** (`debug-media-session` — v6, the Android
+  keep-alive's status/`playbackState`, `n/a` elsewhere; see
+  [media-session](media-session.md) REQ-8), **Local storage** (`debug-storage`,
+  `storageUsage()`).
 - **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
   a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
   `statechange` event, **and** on a ~500 ms interval (so values that change without an
@@ -184,6 +188,7 @@ storageUsage(prefix = 'websynth.'): { keys, bytes }                 # slot-store
 WakeLockManager.held: boolean                                       # utils/wake-lock.ts
 Clock.bpm: number                                                   # transport clock
 Clock.dropouts: number                              # v5: stalled-wakeup recoveries (transport.md REQ-9)
+Engine.mediaSession: MediaSessionDiagnostics        # v6: Android keep-alive (media-session.ts)
 initMIDI(engine, bus): Promise<MIDIAccess | null>                   # resolves the handle
 ```
 

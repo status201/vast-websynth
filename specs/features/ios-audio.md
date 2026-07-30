@@ -12,9 +12,11 @@ related:
   - audio-export
   - debug-panel
   - audio-lifecycle
+  - media-session
 source:
   - src/platform/ios.ts
   - src/audio/ios-audio-session.ts
+  - src/audio/silent-loop.ts          # shared element builder (media-session.md REQ-7)
   - src/audio/engine.ts
   - src/ui/components/about.ts
   - src/ui/studio-api.ts
@@ -65,7 +67,9 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
   `false`). Kept separate from `detectTier()` (`perf-mode.ts`) — different
   concern (OS identity vs. hardware capability).
 - **REQ-2** — `IosAudioSession(ctx)` lazily builds **one** silent, **looping**
-  `<audio>` element (source = a tiny silent stereo WAV from the existing `encodeWav`
+  `<audio>` element — via the shared `createSilentLoop(ctx)`
+  ([media-session](media-session.md) REQ-7), which Android's keep-alive also uses
+  (detached, no context) — (source = a tiny silent stereo WAV from the existing `encodeWav`
   in `audio/recorder/encode.ts` via `URL.createObjectURL` — no hardcoded base64) **and
   routes it through the context**: `ctx.createMediaElementSource(el).connect(ctx.destination)`.
   A detached element only elevates the page session and proved insufficient on a muted

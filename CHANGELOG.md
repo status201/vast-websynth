@@ -46,15 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - **Some Android phones went haywire when the screen turned off** — crackling,
-  and the sequencer racing away. With the screen off those phones freeze the page
-  for a minute at a time while the audio clock keeps running, so when the app
-  woke up it played the whole missed minute at once: hundreds of notes on top of
-  each other, with the playhead sprinting through the song. It now recognises
-  that it was frozen, drops the stretch it slept through, and picks up from the
-  step it was on — so the synth simply goes quiet while the screen is off instead
-  of screaming, and carries on when you come back. Phones and tablets that
-  already played fine with the screen off are unaffected. Coming back to the app
-  also wakes the audio up again on Android, which it previously only did on iOS.
+  and the sequencer racing away. Two separate things were wrong. The racing was
+  the app catching up: those phones freeze the page for a minute at a time while
+  the audio clock keeps running, so on waking it played the whole missed minute
+  at once — hundreds of notes on top of each other. It now recognises that it was
+  frozen, drops the stretch it slept through, and picks up from the step it was
+  on. The crackling was Android throttling the app because, playing sound the way
+  a synth does, it did not look like a music player to the system. **It now
+  registers as one**: an Android phone shows VAST G1-J5 in its notifications and
+  on the lock screen, with working play and pause, and the system stops starving
+  it. Phones and tablets that already played fine with the screen off are
+  unaffected. Coming back to the app also wakes the audio up again on Android,
+  which it previously only did on iOS.
 - **Opening the app could pop or click.** Sound started at full volume the
   instant the audio device woke up, so the device's own start-up transient
   arrived at full level. It now fades up over a sixth of a second — inaudible as

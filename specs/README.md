@@ -260,6 +260,7 @@ specs/
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
     audio-lifecycle.md ·  click-free start, foreground re-arm, screen-off dropout recovery
+    media-session.md   ·  Android keep-alive: silent loop + MediaSession so the OS sees a player
     pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
     factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + reload)

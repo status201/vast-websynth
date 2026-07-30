@@ -12,6 +12,7 @@ import type { SyncController } from '../audio/transport/sync/sync-controller';
 import type { WebRtcSyncTransport } from '../audio/webrtc-sync-transport';
 import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
+import type { MediaSessionDiagnostics } from '../audio/media-session';
 
 /**
  * The UI's narrow view of the `Engine` (ADR-009). UI panels/components depend on
@@ -66,6 +67,9 @@ export interface StudioApi {
 
   /** iOS audio-session diagnostics (inert off iOS); read by the Debug panel. */
   readonly iosAudio: IosAudioDiagnostics;
+
+  /** Android Media Session keep-alive diagnostics (inert off Android). */
+  readonly mediaSession: MediaSessionDiagnostics;
 
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;

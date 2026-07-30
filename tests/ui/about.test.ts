@@ -4,16 +4,24 @@ import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
 import type { IosAudioDiagnostics } from '../../src/audio/ios-audio-session';
+import type { MediaSessionDiagnostics } from '../../src/audio/media-session';
 
 // The About modal wires the factory-reset button to this helper; the helper's
 // own behaviour (clear + reload) is pinned by tests/state/factory-reset.test.ts.
 vi.mock('../../src/state/factory-reset', () => ({ restoreFactorySettings: vi.fn() }));
 
 const INERT_IOS: IosAudioDiagnostics = { active: false, status: 'n/a', routed: false, paused: null, currentTime: null };
+const INERT_MEDIA: MediaSessionDiagnostics = {
+  active: false, status: 'n/a', playbackState: 'n/a', handlers: 0, paused: null, currentTime: null,
+};
 
 /** Minimal StudioApi — the Debug panel reads the context, the clock/sync state,
- *  the iOS diagnostics, and (for its actions) panic/resume/sampler. */
-function stubEngine(state: AudioContextState = 'running', iosAudio: IosAudioDiagnostics = INERT_IOS) {
+ *  the iOS + Android session diagnostics, and (for its actions) panic/resume/sampler. */
+function stubEngine(
+  state: AudioContextState = 'running',
+  iosAudio: IosAudioDiagnostics = INERT_IOS,
+  mediaSession: MediaSessionDiagnostics = INERT_MEDIA,
+) {
   const osc = {
     frequency: { value: 0 },
     connect: vi.fn(() => gain),
@@ -43,7 +51,8 @@ function stubEngine(state: AudioContextState = 'running', iosAudio: IosAudioDiag
   const engine = {
     ctx,
     iosAudio,
-    clock: { playing: false, bpm: 120 },
+    mediaSession,
+    clock: { playing: false, bpm: 120, dropouts: 0 },
     sync: { mode: 'off' },
     sampler: { setBuffer: vi.fn() },
     panic: vi.fn(),
@@ -55,6 +64,7 @@ function stubEngine(state: AudioContextState = 'running', iosAudio: IosAudioDiag
 const debugSection = () => document.querySelector('[data-testid="debug-section"]') as HTMLElement | null;
 const ctxStateRow = () => document.querySelector('[data-testid="debug-ctx-state"]') as HTMLElement | null;
 const unlockRow = () => document.querySelector('[data-testid="debug-ios-unlock"]') as HTMLElement | null;
+const mediaRow = () => document.querySelector('[data-testid="debug-media-session"]') as HTMLElement | null;
 const clipsRow = () => document.querySelector('[data-testid="debug-sampler-clips"]') as HTMLElement | null;
 const clipsClearBtn = () => document.querySelector('[data-testid="debug-clips-clear"]') as HTMLButtonElement | null;
 
@@ -117,6 +127,23 @@ describe('About modal — Debug section', () => {
     btn.click();
 
     expect(unlockRow()?.textContent).toBe('playing · routed');
+  });
+
+  // media-session.md REQ-8 — on the phone where the crackle reproduces, this row
+  // is the only way to tell "the session never formed" from "it formed anyway".
+  it('renders the Android keep-alive row, and n/a off Android', () => {
+    const media: MediaSessionDiagnostics = {
+      active: true, status: 'playing', playbackState: 'playing', handlers: 3,
+      paused: false, currentTime: 12.34,
+    };
+    const { engine } = stubEngine('running', INERT_IOS, media);
+    document.body.appendChild(createAboutButton(engine)).click();
+    expect(mediaRow()?.textContent).toBe('playing · playing · 3 actions · t=12.3');
+
+    document.body.innerHTML = '';
+    const { engine: off } = stubEngine('running');
+    document.body.appendChild(createAboutButton(off)).click();
+    expect(mediaRow()?.textContent).toBe('n/a');
   });
 
   // debug-panel.md REQ-4/REQ-5 — the late-bound row idiom, used by

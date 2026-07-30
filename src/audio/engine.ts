@@ -25,6 +25,7 @@ import { BankRenderController } from './recorder/bank-render';
 import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from '../state/patterns';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
+import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -125,6 +126,8 @@ export class Engine {
 
   /** iOS-only audio-session workarounds; inert (no-op) on every other platform. */
   private readonly iosSession: IosAudioSession;
+  /** Android-only Media Session keep-alive; inert on every other platform. */
+  private readonly media: MediaSessionKeepAlive;
 
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
@@ -134,6 +137,14 @@ export class Engine {
     this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
     // Built here (after ctx) so the silent loop can be routed through the context.
     this.iosSession = new IosAudioSession(this.ctx);
+    // The OS's transport controls. The closures reach `this.clock`, which is
+    // built at the end of this constructor — they only ever run from a
+    // notification tap, long after (media-session.md REQ-4).
+    this.media = new MediaSessionKeepAlive({
+      play: () => { void this.resume(); this.clock.start(); },
+      pause: () => this.panic(),
+      stop: () => this.panic(),
+    });
 
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;
@@ -392,6 +403,10 @@ export class Engine {
    */
   async resume(): Promise<void> {
     this.iosSession.unlock();
+    // Android: become a media player the OS protects (media-session.md). Like
+    // the iOS call above it must run inside the gesture, and it is a no-op off
+    // its own platform — so both run before the state check.
+    this.media.unlock();
     if (!shouldResumeContext(this.ctx.state)) return;
     this.fadeInMaster();
     try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
@@ -434,6 +449,9 @@ export class Engine {
   private installContextRearm(): void {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
+      // The Android keep-alive first: if the OS paused our element while we were
+      // away, the session it holds needs to come back too (media-session REQ-6).
+      this.media.rearm();
       // iOS re-arms unconditionally: even a context that survived needs the
       // silent loop replayed to hold the media-backed session category.
       if (this.iosSession.active || shouldResumeContext(this.ctx.state)) void this.resume();
@@ -446,6 +464,9 @@ export class Engine {
 
   /** iOS audio-session diagnostics for the Debug panel (see ios-audio.md / debug-panel.md). */
   get iosAudio(): IosAudioDiagnostics { return this.iosSession.diagnostics; }
+
+  /** Android keep-alive diagnostics for the Debug panel (see media-session.md REQ-8). */
+  get mediaSession(): MediaSessionDiagnostics { return this.media.diagnostics; }
 
   // ---------- Note handling ----------
 

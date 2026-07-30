@@ -24,6 +24,8 @@ function engineLike(over: { state?: string; volume?: number; ios?: boolean } = {
     master: { gain },
     bus: { get: vi.fn(() => over.volume ?? 0.8) },
     iosSession: { active: over.ios ?? false, unlock: vi.fn() },
+    // The Android keep-alive is unlocked in the same gesture (media-session.md).
+    media: { unlock: vi.fn(), rearm: vi.fn() },
     resume: Engine.prototype.resume,
     // Private on the class; reachable through `this` on the stub.
     fadeInMaster: (Engine.prototype as unknown as { fadeInMaster: () => void }).fadeInMaster,
@@ -32,6 +34,7 @@ function engineLike(over: { state?: string; volume?: number; ios?: boolean } = {
     ctx,
     gain,
     unlock: (stub as unknown as { iosSession: { unlock: ReturnType<typeof vi.fn> } }).iosSession.unlock,
+    mediaUnlock: (stub as unknown as { media: { unlock: ReturnType<typeof vi.fn> } }).media.unlock,
     resume: () => stub.resume(),
   };
 }
@@ -59,10 +62,11 @@ describe('Engine.resume fade-in (click-free start)', () => {
     expect(order).toEqual(['fade', 'resume']);
   });
 
-  it('unlocks the iOS session first, inside the gesture', async () => {
-    const { unlock, resume } = engineLike();
+  it('unlocks both platform sessions inside the gesture', async () => {
+    const { unlock, mediaUnlock, resume } = engineLike();
     await resume();
-    expect(unlock).toHaveBeenCalled();
+    expect(unlock).toHaveBeenCalled();      // iOS session category
+    expect(mediaUnlock).toHaveBeenCalled(); // Android Media Session keep-alive
   });
 
   it('recovers the interrupted state too (iOS), not just suspended', async () => {
@@ -79,7 +83,7 @@ describe('Engine.resume fade-in (click-free start)', () => {
     expect(gain.setValueAtTime).not.toHaveBeenCalled();
     expect(gain.linearRampToValueAtTime).not.toHaveBeenCalled();
     expect(ctx.resume).not.toHaveBeenCalled();
-    expect(unlock).toHaveBeenCalled(); // the session call still runs
+    expect(unlock).toHaveBeenCalled(); // the session calls still run
   });
 
   it('leaves a closed context alone', async () => {
@@ -111,11 +115,13 @@ function rearmLike(over: { state?: string; ios?: boolean } = {}) {
     ctx,
     resume,
     iosSession: { active: over.ios ?? false },
+    media: { unlock: vi.fn(), rearm: vi.fn() },
     installContextRearm: (Engine.prototype as unknown as { installContextRearm: () => void })
       .installContextRearm,
   } as unknown as Engine;
   (stub as unknown as { installContextRearm: () => void }).installContextRearm();
-  return { ctx, resume };
+  const media = (stub as unknown as { media: { rearm: ReturnType<typeof vi.fn> } }).media;
+  return { ctx, resume, media };
 }
 
 const becomeVisible = (): void => {
@@ -137,6 +143,12 @@ describe('Engine context re-arm', () => {
 
   // REQ-5 — auto-resuming on statechange off iOS would instantly undo the Debug
   // panel's Suspend action, which acts on a *visible* context.
+  it('re-arms the Android keep-alive on the way back too (media-session REQ-6)', () => {
+    const { media } = rearmLike({ state: 'running' });
+    becomeVisible();
+    expect(media.rearm).toHaveBeenCalled();
+  });
+
   it('installs no statechange listener off iOS', () => {
     const { ctx } = rearmLike();
     expect(ctx.addEventListener).not.toHaveBeenCalled();

@@ -92,7 +92,7 @@ material keyed by feature name).
 | `src/state/preset*.ts` | `features/presets.md`, `features/preset-authoring.md`, `recipes/add-a-factory-preset.md` |
 | `src/state/demos/` | `recipes/add-a-demo-song.md` (data drop-in — SDD-exempt) |
 | `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |
-| context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md` |
+| context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
 | `src/audio/compressor/` | `features/compressor.md`, ADR-002 |
 | `src/audio/transport/` | `features/transport.md`, `transport-position.md`, `arrangement.md`, `sequencer.md`, `drum-machine.md`, `sampler.md`, `motion-sequencer.md`, `performance.md`, `recipes/add-a-transport-module.md` |

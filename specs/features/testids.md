@@ -205,7 +205,8 @@ onboarding:                                         # features/onboarding.md
 about → debug panel:                                # features/debug-panel.md
   debug-section · debug-actions
   rows:    debug-ctx-state · -latency · -transport · -perf-tier · -sampler-clips ·
-           -session · -storage · -sw · -midi · -wake · -ios-unlock · -ios-loop
+           -session · -storage · -sw · -midi · -wake · -ios-unlock · -ios-loop ·
+           -media-session
   actions: debug-ctx-toggle · debug-panic · debug-test-tone · debug-copy
   inline:  debug-clips-clear · debug-session-clear · debug-sw-unregister
 ```

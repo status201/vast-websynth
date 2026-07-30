@@ -1,5 +1,5 @@
 import { isIOS } from '../platform/ios';
-import { encodeWav } from './recorder/encode';
+import { createSilentLoop } from './silent-loop';
 
 /**
  * iOS routes pure Web Audio as *ambient* audio, which honors the ring/silent
@@ -41,10 +41,6 @@ export interface IosAudioDiagnostics {
   /** Whether `navigator.audioSession.type = 'playback'` was set (Safari 17+). */
   audioSessionSet: boolean;
 }
-
-/** ~0.5 s of silence is plenty for a robust loop without churning the file size. */
-const SILENT_SECONDS = 0.5;
-const SILENT_RATE = 44100;
 
 export class IosAudioSession {
   /** Resolved once: iOS gets the workaround, every other platform stays inert. */
@@ -109,23 +105,12 @@ export class IosAudioSession {
   /** Build the single silent, looping `<audio>` element and route it through the context. */
   private ensureElement(): void {
     if (this.el) return;
-    const samples = new Float32Array(Math.round(SILENT_SECONDS * SILENT_RATE));
-    const blob = encodeWav(samples, samples, SILENT_RATE);
-    const el = new Audio();
-    el.src = URL.createObjectURL(blob);
-    el.loop = true;
-    // `playsInline` is not on the TS `HTMLMediaElement` surface; set the attribute.
-    el.setAttribute('playsinline', '');
-    el.preload = 'auto';
-    this.el = el;
-    // Route the element THROUGH the context so the context itself becomes
-    // media-backed — this (not a detached element) is what lifts a muted iPhone
-    // off the silent-switch-respecting ambient category.
-    try {
-      this.srcNode = this.ctx.createMediaElementSource(el);
-      this.srcNode.connect(this.ctx.destination);
-    } catch {
-      // createMediaElementSource throws if called twice on an element — ignore.
-    }
+    // Routed THROUGH the context (silent-loop.ts takes the ctx for exactly this)
+    // so the context itself becomes media-backed — that, not a detached element,
+    // is what lifts a muted iPhone off the silent-switch-respecting ambient
+    // category. Android's keep-alive uses the same builder detached.
+    const loop = createSilentLoop(this.ctx);
+    this.el = loop.el;
+    this.srcNode = loop.src;
   }
 }

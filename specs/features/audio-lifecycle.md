@@ -3,12 +3,14 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 1
+version: 2   # v2: REQ-8 — the Android keep-alive (media-session.md) joins the
+             #     in-gesture unlock and the foreground re-arm
 owner: core
 related:
   - architecture
   - transport
   - ios-audio
+  - media-session
   - pwa-install
   - performance-mode
   - debug-panel
@@ -40,15 +42,21 @@ rendering" and "rendering at 0.64 gain".
 
 **2. Android (Pixel 8a) goes haywire when the screen turns off.** Crackling and a
 runaway clock; a Samsung tablet on the same build is fine. The cause is not the
-audio graph but the *wakeup source*: Chrome/Android freezes or heavily throttles
-the renderer of a hidden page (the same page on the tablet keeps its timers), so
+audio graph but what the OS does to a hidden page: Chrome/Android freezes or
+heavily throttles its renderer (the same page on the tablet keeps running), so
 the clock's worker wakeups stop arriving while `ctx.currentTime` keeps advancing.
 The look-ahead drain loop had no bound, so the next wakeup — a minute later —
 drained *every* missed 16th in one pass: several hundred notes all scheduled in
-the past, clamped to `now` downstream and fired simultaneously (the crackle),
-with `_step` racing through the song (the runaway clock). The fix is a bounded
-catch-up in the clock ([`transport`](transport.md) REQ-9); this spec owns the
-surrounding policy — what resumes, what fades, and what the Debug panel shows.
+the past, clamped to `now` downstream and fired simultaneously, with `_step`
+racing through the song. That is the **runaway clock**, and a bounded catch-up in
+the clock fixes it ([`transport`](transport.md) REQ-9).
+
+On the device it fixed the runaway and **not** the crackle — which is how we know
+the two had different causes. The crackle is the throttling itself starving the
+audio callback, so the second half of the answer is to stop Android throttling us:
+be a media player it recognises ([`media-session`](media-session.md), REQ-8). This
+spec owns the policy tying them together — what resumes, what fades, what keeps
+the session alive, and what the Debug panel shows.
 
 ## Requirements
 
@@ -94,6 +102,14 @@ surrounding policy — what resumes, what fades, and what the Debug panel shows.
   for the session and is appended to the Debug panel's Transport row
   ([`debug-panel`](debug-panel.md)), so the failure this spec exists for can be
   confirmed from a phone with no console — which is the only place it reproduces.
+- **REQ-8** (v2) — **The OS is told there is a player here.** `resume()` also
+  unlocks the [`media-session`](media-session.md) keep-alive, and the foreground
+  re-arm (REQ-4) re-arms it, both alongside their iOS counterparts and both
+  no-ops off their platform. REQ-6 above is the *safe* outcome for a page the OS
+  has throttled; the keep-alive is the attempt to stop it being throttled at all.
+  It was added after REQ-6 shipped and fixed the runaway clock on a Pixel 8a
+  without fixing the crackle — which is what ruled out the missed-step burst as
+  the crackle's cause.
 
 ## Technical design
 
@@ -102,7 +118,7 @@ surrounding policy — what resumes, what fades, and what the Debug panel shows.
 ```yaml
 # src/audio/engine.ts
 RESUME_FADE_S = 0.15                 # module constant
-Engine.resume(): Promise<void>       # unlock() → (if resuming) fadeInMaster() → ctx.resume()
+Engine.resume(): Promise<void>       # unlock()s (iOS + Android) → (if resuming) fadeInMaster() → ctx.resume()
 Engine.installContextRearm(): void   # private, called from init(); replaces installIosRearm
                                      #   visibilitychange (all platforms) + statechange (iOS only)
 
@@ -113,10 +129,12 @@ Clock.dropouts: number               # recoveries this session (monotonic, never
 ### Layer touchpoints & ordering
 
 ```yaml
-engine.resume():   iosSession.unlock()                       # sync, inside the gesture (ios-audio REQ-4)
+engine.resume():   iosSession.unlock(); media.unlock()       # sync, inside the gesture
+                   #   ios-audio REQ-4 / media-session REQ-2 — each inert off its OS
                    shouldResumeContext(ctx.state) ? fadeInMaster() : return
                    await ctx.resume()                        # ramp already on the timeline (REQ-3)
 engine.init():     installContextRearm()                     # after the graph + voices exist
+                   #   on foreground: resume() as below, plus media.rearm() (REQ-8)
 main.ts:           unchanged — the start handler still awaits engine.resume()
 ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
 wake lock:         unchanged — it follows ctx.state from main.ts and the OS drops it
@@ -183,8 +201,6 @@ Scenario: Screen off on a device that freezes the renderer (device)
   until the next re-anchor ([`midi-clock-sync`](midi-clock-sync.md) REQ-23/24). Not
   worth special-casing: a device that cannot run its own wakeups cannot hold sync
   either.
-- If a device turns out to *keep* rendering audio with the screen off while its
-  timers stall, a `MediaSession`-backed keep-alive (the Android sibling of the iOS
-  silent loop) would let playback continue rather than go quiet. Not built: it
-  needs the failing device in hand to tell "renderer frozen" from "context
-  suspended", and REQ-6 is already the safe outcome for both.
+- ~~A `MediaSession`-backed keep-alive would let playback continue rather than go
+  quiet.~~ **Built** (v2) — see [`media-session`](media-session.md). REQ-6 stayed:
+  it is the safe outcome whenever the keep-alive is not enough (or not enabled).

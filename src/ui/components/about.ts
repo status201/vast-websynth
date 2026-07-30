@@ -437,6 +437,9 @@ function buildDebugSection(engine: StudioApi): {
   unlockVal.dataset.testid = 'debug-ios-unlock';
   const loopVal = addRow('Silent loop');
   loopVal.dataset.testid = 'debug-ios-loop';
+  // Android keep-alive (owned by media-session.md; inert off Android).
+  const mediaVal = addRow('Media session');
+  mediaVal.dataset.testid = 'debug-media-session';
 
   // ---- service-worker state (async, so polled far slower than the rows) ----
   let swText = 'unsupported';
@@ -556,6 +559,13 @@ function buildDebugSection(engine: StudioApi): {
     loopVal.textContent = ios.paused === null
       ? (ios.active ? 'idle' : 'n/a')
       : (ios.paused ? 'paused' : `playing t=${(ios.currentTime ?? 0).toFixed(1)}`);
+    // Android: did the session actually form? The keep-alive loop's own clock
+    // advances beside it, which is what says the element is really playing.
+    const media = engine.mediaSession;
+    mediaVal.textContent = !media.active
+      ? 'n/a'
+      : `${media.status} · ${media.playbackState} · ${media.handlers} actions`
+        + (media.paused === false ? ` · t=${(media.currentTime ?? 0).toFixed(1)}` : '');
 
     const now = Date.now();
 
