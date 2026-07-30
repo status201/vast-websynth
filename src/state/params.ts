@@ -155,6 +155,14 @@ export class ParamBus {
     } finally {
       this.suppressChange--;
     }
+    // Drop ids with no definition. `set` keeps an unregistered id so a song from
+    // a NEWER build round-trips its params (ADR-007) — but this loop used to walk
+    // `defs`, so those ids were never cleared, and `snapshot()` walks `values`,
+    // so they were re-serialized into every save and survived reload. A load or
+    // New is exactly the point where nothing of the old song should remain.
+    for (const id of this.values.keys()) {
+      if (!this.defs.has(id)) this.values.delete(id);
+    }
     this.baselines.clear();
   }
 

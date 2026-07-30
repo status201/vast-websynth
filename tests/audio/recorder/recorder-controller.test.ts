@@ -54,10 +54,28 @@ function harness() {
   const arrangement = new Arrangement(patterns, clock);
   const node = fakeNode();
   const ctrl = new RecorderController(clock, arrangement, node);
-  /** Drain the whole render window in one look-ahead wakeup, then the tail. */
+  /**
+   * Run the transport until the controller stops it, advancing both clocks
+   * together in look-ahead-sized wakeups exactly like the real thing. NOT one
+   * jump past the window: the drain is bounded, so a grid left far behind
+   * `currentTime` reads as a dropout and emits nothing (transport.md REQ-9).
+   */
+  const runTransport = (): void => {
+    for (let i = 0; i < 40_000 && clock.playing; i++) {
+      ctx.currentTime += 0.025;
+      vi.advanceTimersByTime(25);
+    }
+  };
+  /** …or run it for a fixed stretch, to inspect a pass mid-flight. */
+  const runFor = (seconds: number): void => {
+    for (let i = 0; i < Math.round(seconds / 0.025) && clock.playing; i++) {
+      ctx.currentTime += 0.025;
+      vi.advanceTimersByTime(25);
+    }
+  };
+  /** …then let the tail timeout fire. */
   const drain = (tailMs: number): void => {
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);
+    runTransport();
     vi.advanceTimersByTime(tailMs);
   };
   /** …and let the `encoding` phase settle back to idle (v7.1 holds it across
@@ -67,7 +85,7 @@ function harness() {
     await Promise.resolve();
     await Promise.resolve();
   };
-  return { ctx, clock, arrangement, node, ctrl, drain, finish };
+  return { ctx, clock, arrangement, node, ctrl, drain, finish, runTransport, runFor };
 }
 
 let downloads: string[] = [];
@@ -143,10 +161,9 @@ describe('RecorderController.exportSong', () => {
 
 describe('the export tail', () => {
   it('waits TAIL_MS by default — bar-exact, as the audio bench needs', () => {
-    const { ctrl, ctx, node, drain } = harness();
+    const { ctrl, node, runTransport } = harness();
     ctrl.exportSong('wav'); // no opts: the scripts/audio-bench.mjs call shape
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);   // drain the window; the clock stops
+    runTransport();               // run the window out; the clock stops
     expect(node.calls).not.toContain('stop'); // still capturing the tail
     vi.advanceTimersByTime(349);
     expect(node.calls).not.toContain('stop');
@@ -155,24 +172,21 @@ describe('the export tail', () => {
   });
 
   it('waits one whole bar when tailBar is set (v7)', () => {
-    const { ctrl, ctx, node, drain } = harness();
+    const { ctrl, node, runTransport } = harness();
     ctrl.exportSong('wav', { tailBar: true });
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);
+    runTransport();
     // 120 BPM: one bar = 16 × 0.125 s = 2000 ms, not 350.
     vi.advanceTimersByTime(1999);
     expect(node.calls).not.toContain('stop');
     vi.advanceTimersByTime(1);
     expect(node.calls).toContain('stop');
-    void drain;
   });
 
   it('scales the tail bar with the tempo', () => {
-    const { ctrl, clock, ctx, node } = harness();
+    const { ctrl, clock, node, runTransport } = harness();
     clock.setBpm(60); // one bar = 4 s
     ctrl.exportSong('wav', { tailBar: true });
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);
+    runTransport();
     vi.advanceTimersByTime(3999);
     expect(node.calls).not.toContain('stop');
     vi.advanceTimersByTime(1);
@@ -285,13 +299,12 @@ describe('the manual phase machine', () => {
 
 describe('the in-flight export', () => {
   it('reports progress through the pass', () => {
-    const { ctrl, arrangement, clock, ctx, drain } = harness();
+    const { ctrl, arrangement, drain, runFor } = harness();
     arrangement.setSeqChain([0, 1], true); // 2 bars = 32 steps
     expect(ctrl.exportProgress()).toBe(0); // nothing running
 
     ctrl.exportSong('wav');
-    ctx.currentTime = 1; // drain ~8 steps of the look-ahead
-    vi.advanceTimersByTime(25);
+    runFor(1); // a second in: ~8 of the 32 steps
     const mid = ctrl.exportProgress();
     expect(mid).toBeGreaterThan(0);
     expect(mid).toBeLessThan(1);
@@ -301,10 +314,9 @@ describe('the in-flight export', () => {
   });
 
   it('cancel stops the transport and writes nothing', async () => {
-    const { ctrl, clock, node, ctx } = harness();
+    const { ctrl, clock, node, runFor } = harness();
     ctrl.exportSong('wav');
-    ctx.currentTime = 1;
-    vi.advanceTimersByTime(25);
+    runFor(1);
     expect(clock.playing).toBe(true);
 
     ctrl.cancelExport();
@@ -317,16 +329,14 @@ describe('the in-flight export', () => {
   });
 
   it('cancelling after the last bar cannot resurrect the download (edge)', async () => {
-    const { ctrl, ctx, drain } = harness();
+    const { ctrl, runTransport } = harness();
     ctrl.exportSong('wav');
-    // Drain past the end so the tail timeout is armed, then cancel inside it.
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);
+    // Run past the end so the tail timeout is armed, then cancel inside it.
+    runTransport();
     ctrl.cancelExport();
     await vi.advanceTimersByTimeAsync(5000);
     expect(downloads).toEqual([]);
     expect(ctrl.phase).toBe('idle');
-    void drain;
   });
 
   it('is a no-op once the render is past capturing', () => {
@@ -356,10 +366,9 @@ describe('the in-flight export', () => {
   });
 
   it('keeps isExporting true across the encode, so a second export cannot start', () => {
-    const { ctrl, ctx } = harness();
+    const { ctrl, runTransport } = harness();
     ctrl.exportSong('wav');
-    ctx.currentTime = 10_000;
-    vi.advanceTimersByTime(25);
+    runTransport();
     vi.advanceTimersByTime(350); // tail fires → finishExport → encoding
     expect(ctrl.phase).toBe('encoding');
     expect(ctrl.isExporting()).toBe(true);

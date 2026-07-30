@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 15  # v15: the Audio row's two buttons open surfaces instead of writing
+version: 16  # v16: REQ-8 bounds magnitude, not just shape — note 0..127, chain
+             #      length, param-key count, reserved keys (untrusted-input, ADR-015)
+             # v15: the Audio row's two buttons open surfaces instead of writing
              #      files; its Format is now the global default (REQ-13 note)
              # v14: every load — and New — returns the playhead to bar 1 (REQ-14)
              # v13: Sync then Audio, sharing one row above 1280px (REQ-13)
@@ -26,6 +28,7 @@ related:
   - toast
   - machine-status
   - paste-import
+  - untrusted-input      # REQ-8: a song is an untrusted document; the limits live there
   - transport-position   # REQ-14: the seek contract a load reuses
   - transport-window     # REQ-14: the readout/scrubber a stale position contradicts
   - runtime-performance   # REQ-1: boot pays only for what the user asks for
@@ -120,6 +123,13 @@ demos, the load path **must stay backward compatible** as the format grows.
   **field-level, path-prefixed** messages, not one generic error. A
   machine-readable JSON Schema (draft 2020-12) ships at
   `/schema/websynth-song.schema.json` as the published contract for external tools.
+  Leniency is about **shape, never magnitude** ([untrusted-input](untrusted-input.md),
+  ADR-015): `SeqStep.note` is an integer `0..127` (matching the dialect, which
+  already enforced it), `chainData.steps` is `1..MAX_CHAIN_STEPS`, `params`
+  carries at most `MAX_PARAM_KEYS` keys, and a `__proto__` / `constructor` /
+  `prototype` key is refused outright. A song is an untrusted document — an
+  unbounded `note` reached `midiToHz` as `Infinity` and wedged the transport
+  through a throwing `AudioParam` write.
 - **REQ-9** — Serialization is **optimized at the boundary** (`toJSON`), never in
   live state: numbers round to 4 significant figures and cells are written
   **default-sparse**, producing the *canonical compact* form. The output must still
@@ -334,10 +344,11 @@ strict (reject + name the path):
   samplerBanks?: SamplerStep[4][8][16]              # if present
   motionTracks?: (MotionTrack|null)[4][2]           # if present
   sampleNames?:  (string|null)[8]                   # if present
-  chainData:   { enabled: boolean, steps: int[ ]≥1, each 0..3 }
+  chainData:   { enabled: boolean, steps: int[1..MAX_CHAIN_STEPS], each 0..3 or REST }
   cell fields when present, by type/range:
     velocity/gate/prob: number 0..1 ; ratchet: int 1..4 ; tie: boolean
-    SeqStep.note: number
+    SeqStep.note: int 0..127                        # MIDI range (untrusted-input REQ-4)
+  refused everywhere: __proto__ / constructor / prototype keys   # untrusted-input REQ-5
 lenient (additive — do NOT require):
   per-step velocity/gate/prob/ratchet/tie      # v1 cells omit them; restore defaults them
   required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}

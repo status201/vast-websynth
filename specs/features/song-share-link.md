@@ -3,13 +3,16 @@
 ```yaml
 id: song-share-link
 status: implemented
-version: 2
+version: 3   # v3: https-only songUrl + consent dialog + payload/fetch caps (REQ-7/8)
 owner: state
 related:
   - song-mode
   - song-authoring-dialect
   - project-export
+  - untrusted-input
+  - dialog
   - ../decisions/adr-003-no-runtime-dependencies
+  - ../decisions/adr-015-untrusted-input-is-bounded
 source:
   - src/state/song-link.ts                # parseSongLink, encode/decodeSongPayload, buildShareUrl
   - src/main.ts                           # boot hook (next to the launchQueue consumer)
@@ -32,8 +35,12 @@ the Import button, so canonical files, authoring-dialect files, and (via
 ## Requirements
 
 - **REQ-1** — `parseSongLink(hash)` recognises `#song=<payload>` (embedded,
-  `{kind:'data'}`) and `#songUrl=<http(s) url>` (fetched, `{kind:'url'}`);
-  anything else returns `null`. A non-http(s) `songUrl` is ignored (null).
+  `{kind:'data'}`) and `#songUrl=<https url>` (fetched, `{kind:'url'}`);
+  anything else returns `null`. **`https:` only** (v3): a `http://`,
+  `javascript:`, `file://` or protocol-relative `songUrl` is ignored. Plain
+  `http` was accepted by the original `https?` test, which made
+  `#songUrl=http://192.168.1.1/…` a zero-click LAN probe from the victim's
+  browser ([untrusted-input](untrusted-input.md) REQ-7).
 - **REQ-2** — `encodeSongPayload(json)` deflate-raws the UTF-8 bytes and
   base64url-encodes them. When the platform lacks Compression Streams
   (`hasCompression()` false, e.g. jsdom), it falls back to `'j:'` +
@@ -44,7 +51,27 @@ the Import button, so canonical files, authoring-dialect files, and (via
   song link is decoded/fetched and driven through `UiBridge.importSongBytes` —
   the same one-import-path as the Import button and OS file launches
   (pwa-install.md REQ-7), so parse errors surface in the existing import-error
-  dialog. Applying is pure state, so it works behind the start modal.
+  dialog. Applying is pure state, so it works behind the start modal. Errors use
+  the shared `alertDialog`, **never the native `alert()`** (v3 — it was `alert()`,
+  which contradicted this requirement and put payload-derived text in browser
+  chrome).
+- **REQ-7** — **A fetch needs consent (v3).** `#song=` carries its own payload —
+  no network, no third party — so it keeps applying at boot, unprompted.
+  `#songUrl=` first shows a `confirmDialog` naming the **target origin**;
+  declining leaves the hash in place and applies nothing. That prompt is raised
+  **from the start gesture, not at boot**: applying a song is pure state and
+  works behind the start modal, but a *dialog* raised there renders underneath
+  it and cannot be reached — the same reason the restored-clips toast waits
+  (sample-persistence.md REQ-8). The request is then
+  `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a timeout, and
+  a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before the body is
+  buffered. Without this, one link made any visitor's browser issue an
+  attacker-chosen GET at page load.
+- **REQ-8** — **The payload is capped (v3).** `decodeSongPayload` inflates
+  through `inflateRaw(bytes, MAX_SONG_JSON_BYTES)`, which throws **during** the
+  read rather than after — deflate's ~1032:1 ratio otherwise lets an
+  address-bar-sized hash expand to gigabytes ([untrusted-input](untrusted-input.md)
+  REQ-2).
 - **REQ-4** — On a **successful** import the hash is consumed via
   `history.replaceState(null, '', pathname + search)`; on failure the hash
   stays in the address bar so the user can copy/inspect/retry it.
@@ -125,6 +152,27 @@ Scenario: Copy Link is disabled for a Project (.zip) export (v2)
   Then Copy Link is enabled with its normal tooltip
 # pinned by: tests/ui/export-song-modal.test.ts
 
+Scenario: A songUrl link asks before it fetches (v3)
+  Given a URL whose hash is #songUrl=https://example.com/song.json
+  When the app boots and the user taps to start
+  Then a confirm dialog names the origin "example.com"
+  And nothing is requested until it is accepted
+  And declining leaves the hash intact and fetches nothing
+# pinned by: e2e/song-link.spec.ts
+
+Scenario: A non-https songUrl is ignored (v3)
+  Given a hash of #songUrl=http://192.168.1.1/x, javascript:alert(1), file:///etc,
+    or //evil.example/song.json
+  Then parseSongLink returns null for every one
+# pinned by: tests/state/song-link.test.ts
+
+Scenario: An oversized payload is refused mid-inflate (v3)
+  Given a #song= payload that inflates past MAX_SONG_JSON_BYTES
+  When decodeSongPayload runs
+  Then it throws before materializing the whole output
+  And the hash is NOT cleared
+# pinned by: tests/state/song-link.node.test.ts
+
 Scenario: Round-trip encode/decode
   Given any JSON string
   When encodeSongPayload then decodeSongPayload run
@@ -147,4 +195,8 @@ Scenario: Round-trip encode/decode
 ## Open questions / future
 
 - A QR code for the share URL (the WiFi-sync pair modal already renders QR).
-- Optional `#songUrl=` allow-list / size cap if abuse ever shows up.
+- A **remembered per-origin allow-list** for `#songUrl=`, so a host the user
+  already trusted stops prompting. (The size cap and the consent gate that this
+  bullet used to defer both landed in v3 — see REQ-7/REQ-8.)
+- Streaming the fetched body so an over-cap response is abandoned mid-flight,
+  rather than trusting a `Content-Length` a hostile server may simply omit.

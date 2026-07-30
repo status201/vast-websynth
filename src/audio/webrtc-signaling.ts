@@ -15,6 +15,7 @@
 
 import { hasCompression, deflateRaw, inflateRaw } from '../utils/compression';
 import { toBase64Url, fromBase64Url } from '../utils/base64url';
+import { MAX_SIGNAL_BYTES } from '../state/limits';
 
 const PREFIX = 'WS2.';
 
@@ -54,7 +55,13 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
   let bytes: Uint8Array;
   try {
     const raw = fromBase64Url(rest.slice(dot + 1));
-    bytes = codec === 'c' ? await inflateRaw(raw) : raw;
+    // Capped: a blob can arrive from a scanned QR — i.e. from whoever printed
+    // the code — so it is untrusted input like any other (untrusted-input.md
+    // REQ-2). A real deflated SDP is ~700 bytes; the cap is orders above that.
+    if (raw.length > MAX_SIGNAL_BYTES) {
+      throw new SignalDecodeError('That sync link is too large to be a pairing code.');
+    }
+    bytes = codec === 'c' ? await inflateRaw(raw, MAX_SIGNAL_BYTES) : raw;
   } catch {
     throw new SignalDecodeError('Corrupt sync link (bad payload).');
   }

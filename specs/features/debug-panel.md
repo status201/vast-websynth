@@ -3,11 +3,13 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 4   # v4: polling is gated on the section being expanded, and tiered
+version: 5   # v5: the Transport row also carries Clock.dropouts (audio-lifecycle REQ-7)
 owner: core
 related:
   - architecture
   - ios-audio
+  - audio-lifecycle
+  - transport
   - performance-mode
   - sample-persistence
   - session-autosave
@@ -59,7 +61,10 @@ instead of transcribing it from a phone screen.
   write into. The section body wraps that grid **plus** the actions block (REQ-7), so
   collapsing hides both. Built-in rows: **AudioContext** state
   (`data-testid="debug-ctx-state"`), **Sample rate**, **Latency** (`debug-latency`,
-  base/output), **Transport** (`debug-transport`), **iOS** (`isIOS()` yes/no),
+  base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm` ·
+  sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
+  wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
+  (`isIOS()` yes/no),
   **Local storage** (`debug-storage`, `storageUsage()`).
 - **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
   a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
@@ -178,6 +183,7 @@ SessionAutosave.stats(): { bytes, savedAt: number | null } | null   # session-au
 storageUsage(prefix = 'websynth.'): { keys, bytes }                 # slot-store.ts
 WakeLockManager.held: boolean                                       # utils/wake-lock.ts
 Clock.bpm: number                                                   # transport clock
+Clock.dropouts: number                              # v5: stalled-wakeup recoveries (transport.md REQ-9)
 initMIDI(engine, bus): Promise<MIDIAccess | null>                   # resolves the handle
 ```
 

@@ -3,7 +3,9 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 8   # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
+version: 9   # v9: the stop condition counts steps elapsed since the export began —
+             #     the old absolute test was unreachable past the 16-bit step wrap
+             # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
              #     open as the render's progress surface with a working Cancel (REQ-10)
              # v7: a phase machine replaces the armed bool (REQ-4), export takes
              #     runs + a tail bar behind an options modal (REQ-2/3/9), and the
@@ -53,8 +55,16 @@ already-slow action, so the fetch is invisible next to the encode itself.
   (10)** and defaults to 1, so an omitted `opts` renders exactly what v6 did.
   Repeats need no arrangement support: every lane already wraps its slot index
   (`pos % steps.length`), so a longer capture simply replays the chains.
+  The end condition counts **steps elapsed since the export started** (v9), not
+  the clock's absolute step: `Clock._step` wraps at `& 0xffff`
+  ([transport](transport.md) REQ-5), so a `step >= stopAtStep` test against an
+  absolute number became **unreachable** once `bars × runs > 4096` — the export
+  then never auto-stopped and recorded into memory indefinitely. An imported song
+  can set `bars` (it is the arrangement chain length), so this was reachable from
+  a shared file; counting elapsed steps removes the ceiling rather than merely
+  capping it.
   "From the top" means **`clock.start(0)` explicitly**: the capture's end is
-  `step >= stopAtStep`, an absolute step number, and since
+  a step count from that origin, and since
   [transport](transport.md) REQ-7 a plain `start()` begins from the user's cue
   rather than 0 — so a cued transport would silently truncate the export. For the
   same reason a **playhead seek is refused while an export is in flight**

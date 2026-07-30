@@ -535,7 +535,10 @@ function buildDebugSection(engine: StudioApi): {
       `output ${out ? `${(out * 1000).toFixed(1)} ms` : '—'}`;
     transportVal.textContent =
       `${engine.clock.playing ? 'playing' : 'stopped'} · ` +
-      `${engine.clock.bpm.toFixed(1)} BPM · sync ${engine.sync.mode}`;
+      `${engine.clock.bpm.toFixed(1)} BPM · sync ${engine.sync.mode} · ` +
+      // The only on-device evidence that the wakeup source stalled — the phone
+      // this happens on has no console (audio-lifecycle.md REQ-7).
+      `${engine.clock.dropouts} dropouts`;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
     const clips = clipStats?.();
     clipsVal.textContent = clips ? `${clips.count} · ${MB(clips.bytes)}` : 'n/a';

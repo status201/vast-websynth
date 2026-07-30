@@ -62,9 +62,13 @@ function fakeNode(opts: { firstFrame: number | null; length: number; sampleRate:
 }
 
 /**
- * Fake-timer harness: the Clock drains every due step in one look-ahead wakeup
- * once `ctx.currentTime` has jumped past the render window, then the tail
- * timeout fires. step 0 is always emitted at 0.05 (Clock.start's pre-roll).
+ * Fake-timer harness: both clocks are advanced together in look-ahead-sized
+ * wakeups until the controller stops the transport, then the tail timeout
+ * fires. step 0 is always emitted at 0.05 (Clock.start's pre-roll).
+ *
+ * Deliberately not one jump past the window: the drain is bounded, so a grid
+ * left far behind `currentTime` reads as a dropout and emits nothing
+ * (transport.md REQ-9).
  */
 function harness(opts?: {
   firstFrame?: number | null;
@@ -86,9 +90,15 @@ function harness(opts?: {
   const restore = vi.fn(() => { node.calls.push('restore'); });
   const prepare = vi.fn(() => { node.calls.push('prepare'); return restore; });
   const ctrl = new BankRenderController(clock, node, prepare, opts?.blocked);
+  /** Run the transport until the controller stops it (RENDER_BARS bars). */
+  const runTransport = (): void => {
+    for (let i = 0; i < 4000 && clock.playing; i++) {
+      ctx.currentTime += 0.025;
+      vi.advanceTimersByTime(25);
+    }
+  };
   const run = (p: Promise<CapturedAudio>) => {
-    ctx.currentTime = 10; // past both bars
-    vi.advanceTimersByTime(25); // one look-ahead wakeup drains all 32 steps
+    runTransport();
     vi.advanceTimersByTime(RENDER_TAIL_MS); // tail → finish
     return p;
   };

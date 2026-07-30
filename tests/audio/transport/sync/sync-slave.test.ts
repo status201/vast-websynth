@@ -18,9 +18,15 @@ function setup(localBpm = 120) {
     toAudioTime: (ms) => ms / 1000,
   });
   slave.enable();
+  // Both clocks step together in look-ahead-sized wakeups, exactly like the
+  // real transport. Deliberately not one big jump: the drain is bounded, and a
+  // grid left far behind currentTime reads as a dropout (transport.md REQ-9).
   const advance = (audioS: number) => {
-    (ctx as unknown as { currentTime: number }).currentTime += audioS;
-    vi.advanceTimersByTime(25);
+    const wakeups = Math.max(1, Math.round(audioS / 0.025));
+    for (let i = 0; i < wakeups; i++) {
+      (ctx as unknown as { currentTime: number }).currentTime += 0.025;
+      vi.advanceTimersByTime(25);
+    }
   };
   return { clock, slave, advance };
 }

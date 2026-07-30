@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { deflateRawSync } from 'node:zlib';
 import { zipWrite, zipRead, crc32, ZipError, type ZipEntry } from '../../src/utils/zip';
 import { hasCompression } from '../../src/utils/compression';
+import { MAX_ZIP_ENTRIES, MAX_ZIP_ENTRY_BYTES } from '../../src/state/limits';
 
 const enc = new TextEncoder();
 
@@ -168,5 +169,43 @@ describe.runIf(hasCompression())('deflate (method 8)', () => {
     expect(back).toHaveLength(1);
     expect(back[0]!.name).toBe('song.json');
     expect(new TextDecoder().decode(back[0]!.data)).toBe('{"hello":"zip"}');
+  });
+});
+
+// untrusted-input.md REQ-2 / project-export.md REQ-2. A project zip can arrive
+// from a share link (#songUrl=…/x.zip), so the reader is budgeted, not trusting.
+describe('zipRead budgets (zip bomb)', () => {
+  /** Patch the EOCD's entry count without touching anything else. */
+  function withEocdCount(zip: Uint8Array, count: number): Uint8Array {
+    const patched = zip.slice();
+    new DataView(patched.buffer).setUint16(patched.length - 22 + 10, count, true);
+    return patched;
+  }
+
+  it('refuses an absurd entry count before walking the directory', async () => {
+    const zip = await zipWrite([{ name: 'a.bin', data: bytesOf('x') }]);
+    await expect(zipRead(withEocdCount(zip, MAX_ZIP_ENTRIES + 1)))
+      .rejects.toThrow(new RegExp(`${MAX_ZIP_ENTRIES}`));
+    // ...and it is a ZipError, so the import UI shows its bullet list as usual.
+    await expect(zipRead(withEocdCount(zip, MAX_ZIP_ENTRIES + 1))).rejects.toBeInstanceOf(ZipError);
+  });
+
+  it('refuses an entry whose DECLARED size is over the cap, without inflating', async () => {
+    // The central directory advertises the uncompressed size, so the cheap
+    // refusal happens before a single byte is decompressed.
+    const zip = await zipWrite([{ name: 'a.bin', data: bytesOf('small') }]);
+    const patched = zip.slice();
+    const view = new DataView(patched.buffer);
+    const centralOffset = view.getUint32(patched.length - 22 + 16, true);
+    view.setUint32(centralOffset + 24, MAX_ZIP_ENTRY_BYTES + 1, true); // uncompressed size
+    await expect(zipRead(patched)).rejects.toThrow(/limit/i);
+  });
+
+  it('still reads an ordinary zip (the caps are nowhere near real content)', async () => {
+    const zip = await zipWrite([
+      { name: 'song.json', data: bytesOf(JSON.stringify({ format: 'websynth-song' })) },
+      { name: 'samples/0-clip.wav', data: fullRange() },
+    ]);
+    expect(await zipRead(zip)).toHaveLength(2);
   });
 });

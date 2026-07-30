@@ -3,10 +3,13 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 4   # v4: automation writes never re-arm the debounce (REQ-2b)
+version: 5   # v5: REQ-11 — an import confirms before overwriting a same-named
+             #     saved slot (the undo toast can't restore one)
 owner: websynth
 related:
   - architecture
+  - untrusted-input      # REQ-11: the song name is attacker-chosen
+  - presets              # REQ-11 follows the preset importer's never-blind-merge rule
   - runtime-performance  # REQ-5: automation is not an edit (REQ-2b's other half)
   - motion-sequencer     # the frame-rate writer REQ-2b exists for
   - song-mode        # the SongFile the session serializes to; the guarded panel
@@ -86,6 +89,17 @@ happy path.
   the header label, and the slot dropdown's prior selection. The stash lives
   only in the toast's closure — dismissal/replacement releases the buffers
   (toast REQ-5).
+- **REQ-11** (v5) — **The undo net covers the session, not the slot — so an
+  import may not silently overwrite a saved slot.** REQ-8 restores the in-memory
+  session; it cannot restore a `localStorage` slot that `Song.saveSlot` has
+  already replaced, so an unconfirmed overwrite is *unrecoverable*. An import
+  whose song name collides with an existing slot therefore **asks first**
+  (naming the slot), and on a decline the song still **applies to the session** —
+  only the persistence is skipped, so nothing is lost either way. A non-colliding
+  name saves as before. This matters because the name is attacker-chosen: a
+  share link naming its song after a common slot ("My Song") would otherwise
+  destroy that work at boot. Mirrors [presets](presets.md) REQ-10 ("never a
+  blind merge") and [untrusted-input](untrusted-input.md) REQ-9.
 - **REQ-9** — In-flight async work from a superseded apply must not leak into
   the current session: a monotonically increasing apply token invalidates
   project-zip clip decodes still pending when another apply (or Undo) lands.
@@ -211,6 +225,16 @@ Scenario: corrupt autosave falls back to a fresh boot
   When the app boots
   Then defaults load and the key is cleared
 # pinned by: tests/state/session-autosave.test.ts
+
+Scenario: an import confirms before overwriting a saved slot (v5)
+  Given a saved slot named "My Song"
+  When a shared song also named "My Song" is imported
+  Then Song.planImportSave reports a conflict and writes nothing itself
+  And the panel confirms, naming the slot, before Song.saveSlot runs
+  And declining still applies the song to the session, leaving the slot intact
+  And a song with an unused name — or a demo's name — saves without asking
+# pinned by: tests/state/song-import-slot.test.ts (the plan; the dialog wiring is
+#   song-panel's saveImportedSlot, following preset-file.ts planImport)
 
 Scenario: undo mid-import cancels stale clip decodes
   Given a project-zip import is decoding clips

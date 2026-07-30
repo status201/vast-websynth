@@ -3,13 +3,16 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 5
+version: 6   # v6: REQ-1 type-guards the wire (a peer can't inject NaN into the
+             #     clock); the signal blob decodes under MAX_SIGNAL_BYTES
 owner: core
 related:
   - midi-clock-sync
   - architecture
   - performance
   - onboarding
+  - untrusted-input
+  - transport
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
@@ -67,7 +70,15 @@ follows whichever delivers.
   head-of-line blocking of 96 msg/s pulses must be avoided. Both channels are
   created by the **offerer** with `negotiated: true` + explicit ids so both
   peers construct symmetric channels without an `ondatachannel` handshake.
-  Messages are JSON, one object per message.
+  Messages are JSON, one object per message, and **every inbound message is
+  type-guarded, never cast** (v6): `t` must be one of the known variants and each
+  numeric field must be `Number.isFinite`, or the message is **dropped
+  silently** — the timing channel is already lossy by design, so a drop is the
+  cheapest correct response. A bare `JSON.parse(data) as Wire` let a peer send
+  `{t:'tempo', bpm:'fast'}` straight into `Clock.setBpm`, whose clamp returns
+  `NaN` for `NaN` and stalls the scheduler ([transport](transport.md) REQ-3,
+  [untrusted-input](untrusted-input.md) REQ-8). A paired peer is semi-trusted,
+  not trusted: pairing proves someone scanned a code, not that they are friendly.
 - **REQ-2** — All timestamps on the wire are the **sender's**
   `performance.now()`. The receiver converts a message's `at` to its own domain
   via `ClockOffsetEstimator.toLocal(at)` **before** invoking the `onMessage`
@@ -384,6 +395,13 @@ Scenario: Receiver converts sender time before onMessage
   When a pulse arrives with the sender's at
   Then onMessage is invoked with a receiver-domain timestamp (offset-applied)
    And with a cold estimator it falls back to local receipt time
+# pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: A malformed wire message is dropped, not applied (v6)
+  Given a linked WebRtcSyncTransport
+  When a peer sends {t:'tempo', bpm:'fast'}, {t:'tempo'} with no bpm,
+    or an unknown {t:'???'}
+  Then none of them reach onMessage and the tempo is unchanged
 # pinned by: tests/audio/webrtc-sync-transport.test.ts
 
 Scenario: Channel close degrades status; a playing slave keeps playing

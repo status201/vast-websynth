@@ -3,7 +3,8 @@
 ```yaml
 id: transport
 status: implemented
-version: 4
+version: 6   # v6: REQ-9 bounded catch-up — a stalled wakeup source (backgrounded
+             #     phone) recovers as silence, never as a burst of missed steps
 owner: core
 related:
   - architecture
@@ -13,6 +14,9 @@ related:
   - performance-mode
   - midi-clock-sync
   - transport-position
+  - untrusted-input
+  - audio-lifecycle
+  - ../decisions/adr-015-untrusted-input-is-bounded
 source:
   - src/audio/transport/clock.ts
   - src/audio/transport/tick-timer.ts
@@ -49,6 +53,64 @@ untouched.
 - **REQ-2** — `onStart` fires before the first tick; `onStop` on stop. Order
   matters: the [arrangement](arrangement.md) subscribes first.
 - **REQ-3** — BPM and swing are live-settable; swing delays off-beat 16ths.
+  `setBpm` clamps to `20..400` and `setSwing` to `0..1` — and both **reject
+  non-finite input first** (v5). `Math.max(20, Math.min(400, NaN))` is `NaN`, so
+  the clamp idiom used app-wide does not survive a `NaN`, and a `NaN` tempo makes
+  `sixteenth` `NaN` and stalls the scheduler. The reachable source is a peer:
+  the WiFi sync wire carries `{t:'tempo', bpm}` ([webrtc-sync](webrtc-sync.md)).
+- **REQ-8** (v5) — **A subscriber may not wedge the transport.** `tick()` calls
+  each listener inside its own `try`, and advances `nextStepTime` / `_step`
+  **whether or not one throws**. Previously a throwing listener escaped the
+  `while` body *before* those two lines, leaving `_playing` true and
+  `nextStepTime` unmoved — so the worker re-entered the same step every 25 ms
+  forever and every later-registered lane (drums, sampler, motion, arrangement,
+  the UI playhead) stopped, unrecoverable without a reload. A song with an
+  out-of-range `note` reached this through a throwing `AudioParam` write; the
+  range is now validated at import ([untrusted-input](untrusted-input.md) REQ-4),
+  but this requirement is the structural half — it closes every future variant,
+  not just that one. A caught error is reported **once per listener**, not once
+  per tick: at 40 Hz the latter is a console flood that hides the first, most
+  useful stack. See [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md)
+  for why isolation lives here rather than around each `AudioParam` write.
+- **REQ-9** (v6) — **The catch-up is bounded: a stalled wakeup source recovers as
+  silence, not as a burst.** The drain loop is a `while` over `nextStepTime <
+  now + scheduleAheadS`, so if the grid falls far behind `now` it used to emit
+  *every* missed 16th in one pass — each with a `when` in the past, clamped to
+  `now` downstream (`Math.max(when, now)`) and therefore all sounding at once.
+  Chrome/Android freezes or throttles a hidden page's renderer when the screen
+  turns off (a Pixel 8a does; a Samsung tablet does not), which stops the worker
+  wakeups while `ctx.currentTime` keeps advancing — so a minute of missed steps
+  arrived as one machine-gun burst of several hundred notes with `_step` racing
+  through the song. Two bounds close it:
+  - **Dropout recovery.** A wakeup that finds `nextStepTime < now - DROPOUT_S`
+    (0.25 s — well past what the look-ahead horizon absorbs) treats it as a
+    dropout: it re-origins the grid to `now + 0.05` exactly as `start()` does,
+    increments `dropouts`, and **returns without emitting anything**. The missed
+    steps are never played. The next healthy wakeup drains a grid that is in the
+    present, so recovery costs one skipped horizon and no burst — and while the
+    source stays stalled, every wakeup takes this path, so a frozen renderer is
+    simply silent.
+  - **A per-wakeup cap.** `MAX_STEPS_PER_WAKEUP` (16) breaks the drain loop. The
+    loop re-reads `ctx.currentTime` on every iteration, so a slow enough set of
+    listeners can make it chase its own tail and never terminate; the cap ends
+    the wakeup and the backlog is re-evaluated (and, if it grew past `DROPOUT_S`,
+    dropped) on the next one. Normal operation never reaches it: after the
+    dropout guard the widest possible drain is `(DROPOUT_S + scheduleAheadS) /
+    sixteenth` ≈ 13 steps at the extreme corner (400 BPM, the weak tier's 0.2 s
+    horizon), and steady state is 1–2.
+
+  **The playhead does not fast-forward across the gap.** `_step` is left where it
+  was, so playback resumes from the step it was on: a dropout is a *pause*, not a
+  seek. Fast-forwarding would jump the [arrangement](arrangement.md) to an
+  arbitrary bar with none of the intervening steps ever having sounded, and the
+  cost of not doing it is that song position drifts behind wall-clock time by the
+  gap — invisible for a standalone transport, and re-anchored by the next Song
+  Position message when slaved ([midi-clock-sync](midi-clock-sync.md) REQ-23/24).
+  The transport is deliberately **not** stopped, so devices that do play with the
+  screen off keep doing so. `dropouts` is exposed for the Debug panel
+  ([debug-panel](debug-panel.md)) — on the phone where this reproduces there is no
+  console. See [audio-lifecycle](audio-lifecycle.md) for the surrounding policy
+  (context re-arm, click-free start).
 - **REQ-4** — The wakeup timer runs off the main thread (Worker `setInterval`)
   wherever `Worker` is available, so the transport survives main-thread jank
   and background-tab timer throttling. A main-thread `setTimeout` loop is the
@@ -92,7 +154,7 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   get bpm: number      # the tempo actually running — a slaved clock writes it
                        # directly, so it can differ from the bus's transport.bpm
                        # (midi-clock-sync.md); surfaced by debug-panel.md
-  setBpm(b)            # clamped 20..400 internally
+  setBpm(b)            # non-finite refused (v5), then clamped 20..400
   setSwing(s)          # 0 (straight) .. 1
   get cue: number      # v4: where a plain start() begins; 0 until the first seek
   start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step (& 0xffff) before
@@ -100,8 +162,11 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   seek(step)           # v4: _cue = _step = step & 0xffff; nextStepTime UNTOUCHED;
                        # fires onSeek synchronously. Playing or stopped.
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
+  get dropouts: number # v6: stalled-wakeup recoveries this session (REQ-9);
+                       # monotonic, never reset — surfaced by debug-panel.md
   onTick(fn) / onStart(fn) / onStop(fn) / onSeek(fn) -> unsubscribe
 constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1 (default; perf tier may widen it)
+           DROPOUT_S = 0.25, MAX_STEPS_PER_WAKEUP = 16   # v6, REQ-9
 TickListener: (step, when) => void        # tick-source.ts
 TickTimer:   # src/audio/transport/tick-timer.ts — the wakeup source
   start(cb, intervalMs) / stop()
@@ -156,6 +221,20 @@ Scenario: Swing delays the off-beat 16ths (edge)
   Then even steps keep their time and odd steps are pushed later
 # pinned by: tests/audio/transport/clock.test.ts
 
+Scenario: A throwing subscriber cannot wedge the clock (v5, regression)
+  Given a running clock with a subscriber that throws on every tick
+  When the timer fires
+  Then the step counter still advances and nextStepTime still moves
+  And the other subscribers still receive their ticks
+  And the error is reported once for that listener, not once per tick
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A non-finite tempo leaves the clock alone (v5, edge)
+  Given a clock at 120 BPM
+  When setBpm(NaN) — or setSwing(NaN) — is called
+  Then the tempo and swing are unchanged
+# pinned by: tests/audio/transport/clock.test.ts
+
 Scenario: No ticks after stop, even from an in-flight wakeup (edge)
   Given the clock is started with an injected timer
   When the clock is stopped and the timer fires once more
@@ -189,6 +268,27 @@ Scenario: Transport survives a backgrounded tab (device)
   When the tab is backgrounded for 30s and foregrounded again
   Then the grid held (worker timers are exempt from tab timer throttling)
 # verified manually on device; jsdom cannot pin this
+
+Scenario: A stalled wakeup source drops the gap instead of bursting it (v6, regression)
+  Given the clock is playing at 120 BPM
+  When the audio clock jumps 60 s ahead before the next wakeup
+  Then that wakeup emits no ticks at all
+   And `dropouts` has incremented once
+   And the following wakeup emits again, from the step the clock was on
+   And its `when` is in the future, not the past
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A jitter-sized delay is still absorbed, not treated as a dropout (v6, edge)
+  Given the clock is playing at 120 BPM
+  When a wakeup arrives late enough to owe two steps (under DROPOUT_S)
+  Then both steps are emitted on that wakeup and `dropouts` stays 0
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: One wakeup can never emit an unbounded run (v6, edge)
+  Given a clock whose listeners advance the audio clock as they run
+  When the timer fires
+  Then at most MAX_STEPS_PER_WAKEUP ticks are emitted before the wakeup ends
+# pinned by: tests/audio/transport/clock.test.ts
 ```
 
 ## Tests & verification

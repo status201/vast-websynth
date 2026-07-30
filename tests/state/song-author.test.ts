@@ -3,6 +3,7 @@ import { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/s
 import { validateSongFile } from '../../src/state/song-validate';
 import type { SongFile } from '../../src/state/song';
 import { SEQ_LENGTH, BANK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../../src/state/patterns';
+import { MAX_CHAIN_STEPS } from '../../src/state/limits';
 
 /** A minimal valid author file to spread per-test variations over. */
 function base(extra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -528,5 +529,40 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
       seq: [{ tracks: [['C3'], ['E3'], ['G3'], ['B3'], ['D4']] }],
     });
     expect(res.ok).toBe(false);
+  });
+});
+
+// untrusted-input.md REQ-4. The dialect already bounded NOTES to 0..127 (the
+// canonical validator was the looser of the two, which is backwards) — these
+// pin the chain bounds it did not have.
+describe('expandAuthorSong — chain bounds', () => {
+  const base = { format: 'websynth-song-author', version: 1, name: 'Long' };
+
+  it('rejects a chain string longer than MAX_CHAIN_STEPS', () => {
+    const errs = expandErrors({ ...base, seqChain: 'A'.repeat(MAX_CHAIN_STEPS + 1) });
+    expect(errs.join('\n')).toMatch(new RegExp(String(MAX_CHAIN_STEPS)));
+  });
+
+  it('rejects a chain array longer than MAX_CHAIN_STEPS', () => {
+    const errs = expandErrors({ ...base, seqChain: new Array<number>(MAX_CHAIN_STEPS + 1).fill(0) });
+    expect(errs.join('\n')).toMatch(new RegExp(String(MAX_CHAIN_STEPS)));
+  });
+
+  it('accepts a chain exactly at the limit (boundary)', () => {
+    const file = expandOk({ ...base, seqChain: 'A'.repeat(MAX_CHAIN_STEPS) });
+    expect(file.seqChain.steps).toHaveLength(MAX_CHAIN_STEPS);
+  });
+
+  it('refuses a deeply nested {steps:{steps:…}} instead of blowing the stack', () => {
+    let nested: unknown = [0];
+    for (let i = 0; i < 5000; i++) nested = { enabled: true, steps: nested };
+    // The point is that this RETURNS — before the depth guard it recursed to a
+    // RangeError, which escaped Song.parse entirely.
+    const res = expandAuthorSong({ ...base, seqChain: nested });
+    expect(res.ok).toBe(false);
+  });
+
+  it('still expands ordinary chains (regression)', () => {
+    expect(expandOk({ ...base, seqChain: 'AABB' }).seqChain.steps).toEqual([0, 0, 1, 1]);
   });
 });

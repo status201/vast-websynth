@@ -28,6 +28,7 @@ import {
   makeMotionTrack,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH } from './limits';
 
 export const AUTHOR_FORMAT = 'websynth-song-author';
 
@@ -560,12 +561,22 @@ function expandMotionBanks(
 const CHAIN_HELP =
   'a string of bank letters A..D ("." or "-" = rest), an array of bank indices (-1 = rest), or {enabled, steps}';
 
-function expandChain(path: string, v: unknown, add: AddError): ChainData {
+function expandChain(path: string, v: unknown, add: AddError, depth = 0): ChainData {
   if (v === undefined) return { enabled: false, steps: [0] };
+  // `{steps: {steps: {…}}}` recurses through the isObject branch below, so a
+  // deeply nested payload would blow the stack before any length check ran.
+  if (depth > MAX_CHAIN_DEPTH) {
+    add(`${path} is nested more than ${MAX_CHAIN_DEPTH} levels deep`);
+    return { enabled: false, steps: [0] };
+  }
   if (typeof v === 'string') {
     const chars = v.replace(/\s+/g, '').split('');
     if (chars.length === 0) {
       add(`${path} must not be an empty string — ${CHAIN_HELP}`);
+      return { enabled: false, steps: [0] };
+    }
+    if (chars.length > MAX_CHAIN_STEPS) {
+      add(`${path} has ${chars.length} slots — the limit is ${MAX_CHAIN_STEPS}`);
       return { enabled: false, steps: [0] };
     }
     const steps: number[] = [];
@@ -585,6 +596,10 @@ function expandChain(path: string, v: unknown, add: AddError): ChainData {
       add(`${path} must have at least 1 entry`);
       return { enabled: false, steps: [0] };
     }
+    if (v.length > MAX_CHAIN_STEPS) {
+      add(`${path} has ${v.length} entries — the limit is ${MAX_CHAIN_STEPS}`);
+      return { enabled: false, steps: [0] };
+    }
     const steps: number[] = [];
     v.forEach((s: unknown, i) => {
       const ok = typeof s === 'number' && Number.isInteger(s) && (s === REST || (s >= 0 && s <= BANK_COUNT - 1));
@@ -598,7 +613,7 @@ function expandChain(path: string, v: unknown, add: AddError): ChainData {
   }
   if (isObject(v)) {
     if (typeof v.enabled !== 'boolean') add(`${path}.enabled must be a boolean (got ${describe(v.enabled)})`);
-    const inner = expandChain(path + '.steps', v.steps === undefined ? [0] : v.steps, add);
+    const inner = expandChain(path + '.steps', v.steps === undefined ? [0] : v.steps, add, depth + 1);
     return { enabled: v.enabled === true, steps: inner.steps };
   }
   add(`${path} must be ${CHAIN_HELP} (got ${describe(v)})`);

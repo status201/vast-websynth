@@ -224,3 +224,150 @@ describe('Clock swing', () => {
     }
   });
 });
+
+// transport.md REQ-8 / ADR-015. The bug this pins: a throwing listener escaped
+// the tick loop BEFORE `nextStepTime += sixteenth` and `_step++`, leaving
+// _playing true and the grid unmoved — so the timer re-entered the same step
+// every 25 ms forever and every lane registered after the thrower went silent.
+// An imported song with an out-of-range note reached it via an AudioParam throw.
+describe('Clock listener isolation (untrusted-input)', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125s
+    return { ctx, clock };
+  }
+
+  it('keeps the transport running when a listener throws every tick', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, clock } = startedClock();
+    const seenByGood: number[] = [];
+    clock.onTick(() => { throw new Error('an AudioParam refused a value'); });
+    clock.onTick((step) => seenByGood.push(step));
+
+    clock.start(); // emits step 0 synchronously
+    for (let i = 0; i < 4; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    clock.stop();
+
+    // The step counter advanced rather than re-entering step 0 forever...
+    expect(clock.step).toBeGreaterThan(1);
+    // ...and the listener registered AFTER the thrower still ran, every tick.
+    expect(seenByGood).toEqual([0, 1, 2, 3, 4]);
+    err.mockRestore();
+  });
+
+  it('reports a faulting listener once, not once per tick', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx, clock } = startedClock();
+    clock.onTick(() => { throw new Error('boom'); });
+
+    clock.start();
+    for (let i = 0; i < 5; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    clock.stop();
+
+    // At ~40 Hz, once-per-tick would bury the first (most useful) stack.
+    expect(err).toHaveBeenCalledTimes(1);
+    err.mockRestore();
+  });
+
+  it('ignores a non-finite tempo or swing instead of stalling', () => {
+    // Math.max(20, Math.min(400, NaN)) is NaN, which makes `sixteenth` NaN and
+    // stops the scheduler. A paired WiFi peer can send {t:'tempo', bpm}.
+    const { clock } = startedClock();
+    clock.setBpm(NaN);
+    expect(clock.bpm).toBe(120);
+    clock.setBpm(Number.POSITIVE_INFINITY);
+    expect(clock.bpm).toBe(120);
+    clock.setSwing(NaN); // no throw, and swing stays usable
+    clock.setBpm(140);
+    expect(clock.bpm).toBe(140);
+  });
+});
+
+// transport.md REQ-9 / audio-lifecycle.md. The bug this pins: Chrome on Android
+// freezes a hidden page's renderer when the screen turns off (a Pixel 8a does; a
+// Samsung tablet does not), so the worker wakeups stop while ctx.currentTime keeps
+// running. The unbounded drain loop then emitted every missed 16th on the next
+// wakeup — hundreds of notes with a `when` in the past, clamped to now downstream
+// and fired at once (crackle), with the step counter racing (runaway clock).
+describe('Clock dropout recovery (stalled wakeup source)', () => {
+  function startedClock() {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120); // one 16th = 0.125s
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    return { ctx, clock, ev };
+  }
+
+  it('drops the gap instead of bursting it, and resumes from the same step', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();                 // step 0 at 0.05
+    ctx.currentTime += 0.125;
+    vi.advanceTimersByTime(25);    // step 1, healthy
+    expect(ev.map((e) => e.step)).toEqual([0, 1]);
+    expect(clock.dropouts).toBe(0);
+
+    ctx.currentTime += 60;         // the renderer was frozen for a minute
+    vi.advanceTimersByTime(25);
+    expect(ev).toHaveLength(2);    // nothing at all was emitted for the gap
+    expect(clock.dropouts).toBe(1);
+
+    ctx.currentTime += 0.025;      // the next wakeup, arriving on time again
+    vi.advanceTimersByTime(25);
+    // Playback continues from the step it was on — a dropout is a pause, not a
+    // seek — and the tick it emits is in the FUTURE, not clamped from the past.
+    expect(ev[2]!.step).toBe(2);
+    expect(ev[2]!.when).toBeGreaterThan(ctx.currentTime);
+    expect(clock.dropouts).toBe(1);
+    clock.stop();
+  });
+
+  it('stays silent for as long as the source stays stalled', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();
+    ev.length = 0;
+    for (let i = 0; i < 3; i++) {  // three throttled wakeups, a minute apart
+      ctx.currentTime += 60;
+      vi.advanceTimersByTime(25);
+    }
+    expect(ev).toEqual([]);
+    expect(clock.dropouts).toBe(3);
+    clock.stop();
+  });
+
+  it('still absorbs ordinary jitter — two owed steps are not a dropout', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start();                 // step 0 at 0.05
+    ev.length = 0;
+    ctx.currentTime += 0.24;       // late, but inside DROPOUT_S of the grid
+    vi.advanceTimersByTime(25);
+    expect(ev.map((e) => e.step)).toEqual([1, 2]);
+    expect(clock.dropouts).toBe(0);
+    clock.stop();
+  });
+
+  it('caps one wakeup even when listeners outrun the grid', () => {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(400); // the fastest 16th the clock allows: 0.0375s
+    const steps: number[] = [];
+    // Each listener call burns more wall-clock than the step it just scheduled,
+    // so the drain condition (which re-reads currentTime) never goes false.
+    clock.onTick((step) => { steps.push(step); ctx.currentTime += 0.05; });
+
+    clock.start(); // drains synchronously — must terminate, and be bounded
+    expect(steps.length).toBeLessThanOrEqual(16);
+    expect(steps.length).toBeGreaterThan(0);
+    clock.stop();
+  });
+});

@@ -223,6 +223,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)
     song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
     mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
@@ -258,6 +259,7 @@ specs/
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm
+    audio-lifecycle.md ·  click-free start, foreground re-arm, screen-off dropout recovery
     pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
     factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + reload)
@@ -298,6 +300,7 @@ specs/
     adr-012-true-bypass-disconnects.md         ·  bypassed FX disconnect their processed path
     adr-013-authoring-dialect-input-only.md    ·  the authoring dialect is input-only
     adr-014-dont-make-me-think.md              ·  interaction design: six ordered UX laws
+    adr-015-untrusted-input-is-bounded.md      ·  bound every payload; no listener wedges the clock
 ```
 
 > Coverage note: the feature set above documents the current system. New features

@@ -15,6 +15,67 @@ S3, nginx, …). HTTPS is required for the AudioWorklet API and MIDI.
 
 No configuration needed. Serve `dist/` at `https://example.com/`.
 
+## Security headers
+
+The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships
+with the build and needs no host configuration anywhere
+(`specs/features/untrusted-input.md` REQ-10).
+
+Three headers cannot be set that way — `frame-ancestors` / `X-Frame-Options` are
+ignored in `<meta>`, and the others are transport-level — so `dist/_headers`
+carries them in **Netlify / Cloudflare Pages** format, where it is picked up
+automatically. It is an inert text file on every other host, so **if you deploy
+elsewhere, set these yourself**:
+
+```
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Permissions-Policy: geolocation=(), payment=(), interest-cohort=()
+```
+
+<details>
+<summary>nginx</summary>
+
+```nginx
+add_header X-Frame-Options            "DENY"        always;
+add_header X-Content-Type-Options     "nosniff"     always;
+add_header Referrer-Policy            "no-referrer" always;
+add_header Permissions-Policy         "geolocation=(), payment=(), interest-cohort=()" always;
+```
+</details>
+
+<details>
+<summary>Vercel (<code>vercel.json</code>)</summary>
+
+```json
+{
+  "headers": [{
+    "source": "/(.*)",
+    "headers": [
+      { "key": "X-Frame-Options",        "value": "DENY" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy",        "value": "no-referrer" }
+    ]
+  }]
+}
+```
+</details>
+
+<details>
+<summary>Apache (<code>.htaccess</code>)</summary>
+
+```apache
+Header always set X-Frame-Options "DENY"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "no-referrer"
+```
+</details>
+
+**GitHub Pages and S3 (without CloudFront) cannot set response headers at all.**
+The `<meta>` CSP still applies there; the app is simply framable. That is an
+accepted trade-off for those hosts, not an oversight.
+
 ## Hosting in a subfolder
 
 The AudioWorklets are loaded by **absolute path** (`/worklets/recorder.js`,

@@ -209,8 +209,17 @@ export const Song = {
     // The compact authoring dialect expands to a canonical v3 file here, so
     // every ingest surface (Import, launchQueue, project zips, share links,
     // MCP) accepts it automatically. Input-only — see ADR-013.
-    if (isAuthorSong(parsed)) return expandAuthorSong(parsed);
-    return validateSongFile(parsed);
+    //
+    // The expand/validate pass is inside a `try` too (untrusted-input.md REQ-2):
+    // both walk payload-shaped structures, so a pathological one can still raise
+    // a RangeError (stack) or similar. A refused song must look like a failed
+    // validation to every caller, never an exception escaping the import path.
+    try {
+      if (isAuthorSong(parsed)) return expandAuthorSong(parsed);
+      return validateSongFile(parsed);
+    } catch (e) {
+      return { ok: false, errors: ['This file could not be read: ' + (e as Error).message] };
+    }
   },
 
   download(file: SongFile): void {
@@ -253,6 +262,30 @@ export const Song = {
   saveSlot(name: string, file: SongFile): void {
     store.writeRaw(name, Song.toJSON(file));
     store.addToIndex(name);
+  },
+
+  /**
+   * Is there a **stored** slot under this name — i.e. would `saveSlot` destroy
+   * something the user made? Deliberately not `list()`, which also reports demos
+   * (nothing of the user's is lost by overwriting a demo name).
+   */
+  hasSlot(name: string): boolean {
+    return store.readRaw(name) !== null;
+  },
+
+  /**
+   * Would persisting this imported song overwrite the user's work?
+   * (session-autosave.md REQ-11, untrusted-input.md REQ-9.)
+   *
+   * A *plan*, not an action — the same idiom as `preset-file.ts` `planImport`:
+   * the decision is pure and testable here, and the UI owns the dialog. The
+   * name comes from the file, so with a share link it is attacker-chosen: a song
+   * called "My Song" would otherwise destroy that slot at boot, and the
+   * load-undo toast cannot bring it back (it restores the in-memory session, not
+   * localStorage).
+   */
+  planImportSave(file: SongFile): { name: string; conflict: boolean } {
+    return { name: file.name, conflict: Song.hasSlot(file.name) };
   },
 
   /**

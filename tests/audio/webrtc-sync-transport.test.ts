@@ -142,3 +142,46 @@ describe('WebRtcSyncTransport', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+// webrtc-sync.md REQ-1 / untrusted-input.md REQ-8. `JSON.parse(data) as Wire`
+// was a cast, not a check: a peer could send {t:'tempo', bpm:'fast'} straight
+// through to Clock.setBpm, whose clamp returns NaN for NaN and stalls the
+// scheduler. Pairing proves someone scanned a code, not that they are friendly.
+describe('WebRtcSyncTransport wire guard', () => {
+  /** Inject a raw frame at the guest as if the peer had sent it. */
+  async function injectAtGuest(raw: string, channelId: 0 | 1): Promise<SyncMessage[]> {
+    const { guest, rtc } = await linkPair();
+    const seen: SyncMessage[] = [];
+    guest.onMessage((m) => seen.push(m));
+    rtc.peers[1]!.channel(channelId)!.onmessage?.({ data: raw });
+    return seen;
+  }
+
+  it('drops control messages with a non-numeric or missing field', async () => {
+    for (const raw of [
+      '{"t":"tempo","bpm":"fast"}',
+      '{"t":"tempo","bpm":null}',
+      '{"t":"tempo"}',
+      '{"t":"songposition","beat":"soon"}',
+      '{"t":"songposition"}',
+      '{"t":"???"}',
+      '{"t":42}',
+      'null',
+      '[]',
+      'not json at all',
+    ]) {
+      expect(await injectAtGuest(raw, 0), raw).toEqual([]);
+    }
+  });
+
+  it('drops timing messages with a non-numeric field', async () => {
+    for (const raw of ['{"t":"pulse","at":"now"}', '{"t":"pulse"}', '{"t":"pong","a":1}']) {
+      expect(await injectAtGuest(raw, 1), raw).toEqual([]);
+    }
+  });
+
+  it('still passes well-formed messages through (regression)', async () => {
+    expect(await injectAtGuest('{"t":"tempo","bpm":130}', 0)).toEqual([{ type: 'tempo', bpm: 130 }]);
+    expect(await injectAtGuest('{"t":"start"}', 0)).toEqual([{ type: 'start' }]);
+  });
+});
