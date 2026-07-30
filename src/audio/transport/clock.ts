@@ -18,6 +18,23 @@ export type { TickListener };
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 
+/**
+ * How far the step grid may fall behind `currentTime` before a wakeup counts as
+ * a **dropout** rather than jitter (transport.md REQ-9). The look-ahead horizon
+ * absorbs ordinary lateness; 0.25 s is well past it — two 16ths at 120 BPM — so
+ * anything beyond means the wakeup source itself stalled.
+ */
+const DROPOUT_S = 0.25;
+
+/**
+ * Hard cap on ticks emitted per wakeup. The drain condition re-reads
+ * `ctx.currentTime`, so listeners slow enough to outrun the grid could keep the
+ * loop going indefinitely. After the dropout guard the widest legitimate drain
+ * is ~13 steps (400 BPM against the weak tier's 0.2 s horizon), so this is a
+ * backstop normal operation never reaches.
+ */
+const MAX_STEPS_PER_WAKEUP = 16;
+
 export interface ClockOptions {
   /** Wakeup source; defaults to a Worker timer (main-thread fallback). */
   timer?: TickTimer;
@@ -37,6 +54,8 @@ export class Clock implements TickSubscriber {
   private readonly listeners = new Set<TickListener>();
   /** Listeners already reported as throwing this run (see reportListenerError). */
   private readonly faultedListeners = new Set<TickListener>();
+  /** Stalled-wakeup recoveries this session (REQ-9); read by the Debug panel. */
+  private _dropouts = 0;
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
   private readonly seekListeners = new Set<() => void>();
@@ -56,6 +75,10 @@ export class Clock implements TickSubscriber {
    *  touches the bus, so `transport.bpm` can legitimately disagree with this
    *  (midi-clock-sync.md) — which is exactly what the Debug panel shows. */
   get bpm(): number { return this._bpm; }
+  /** How often the wakeup source stalled badly enough to drop a horizon
+   *  (transport.md REQ-9). Monotonic for the session — the Debug panel is the
+   *  only way to see this on the phone where it happens (audio-lifecycle.md). */
+  get dropouts(): number { return this._dropouts; }
 
   /** Non-finite is refused before the clamp: `Math.max(20, Math.min(400, NaN))`
    *  is `NaN`, which would make `sixteenth` NaN and stall the scheduler. The
@@ -148,7 +171,27 @@ export class Clock implements TickSubscriber {
 
   private tick = (): void => {
     // A wakeup may land after stop() (worker message in flight) — emit nothing.
+    if (!this._playing) return;
+    // The wakeup source stalled (a phone freezing a hidden page's renderer when
+    // the screen turns off is the reachable case). The grid is minutes behind, and
+    // draining it would emit every missed 16th at once — all with a `when` in the
+    // past, so downstream they clamp to now and sound simultaneously: a burst of
+    // hundreds of notes with the step counter racing through the song. Drop the
+    // gap instead: re-origin the grid exactly as start() does and emit NOTHING
+    // this wakeup. While the stall lasts every wakeup lands here, so a frozen
+    // renderer is silent; the first healthy one resumes from the step we are on.
+    // See transport.md REQ-9 / audio-lifecycle.md.
+    if (this.nextStepTime < this.ctx.currentTime - DROPOUT_S) {
+      this._dropouts++;
+      this.nextStepTime = this.ctx.currentTime + 0.05;
+      return;
+    }
+    let emitted = 0;
     while (this._playing && this.nextStepTime < this.ctx.currentTime + this.scheduleAheadS) {
+      // The condition above re-reads currentTime, which advances while we work —
+      // slow enough listeners would keep this loop running. End the wakeup; the
+      // next one re-evaluates the backlog (and drops it, above, if it grew).
+      if (emitted++ >= MAX_STEPS_PER_WAKEUP) break;
       const sixteenth = 60 / this._bpm / 4;
       // Lay the off-beat 16ths back. Offset only the emitted time, never the
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an

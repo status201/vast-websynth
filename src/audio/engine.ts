@@ -30,6 +30,14 @@ const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
 
 /**
+ * Master fade-in applied whenever the context is actually resumed
+ * (audio-lifecycle.md REQ-1). Long enough to swallow the output stream's own
+ * start transient and the worklets' first block, short enough to be inaudible
+ * as a fade after a deliberate tap.
+ */
+const RESUME_FADE_S = 0.15;
+
+/**
  * Boot-time tuning chosen by Performance mode (see `state/perf-mode.ts`). Both
  * fields can only be applied when the `AudioContext`/voice pool are built, so
  * they are passed once at construction and cannot change without a reload.
@@ -337,7 +345,7 @@ export class Engine {
       else this.releaseNote(note);
     });
 
-    this.installIosRearm();
+    this.installContextRearm();
   }
 
   /**
@@ -379,27 +387,58 @@ export class Engine {
    * `iosSession.unlock()` runs first (synchronously, inside the gesture) to
    * switch iOS off the silent-switch-respecting *ambient* category; it is a
    * no-op elsewhere. `shouldResumeContext` then covers `'suspended'` and the
-   * iOS-only `'interrupted'` state alike.
+   * iOS-only `'interrupted'` state alike — and gates the fade with it, so
+   * resuming an already-running context can never dip live audio.
    */
   async resume(): Promise<void> {
     this.iosSession.unlock();
-    if (shouldResumeContext(this.ctx.state)) {
-      try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
-    }
+    if (!shouldResumeContext(this.ctx.state)) return;
+    this.fadeInMaster();
+    try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
   }
 
   /**
-   * iOS drops the context into `'suspended'`/`'interrupted'` on calls, Siri, and
-   * app-switching, and audio stays dead until resumed. On iOS only, re-resume
-   * (which also replays the silent loop) when the page returns to the foreground
-   * or the context reports a non-running state while visible. Some iOS versions
-   * still require a fresh gesture — the next tap is the natural fallback.
+   * Ramp the master up from silence so a start doesn't click
+   * (audio-lifecycle.md REQ-1). The graph is fine; what clicks is the step from
+   * "not rendering" to "rendering at full gain" — the device's own stream-start
+   * transient, the worklets' first block, or an underrun while the start
+   * handler is still working all arrive at once otherwise.
+   *
+   * Scheduled *before* `ctx.resume()` is awaited: `currentTime` is frozen while
+   * a context is suspended, so this ramp is guaranteed to cover the very first
+   * rendered blocks rather than landing somewhere inside them (REQ-3).
    */
-  private installIosRearm(): void {
-    if (!this.iosSession.active) return;
+  private fadeInMaster(): void {
+    const t = this.ctx.currentTime;
+    // Same law as the master.volume subscription, so the fade lands exactly
+    // where the knob says — and its setTargetAtTime (scheduled while suspended
+    // by the boot patch) is superseded by the events below.
+    const v = this.bus.get('master.volume');
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(0, t);
+    this.master.gain.linearRampToValueAtTime(v * v, t + RESUME_FADE_S);
+  }
+
+  /**
+   * Recover the context after the OS takes it away. Android suspends a hidden
+   * page's context (screen off, app switch) and leaves it suspended on return;
+   * iOS drops it into `'suspended'`/`'interrupted'` on calls, Siri and
+   * app-switching. Both are fixed by resuming when the page comes back.
+   *
+   * The `statechange` listener is iOS-only on purpose: `'interrupted'` arrives
+   * *while visible* and nothing else recovers from it, whereas elsewhere
+   * auto-resuming on state change would instantly undo the Debug panel's
+   * deliberate Suspend (audio-lifecycle.md REQ-4/REQ-5). Some iOS versions still
+   * require a fresh gesture — the next tap is the natural fallback.
+   */
+  private installContextRearm(): void {
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) void this.resume();
+      if (document.hidden) return;
+      // iOS re-arms unconditionally: even a context that survived needs the
+      // silent loop replayed to hold the media-backed session category.
+      if (this.iosSession.active || shouldResumeContext(this.ctx.state)) void this.resume();
     });
+    if (!this.iosSession.active) return;
     this.ctx.addEventListener('statechange', () => {
       if (!document.hidden && shouldResumeContext(this.ctx.state)) void this.resume();
     });

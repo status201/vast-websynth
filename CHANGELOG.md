@@ -45,6 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Some Android phones went haywire when the screen turned off** — crackling,
+  and the sequencer racing away. With the screen off those phones freeze the page
+  for a minute at a time while the audio clock keeps running, so when the app
+  woke up it played the whole missed minute at once: hundreds of notes on top of
+  each other, with the playhead sprinting through the song. It now recognises
+  that it was frozen, drops the stretch it slept through, and picks up from the
+  step it was on — so the synth simply goes quiet while the screen is off instead
+  of screaming, and carries on when you come back. Phones and tablets that
+  already played fine with the screen off are unaffected. Coming back to the app
+  also wakes the audio up again on Android, which it previously only did on iOS.
+- **Opening the app could pop or click.** Sound started at full volume the
+  instant the audio device woke up, so the device's own start-up transient
+  arrived at full level. It now fades up over a sixth of a second — inaudible as
+  a fade, but there is nothing left to click.
 - **One bad note in a shared song could stop the transport dead until you
   reloaded.** A note far outside the audible range asked the oscillator for an
   impossible frequency; that raised an error inside the scheduler, which then got
