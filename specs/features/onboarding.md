@@ -1,9 +1,19 @@
-# Onboarding (guided tour & help mode)
+# Onboarding (guided tour & info badges)
 
 ```yaml
 id: onboarding
 status: implemented
-version: 14  # v14: the two audio topics rewritten for the Record window + export
+version: 17  # v17: the diagram's caps are labelled from the active keyboard
+             #      layout, switchable from a gear beside the section title
+             #      (REQ-17c, keyboard-layout.md)
+             # v16: the About key list renders keycaps, and the two note rows
+             #      become a keyboard diagram derived from the real bindings
+             #      (REQ-17c)
+             # v15: the Info/Help split collapsed — ⓘ toggles the badges and
+             #      nothing else, ? opens About, the Help chooser modal is gone,
+             #      and About absorbs the tour button + a folded key list
+             #      (REQ-8/9/10/17/19/20)
+             # v14: the two audio topics rewritten for the Record window + export
              #      modal, and Shift+R added to the key list (REQ-16b/REQ-17)
              # v13: instant badge toggle — Shift/Ctrl+click or long-press the Help
              #      button, plus the `?` key; no modal round-trip (REQ-19)
@@ -19,6 +29,7 @@ owner: core
 related:
   - architecture
   - input-control
+  - keyboard-layout
   - midi-clock-sync
   - webrtc-sync
   - motion-sequencer
@@ -30,14 +41,15 @@ related:
   - record-window
 source:
   - src/ui/onboarding/tour.ts
-  - src/ui/onboarding/help-mode.ts
+  - src/ui/onboarding/info-badges.ts
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/index.ts
-  - src/ui/components/help.ts
+  - src/ui/components/info-badges-button.ts
+  - src/ui/components/about.ts
 ```
 
-First-run guidance: an interactive spotlight tour and a persistent help mode that
-annotates controls.
+First-run guidance: an interactive spotlight tour and persistent **info badges**
+that annotate controls.
 
 ## Background / Why
 
@@ -48,14 +60,32 @@ what lets steps like "press a key" or "press Play" be genuinely interactive rath
 than a slideshow. The tour takes its runtime hooks via an injected `TourCtx` so it
 never reads DEV-only globals.
 
+**Why the header has exactly two doors (v15).** The badges draw themselves as
+**ⓘ** circles, so the header's ⓘ button has to be the thing that switches them
+on — anything else makes the user hunt for it. Up to v14 that button opened the
+About modal instead; the badges hid behind the **?** button's chooser modal, and
+three extra gestures (modifier-click, long-press, `?`) had been bolted onto that
+button to skip the modal. Each of those was a workaround for the same wrong
+split. v15 deletes the split rather than papering over it again: **ⓘ toggles the
+badges, ? opens About**, and the chooser modal — along with everything that
+existed to route around it — is gone.
+[ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1: an icon means one
+thing.
+
 ## Requirements
 
 - **REQ-1** — The tour highlights one target at a time; only the callout (and its
   Back/Skip/Next) is clickable — the spotlighted control remains live.
 - **REQ-2** — Interactive steps (play a note, press Play, load a demo) work against
   the real app via injected hooks, not globals.
-- **REQ-3** — Help mode shows per-control help badges/content from
-  `help-content.ts`.
+- **REQ-3** — The info badges show per-control help content from
+  `help-content.ts`. The badge *vocabulary* is "info" (the ⓘ glyph the user
+  clicks): `InfoBadges`, `Onboarding.toggleInfoBadges`, `UiBridge.toggleInfoBadges`,
+  testids `info-badge-layer` / `info-badge-<topic>`, badge `aria-label`
+  `Info: <title>`. The *content* vocabulary stays "help" — `help-content.ts`,
+  `HelpTopic`, `HELP_TOPICS`, `TopicId` and the `data-help="<topic>"` anchors —
+  because an info badge opens a help topic, and the anchors are spread across
+  every panel file. The boundary is deliberate, not drift.
 - **REQ-5** — The Song panel's file/audio buttons each carry their own badge —
   `song.load`, `song.save`, `song.import`, `song.export`, `song.new`,
   `song.exportAudio`, `song.record` — and their copy disambiguates the
@@ -71,31 +101,43 @@ never reads DEV-only globals.
   axis at a time (the toggle picks which assigned param it traces; the dots
   never move) and its shape follows Step/Slide mode. See
   [motion-sequencer.md](motion-sequencer.md) REQ-8.
-- **REQ-8** (v4) — While help mode is active (the header Help button shows its
-  orange active state), clicking the Help button toggles the badges **off**
-  directly — no modal round-trip. While inactive, the click opens the Help
-  chooser modal as before. The active styling is what licenses the shortcut:
-  an orange toggle reads as "click to switch off".
+- **REQ-8** (v4, rewritten v15) — **The header's ⓘ button (`info-badges`) is a
+  pure toggle.** One click shows the badges, one click hides them, in every
+  state; it opens no modal and has no second outcome. It carries the orange
+  `toggleActive` state (`tour.module.css`, shared with the Fullscreen button)
+  **and** `aria-pressed`, so the on/off state is legible to sighted and
+  assistive users alike. Until v14 the same click had two different outcomes
+  depending on state (open a modal / switch the badges off), which is exactly
+  what [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids; the
+  active styling was cited as licensing it. v15 removes the ambiguity instead of
+  licensing it.
 - **REQ-9** (v5) — Help copy tells the truth about what a control does:
   - The `modWheel` topic explains the wheel's actual routing — it **adds to the
     LFO Amount** (engine clamps the sum to 1), so it deepens whatever the LFO
     destination is aimed at: wobble (cutoff), vibrato (pitch), tremolo (amp) or
     PWM movement (pulse) — and that it does nothing while the LFO destination
     is off.
-  - The Help button's tooltip while help mode is **inactive** names the door it
-    opens *and* the shortcut past it — "Help & Demo Tour — Shift+click or hold
-    for badges" (v13, REQ-19); it is not a shortcuts list. The active-state
-    tooltip stays "Turn off help badges" (REQ-8).
+  - The two header buttons' tooltips name **what they do**, not what they are
+    (v15): the ⓘ button reads "Show info badges (?)" while inactive and "Hide
+    info badges (?)" while active — the parenthetical is the keyboard route, the
+    discoverability leg `recipes/design-an-interaction.md` step 4 asks for. The
+    ? button reads "Help & About": it names both things behind it (the guided
+    tour and the shortcut list, plus version and credits) rather than only the
+    modal's title. The v13 tooltip "Help & Demo Tour — Shift+click or hold for
+    badges" named a door and two gestures that no longer exist.
 - **REQ-10** (v6) — The tour showcases the Song tab before its closing step: one
   step spotlights the arrangement **chain lanes** (`song-lane-seq` — banks chained
   one per bar, plus the per-lane mute/solo/level mixer) and the next the **live DJ
   FX** (`perf-stutter` — Fill/Stutter/Drop/Tape Stop + the DJ filter). Both use
   `precondition: clickTestId('tab-song')` — on *both* steps, not just the first, so
   **Back** from the closing step (or a stray tab click) re-opens the Song tab. The
-  closing step targets the header `help-button` and switches no tab, so the tour
-  **ends with the Song tab open and active** — the user is left ready to play rather
-  than parked on the Sequencer. The demo loaded earlier in the tour populates the
-  chains, so the lane spotlight lands on real content.
+  closing step targets the header `info-badges` button (v15; `help-button` before
+  that) and switches no tab, so the tour **ends with the Song tab open and
+  active** — the user is left ready to play rather than parked on the Sequencer.
+  The demo loaded earlier in the tour populates the chains, so the lane spotlight
+  lands on real content. Its copy names **both** header doors — ⓘ for the badges
+  it is spotlighting, ? for replaying this tour — because the closing step is the
+  last moment the tour can hand over the two things a stuck user needs.
 - **REQ-11** (v7) — **Help copy covers the gesture model.** The grid gestures
   ([step-grid-editing](step-grid-editing.md)) are invisible by construction —
   nothing on screen says a step can be dragged, held or bulk-cleared — so the
@@ -169,52 +211,132 @@ never reads DEV-only globals.
   axis assignment (`motion.xy`). Before it, Live FX was the only unbadged
   section on the Song tab.
 - **REQ-17** (v11) — **Symbols in the About modal's key list are legible.** The
-  key column is Courier New at 11px, which has no glyph for `← → ↑ ↓`: the
+  key column is monospace at 11px, which has no glyph for `← → ↑ ↓`: the
   browser substitutes per character at its own much smaller size, and the arrow
-  rows rendered as unreadable dashes. A run of such symbols is wrapped in
-  `Modal.glyphClass` and drawn in the UI sans at 15px on the monospace baseline.
+  rows rendered as unreadable dashes. Such a symbol carries `Modal.glyphClass`
+  and is drawn in the UI sans instead (v16: on its own keycap, rather than as a
+  run inside a text string — same reason, same class).
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-11), `Delete` and
-  `Ctrl/Cmd+Z`, which were missing, (v13) `?` plus `Shift`+click on Help
-  (REQ-19), and (v14) `Shift`+`R` for the
+  `Ctrl/Cmd+Z`, which were missing, (v13) `?`, and (v14) `Shift`+`R` for the
   [Record window](record-window.md) (REQ-9 there). It already carries non-key gestures (`Shift`+drag for fine knob
-  control), so a mouse row is in keeping.
-- **REQ-19** (v13) — **Switching the badges on is one gesture, not a modal round
-  trip.** Switching them *off* has been one click since REQ-8; turning them on
-  cost Help → modal → "Toggle help badges" → close, and there was no keyboard
-  route at all. So the Help button carries a second gesture that **toggles the
-  badges and never opens a modal**, and a global key does the same:
+  control), so a mouse row is in keeping. The v13 `Shift`+click-on-Help row is
+  **gone** in v15 along with the gesture itself.
+- **REQ-17b** (v15) — **The key list is folded to its first six rows.** Fifteen
+  rows of mostly-advanced keys made the modal long enough that the tour button,
+  the version and the Debug section all fell below the fold on a phone, so only
+  the note rows, the octave keys, the two bend keys and `Space` show by default;
+  the header row expands the rest. Load-bearing details:
+  - This is a **display default, not a removal** — REQ-17's "names every global
+    key" still holds, one click away, so the discoverability claims in
+    [transport-position.md](transport-position.md) REQ-13 and
+    [record-window.md](record-window.md) REQ-9 (which cite this list) stay true.
+  - The fold is the **same component** as the Debug section's
+    (`createCollapseToggle`, whole header row clickable, `▾` from
+    `tabs.module.css`) — one fold idiom per modal, not two. Its target is the
+    **one** `.keys` grid, which keeps the two columns aligned across the cut;
+    the hidden rows are `display: none` cells, not a second grid.
+  - Persisted under `websynth.shortcuts.about`, default folded, so someone who
+    wants the full reference keeps it. The header's right-hand hint reads
+    **"Show all"** when folded and **"Show less"** when open — the verb is the
+    point: a bare "all" is a label the reader has to interpret, where "Show all"
+    says what the click does. The chevron carries its own `aria-label` ("Show
+    all keyboard shortcuts") rather than the component's generic one.
+  - The cut point is **`Space`** — the last row a first-time player needs. Rows
+    below it are transport-position, performance and editing keys, which is also
+    why `?` (row 14) is not the badges' discoverability route: the always-visible
+    ⓘ button is (REQ-8). The count moved from five rows to six when pitch bend
+    split into one row per key ([input-control](input-control.md) REQ-12); the
+    rule is "through `Space`", not a magic number.
+- **REQ-17c** (v16) — **Keys are drawn as keys, and the note rows are drawn as a
+  keyboard.** A combo is an ordered list of **tokens** — a keycap or a run of
+  literal text — never one parsed string. Two things follow, and both are the
+  requirement rather than decoration:
+  - **Only actual keys look like keys.** `Shift + drag` renders one cap
+    (`Shift`) beside plain text, so the row says "hold this, then use the mouse"
+    without spending a word on it. Same for `F (hold)`. A list where every token
+    looked alike made "drag" read as keyboard input.
+  - **The two note rows are a two-row keyboard diagram** in the keys' real
+    relative positions: sharps on top, offset by half a cap so each sits in the
+    gap between its two naturals, with the gaps at **E–F** and **B–C** left
+    empty. That break is what makes the block legible as a piano at a glance,
+    which a flat `Z S X D C V G B H N J M ,` never was. Naturals and sharps also
+    carry **different cap tints** — the offset alone reads as an arbitrary grid
+    until the two ranks are told apart.
+  - **The diagram is derived from `LOWER` / `UPPER`**
+    ([input-control](input-control.md) REQ-3), not restated in `about.ts`. A
+    diagram that disagrees with the actual bindings is worse than none, and this
+    is the one place in the app that would silently drift. Naturals are the
+    semitones `{0,2,4,5,7,9,11}` of each row's own base; a sharp occupies the gap
+    after the natural below it.
+  - **(v17) The cap labels follow the active keyboard layout.** A cap that
+    stands for a physical key carries `data-code` and takes its label from
+    [keyboard-layout](keyboard-layout.md); switching layout relabels those caps
+    **in place**, because the diagram's structure — which rank, which column,
+    where the E–F and B–C gaps fall — is the piano's and never varies. Only the
+    note diagram uses `data-code`: the `F`, `R` and `Z` caps are fixed labels
+    for bindings that do not move (keyboard-layout REQ-5).
+  - **A gear beside the section title** opens the layout picker (a `Dropdown` in
+    a row revealed under the header). It must stop its click from reaching the
+    header, which is the fold's `trigger` — otherwise choosing a layout would
+    also collapse the list you opened it to read.
+  - Empty gaps are **cap-sized invisible spacers**, not margins, so the two rows
+    stay aligned without positioning maths, and caps have a fixed width so the
+    half-cap offset is exact. Multi-character caps (`Shift`, `Ctrl/Cmd`) grow
+    past that width; only note caps are single characters, so the diagram's
+    columns line up by construction.
+  - The cell class is **`.combo`, not `.key`** — `.key` is also the Debug
+    section's left-column class ([debug-panel](debug-panel.md)), where the
+    monospace label treatment is still correct.
+- **REQ-19** (v13, re-authored v15) — **Gesture inventory for the ⓘ button.**
+  Switching the badges on used to cost Help → modal → "Toggle help badges" →
+  close, so v13 bolted a modifier-click and a long-press onto the Help button to
+  skip the modal. v15 removes the modal, which removes the thing those gestures
+  routed around: a plain click already toggles, so a second gesture for the same
+  outcome is exactly the redundancy this revamp exists to delete.
 
-  | Gesture (on `help-button`) | Outcome                          | Precedent                          |
+  | Gesture (on `info-badges`) | Outcome                          | Precedent                          |
   | -------------------------- | -------------------------------- | ---------------------------------- |
-  | click, badges off          | open the Help chooser modal      | REQ-8 (unchanged)                  |
-  | click, badges on           | badges off                       | REQ-8 (unchanged)                  |
-  | Shift / Ctrl / ⌘ + click   | **toggle badges, no modal**      | modifier-click = skip the dialog   |
-  | long-press (350 ms)        | **toggle badges, no modal**      | step grids (`grid-gestures.ts`)    |
+  | click (either state)       | **toggle badges**                | one gesture, one outcome           |
+  | Shift / Ctrl / ⌘ + click   | — (plain click already toggles)  | dropped in v15                     |
+  | long-press (350 ms)        | — (plain click already toggles)  | dropped in v15                     |
   | right-click                | — (`contextmenu` is globally suppressed) | —                          |
   | double-click               | — (reads as two toggles)         | —                                  |
   | `?` (global key)           | **toggle badges**                | `?` = help, near-universal         |
 
   Load-bearing details:
-  - The new gesture's outcome is **toggle** in both states — one gesture, one
-    outcome ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2). It is
-    not "reveal": a second Shift+click hides the badges again, matching what a
-    plain click does while they show.
-  - **Long-press must swallow the trailing `click`**, or the badges would toggle
-    and the chooser modal would open behind them. The hold cancels on pointer
-    travel past ~6 px slop and on `pointerup`/`pointercancel`; the pointerdown is
-    **not** `preventDefault`ed, since that would break the plain-click path.
+  - A `—` row is a decision, not an oversight
+    (`../recipes/design-an-interaction.md` step 1). The three dropped gestures
+    are listed so the next reader knows they were considered and why they went.
+  - No two rows produce different outcomes for the same gesture depending on
+    state ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2) — the
+    v13 table's first two rows did.
+  - Dropping the long-press also drops its machinery: the 350 ms timer, the ~6 px
+    travel slop, and the flag that had to **swallow the trailing `click`** so the
+    chooser modal could not open behind the badges the hold had just switched on.
+    That last one existed only because a click had a second outcome.
   - `?` reaches the app because `e.key` for Shift+`/` is `?`, so the `/`
     pitch-bend branch never sees it, and the `ctrl/meta/alt` bail-out in
     `installShortcuts` does not test `shiftKey`. It routes through
-    `UiBridge.toggleHelpBadges` rather than importing onboarding into
+    `UiBridge.toggleInfoBadges` rather than importing onboarding into
     `shortcuts.ts` (the `toggleTransport`/`undoActiveMachine` precedent), and it
     is suppressed inside editable fields like every other key
     ([input-control](input-control.md) REQ-5).
-  - Discoverability (`../recipes/design-an-interaction.md` step 4): the inactive
-    tooltip names the gesture (REQ-9), and **both** routes are listed in the
-    About modal's key list (REQ-17) — the canonical on-screen reference.
+  - Discoverability (`../recipes/design-an-interaction.md` step 4): the button's
+    glyph **is** the badge glyph, its tooltip names the key (REQ-9), the About
+    key list carries the `?` row (REQ-17), and the tour's closing step spotlights
+    it (REQ-10).
+- **REQ-20** (v15) — **About is the single door for help.** With the chooser
+  modal gone, the About modal carries a full-width **"Take the guided tour"**
+  button (testid `start-tour`) placed **between the version/credits block and
+  the Keyboard Shortcuts header** — above the shortcuts, because replaying the
+  tour is the one action in the modal and everything below it is reference. It
+  is the only tour-replay route in the app; the first-visit auto-launch
+  (`websynth.onboarding.done`, `main.ts`) is unchanged and still calls the same
+  `Onboarding.startTour`. `createAboutButton` therefore takes that hook as an
+  injected dep, the same way the tour takes its `TourCtx` (REQ-2) — the About
+  modal must not reach into the onboarding layer itself.
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
   USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
@@ -240,13 +362,21 @@ tour.ts:
                              #   the loaded song must await it (see below).
     resumeAudio(): Promise   # idempotent AudioContext resume (before note step)
     expandFx()               # open the collapsible FX section
-help-mode.ts / help-content.ts: per-control help badges + copy
+info-badges.ts / help-content.ts: per-control info badges + copy
+Onboarding (index.ts facade):
+  startTour()
+  toggleInfoBadges() / isInfoBadgesActive() / onInfoBadgesChange(cb)
+  shouldAutoLaunch()
+components/info-badges-button.ts:
+  createInfoBadgesButton({ toggle, isActive, onChange }): HTMLButtonElement
+components/about.ts:
+  createAboutButton(engine, { startTour }): HTMLButtonElement   # REQ-20
 ```
 
 ### Layer touchpoints
 
 ```yaml
-boot: onboarding/index.ts wires the tour + help mode with a TourCtx from main.ts
+boot: onboarding/index.ts wires the tour + info badges with a TourCtx from main.ts
 interactivity: spotlight overlay is pointer-events:none so the underlying control
   stays clickable; only the callout intercepts clicks
 ```
@@ -267,43 +397,34 @@ Scenario: Callout placement stays on-screen (edge)
 # pinned by: tests/ui/tour-place.test.ts
 
 Scenario: Song file buttons each explain themselves
-  Given help mode is on and the Song tab is open
+  Given the info badges are on and the Song tab is open
   When the user clicks the Save badge, then the Export badge
   Then each opens its own modal whose copy distinguishes the two
 # pinned by: e2e/onboarding.spec.ts
 
-Scenario: Active Help button switches badges off in one click (v4)
-  Given help mode is active and the Help button shows its active state
-  When the user clicks the Help button
-  Then the badges disable immediately and no Help modal opens
-# pinned by: e2e/onboarding.spec.ts
+Scenario: The ⓘ button toggles the badges in one click, both ways (v15, REQ-8)
+  Given the info badges are off
+  When the user clicks the ⓘ button
+  Then the badges appear, the button gains its orange active state and aria-pressed="true"
+  And no modal opens
+  When the user clicks it again
+  Then the badges disappear and aria-pressed is "false"
+# pinned by: tests/ui/info-badges-button.test.ts, e2e/onboarding.spec.ts
 
-Scenario: Inactive Help button opens the chooser modal
-  Given help mode is off
-  When the user clicks the Help button
-  Then the Help chooser modal opens (tour / toggle badges)
-# pinned by: e2e/onboarding.spec.ts
+Scenario: The dropped gestures do nothing special (v15, REQ-19)
+  Given the info badges are off
+  When the user Shift+clicks the ⓘ button, or presses and holds it for 350 ms
+  Then the outcome is exactly a plain click's — one toggle, no modal, no
+    swallowed click afterwards
+# pinned by: tests/ui/info-badges-button.test.ts
 
-Scenario: Shift+click switches the badges on without a modal (v13, REQ-19)
-  Given help mode is off
-  When the user Shift+clicks the Help button
-  Then the badges appear and no Help modal opens
-  When the user Shift+clicks it again
-  Then the badges disappear, still without a modal
-# pinned by: tests/ui/help.test.ts, e2e/onboarding.spec.ts
-
-Scenario: A long press toggles the badges and eats its own click (v13, REQ-19)
-  Given help mode is off
-  When the user presses the Help button and holds for 350 ms, then releases
-  Then the badges appear
-  And the release's click does NOT open the chooser modal behind them
-# pinned by: tests/ui/help.test.ts
-
-Scenario: A press that turns into a drag is not a long press (edge, v13)
-  Given the user presses the Help button
-  When the pointer travels past the slop threshold before the hold fires
-  Then no toggle happens and the click behaves normally
-# pinned by: tests/ui/help.test.ts
+Scenario: The ? button opens About, which is the only tour-replay route (v15, REQ-20)
+  Given the app is loaded
+  When the user clicks the ? button
+  Then the About modal opens with "Take the guided tour" above Keyboard Shortcuts
+  When the user clicks it
+  Then the modal closes and the guided tour starts
+# pinned by: tests/ui/about.test.ts, e2e/onboarding.spec.ts
 
 Scenario: The ? key toggles the badges (v13, REQ-19)
   Given no editable field has focus
@@ -320,13 +441,13 @@ Scenario: The tour ends on the Song tab, ready to play (v6)
 # pinned by: e2e/onboarding.spec.ts
 
 Scenario: Every step grid explains its gestures the same way (v7)
-  Given help mode is on
+  Given the info badges are on
   When the user opens the Sequencer, Drum Machine and Sampler topics in turn
   Then each names drag-to-paint, hold-to-select, Delete and Clear ▾ in identical words
 # pinned by: tests/ui/help-content.test.ts
 
 Scenario: The Presets button explains what a preset is (v7)
-  Given help mode is on
+  Given the info badges are on
   When the user clicks the badge on the header Presets button
   Then the modal distinguishes a preset (one sound) from a song, and describes
     exporting a preset/bank and the review step shown before an import is written
@@ -338,50 +459,86 @@ Scenario: The tour's gesture step moves the spotlight to the drum grid (v7)
   Then the Drum tab opens and the callout explains tap / drag / hold / Clear ▾
 # pinned by: e2e/onboarding.spec.ts
 
-Scenario: Sync section carries USB + WiFi help badges (v2)
-  Given help mode is on and the Song tab is open
+Scenario: Sync section carries USB + WiFi info badges (v2)
+  Given the info badges are on and the Song tab is open
   Then a `sync` badge anchors to the Master mode button and a `sync.wifi` badge
     anchors to the WiFi link button, each opening its connection-steps modal
 # pinned by: tests/ui/help-content.test.ts (topic presence)
 
-Scenario: Motion tab carries per-lane help badges (v8)
-  Given help mode is on and the Motion tab is open
+Scenario: Motion tab carries per-lane info badges (v8)
+  Given the info badges are on and the Motion tab is open
   Then a `motion.xy` badge anchors to the XY lane header and a `motion.tracks`
     badge anchors to the A track's row, each a short explainer distinct from the
     machine-level `motion` topic
 # pinned by: tests/ui/help-content.test.ts (topic presence)
 
 Scenario: Every machine tab's ruler carries a badge (v11, REQ-16)
-  Given help mode is on
+  Given the info badges are on
   When the user opens each machine tab in turn
   Then a `transport.ruler.<lane>` badge anchors to that tab's ruler
    And all four resolve to the same copy — one HelpTopic behind four ids
 # pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 
 Scenario: The Song tab's transport row explains the scrubber (v11, REQ-16)
-  Given help mode is on and the Song tab is open
+  Given the info badges are on and the Song tab is open
   When the user clicks the badge on the TRANSPORT launcher
   Then the modal explains bar.step, the one-cell-per-chain-slot scrubber, the
     floating window, and when seeking is refused
 # pinned by: tests/ui/help-content.test.ts
 
 Scenario: The Live FX row below it explains the DJ controls (v12, REQ-18)
-  Given help mode is on and the Song tab is open
+  Given the info badges are on and the Song tab is open
   When the user clicks the badge on the LIVE FX launcher
   Then the modal names DJ Filter, Fill, Stutter, Drop, Tape Stop and the XY Pad,
     says the buttons are momentary, and says what the floating window adds
    And it leaves the master compressor to its own badge
 # pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 
+Scenario: The gear switches layout without folding the list (v17, REQ-17c)
+  Given the About modal is open with the shortcut list expanded
+  When the user clicks the gear beside "Keyboard Shortcuts"
+  Then the layout select appears and the list stays expanded
+  When they pick AZERTY
+  Then the naturals rank relabels to W X C V B N , ; in place
+# pinned by: tests/ui/about.test.ts
+
+Scenario: The note rows read as a keyboard (v16, REQ-17c)
+  Given the About modal is open on the qwerty layout
+  Then the lower-octave row is two ranks of caps: 8 naturals below, 5 sharps
+    above, each sharp offset into the gap between its two naturals
+   And the gaps at E-F and B-C are cap-sized blanks, not missing cells
+   And naturals and sharps carry different cap tints
+   And every letter comes from LOWER, so the diagram cannot disagree with the
+    keys it documents
+# pinned by: tests/ui/about.test.ts
+
+Scenario: Only real keys are drawn as keys (v16, REQ-17c)
+  Given the About modal is open and the shortcut list is expanded
+  Then the "Shift + drag" row shows exactly one cap, labelled Shift
+   And "drag" is plain text, so the row cannot read as a keyboard shortcut
+# pinned by: tests/ui/about.test.ts
+
 Scenario: Arrow keys are readable in the About shortcut list (v11, REQ-17)
-  Given the About modal is open
-  Then each arrow run is wrapped in the glyph class rather than left to the
+  Given the About modal is open and the shortcut list is expanded
+  Then each arrow is a cap carrying the glyph class rather than left to the
     monospace face, which has no glyph for it
-   And the list names Home, Shift+arrows, Delete and Ctrl/Cmd+Z
+   And the list names Home, Shift+arrows, Delete, Ctrl/Cmd+Z, Shift+R and ?
+   And no row mentions Shift+click on Help — that gesture is gone (v15)
+   And pitch bend is two rows, ' above /, never a combined one (input-control REQ-12)
+# pinned by: tests/ui/about.test.ts
+
+Scenario: The shortcut list is folded through Space by default (v15, REQ-17b)
+  Given the About modal is opened for the first time on this device
+  Then six key rows are visible, the last of them Space, and the hint reads "Show all"
+   And the rest are present in the same grid but hidden
+  When the user clicks the Keyboard Shortcuts header
+  Then every row is visible and the hint reads "Show less"
+   And the choice is persisted under websynth.shortcuts.about, independently of
+    the Debug section's own fold
 # pinned by: tests/ui/about.test.ts
 
 Scenario: The Render button says why it takes two bars (v9)
-  Given help mode is on and the Sequencer tab is open
+  Given the info badges are on and the Sequencer tab is open
   When the user clicks the badge on the Render button
   Then the modal explains the import into a sampler slot and the second pass
     that lets the reverb tail blend into the loop
@@ -392,9 +549,9 @@ Scenario: The Render button says why it takes two bars (v9)
 
 - `tests/ui/tour-place.test.ts` (placement math), `e2e/onboarding.spec.ts`
   (interactive flow).
-- `tests/ui/help.test.ts` (the Help button's gesture inventory, REQ-19),
-  `tests/ui/shortcuts.test.ts` (the `?` key), `tests/ui/about.test.ts` (the key
-  list names both routes).
+- `tests/ui/info-badges-button.test.ts` (the ⓘ button's gesture inventory,
+  REQ-8/REQ-19), `tests/ui/shortcuts.test.ts` (the `?` key),
+  `tests/ui/about.test.ts` (the tour button, the folded key list, REQ-17b/REQ-20).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

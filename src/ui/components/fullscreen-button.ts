@@ -29,7 +29,7 @@ export function createFullscreenButton(doc: Document = document): HTMLButtonElem
     const on = !!doc.fullscreenElement;
     btn.classList.toggle('on', on);
     // Light the button orange while fullscreen is engaged — the same active
-    // treatment the Help button gets while help badges are showing.
+    // treatment the ⓘ info-badges button gets while the badges are showing.
     btn.classList.toggle(tourStyles.toggleActive!, on);
     setButtonIcon(btn, on ? HEADER_ICONS.compress : HEADER_ICONS.expand);
   });

@@ -3,7 +3,17 @@
 ```yaml
 id: input-control
 status: implemented
-version: 9  # v9: lit keys + note-offs survive an OCT change (REQ-10, REQ-11)
+version: 13  # v13: the note maps are composed from a positional shape + the
+             #      active keyboard layout, switchable at runtime (REQ-3/REQ-13)
+             # v12: pitch bend matches e.code (Quote/Slash), not e.key — fixes
+             #      dead keys, non-US layouts and a stuck bend on Shift-mid-hold
+             #      (REQ-12)
+             # v11: LOWER/UPPER are exported — the About keyboard diagram is
+             #      derived from them (REQ-3, onboarding.md REQ-17c)
+             # v10: the badges the `?` key toggles are now "info badges", reached
+             #      through UiBridge.toggleInfoBadges (onboarding.md v15); pitch
+             #      bend up moves from `.` to `'`, above `/` (REQ-12)
+             # v9: lit keys + note-offs survive an OCT change (REQ-10, REQ-11)
 owner: core
 related:
   - architecture
@@ -11,6 +21,7 @@ related:
   - midi-clock-sync
   - sequencer
   - onboarding
+  - keyboard-layout
 source:
   - src/ui/components/keyboard.ts
   - src/ui/shortcuts.ts
@@ -50,7 +61,19 @@ notes played on another tab no longer overwrite its bank.
   keyboard in lock-step (`keyboard.highlight`, a visual toggle); it never calls the
   bus, so no source double-fires the note funnel.
 - **REQ-3** — Two key rows (lower from C, upper one octave higher); a base octave is
-  shiftable; auto-repeat is ignored.
+  shiftable; auto-repeat is ignored. (v11, re-based v13) The note mapping is
+  **exported** and is the single source for the About modal's keyboard diagram
+  ([onboarding](onboarding.md) REQ-17c), which derives each key's rank and column
+  from its semitone rather than restating the letters. Adding or moving a binding
+  therefore re-draws the diagram; a hand-copied one would drift, and a picture of
+  the keyboard that disagrees with the keyboard is worse than no picture.
+  (v13) What is exported is now **`NOTE_ROWS`** — the canonical positional shape
+  (`code → semitone`, the piano). The character-keyed `LOWER`/`UPPER` the
+  keydown branch matches against are module-private and **composed** at runtime
+  from `NOTE_ROWS` and the active layout's `code → character` table
+  ([keyboard-layout](keyboard-layout.md) REQ-1), rebuilt whenever it changes.
+  The piano shape lives in one place; which characters reach it is the layout's
+  business, and the diagram draws the shape rather than either set of letters.
 - **REQ-4** — MIDI (Web MIDI) maps Note On (vel 0 = off) / Note Off to the bus;
   absence of Web MIDI is a no-op (logged), not an error.
 - **REQ-6** — MIDI access is requested only after the "Tap to start" gesture,
@@ -82,15 +105,18 @@ notes played on another tab no longer overwrite its bank.
   computer keys are unaffected) and every bus consumer sees the deferral — with
   the arpeggiator on, the pedal behaves as an arp latch (accepted behaviour).
   State lives in the pure `SustainPedal` helper (`src/audio/sustain-pedal.ts`).
-- **REQ-9** (v8) — **`?` toggles the help badges.** It is free by construction:
+- **REQ-9** (v8) — **`?` toggles the info badges.** It is free by construction:
   `e.key` for Shift+`/` is `?`, so neither the `/` pitch-bend branch nor its
   `keyup` twin matches, and the blanket `ctrlKey || metaKey || altKey` bail-out
-  does not test `shiftKey`. It is still ordered **above** the `.`/`/` branch so a
-  future layout quirk can't turn a help request into a pitch bend. Like every
-  other non-note key it goes through the `UiBridge` (`toggleHelpBadges`) rather
+  does not test `shiftKey`. It is still ordered **above** the `'`/`/` branch
+  (REQ-12) so a future layout quirk can't turn a help request into a pitch bend.
+  Like every
+  other non-note key it goes through the `UiBridge` (`toggleInfoBadges`) rather
   than importing the onboarding layer into `shortcuts.ts` — same reason as
   `toggleTransport` / `undoActiveMachine`. Behaviour is owned by
-  [onboarding](onboarding.md) REQ-19.
+  [onboarding](onboarding.md) REQ-19; since v15 it is the *second* route to the
+  badges rather than a shortcut past a modal, the first being the header's ⓘ
+  button (onboarding REQ-8).
 - **REQ-10** (v9) — **A lit key is remembered as an element, never re-derived.**
   `keyboard.transpose` (the OCT strip) shifts the note→element mapping: an element
   sounds `note + transpose * 12`, so the key *for* a sounding note is
@@ -128,6 +154,56 @@ notes played on another tab no longer overwrite its bank.
   reach the field and never play a note, toggle transport, bend pitch, shift
   octave, or trigger a drum fill. (Same `closest(...)` rule the `contextmenu`
   guard already uses.)
+- **REQ-12** (v10) — **Pitch bend is `'` up and `/` down, chosen for where the
+  keys sit.** Both write `master.pitchBend` (+1 / −1) on keydown and spring back
+  to 0 on keyup, as before. What changed is which key means *up*: it was `.`,
+  and `.` and `/` are **horizontally** adjacent while bend is a **vertical**
+  gesture, so neither assignment was derivable — you memorised it or you guessed.
+  On the standard layout `'` sits directly **above** `/`, one row up, so the
+  physical arrangement states the mapping and the About list can show it as two
+  stacked rows that mirror the keys
+  ([onboarding](onboarding.md) REQ-17/REQ-17b).
+  - `.` is left **unbound**. It is not kept as an alias: two keys for one
+    outcome is what
+    [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 rules out, and a
+    silent alias would keep teaching the arrangement this REQ exists to replace.
+  - `'` collides with nothing — it is in neither note row, `keyToMidi` returns
+    null for it.
+  - **(v12) These two are matched on `e.code` (`Quote` / `Slash`), not
+    `e.key`** — the only bindings in `installShortcuts` that are. `e.key` answers
+    "what character was typed", but this pair is chosen for *where the keys sit*,
+    so position is the thing to match. Three failures fall out of that one
+    change:
+    - **Dead keys.** Where `'` is a dead key (US-International; several European
+      layouts) `e.key` is `Dead` and bend-up was simply unreachable. A dead key
+      still fires `keydown` with the right `code`.
+    - **Layouts.** On QWERTZ and AZERTY neither `'` nor `/` is where a `e.key`
+      match assumes; `Quote`/`Slash` name the physical keys the diagram draws.
+    - **A stuck bend.** Hold `/`, press `Shift`, release: `e.key` on the `keyup`
+      is `?`, the release branch missed, and the bend **stayed at −1** until the
+      next bend press. `'` had the same hole via `"`. Matching `code` makes the
+      press and its release agree by construction — the same rule REQ-11 sets
+      for note-offs: nothing may hold state whose release depends on a value
+      free to change mid-hold.
+  - `?` keeps its branch **above** this one and returns, so `Shift`+`Slash`
+    toggles the info badges rather than bending (REQ-9). With modifiers
+    otherwise ignored, `Shift`+`Quote` does bend — the physical key bends,
+    which is the whole premise.
+- **REQ-13** (v13) — **The note keys follow a switchable keyboard layout.**
+  `installShortcuts` rebuilds `LOWER`/`UPPER` whenever
+  [keyboard-layout](keyboard-layout.md) reports a change (REQ-4 there), so a
+  pick in the About modal's gear takes effect on the next keystroke without a
+  reload. Load-bearing details:
+  - **Held notes are released before the rebuild.** `held` is keyed by
+    *character*, so a remap would leave whatever is down with no key that can
+    ever match its `keyup` — a hung voice, the exact failure REQ-11 exists to
+    prevent. The `blur` handler is the precedent for the bulk release.
+  - Only the note rows move. `F`, `Shift`+`R` and `Ctrl/Cmd`+`Z` keep their
+    `e.key` letters ([keyboard-layout](keyboard-layout.md) REQ-5), and the bend
+    pair stays positional (REQ-12).
+  - The picker's residual risk — a wrong selection means wrong notes, where
+    `e.code` could not be wrong — is recorded as
+    [keyboard-layout](keyboard-layout.md) REQ-6, not re-argued here.
 
 ## Technical design
 
@@ -139,12 +215,20 @@ installShortcuts(engine, bus, bridge: UiBridge): void   # src/ui/shortcuts.ts
   UPPER: q 2 w 3 e r 5 t 6 y 7 u i    # one octave up
   baseOctave (shiftable); ignores e.repeat
   keyId(k) = k.length === 1 ? k.toLowerCase() : k   # v9: one key identity
+  NOTE_ROWS.lower / .upper: Record<code, semitone>            # v13 — the piano shape
+  LOWER / UPPER: Record<char, semitone>             # composed with the layout
+                                     # (REQ-3); also the source for About's
+                                     # keyboard diagram. Rebuilt on layout change.
   held: Map<keyId, note>             # v9, REQ-11: the note PRESSED, so keyup never
                                      # recomputes it against a shifted baseOctave
-  '?' -> bridge.toggleHelpBadges()   # REQ-9; ordered above the '.'/'/' bend branch
+  '?' -> bridge.toggleInfoBadges()   # REQ-9; ordered above the bend branch below
+  code 'Quote' -> master.pitchBend +1   # REQ-12; matched on e.code, not e.key
+  code 'Slash' -> master.pitchBend -1   # REQ-12; '.' is unbound
+  keyup on either code -> 0             # same code both ways, so Shift mid-hold
+                                        #   can no longer strand the bend
 UiBridge: pressKey(note) / releaseKey(note)             # visual-only -> keyboard.highlight(note, on)
   # never calls bus.noteOn/off; the one note-on per key is installShortcuts' (REQ-2)
-  toggleHelpBadges()                 # -> Onboarding.toggleHelpMode (REQ-9)
+  toggleInfoBadges()                 # -> Onboarding.toggleInfoBadges (REQ-9)
 initMIDI(engine, bus): Promise<void>                    # src/audio/midi.ts
   requestMIDIAccess({ sysex: false })  # explicit; called post-gesture (REQ-6)
   status >= 0xF8 -> MidiSyncTransport.handleRealtimeByte(byte, ev.timeStamp)  # REQ-7, before the mask
@@ -291,10 +375,33 @@ Scenario: CC64 63/64 boundary (edge)
   Then sustained notes flush and later note-offs pass through (63 is "up")
 # pinned by: tests/audio/sustain-pedal.test.ts
 
-Scenario: ? toggles the help badges without bending pitch (v8, REQ-9)
+Scenario: Pitch bend sits on the vertically stacked keys (v10, REQ-12)
+  Given no editable field has focus
+  When the user holds the Quote key then releases it
+  Then master.pitchBend went to 1 and sprang back to 0
+  When the user holds the Slash key then releases it
+  Then master.pitchBend went to -1 and sprang back to 0
+  When the user presses .
+  Then nothing happens — it is unbound, not an alias for bend up
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: Shift pressed mid-hold still releases the bend (regression, v12, REQ-12)
+  Given the user is holding Slash and master.pitchBend is -1
+  When they press Shift and then release Slash, so e.key reads '?' not '/'
+  Then master.pitchBend returns to 0
+  And the same holds for Quote, whose shifted e.key is '"'
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: A dead-key layout can still bend (v12, REQ-12)
+  Given a layout where the Quote key is dead, so e.key reports 'Dead'
+  When the user presses it
+  Then master.pitchBend goes to 1 — the branch matches e.code, not e.key
+# pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: ? toggles the info badges without bending pitch (v8, REQ-9)
   Given no editable field has focus
   When the user presses ? (Shift + /)
-  Then UiBridge.toggleHelpBadges is called once
+  Then UiBridge.toggleInfoBadges is called once
   And master.pitchBend is still 0
 # pinned by: tests/ui/shortcuts.test.ts
 

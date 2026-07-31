@@ -1,4 +1,4 @@
-// Dynamic bodies for the help-mode (i) badges: the BPM-aware "sweet spots" list
+// Dynamic bodies for the ⓘ info badges: the BPM-aware "sweet spots" list
 // (click a note value to snap the knob) and the mutual-dependency explainers
 // (live derived numbers). Kept out of help-content.ts so that file stays a flat
 // copy deck; imported there by value, and only the HelpContext *type* comes back

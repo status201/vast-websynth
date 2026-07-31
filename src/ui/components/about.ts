@@ -1,8 +1,13 @@
-// "About" button + modal: version, copyright, keyboard shortcuts, and a
-// collapsible Debug section (live state + the actions that act on it — see
-// debug-panel.md).
+// The header's "?" button + the About modal behind it: the guided tour, version,
+// copyright, keyboard shortcuts, and a collapsible Debug section (live state +
+// the actions that act on it — see debug-panel.md).
+//
+// Since v15 this is the app's single help door (onboarding.md REQ-20) — the ⓘ
+// button beside it does one thing only, toggle the badges. Hence the ? glyph:
+// the tour and the shortcut list are help, not credits.
 import { Modal } from './modal';
 import { createButton, setButtonLabel } from './button';
+import { createBrand } from './brand';
 import { confirmDialog } from './dialog';
 import { HEADER_ICONS } from './header-icons';
 import { createCollapseToggle } from './collapse-toggle';
@@ -14,6 +19,12 @@ import { SessionAutosave } from '../../state/session-autosave';
 import { SampleAutosave } from '../../state/sample-autosave';
 import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
+import { NOTE_ROWS } from '../shortcuts';
+import { Dropdown } from './dropdown';
+import {
+  LAYOUTS, labelFor, readLayoutPref, writeLayoutPref, resolveLayout, onLayoutChange,
+  type LayoutId, type LayoutPref,
+} from '../../state/keyboard-layout';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -21,49 +32,155 @@ import styles from '../styles/modal.module.css';
 
 declare const __APP_VERSION__: string;
 
-const SHORTCUTS: Array<[string, string]> = [
-  ['Z S X D C V G B H N J M ,', 'Play notes — lower octave'],
-  ['Q 2 W 3 E R 5 T 6 Y 7 U I', 'Play notes — upper octave'],
-  ['←  →', 'Shift keyboard octave down / up'],
-  ['.  /', 'Pitch bend up / down'],
-  ['Space', 'Play / stop transport'],
-  ['Home', 'Move the playhead to bar 1'],
-  ['Shift + ←  →', 'Move the playhead one bar'],
-  ['F (hold)', 'Drum fill'],
-  ['Shift + R', 'Open / close the Record window'],
-  ['Esc', 'Panic — all notes off'],
-  ['Delete', 'Clear the selected step'],
-  ['Ctrl/Cmd + Z', 'Undo the last grid edit'],
-  ['?', 'Show / hide the help badges'],
-  ['Shift + click Help', 'Show / hide the help badges (or hold it)'],
-  ['Shift + drag', 'Fine knob control'],
-];
+/** One token of a combo: a bare string is a keycap, `t(...)` is literal text. */
+type Token = string | { text: string };
+/** Literal text between caps — a `+`, a `(hold)`, a mouse action. Keep the
+ *  spacing: flex layout trims it visually, and it keeps each cell's
+ *  `textContent` reading the way a human would say the combo. */
+const t = (text: string): { text: string } => ({ text });
+
+/** The two note rows are a keyboard diagram, not a token list (REQ-17c). */
+const notes = (row: Record<string, number>): { notes: Record<string, number> } => ({ notes: row });
+
+type Combo = Token[] | { notes: Record<string, number> };
 
 /**
- * Arrows and other symbols have no glyph in Courier New, so the browser falls
- * back per character and draws them at a different (much smaller) size than the
- * surrounding monospace — unreadable at the key row's 11px. Draw those runs in
- * the UI sans at a legible size instead, and leave everything else alone.
+ * The canonical on-screen shortcut reference (onboarding.md REQ-17) — it must
+ * name every global key. The first `SHORTCUTS_SHOWN` rows are what a first-time
+ * player needs; the rest are folded away behind the section header (REQ-17b),
+ * so the cut point below is load-bearing, not cosmetic.
+ *
+ * Combos are token lists so only *keys* are drawn as keys (REQ-17c): in
+ * `Shift + drag` the cap ends at Shift, which is what stops "drag" reading as
+ * keyboard input.
  */
-// A run starts at a symbol and swallows the whitespace *between* symbols, so
-// `←  →` is one span rather than two with monospace-spaced air between them.
-const SYMBOL_RUN = /([←→↑↓⌫⏮][←→↑↓⌫⏮\s]*)/;
+const SHORTCUTS: Array<[Combo, string]> = [
+  [notes(NOTE_ROWS.lower), 'Play notes — lower octave'],
+  [notes(NOTE_ROWS.upper), 'Play notes — upper octave'],
+  [['←', '→'], 'Shift keyboard octave down / up'],
+  // Two rows, not one: the keys are stacked vertically on the board, so the
+  // list stacks them too (input-control.md REQ-12).
+  [["'"], 'Pitch bend up'],
+  [['/'], 'Pitch bend down'],
+  [['Space'], 'Play / stop transport'],
+  // ---- folded by default; everything above ends at Space (REQ-17b) ----
+  [['Home'], 'Move the playhead to bar 1'],
+  [['Shift', t(' + '), '←', '→'], 'Move the playhead one bar'],
+  [['F', t(' (hold)')], 'Drum fill'],
+  [['Shift', t(' + '), 'R'], 'Open / close the Record window'],
+  [['Esc'], 'Panic — all notes off'],
+  [['Delete'], 'Clear the selected step'],
+  [['Ctrl/Cmd', t(' + '), 'Z'], 'Undo the last grid edit'],
+  [['?'], 'Show / hide the info badges'],
+  [['Shift', t(' + drag')], 'Fine knob control'],
+];
 
-function keyCell(combo: string): HTMLElement {
-  const k = document.createElement('div');
-  k.className = Modal.keyClass;
-  for (const part of combo.split(SYMBOL_RUN)) {
-    if (!part) continue;
-    if (SYMBOL_RUN.test(part)) {
-      const s = document.createElement('span');
-      s.className = Modal.glyphClass;
-      s.textContent = part;
-      k.appendChild(s);
-    } else {
-      k.appendChild(document.createTextNode(part));
-    }
+/** Rows visible before the fold. The rule is "through `Space`", not the number
+ *  itself — it went 5 → 6 when pitch bend became one row per key. */
+const SHORTCUTS_SHOWN = 6;
+
+/**
+ * Arrows and other symbols have no glyph in the monospace face, so the browser
+ * falls back per character and draws them much smaller than their neighbours —
+ * unreadable at the key row's size. Such a cap is drawn in the UI sans instead
+ * (onboarding.md REQ-17).
+ */
+const SYMBOL = /^[←→↑↓⌫⏮]+$/;
+
+/** One keycap. `variant` tints the two ranks of the note diagram apart. */
+function cap(label: string, variant?: 'natural' | 'sharp'): HTMLElement {
+  const el = document.createElement('span');
+  el.className = styles.cap!;
+  if (SYMBOL.test(label)) el.classList.add(Modal.glyphClass);
+  if (variant === 'natural') el.classList.add(styles.capNatural!);
+  if (variant === 'sharp') el.classList.add(styles.capSharp!);
+  el.textContent = label;
+  return el;
+}
+
+/**
+ * A cap standing for a *physical* key: its label is whatever the active layout
+ * prints there (keyboard-layout.md REQ-1). `data-code` is what lets a layout
+ * switch relabel it in place — the diagram's structure is the piano's and never
+ * varies, so only these text nodes move (onboarding.md REQ-17c).
+ */
+function codeCap(code: string, variant?: 'natural' | 'sharp'): HTMLElement {
+  const el = cap(labelFor(code).toUpperCase(), variant);
+  el.dataset.code = code;
+  return el;
+}
+
+/** Re-read every physical-key cap's label after a layout change. */
+function relabelCaps(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>('[data-code]')) {
+    el.textContent = labelFor(el.dataset.code!).toUpperCase();
   }
-  return k;
+}
+
+/** A cap-sized hole. The two note ranks stay aligned because the gaps occupy a
+ *  real box, so neither rank needs positioning maths (REQ-17c). */
+function capBlank(): HTMLElement {
+  const el = document.createElement('span');
+  el.className = `${styles.cap!} ${styles.capBlank!}`;
+  return el;
+}
+
+/** Semitone → index among the naturals of an octave (C=0 … B=6); -1 for a
+ *  sharp. The gaps at E–F and B–C fall out of this table, which is exactly the
+ *  visual break that makes the diagram read as a keyboard. */
+const NATURAL_INDEX = [0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6];
+
+const naturalColumn = (rel: number): number =>
+  Math.floor(rel / 12) * 7 + NATURAL_INDEX[rel % 12]!;
+
+/**
+ * The two-row keyboard diagram, derived from the real code→semitone map so it
+ * can never disagree with the bindings it documents (REQ-17c). The *labels*
+ * come from the active layout; the shape never does.
+ *
+ * Naturals form the lower rank in order; each sharp sits in the gap *after* the
+ * natural below it, and the rank is shifted half a cap right, so a sharp lands
+ * between its two neighbours the way it does on a piano.
+ */
+function notesCell(row: Record<string, number>): HTMLElement {
+  const base = Math.min(...Object.values(row));
+  const naturals: string[] = [];
+  const sharps: Array<string | null> = [];
+
+  for (const [code, semitone] of Object.entries(row)) {
+    const rel = semitone - base;
+    if (NATURAL_INDEX[rel % 12]! >= 0) naturals[naturalColumn(rel)] = code;
+    else sharps[naturalColumn(rel - 1)] = code;
+  }
+
+  const cell = document.createElement('div');
+  cell.className = `${styles.combo!} ${styles.notes!}`;
+
+  const sharpRow = document.createElement('div');
+  sharpRow.className = `${styles.notesRow!} ${styles.notesSharps!}`;
+  // One slot per gap between naturals; the two without a sharp are blanks.
+  for (let i = 0; i < naturals.length - 1; i++) {
+    sharpRow.appendChild(sharps[i] ? codeCap(sharps[i]!, 'sharp') : capBlank());
+  }
+
+  const naturalRow = document.createElement('div');
+  naturalRow.className = styles.notesRow!;
+  for (const code of naturals) naturalRow.appendChild(codeCap(code, 'natural'));
+
+  cell.appendChild(sharpRow);
+  cell.appendChild(naturalRow);
+  return cell;
+}
+
+function comboCell(combo: Combo): HTMLElement {
+  if ('notes' in combo) return notesCell(combo.notes);
+  const cell = document.createElement('div');
+  cell.className = styles.combo!;
+  for (const token of combo) {
+    if (typeof token === 'string') cell.appendChild(cap(token));
+    else cell.appendChild(document.createTextNode(token.text));
+  }
+  return cell;
 }
 
 /**
@@ -91,12 +208,18 @@ export function setWakeLockSource(fn: () => { supported: boolean; held: boolean 
   wakeState = fn;
 }
 
-export function createAboutButton(engine: StudioApi): HTMLButtonElement {
+/** What the modal needs from the onboarding layer, injected so `about.ts` never
+ *  imports it (onboarding.md REQ-20, the same rule the tour's `TourCtx` follows). */
+export interface AboutDeps {
+  startTour: () => void;
+}
+
+export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
-    label: 'About',
-    icon: HEADER_ICONS.about,
-    title: 'About VAST G1-J5',
+    label: 'Help & About',
+    icon: HEADER_ICONS.help,
+    title: 'Help & About',
     testId: 'about-button',
     onClick: open,
   });
@@ -142,7 +265,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   function open(): void {
     window.clearTimeout(closeTimer);
     if (!backdrop) {
-      const built = buildModal(close, engine);
+      const built = buildModal(close, engine, deps);
       backdrop = built.backdrop;
       refreshDebug = built.refreshDebug;
       disposeDebug = built.disposeDebug;
@@ -163,7 +286,7 @@ export function createAboutButton(engine: StudioApi): HTMLButtonElement {
   return btn;
 }
 
-function buildModal(close: () => void, engine: StudioApi): {
+function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps): {
   backdrop: HTMLElement;
   refreshDebug: () => void;
   disposeDebug: () => void;
@@ -179,13 +302,8 @@ function buildModal(close: () => void, engine: StudioApi): {
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'About VAST G1-J5');
 
-  const title = document.createElement('div');
-  title.className = Modal.titleClass;
-  title.textContent = 'VAST G1-J5';
-
-  const tag = document.createElement('div');
-  tag.className = Modal.tagClass;
-  tag.textContent = 'Vast Audio Synthesis Technology';
+  // The real faceplate, not a flattened restatement of it (brand.md REQ-1).
+  const brand = createBrand();
 
   const meta = document.createElement('div');
   meta.className = Modal.metaClass;
@@ -204,20 +322,19 @@ function buildModal(close: () => void, engine: StudioApi): {
   meta.appendChild(copyright);
   meta.appendChild(source);
 
-  const sec = document.createElement('div');
-  sec.className = Modal.secClass;
-  sec.textContent = 'Keyboard Shortcuts';
+  // The one action in an otherwise reference-only modal, so it sits above the
+  // reference (onboarding.md REQ-20). It is the app's only tour-replay route.
+  const tourBtn = createButton({
+    label: 'Take the guided tour',
+    className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+    testId: 'start-tour',
+    onClick: () => {
+      close();
+      deps.startTour();
+    },
+  });
 
-  const keys = document.createElement('div');
-  keys.className = Modal.keysClass;
-  for (const [combo, action] of SHORTCUTS) {
-    const k = keyCell(combo);
-    const a = document.createElement('div');
-    a.className = Modal.actClass;
-    a.textContent = action;
-    keys.appendChild(k);
-    keys.appendChild(a);
-  }
+  const shortcuts = buildShortcuts();
 
   const factoryReset = buildFactoryResetButton();
 
@@ -229,17 +346,150 @@ function buildModal(close: () => void, engine: StudioApi): {
     onClick: close,
   });
 
-  card.appendChild(title);
-  card.appendChild(tag);
+  card.appendChild(brand);
   card.appendChild(meta);
-  card.appendChild(sec);
-  card.appendChild(keys);
+  card.appendChild(tourBtn);
+  card.appendChild(shortcuts.header);
+  card.appendChild(shortcuts.row);
+  card.appendChild(shortcuts.keys);
   card.appendChild(factoryReset);
   card.appendChild(debug.header);
   card.appendChild(debug.body);
   card.appendChild(closeBtn);
   backdrop.appendChild(card);
   return { backdrop, refreshDebug: debug.refresh, disposeDebug: debug.dispose };
+}
+
+/**
+ * The Keyboard Shortcuts section: a foldable header plus the two-column key
+ * grid, cut to `SHORTCUTS_SHOWN` rows by default (onboarding.md REQ-17b).
+ *
+ * The overflow rows live in the **same** grid as the visible ones and are merely
+ * `display: none` — a second grid would size its own columns and the key column
+ * would visibly jump width on expand. And the fold is `createCollapseToggle`,
+ * the very component the Debug section below uses, so the chevron is literally
+ * the same glyph and rotation rather than a lookalike.
+ */
+function buildShortcuts(): { header: HTMLElement; row: HTMLElement; keys: HTMLElement } {
+  const header = document.createElement('div');
+  header.className = `${Modal.secClass} ${styles.secFold!}`;
+
+  // The gear belongs to the title, so they share a box and travel together —
+  // loose in the header it would drift into the middle of the row.
+  const layout = buildLayoutPicker();
+  const title = document.createElement('div');
+  title.className = styles.secFoldTitle!;
+  const label = document.createElement('span');
+  label.textContent = 'Keyboard Shortcuts';
+  title.append(label, layout.gear);
+  header.appendChild(title);
+
+  // "Show all" / "Show less" — the verb matters: a bare "all" is a label the
+  // reader has to interpret, where this says what the click does. The chevron
+  // beside it is the same affordance, just wordless.
+  const hint = document.createElement('span');
+  hint.className = styles.secFoldHint!;
+  header.appendChild(hint);
+
+  const keys = document.createElement('div');
+  keys.className = Modal.keysClass;
+  SHORTCUTS.forEach(([combo, action], i) => {
+    const k = comboCell(combo);
+    const a = document.createElement('div');
+    a.className = Modal.actClass;
+    a.textContent = action;
+    // Both cells of a row, or the grid would keep half of it.
+    if (i >= SHORTCUTS_SHOWN) {
+      k.classList.add(styles.keyOverflow!);
+      a.classList.add(styles.keyOverflow!);
+    }
+    keys.appendChild(k);
+    keys.appendChild(a);
+  });
+
+  const toggle = createCollapseToggle(keys, 'websynth.shortcuts.about', {
+    defaultCollapsed: () => true,
+    trigger: header,
+    onChange: (collapsed) => { hint.textContent = collapsed ? 'Show all' : 'Show less'; },
+  });
+  // The component's generic "Collapse panel" would be a lie here — folded is the
+  // resting state, and what the button offers is the rest of the list.
+  toggle.el.setAttribute('aria-label', 'Show all keyboard shortcuts');
+  header.appendChild(toggle.el);
+
+  // Subscribed rather than wired to the picker's own change, so the diagram
+  // also follows a layout settled by detection (keyboard-layout.md REQ-4) —
+  // whatever moved it, the caps follow.
+  onLayoutChange(() => relabelCaps(keys));
+
+  return { header, row: layout.row, keys };
+}
+
+/**
+ * The keyboard-layout picker (keyboard-layout.md): a gear in the section header
+ * revealing a select. The gear must swallow its own click — the whole header is
+ * the fold's `trigger`, so otherwise reaching for the layout would collapse the
+ * list you opened it to read (the `xy-pad.ts` gear does the same).
+ */
+function buildLayoutPicker(): { gear: HTMLButtonElement; row: HTMLElement } {
+  const ids = Object.keys(LAYOUTS) as LayoutId[];
+  const AUTO = 'Auto-detect';
+  const options = [AUTO, ...ids.map((id) => LAYOUTS[id].label)];
+
+  const labelOf = (pref: LayoutPref): string =>
+    pref === 'auto' ? AUTO : LAYOUTS[pref].label;
+  const prefOf = (label: string): LayoutPref =>
+    label === AUTO ? 'auto' : (ids.find((id) => LAYOUTS[id].label === label) ?? 'qwerty');
+
+  const row = document.createElement('div');
+  row.className = `${styles.layoutRow!} collapsed`;
+
+  const caption = document.createElement('span');
+  caption.className = styles.layoutLabel!;
+  caption.textContent = 'Layout';
+
+  // 'Auto-detect' resolves to something concrete — name it, so the picker is
+  // never a claim the user cannot check. Hidden once they choose explicitly.
+  const note = document.createElement('span');
+  note.className = styles.layoutNote!;
+  const showResolved = (): void => {
+    note.textContent = `Detected: ${LAYOUTS[resolveLayout()].label}`;
+    note.classList.toggle('hidden', readLayoutPref() !== 'auto');
+  };
+  showResolved();
+
+  const dd = new Dropdown(options, labelOf(readLayoutPref()));
+  dd.el.dataset.testid = 'shortcuts-layout-select';
+  // Writing the pref notifies every consumer, the diagram included.
+  dd.onChange((label) => {
+    writeLayoutPref(prefOf(label));
+    showResolved();
+  });
+  onLayoutChange(showResolved);
+
+  row.append(caption, dd.el, note);
+
+  // The same `⚙` the XY Pad's axis-assignment gear uses, not one of the
+  // header's inline-SVG glyphs — this is the in-panel "reveals a setting"
+  // affordance, and it should look like the one the app already has.
+  let open = false;
+  const gear = createButton({
+    label: 'Keyboard layout',
+    title: 'Keyboard layout',
+    className: styles.gearBtn!,
+    testId: 'shortcuts-layout-gear',
+    onClick: (ev) => {
+      ev.stopPropagation(); // never fold the list on the way to the picker
+      open = !open;
+      row.classList.toggle('collapsed', !open);
+      gear.setAttribute('aria-expanded', String(open));
+    },
+  });
+  gear.textContent = '⚙';
+  gear.setAttribute('aria-label', 'Keyboard layout');
+  gear.setAttribute('aria-expanded', 'false');
+
+  return { gear, row };
 }
 
 /**
@@ -307,8 +557,9 @@ function buildDebugSection(engine: StudioApi): {
   dispose: () => void;
 } {
   const header = document.createElement('div');
-  header.className = `${Modal.secClass} ${styles.debugHeader!}`;
+  header.className = `${Modal.secClass} ${styles.secFold!}`;
   const label = document.createElement('span');
+  label.className = styles.secFoldLabel!;
   label.textContent = 'Debug';
   header.appendChild(label);
 

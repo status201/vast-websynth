@@ -12,7 +12,7 @@ source:
   - src/ui/onboarding/tour.ts            # TourStep / TourCtx
 ```
 
-How to add a step to the first-run guided tour, and (optionally) a help-mode badge
+How to add a step to the first-run guided tour, and (optionally) an info badge
 for a new control.
 
 ## Background / Why
@@ -48,10 +48,10 @@ matters for `applyDemo`: all but the two built-in demos are fetched on click
 then acts on it* — starting the transport, say — must `await` or it will act on
 whatever was loaded before. `resumeAudio` is async for the same reason.
 
-### 2. (Optional) add a help-mode badge
+### 2. (Optional) add an info badge
 
 If the step introduces a new control, add a `HelpTopic` + `TopicId` in
-`help-content.ts` so help mode shows an (i) badge for it.
+`help-content.ts` so an ⓘ info badge appears for it.
 
 ## Gotchas
 

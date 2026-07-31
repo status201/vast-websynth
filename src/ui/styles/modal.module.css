@@ -73,6 +73,10 @@
   color: var(--text-dim);
   letter-spacing: 0.04em;
   line-height: 1.8;
+  /* Make it look like a serial number area */
+  padding: 10px 14px;
+  box-shadow: inset 0 8px 28px -6px rgba(0, 0, 0, 0.6);
+  filter: opacity(0.8);
 }
 
 .meta strong {
@@ -105,9 +109,16 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 8px 18px;
-  align-items: baseline;
+  /* Centred, not baseline: a note row is two ranks tall and its wrapped action
+     label should sit against the middle of the block (onboarding REQ-17c). */
+  align-items: center;
+  --cap-w: 19px;
+  --cap-h: 20px;
+  --cap-gap: 3px;
 }
 
+/* The Debug section's left column (debug-panel.md) — a plain monospace label.
+   Deliberately NOT what the shortcut list uses: that is `.combo` below. */
 .key {
   font-family: 'Courier New', monospace;
   font-size: 11px;
@@ -117,16 +128,93 @@
   white-space: nowrap;
 }
 
-/* Arrows etc. inside a key combo. Courier New has no glyph for them, so the
-   browser substitutes a fallback face at its own (much smaller) size — at 11px
-   the arrows became illegible dashes. Draw them in the UI sans, bigger, and
-   nudge them onto the monospace baseline. */
+/* ---- Shortcut combos: only real keys are drawn as keys (REQ-17c) ---- */
+
+.combo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* A fixed-height centred box, deliberately not an inline-block with padding:
+   `.glyph` below changes the font size, and with a line-height-driven height an
+   arrow cap came out 2.5px taller than a letter cap sitting next to it. Pinning
+   the height means a cap's face and size can vary without moving the box, and
+   flex centring puts every label on the same line regardless of face metrics. */
+.cap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--cap-w);
+  height: var(--cap-h);
+  padding: 1px 5px 0;
+  box-sizing: border-box;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  /* Letter-spacing also trails the last glyph, which centring then counts as
+     content — nudge back by the same amount so the label sits truly centred. */
+  text-indent: 0.06em;
+  line-height: 1;
+  color: var(--text);
+  background: var(--bg-deep);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Arrows etc. on a cap. The monospace face has no glyph for them, so the
+   browser substitutes a fallback at its own (much smaller) size — at 11px the
+   arrows became illegible dashes. Draw them in the UI sans instead. */
 .glyph {
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1;
-  vertical-align: -2px;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-indent: 0; /* no trailing letter-space here, so nothing to compensate */
+}
+
+/* The two ranks of the note diagram. Telling them apart is the requirement, not
+   decoration: the half-cap offset alone reads as an arbitrary grid until the
+   naturals are lighter than the sharps. */
+.capNatural {
+  color: var(--text);
+  background: var(--panel-flat);
+  border-color: var(--panel-border);
+}
+
+.capSharp {
+  color: var(--text-dim);
+  background: var(--bg-deep);
+  border-color: #3d2e1b;
+}
+
+/* A gap in the sharp rank (E–F, B–C). Occupies a real cap-sized box so both
+   ranks stay aligned with no positioning maths. */
+.capBlank {
+  visibility: hidden;
+}
+
+.notes {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cap-gap);
+}
+
+.notesRow {
+  display: flex;
+  gap: var(--cap-gap);
+}
+
+/* Half a cap plus half a gap, so each sharp lands between its two naturals. */
+.notesSharps {
+  padding-left: calc((var(--cap-w) + var(--cap-gap)) / 2);
 }
 
 .act {
@@ -141,16 +229,110 @@
   justify-content: center;
 }
 
-/* Debug section header: the .sec label plus a fold chevron, whole row clickable. */
-.debugHeader {
+/* A foldable section header: the .sec label plus a fold chevron, whole row
+   clickable. Shared by the Keyboard Shortcuts and Debug sections — one fold
+   idiom per modal, not two (onboarding.md REQ-17b). */
+.secFold {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   cursor: pointer;
 }
 
+/* Pushes the hint + chevron to the far right. `.collapse` carries its own
+   `margin-left: auto`, which would otherwise strand the hint beside the label. */
+.secFoldLabel {
+  margin-right: auto;
+}
+
+/* "all" / "less" — sized down from the .sec label it sits beside, and dimmed so
+   the section title still reads first. */
+.secFoldHint {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+}
+
 .debugBody:global(.collapsed) {
+  display: none;
+}
+
+/* ---- Keyboard-layout picker (features/keyboard-layout.md) ---- */
+
+/* Title + gear travel together at the left of the .secFold header, so the gear
+   reads as belonging to "Keyboard Shortcuts" rather than floating mid-row. */
+.secFoldTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+/* Deliberately the same affordance as the XY Pad's axis-assignment gear
+   (`xy-pad.module.css .gearBtn`) — same `⚙`, same 90° rotation on open — so
+   "gear reveals a setting" reads identically wherever it appears. The header's
+   inline-SVG icon set is a different thing: those glyphs exist because the
+   header's tier/state classes tint them (responsive-header.md REQ-5). */
+.gearBtn {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transform: rotate(0deg);
+  transition: background 0.12s ease, color 0.12s ease, transform 0.16s ease;
+}
+
+.gearBtn:hover {
+  color: var(--text);
+  background: rgba(232, 116, 46, 0.18);
+}
+
+.gearBtn[aria-expanded='true'] {
+  color: var(--accent-secondary);
+  transform: rotate(90deg);
+}
+
+.layoutRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+/* There is no global `.hidden { display: none }` in this app, so both states
+   spell themselves out (same caveat as perf-settings.module.css). */
+.layoutRow:global(.collapsed) { display: none; }
+
+.layoutLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+}
+
+.layoutNote {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+.layoutNote:global(.hidden) { display: none; }
+
+/* Shortcut rows past the fold. They stay in the one grid so its two columns are
+   measured once and never jump width on expand — hence hiding the cells rather
+   than moving them into a second grid. */
+.keys:global(.collapsed) .keyOverflow {
   display: none;
 }
 

@@ -22,7 +22,7 @@ import styles from '../styles/record-window.module.css';
 const TICK_MS = 200;
 
 export interface RecordWindowLauncher {
-  /** The Song-panel button (also the help-badge anchor, testid `song-record`). */
+  /** The Song-panel button (also the info-badge anchor, testid `song-record`). */
   el: HTMLButtonElement;
   /** Open/close from anywhere — what `UiBridge.toggleRecordWindow` binds to. */
   toggle(): void;

@@ -246,13 +246,15 @@ specs/
     toast.md           ·  transient bottom-center notification with one action (Undo)
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
+    brand.md           ·  the VAST / G1-J5 / tagline block, shared by header + modals
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster
     responsive-synth-panels.md ·  4-knob panels: 2x2 desktop, single row on tablets
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
+    keyboard-layout.md ·  QWERTY/AZERTY/QWERTZ/Dvorak note-key mapping + picker
     testids.md         ·  the stable `data-testid` contract + full catalogue
-    onboarding.md      ·  guided tour + help mode
+    onboarding.md      ·  guided tour + info badges
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)

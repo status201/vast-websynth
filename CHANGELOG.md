@@ -16,6 +16,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **On a French or German keyboard the instrument played the wrong notes.** The
+  computer-keyboard mapping assumed a US layout, so on AZERTY the key in the
+  bottom-left corner — the one printed **W** — sounded a D from the octave above
+  instead of the bottom C, and on QWERTZ the Y and Z keys were swapped. **Help &
+  About** now carries a layout picker (QWERTY, AZERTY, QWERTZ, Dvorak) that
+  remaps the keys the moment you choose, and on Chrome and Edge it works out your
+  layout for itself. The keyboard diagram relabels to match, so what is drawn is
+  what is printed on your keys.
+- **The two icons in the header did not do what they promised.** The little ⓘ
+  badges that explain each section were switched on from the **?** button, behind
+  a menu — while the **ⓘ** button opened the About box, which never mentioned
+  them. Now each does exactly one thing: **ⓘ** turns the info badges on and off
+  and lights up while they show, **?** opens Help & About. The menu between them
+  is gone, and so are the three undocumented gestures that existed to skip it.
+  **Take the guided tour** moved into Help & About, above the shortcuts, where it
+  is the one thing in that box you can actually press.
+- **The keyboard shortcuts were a wall of letters.** They are drawn as keys now,
+  and the two note rows are laid out like the keyboard itself — the sharps offset
+  above the naturals, with gaps where a piano has none — so the mapping can be
+  seen instead of worked out. Only real keys are drawn as keys, so "**Shift** +
+  drag" now reads as a key plus a mouse action rather than two keys. The list
+  shows the first rows by default with **Show all** for the rest, so the box fits
+  on a phone again.
+- **Pitch bend sat on two keys side by side.** `.` bent up and `/` bent down,
+  which is only memorable once someone tells you. Bend up moved to `'`, directly
+  above `/`, so the higher key bends higher. `.` no longer bends.
+- **A pitch bend could stick.** Holding `/` and pressing Shift before letting go
+  left the pitch bent until you pressed a bend key again. Both bend keys are now
+  recognised by their position on the board, which also makes them work on
+  layouts where `'` is a dead key.
+- **About and the start screen showed a flattened copy of the logo** — one plain
+  line of text where the header shows the VAST / G1-J5 faceplate. All three now
+  draw the same badge from the same place.
+
 ## [2.6.1] - 2026-07-31
 
 ### Security

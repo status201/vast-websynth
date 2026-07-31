@@ -24,11 +24,11 @@ export class UiBridge {
    * returns whether it acted, so the key falls through on the Arp/Song/Motion
    * tabs (Motion has no selection cursor — REQ-9). */
   clearSelectedStep = (): boolean => false;
-  /** Toggle the help-mode (i) badges — the `?` key's route (input-control.md
-   * REQ-9, onboarding.md REQ-19). Lives here rather than in `shortcuts.ts` so
-   * the shortcut layer never imports the onboarding layer, exactly like
+  /** Toggle the ⓘ info badges — the `?` key's route (input-control.md REQ-9,
+   * onboarding.md REQ-19). Lives here rather than in `shortcuts.ts` so the
+   * shortcut layer never imports the onboarding layer, exactly like
    * `toggleTransport`. Assigned in buildHeader, where onboarding exists. */
-  toggleHelpBadges = (): void => {};
+  toggleInfoBadges = (): void => {};
   /** Reveal a pattern-row tab by id, expanding the row if it is collapsed
    * (machine-status.md REQ-5/REQ-7) — drives the Song panel's lane titles.
    * Assigned in buildPatternRow, which is where `tabs` first exists: the Song
@@ -41,7 +41,7 @@ export class UiBridge {
    * REQ-3). Assigned in buildHeader; the default is a safe no-op. */
   cuePlay = (): void => {};
   /** Open/close the RECORD floating window (Shift+R — record-window.md REQ-9).
-   * Same late-bound seam as `toggleHelpBadges`, so `shortcuts.ts` never reaches
+   * Same late-bound seam as `toggleInfoBadges`, so `shortcuts.ts` never reaches
    * into a panel: the Song panel assigns it when it builds the launcher. */
   toggleRecordWindow = (): void => {};
 }

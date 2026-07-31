@@ -1,4 +1,4 @@
-/* Guided-tour spotlight overlay + callout, and the help-mode (i) badges.
+/* Guided-tour spotlight overlay + callout, and the ⓘ info badges.
    Sits above panels (z 100) and modals (z 1000); the tour only launches once
    the start modal is gone, so there is never overlay contention. */
 
@@ -96,8 +96,8 @@
   gap: 8px;
 }
 
-/* Active (orange) state for the Help button + the modal's badge-toggle button
-   while the help badges are showing, and for the header's Fullscreen button.
+/* Active (orange) state for the header's ⓘ button while the info badges are
+   showing, and for the header's Fullscreen button while fullscreen is engaged.
 
    `button.toggleActive` (0-1-1) outranks switch.module's bare `.root` (0-1-0),
    so it wins regardless of stylesheet order. But the Fullscreen button also
@@ -153,7 +153,7 @@ button.toggleActive:global(.on) {
   opacity: 1;
 }
 
-/* ---- BPM "sweet spots" list (dynamic delay/rate help badges) ---- */
+/* ---- BPM "sweet spots" list (dynamic delay/rate info badges) ---- */
 
 .sweetGrid {
   display: grid;

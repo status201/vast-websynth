@@ -1,6 +1,6 @@
 // All the onboarding copy lives here (kept out of params.ts so the param model
 // stays pure): the interactive tour script + the contextual help topics shown
-// by the help-mode (i) badges.
+// by the ⓘ info badges.
 import type { TourStep } from './tour';
 import type { ParamBus } from '../../state/params';
 import {
@@ -30,7 +30,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'keyboard',
     title: 'Press a key — hear it',
     body:
-      'Click any key below (or tap a letter row on your keyboard, like <strong>Z X C V</strong>). ' +
+      'Click any key below, or play the bottom two letter rows of your computer keyboard. ' +
       'Notes play instantly — no setup, no Play button needed.',
     advanceOn: 'note',
   },
@@ -121,16 +121,17 @@ export const TOUR_STEPS: TourStep[] = [
     precondition: () => clickTestId('tab-song'),
   },
   {
-    target: 'help-button',
+    target: 'info-badges',
     title: "That's it — go play",
     body:
-      "You know enough to make noise. Stuck on a control? Click <strong>Help</strong> any time " +
-      'to replay this tour or switch on the (i) badges that explain each section.',
+      'You know enough to make noise. Stuck on a control? This <strong>ⓘ</strong> button switches ' +
+      'on the info badges — one on every section, each explaining what it does. Next to it, ' +
+      '<strong>?</strong> replays this tour and lists the keyboard shortcuts.',
     placement: 'bottom',
   },
 ];
 
-// ---- Contextual help (the help-mode (i) badges) ----
+// ---- Contextual help (the copy behind the ⓘ info badges) ----
 
 /** Runtime handed to a dynamic (function) topic body so it can read/write live
  *  params and dismiss the modal (e.g. after a click-to-snap). */
@@ -871,9 +872,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   keyboard: {
     title: 'Keyboard',
     body:
-      '<p>Click the on-screen keys to play, or use your computer keyboard: ' +
-      '<strong>Z X C V…</strong> for the lower octave and <strong>Q W E R…</strong> for the upper. ' +
-      'The <strong>←</strong> / <strong>→</strong> arrow keys shift octave.</p>' +
+      '<p>Click the on-screen keys to play, or use your computer keyboard: the bottom letter ' +
+      'row is the lower octave, the top one the upper, with the sharps on the row above each — ' +
+      'a piano laid over the keys. <strong>Help &amp; About</strong> draws the exact mapping for ' +
+      'your keyboard layout. The <strong>←</strong> / <strong>→</strong> arrow keys shift octave.</p>' +
       '<p>Notes sound immediately, with or without the transport running.</p>',
   },
   pitchBend: {

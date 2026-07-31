@@ -1,0 +1,58 @@
+/* The VAST G1-J5 faceplate identity (specs/features/brand.md), shared by the
+   header, the About modal and the start modal.
+
+   Deliberately no outer framing: the header's divider rule to the right of the
+   block lives in layout.module.css `.headerBrand` and is composed on at that
+   call site (REQ-3). A border-right here would draw a stray vertical line down
+   the inside of a modal card. Alignment is the container's business too (REQ-4)
+   — `.start-card` centres it, the header and About card do not. */
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandName {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  text-shadow:
+    0 0 6px var(--accent-secondary-glow),
+    0 1px 0 rgba(0, 0, 0, 0.85),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  text-transform: uppercase;
+}
+
+/* The model badge: monospace in a box, the one non-serif part of the block. */
+.brandModel {
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-shadow: 0 0 4px var(--accent-glow);
+  padding: 3px 8px;
+  border: 1px solid rgba(232, 116, 46, 0.55);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  line-height: 1;
+}
+
+.brandTagline {
+  font-family: var(--serif);
+  font-size: 7.5px;
+  font-style: normal;
+  letter-spacing: 0.15em;
+  color: var(--text);
+  text-transform: uppercase;
+  margin-top: 4px;
+}

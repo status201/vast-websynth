@@ -56,7 +56,7 @@ behaviour like this lives in one place.
   `switch-<onPrefix>.on`; each knob `knob-<paramId>` (minted by the factories).
 - **REQ-5** — Help badges that relate to an effect group anchor to the group
   **root** (`fxgroup-<prefix>`), never to a knob or trailing meter — those hide
-  while bypassed and HelpMode hides badges on zero-size anchors, but help must
+  while bypassed and InfoBadges hides badges on zero-size anchors, but help must
   stay reachable for a bypassed effect (that's when "what is this?" is asked).
 
 ## Technical design

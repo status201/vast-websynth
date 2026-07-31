@@ -3,13 +3,17 @@
 ```yaml
 id: testids
 status: implemented
-version: 1
+version: 3  # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
+            # v2: the header's ⓘ/? swap — info-badges replaces help-button, the
+            #     Help chooser's two ids retire, and the badge ids become
+            #     info-badge-* (onboarding.md v15)
 owner: core
 related:
   - architecture
   - step-grid-editing
   - transport-position
   - debug-panel
+  - onboarding
 source:
   - src/ui/components/knob.ts         # knob-<paramId>
   - src/ui/components/switch.ts       # switch-<paramId>
@@ -99,7 +103,9 @@ shell (app.ts):
   transport-play                     # the HEADER play button (see REQ-5)
   preset-select · preset-save        # preset-save opens the manager
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
-  about-button · help-button · fullscreen
+  info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
+                                            # ids follow function, not glyph order
+                                            # (features/responsive-header.md REQ-6)
 
 step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
@@ -199,7 +205,9 @@ shared UI:
 
 onboarding:                                         # features/onboarding.md
   tour-overlay · tour-callout · tour-next · tour-done · tour-back · tour-skip
-  help-start-tour · help-toggle-badges · help-badge-layer · help-badge-<topic>
+  start-tour                                        # in the About modal (REQ-20)
+  shortcuts-layout-gear · shortcuts-layout-select   # features/keyboard-layout.md
+  info-badge-layer · info-badge-<topic>
   sweet-<paramId>-<label>                           # features/tempo-sync-help.md
 
 about → debug panel:                                # features/debug-panel.md

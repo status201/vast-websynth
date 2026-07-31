@@ -21,7 +21,7 @@ source:
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
   - src/ui/onboarding/help-content.ts   # `seq.render` help topic (v2)
-  - src/ui/onboarding/help-mode.ts      # its badge anchor (v2)
+  - src/ui/onboarding/info-badges.ts      # its badge anchor (v2)
 ```
 
 ## Background / Why
@@ -85,7 +85,7 @@ the loop drifts against the grid and is unusable.
   testid `seq-import-slot`) and a Render button (testid `seq-import-render`)
   that shows a busy state while rendering. The transport is left stopped when
   the render completes (same convention as Export Song).
-- **REQ-10 (help badge, v2)** — The Render button carries a help-mode badge
+- **REQ-10 (help badge, v2)** — The Render button carries an info badge
   ([onboarding](onboarding.md) REQ-3/REQ-15): topic `seq.render`, anchored to
   `seq-import-render`. Nothing on screen explains the section, and the button's
   most surprising behaviour — the **two-pass** bake of REQ-3 — makes it look
@@ -181,7 +181,7 @@ Scenario: Import lands in the chosen slot with a derived name
 # pinned by: e2e/render-to-sampler.spec.ts
 
 Scenario: The Render button explains itself (v2)
-  Given help mode is on and the Sequencer tab is open
+  Given the info badges are on and the Sequencer tab is open
   When the user clicks the badge on the Render button
   Then the modal says what the import does and why the bar plays twice
     (the reverb/delay tail bake of REQ-3)

@@ -162,7 +162,7 @@ Scenario: The LIVE FX window stays usable after switching tabs
 # pinned by: e2e/live-fx.spec.ts
 
 Scenario: The row carries a help badge on its launcher (REQ-7)
-  Given help mode is on and the Song tab is open
+  Given the info badges are on and the Song tab is open
   Then a `song.fx` badge anchors to the LIVE FX launcher
   And its topic names every control in the row and what the window adds
 # pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts

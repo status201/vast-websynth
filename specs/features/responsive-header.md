@@ -3,12 +3,15 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 4
+version: 5  # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
+            #     badges, ? opens Help & About (onboarding.md v15)
 owner: ui
 related:
   - architecture
   - performance-mode
   - dropdown
+  - onboarding
+  - brand              # the header's brand cluster is that shared block
 source:
   - src/ui/app.ts                      # buildHeader: hamburger toggle + preset cluster
   - src/ui/styles/layout.module.css    # .menuToggle / .presetGroup / .menuOpen rules
@@ -22,7 +25,7 @@ source:
 
 The header is a single sticky flex row holding four clusters: brand, the preset
 cluster (`Preset:` + preset dropdown + the utility buttons **Save / Perf /
-About / Help / Full**), the transport cluster (Play / BPM / Swing) and the
+Info / Help / Full**), the transport cluster (Play / BPM / Swing) and the
 voicing cluster (Mono-Poly / Panic / Vol). On a phone (~390px) the preset
 cluster alone is wider than the viewport, so it was clipped by the page's
 `overflow-x: hidden`. Simply letting it wrap fixes the clipping but adds a
@@ -56,8 +59,9 @@ end of the row.
   every width; whenever the header wraps they sit on the row **below** the
   first row (REQ-9) instead of crowding it.
 - **REQ-5** — The cluster's utility buttons are **icon-only**: Save (floppy),
-  Perf (gauge), About (ⓘ), Help (?-in-circle), Fullscreen (expand corners,
-  swapping to compress corners while fullscreen), appended **in that order** —
+  Perf (gauge), **Info badges (ⓘ)**, **Help & About (?-in-circle)**, Fullscreen
+  (expand corners, swapping to compress corners while fullscreen), appended
+  **in that order** —
   fullscreen last, still omitted entirely where `document.fullscreenEnabled`
   is false. Icons are inline SVG strings coloured via CSS `currentColor`
   (never Unicode emoji, which render coloured on some platforms), so the Perf
@@ -65,8 +69,12 @@ end of the row.
 - **REQ-6** — Every icon button carries a descriptive `title` (hover tooltip)
   **and** an `aria-label`, so accessible names survive the loss of text labels
   (`createButton` defaults `aria-label` to the `label` option when an icon is
-  set). Stable testids: `preset-save`, `perf-settings`, `about-button`,
-  `help-button`, `fullscreen`.
+  set). Stable testids: `preset-save`, `perf-settings`, `info-badges`,
+  `about-button`, `fullscreen`. Note the ids follow **function, not position**
+  (v5): `about-button` is the ? glyph, because that is the button that opens
+  About; the ⓘ glyph beside it is `info-badges` because that is what it toggles
+  ([onboarding.md](onboarding.md) REQ-8). The retired `help-button` id is not
+  reused.
 - **REQ-7** — The header must never clip content off the right edge at any
   width. Its clusters' combined min-content width (~1140px) exceeds the
   viewport well before the 992px reflow, so from **≤1140px** the header row
@@ -83,7 +91,7 @@ end of the row.
   cluster right-aligns on that row via `margin-left: auto`. Row 1 holds the
   brand + preset cluster (or brand + ☰ below 720px).
 - **REQ-10** — From **≤1140px** the preset cluster splits: the preset dropdown
-  + Save stay left-aligned while the four utility icon buttons (Perf / About /
+  + Save stay left-aligned while the four utility icon buttons (Perf / Info /
   Help / Fullscreen) push to the **far right** of the cluster's row — an inner
   spacer between Save and Perf grows to fill the row (the cluster itself grows
   to fill the remaining first-row width). The same split applies to the
@@ -108,6 +116,10 @@ addition to the shared `headerGroup` class.
 
 - Toggle button: `data-testid="header-menu"`, label `☰`, `aria-label="Toggle
   preset menu"`, `aria-expanded` kept in sync.
+- The brand cluster is `createBrand()` ([brand.md](brand.md)), shared with the
+  About and start modals. The header composes its own `headerBrand` class on top
+  for the divider rule to its right — that framing is not part of the shared
+  block (brand.md REQ-3).
 - DOM order in the header: `brand, menuToggle, presetGroup, spacer,
   headerBreak, transport, right`. The toggle sits right after `brand` so, on a
   narrow screen, CSS `margin-left: auto` parks it at the right end of the
@@ -121,7 +133,7 @@ addition to the shared `headerGroup` class.
 - The `Preset:` label span carries the `presetLabel` module class, hidden in
   the ≤1140px media block (REQ-8).
 - Inside the preset cluster the child order is `presetLabel, dropdown, save,
-  presetSpacer, perf, about, help, fullscreen`. `presetSpacer` is an empty
+  presetSpacer, perf, infoBadges, about, fullscreen`. `presetSpacer` is an empty
   `div` (`display: none` by default, the `headerSpacer` precedent); at ≤1140px
   it becomes a `flex: 1` filler and the cluster gets `flex: 1`, splitting the
   row left/right (REQ-10). The menu-open rule's `flex-basis: 100%` outranks
@@ -231,7 +243,7 @@ Scenario: No right-edge clipping in the 993-1140px dead zone
 
 Scenario: Utility buttons are icon buttons with accessible names
   Given the app header is built
-  Then Save, Perf, About, Help and Fullscreen render an svg.hdr-icon glyph
+  Then Save, Perf, Info, Help and Fullscreen render an svg.hdr-icon glyph
   And each has a descriptive title and aria-label
   And Fullscreen is the last button of the preset cluster
 # pinned by: tests/ui/button.test.ts (icon/title/ariaLabel options)

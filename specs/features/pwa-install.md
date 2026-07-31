@@ -55,7 +55,7 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   carries a fullscreen toggle button driving the Fullscreen API, its `on` state
   synced from `fullscreenchange`. While fullscreen is engaged the button also
   carries the orange active glow (`tour.module.css` `toggleActive` — the same
-  treatment the Help button gets while help badges are showing). The button is
+  treatment the ⓘ info-badges button gets while the badges are showing). The button is
   **absent** (not disabled) when `document.fullscreenEnabled` is falsy
   (iPhone Safari).
 - **REQ-3 (icons)** — A 180×180 PNG `apple-touch-icon` with an opaque `#050302`

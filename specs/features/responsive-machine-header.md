@@ -100,7 +100,7 @@ somewhere predictable rather than mid-cluster.
 - **REQ-6** — Every `fxgroup-<prefix>` root stays rendered and non-zero-size at
   all widths. Nothing is `display: none`d. This is load-bearing:
   [fx-group](fx-group.md) REQ-5 anchors help badges to the group root precisely
-  so help stays reachable for a *bypassed* effect, and HelpMode hides badges on
+  so help stays reachable for a *bypassed* effect, and InfoBadges hides badges on
   zero-size anchors.
 - **REQ-7** — Existing testids and DOM identities are preserved. The
   `fxGroup(...)` calls, their arguments and their `fxgroup-<prefix>` testids are
