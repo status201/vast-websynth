@@ -131,7 +131,7 @@ TRANSPORT do. (2) and (3) are what this spec adds on top of
   `keyToMidi` — beside the `Shift`+arrow branch, which is there for the same
   reason ([transport-position](transport-position.md) REQ-11) — and `Shift`+`R`
   therefore cannot be typed by accident while playing. It routes through a
-  late-bound `UiBridge.toggleRecordWindow`, the `toggleHelpBadges`/`cuePlay` seam,
+  late-bound `UiBridge.toggleRecordWindow`, the `toggleInfoBadges`/`cuePlay` seam,
   so `shortcuts.ts` never reaches into a panel. Listed in the About modal's
   shortcut table ([onboarding](onboarding.md) REQ-17) and carrying a help badge on
   the launcher (REQ-16 there) — the discoverability triple a non-obvious gesture
@@ -163,7 +163,7 @@ RecordWindowLauncher:
   el: HTMLButtonElement    # the Song-panel launcher (❐, aria-label, .on while capturing)
   toggle(): void           # what UiBridge.toggleRecordWindow is bound to (REQ-9)
 
-UiBridge:            # src/ui/ui-bridge.ts — late-bound, like toggleHelpBadges
+UiBridge:            # src/ui/ui-bridge.ts — late-bound, like toggleInfoBadges
   toggleRecordWindow(): void
 
 testids:

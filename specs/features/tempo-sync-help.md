@@ -12,7 +12,7 @@ source:
   - src/ui/onboarding/tempo-sync.ts
   - src/ui/onboarding/help-widgets.ts
   - src/ui/onboarding/help-content.ts
-  - src/ui/onboarding/help-mode.ts
+  - src/ui/onboarding/info-badges.ts
   - src/ui/onboarding/index.ts
 ```
 
@@ -21,7 +21,7 @@ source:
 Dialling a delay (or an LFO / phaser / wah rate) so it sits *in time* with the
 song used to mean doing the math by ear: a delay in sync with 120 BPM wants
 ~375 ms (dotted-eighth), ~250 ms (eighth), etc. Nothing surfaced those values.
-This feature turns the existing help-mode (i) badges on the relevant knobs into
+This feature turns the existing ⓘ info badges on the relevant knobs into
 **live, BPM-aware helpers**: a "sweet spots" list of musical note divisions with
 their millisecond (delay) or Hz (rate) value at the *current* tempo, where
 **clicking a value snaps the knob to it**. The same dynamic-body mechanism also
@@ -47,7 +47,7 @@ the badge just recommends/sets a plain value (delay maps its `time` param 1:1 to
 - **REQ-5** — Help-topic bodies may be a **function** `(ctx: HelpContext) => Node`
   as well as a static HTML string; `HelpContext = { bus, close }`. Static bodies
   keep working unchanged.
-- **REQ-6** — `HelpMode` receives the `ParamBus` (from `createOnboarding`) and
+- **REQ-6** — `InfoBadges` receives the `ParamBus` (from `createOnboarding`) and
   passes it to the topic body when it is a function.
 - **REQ-7** — Tempo badges pin to `knob-<paramId>` for: `fx.delay.time`,
   `fx.drum.delay.time`, `fx.sampler.delay.time` (time); `lfo.rate`,
@@ -95,8 +95,8 @@ SweetSpot:
 
 ### Layer touchpoints & ordering
 
-`createOnboarding(ctx)` builds `new HelpMode(ctx.bus)` — `TourCtx` already
-carries `bus`. `HelpMode.openTopic` appends `body(ctx)` when the body is a
+`createOnboarding(ctx)` builds `new InfoBadges(ctx.bus)` — `TourCtx` already
+carries `bus`. `InfoBadges.openTopic` appends `body(ctx)` when the body is a
 function, else sets `innerHTML` (unchanged path). New anchors are appended to
 `ANCHORS`; they reposition/hide via the existing reflow path (ResizeObserver +
 resize/scroll), exactly like the Song per-button badges, so tab-switched knobs
@@ -134,7 +134,7 @@ Scenario: Rate badge shows Hz
 # pinned by: tests/ui/tempo-sync.test.ts
 
 Scenario: End-to-end click-to-snap in the browser
-  Given help mode is on and transport.bpm is 120
+  Given the info badges are on and transport.bpm is 120
   When the user opens the Delay Time badge and clicks the "1/8" row
   Then the dialog lists 375 ms + 500 ms, closes, and fx.delay.time is 0.25;
     reopening after setting 90 BPM shows 333 ms
@@ -145,7 +145,7 @@ Scenario: End-to-end click-to-snap in the browser
 
 - Unit: `tests/ui/tempo-sync.test.ts` — pure math + `renderTempoSync` DOM/click
   against a real `ParamBus` (`registerDefaults`). `npm test`
-- E2E: `e2e/tempo-sync.spec.ts` — help mode on → Delay Time badge lists the live
+- E2E: `e2e/tempo-sync.spec.ts` — info badges on → Delay Time badge lists the live
   ms values, click-to-snap sets `fx.delay.time`, reopen after a BPM change
   refreshes. `npm run e2e`
 - Typecheck: `npm run typecheck`

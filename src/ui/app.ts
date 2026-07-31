@@ -25,7 +25,8 @@ import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-p
 import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
-import { createHelpButton } from './components/help';
+import { createBrand } from './components/brand';
+import { createInfoBadgesButton } from './components/info-badges-button';
 import { createPerfSettingsButton } from './components/perf-settings';
 import { createFullscreenButton } from './components/fullscreen-button';
 import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
@@ -147,24 +148,10 @@ function buildHeader(
   el.className = styles.header!;
   el.dataset.testid = 'app-header';
 
-  // Brand block: VAST G1-J5 / Vast Audio Synthesis Technology
-  const brand = document.createElement('div');
-  brand.className = styles.brand!;
-  const brandRow = document.createElement('div');
-  brandRow.className = styles.brandRow!;
-  const brandName = document.createElement('span');
-  brandName.className = styles.brandName!;
-  brandName.textContent = 'VAST';
-  const brandModel = document.createElement('span');
-  brandModel.className = styles.brandModel!;
-  brandModel.textContent = 'G1-J5';
-  brandRow.appendChild(brandName);
-  brandRow.appendChild(brandModel);
-  const brandTag = document.createElement('div');
-  brandTag.className = styles.brandTagline!;
-  brandTag.textContent = 'Vast Audio Synthesis Technology';
-  brand.appendChild(brandRow);
-  brand.appendChild(brandTag);
+  // Brand block (brand.md) — shared with the About and start modals. Only the
+  // divider rule to its right is the header's own (brand.md REQ-3).
+  const brand = createBrand();
+  brand.classList.add(styles.headerBrand!);
   el.appendChild(brand);
 
   // Below 720px the preset cluster collapses behind this hamburger to keep the
@@ -234,18 +221,21 @@ function buildHeader(
   presetGroup.appendChild(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
-  presetGroup.appendChild(createAboutButton(engine));
+  // ⓘ then ? — one toggles the badges, the other opens Help & About, and each
+  // does only that (onboarding.md REQ-8/REQ-20).
   presetGroup.appendChild(
-    createHelpButton({
-      startTour: onboarding.startTour,
-      toggleHelpMode: onboarding.toggleHelpMode,
-      isHelpModeActive: onboarding.isHelpModeActive,
-      onHelpModeChange: onboarding.onHelpModeChange,
+    createInfoBadgesButton({
+      toggle: onboarding.toggleInfoBadges,
+      isActive: onboarding.isInfoBadgesActive,
+      onChange: onboarding.onInfoBadgesChange,
     }),
+  );
+  presetGroup.appendChild(
+    createAboutButton(engine, { startTour: onboarding.startTour }),
   );
   // The `?` key's route to the badges (input-control.md REQ-9) — here rather
   // than in shortcuts.ts, which must not import the onboarding layer.
-  bridge.toggleHelpBadges = onboarding.toggleHelpMode;
+  bridge.toggleInfoBadges = onboarding.toggleInfoBadges;
   // Last in the row; absent (null) where the Fullscreen API is missing — iPhone Safari.
   const fullscreenBtn = createFullscreenButton();
   if (fullscreenBtn) presetGroup.appendChild(fullscreenBtn);

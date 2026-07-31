@@ -156,7 +156,7 @@ UiBridge:        # src/ui/ui-bridge.ts  (the UI's *internal* seam — see featur
   pressKey / releaseKey          # visual-only keyboard highlight (no bus call)
   toggleTransport                # clicks the real header Play button, keeping its visuals in sync
   showTab(id)                    # reveal a pattern-row tab   (machine-status.md)
-  toggleHelpBadges / cuePlay     # onboarding.md · play-button-blink.md
+  toggleInfoBadges / cuePlay     # onboarding.md · play-button-blink.md
   toggleRecordWindow             # Shift+R                    (record-window.md)
   undoActiveMachine / clearSelectedStep -> boolean  # tab-scoped keys; false ⇒ key falls through
   importSongBytes(bytes, name) -> Promise<boolean>  # OS file launch + share link -> SongPanel.importBytes
@@ -381,6 +381,8 @@ localStorage:
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
   websynth.hint.emptyplay  : "pressed Play on an empty song" hint dismissed  # ui/components/empty-play-modal.ts
   websynth.debug.about     : About-modal Debug section open    # ui/components/about.ts
+  websynth.shortcuts.about : About-modal full key list shown   # ui/components/about.ts
+  websynth.keyboard.layout : qwerty|azerty|qwertz|dvorak|auto  # state/keyboard-layout.ts — device-scoped, NOT a patch param
   websynth.ui.collapsed.*  : panel collapse state (pattern/fx) # ui/app.ts
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded —

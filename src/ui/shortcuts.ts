@@ -2,19 +2,48 @@ import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { UiBridge } from './ui-bridge';
 import { SEQ_LENGTH } from '../state/patterns';
+import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout';
 
-// Lower row, C..C (one octave + tonic)
-const LOWER: Record<string, number> = {
-  z: 0,  s: 1,  x: 2,  d: 3,  c: 4,  v: 5,
-  g: 6,  b: 7,  h: 8,  n: 9,  j: 10, m: 11,
-  ',': 12,
+/**
+ * The piano shape: which **physical** key is which semitone, two rows of C..C.
+ * Layout-independent by construction — this describes the instrument, not the
+ * keyboard, so it is also what the About modal's diagram is drawn from
+ * (input-control.md REQ-3, onboarding.md REQ-17c). A picture of the keyboard
+ * that disagrees with the keyboard is worse than no picture, so both the
+ * bindings below and that diagram come from here.
+ */
+export const NOTE_ROWS: { lower: Record<string, number>; upper: Record<string, number> } = {
+  lower: {
+    KeyZ: 0,  KeyS: 1,  KeyX: 2,  KeyD: 3,  KeyC: 4,  KeyV: 5,
+    KeyG: 6,  KeyB: 7,  KeyH: 8,  KeyN: 9,  KeyJ: 10, KeyM: 11,
+    Comma: 12,
+  },
+  upper: {
+    KeyQ: 12, Digit2: 13, KeyW: 14, Digit3: 15, KeyE: 16, KeyR: 17,
+    Digit5: 18, KeyT: 19, Digit6: 20, KeyY: 21, Digit7: 22, KeyU: 23,
+    KeyI: 24,
+  },
 };
-// Upper row, C..C (one octave higher than LOWER)
-const UPPER: Record<string, number> = {
-  q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17,
-  '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23,
-  i: 24,
-};
+
+/**
+ * `character -> semitone`, composed from `NOTE_ROWS` and the active layout
+ * (keyboard-layout.md REQ-1). Matching stays on `e.key`, so these are rebuilt
+ * **in place** on a layout change — `installShortcuts` closes over them.
+ */
+const LOWER: Record<string, number> = {};
+const UPPER: Record<string, number> = {};
+
+function rebuildNoteMaps(): void {
+  const chars = LAYOUTS[resolveLayout()].keys;
+  for (const [row, target] of [[NOTE_ROWS.lower, LOWER], [NOTE_ROWS.upper, UPPER]] as const) {
+    for (const k of Object.keys(target)) delete target[k];
+    for (const [code, semitone] of Object.entries(row)) {
+      const ch = chars[code];
+      if (ch) target[ch] = semitone;
+    }
+  }
+}
+rebuildNoteMaps();
 
 /** True when the event originates inside an editable field, where keystrokes
  *  must reach the field rather than play the synth. */
@@ -52,6 +81,16 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
     bridge.releaseKey(note);
     bus.noteOff(note);
   }
+
+  // A layout switch re-keys `held` out from under itself: an entry stored under
+  // the old character can never match a future keyup, so it would hang exactly
+  // like the octave shift in REQ-11. Release everything first, then remap —
+  // same rule the `blur` handler follows (input-control.md REQ-13).
+  onLayoutChange(() => {
+    for (const note of held.values()) release(note);
+    held.clear();
+    rebuildNoteMaps();
+  });
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
@@ -104,18 +143,28 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       return;
     }
 
-    // `?` — show/hide the help badges (input-control.md REQ-9). Ordered ABOVE
+    // `?` — show/hide the info badges (input-control.md REQ-9). Ordered ABOVE
     // the pitch-bend branch below: `e.key` for Shift+/ is '?', so '/' never
     // matches today, but a layout quirk must not turn a help request into a bend.
     if (k === '?') {
       e.preventDefault();
-      bridge.toggleHelpBadges();
+      bridge.toggleInfoBadges();
       return;
     }
 
-    // Pitch bend (springs back on release)
-    if (k === '.') { bus.set('master.pitchBend', 1); return; }
-    if (k === '/') { bus.set('master.pitchBend', -1); return; }
+    // Pitch bend, springs back on release (input-control.md REQ-12). `'` sits
+    // directly above `/` on the board, so the keys state which way is up — `.`
+    // and `/` were side by side, which made the mapping pure memorisation. `.`
+    // is deliberately left unbound rather than kept as an alias.
+    //
+    // Matched on `e.code`, the only branch here that is: the pair is chosen for
+    // *where the keys sit*, so position is what to match. `e.key` broke three
+    // ways — a dead-key layout reports `Dead` for `'`, QWERTZ/AZERTY put neither
+    // character where the diagram draws it, and Shift mid-hold flipped the
+    // keyup's `e.key` to `?`/`"` so the release below missed and the bend stuck.
+    // `?` is handled above and returns, so Shift+Slash still reaches the badges.
+    if (e.code === 'Quote') { bus.set('master.pitchBend', 1); return; }
+    if (e.code === 'Slash') { bus.set('master.pitchBend', -1); return; }
 
     // Octave shift
     if (k === 'ArrowLeft') {
@@ -156,7 +205,9 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
   window.addEventListener('keyup', (e: KeyboardEvent) => {
     if (isEditableTarget(e)) return; // let text fields receive their keystrokes
     const k = e.key;
-    if (k === '.' || k === '/') { bus.set('master.pitchBend', 0); return; }
+    // Same `e.code` the press used, so a Shift pressed or released mid-hold
+    // cannot strand the bend (REQ-12; the note-key twin of this is REQ-11).
+    if (e.code === 'Quote' || e.code === 'Slash') { bus.set('master.pitchBend', 0); return; }
     if (k === 'f' || k === 'F') {
       if (fillHeld) { fillHeld = false; engine.perf.setFill(false); }
       return;

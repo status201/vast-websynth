@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { installShortcuts } from '../../src/ui/shortcuts';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { UiBridge } from '../../src/ui/ui-bridge';
+import { writeLayoutPref, resetDetectionForTests } from '../../src/state/keyboard-layout';
+import { installLocalStorageMock } from '../storage-mock';
 import type { StudioApi } from '../../src/ui/studio-api';
 
 function setup(seekOpts: { refuse?: boolean } = {}) {
@@ -27,11 +29,11 @@ function setup(seekOpts: { refuse?: boolean } = {}) {
     canSeek: () => !seekOpts.refuse,
   } as unknown as StudioApi;
   installShortcuts(engine, bus, bridge);
-  return { bus, bridge, clock, seekTo };
+  return { bus, bridge, clock, seekTo, engine };
 }
 
-function keydown(target: EventTarget, key: string) {
-  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+function keydown(target: EventTarget, key: string, code?: string) {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, code, bubbles: true }));
 }
 
 function modKeydown(target: EventTarget, key: string, init: KeyboardEventInit = {}): boolean {
@@ -106,7 +108,7 @@ describe('installShortcuts Ctrl/Cmd+Z routing (pattern-undo.md REQ-10)', () => {
 
 // input-control.md REQ-9 / onboarding.md REQ-19. One install for the describe,
 // like the others above: every setup() leaks a window handler.
-describe('installShortcuts ? toggles the help badges (input-control.md REQ-9)', () => {
+describe('installShortcuts ? toggles the info badges (input-control.md REQ-9)', () => {
   const { bus, bridge } = setup();
 
   afterEach(() => {
@@ -116,17 +118,18 @@ describe('installShortcuts ? toggles the help badges (input-control.md REQ-9)', 
 
   it('routes ? to the bridge without bending pitch', () => {
     const toggle = vi.fn();
-    bridge.toggleHelpBadges = toggle;
-    const unprevented = modKeydown(document.body, '?', { shiftKey: true });
+    bridge.toggleInfoBadges = toggle;
+    // A real Shift+/ carries code 'Slash', which is what the bend branch now
+    // matches — so this also pins that `?` keeps winning the race (REQ-12).
+    const unprevented = modKeydown(document.body, '?', { shiftKey: true, code: 'Slash' });
     expect(toggle).toHaveBeenCalledTimes(1);
     expect(unprevented).toBe(false);
-    // The '/' pitch-bend branch must never see it — e.key for Shift+/ is '?'.
     expect(bus.get('master.pitchBend')).toBe(0);
   });
 
   it('leaves ? alone inside an editable field', () => {
     const toggle = vi.fn();
-    bridge.toggleHelpBadges = toggle;
+    bridge.toggleInfoBadges = toggle;
     const input = document.createElement('input');
     document.body.appendChild(input);
     modKeydown(input, '?', { shiftKey: true });
@@ -135,10 +138,161 @@ describe('installShortcuts ? toggles the help badges (input-control.md REQ-9)', 
 
   it('still bends pitch on a bare / (regression)', () => {
     const toggle = vi.fn();
-    bridge.toggleHelpBadges = toggle;
-    keydown(document.body, '/');
+    bridge.toggleInfoBadges = toggle;
+    keydown(document.body, '/', 'Slash');
     expect(bus.get('master.pitchBend')).toBe(-1);
     expect(toggle).not.toHaveBeenCalled();
+  });
+});
+
+// input-control.md REQ-13 / keyboard-layout.md. The note maps are composed from
+// the piano shape (code -> semitone) and the active layout (code -> character),
+// so a switch moves which characters reach the instrument.
+describe('installShortcuts keyboard layout (input-control.md REQ-13)', () => {
+  const { bus, bridge, engine: engineStub } = setup();
+  const notes: Array<[boolean, number]> = [];
+  bus.onNote((on, note) => { notes.push([on, note]); });
+
+  const keyup = (key: string) => {
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+  };
+
+  beforeEach(() => {
+    installLocalStorageMock();
+    resetDetectionForTests();
+    // Every setup() in this file leaks a window listener, so a keydown in an
+    // earlier describe latched `held` in *this* install too — and a latched key
+    // makes the next press a no-op. `blur` is the module's own bulk release.
+    window.dispatchEvent(new Event('blur'));
+    notes.length = 0;
+    vi.mocked(bridge.pressKey).mockClear();
+  });
+
+  afterEach(() => {
+    writeLayoutPref('qwerty'); // leave the module-level maps as the next suite expects
+    document.body.innerHTML = '';
+  });
+
+  it('plays the bottom C from the key each layout prints there', () => {
+    // QWERTY: that key prints "z".
+    keydown(document.body, 'z');
+    keyup('z');
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+
+    // AZERTY prints "w" on the same physical key — and "z" moves to the upper
+    // octave's D, so the old binding must no longer sound the bottom C.
+    notes.length = 0;
+    writeLayoutPref('azerty');
+    keydown(document.body, 'w');
+    keyup('w');
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+
+    notes.length = 0;
+    keydown(document.body, 'z');
+    keyup('z');
+    expect(notes).toEqual([[true, 74], [false, 74]]); // upper octave D, not C
+  });
+
+  it('QWERTZ swaps only Y and Z', () => {
+    writeLayoutPref('qwertz');
+    keydown(document.body, 'y');
+    keyup('y');
+    expect(notes).toEqual([[true, 60], [false, 60]]); // the bottom-left key
+  });
+
+  it('releases a held note before remapping, so it cannot hang (edge)', () => {
+    keydown(document.body, 'z'); // held down on QWERTY
+    expect(notes).toEqual([[true, 60]]);
+
+    writeLayoutPref('azerty'); // "z" no longer names that note
+    expect(notes).toEqual([[true, 60], [false, 60]]);
+
+    // The stale keyup must not double-release or resurrect anything.
+    notes.length = 0;
+    keyup('z');
+    expect(notes).toEqual([]);
+  });
+
+  it('leaves the non-note letters alone (keyboard-layout.md REQ-5)', () => {
+    writeLayoutPref('azerty');
+    // F is still F: drum fill is a command, not part of the instrument.
+    keydown(document.body, 'f');
+    expect(engineStub.perf.setFill).toHaveBeenCalledWith(true);
+    keyup('f');
+  });
+});
+
+// input-control.md REQ-12. `'` sits directly above `/` on the board, so the
+// physical arrangement states which way is up — `.` and `/` were side by side.
+// Both are matched on e.code, because position is the whole premise.
+describe('installShortcuts pitch bend keys (input-control.md REQ-12)', () => {
+  const { bus } = setup();
+
+  const keyup = (key: string, code?: string) => {
+    document.body.dispatchEvent(new KeyboardEvent('keyup', { key, code, bubbles: true }));
+  };
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    bus.set('master.pitchBend', 0);
+  });
+
+  it("' bends up and springs back on release", () => {
+    keydown(document.body, "'", 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(1);
+    keyup("'", 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  it('/ bends down and springs back on release', () => {
+    keydown(document.body, '/', 'Slash');
+    expect(bus.get('master.pitchBend')).toBe(-1);
+    keyup('/', 'Slash');
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  it('. is unbound — not kept as a second way to bend up', () => {
+    keydown(document.body, '.', 'Period');
+    expect(bus.get('master.pitchBend')).toBe(0);
+    // And its keyup can't clear a bend someone else is holding.
+    keydown(document.body, "'", 'Quote');
+    keyup('.', 'Period');
+    expect(bus.get('master.pitchBend')).toBe(1);
+  });
+
+  it('is suppressed inside an editable field like every other key (REQ-5)', () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    keydown(input, "'", 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  // The bug that made this positional: Shift flips e.key on the way out, so a
+  // key-matched release missed and the bend stayed pinned. Same failure REQ-11
+  // fixes for note-offs — nothing may hold state whose release depends on a
+  // value free to change mid-hold.
+  it('releases even when Shift is pressed mid-hold (regression)', () => {
+    keydown(document.body, '/', 'Slash');
+    expect(bus.get('master.pitchBend')).toBe(-1);
+    // Shift down mid-hold: the release now reports '?' as its key.
+    keyup('?', 'Slash');
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  it("releases the up-bend too when Shift turns ' into \" (regression)", () => {
+    keydown(document.body, "'", 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(1);
+    keyup('"', 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(0);
+  });
+
+  // Where Quote is a dead key (US-International) the browser reports 'Dead' as
+  // the key but still names the physical one.
+  it('bends on a dead-key layout, where e.key reads "Dead"', () => {
+    keydown(document.body, 'Dead', 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(1);
+    keyup('Dead', 'Quote');
+    expect(bus.get('master.pitchBend')).toBe(0);
   });
 });
 

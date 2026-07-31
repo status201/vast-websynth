@@ -1,6 +1,11 @@
-// Help mode: while on, small (i) badges hover over each section; clicking one
+// Info badges: while on, small ⓘ badges hover over each section; clicking one
 // opens a contextual explanation in a Modal. While off there is zero added
 // chrome, so the synth still looks like a real instrument.
+//
+// The badges are named for the glyph they draw, which is also the glyph on the
+// header button that switches them on (onboarding.md REQ-3/REQ-8). What a badge
+// *opens* is still a "help topic" — hence `HELP_TOPICS` and the `data-help`
+// anchors below; the boundary is deliberate.
 import { Modal } from '../components/modal';
 import { createButton } from '../components/button';
 import switchStyles from '../styles/switch.module.css';
@@ -28,7 +33,7 @@ const BADGE_SIZE = 20;
 const byTestId = (id: string): Element | null => document.querySelector(`[data-testid="${id}"]`);
 const byHelp = (name: string): Element | null => document.querySelector(`[data-help="${name}"]`);
 
-// One anchor per topic (so `help-badge-<topic>` testids stay unique). Most pin
+// One anchor per topic (so `info-badge-<topic>` testids stay unique). Most pin
 // to an existing data-testid; section panels pin via a `data-help` attribute.
 const ANCHORS: Anchor[] = [
   { topic: 'transport', find: () => byTestId('transport-play') },
@@ -124,7 +129,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.master.comp.threshold', find: () => byTestId('knob-fx.master.comp.threshold') },
 ];
 
-export class HelpMode {
+export class InfoBadges {
   private active = false;
   private layer: HTMLElement | null = null;
   private badges: Array<{ el: HTMLElement; anchor: Element; place: 'corner' | 'after'; inHeader: boolean }> = [];
@@ -151,7 +156,7 @@ export class HelpMode {
 
     const layer = document.createElement('div');
     layer.className = styles.badgeLayer!;
-    layer.dataset.testid = 'help-badge-layer';
+    layer.dataset.testid = 'info-badge-layer';
     document.body.appendChild(layer);
     this.layer = layer;
     this.headerEl = byTestId('app-header');
@@ -163,8 +168,8 @@ export class HelpMode {
       el.type = 'button';
       el.className = styles.badge!;
       el.textContent = 'i';
-      el.dataset.testid = `help-badge-${a.topic}`;
-      el.setAttribute('aria-label', `Help: ${HELP_TOPICS[a.topic].title}`);
+      el.dataset.testid = `info-badge-${a.topic}`;
+      el.setAttribute('aria-label', `Info: ${HELP_TOPICS[a.topic].title}`);
       el.addEventListener('click', () => this.openTopic(a.topic));
       layer.appendChild(el);
       this.badges.push({

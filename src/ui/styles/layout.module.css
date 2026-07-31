@@ -123,57 +123,13 @@
   z-index: 10;
 }
 
-.brand {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  line-height: 1;
+/* Header-only framing for the shared brand block (components/brand.ts). The
+   block itself is styled by brand.module.css and carries no outer framing, so
+   this divider rule can't leak into the About or start modal — brand.md REQ-3. */
+.headerBrand {
   padding-right: 8px;
   border-right: 1px solid rgba(244, 205, 94, 0.18);
   margin-right: 4px;
-}
-
-.brandRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brandName {
-  font-family: var(--serif);
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: var(--accent-secondary);
-  text-shadow:
-    0 0 6px var(--accent-secondary-glow),
-    0 1px 0 rgba(0, 0, 0, 0.85),
-    0 2px 4px rgba(0, 0, 0, 0.6);
-  text-transform: uppercase;
-}
-
-.brandModel {
-  font-family: 'Courier New', monospace;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-  text-shadow: 0 0 4px var(--accent-glow);
-  padding: 3px 8px;
-  border: 1px solid rgba(232, 116, 46, 0.55);
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.4);
-  line-height: 1;
-}
-
-.brandTagline {
-  font-family: var(--serif);
-  font-size: 7.5px;
-  font-style: normal;
-  letter-spacing: 0.15em;
-  color: var(--text);
-  text-transform: uppercase;
-  margin-top: 4px;
 }
 
 .headerSpacer { flex: 1; }

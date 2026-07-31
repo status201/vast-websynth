@@ -63,7 +63,7 @@ test('auto-launches on first visit, drives first sound, and never nags again', a
   await expect(page.getByTestId('tour-callout')).toBeHidden();
 });
 
-test('Help button replays the tour and toggles contextual badges', async ({ page }) => {
+test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }) => {
   await page.addInitScript(() => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
@@ -75,15 +75,15 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await startBtn(page).click();
   await expect(page.getByTestId('tour-callout')).toBeHidden(); // no auto-launch
 
-  // Toggle help badges on.
-  await page.getByTestId('help-button').click();
-  await page.getByTestId('help-toggle-badges').click();
+  // One click on ⓘ switches the badges on (onboarding.md REQ-8).
+  await page.getByTestId('info-badges').click();
 
-  // The Help button now reads as active (orange) while the badges show.
-  await expect(page.getByTestId('help-button')).toHaveClass(/toggleActive/);
+  // The ⓘ button now reads as active (orange) while the badges show.
+  await expect(page.getByTestId('info-badges')).toHaveClass(/toggleActive/);
+  await expect(page.getByTestId('info-badges')).toHaveAttribute('aria-pressed', 'true');
 
   // A section badge anchored via `data-help` opens its contextual modal.
-  const subuni = page.getByTestId('help-badge-subuni');
+  const subuni = page.getByTestId('info-badge-subuni');
   await expect(subuni).toBeVisible();
   await subuni.click();
   const subuniDialog = page.getByRole('dialog', { name: 'Sub & Unison' });
@@ -92,7 +92,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
 
   // The header Presets button carries its own badge (onboarding.md REQ-12); its
   // copy has to separate a preset (one sound) from a song (the arrangement).
-  const presetBadge = page.getByTestId('help-badge-presets');
+  const presetBadge = page.getByTestId('info-badge-presets');
   await expect(presetBadge).toBeVisible();
   await presetBadge.click();
   const presetDialog = page.getByRole('dialog', { name: 'Presets' });
@@ -101,7 +101,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await presetDialog.getByRole('button', { name: 'Close' }).click();
 
   // A per-machine badge anchored to a tab button opens its own modal.
-  const arpBadge = page.getByTestId('help-badge-arp');
+  const arpBadge = page.getByTestId('info-badge-arp');
   await expect(arpBadge).toBeVisible();
   await arpBadge.click();
   const arpDialog = page.getByRole('dialog', { name: 'Arpeggiator' });
@@ -111,7 +111,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   // Collapsing/expanding a panel repositions the badges via a ResizeObserver
   // (no scroll/resize fires). A per-effect badge shows while FX is expanded,
   // hides when it collapses, and returns when it reopens.
-  const distBadge = page.getByTestId('help-badge-fx.dist');
+  const distBadge = page.getByTestId('info-badge-fx.dist');
   await expect(distBadge).toBeVisible();
   await page.getByTestId('fx').click({ position: { x: 20, y: 10 } }); // collapse FX bar
   await expect(distBadge).toBeHidden();
@@ -124,7 +124,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   // via the pattern-row ResizeObserver.
   await page.getByTestId('tab-seq').click();
   await page.getByTestId('seq-import-render').scrollIntoViewIfNeeded();
-  const renderBadge = page.getByTestId('help-badge-seq.render');
+  const renderBadge = page.getByTestId('info-badge-seq.render');
   await expect(renderBadge).toBeVisible();
   await renderBadge.click();
   const renderDialog = page.getByRole('dialog', { name: 'Import into sampler' });
@@ -135,7 +135,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   // REQ-16) — one topic id per lane, because a hidden tab's anchor measures 0×0
   // and takes its badge with it. Check two tabs so the per-lane wiring is real.
   await page.getByTestId('ruler-seq').scrollIntoViewIfNeeded();
-  const seqRulerBadge = page.getByTestId('help-badge-transport.ruler.seq');
+  const seqRulerBadge = page.getByTestId('info-badge-transport.ruler.seq');
   await expect(seqRulerBadge).toBeVisible();
   await seqRulerBadge.click();
   const rulerDialog = page.getByRole('dialog', { name: 'Playhead ruler' });
@@ -144,13 +144,13 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
 
   await page.getByTestId('tab-drums').click();
   await page.getByTestId('ruler-drum').scrollIntoViewIfNeeded();
-  await expect(page.getByTestId('help-badge-transport.ruler.drum')).toBeVisible();
-  await expect(page.getByTestId('help-badge-transport.ruler.seq')).toBeHidden();
+  await expect(page.getByTestId('info-badge-transport.ruler.drum')).toBeVisible();
+  await expect(page.getByTestId('info-badge-transport.ruler.seq')).toBeHidden();
 
   // The Song tab's transport row, badged on its launcher (transport-window REQ-10).
   await page.getByTestId('tab-song').click();
   await page.getByTestId('transport-open').scrollIntoViewIfNeeded();
-  const transportBadge = page.getByTestId('help-badge-transport.song');
+  const transportBadge = page.getByTestId('info-badge-transport.song');
   await expect(transportBadge).toBeVisible();
   await transportBadge.click();
   const transportDialog = page.getByRole('dialog', { name: 'Transport & song position' });
@@ -160,7 +160,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   // The Live FX row directly below it, badged the same way — its launcher is
   // its section title too (live-fx-window REQ-7). The two read as a pair.
   await page.getByTestId('livefx-open').scrollIntoViewIfNeeded();
-  const fxBadge = page.getByTestId('help-badge-song.fx');
+  const fxBadge = page.getByTestId('info-badge-song.fx');
   await expect(fxBadge).toBeVisible();
   await fxBadge.click();
   const fxDialog = page.getByRole('dialog', { name: 'Live FX' });
@@ -173,7 +173,7 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   // land on-screen (the scroll re-runs the badge layout), then check both modals.
   await page.getByTestId('tab-song').click();
   await page.getByTestId('song-save').scrollIntoViewIfNeeded();
-  const saveBadge = page.getByTestId('help-badge-song.save');
+  const saveBadge = page.getByTestId('info-badge-song.save');
   await expect(saveBadge).toBeVisible();
   await saveBadge.click();
   const saveDialog = page.getByRole('dialog', { name: 'Save' });
@@ -181,31 +181,28 @@ test('Help button replays the tour and toggles contextual badges', async ({ page
   await saveDialog.getByRole('button', { name: 'Close' }).click();
 
   await page.getByTestId('song-export').scrollIntoViewIfNeeded();
-  const exportBadge = page.getByTestId('help-badge-song.export');
+  const exportBadge = page.getByTestId('info-badge-song.export');
   await expect(exportBadge).toBeVisible();
   await exportBadge.click();
   const exportDialog = page.getByRole('dialog', { name: 'Export' });
   await expect(exportDialog).toContainText('Save'); // Export copy cross-references Save
   await exportDialog.getByRole('button', { name: 'Close' }).click();
 
-  // While the badges show, the active Help button is a one-click off switch:
-  // clicking it disables the badges directly, without opening the menu.
-  await page.getByTestId('help-button').click();
+  // The same click switches them back off — one gesture, one outcome (REQ-8).
+  await page.getByTestId('info-badges').click();
   await expect(arpBadge).toBeHidden();
-  await expect(page.getByTestId('help-button')).not.toHaveClass(/toggleActive/);
-  await expect(page.getByTestId('help-start-tour')).toHaveCount(0); // no modal opened
+  await expect(page.getByTestId('info-badges')).not.toHaveClass(/toggleActive/);
 
-  // Replay the tour on demand — with badges off, the Help button opens the
-  // chooser menu again.
-  await page.getByTestId('help-button').click();
-  await page.getByTestId('help-start-tour').click();
+  // Replay the tour on demand — that lives behind ?, the other header door.
+  await page.getByTestId('about-button').click();
+  await page.getByTestId('start-tour').click();
   await expect(page.getByTestId('tour-callout')).toBeVisible();
 });
 
-test('Shift+click on Help toggles the badges without a modal round trip', async ({ page }) => {
-  // onboarding.md REQ-19: switching badges OFF has been one click since REQ-8;
-  // switching them ON cost Help -> modal -> Toggle -> close. A modifier click is
-  // the same gesture in both directions and never opens the chooser.
+test('the ⓘ button is a pure toggle and the ? button never touches the badges', async ({ page }) => {
+  // onboarding.md REQ-8/REQ-19: the v13 modifier-click and long-press existed to
+  // skip a chooser modal that no longer exists, so a plain click is the whole
+  // inventory — and the modifier click must be no more than a plain click.
   await page.addInitScript(() => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1'); // no auto-tour overlay
@@ -216,28 +213,32 @@ test('Shift+click on Help toggles the badges without a modal round trip', async 
   await page.goto('/');
   await startBtn(page).click();
 
-  const help = page.getByTestId('help-button');
-  await help.click({ modifiers: ['Shift'] });
-  await expect(page.getByTestId('help-badge-layer')).toBeVisible();
-  await expect(page.getByTestId('help-badge-arp')).toBeVisible();
-  await expect(help).toHaveClass(/toggleActive/);
-  await expect(page.getByTestId('help-start-tour')).toHaveCount(0); // no modal
+  const info = page.getByTestId('info-badges');
+  await info.click();
+  await expect(page.getByTestId('info-badge-layer')).toBeVisible();
+  await expect(page.getByTestId('info-badge-arp')).toBeVisible();
+  await expect(info).toHaveClass(/toggleActive/);
 
-  // Same gesture again hides them — one gesture, one outcome (ADR-014 law 2).
-  await help.click({ modifiers: ['Shift'] });
-  await expect(page.getByTestId('help-badge-layer')).toHaveCount(0);
-  await expect(help).not.toHaveClass(/toggleActive/);
-  await expect(page.getByTestId('help-start-tour')).toHaveCount(0);
+  await info.click();
+  await expect(page.getByTestId('info-badge-layer')).toHaveCount(0);
+  await expect(info).not.toHaveClass(/toggleActive/);
+
+  // A modifier click is now just a click — one toggle, nothing extra.
+  await info.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('info-badge-layer')).toBeVisible();
+  await info.click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('info-badge-layer')).toHaveCount(0);
 
   // The `?` key is the keyboard route to the same toggle (input-control.md REQ-9).
   await page.keyboard.press('Shift+Slash');
-  await expect(page.getByTestId('help-badge-layer')).toBeVisible();
+  await expect(page.getByTestId('info-badge-layer')).toBeVisible();
   await page.keyboard.press('Shift+Slash');
-  await expect(page.getByTestId('help-badge-layer')).toHaveCount(0);
+  await expect(page.getByTestId('info-badge-layer')).toHaveCount(0);
 
-  // A plain click still opens the chooser, unchanged (REQ-8).
-  await help.click();
-  await expect(page.getByTestId('help-start-tour')).toBeVisible();
+  // ? opens About and leaves the badges alone — the two doors never overlap.
+  await page.getByTestId('about-button').click();
+  await expect(page.getByTestId('start-tour')).toBeVisible();
+  await expect(page.getByTestId('info-badge-layer')).toHaveCount(0);
 });
 
 test('the tour showcases the Song tab and ends there, ready to play', async ({ page }) => {
@@ -253,8 +254,8 @@ test('the tour showcases the Song tab and ends there, ready to play', async ({ p
 
   // Replay on demand rather than relying on the auto-launch, so this spec is
   // independent of first-visit ordering.
-  await page.getByTestId('help-button').click();
-  await page.getByTestId('help-start-tour').click();
+  await page.getByTestId('about-button').click();
+  await page.getByTestId('start-tour').click();
 
   const callout = page.getByTestId('tour-callout');
   await expect(callout).toBeVisible();
@@ -307,11 +308,10 @@ test('contextual badges hide when their control scrolls under the sticky header'
   await page.goto('/');
   await startBtn(page).click();
 
-  await page.getByTestId('help-button').click();
-  await page.getByTestId('help-toggle-badges').click();
+  await page.getByTestId('info-badges').click();
 
-  const oscBadge = page.getByTestId('help-badge-oscillators'); // content (OSC 1 panel)
-  const voicingBadge = page.getByTestId('help-badge-voicing'); // header control
+  const oscBadge = page.getByTestId('info-badge-oscillators'); // content (OSC 1 panel)
+  const voicingBadge = page.getByTestId('info-badge-voicing'); // header control
   await expect(oscBadge).toBeVisible();
   await expect(voicingBadge).toBeVisible();
 

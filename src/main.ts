@@ -3,6 +3,7 @@ import { ParamBus } from './state/params';
 import { PERF_PROFILES, resolveTier } from './state/perf-mode';
 import { mountApp } from './ui/app';
 import { installShortcuts } from './ui/shortcuts';
+import { primeDetection } from './state/keyboard-layout';
 import { initMIDI } from './audio/midi';
 import { Presets } from './state/preset';
 import { PresetSession, isPatchParam } from './state/preset-session';
@@ -15,6 +16,7 @@ import { UiBridge } from './ui/ui-bridge';
 import { parseSongLink, decodeSongPayload } from './state/song-link';
 import { MAX_SONG_JSON_BYTES } from './state/limits';
 import { Modal } from './ui/components/modal';
+import { createBrand } from './ui/components/brand';
 import { alertDialog, confirmDialog } from './ui/components/dialog';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast } from './ui/components/toast';
@@ -85,6 +87,12 @@ async function boot() {
   // Per-machine step-grid undo — pure state like session/xy, so it lives here
   // (not on StudioApi) and threads into the machine panels via mountApp.
   const patternUndo = new PatternUndo(engine.patterns);
+
+  // Which characters this keyboard prints, before anything renders the note
+  // mapping or binds to it (keyboard-layout.md REQ-3). Feature-detected and
+  // failure-tolerant, so a browser without the API just costs one resolved
+  // promise and leaves 'auto' reading as QWERTY.
+  await primeDetection();
 
   const bridge = new UiBridge();
   const onboarding = mountApp(document.getElementById('app')!, engine, bus, bridge, session, xy, patternUndo);
@@ -286,13 +294,9 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', 'Start VAST G1-J5');
 
-  const title = document.createElement('div');
-  title.className = Modal.titleClass;
-  title.textContent = 'VAST G1-J5';
-
-  const tag = document.createElement('div');
-  tag.className = Modal.tagClass;
-  tag.textContent = 'Vast Audio Synthesis Technology';
+  // The first thing anyone sees, so it shows the real faceplate (brand.md).
+  // `.start-card` centres it — the block itself has no alignment (REQ-4).
+  const brand = createBrand();
 
   const startBtn = document.createElement('button');
   startBtn.type = 'button';
@@ -316,8 +320,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   };
   startBtn.addEventListener('click', start);
 
-  card.appendChild(title);
-  card.appendChild(tag);
+  card.appendChild(brand);
   card.appendChild(startBtn);
   backdrop.appendChild(card);
   document.body.appendChild(backdrop);

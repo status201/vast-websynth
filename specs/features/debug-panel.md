@@ -3,7 +3,9 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 7   # v7: + the Background audio row (audio-lifecycle.md REQ-12)
+version: 8   # v8: createAboutButton takes the tour hook too, and the section
+             #     header class is now the shared `.secFold` (onboarding.md v15)
+             # v7: + the Background audio row (audio-lifecycle.md REQ-12)
              # v6: + the Media session row (media-session.md REQ-8); v5 put
              #     Clock.dropouts on the Transport row (audio-lifecycle REQ-7)
 owner: core
@@ -87,7 +89,7 @@ instead of transcribing it from a phone screen.
   state — not a new API.
 - **REQ-4** — **Extension contract**: a feature adds rows inside `buildDebugSection` by
   calling `addRow` and reading either the `StudioApi` passed to
-  `createAboutButton(engine)` or, for state that lives outside the Engine, a
+  `createAboutButton(engine, deps)` or, for state that lives outside the Engine, a
   **late-bound module hook** the owner binds at boot (the same idiom as app.ts's
   live scope knobs). No contract change is needed to add a row. Current
   contributors: [`ios-audio`](ios-audio.md) (Audio unlock / Silent loop, from
@@ -169,7 +171,9 @@ instead of transcribing it from a phone screen.
 
 ```yaml
 # src/ui/components/about.ts
-createAboutButton(engine: StudioApi): HTMLButtonElement
+createAboutButton(engine: StudioApi, deps: { startTour(): void }): HTMLButtonElement
+  # deps is the tour hook the modal's "Take the guided tour" button calls
+  # (onboarding.md REQ-20) — injected, so about.ts never imports onboarding.
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void

@@ -486,7 +486,7 @@ Scenario: The A/B tracks show the playhead while playing (v6)
 # pinned by: e2e/motion.spec.ts
 
 Scenario: The XY lane and the tracks each carry a short help badge (v6)
-  Given help mode is on and the Motion tab is open
+  Given the info badges are on and the Motion tab is open
   Then a `motion.xy` badge anchors to the XY lane header and a `motion.tracks`
     badge anchors to the A track's row, each a short explainer distinct from the
     essay-length `motion` badge on the tab

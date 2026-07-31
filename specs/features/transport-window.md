@@ -284,7 +284,7 @@ Scenario: Transport controls go inert while slaved (REQ-8)
 # pinned by: tests/ui/transport-controls.test.ts
 
 Scenario: The row carries a help badge on its launcher (REQ-10)
-  Given help mode is on and the Song tab is open
+  Given the info badges are on and the Song tab is open
   Then a `transport.song` badge anchors to the TRANSPORT launcher
 # pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 ```

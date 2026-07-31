@@ -107,7 +107,7 @@ test.describe('responsive machine header', () => {
     await page.getByTestId('tab-sampler').click();
 
     // fx-group REQ-5: help must stay reachable for a bypassed effect, and
-    // HelpMode hides badges on zero-size anchors — so the root keeps a box
+    // InfoBadges hides badges on zero-size anchors — so the root keeps a box
     // even though its knobs are hidden and the header has wrapped.
     const reverb = page.getByTestId(fxId('reverb'));
     await expect(page.getByTestId('knob-fx.sampler.reverb.mix')).toBeHidden();

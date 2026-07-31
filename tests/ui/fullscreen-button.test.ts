@@ -65,7 +65,7 @@ describe('createFullscreenButton', () => {
     doc.fullscreenElement = document.createElement('div');
     doc.fire('fullscreenchange');
     expect(btn.classList.contains('on')).toBe(true);
-    // The orange active glow — same treatment as the Help button's badge state.
+    // The orange active glow — same treatment as the ⓘ info-badges button.
     expect(btn.classList.contains(tourStyles.toggleActive!)).toBe(true);
     expect(btn.innerHTML).toBe(norm(HEADER_ICONS.compress));
 

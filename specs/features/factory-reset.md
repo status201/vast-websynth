@@ -3,12 +3,15 @@
 ```yaml
 id: factory-reset
 status: implemented
-version: 2
+version: 3  # v3: the About card gained a tour button and a folded key list above
+            #     this one — its two neighbours are unchanged (onboarding.md v15)
 owner: core
 related:
   - architecture
   - dialog
   - debug-panel
+  - onboarding
+  - brand
   - sample-persistence   # the one non-localStorage store this must also wipe
 source:
   - src/state/factory-reset.ts
@@ -29,7 +32,9 @@ storage and reloads the app into a pristine, factory-seeded state.
 
 - **REQ-1** — The About modal (`ui/components/about.ts`) shows a full-width
   **"Restore to Factory Settings"** button placed **below the Keyboard
-  Shortcuts grid and above the Debug section header**. It carries
+  Shortcuts grid and above the Debug section header** — both neighbours
+  unchanged by the v15 About rework, which folds the shortcuts grid
+  ([onboarding](onboarding.md) REQ-17b) but does not move it. It carries
   `data-testid="factory-reset"` and is styled as a destructive action (the
   dialog module's `danger` recolour composed onto the shared switch button
   style).
@@ -83,8 +88,12 @@ restoreFactorySettings(reload?: () => void): Promise<void>
 
 ```yaml
 src/ui/components/about.ts:
-  buildModal: card children order ->
-    [title, tag, meta, shortcuts sec, keys, FACTORY-RESET BUTTON, debug.header, debug.body, closeBtn]
+  buildModal: card children order ->            # v3: tourBtn + the folded key list
+    [brand, meta, tourBtn, shortcuts sec, layout row, keys,
+     FACTORY-RESET BUTTON, debug.header, debug.body, closeBtn]
+    # `brand` is the shared block (features/brand.md), not a title/tag pair;
+    # `layout row` is the gear's picker (features/keyboard-layout.md), which
+    # sits between the foldable header and the grid it folds
   click -> confirmDialog({ danger, detail: nintendo line }) -> ok? restoreFactorySettings()
 src/ui/components/dialog.ts: ConfirmOptions.detail (italic second paragraph — see dialog.md REQ-7)
 ```

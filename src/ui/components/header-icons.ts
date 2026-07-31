@@ -22,13 +22,13 @@ export const HEADER_ICONS = {
     '<path d="M8 11 L11.2 6.2"/>' +
     '<circle class="fill" cx="8" cy="11" r="1.2"/>',
   ),
-  /** ⓘ — About. */
-  about: icon(
+  /** ⓘ — the info-badges toggle. Same glyph the badges themselves draw. */
+  info: icon(
     '<circle cx="8" cy="8" r="6"/>' +
     '<path d="M8 7.5 V11.2"/>' +
     '<circle class="fill" cx="8" cy="5" r="1"/>',
   ),
-  /** ? in a circle — Help. */
+  /** ? in a circle — Help & About. */
   help: icon(
     '<circle cx="8" cy="8" r="6"/>' +
     '<path d="M6.3 6.6 A1.8 1.8 0 1 1 8.6 8.4 C8.1 8.7 8 9 8 9.6"/>' +

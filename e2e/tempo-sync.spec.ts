@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * The BPM-aware "sweet spots" help badges (tempo-sync-help feature). Toggle the
+ * The BPM-aware "sweet spots" info badges (tempo-sync-help feature). Toggle the
  * help-mode badges, open the Delay Time badge, and confirm it lists the note
  * divisions at the live tempo and snaps the knob when a value is clicked.
  */
@@ -26,10 +26,9 @@ test('Delay Time badge lists BPM sweet spots and snaps the knob', async ({ page 
   // Pin a known tempo so the ms values are deterministic.
   await page.evaluate(() => (window as unknown as Bridge).__synth.bus.set('transport.bpm', 120));
 
-  await page.getByTestId('help-button').click();
-  await page.getByTestId('help-toggle-badges').click();
+  await page.getByTestId('info-badges').click();
 
-  const badge = page.getByTestId('help-badge-fx.delay.time');
+  const badge = page.getByTestId('info-badge-fx.delay.time');
   await expect(badge).toBeVisible();
   await badge.click();
 

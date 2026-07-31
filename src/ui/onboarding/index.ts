@@ -1,28 +1,28 @@
-// Onboarding facade: owns the tour + help-mode and the first-visit flag.
+// Onboarding facade: owns the tour + the info badges and the first-visit flag.
 // Created once in app.ts and handed the runtime hooks the steps need.
 import { Tour, type TourCtx } from './tour';
 import { TOUR_STEPS } from './help-content';
-import { HelpMode } from './help-mode';
+import { InfoBadges } from './info-badges';
 
 const DONE_KEY = 'websynth.onboarding.done';
 
 export interface Onboarding {
   /** Launch (or relaunch) the guided tour. */
   startTour(): void;
-  /** Toggle the help-mode (i) badges. */
-  toggleHelpMode(): void;
-  /** Whether the help-mode badges are currently showing. */
-  isHelpModeActive(): boolean;
-  /** Subscribe to help-mode on/off changes (e.g. to light up the Help button). */
-  onHelpModeChange(cb: (active: boolean) => void): void;
+  /** Toggle the ⓘ info badges. */
+  toggleInfoBadges(): void;
+  /** Whether the info badges are currently showing. */
+  isInfoBadgesActive(): boolean;
+  /** Subscribe to on/off changes — the header ⓘ button lights up from this. */
+  onInfoBadgesChange(cb: (active: boolean) => void): void;
   /** True the first time only — used by main.ts to auto-launch. */
   shouldAutoLaunch(): boolean;
 }
 
 export function createOnboarding(ctx: TourCtx): Onboarding {
-  const helpMode = new HelpMode(ctx.bus);
+  const badges = new InfoBadges(ctx.bus);
   let tour: Tour | null = null;
-  const helpListeners: Array<(active: boolean) => void> = [];
+  const badgeListeners: Array<(active: boolean) => void> = [];
 
   const markDone = (): void => {
     try {
@@ -41,15 +41,15 @@ export function createOnboarding(ctx: TourCtx): Onboarding {
       });
       tour.start();
     },
-    toggleHelpMode(): void {
-      helpMode.toggle();
-      for (const l of helpListeners) l(helpMode.isActive);
+    toggleInfoBadges(): void {
+      badges.toggle();
+      for (const l of badgeListeners) l(badges.isActive);
     },
-    isHelpModeActive(): boolean {
-      return helpMode.isActive;
+    isInfoBadgesActive(): boolean {
+      return badges.isActive;
     },
-    onHelpModeChange(cb: (active: boolean) => void): void {
-      helpListeners.push(cb);
+    onInfoBadgesChange(cb: (active: boolean) => void): void {
+      badgeListeners.push(cb);
     },
     shouldAutoLaunch(): boolean {
       try {

@@ -1,4 +1,4 @@
-// Pure BPM ↔ note-division math for the "sweet spots" help badges. No DOM, no
+// Pure BPM ↔ note-division math for the "sweet spots" info badges. No DOM, no
 // AudioContext, so it unit-tests directly under Vitest. The badges recommend a
 // delay time (seconds) or an LFO/phaser/wah rate (Hz) that lines up with the
 // current tempo — it is advisory only, the knobs stay free-valued.

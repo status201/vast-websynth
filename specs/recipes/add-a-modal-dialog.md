@@ -19,8 +19,8 @@ A repeatable **playbook**, not a feature. `Modal`
 title, Escape-to-close, backdrop-click-to-close, and a fade lifecycle. Use it
 for any transient, focus-stealing dialog (about, settings, record-a-sound).
 The concrete worked instance is the record-sound modal
-(`src/ui/components/record-sound-modal.ts`); `perf-settings.ts` and `help.ts`
-follow the same shape.
+(`src/ui/components/record-sound-modal.ts`); `perf-settings.ts` and
+`onboarding/info-badges.ts` (a badge's topic modal) follow the same shape.
 
 ## Background / Why
 
