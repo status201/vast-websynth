@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-07-31
+
 ### Security
 
 - **A shared song can no longer take the instrument down.** Songs travel as
@@ -1273,7 +1275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/status201/vast-websynth/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/status201/vast-websynth/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/status201/vast-websynth/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/status201/vast-websynth/compare/v2.5.0...v2.5.1
