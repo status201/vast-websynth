@@ -118,11 +118,11 @@ describe('Dropdown', () => {
     };
 
     it('appears at the threshold and not below it', () => {
-      dd = new Dropdown(many(19));
+      dd = new Dropdown(many(29));
       expect(filterOf(dd)).toBeNull();
       dd.destroy();
 
-      dd = new Dropdown(many(20));
+      dd = new Dropdown(many(30));
       expect(filterOf(dd)).not.toBeNull();
     });
 
@@ -136,7 +136,7 @@ describe('Dropdown', () => {
     });
 
     it('holds no button, so the toggle stays the first button', () => {
-      dd = new Dropdown(many(20));
+      dd = new Dropdown(many(30));
       document.body.appendChild(dd.el);
       expect(dd.el.querySelector('button')).toBe(toggleOf(dd));
     });
@@ -222,7 +222,7 @@ describe('Dropdown', () => {
     });
 
     it('setOptions across the threshold adds/removes the row and keeps working', () => {
-      dd = new Dropdown(many(20));
+      dd = new Dropdown(many(30));
       document.body.appendChild(dd.el);
       expect(filterOf(dd)).not.toBeNull();
 
@@ -231,10 +231,10 @@ describe('Dropdown', () => {
       expect(options(dd).length).toBe(3);
       expect(dd.value).toBe('A'); // fell back, the old value is gone
 
-      dd.setOptions(many(25));
+      dd.setOptions(many(35));
       const input = filterOf(dd);
       expect(input).not.toBeNull();
-      expect(options(dd).length).toBe(25);
+      expect(options(dd).length).toBe(35);
       // The rebuilt input must be the live node, not a detached leftover.
       expect(dd.el.contains(input!)).toBe(true);
       toggleOf(dd).click();
@@ -244,7 +244,7 @@ describe('Dropdown', () => {
     });
 
     it('setValue still marks the active option with a filter present', () => {
-      dd = new Dropdown(many(20), 'opt-0');
+      dd = new Dropdown(many(30), 'opt-0');
       dd.setValue('opt-7');
       expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('opt-7');
       expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('opt-7');
