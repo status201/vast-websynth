@@ -2,25 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!--
-      Content-Security-Policy (specs/features/untrusted-input.md REQ-10).
-      Defence in depth: there is no XSS today — every data-derived string reaches
-      the DOM through textContent — but the app hand-builds its DOM and has ~30
-      innerHTML sites carrying authored literals, and this is what keeps a
-      careless refactor from turning one into stored XSS.
-
-      As a <meta> so it works on every static host DEPLOYMENT.md names, with no
-      per-host config. Note `frame-ancestors` is IGNORED in <meta> — clickjacking
-      needs a real header, so it lives in public/_headers alongside the rest.
-
-        script-src 'self'   covers /worklets/*.js (audioWorklet.addModule) and the
-                            Worker chunk; the inline application/ld+json block is
-                            not an executable script, so it is unaffected.
-        style-src           needs 'unsafe-inline' for the <noscript> block's
-                            style= attributes below (and Vite's injected styles).
-        connect-src https:  is what #songUrl= needs; tighten to 'self' if remote
-                            song URLs are ever dropped.
-    -->
+    <!-- CSP: see untrusted-input.md REQ-10; frame-ancestors is in public/_headers -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
@@ -47,8 +29,6 @@
     <meta name="apple-mobile-web-app-title" content="VAST G1-J5" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
 
-    <!-- Open Graph / Twitter (link previews on Discord, Slack, X, etc.).
-         Absolute URLs are required by Facebook / LinkedIn / WhatsApp. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="VAST G1-J5" />
     <meta property="og:url" content="https://vast.status201.com/" />
@@ -74,7 +54,6 @@
     <meta name="twitter:image" content="https://vast.status201.com/og-card.png" />
     <meta name="twitter:image:alt" content="VAST G1-J5 synthesizer card" />
 
-    <!-- Structured data for search engines and AI crawlers (schema.org). -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -124,8 +103,6 @@
     </div>
 
 
-    <!-- Crawlable fallback: the synth UI is built by JavaScript, so this gives
-         search engines and AI crawlers (which often don't run JS) real content. -->
     <noscript>
       <main style="max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem; color: #e8d8b6; font-family: Georgia, serif; line-height: 1.6;">
         <h1>VAST G1-J5 — Open Source Browser Synthesizer</h1>
