@@ -23,6 +23,7 @@ import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
 import { anythingToPlay } from '../audio/transport/anything-to-play';
+import { PWM_RATE_MAX } from '../audio/pwm';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createBrand } from './components/brand';
@@ -477,6 +478,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc1.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc1.level', label: 'LEVEL' }).el,
     ], styles.spread!));
+    b.appendChild(pulseWidthRow(bus, 'osc1'));
   }, 'oscillators'));
 
   main.appendChild(panel('OSC 2', (b) => {
@@ -486,6 +488,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'osc2.detune', label: 'TUNE' }).el,
       new Knob({ bus, paramId: 'osc2.level', label: 'LEVEL' }).el,
     ], styles.spread!));
+    b.appendChild(pulseWidthRow(bus, 'osc2'));
   }));
 
   main.appendChild(panel('SUB / UNI', (b) => {
@@ -543,9 +546,46 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
     ], styles.spread!));
     b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
+    b.appendChild(pulseRateHint(bus));
   }, 'lfo'));
 
   return main;
+}
+
+const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
+const PULSE_DEST = LFO_DEST_LABELS.indexOf('pulse');
+
+/**
+ * The pulse-width knob, shown only while that oscillator is on `square` —
+ * width is meaningless for the other waveforms (oscillators.md REQ-5).
+ *
+ * It gets its own row rather than joining the 3-knob `.spread` row above: a
+ * fourth knob there would flex-wrap 3+1, which is the exact layout `.quad`
+ * exists to prevent (responsive-synth-panels.md).
+ */
+function pulseWidthRow(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement {
+  const el = row([new Knob({ bus, paramId: `${osc}.pulseWidth`, label: 'WIDTH' }).el]);
+  // `subscribe` fires immediately, so the initial visibility is correct.
+  bus.subscribe(`${osc}.wave`, (w) => {
+    el.style.display = Math.round(w) === SQUARE_WAVE ? '' : 'none';
+  });
+  return el;
+}
+
+/**
+ * `lfo.rate` is shared by every destination, but the PWM path clamps it
+ * (oscillators.md REQ-9) — without this the knob would move above the cap with
+ * nothing happening. Narrowing the param's own range is not an option: it would
+ * make `preset-validate` reject every saved patch with a faster LFO.
+ */
+function pulseRateHint(bus: ParamBus): HTMLElement {
+  const el = document.createElement('p');
+  el.className = styles.paramHint!;
+  el.textContent = `Pulse width follows the rate up to ${PWM_RATE_MAX} Hz.`;
+  bus.subscribe('lfo.dest', (d) => {
+    el.style.display = Math.round(d) === PULSE_DEST ? '' : 'none';
+  });
+  return el;
 }
 
 function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {

@@ -1,6 +1,7 @@
 import { LadderFilterNode } from './ladder-filter/node';
 import { Voice } from './voice';
 import { LFO } from './lfo';
+import { PwmDriver } from './pwm';
 import { Compressor } from './effects/compressor';
 import { createSynthChain, createDrumChain, createSamplerChain } from './effects/fx-chain';
 import { CompressorNode } from './compressor/node';
@@ -86,6 +87,11 @@ export class Engine {
   readonly drumFx: ReturnType<typeof createDrumChain>;
   readonly samplerFx: ReturnType<typeof createSamplerChain>;
 
+  /** Synth-bus auto-panner, swept by the LFO's `pan` destination (lfo.md REQ-4).
+   *  Sits *after* the insert chain so the chain stays 1-channel; centred (a
+   *  no-op) unless the LFO is routed here. */
+  readonly synthPan: StereoPannerNode;
+
   /** Master-bus compressor — not a chain member; it sits djFilter → here → analyser. */
   readonly masterComp: Compressor;
 
@@ -113,6 +119,9 @@ export class Engine {
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
+  /** Drives the LFO's `pulse` destination. Built in `init()` — it writes to the
+   *  voices, so it needs the pool to exist (oscillators.md REQ-8). */
+  pwm!: PwmDriver;
   private readonly pitchBend: ConstantSourceNode;
   private readonly noise: AudioBufferSourceNode;
 
@@ -204,8 +213,15 @@ export class Engine {
     this.samplerBus = this.ctx.createGain();
     this.samplerBus.gain.value = 1;
 
+    // Synth auto-pan (lfo.md REQ-4): last stage of the synth channel, so the
+    // insert chain upstream stays 1-channel (ADR-010, cheap). Centred until the
+    // LFO's `pan` destination drives it.
+    this.synthPan = this.ctx.createStereoPanner();
+    this.synthPan.pan.value = 0;
+
     // Each chain owns its own effect order + param prefixes (effects/fx-chain.ts).
-    this.synthFx.wire(this.voiceBus, this.preMaster);
+    this.synthFx.wire(this.voiceBus, this.synthPan);
+    this.synthPan.connect(this.preMaster);
     this.drumFx.wire(this.drumBus, this.preMaster);
     this.samplerFx.wire(this.samplerBus, this.preMaster);
 
@@ -235,6 +251,9 @@ export class Engine {
     this.master.connect(this.ctx.destination);
 
     this.lfo = new LFO(this.ctx);
+    // Pan is the one destination that is bus-wide rather than per-voice, so it
+    // is wired here and not in the per-voice loop below. `pan` is a-rate.
+    this.lfo.toPan.connect(this.synthPan.pan);
 
     this.pitchBend = this.ctx.createConstantSource();
     this.pitchBend.offset.value = 0;
@@ -280,6 +299,10 @@ export class Engine {
       this.voices.push(v);
     }
 
+    // PWM writes params on every voice, so it is built once the pool exists.
+    // Its timer only runs while lfo.dest is `pulse` (oscillators.md REQ-8).
+    this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime);
+
     // Arrangement first so its clock tick runs before the machines read
     // the play banks for the same tick.
     this.arrangement = new Arrangement(this.patterns, this.clock);
@@ -311,11 +334,13 @@ export class Engine {
     this.recorder = new RecorderController(this.clock, this.arrangement, this.recorderNode);
 
     // Bank resample (render-to-sampler.md): a second zero-output tap on the
-    // synth FX chain output (post-reverb, pre-preMaster) — the drum/sampler
-    // buses never enter it. Engine keeps the state juggling (REQ-5) in the
-    // prepare closure so LaneMixer/private state stays out of the controller.
+    // synth channel output (post-reverb, post-pan, pre-preMaster) — the drum/
+    // sampler buses never enter it. Tapping the panner rather than the FX tail
+    // keeps a rendered bank identical to what was heard (lfo.md REQ-4). Engine
+    // keeps the state juggling (REQ-5) in the prepare closure so LaneMixer/
+    // private state stays out of the controller.
     const bankRenderNode = await RecorderNode.create(this.ctx);
-    this.synthFx.tail.connect(bankRenderNode.input);
+    this.synthPan.connect(bankRenderNode.input);
     this.bankRender = new BankRenderController(
       this.clock,
       bankRenderNode,
@@ -619,16 +644,22 @@ export class Engine {
     bus.subscribe('env.fil.sustain', all((v, x) => v.filEnv.setSustain(x)));
     bus.subscribe('env.fil.release', all((v, x) => v.filEnv.setRelease(x)));
 
-    // LFO (amount = base knob + mod wheel, clamped to [0, 1])
+    // LFO (amount = base knob + mod wheel, clamped to [0, 1]). The `pulse`
+    // destination has no width AudioParam to connect to, so it is driven by
+    // PwmDriver from the same four params (oscillators.md REQ-8).
     const updateLfoAmount = () => {
       const base = bus.get('lfo.amount');
       const mw = bus.get('master.modWheel');
-      this.lfo.setAmount(Math.min(1, base + mw));
+      const amount = Math.min(1, base + mw);
+      this.lfo.setAmount(amount);
+      this.pwm.setAmount(amount);
     };
-    bus.subscribe('lfo.rate', (x) => this.lfo.setRate(x));
+    bus.subscribe('lfo.rate', (x) => { this.lfo.setRate(x); this.pwm.setRate(x); });
     bus.subscribe('lfo.amount', () => updateLfoAmount());
-    bus.subscribe('lfo.wave', (x) => this.lfo.setWave(x));
-    bus.subscribe('lfo.dest', (x) => this.lfo.setDest(x));
+    bus.subscribe('lfo.wave', (x) => { this.lfo.setWave(x); this.pwm.setWave(x); });
+    bus.subscribe('lfo.dest', (x) => { this.lfo.setDest(x); this.pwm.setDest(x); });
+    bus.subscribe('osc1.pulseWidth', (x) => this.pwm.setBase(0, x));
+    bus.subscribe('osc2.pulseWidth', (x) => this.pwm.setBase(1, x));
 
     // Insert effects self-wire their own params (ADR-008); each chain carries
     // its own prefixes and (for the drum comp) its ratio table.

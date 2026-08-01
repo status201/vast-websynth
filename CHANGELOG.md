@@ -16,6 +16,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The LFO can now sweep the sound across the stereo field.** Pick **pan** as
+  the LFO destination and the whole synth channel — including its delay and
+  reverb — drifts between the speakers, following the same rate, depth and
+  waveform the LFO is already set to. A slow sine gives a wide, breathing pad; a
+  square wave gives hard left/right alternation. It sits at the very end of the
+  synth channel, so switching it on costs nothing anywhere else, and the movement
+  is captured when you render a bank to the sampler.
+- **Pulse width, and an LFO destination that finally does something.** The square
+  wave has a **WIDTH** knob — it appears only when square is selected, since it
+  means nothing for the other shapes. At 50% it is the plain square you had
+  before; narrowing it thins the tone toward a reedy, hollow buzz. Point the LFO
+  at **pulse** and it sweeps that width for the classic PWM string/pad shimmer.
+  Every width is built to be alias-free, so it stays clean at the top of the
+  keyboard.
+
+### Fixed
+
+- **The LFO's "pulse" setting used to silence the LFO instead of modulating
+  anything.** It had been listed as a destination — and the mod-wheel help even
+  promised "PWM movement" — but nothing was ever wired to it, so choosing it
+  simply stopped the LFO dead. It now does what the label always said.
+- **Hard tremolo no longer clicks.** With a square or sawtooth LFO shape on the
+  **amp** destination, the volume used to jump between values instantly, which
+  ticked on every edge. The movement is smoothed just enough to remove the tick
+  without rounding off the shape.
+
 ## [2.6.2] - 2026-07-31
 
 ### Fixed

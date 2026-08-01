@@ -38,14 +38,14 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 ## Features
 
 - **8-voice polyphony** with mono/poly switching and glide
-- **Dual oscillator** (sine/triangle/saw/square) + noise, per-osc octave/detune/level
+- **Dual oscillator** (sine/triangle/saw/square) + noise, per-osc octave/detune/level, with **pulse width** on the square wave (band-limited at every width, so it never aliases)
 - **Sub oscillator** (one/two octaves down) for analogue weight
 - **Unison** voice-stacking with detune spread (fat supersaw)
 - **Oscillator drift / "Age"** — subtle analogue tuning instability
 - **Vintage glide modes**: off / always / legato (portamento)
 - **Moog-style 4-pole ladder filter** with resonance and drive, implemented as a custom AudioWorklet (cutoff modulated in semitones)
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones
-- **LFO** routable to cutoff, pitch, amp, or pulse width
+- **LFO** routable to cutoff, pitch, amp, pulse width (PWM) or **stereo pan** — an auto-panner following the LFO's own rate, depth and waveform
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
 - **Bus compressors** (custom AudioWorklet, with gain-reduction meters): a 1176-style FET compressor on the drum bus (microsecond attacks, program-dependent release, "all buttons in" mode) and an SSL-G-style VCA "glue" compressor on the master bus (soft knee, auto-release)
 - **Transport**: clock, arpeggiator, **4-track** 16-step note sequencer (chords and counter-lines; tracks 2–4 need poly voicing, and fold away when unused), 8-track drum machine, and 8-slot multi-track sampler
@@ -169,7 +169,7 @@ src/
     polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
     voice.ts         one voice: 2 osc + noise → ladder filter → amp
-    oscillator.ts, envelope.ts, lfo.ts, midi.ts
+    oscillator.ts, envelope.ts, lfo.ts, pwm.ts, midi.ts
     midi-sync-transport.ts, webrtc-sync-transport.ts, webrtc-signaling.ts
     ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
