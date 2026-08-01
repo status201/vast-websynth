@@ -193,6 +193,8 @@ specs/
     # — synth sound engine —
     oscillators.md     ·  osc1/osc2/sub + noise mixer (sound sources)
     ladder-filter.md   ·  the resonant ladder filter (canonical scalar example)
+    filter-models.md   ·  LADDER/POLY model switch + the POLY multimode DSP
+    key-tracking.md    ·  note number -> cutoff, in semitones (both models)
     envelopes.md       ·  amp + filter ADSR
     lfo.md             ·  LFO + mod wheel
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
@@ -304,6 +306,7 @@ specs/
     adr-013-authoring-dialect-input-only.md    ·  the authoring dialect is input-only
     adr-014-dont-make-me-think.md              ·  interaction design: six ordered UX laws
     adr-015-untrusted-input-is-bounded.md      ·  bound every payload; no listener wedges the clock
+    adr-016-one-filter-worklet-model-per-block.md ·  filter models branch per block, not per node
 ```
 
 > Coverage note: the feature set above documents the current system. New features

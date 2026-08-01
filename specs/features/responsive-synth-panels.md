@@ -3,14 +3,15 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 2
+version: 3   # v3: the 6-knob FILTER panel (.hex)
 owner: ui
 related:
   - responsive-header
   - architecture
+  - filter-models
 source:
-  - src/ui/app.ts                    # buildMain: the .quad rows + row() helper
-  - src/ui/styles/layout.module.css  # .quad grid rule + the ≤1280px override
+  - src/ui/app.ts                    # buildMain: the .quad/.hex rows + row() helper
+  - src/ui/styles/layout.module.css  # .quad + .hex grid rules and their overrides
 ```
 
 ## Background / Why
@@ -44,13 +45,14 @@ before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
 
 ## Requirements
 
-- **REQ-1** — The four 4-knob synth panels — **SUB / UNI**, **FILTER**,
-  **AMP ENV**, **FILTER ENV** — lay their knobs out via a shared `.quad` grid,
-  not stacked `row()`s and not flex-wrap.
+- **REQ-1** — The 4-knob synth panels — **SUB / UNI**, **AMP ENV**,
+  **FILTER ENV** — lay their knobs out via a shared `.quad` grid, not stacked
+  `row()`s and not flex-wrap. (**FILTER** was one of them until it grew to six
+  knobs; it now uses `.hex` — REQ-6.)
 - **REQ-2** — **Above 1280px** (the 8-column `.main` grid, narrow panels) `.quad`
   is a **2-column** grid → the knobs render as a **2×2** block. Row-major fill
   preserves each panel's pairing (SUB/UNI: S.OCT/S.LVL over UNISON/SPREAD;
-  FILTER: CUTOFF/RESO over DRIVE/ENV; envelopes: A/D over S/R).
+  envelopes: A/D over S/R).
 - **REQ-3** — **At/below 1280px** (the 4-column and 2-column `.main` reflows,
   wider panels) `.quad` is a **4-column** grid → the knobs render as a **single
   row**. This holds across the whole ≤1280px range (knobs total ≤204px; the
@@ -64,6 +66,24 @@ before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
   1280px** the row distributes its knobs `space-evenly` across the widened
   panel, so their spacing matches the neighbouring `.quad` panels rather than
   clustering in the middle.
+- **REQ-6** — The **6-knob FILTER** panel ([filter-models.md](filter-models.md)
+  added SHAPE and KEYTRK) uses a `.hex` grid with **three** shapes, each an even
+  split — no 4+2 or 5+1, the same rule as REQ-4:
+
+  | width | `.hex` | shape | why |
+  | --- | --- | --- | --- |
+  | ≥1630px | 3 columns | 3×2 | the panel finally fits three, so it stops standing a row taller than the whole faceplate and reads like the 3-up OSC/MIXER rows next to it |
+  | 1281–1629px | 2 columns | 2×3 | `.quad`'s desktop ceiling is 2 per row; six knobs cannot beat it |
+  | ≤1280px | 3 columns | 3×2 | panels widen on the reflow, where `.quad` fits 4 — three long labels sit comfortably inside that |
+
+- **REQ-7** — **A column count may never make a cell narrower than a knob's
+  ink.** The knob box is a fixed `--knob-size + 8px` (52/48/44px by breakpoint)
+  and its label is *centred on the knob, not clipped to the box*, so an
+  over-ambitious column count makes knobs overlap rather than merely crowd. The
+  6-up first cut of `.hex` did exactly that at ≤1280px: ~40px cells for a 52px
+  box. Verified by measuring label-text extents (knob centre ± `scrollWidth`/2)
+  for every knob in every panel at 360–2560px; the dial's glow ring is excluded,
+  since its negative inset bleeds outside the box by design.
 
 ## Technical design
 
@@ -116,8 +136,18 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
 
   Breakpoint cascade in the file: 1280 → 1140 → 992 → 720; the overrides live in
   the 1280 block so they apply through every narrower width.
-- `src/ui/app.ts` — the `row()` helper + the eight panel call sites (four
-  `.quad`, four `.spread`). No other construction changes.
+
+  `.hex` (REQ-6) is the same shape with three columns as its base, plus the one
+  `min-width` rule in the file — the wide end is otherwise unbroken, since
+  `.main` stays 8 columns above 1280px and panels just grow:
+
+  ```css
+  .hex { grid-template-columns: repeat(2, minmax(0, 1fr)); }          /* 1281–1629 */
+  @media (min-width: 1630px) { .hex { repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 1280px) { .hex { repeat(3, minmax(0, 1fr)); } }
+  ```
+- `src/ui/app.ts` — the `row()` helper + the eight panel call sites (three
+  `.quad`, one `.hex`, four `.spread`). No other construction changes.
 
 ### Persistence
 
@@ -144,20 +174,54 @@ Scenario: 3-knob panels spread across the widened panel on a tablet
 Scenario: 3-knob panels stay centred on a narrow desktop panel
   Given the app is open at a 1440px-wide viewport
   Then the OSC 1 knobs stay a centred cluster (the .spread modifier is inert)
+
+Scenario: The 6-knob FILTER panel takes each of its three shapes (REQ-6)
+  Given the app is open at a 1920px-wide viewport
+  Then the FILTER knobs render 3 across in 2 rows
+  When the viewport narrows to 1400px
+  Then they render 2 across in 3 rows
+  When the viewport narrows to 820px
+  Then they render 3 across in 2 rows again
+  And no row is ever a 4+2 or 5+1 split
+
+Scenario: No knob's label ever reaches its neighbour (REQ-7)
+  Given the app is open at any width from 360px to 2560px
+  Then for every pair of knobs sharing a row in a panel
+  And measuring each label's ink as its centre plus/minus scrollWidth/2
+  Then the two extents do not overlap
 ```
 
 ## Tests & verification
 
-- Typecheck: `npm run typecheck` (confirms `styles.quad` compiles).
+- Typecheck: `npm run typecheck` (confirms `styles.quad` / `styles.hex` compile).
 - Manual (`npm run dev`), device-emulate / resize:
-  - **820px** (iPad Air): SUB/UNI, FILTER, AMP ENV, FILTER ENV each show 4 knobs
-    on one row.
-  - **~1280px**: still one row (4-column `.main`).
-  - **1440px / 1920px**: clean 2×2 (no 3+1).
+  - **820px** (iPad Air): SUB/UNI, AMP ENV, FILTER ENV each show 4 knobs on one
+    row; FILTER shows 3×2.
+  - **~1280px**: still one row (4-column `.main`); FILTER still 3×2.
+  - **1440px**: clean 2×2 (no 3+1); FILTER 2×3.
+  - **1630px and up**: FILTER flips to 3×2 (REQ-6).
+- REQ-7 is a **measurement**, not an eyeball: at each width, read every knob's
+  label extent as `centre ± scrollWidth/2` and assert no two in a row overlap.
+  Comparing bounding boxes instead gives false positives — the dial's glow ring
+  has a negative inset and deliberately bleeds past the box.
 - Optional e2e (`e2e/`): at an 820px viewport assert `knob-sub.octave` and
   `knob-unison.detune` share the same `offsetTop`.
 
 ## Open questions / future
 
-- If a future panel needs a different knob count (e.g. 6), the `.quad` name
-  becomes a misnomer — generalise to a count-parameterised grid class then.
+- **`UNISON` / `SPREAD` labels touch at 360px** (SUB / UNI, `.quad` 4-up). The
+  knob box is a fixed `--knob-size + 8px` — 44px at that breakpoint — while a
+  six-character label at 9px/0.12em inks about 61px, so the label bleeds past
+  its box and, in a 4-up cell that narrow, meets its neighbour by ~4.5px.
+  Measured, pre-existing, and the only such collision in the app. The fix is a
+  label-width rule (ellipsis, tighter tracking, or shorter words), not a column
+  count — but it belongs to whoever owns knob typography, not to a filter change.
+
+- A future panel needing a knob count other than 4 or 6 makes a third hand-rolled
+  grid class; at that point generalise to a count-parameterised one rather than
+  adding `.oct`. `.hex` was added (v3) rather than generalising because two
+  classes is not yet a pattern.
+- **`.hex` could go 3-up below 1630px.** The labels ink only ~39px against a 52px
+  box, so three columns already fit at ~1400px (49px cells). 1630px was chosen
+  for comfort — 55px cells, ~16px of air — not because anything collides below
+  it. Lower the `min-width` if the shorter panel is worth the tighter spacing.

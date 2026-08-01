@@ -5,7 +5,7 @@ import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
 import type { SyncStatus } from '../audio/transport/sync/sync-types';
-import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS } from '../state/params';
+import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS } from '../state/params';
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
@@ -512,13 +512,23 @@ function buildMain(bus: ParamBus): HTMLElement {
   }, 'mixer'));
 
   main.appendChild(panel('FILTER', (b) => {
-    // One .quad grid: 2x2 above 1280px, a single row on wider tablet panels.
+    b.appendChild(new Segmented(bus, 'filter.model', FILTER_MODEL_LABELS).el);
+    // One .hex grid: 3x2 above 1280px, a single row on wider tablet panels.
+    // Row 1 shapes the tone, row 2 drives and modulates it.
+    const shape = new Knob({ bus, paramId: 'filter.shape', label: 'SHAPE' });
     b.appendChild(row([
       new Knob({ bus, paramId: 'filter.cutoff', label: 'CUTOFF' }).el,
       new Knob({ bus, paramId: 'filter.resonance', label: 'RESO' }).el,
+      shape.el,
       new Knob({ bus, paramId: 'filter.drive', label: 'DRIVE' }).el,
       new Knob({ bus, paramId: 'filter.envAmount', label: 'ENV' }).el,
-    ], styles.quad!));
+      new Knob({ bus, paramId: 'filter.keytrack', label: 'KEYTRK' }).el,
+    ], styles.hex!));
+    // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
+    // high-pass, so the worklet ignores it there (filter-models.md REQ-7). Dim
+    // rather than hide: the control keeps its place, so the switch reads as
+    // "this model has more to offer", not as a jumping layout (ADR-014).
+    bus.subscribe('filter.model', (m) => shape.setDisabled(Math.round(m) === 0));
   }, 'filter'));
 
   main.appendChild(panel('AMP ENV', (b) => {

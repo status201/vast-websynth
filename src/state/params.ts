@@ -214,7 +214,7 @@ const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
  *  link, so reordering silently rewrites saved patches (lfo.md REQ-3). */
-export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan'];
+export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape'];
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
@@ -225,6 +225,16 @@ export const DRUM_TRACK_LABELS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M
 // classic voices in track order — a track's default model is its own index —
 // and the order must match MODEL_BUILDERS in drum-machine.ts.
 export const DRUM_MODEL_LABELS = [...DRUM_TRACK_LABELS, 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'];
+// Selectable filter models (filter-models.md REQ-1). Append-only for the same
+// reason as LFO_DEST_LABELS. Index 0 is the ladder, so files that predate the
+// switch sound unchanged (ADR-006).
+export const FILTER_MODEL_LABELS = ['ladder', 'poly'];
+
+// The POLY pole-mix morph reads as four named anchors (filter-models.md REQ-6);
+// the knob shows the one it is nearest, which is what a player needs to know.
+const SHAPE_LABELS = ['LP24', 'LP12', 'BP12', 'HP24'];
+const fmtFilterShape = (v: number) =>
+  SHAPE_LABELS[Math.min(SHAPE_LABELS.length - 1, Math.round(v * 3))]!;
 
 export function registerDefaults(bus: ParamBus): void {
   bus.registerMany([
@@ -268,6 +278,12 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'filter.resonance', min: 0, max: 4.2, default: 0.5, taper: 'power', curve: 0.6, format: (v) => v.toFixed(2) },
     { id: 'filter.drive', min: 0.5, max: 6, default: 1.2, format: (v) => v.toFixed(2) + 'x' },
     { id: 'filter.envAmount', min: -48, max: 48, default: 24, format: fmtSemi },
+    // Model + its morph (filter-models.md). Both default to a no-op: index 0 is
+    // the ladder, shape 0 is a plain 4-pole low-pass.
+    { id: 'filter.model', min: 0, max: FILTER_MODEL_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: FILTER_MODEL_LABELS },
+    { id: 'filter.shape', min: 0, max: 1, default: 0, format: fmtFilterShape },
+    // Note -> cutoff, in semitones (key-tracking.md). 0 = off.
+    { id: 'filter.keytrack', min: 0, max: 1, default: 0, format: fmtPct },
 
     // ----- Amp envelope -----
     { id: 'env.amp.attack', min: 0.001, max: 4, default: 0.005, format: fmtMs },
@@ -285,7 +301,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'lfo.rate', min: 0.05, max: 20, default: 4, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'lfo.amount', min: 0, max: 1, default: 0, format: fmtPct },
     { id: 'lfo.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
-    { id: 'lfo.dest', min: 0, max: 5, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
+    { id: 'lfo.dest', min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
 
     // ----- FX: Distortion -----
     { id: 'fx.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

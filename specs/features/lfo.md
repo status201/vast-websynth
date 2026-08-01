@@ -3,11 +3,12 @@
 ```yaml
 id: lfo
 status: implemented
-version: 3                  # v3: `pulse` implemented — v2: stereo-pan + smoothing
+version: 4                  # v4: `shape` destination — v3: `pulse` implemented
 owner: core
 related:
   - architecture
   - ladder-filter
+  - filter-models        # owns the `shape` destination's target param
   - envelopes
   - effects              # the pan node sits at the end of the synth insert chain
   - render-to-sampler    # the bank-render tap moved downstream of the panner
@@ -35,7 +36,7 @@ in on top of the patched base amount — clamped to `[0, 1]` so it never oversho
 - **REQ-1** — LFO has rate / amount / waveform / destination.
 - **REQ-2** — Effective amount = `min(1, lfo.amount + master.modWheel)`; **both**
   `lfo.amount` and `master.modWheel` recompute it.
-- **REQ-3** — Destination is one of the `LFO_DEST_LABELS` (range `0..5`, v2).
+- **REQ-3** — Destination is one of the `LFO_DEST_LABELS` (range `0..6`, v4).
   Labels are **append-only**: an index is a stored value in every preset, song
   and share link, so reordering silently rewrites saved patches.
 - **REQ-4** — (v2) The `pan` destination sweeps a single `StereoPannerNode` on
@@ -61,6 +62,14 @@ in on top of the patched base amount — clamped to `[0, 1]` so it never oversho
   [oscillators](oscillators.md) REQ-6..REQ-10. Because destinations are
   exclusive, the JS mirror and the audio oscillator are never both in use, so
   they cannot drift against each other in any way a listener can hear.
+- **REQ-7** — (v4) The `shape` destination sweeps the POLY filter's pole-mix
+  morph, `filter.shape` ([filter-models.md](filter-models.md) REQ-6/11) — the LFO
+  sweeps the filter's *type*, not just its cutoff. Depth is `±0.5` around the
+  knob's position. Despite being frequency-domain in effect, it is fed from the
+  **smoothed** path like `amp`/`pan`, not the raw path like `cutoff`: it moves
+  filter *coefficients*, so a `square` waveform's instantaneous jump is a click,
+  not a musical step. It is a no-op under the LADDER model, which ignores
+  `filter.shape` (filter-models REQ-7).
 
 ## Technical design
 
@@ -70,13 +79,13 @@ in on top of the patched base amount — clamped to `[0, 1]` so it never oversho
 lfo.rate:        { range: 0.05..20, default: 4, format: Hz }
 lfo.amount:      { range: 0..1, default: 0 }            # no-op default
 lfo.wave:        { discrete, labels: WAVE_LABELS, range: 0..3, default: 0 }
-lfo.dest:        { discrete, labels: LFO_DEST_LABELS, range: 0..5, default: 0 }  # v2: +pan
+lfo.dest:        { discrete, labels: LFO_DEST_LABELS, range: 0..6, default: 0 }  # v4: +shape
 master.modWheel: { range: 0..1, default: 0 }            # sums into lfo amount
 ```
 
-`LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan']`. Index `0`
-stays `off`, so the default remains a no-op (ADR-006) and every value an existing
-patch can hold (`0..4`) keeps its meaning.
+`LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']`.
+Index `0` stays `off`, so the default remains a no-op (ADR-006), and appending
+keeps every value an existing patch can hold (`0..5`) at its original meaning.
 
 ### Contract / public interface
 
@@ -86,13 +95,15 @@ LFO:
   toCutoff: GainNode   # semitones  -> filter cutoffNote (raw)
   toAmp:    GainNode   # linear     -> tremolo gain (smoothed)
   toPan:    GainNode   # -1..1      -> synth bus panner.pan (smoothed, v2)
+  toShape:  GainNode   # -0.5..0.5  -> every voice's filter.shape (smoothed, v4)
   setRate(hz) / setWave(idx) / setAmount(0..1) / setDest(idx)
 # `pulse` has no output node — see PwmDriver (oscillators.md).
 ```
 
 Depth at full amount, per destination: pitch `±1200` cents, cutoff `±24`
-semitones, amp `±0.5` linear (added to the tremolo VCA's base `1.0`), pan `±1.0`.
-Only the active destination's gain is non-zero; the rest ramp to `0`.
+semitones, amp `±0.5` linear (added to the tremolo VCA's base `1.0`), pan `±1.0`,
+shape `±0.5` (v4). Only the active destination's gain is non-zero; the rest ramp
+to `0`.
 
 ### Layer touchpoints
 
@@ -154,11 +165,17 @@ Scenario: Only the amplitude-domain destinations are smoothed (edge)
   And toPitch and toCutoff are fed from the oscillator directly
 # pinned by: tests/audio/lfo.test.ts
 
+Scenario: Selecting shape sweeps the POLY pole mix (v4)
+  Given lfo.dest is set to "shape" and lfo.amount is 1
+  Then toShape's gain ramps to 0.5 and every other destination gain ramps to 0
+  And toShape is fed through the smoothing lowpass, not the raw oscillator
+# pinned by: tests/audio/lfo.test.ts
+
 Scenario: An existing patch's destination index is unchanged
   Given a preset saved before v2 with any "lfo.dest" in 0..4
   When it is loaded
   Then validation accepts it and index 3 is still "amp"
-  And index 5 is now accepted, while 6 is still rejected
+  And index 6 is now accepted, while 7 is still rejected
 # pinned by: tests/state/preset-validate.test.ts
 ```
 

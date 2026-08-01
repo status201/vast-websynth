@@ -43,9 +43,12 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Unison** voice-stacking with detune spread (fat supersaw)
 - **Oscillator drift / "Age"** — subtle analogue tuning instability
 - **Vintage glide modes**: off / always / legato (portamento)
-- **Moog-style 4-pole ladder filter** with resonance and drive, implemented as a custom AudioWorklet (cutoff modulated in semitones)
+- **Two filter models**, switchable on the same patch and level-matched so the switch is a change of character, not of volume — both custom AudioWorklets with cutoff modulated in semitones:
+  - **LADDER** — Moog-style 4-pole with resonance and drive, saturating at every stage. Warm and growly; raising resonance trades bass for the resonant peak
+  - **POLY** — 4-pole with clean stages and the saturation moved into the resonance itself. Glassy and open, and it **keeps its low end** however far you push resonance (the Prophet-600 trick: the resonance compensation is a pre-gain on the loop input). A **SHAPE** knob morphs it through LP24 → LP12 → BP12 → HP24, so the synth finally has a band-pass and a high-pass — and SHAPE is an LFO/XY/motion destination, so the filter *type* can sweep
+- **Filter key tracking** — the note you play raises the cutoff, so timbre stays consistent up the keyboard (and a self-oscillating filter becomes playable as a pitched voice)
 - **Two ADSR envelopes** (amp + filter), filter-envelope amount in semitones
-- **LFO** routable to cutoff, pitch, amp, pulse width (PWM) or **stereo pan** — an auto-panner following the LFO's own rate, depth and waveform
+- **LFO** routable to cutoff, pitch, amp, pulse width (PWM), **stereo pan** — an auto-panner following the LFO's own rate, depth and waveform — or filter **shape**
 - **FX chain**: distortion → wah → phaser → delay → reverb (each independently bypassable)
 - **Bus compressors** (custom AudioWorklet, with gain-reduction meters): a 1176-style FET compressor on the drum bus (microsecond attacks, program-dependent release, "all buttons in" mode) and an SSL-G-style VCA "glue" compressor on the master bus (soft knee, auto-release)
 - **Transport**: clock, arpeggiator, **4-track** 16-step note sequencer (chords and counter-lines; tracks 2–4 need poly voicing, and fold away when unused), 8-track drum machine, and 8-slot multi-track sampler
@@ -66,7 +69,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song after "Tap to start". `#songUrl=<https url>` loads a hosted song/project file
 - **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them — see **MCP server** below
 - **Paste, don't save-then-import**: AI agents answer with JSON in the chat window, so the Song panel has a **Paste** button (and the ✨ AI Prompt modal ends with a paste box) that takes the reply as-is — code fences and surrounding chatter are stripped — and tells you what it recognised before anything is applied. Preset and bank JSON goes in the same box and is routed to the preset importer
-- **Presets**: a 16-sound factory bank — basses (bass, upright, pbass, reese, acid), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass), leads/plucks (basic, lead, pluck) and wobble — + user presets saved to `localStorage`. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either. Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
+- **Presets**: a 19-sound factory bank — basses (bass, upright, pbass, reese, acid, **ember**), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass, **vellum**), leads/plucks (basic, lead, pluck, **prism**) and wobble — + user presets saved to `localStorage`. The three bold ones show off the POLY filter (a bass that holds its bottom at screaming resonance, a band-pass pad whose filter type breathes, a high-pass pluck); flip the model switch to LADDER on any of them to hear the difference. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either. Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI — note velocity, pitch bend, mod wheel, **sustain pedal** (CC64, doubles as an arp latch), and volume/cutoff/resonance CCs
 - **Transport sync (MIDI + WiFi)**: lock two VAST instances (or hardware gear) together — set one **Master** and one **Slave** from the Song tab's Sync section. Over **MIDI** (Start/Stop + 24 PPQN clock) via USB (e.g. an Android tablet in USB-MIDI mode plugged into a laptop) or any virtual/hardware cable; or over **WiFi** with no cable and no server — pair two devices on the same network by scanning a QR code or swapping a copy-pasted link (serverless WebRTC, LAN-only). A slave joins mid-song at the right bar, follows tempo, and rides out dropouts by free-running at the last tempo; while slaved, the BPM knob dims because the tempo is external
 - Oscilloscope / spectrum display (mono or stereo, with a max-dB peak-hold readout), pitch-bend and mod wheels
@@ -168,10 +171,10 @@ src/
     engine.ts        AudioContext owner: graph wiring, param subscriptions, transport
     polyphony.ts     voice pool + note allocation (poly/mono, unison, glide, drift)
     lane-mixer.ts    Song-tab mute / solo / volume across seq / drum / sampler
-    voice.ts         one voice: 2 osc + noise → ladder filter → amp
+    voice.ts         one voice: 2 osc + noise → filter (LADDER/POLY) → amp
     oscillator.ts, envelope.ts, lfo.ts, pwm.ts, midi.ts
     midi-sync-transport.ts, webrtc-sync-transport.ts, webrtc-signaling.ts
-    ladder-filter/   AudioWorklet wrapper (worklet in public/worklets/)
+    ladder-filter/   AudioWorklet wrapper — hosts both filter models (worklet in public/worklets/)
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
     effects/         distortion, wah, phaser, delay, reverb, compressor
     drums/           drum synthesis

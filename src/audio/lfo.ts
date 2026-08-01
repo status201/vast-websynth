@@ -9,6 +9,7 @@ export const enum LfoDest {
   Amp = 3,
   Pulse = 4,
   Pan = 5,
+  Shape = 6,
 }
 
 /** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-5).
@@ -29,15 +30,18 @@ const SMOOTH_Q = 0.5;
  * `PwmDriver` from a JS-side mirror of this shape (oscillators.md REQ-8). Its
  * only effect on this class is that `update()` silences everything.
  *
- * `amp` and `pan` are fed through a lowpass, `pitch` and `cutoff` are not
- * (lfo.md REQ-5): on a square/saw waveform a stepped *gain* is a click, while a
- * stepped octave or filter jump is a musical event.
+ * `amp`, `pan` and `shape` are fed through a lowpass, `pitch` and `cutoff` are
+ * not (lfo.md REQ-5/REQ-7): on a square/saw waveform a stepped *gain* is a
+ * click, while a stepped octave or filter jump is a musical event. `shape`
+ * joins the smoothed group despite being frequency-domain in effect — it moves
+ * filter *coefficients*, where a step is a click, not a musical event.
  */
 export class LFO {
   readonly toPitch: GainNode;
   readonly toCutoff: GainNode;
   readonly toAmp: GainNode;
   readonly toPan: GainNode;
+  readonly toShape: GainNode;
 
   private readonly osc: OscillatorNode;
   private amount = 0;
@@ -52,10 +56,12 @@ export class LFO {
     this.toCutoff = ctx.createGain();
     this.toAmp = ctx.createGain();
     this.toPan = ctx.createGain();
+    this.toShape = ctx.createGain();
     this.toPitch.gain.value = 0;
     this.toCutoff.gain.value = 0;
     this.toAmp.gain.value = 0;
     this.toPan.gain.value = 0;
+    this.toShape.gain.value = 0;
 
     // Frequency-domain destinations: straight off the oscillator.
     this.osc.connect(this.toPitch);
@@ -69,6 +75,7 @@ export class LFO {
     this.osc.connect(smooth);
     smooth.connect(this.toAmp);
     smooth.connect(this.toPan);
+    smooth.connect(this.toShape);
 
     this.osc.start();
   }
@@ -102,5 +109,9 @@ export class LFO {
     // Pan: ±1.0 — hard L↔R at full depth. StereoPannerNode.pan clamps to ±1,
     // so this stays bounded whatever the amount (lfo.md REQ-4).
     rampTo(this.toPan.gain, this.dest === LfoDest.Pan ? this.amount : 0, this.ctx, RAMP_MEDIUM);
+    // Shape: ±0.5 of the POLY pole-mix morph at full depth, summed onto the
+    // knob's position. A no-op under the LADDER model, which ignores shape
+    // (filter-models.md REQ-7).
+    rampTo(this.toShape.gain, this.dest === LfoDest.Shape ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
   }
 }

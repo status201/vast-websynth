@@ -286,6 +286,7 @@ export class Engine {
       this.lfo.toPitch.connect(v.osc2.detuneParam);
       this.lfo.toPitch.connect(v.sub.detuneParam);
       this.lfo.toCutoff.connect(v.filter.cutoffNote);
+      this.lfo.toShape.connect(v.filter.shape);
       this.lfo.toAmp.connect(v.tremolo.gain);
 
       // Pitch bend
@@ -631,6 +632,9 @@ export class Engine {
     bus.subscribe('filter.resonance', all((v, x) => v.setFilterResonance(x)));
     bus.subscribe('filter.drive', all((v, x) => v.setFilterDrive(x)));
     bus.subscribe('filter.envAmount', all((v, x) => v.setFilterEnvAmount(x)));
+    bus.subscribe('filter.model', all((v, x) => v.setFilterModel(x)));
+    bus.subscribe('filter.shape', all((v, x) => v.setFilterShape(x)));
+    bus.subscribe('filter.keytrack', all((v, x) => v.setFilterKeytrack(x)));
 
     // Amp envelope
     bus.subscribe('env.amp.attack', all((v, x) => v.ampEnv.setAttack(x)));

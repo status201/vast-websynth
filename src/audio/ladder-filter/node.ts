@@ -1,9 +1,19 @@
+/**
+ * The voice filter. Hosts BOTH models — LADDER (`ladder-filter.md`) and POLY
+ * (`filter-models.md`) — in one worklet, selected by the `model` AudioParam
+ * rather than by swapping nodes (ADR-016). The name is historical: renaming it
+ * would churn every import for no behavioural gain.
+ */
 export class LadderFilterNode {
   readonly input: AudioNode;
   readonly output: AudioNode;
   readonly cutoffNote: AudioParam;
   readonly resonance: AudioParam;
   readonly drive: AudioParam;
+  /** Which model runs: 0 = LADDER, 1 = POLY (filter-models.md REQ-1). */
+  readonly model: AudioParam;
+  /** POLY pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (REQ-6). */
+  readonly shape: AudioParam;
 
   private constructor(private readonly node: AudioWorkletNode) {
     this.input = node;
@@ -11,6 +21,8 @@ export class LadderFilterNode {
     this.cutoffNote = node.parameters.get('cutoffNote')!;
     this.resonance = node.parameters.get('resonance')!;
     this.drive = node.parameters.get('drive')!;
+    this.model = node.parameters.get('model')!;
+    this.shape = node.parameters.get('shape')!;
   }
 
   /**

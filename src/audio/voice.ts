@@ -6,6 +6,12 @@ import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
 
+/** The note at which key tracking contributes nothing (key-tracking.md REQ-2). */
+const KEY_CENTER = 60;
+/** The worklet's own `cutoffNote` range — key tracking is clamped to it (REQ-5). */
+const CUTOFF_MIN = 0;
+const CUTOFF_MAX = 135;
+
 export class Voice {
   readonly out: GainNode;
   readonly osc1: Osc;
@@ -28,6 +34,10 @@ export class Voice {
   private readonly ctx: AudioContext;
   private glideTime = 0;
   private releaseTimer: number | null = null;
+  // Key tracking's two cached scalars (key-tracking.md). The effective cutoff
+  // is derived from these plus `currentNote`, never stored.
+  private baseCutoff = 90;
+  private keytrack = 0;
 
   static async create(ctx: AudioContext): Promise<Voice> {
     const filter = await LadderFilterNode.create(ctx);
@@ -107,6 +117,12 @@ export class Voice {
     this.osc1.setFrequency(hz, when, g);
     this.osc2.setFrequency(hz, when, g);
     this.sub.setFrequency(hz, when, g);
+    // Key tracking lands with the note, not as a ramp from the previous note's
+    // cutoff — a glide there would whoop (key-tracking.md REQ-4). A no-op write
+    // when keytrack is 0, since the value then equals what setFilterCutoff set.
+    if (this.keytrack !== 0) {
+      this.filter.cutoffNote.setValueAtTime(this.effectiveCutoff(), when);
+    }
     this.ampEnv.trigger(when, Math.max(0.01, velocity));
     this.filEnv.trigger(when, 1);
   }
@@ -163,7 +179,8 @@ export class Voice {
   }
 
   setFilterCutoff(note: number): void {
-    rampTo(this.filter.cutoffNote, note, this.ctx, RAMP_FAST);
+    this.baseCutoff = note;
+    rampTo(this.filter.cutoffNote, this.effectiveCutoff(), this.ctx, RAMP_FAST);
   }
 
   setFilterResonance(r: number): void {
@@ -176,5 +193,33 @@ export class Voice {
 
   setFilterEnvAmount(semi: number): void {
     rampTo(this.filEnvScale.gain, semi, this.ctx, RAMP_MEDIUM);
+  }
+
+  /** 0 = LADDER, 1 = POLY (filter-models.md REQ-1). k-rate, so no ramp. */
+  setFilterModel(m: number): void {
+    this.filter.model.setValueAtTime(Math.round(m), this.ctx.currentTime);
+  }
+
+  setFilterShape(s: number): void {
+    rampTo(this.filter.shape, s, this.ctx, RAMP_FAST);
+  }
+
+  setFilterKeytrack(amount: number): void {
+    this.keytrack = amount;
+    // A held note must follow the knob rather than wait for the next noteOn
+    // (key-tracking.md REQ-6); ramped, because this one is a knob drag.
+    rampTo(this.filter.cutoffNote, this.effectiveCutoff(), this.ctx, RAMP_FAST);
+  }
+
+  /**
+   * Base cutoff plus key tracking, in semitones (key-tracking.md REQ-2/3/5).
+   * The single place the three cached scalars combine, so `noteOn` and both
+   * knob paths cannot drift apart. Clamped to the worklet's `cutoffNote` range
+   * — the envelope and LFO still sum on top at the AudioParam.
+   */
+  private effectiveCutoff(): number {
+    const note = this.currentNote < 0 ? KEY_CENTER : this.currentNote;
+    const v = this.baseCutoff + this.keytrack * (note - KEY_CENTER);
+    return Math.max(CUTOFF_MIN, Math.min(CUTOFF_MAX, v));
   }
 }
