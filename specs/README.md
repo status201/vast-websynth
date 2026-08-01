@@ -252,6 +252,7 @@ specs/
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster
     responsive-synth-panels.md ·  4-knob panels: 2x2 desktop, single row on tablets
+    knob-soft-ceiling.md ·  per-knob arc cap: stop drawing where the engine stops acting
     machine-status.md  ·  on/muted/off LEDs in the tab bar + Song-tab title links
     input-control.md   ·  keyboard, computer-key shortcuts, MIDI
     keyboard-layout.md ·  QWERTY/AZERTY/QWERTZ/Dvorak note-key mapping + picker

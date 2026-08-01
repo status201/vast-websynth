@@ -64,6 +64,18 @@
   filter: drop-shadow(0 0 4px var(--accent-glow));
 }
 
+/*
+ * Travel above a soft ceiling — the part of the sweep the engine does not act on
+ * (knob-soft-ceiling.md REQ-5). Marked rather than left bare: once lfo.rate went
+ * exponential the dead band shrank to ~32°, and at that size an absent arc is
+ * not noticed. Red because it means "blocked" (`.track` already covers "not yet
+ * reached"), dimmed because it is a statement of range, not an error.
+ */
+.dead {
+  stroke: var(--accent-bad);
+  stroke-opacity: 0.55;
+}
+
 .num {
   font-size: 9px;
   color: var(--text-dim);

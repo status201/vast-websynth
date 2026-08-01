@@ -189,3 +189,142 @@ describe('Knob repaint guards', () => {
     expect(knob.el.textContent).toContain(b.def('filter.cutoff')!.format!(130));
   });
 });
+
+/**
+ * Soft ceiling (knob-soft-ceiling.md). `lfo.rate` is registered 0.05..20 Hz but
+ * the PWM path clamps it to 10 (oscillators.md REQ-9), so the top half of the
+ * travel is dead while `dest === pulse`. The ceiling stops the arc there and
+ * changes nothing else — these tests pin "nothing else" as hard as they pin the
+ * arc, because a ceiling that quietly clamped the value would invalidate presets.
+ */
+describe('Knob soft ceiling', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // Same geometry as the component: r=26, a 280° sweep.
+  const DASH_ON = (2 * Math.PI * 26 * 280) / 360;
+  // Where a 10 Hz ceiling lands on lfo.rate, derived from the param's own taper
+  // (exp over 0.05..20, lfo.md REQ-8) rather than hardcoded — the point of the
+  // assertion is "the ceiling tracks the taper", not one arithmetic result.
+  const RATE_CEIL = Math.log(10 / 0.05) / Math.log(20 / 0.05); // ≈ 0.884
+  // By class, not nth-of-type: the dead-region marker (v2) inserts a third
+  // circle ahead of the value arc whenever a ceiling is set.
+  const arcOf = (knob: Knob): Element => knob.el.querySelector('.' + styles.value!)!;
+  const deadOf = (knob: Knob): Element | null => knob.el.querySelector('.' + styles.dead!);
+  const dashLen = (el: Element): number =>
+    parseFloat(el.getAttribute('stroke-dasharray')!.split(' ')[0]!);
+  /** The lit portion of the arc, in the same units the component writes. */
+  const litOf = (knob: Knob): number => dashLen(arcOf(knob));
+
+  it('stops the arc at the ceiling while value, pointer and readout run on', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
+    const indicator = knob.el.querySelector<HTMLElement>('.' + styles.indicator!)!;
+    b.set('lfo.rate', 20);
+
+    // Arc caps at the 10 Hz position — a narrow dead band near the top of the
+    // dial now the rate is exponentially tapered.
+    expect(litOf(knob)).toBeCloseTo(DASH_ON * RATE_CEIL, 2);
+    expect(litOf(knob)).toBeLessThan(DASH_ON);
+
+    // Everything else still reports the true 20 Hz: full travel is +140°.
+    expect(indicator.style.transform).toContain('rotate(140');
+    expect(knob.el.textContent).toContain('20.00Hz');
+    expect(b.get('lfo.rate')).toBe(20);
+  });
+
+  it('leaves a knob with no ceiling exactly as it was (regression)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate' });
+    b.set('lfo.rate', 20);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON, 2);
+    expect(knob.el.dataset.uimax).toBeUndefined();
+  });
+
+  it('maps the ceiling through the param taper, not linearly', () => {
+    // filter.resonance is power-tapered (curve 0.6) over 0..4.2, so a ceiling at
+    // the numeric midpoint sits at 0.5^(1/0.6) ≈ 0.31 of the sweep, not at 0.5.
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'filter.resonance', uiMax: 2.1 });
+    b.set('filter.resonance', 4.2);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON * Math.pow(0.5, 1 / 0.6), 2);
+    expect(litOf(knob)).not.toBeCloseTo(DASH_ON * 0.5, 2);
+  });
+
+  it('set/clear repaints immediately and tracks data-uimax', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate' });
+    b.set('lfo.rate', 20);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON, 2);
+
+    // Applying a ceiling repaints at the current value — no param change needed.
+    knob.setUiMax(10);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON * RATE_CEIL, 2);
+    expect(knob.el.dataset.uimax).toBe('10');
+    expect(b.get('lfo.rate')).toBe(20); // the value never moved
+
+    knob.setUiMax(null);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON, 2);
+    expect(knob.el.dataset.uimax).toBeUndefined();
+    expect(deadOf(knob)).toBeNull(); // the marker goes with it
+  });
+
+  // v2, REQ-5. The dead band is ~32° once lfo.rate is exponentially tapered, and
+  // at that size bare track reads as nothing at all — so it gets a positive mark.
+  it('marks the dead region with an arc spanning ceiling to end of sweep', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
+    const dead = deadOf(knob)!;
+    expect(dead).not.toBeNull();
+
+    // Length is the remainder of the sweep above the ceiling...
+    expect(dashLen(dead)).toBeCloseTo(DASH_ON * (1 - RATE_CEIL), 2);
+    // ...and it starts where the value arc stops (negative offset delays it).
+    expect(parseFloat(dead.getAttribute('stroke-dashoffset')!)).toBeCloseTo(-DASH_ON * RATE_CEIL, 2);
+
+    // Painted under the value arc, so the two never fight over the same pixels.
+    expect(dead.compareDocumentPosition(arcOf(knob)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('grows no extra element when there is no ceiling', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate' });
+    expect(deadOf(knob)).toBeNull();
+    expect(knob.el.querySelectorAll('circle').length).toBe(2); // track + value only
+  });
+
+  it('treats a ceiling at or above the registered max as no ceiling at all', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 25 });
+    b.set('lfo.rate', 20);
+    expect(litOf(knob)).toBeCloseTo(DASH_ON, 2);
+    expect(knob.el.dataset.uimax).toBeUndefined();
+  });
+
+  it('costs nothing to automate above the ceiling (REQ-7)', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
+    b.set('lfo.rate', 15);
+
+    // Two further values, both above the ceiling: the arc is already maxed out,
+    // so the guard should collapse them to zero writes.
+    const setAttr = vi.spyOn(arcOf(knob), 'setAttribute');
+    b.set('lfo.rate', 18);
+    b.set('lfo.rate', 20);
+    expect(setAttr).not.toHaveBeenCalled();
+  });
+
+  it('still lets a drag reach the true top of the range (REQ-2)', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10_000); // skip the double-tap branch
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
+    const dial = knob.el.querySelector('.' + styles.dial!) as HTMLElement;
+
+    b.set('lfo.rate', 10);
+    dial.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200 }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 0 })); // full sweep up
+    window.dispatchEvent(new MouseEvent('pointerup'));
+
+    expect(b.get('lfo.rate')).toBe(20);
+    expect(knob.el.textContent).toContain('20.00Hz');
+  });
+});

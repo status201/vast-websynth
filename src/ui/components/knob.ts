@@ -1,15 +1,24 @@
 import styles from '../styles/knob.module.css';
 import type { ParamBus, ParamDef } from '../../state/params';
 import { toNorm, fromNorm } from '../../utils/taper';
+import { clamp01 } from '../../utils/math';
 
 export interface KnobOptions {
   bus: ParamBus;
   paramId: string;
   label?: string;
   size?: number;
+  /**
+   * Soft ceiling in **param units** (10 = 10 Hz, not a fraction): above it the
+   * value arc stops filling, so travel the engine does not act on reads as dead
+   * rather than live (knob-soft-ceiling.md REQ-1). Paint only — the drag, the
+   * pointer line and the readout still cover the whole registered range.
+   */
+  uiMax?: number;
 }
 
 const SWEEP_DEG = 280; // Knob sweeps from -140° to +140°
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
  * Decimal places kept when rounding the indicator angle / arc dash for the
@@ -34,6 +43,11 @@ export class Knob {
   private lastTap = 0;
   private disabled = false;
   private circumference: number;
+  /** Soft ceiling as a normalized position — converted once on set, not per
+   *  frame. `1` (the default) means no ceiling. See `setUiMax`. */
+  private uiMaxNorm = 1;
+  /** The dead-travel marker, built on demand — see `paintDead`. */
+  private dead: SVGCircleElement | null = null;
   /** Last values actually written to the DOM — see `render`. */
   private lastDeg = '';
   private lastDash = '';
@@ -62,7 +76,7 @@ export class Knob {
     this.indicator.className = styles.indicator!;
     dial.appendChild(this.indicator);
 
-    const svgNS = 'http://www.w3.org/2000/svg';
+    const svgNS = SVG_NS;
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('class', styles.arc!);
     svg.setAttribute('viewBox', '0 0 56 56');
@@ -102,6 +116,10 @@ export class Knob {
     // pointer move.
     dial.addEventListener('pointerdown', this.onPointerDown);
 
+    // Before the subscribe: `subscribe` fires immediately, so the very first
+    // paint already honours the ceiling and no separate repaint is needed.
+    if (opts.uiMax !== undefined) this.applyUiMax(opts.uiMax);
+
     this.unsubscribe = bus.subscribe(opts.paramId, (v) => this.render(v));
   }
 
@@ -127,8 +145,12 @@ export class Knob {
       this.indicator.style.transform = `translateX(-50%) rotate(${deg}deg)`;
     }
 
+    // The arc — and only the arc — stops at the soft ceiling
+    // (knob-soft-ceiling.md REQ-2). Capping *before* the `lastDash` guard means a
+    // value moving around above the ceiling writes nothing at all, so a capped
+    // knob is cheaper to automate than an uncapped one, never dearer (REQ-7).
     const dashOn = (this.circumference * SWEEP_DEG) / 360;
-    const visible = dashOn * norm;
+    const visible = dashOn * Math.min(norm, this.uiMaxNorm);
     const dash = `${visible.toFixed(ARC_PRECISION)} ${(this.circumference - visible).toFixed(ARC_PRECISION)}`;
     if (dash !== this.lastDash) {
       this.lastDash = dash;
@@ -160,6 +182,71 @@ export class Knob {
 
   private deriveLabel(id: string): string {
     return id.split('.').pop()!.toUpperCase();
+  }
+
+  /**
+   * Set (or clear, with `null`) the soft ceiling — the point past which the
+   * value arc stops filling (knob-soft-ceiling.md REQ-4). Given in **param
+   * units**, so `setUiMax(10)` on `lfo.rate` caps the arc at 10 Hz.
+   *
+   * Use this where the ceiling only applies in some states — the LFO RATE knob
+   * is capped only while `lfo.dest === pulse`, because that is the only path the
+   * engine clamps (oscillators.md REQ-9). Where a control is inert *entirely*,
+   * `setDisabled` is the right treatment instead (REQ-8): a soft ceiling says
+   * "this part of the travel does nothing", dimming says "none of it does".
+   */
+  setUiMax(max: number | null): void {
+    if (!this.applyUiMax(max)) return;
+    this.render(this.opts.bus.get(this.opts.paramId));
+  }
+
+  /** Shared by the constructor and `setUiMax`; returns whether it changed. The
+   *  constructor skips the repaint because `subscribe` is about to paint anyway. */
+  private applyUiMax(max: number | null): boolean {
+    // `toNorm` does not clamp (only `fromNorm` does), so a ceiling outside
+    // [min, max] is clamped here rather than producing an arc past full.
+    const n = max === null ? 1 : clamp01(toNorm(this.def, max));
+    if (n === this.uiMaxNorm) return false;
+    this.uiMaxNorm = n;
+    if (max === null || n >= 1) {
+      delete this.el.dataset.uimax;
+      this.dead?.remove();
+      this.dead = null;
+    } else {
+      this.el.dataset.uimax = String(max);
+      this.paintDead(n);
+    }
+    return true;
+  }
+
+  /**
+   * Draw the dead travel: a dim red arc from the ceiling to the end of the sweep
+   * (knob-soft-ceiling.md REQ-5). Built on demand and inserted *under* the value
+   * arc, so a knob with no ceiling carries no extra node.
+   *
+   * Unlike `.track`/`.value` this arc does not start at the sweep origin, so it
+   * needs a `stroke-dashoffset` — negative, which delays where the dash begins.
+   * It depends only on the ceiling, never on the value, so it is painted here
+   * rather than in `render` and costs nothing on the automation path.
+   */
+  private paintDead(n: number): void {
+    if (!this.dead) {
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('class', styles.dead!);
+      c.setAttribute('cx', '28');
+      c.setAttribute('cy', '28');
+      c.setAttribute('r', '26');
+      c.setAttribute('transform', `rotate(${90 + (360 - SWEEP_DEG) / 2} 28 28)`);
+      this.arc.parentNode!.insertBefore(c, this.arc);
+      this.dead = c;
+    }
+    const dashOn = (this.circumference * SWEEP_DEG) / 360;
+    const len = dashOn * (1 - n);
+    this.dead.setAttribute(
+      'stroke-dasharray',
+      `${len.toFixed(ARC_PRECISION)} ${(this.circumference - len).toFixed(ARC_PRECISION)}`,
+    );
+    this.dead.setAttribute('stroke-dashoffset', (-(dashOn * n)).toFixed(ARC_PRECISION));
   }
 
   /**

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ParamBus, registerDefaults } from '../../src/state/params';
+import { fromNorm } from '../../src/utils/taper';
 
 describe('ParamBus', () => {
   it('returns the default for a registered param', () => {
@@ -300,5 +301,36 @@ describe('ParamBus', () => {
       expect(bus.def(`drum.t${i}.drive`)?.default).toBe(0); // clean
       expect(bus.def(`drum.t${i}.pan`)?.default).toBe(0); // centre
     }
+  });
+
+  // lfo.md REQ-8. Rate is perceived in octaves, so the knob is exponential: the
+  // sub-1 Hz region that all the classic PWM/pad movement lives in used to be
+  // squeezed into the first ~5% of the travel.
+  it('tapers lfo.rate exponentially, so equal turns give equal ratios', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const def = bus.def('lfo.rate')!;
+    expect(def.taper).toBe('exp');
+    expect(def.min).toBeGreaterThan(0); // exp is undefined at min = 0
+
+    // The midpoint is the geometric mean sqrt(0.05 * 20) = 1 Hz, not 10.
+    expect(fromNorm(def, 0.5)).toBeCloseTo(1, 6);
+    expect(fromNorm(def, 0)).toBeCloseTo(0.05, 6);
+    expect(fromNorm(def, 1)).toBeCloseTo(20, 6);
+
+    // Equal steps anywhere multiply by the same factor.
+    const r = (n: number) => fromNorm(def, n);
+    expect(r(0.5) / r(0.25)).toBeCloseTo(r(0.75) / r(0.5), 6);
+  });
+
+  it('keeps stored lfo.rate values in Hz across the taper change', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    // A patch saved before v5 holds Hz, not a knob position — it must load
+    // bit-identical and only sit somewhere else on the dial.
+    bus.restore({ 'lfo.rate': 12.5 });
+    expect(bus.get('lfo.rate')).toBe(12.5);
+    expect(bus.def('lfo.rate')!.default).toBe(4); // registered range/default unmoved
+    expect(bus.def('lfo.rate')!.max).toBe(20);
   });
 });

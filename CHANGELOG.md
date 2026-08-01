@@ -61,6 +61,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Every width is built to be alias-free, so it stays clean at the top of the
   keyboard.
 
+### Changed
+
+- **The LFO RATE knob now turns in octaves instead of hertz.** It used to be
+  linear, which put everything musically useful — the slow 0.1–1 Hz drifts that
+  pads and PWM live on — inside the first few millimetres of travel, while half
+  the dial did nothing but climb from 10 Hz to 20 Hz. Equal turns now multiply
+  the rate by an equal factor, the way the rate pot on a hardware LFO works, so
+  slow rates are finally dialable and 1 Hz sits at twelve o'clock. **Your saved
+  sounds are unchanged** — the rate is stored in hertz, so every patch loads at
+  exactly the speed it always had; only its position on the dial has moved. The
+  one exception: a **motion lane** assigned to the LFO rate stores dial
+  positions rather than hertz, so such a lane replays at different speeds than
+  it was recorded at. No demo song has one.
+- **The LFO RATE knob now shows you where it stops mattering.** On the **pulse**
+  destination the pulse width only follows the rate up to 10 Hz — that was
+  written under the panel, but the knob's orange ring kept filling all the way to
+  20 Hz as if something were still happening. The ring now stops at 10 Hz and the
+  travel beyond it is marked in dim red, so you can see the limit coming before
+  you reach it. Nothing about the sound or your saved patches changes: you can
+  still turn it to 20 Hz, the readout still says so, and every other destination
+  still uses the full range with no red at all.
+
 ### Fixed
 
 - **The LFO's "pulse" setting used to silence the LFO instead of modulating
