@@ -18,6 +18,7 @@ export interface KnobOptions {
 }
 
 const SWEEP_DEG = 280; // Knob sweeps from -140° to +140°
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
  * Decimal places kept when rounding the indicator angle / arc dash for the
@@ -45,6 +46,8 @@ export class Knob {
   /** Soft ceiling as a normalized position — converted once on set, not per
    *  frame. `1` (the default) means no ceiling. See `setUiMax`. */
   private uiMaxNorm = 1;
+  /** The dead-travel marker, built on demand — see `paintDead`. */
+  private dead: SVGCircleElement | null = null;
   /** Last values actually written to the DOM — see `render`. */
   private lastDeg = '';
   private lastDash = '';
@@ -73,7 +76,7 @@ export class Knob {
     this.indicator.className = styles.indicator!;
     dial.appendChild(this.indicator);
 
-    const svgNS = 'http://www.w3.org/2000/svg';
+    const svgNS = SVG_NS;
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('class', styles.arc!);
     svg.setAttribute('viewBox', '0 0 56 56');
@@ -205,9 +208,45 @@ export class Knob {
     const n = max === null ? 1 : clamp01(toNorm(this.def, max));
     if (n === this.uiMaxNorm) return false;
     this.uiMaxNorm = n;
-    if (max === null || n >= 1) delete this.el.dataset.uimax;
-    else this.el.dataset.uimax = String(max);
+    if (max === null || n >= 1) {
+      delete this.el.dataset.uimax;
+      this.dead?.remove();
+      this.dead = null;
+    } else {
+      this.el.dataset.uimax = String(max);
+      this.paintDead(n);
+    }
     return true;
+  }
+
+  /**
+   * Draw the dead travel: a dim red arc from the ceiling to the end of the sweep
+   * (knob-soft-ceiling.md REQ-5). Built on demand and inserted *under* the value
+   * arc, so a knob with no ceiling carries no extra node.
+   *
+   * Unlike `.track`/`.value` this arc does not start at the sweep origin, so it
+   * needs a `stroke-dashoffset` — negative, which delays where the dash begins.
+   * It depends only on the ceiling, never on the value, so it is painted here
+   * rather than in `render` and costs nothing on the automation path.
+   */
+  private paintDead(n: number): void {
+    if (!this.dead) {
+      const c = document.createElementNS(SVG_NS, 'circle');
+      c.setAttribute('class', styles.dead!);
+      c.setAttribute('cx', '28');
+      c.setAttribute('cy', '28');
+      c.setAttribute('r', '26');
+      c.setAttribute('transform', `rotate(${90 + (360 - SWEEP_DEG) / 2} 28 28)`);
+      this.arc.parentNode!.insertBefore(c, this.arc);
+      this.dead = c;
+    }
+    const dashOn = (this.circumference * SWEEP_DEG) / 360;
+    const len = dashOn * (1 - n);
+    this.dead.setAttribute(
+      'stroke-dasharray',
+      `${len.toFixed(ARC_PRECISION)} ${(this.circumference - len).toFixed(ARC_PRECISION)}`,
+    );
+    this.dead.setAttribute('stroke-dashoffset', (-(dashOn * n)).toFixed(ARC_PRECISION));
   }
 
   /**

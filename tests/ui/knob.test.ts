@@ -206,10 +206,14 @@ describe('Knob soft ceiling', () => {
   // (exp over 0.05..20, lfo.md REQ-8) rather than hardcoded — the point of the
   // assertion is "the ceiling tracks the taper", not one arithmetic result.
   const RATE_CEIL = Math.log(10 / 0.05) / Math.log(20 / 0.05); // ≈ 0.884
-  const arcOf = (knob: Knob): Element => knob.el.querySelector('circle:nth-of-type(2)')!;
+  // By class, not nth-of-type: the dead-region marker (v2) inserts a third
+  // circle ahead of the value arc whenever a ceiling is set.
+  const arcOf = (knob: Knob): Element => knob.el.querySelector('.' + styles.value!)!;
+  const deadOf = (knob: Knob): Element | null => knob.el.querySelector('.' + styles.dead!);
+  const dashLen = (el: Element): number =>
+    parseFloat(el.getAttribute('stroke-dasharray')!.split(' ')[0]!);
   /** The lit portion of the arc, in the same units the component writes. */
-  const litOf = (knob: Knob): number =>
-    parseFloat(arcOf(knob).getAttribute('stroke-dasharray')!.split(' ')[0]!);
+  const litOf = (knob: Knob): number => dashLen(arcOf(knob));
 
   it('stops the arc at the ceiling while value, pointer and readout run on', () => {
     const b = bus();
@@ -261,6 +265,31 @@ describe('Knob soft ceiling', () => {
     knob.setUiMax(null);
     expect(litOf(knob)).toBeCloseTo(DASH_ON, 2);
     expect(knob.el.dataset.uimax).toBeUndefined();
+    expect(deadOf(knob)).toBeNull(); // the marker goes with it
+  });
+
+  // v2, REQ-5. The dead band is ~32° once lfo.rate is exponentially tapered, and
+  // at that size bare track reads as nothing at all — so it gets a positive mark.
+  it('marks the dead region with an arc spanning ceiling to end of sweep', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
+    const dead = deadOf(knob)!;
+    expect(dead).not.toBeNull();
+
+    // Length is the remainder of the sweep above the ceiling...
+    expect(dashLen(dead)).toBeCloseTo(DASH_ON * (1 - RATE_CEIL), 2);
+    // ...and it starts where the value arc stops (negative offset delays it).
+    expect(parseFloat(dead.getAttribute('stroke-dashoffset')!)).toBeCloseTo(-DASH_ON * RATE_CEIL, 2);
+
+    // Painted under the value arc, so the two never fight over the same pixels.
+    expect(dead.compareDocumentPosition(arcOf(knob)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('grows no extra element when there is no ceiling', () => {
+    const b = bus();
+    const knob = new Knob({ bus: b, paramId: 'lfo.rate' });
+    expect(deadOf(knob)).toBeNull();
+    expect(knob.el.querySelectorAll('circle').length).toBe(2); // track + value only
   });
 
   it('treats a ceiling at or above the registered max as no ceiling at all', () => {

@@ -3,16 +3,18 @@
 ```yaml
 id: knob-soft-ceiling
 status: implemented
-version: 1
+version: 2                      # v2: the dead region is marked, not left bare (REQ-5)
 owner: core
 related:
   - architecture
   - param-reset-baseline        # the gestures this must not disturb
   - runtime-performance         # REQ-7 repaint guards, preserved here
   - oscillators                 # the first (and currently only) consumer
+  - lfo                         # REQ-8's taper is what forced v2
   - testids
 source:
   - src/ui/components/knob.ts   # uiMax option + setUiMax + the render clamp
+  - src/ui/styles/knob.module.css  # .dead — the marked region (v2)
   - src/ui/app.ts               # LFO panel: the lfo.rate ceiling on the PWM path
 ```
 
@@ -61,11 +63,22 @@ supplements prose, it does not replace it.
   that only applies in *some* states can follow the bus. Passing `null` clears it
   and restores the full arc. Setting it repaints immediately at the current value
   rather than waiting for the next param change.
-- **REQ-5** — The capped region is drawn as **bare track**, not as a dimmed or
-  recoloured arc. "Nothing is drawn here" reads as "nothing happens here"; a
-  second colour would read as a second meaning and invite the user to work out
-  what it is. The `.track` circle is already painted underneath the value arc, so
-  this needs no new element and no CSS.
+- **REQ-5** — (v2) The capped region is **marked**: a dim red arc (`--accent-bad`
+  at reduced opacity) spanning ceiling→end of sweep, drawn beneath the value arc.
+  - v1 left it as bare track, reasoning that absence reads as inertness. That
+    held while the band was ~140° wide. `lfo.rate`'s exponential taper
+    ([lfo](lfo.md) REQ-8) then moved the ceiling from ~50% to ~88% of the sweep
+    and shrank the band to ~32°, at which size bare track is simply not noticed —
+    the feature stopped doing the one job it exists for. **A positive mark is
+    legible at a size absence is not.** This is the general lesson, not a fact
+    about this knob: a cue built from *absence* degrades with the size of the gap.
+  - Red rather than grey because the meaning is "blocked", not "empty", and the
+    knob already has a dim-neutral element (`.track`) that means "not yet
+    reached". Reduced opacity because it is a passive statement of range, not an
+    error the user must act on.
+  - The element is created **on demand**, so a knob without a ceiling has no
+    extra node and no extra cost — the same lazy pattern as `StepButton`'s
+    `.fill` layer.
 - **REQ-6** — While a ceiling is active the knob root carries
   `data-uimax="<value>"`, removed when cleared. This is an assertable hook for
   e2e and self-documenting in devtools. Deliberately a data attribute and **not**
@@ -108,6 +121,26 @@ indicator rotation:  startDeg + norm * SWEEP_DEG              # true value
 arc dash length:     dashOn * min(norm, uiMaxNorm)            # capped  <-- the change
 value readout:       formatValue(value)                       # true value
 ```
+
+The dial carries **three** concentric circles once a ceiling is set, painted in
+this order so each later one covers the one before (v2):
+
+```yaml
+.track   full sweep, dim neutral      # travel not yet reached
+.dead    ceiling -> end of sweep      # travel that does nothing   (v2, on demand)
+.value   0 -> min(norm, uiMaxNorm)    # travel in effect
+```
+
+`.dead` is positioned with `stroke-dashoffset`, which `.track`/`.value` do not
+use — they both start at the sweep origin, while `.dead` starts partway along it:
+
+```yaml
+length:  dashOn * (1 - uiMaxNorm)
+offset:  -(dashOn * uiMaxNorm)        # negative delays the dash's start
+```
+
+It is repainted only when the **ceiling** moves, never per value change — it does
+not depend on the value, so it stays out of `render` and off the automation path.
 
 ### Gesture inventory
 
@@ -183,6 +216,18 @@ Scenario: Clearing the ceiling restores the full arc (REQ-4)
   Given a capped knob showing a value above its ceiling
   When setUiMax(null) is called
   Then the arc repaints to the true value without the param changing
+  And the dead-region marker is removed from the DOM
+# pinned by: tests/ui/knob.test.ts
+
+Scenario: The dead region is marked, not merely absent (v2, REQ-5)
+  Given a knob on lfo.rate with a soft ceiling of 10
+  Then a .dead arc spans the ceiling to the end of the sweep
+  And it is painted beneath the value arc, not over it
+# pinned by: tests/ui/knob.test.ts
+
+Scenario: A knob with no ceiling grows no extra element (v2, REQ-5)
+  Given a knob constructed without a soft ceiling
+  Then the dial holds only the track and value circles
 # pinned by: tests/ui/knob.test.ts
 
 Scenario: A capped knob costs nothing to automate (REQ-7, edge)

@@ -77,11 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The LFO RATE knob now shows you where it stops mattering.** On the **pulse**
   destination the pulse width only follows the rate up to 10 Hz — that was
   written under the panel, but the knob's orange ring kept filling all the way to
-  20 Hz as if something were still happening. It now stops at 10 Hz and leaves
-  the rest of the ring bare, so the dead part of the travel looks dead. Nothing
-  about the sound or your saved patches changes: you can still turn it to 20 Hz,
-  the readout still says so, and every other destination still uses the full
-  range.
+  20 Hz as if something were still happening. The ring now stops at 10 Hz and the
+  travel beyond it is marked in dim red, so you can see the limit coming before
+  you reach it. Nothing about the sound or your saved patches changes: you can
+  still turn it to 20 Hz, the readout still says so, and every other destination
+  still uses the full range with no red at all.
 
 ### Fixed
 
