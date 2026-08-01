@@ -298,7 +298,11 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'env.fil.release', min: 0.001, max: 6, default: 0.4, format: fmtMs },
 
     // ----- LFO -----
-    { id: 'lfo.rate', min: 0.05, max: 20, default: 4, format: (v) => v.toFixed(2) + 'Hz' },
+    // Exponentially tapered (lfo.md REQ-8): rate is heard in octaves, so equal
+    // turns give equal ratios. Linear spent half the dial above 10 Hz and
+    // crammed the useful sub-1 Hz region into its first ~5%. Stored values are
+    // in Hz and unaffected — only the knob position they map to moves.
+    { id: 'lfo.rate', min: 0.05, max: 20, default: 4, taper: 'exp', format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'lfo.amount', min: 0, max: 1, default: 0, format: fmtPct },
     { id: 'lfo.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
     { id: 'lfo.dest', min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },

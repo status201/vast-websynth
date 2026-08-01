@@ -3,7 +3,8 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 2                     # v2: pulse-width modulation on osc1/osc2
+version: 3                     # v3: the REQ-9 rate cap is shown on the knob, not only in prose
+                               # v2: pulse-width modulation on osc1/osc2
 owner: core
 related:
   - architecture
@@ -11,6 +12,7 @@ related:
   - ladder-filter
   - lfo                        # the `pulse` destination drives pulseWidth
   - runtime-performance        # the PWM control loop's cost contract
+  - knob-soft-ceiling          # v3: how REQ-9's cap is drawn on the RATE knob
 source:
   - src/audio/oscillator.ts    # duty bank + setPulseWidth
   - src/audio/pwm.ts           # the control loop (v2)
@@ -67,8 +69,13 @@ scalar params, so they snapshot into presets/songs for free.
   because smoothness is `PWM_CONTROL_HZ ÷ rate` updates per cycle and a faster
   LFO steps audibly. `lfo.rate`'s registered range is **unchanged** — narrowing
   it would make `preset-validate` reject every saved patch with a faster LFO —
-  so the UI carries a hint while `pulse` is selected rather than the knob
-  silently doing nothing.
+  so the UI discloses the cap while `pulse` is selected rather than the knob
+  silently doing nothing. (v3) The disclosure is **two cues, one subscription**:
+  the panel hint *and* a [soft ceiling](knob-soft-ceiling.md) at `PWM_RATE_MAX`
+  on the RATE knob, which stops its arc filling through the dead travel. Both are
+  driven from the same `lfo.dest` listener so they cannot drift apart, and both
+  disappear for every other destination, where the full `0.05..20` range really
+  is live. The cap is paint only — dragging still reaches and stores 20 Hz.
 - **REQ-10** — (v2) A background tab throttles main-thread timers to ~1 Hz while
   audio keeps playing ([audio-lifecycle](audio-lifecycle.md)). The duty then
   freezes at its last value: no click, no drift, and it resumes on return.
@@ -126,7 +133,8 @@ graph (v2):
     osc1/osc2 .setPulseWidth(...)      # a param write, never an audio connection
 ui:       src/ui/app.ts  (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
   osc{N}.pulseWidth knob is shown only while osc{N}.wave === square
-  LFO panel shows the REQ-9 rate-cap hint while dest === pulse
+  LFO panel: pulseRateDisclosure() — ONE lfo.dest listener drives both REQ-9 cues,
+    the rate-cap hint's visibility AND knob-lfo.rate's soft ceiling (v3)
 ```
 
 Each `Voice` (`src/audio/voice.ts`) owns its own `Oscillator` instances
@@ -207,6 +215,14 @@ Scenario: The rate cap is disclosed rather than silent (REQ-9)
   Then the LFO panel shows the rate-cap hint
   When the destination changes to anything else
   Then the hint is hidden
+# pinned by: e2e/controls.spec.ts
+
+Scenario: The rate cap is shown on the knob, not only in prose (REQ-9, v3)
+  Given lfo.dest is "pulse"
+  Then knob-lfo.rate carries a PWM_RATE_MAX soft ceiling, so its arc stops there
+  And lfo.rate can still be dragged to 20
+  When the destination changes to anything else
+  Then the ceiling is gone along with the hint, and the arc tracks the full range
 # pinned by: e2e/controls.spec.ts
 ```
 

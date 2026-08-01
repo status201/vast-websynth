@@ -3,7 +3,8 @@
 ```yaml
 id: lfo
 status: implemented
-version: 4                  # v4: `shape` destination — v3: `pulse` implemented
+version: 5                  # v5: lfo.rate is exponentially tapered (REQ-8)
+                            # v4: `shape` destination — v3: `pulse` implemented
 owner: core
 related:
   - architecture
@@ -70,13 +71,30 @@ in on top of the patched base amount — clamped to `[0, 1]` so it never oversho
   filter *coefficients*, so a `square` waveform's instantaneous jump is a click,
   not a musical step. It is a no-op under the LADDER model, which ignores
   `filter.shape` (filter-models REQ-7).
+- **REQ-8** — (v5) `lfo.rate` is **exponentially tapered**. Rate is perceived in
+  octaves, not in Hz: linearly, the musically useful sub-1 Hz region occupied the
+  first ~5% of the knob's travel (~9 px of a 200 px drag) while half the dial was
+  spent between 10 and 20 Hz. `exp` spreads it evenly — each equal turn is a
+  constant *ratio*, so 0.05→0.5→5 Hz are equally spaced, matching how every
+  hardware LFO rate pot is wired. `min = 0.05 > 0`, which `exp` requires.
+  - **Stored values are untouched.** Presets, songs and share links hold the
+    rate in Hz, so every saved patch loads at exactly the rate it always had and
+    `preset-validate` sees no change. The registered range stays `0.05..20`.
+  - **One thing does change**: motion-sequencer anchors are stored in *taper
+    space* (`MotionStep.x/y`, 0..1) and resolved via `fromNorm` at play time
+    ([motion-sequencer](motion-sequencer.md)), so a motion lane whose axis is
+    assigned to `lfo.rate` replays at a different rate than it was recorded at —
+    a mid-travel anchor moves from ~10 Hz to 1 Hz. No factory demo assigns that
+    axis. Accepted rather than migrated: the alternative is a song-format
+    version that rewrites stored coordinates per axis param, which is a lot of
+    machinery for a lane nothing ships.
 
 ## Technical design
 
 ### Data shapes (registry)
 
 ```yaml
-lfo.rate:        { range: 0.05..20, default: 4, format: Hz }
+lfo.rate:        { range: 0.05..20, default: 4, format: Hz, taper: exp }  # v5, REQ-8
 lfo.amount:      { range: 0..1, default: 0 }            # no-op default
 lfo.wave:        { discrete, labels: WAVE_LABELS, range: 0..3, default: 0 }
 lfo.dest:        { discrete, labels: LFO_DEST_LABELS, range: 0..6, default: 0 }  # v4: +shape
@@ -177,6 +195,19 @@ Scenario: An existing patch's destination index is unchanged
   Then validation accepts it and index 3 is still "amp"
   And index 6 is now accepted, while 7 is still rejected
 # pinned by: tests/state/preset-validate.test.ts
+
+Scenario: The rate knob moves in octaves, not in Hz (v5, REQ-8)
+  Given lfo.rate is exponentially tapered over 0.05..20
+  Then the knob's midpoint is 1 Hz, not 10 Hz
+  And equal turns anywhere on the dial multiply the rate by the same factor
+# pinned by: tests/state/params.test.ts
+
+Scenario: An existing patch's stored rate survives the taper change (v5, REQ-8)
+  Given a preset saved before v5 with "lfo.rate" 12.5
+  When it is loaded
+  Then lfo.rate is still exactly 12.5 and validation accepts it
+  And only the knob position it maps to has moved
+# pinned by: tests/state/params.test.ts
 ```
 
 ## Tests & verification

@@ -121,16 +121,27 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect(width).toBeHidden();
   });
 
-  test('the LFO rate-cap hint appears only for the pulse destination', async ({ page }) => {
+  // Both REQ-9 cues ride one lfo.dest subscription (oscillators.md), so they are
+  // asserted together — a capped arc with no sentence beside it explaining it
+  // would be worse than neither.
+  test('the LFO rate cap is disclosed by both the hint and the knob arc', async ({ page }) => {
     await gotoAndStart(page);
     const hint = page.getByText('Pulse width follows the rate up to');
+    const rate = page.getByTestId('knob-lfo.rate');
     await expect(hint).toBeHidden();
+    await expect(rate).not.toHaveAttribute('data-uimax');
 
     await busSet(page, 'lfo.dest', 4); // pulse
     await expect(hint).toBeVisible();
+    await expect(rate).toHaveAttribute('data-uimax', '10');
 
-    await busSet(page, 'lfo.dest', 5); // pan
+    // Paint only: the knob still reaches and stores the registered maximum.
+    await busSet(page, 'lfo.rate', 20);
+    expect(await busGet(page, 'lfo.rate')).toBe(20);
+
+    await busSet(page, 'lfo.dest', 5); // pan — 20 Hz is genuinely live here
     await expect(hint).toBeHidden();
+    await expect(rate).not.toHaveAttribute('data-uimax');
   });
 
   test('sampler slot handles are present', async ({ page }) => {

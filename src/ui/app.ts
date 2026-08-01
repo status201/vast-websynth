@@ -551,12 +551,13 @@ function buildMain(bus: ParamBus): HTMLElement {
 
   main.appendChild(panel('LFO', (b) => {
     b.appendChild(new Segmented(bus, 'lfo.wave', WAVE_LABELS, WAVE_ICONS).el);
+    const rate = new Knob({ bus, paramId: 'lfo.rate', label: 'RATE' });
     b.appendChild(row([
-      new Knob({ bus, paramId: 'lfo.rate', label: 'RATE' }).el,
+      rate.el,
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
     ], styles.spread!));
     b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
-    b.appendChild(pulseRateHint(bus));
+    b.appendChild(pulseRateDisclosure(bus, rate));
   }, 'lfo'));
 
   return main;
@@ -587,13 +588,22 @@ function pulseWidthRow(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement {
  * (oscillators.md REQ-9) — without this the knob would move above the cap with
  * nothing happening. Narrowing the param's own range is not an option: it would
  * make `preset-validate` reject every saved patch with a faster LFO.
+ *
+ * Two cues, deliberately on **one** subscription so they cannot drift apart: the
+ * sentence, and a soft ceiling on the RATE knob that stops its arc filling
+ * through the dead travel (knob-soft-ceiling.md). The arc is what gets noticed —
+ * it is what sends the user to the sentence, which is ADR-014 law 1 (self-evident
+ * beats explained) applied without giving up the explanation. Both are scoped to
+ * `pulse`: every other destination really does run the full 0.05..20 Hz.
  */
-function pulseRateHint(bus: ParamBus): HTMLElement {
+function pulseRateDisclosure(bus: ParamBus, rate: Knob): HTMLElement {
   const el = document.createElement('p');
   el.className = styles.paramHint!;
   el.textContent = `Pulse width follows the rate up to ${PWM_RATE_MAX} Hz.`;
   bus.subscribe('lfo.dest', (d) => {
-    el.style.display = Math.round(d) === PULSE_DEST ? '' : 'none';
+    const pulse = Math.round(d) === PULSE_DEST;
+    el.style.display = pulse ? '' : 'none';
+    rate.setUiMax(pulse ? PWM_RATE_MAX : null);
   });
   return el;
 }
