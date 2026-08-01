@@ -6,7 +6,7 @@ import styles from '../styles/dropdown.module.css';
  * keeps its zero-chrome look, and only the genuinely long ones (the ~198 bus
  * param ids behind the XY/Motion assign pickers) pay for the extra row.
  */
-const FILTER_MIN_OPTIONS = 20;
+const FILTER_MIN_OPTIONS = 30;
 
 /**
  * Magnifier. Local to this component rather than in `header-icons.ts` — that

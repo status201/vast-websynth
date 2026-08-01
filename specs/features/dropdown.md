@@ -66,7 +66,7 @@ without anyone remembering to ask.
 - **REQ-6** — Closing the menu returns focus to the toggle when focus was
   inside the dropdown, so keyboard flow isn't dropped on the floor after
   Escape or a selection.
-- **REQ-7** (v2) — **A list of `FILTER_MIN_OPTIONS` (20) or more options carries a
+- **REQ-7** (v2) — **A list of `FILTER_MIN_OPTIONS` (30) or more options carries a
   live filter row** at the top of the menu: a magnifier glyph plus a text input
   (`data-testid="dropdown-filter"`). Typing hides every option whose label does
   not contain the query (case-insensitive substring); when nothing matches, a
