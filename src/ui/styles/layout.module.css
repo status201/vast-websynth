@@ -57,6 +57,25 @@
   width: 100%;
 }
 
+/* The 6-knob FILTER panel (.quad's sibling since the model switch added SHAPE
+   and KEYTRK). A knob's box is a fixed `--knob-size + 8px`, so a column count
+   that outruns the panel width makes the boxes overlap, not merely crowd — the
+   ceiling is what .quad already establishes: 2 knobs per row on the 8-column
+   desktop grid, 4 once the panels widen at ≤1280px. Six knobs therefore go
+   2x3 here and 3x2 there, both stopping short of that ceiling and both leaving
+   even rows (.quad's "never wrap 3+1" rule applied to six). A third shape picks
+   up on very wide monitors (≥1630px), where the 8-column panel finally fits
+   three of this panel's long labels — see the min-width block below.
+   See specs/features/responsive-synth-panels.md, filter-models.md. */
+.hex {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 4px;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
+}
+
 /* 3- and 2-knob panels (OSC 1/2, MIXER, LFO) keep their centered flex row on the
    8-column desktop grid, but on the ≤1280px reflow — where the panels widen —
    spread the knobs evenly across the width (space-evenly, applied in that media
@@ -421,11 +440,24 @@
 
 /* ===== Responsive ===== */
 
+/* Very wide monitors. `.main` stays 8 columns above 1280px, so panels simply
+   grow with the viewport — and past ~1630px the FILTER panel is finally wide
+   enough for three of its knobs per row, matching the 3-up OSC/MIXER rows
+   beside it instead of standing a row taller than the whole faceplate.
+   The threshold is set by LABEL ink, not by the dial: a six-character label
+   (CUTOFF, KEYTRK) inks ~61px against a 52px knob box, so three columns need
+   ~191px of panel body. Only .hex needs this — .quad's four knobs would want
+   ~2400px to go 4-up, well past any real display. */
+@media (min-width: 1630px) {
+  .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1280px) {
   .main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
      row. Holds through every narrower width. */
   .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* Distribute the 3-/2-knob rows across the widened panel so they match the
      .quad panels' generosity instead of clustering centre. */
   .spread { justify-content: space-evenly; }

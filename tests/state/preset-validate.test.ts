@@ -81,9 +81,12 @@ describe('semantic layer (with a bus)', () => {
     }
   });
 
-  it('accepts the new pan destination and still rejects past it', () => {
-    expect(validatePresetPayload(PRESET({ 'lfo.dest': 5 }), bus()).ok).toBe(true);
-    expect(validatePresetPayload(PRESET({ 'lfo.dest': 6 }), bus()).ok).toBe(false);
+  // Appending a destination must widen the accepted range by exactly one and
+  // leave every older index meaning what it always meant (lfo.md REQ-3).
+  it('accepts the pan and shape destinations and still rejects past them', () => {
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 5 }), bus()).ok).toBe(true); // pan
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 6 }), bus()).ok).toBe(true); // shape
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 7 }), bus()).ok).toBe(false);
   });
 
   it('rejects a fractional index on a choice parameter', () => {

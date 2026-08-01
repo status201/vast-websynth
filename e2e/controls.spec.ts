@@ -73,6 +73,23 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect.poll(() => busGet(page, 'filter.cutoff')).toBeCloseTo(60, 1);
   });
 
+  test('the filter model switch selects POLY and enables SHAPE', async ({ page }) => {
+    await gotoAndStart(page);
+    expect(await busGet(page, 'filter.model')).toBe(0); // ladder by default
+
+    const shape = page.getByTestId('knob-filter.shape');
+    // SHAPE belongs to POLY, so it is dimmed until the model is switched.
+    await expect(shape).toHaveAttribute('aria-disabled', 'true');
+
+    await page.getByTestId('seg-filter.model-1').click();
+    expect(await busGet(page, 'filter.model')).toBe(1);
+    await expect(shape).toHaveAttribute('aria-disabled', 'false');
+
+    await page.getByTestId('seg-filter.model-0').click();
+    expect(await busGet(page, 'filter.model')).toBe(0);
+    await expect(shape).toHaveAttribute('aria-disabled', 'true');
+  });
+
   test('a sequencer step toggles pattern state', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-seq').click();

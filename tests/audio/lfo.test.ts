@@ -36,13 +36,14 @@ function depths(lfo: LFO) {
     cutoff: depth(lfo.toCutoff),
     amp: depth(lfo.toAmp),
     pan: depth(lfo.toPan),
+    shape: depth(lfo.toShape),
   };
 }
 
 describe('LFO destination routing', () => {
   it('boots silent on every destination', () => {
     const { lfo } = build();
-    for (const g of [lfo.toPitch, lfo.toCutoff, lfo.toAmp, lfo.toPan]) {
+    for (const g of [lfo.toPitch, lfo.toCutoff, lfo.toAmp, lfo.toPan, lfo.toShape]) {
       expect(g.gain.value).toBe(0);
     }
   });
@@ -52,16 +53,19 @@ describe('LFO destination routing', () => {
     lfo.setAmount(1);
 
     lfo.setDest(1); // cutoff — ±24 semitones
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 24, amp: 0, pan: 0 });
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 24, amp: 0, pan: 0, shape: 0 });
 
     lfo.setDest(2); // pitch — ±1200 cents
-    expect(depths(lfo)).toEqual({ pitch: 1200, cutoff: 0, amp: 0, pan: 0 });
+    expect(depths(lfo)).toEqual({ pitch: 1200, cutoff: 0, amp: 0, pan: 0, shape: 0 });
 
     lfo.setDest(3); // amp — ±50% around the tremolo VCA's base 1.0
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0.5, pan: 0 });
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0.5, pan: 0, shape: 0 });
 
     lfo.setDest(5); // pan — ±1.0, hard L↔R (REQ-4)
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 1 });
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 1, shape: 0 });
+
+    lfo.setDest(6); // shape — ±0.5 of the POLY pole mix (REQ-7)
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0.5 });
   });
 
   it('switching away from pan re-centres the image', () => {
@@ -80,7 +84,7 @@ describe('LFO destination routing', () => {
     lfo.setAmount(1);
     lfo.setDest(5);
     lfo.setDest(0);
-    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0 });
+    expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0 });
   });
 
   it('scales depth by amount', () => {
@@ -119,9 +123,11 @@ describe('LFO control-signal smoothing (REQ-5)', () => {
     expect(direct).toContain(lfo.toCutoff);
     expect(direct).not.toContain(lfo.toAmp);
     expect(direct).not.toContain(lfo.toPan);
+    expect(direct).not.toContain(lfo.toShape);
 
-    // amp/pan go via the lowpass — a stepped gain is a click.
-    expect(smoothed).toEqual([lfo.toAmp, lfo.toPan]);
+    // amp/pan/shape go via the lowpass — a stepped gain is a click, and so is a
+    // stepped filter *coefficient*, which is what shape moves (lfo.md REQ-7).
+    expect(smoothed).toEqual([lfo.toAmp, lfo.toPan, lfo.toShape]);
     expect(direct).toContain(smooth);
   });
 

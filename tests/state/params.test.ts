@@ -239,6 +239,48 @@ describe('ParamBus', () => {
     expect(bus.def('drum.t7.vol')).toBeDefined();
   });
 
+  // filter-models.md REQ-1, key-tracking.md REQ-1. All three must default to a
+  // no-op or every existing preset, demo and share link changes sound (ADR-006).
+  it('registers the filter model, shape and keytrack as no-ops', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+
+    expect(bus.get('filter.model')).toBe(0); // 0 = ladder, the pre-existing filter
+    expect(bus.get('filter.shape')).toBe(0); // 0 = LP24, a plain 4-pole low-pass
+    expect(bus.get('filter.keytrack')).toBe(0);
+
+    const model = bus.def('filter.model');
+    expect(model?.taper).toBe('discrete');
+    expect(model?.labels).toEqual(['ladder', 'poly']);
+    expect(model?.max).toBe(1);
+
+    bus.set('filter.model', 9);
+    expect(bus.get('filter.model')).toBe(1); // clamped, not wrapped
+    bus.set('filter.shape', 2);
+    expect(bus.get('filter.shape')).toBe(1);
+  });
+
+  it('names the shape morph after the anchor it is nearest', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const fmt = bus.def('filter.shape')?.format;
+    expect(fmt?.(0)).toBe('LP24');
+    expect(fmt?.(1 / 3)).toBe('LP12');
+    expect(fmt?.(2 / 3)).toBe('BP12');
+    expect(fmt?.(1)).toBe('HP24');
+  });
+
+  it('appends the shape LFO destination without moving the older indices', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const def = bus.def('lfo.dest');
+    // An index here is a stored value in every saved patch (lfo.md REQ-3).
+    expect(def?.labels).toEqual(['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']);
+    expect(def?.max).toBe(6);
+    bus.set('lfo.dest', 7);
+    expect(bus.get('lfo.dest')).toBe(6);
+  });
+
   it('registers the drum reverb params with off-by-default bypass', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

@@ -3,15 +3,18 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 6   # v6: per-sample sat() carry (REQ-12)
+version: 7   # v7: this is filter model 0 of N (REQ-13)
 owner: core
 related:
   - architecture
   - envelopes
   - lfo
+  - filter-models
+  - key-tracking
   - runtime-performance
   - ../decisions/adr-005-cutoff-as-midi-note
   - ../decisions/adr-010-musical-stable-cheap-dsp
+  - ../decisions/adr-016-one-filter-worklet-model-per-block
   - ../recipes/add-a-parameter
 source:
   - public/worklets/ladder-filter.js     # the DSP (audio thread, plain JS)
@@ -128,6 +131,17 @@ frequencies. The on-screen value is still shown in Hz for the user.
   against a frozen naive reference under drive + resonance, where every `sat()`
   call actually affects the result (see
   [`runtime-performance.md`](runtime-performance.md) REQ-8).
+- **REQ-13** — **This is filter model `0` of N** (v7). The worklet also hosts the
+  POLY model, selected by a k-rate `model` `AudioParam`
+  ([filter-models.md](filter-models.md),
+  [ADR-016](../decisions/adr-016-one-filter-worklet-model-per-block.md)). The
+  model branch sits **outside** the sample loop, so everything above — the
+  recurrence, the make-up gain, REQ-10/11/12 — is unchanged and the ladder's
+  output remains **bit-identical** to the frozen naive reference. `filter.shape`
+  belongs to POLY and is ignored here (filter-models REQ-7). Two params are
+  shared: `filter.keytrack` offsets this model's cutoff exactly as it does
+  POLY's ([key-tracking.md](key-tracking.md)), and the `setActive` port flag
+  (REQ-10) gates both models from one place.
 
 ## Technical design
 
@@ -158,6 +172,10 @@ filter.cutoff:    { range: 30..130, default: 90, format: fmtNoteFromCutoff }  # 
 filter.resonance: { range: 0..4.2,  default: 0.5, taper: power, curve: 0.6 }  # power taper = finer near self-osc
 filter.drive:     { range: 0.5..6,  default: 1.2, format: "x" }
 filter.envAmount: { range: -48..48, default: 24, unit: semitones }            # bipolar
+# also on the FILTER panel, owned by other specs:
+filter.model:     # filter-models.md — 0 = this model
+filter.shape:     # filter-models.md — POLY only
+filter.keytrack:  # key-tracking.md  — both models
 ```
 
 The `power` taper (`Taper` in `params.ts`, applied by `utils/taper.ts`)
@@ -277,6 +295,13 @@ Scenario: A lost deactivate can only cost CPU, never a note (safety edge)
   When the voice is allocated again and noteOn fires
   Then setActive(true) is posted unconditionally and the note sounds
 # pinned by: tests/audio/voice.test.ts
+
+Scenario: Adding a second model left this one bit-identical (REQ-13, regression)
+  Given the model param sits at its default 0
+  When a driven, resonant block is processed
+  Then every output sample equals the frozen naive ladder reference
+  And sweeping filter.shape 0 -> 1 changes nothing
+# pinned by: tests/audio/ladder-filter-worklet.test.ts
 
 Scenario: Resonance knob has a power taper (non-linear mapping)
   Given filter.resonance uses taper 'power' with curve < 1

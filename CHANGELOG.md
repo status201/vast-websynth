@@ -18,6 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A second filter, with a character the first one cannot have.** The FILTER
+  panel has a **LADDER / POLY** switch. **LADDER** is the filter you already
+  know — warm, growly, saturating at every stage — and it stays the default, so
+  nothing you have saved changes. **POLY** keeps its **low end** as you raise
+  RESO: where the ladder trades bass away for the resonant peak, POLY lets the
+  peak scream *on top of* a full bottom end. Its stages are clean and the
+  distortion lives in the resonance instead, so the tone is glassier and more
+  open, and DRIVE bites without turning to mush. The two are level-matched, so
+  flipping the switch is a change of character, not of volume — try it on a bass
+  line with RESO cranked.
+- **A SHAPE knob that changes what kind of filter you have.** On POLY, SHAPE
+  morphs through four shapes — **LP24** (steep and dark), **LP12** (gentler, more
+  air), **BP12** (band-pass: hollow and vocal, lovely on pads) and **HP24**
+  (high-pass: bass gone, all glass and attack). The instrument had no band-pass
+  or high-pass at all before this. Because it is a knob and not a menu, the LFO
+  can sweep it — point the LFO at the new **shape** destination — and so can the
+  XY Pad and the motion sequencer, so the filter *type* can move through a bar.
+  It is greyed out under LADDER, which is low-pass only.
+- **Filter key tracking.** A **KEYTRK** knob adds the note you are playing to the
+  cutoff, so a patch keeps its timbre as you move up the keyboard instead of
+  going dull two octaves up. At full tracking a self-oscillating filter becomes
+  playable as a pitched voice. It works on both filter models and defaults to
+  off, so no existing sound moves.
+- **Three factory presets built around the new filter** — **ember** (an acid bass
+  whose bottom stays put under a screaming resonance), **vellum** (a band-pass
+  pad with the LFO breathing the filter shape open and closed) and **prism** (a
+  thin, glassy high-pass pluck that tracks the keyboard). Switch any of them to
+  LADDER to hear what POLY is doing.
 - **The LFO can now sweep the sound across the stereo field.** Pick **pan** as
   the LFO destination and the whole synth channel — including its delay and
   reverb — drifts between the speakers, following the same rate, depth and

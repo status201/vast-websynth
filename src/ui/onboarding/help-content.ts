@@ -203,6 +203,8 @@ export type TopicId =
   | 'filter.cutoff'
   | 'filter.resonance'
   | 'filter.envAmount'
+  | 'filter.model'
+  | 'filter.shape'
   | 'unison.detune'
   | 'ampenv'
   | 'filterenv'
@@ -372,7 +374,48 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'whistling edge.</li>' +
       '<li><strong>DRIVE</strong> — pushes the filter harder for grit and warmth.</li>' +
       '<li><strong>ENV</strong> — how much the Filter envelope moves the cutoff (see Filter Env).</li>' +
+      '<li><strong>SHAPE</strong> — morphs the filter type (POLY only). See below.</li>' +
+      '<li><strong>KEYTRK</strong> — how much the note you play raises the cutoff, so the tone ' +
+      'stays consistent up the keyboard.</li>' +
+      '</ul>' +
+      '<p>The switch at the top picks the filter <em>model</em> — two different circuits, ' +
+      'same knobs:</p>' +
+      '<ul>' +
+      '<li><strong>LADDER</strong> — the classic. Warm and growly, and it thins out the bass as ' +
+      'you raise RESO, which is exactly why it sounds the way it does.</li>' +
+      '<li><strong>POLY</strong> — cleaner and glassier, and it <em>keeps</em> its bottom end when ' +
+      'you crank RESO, so the resonance screams on top of a full sound instead of replacing it. ' +
+      'It also unlocks the SHAPE knob.</li>' +
       '</ul>',
+  },
+  'filter.model': {
+    title: 'Filter — Model',
+    body:
+      '<p>Two filters with genuinely different characters. Flip between them on the same patch — ' +
+      'they are level-matched, so what you hear is character, not volume.</p>' +
+      '<ul>' +
+      '<li><strong>LADDER</strong> — 4-pole, saturating at every stage. Warm, compressed, ' +
+      'growling. Raising RESO trades bass for the resonant peak.</li>' +
+      '<li><strong>POLY</strong> — 4-pole with clean stages and the distortion moved into the ' +
+      'resonance itself. Glassy and open; the bass stays put however far you push RESO, and ' +
+      'the SHAPE knob turns it into a low-pass, band-pass or high-pass.</li>' +
+      '</ul>' +
+      '<p>Try it on a bass line: same patch, crank RESO, switch models.</p>',
+  },
+  'filter.shape': {
+    title: 'Filter — Shape',
+    body:
+      '<p>Morphs the POLY filter through four shapes, so one knob changes <em>what kind</em> of ' +
+      'filter it is rather than where it sits:</p>' +
+      '<ul>' +
+      '<li><strong>LP24</strong> — steep low-pass. Dark and solid, the default.</li>' +
+      '<li><strong>LP12</strong> — gentler low-pass. More open, keeps some air.</li>' +
+      '<li><strong>BP12</strong> — band-pass. Only frequencies near the cutoff survive: hollow, ' +
+      'vocal, great for pads.</li>' +
+      '<li><strong>HP24</strong> — high-pass. Bass removed: thin, glassy plucks.</li>' +
+      '</ul>' +
+      '<p>Point the LFO at <em>shape</em> (or automate it from the motion sequencer) to sweep ' +
+      'between them. Greyed out under the LADDER model, which is low-pass only.</p>',
   },
   'filter.cutoff': {
     title: 'Filter — Cutoff',

@@ -31,8 +31,11 @@ beforeAll(async () => {
   await import('../../public/worklets/ladder-filter.js' as string);
 });
 
+/** Defaults mirror the parameterDescriptors — `model: 0` is the LADDER path. */
 function makeParams(over: Record<string, number> = {}): Record<string, Float32Array> {
-  const d: Record<string, number> = { cutoffNote: 90, resonance: 0, drive: 1, ...over };
+  const d: Record<string, number> = {
+    cutoffNote: 90, resonance: 0, drive: 1, model: 0, shape: 0, ...over,
+  };
   return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, new Float32Array([v])]));
 }
 
@@ -163,6 +166,8 @@ describe('ladder-filter worklet DSP', () => {
     cutoffNote: cutoff,
     resonance: new Float32Array([res]),
     drive: new Float32Array([1]),
+    model: new Float32Array([0]),
+    shape: new Float32Array([0]),
   });
 
   it('hoists a block-constant cutoff bit-identically to a length-1 array (REQ-11)', () => {
@@ -259,6 +264,37 @@ describe('ladder-filter worklet DSP', () => {
 
     // A stale carry would make the restart diverge from a fresh processor.
     expect(run(proc, params, gen, 12)).toEqual(run(new Processor(), params, gen, 12));
+  });
+
+  // REQ-13: the worklet now hosts a second model (filter-models.md), branched
+  // per block. That branch must be invisible from here — the ladder is model 0,
+  // and `shape` belongs to POLY.
+  it('is unchanged by the second model living in the same worklet (REQ-13)', () => {
+    let seed = 11;
+    const noise = (): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x3fffffff - 1;
+    };
+    const blocks = 20;
+    const total = blocks * BLOCK;
+    const samples = new Float32Array(total);
+    for (let i = 0; i < total; i++) samples[i] = noise();
+    const gen = (i: number): number => samples[i]!;
+
+    // The default model still resolves to the frozen naive ladder.
+    const got = run(new Processor(), makeParams({ cutoffNote: 84, resonance: 4.2, drive: 2 }), gen, blocks);
+    expect(got).toEqual(referenceLadder(gen, total, 84, 4.2, 2));
+
+    // And SHAPE is inert here — sweeping it end to end changes nothing.
+    for (const shape of [0.25, 0.5, 0.75, 1]) {
+      const swept = run(
+        new Processor(),
+        makeParams({ cutoffNote: 84, resonance: 4.2, drive: 2, shape }),
+        gen,
+        blocks,
+      );
+      expect(swept).toEqual(got);
+    }
   });
 
   it('keeps a varying cutoff block per-sample accurate — the hoist does not fire (REQ-11)', () => {

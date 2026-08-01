@@ -49,6 +49,10 @@ const ANCHORS: Anchor[] = [
   { topic: 'filter', find: () => byHelp('filter') },
   { topic: 'filter.cutoff', find: () => byTestId('knob-filter.cutoff') },
   { topic: 'filter.resonance', find: () => byTestId('knob-filter.resonance') },
+  // The model switch is the one control here a player cannot guess from its
+  // label, so it earns its own badge (filter-models.md, ADR-014).
+  { topic: 'filter.model', find: () => byTestId('seg-filter.model') },
+  { topic: 'filter.shape', find: () => byTestId('knob-filter.shape') },
   { topic: 'ampenv', find: () => byHelp('ampenv') },
   { topic: 'filterenv', find: () => byHelp('filterenv') },
   { topic: 'lfo', find: () => byHelp('lfo') },
