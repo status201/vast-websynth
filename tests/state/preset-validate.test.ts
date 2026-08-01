@@ -71,6 +71,21 @@ describe('semantic layer (with a bus)', () => {
     expect(res.errors[0]).toContain(`${def.min}..${def.max}`);
   });
 
+  it('accepts every pre-v2 lfo.dest index unchanged (lfo.md REQ-3)', () => {
+    // The destination list is append-only: growing it to add `pan` must not
+    // invalidate — or re-point — any index a saved patch already holds.
+    const labels = bus().def('lfo.dest')!.labels!;
+    expect(labels.slice(0, 5)).toEqual(['off', 'cutoff', 'pitch', 'amp', 'pulse']);
+    for (let i = 0; i <= 4; i++) {
+      expect(validatePresetPayload(PRESET({ 'lfo.dest': i }), bus()).ok).toBe(true);
+    }
+  });
+
+  it('accepts the new pan destination and still rejects past it', () => {
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 5 }), bus()).ok).toBe(true);
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 6 }), bus()).ok).toBe(false);
+  });
+
   it('rejects a fractional index on a choice parameter', () => {
     const res = validatePresetPayload(PRESET({ 'osc1.wave': 1.5 }), bus());
     expect(res.ok).toBe(false);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart, busGet, dragKnobUp } from './helpers';
+import { gotoAndStart, busGet, busSet, dragKnobUp } from './helpers';
 
 /**
  * Exercises the Phase-2 test surface: the `data-testid` handles added to the
@@ -89,6 +89,31 @@ test.describe('control surface (testids + debug bridge)', () => {
     const before = await busGet(page, 'fx.dist.on');
     await sw.click();
     expect(await busGet(page, 'fx.dist.on')).not.toBe(before);
+  });
+
+  test('the pulse-width knob is shown only for the square waveform', async ({ page }) => {
+    await gotoAndStart(page);
+    const width = page.getByTestId('knob-osc1.pulseWidth');
+    // osc1.wave defaults to saw (2), where pulse width is meaningless.
+    await expect(width).toBeHidden();
+
+    await busSet(page, 'osc1.wave', 3); // square
+    await expect(width).toBeVisible();
+
+    await busSet(page, 'osc1.wave', 0); // sine
+    await expect(width).toBeHidden();
+  });
+
+  test('the LFO rate-cap hint appears only for the pulse destination', async ({ page }) => {
+    await gotoAndStart(page);
+    const hint = page.getByText('Pulse width follows the rate up to');
+    await expect(hint).toBeHidden();
+
+    await busSet(page, 'lfo.dest', 4); // pulse
+    await expect(hint).toBeVisible();
+
+    await busSet(page, 'lfo.dest', 5); // pan
+    await expect(hint).toBeHidden();
   });
 
   test('sampler slot handles are present', async ({ page }) => {

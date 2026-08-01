@@ -8,19 +8,36 @@ export const enum LfoDest {
   Pitch = 2,
   Amp = 3,
   Pulse = 4,
+  Pan = 5,
 }
 
+/** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-5).
+ *  Q = 0.5 is critically damped — a step settles without overshoot, so the
+ *  smoothed depth never exceeds the depth that was asked for. */
+const SMOOTH_HZ = 200;
+const SMOOTH_Q = 0.5;
+
 /**
- * Global LFO. Exposes three pre-scaled output nodes corresponding to its
- * three destinations: pitch (cents), cutoff (semitones), amp (linear).
- * Only the active destination's gain is non-zero — the others are silent.
- * Voices connect each output to the matching AudioParam (osc detune,
- * filter cutoffNote, tremolo gain).
+ * Global LFO. Exposes four pre-scaled output nodes: pitch (cents), cutoff
+ * (semitones), amp (linear), pan (-1..1). Only the active destination's gain is
+ * non-zero — the others are silent. Voices connect pitch/cutoff/amp to the
+ * matching AudioParam (osc detune, filter cutoffNote, tremolo gain); Engine
+ * connects pan to the synth bus panner.
+ *
+ * `Pulse` is the fifth destination and has **no output node here**: a native
+ * OscillatorNode has no width AudioParam to drive, so it is handled by
+ * `PwmDriver` from a JS-side mirror of this shape (oscillators.md REQ-8). Its
+ * only effect on this class is that `update()` silences everything.
+ *
+ * `amp` and `pan` are fed through a lowpass, `pitch` and `cutoff` are not
+ * (lfo.md REQ-5): on a square/saw waveform a stepped *gain* is a click, while a
+ * stepped octave or filter jump is a musical event.
  */
 export class LFO {
   readonly toPitch: GainNode;
   readonly toCutoff: GainNode;
   readonly toAmp: GainNode;
+  readonly toPan: GainNode;
 
   private readonly osc: OscillatorNode;
   private amount = 0;
@@ -34,13 +51,24 @@ export class LFO {
     this.toPitch = ctx.createGain();
     this.toCutoff = ctx.createGain();
     this.toAmp = ctx.createGain();
+    this.toPan = ctx.createGain();
     this.toPitch.gain.value = 0;
     this.toCutoff.gain.value = 0;
     this.toAmp.gain.value = 0;
+    this.toPan.gain.value = 0;
 
+    // Frequency-domain destinations: straight off the oscillator.
     this.osc.connect(this.toPitch);
     this.osc.connect(this.toCutoff);
-    this.osc.connect(this.toAmp);
+
+    // Amplitude-domain destinations: via the de-clicking lowpass.
+    const smooth = ctx.createBiquadFilter();
+    smooth.type = 'lowpass';
+    smooth.frequency.value = SMOOTH_HZ;
+    smooth.Q.value = SMOOTH_Q;
+    this.osc.connect(smooth);
+    smooth.connect(this.toAmp);
+    smooth.connect(this.toPan);
 
     this.osc.start();
   }
@@ -65,12 +93,14 @@ export class LFO {
   }
 
   private update(): void {
-    const t = this.ctx.currentTime;
     // Pitch: ±1200 cents (one octave) at full depth
     rampTo(this.toPitch.gain, this.dest === LfoDest.Pitch ? this.amount * 1200 : 0, this.ctx, RAMP_MEDIUM);
     // Cutoff: ±24 semitones (two octaves) at full depth
     rampTo(this.toCutoff.gain, this.dest === LfoDest.Cutoff ? this.amount * 24 : 0, this.ctx, RAMP_MEDIUM);
     // Amp: ±50% modulation at full depth (added to tremolo VCA's base 1.0)
     rampTo(this.toAmp.gain, this.dest === LfoDest.Amp ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
+    // Pan: ±1.0 — hard L↔R at full depth. StereoPannerNode.pan clamps to ±1,
+    // so this stays bounded whatever the amount (lfo.md REQ-4).
+    rampTo(this.toPan.gain, this.dest === LfoDest.Pan ? this.amount : 0, this.ctx, RAMP_MEDIUM);
   }
 }

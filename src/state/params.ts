@@ -212,7 +212,9 @@ const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v
 const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
-export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse'];
+/** Append-only: an index here is a stored value in every preset, song and share
+ *  link, so reordering silently rewrites saved patches (lfo.md REQ-3). */
+export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan'];
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
@@ -234,12 +236,15 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'osc1.octave', min: -2, max: 2, default: 0, step: 1, unit: 'oct' },
     { id: 'osc1.detune', min: -50, max: 50, default: 0, unit: 'c', format: fmtCent },
     { id: 'osc1.level', min: 0, max: 1, default: 0.7, format: fmtPct },
+    // 0.5 IS a square wave, so the default is an exact no-op (oscillators.md REQ-5).
+    { id: 'osc1.pulseWidth', min: 0.5, max: 0.95, default: 0.5, format: fmtPct },
 
     // ----- OSC 2 -----
     { id: 'osc2.wave', min: 0, max: 3, default: 2, step: 1, taper: 'discrete', labels: WAVE_LABELS },
     { id: 'osc2.octave', min: -2, max: 2, default: 0, step: 1, unit: 'oct' },
     { id: 'osc2.detune', min: -50, max: 50, default: 7, unit: 'c', format: fmtCent },
     { id: 'osc2.level', min: 0, max: 1, default: 0.5, format: fmtPct },
+    { id: 'osc2.pulseWidth', min: 0.5, max: 0.95, default: 0.5, format: fmtPct },
 
     // ----- Sub oscillator -----
     { id: 'sub.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
@@ -280,7 +285,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'lfo.rate', min: 0.05, max: 20, default: 4, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'lfo.amount', min: 0, max: 1, default: 0, format: fmtPct },
     { id: 'lfo.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
-    { id: 'lfo.dest', min: 0, max: 4, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
+    { id: 'lfo.dest', min: 0, max: 5, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
 
     // ----- FX: Distortion -----
     { id: 'fx.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

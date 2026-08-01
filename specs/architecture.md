@@ -315,15 +315,22 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb ─┐
-            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─┤
-            samplerBus  (+ sampler dist/phaser/delay/reverb) ─────┤
-                                                                   ▼
+voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb → synthPan ─┐
+            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ───────┤
+            samplerBus  (+ sampler dist/phaser/delay/reverb) ────────────────┤
+                                                                             ▼
         preMaster ─→ djFilter ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
+- `synthPan` is the synth channel's auto-panner, swept by the LFO's `pan`
+  destination and centred (a no-op) otherwise. It is deliberately the **last**
+  synth stage so the insert chain upstream stays 1-channel — the voice path is
+  mono end to end and stereo materialises downstream by up-mix (ADR-010; see
+  [`features/lfo.md`](features/lfo.md) REQ-4). The bank-render tap
+  ([`features/render-to-sampler.md`](features/render-to-sampler.md)) sits after
+  it, so a rendered bank captures the pan movement.
 - The **analyser taps pre-master**, so the scope is independent of the master
   volume knob. The tap is a lossless `splitter → analyserL/analyserR → merger →
   analyser` so the scope can also show per-channel L/R (see

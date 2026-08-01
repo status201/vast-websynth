@@ -331,6 +331,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>TUNE</strong> — fine pitch in semitones. Detune OSC 2 a little against OSC 1 ' +
       'for a thick, lively sound.</li>' +
       '<li><strong>LEVEL</strong> — how loud this oscillator is in the mix.</li>' +
+      '<li><strong>WIDTH</strong> — only shown on the <strong>square</strong> wave: the pulse ' +
+      'width. At 50% it is a plain square; narrowing it thins the tone toward a reedy, ' +
+      'hollow buzz. Point the LFO at <em>pulse</em> to sweep it for the classic PWM ' +
+      'string/pad shimmer.</li>' +
       '</ul>',
   },
   subuni: {
@@ -408,7 +412,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>RATE</strong> — how fast it wiggles.</li>' +
       '<li><strong>AMT</strong> — how much it moves the target.</li>' +
       '<li><strong>Destination</strong> — what it modulates (e.g. pitch for vibrato, filter for ' +
-      'wobble).</li>' +
+      'wobble, pan to sweep the sound between the speakers).</li>' +
       '</ul>',
   },
   fx: {
@@ -896,7 +900,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Boosts the LFO on top of its Amount knob — pushing the wheel up deepens whatever ' +
       'the LFO is pointed at: <strong>wobble</strong> (cutoff), <strong>vibrato</strong> ' +
-      '(pitch), <strong>tremolo</strong> (amp) or <strong>PWM movement</strong> (pulse).</p>' +
+      '(pitch), <strong>tremolo</strong> (amp), <strong>PWM movement</strong> (pulse) or ' +
+      '<strong>auto-pan</strong> (pan).</p>' +
       '<p>If the LFO destination is off, the wheel does nothing — pick a destination first.</p>',
   },
   scope: {

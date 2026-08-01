@@ -156,6 +156,11 @@ NOTES
   when a bank has steps and you didn't set the param yourself); set e.g. "seq.on": 0 to keep one silent on load.
 - For a resonant, moving filter (acid/disco bass), use high "filter.resonance", a fast "env.fil.decay",
   positive "filter.envAmount", and route the LFO to cutoff with "lfo.dest": 1.
+- "lfo.dest": 5 is a stereo auto-pan on the whole synth channel (its FX tails sweep with it). Pair a slow
+  "lfo.rate" with a sine wave for a wide drifting pad, or a square wave for hard L/R trance alternation.
+- "lfo.dest": 4 is PWM. It only bites on oscillators set to the square wave ("osc1.wave"/"osc2.wave": 3),
+  sweeps "osc1.pulseWidth"/"osc2.pulseWidth" upward from whatever you set them to (0.5 = plain square),
+  and follows "lfo.rate" up to 10Hz. Slow rates (0.2-2) give the classic PWM string/pad shimmer.
 - Use "prob" (< 1) for evolving hats/ghost notes, "ratchet" (2-4) for rolls, and "tie" + "mixer.glide"
   in Mono voicing ("voicing.mode": 0) for acid slides.
 - Drum/sampler hits: "gate" < 1 chokes a hit early (tight/choked open hats, gated snares), "ratchet" 2-4
