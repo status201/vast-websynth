@@ -3,7 +3,10 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 10  # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-21)
+version: 11  # v11: the step value is visible while editing — per-lane readout + drag
+             #      bubble (REQ-22); the pad's write is deferred so a hold PEEKS,
+             #      plus snap-to-1/20 and Shift+drag fine (REQ-23)
+             # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-21)
              # v9: the frame loop is visibility-independent — worker timer while the
              #     document is hidden, rAF while visible (REQ-20)
              # v8: automation writes are withheld from ParamBus.onChange (REQ-18);
@@ -39,6 +42,8 @@ source:
   - src/ui/panels/step-panel-scaffold.ts    # lane hooks: bank bar content dot, playhead, Clear ▾
   - src/ui/components/motion-step-pad.ts
   - src/ui/components/motion-graph.ts       # pure graph-polyline geometry (v2)
+  - src/ui/components/value-bubble.ts       # transient anchored readout (v11)
+  - src/ui/format-param.ts                  # ParamDef -> display string (v11)
   - src/ui/panels/song-panel.ts             # Motion card: chain + Mute (v2)
   - src/ui/onboarding/help-content.ts       # `motion` help topic (v2)
   - src/state/song.ts                       # SongFile v4 fields
@@ -133,6 +138,8 @@ The tab sits between Sampler and Song.
   rest — the "value never comes back down" bug).
 - **REQ-8** — UI: each step is a **mini XY pad** square — drag sets `(x,y)` in one
   gesture, double-click/double-tap clears; the dot sits at the literal coordinate.
+  (v11) *When* that set commits, and the snap/fine/peek modifiers around it, are
+  REQ-23; the value it shows while you do it is REQ-22.
   An SVG polyline overlay traces the **selected axis** across the 16 squares
   (view toggle Y/X, default Y — a local view state, not a param; dots never move).
   The line is **mode-aware** (v2): in Slide mode it is the anchor-to-anchor
@@ -229,7 +236,9 @@ The tab sits between Sampler and Song.
   param dropdown, and its own Slide/Step segmented — `seg-motion.t<i>.slide`)
   above 16 full-width **level pads** — drag up/down to set the value (the pad
   fills from the bottom), double-click/double-tap to clear, matching the XY pads'
-  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9). (v6) Clearing
+  gesture family ([step-grid-editing](step-grid-editing.md) REQ-9) — the same
+  component, so REQ-22's readout and REQ-23's peek/snap/fine apply here
+  identically (v11). (v6) Clearing
   returns the cell to the **default step** (its level reset too), so a cleared
   cell reads like an untouched one instead of keeping its old parked height. The fill
   **snaps** to its value (no CSS height animation), and the lanes show the moving
@@ -334,10 +343,182 @@ The tab sits between Sampler and Song.
   mistake, since `onStart` and `onStop` sit side by side — is a data-losing bug,
   not a cosmetic one.
 
+### v11 — the value is visible while you edit it
+
+- **REQ-22** — **A step's value is readable without hovering** (v11). Before v11
+  the only place a step's level existed was the pad's native `title`: it appeared
+  after a hover delay, never during the drag that was changing it, and **never at
+  all on touch** — an affordance that exists only on hover, which
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 6 forbids outright.
+  The value now shows in two places, both fed by **one string**:
+  - a **per-lane readout** (XY, A and B each own one) living in that lane's
+    existing header row — permanent chrome with a reserved height and
+    `tabular-nums`, the same pattern as the Knob's always-present value label.
+    Law 6's stated consequence is that "some information moves into
+    always-visible chrome"; this is that move.
+  - a **floating bubble** anchored above the pad, present **only while a gesture
+    is running** (press, drag or peek) and gone on release. It is not a hover
+    tooltip and it never lingers.
+
+  Each lane owns one text builder and `applyGesture` renders its result into
+  **both** surfaces from a single call, so the number in the bubble and the
+  number in the header are the same string by construction, not by two code
+  paths agreeing. The string carries the **step number** (1-based and zero-padded
+  — musicians count steps from one) plus **both** the normalized value, which is
+  the number you match between lanes, and the real parameter value, which is
+  what tells you what you are actually dialling:
+
+  ```
+  level lane (A/B)    06 · 0.40 · 40%
+  XY lane             05 · x 0.25 (1.2kHz) · y 0.80 (80%)
+  track with no param —
+  ```
+
+  Real values come from `fromNorm(def, v)` plus `formatParam(def, value)`, the
+  formatter lifted out of `Knob` so the two agree on how a parameter reads. An
+  A/B track with no parameter chosen has nothing to convert and shows `—`; its
+  cells are already inert, so no gesture or hover can put anything else there.
+  The XY lane always has axes — unset ones inherit from the XY Pad (REQ-4) — so
+  it never reaches that state.
+
+  The header readout **follows the pointer within its own lane** — `pointerenter`
+  on a mouse, the live gesture on touch — and then **sticks** to the last cell it
+  showed. That stickiness is the point: it is what lets you read A's step 5, look
+  away, and compare it against B's while you set it. It always names the step
+  index, so it reports visible state rather than asking the user to remember
+  which cell it means (law 5). Only one gesture can be live at a time, so a
+  gesture always wins over hover.
+
+  Touch parity is structural rather than separately tested: the pad runs on
+  Pointer Events, so a finger and a mouse take the same path into `onGesture` and
+  therefore into both surfaces. Hover is the only mouse-specific branch, and it
+  is additive — everything a mouse can read, a touch gesture reads too.
+- **REQ-23** — **The pad's gesture set: peek, snap and fine** (v11). Three
+  changes to `MotionStepPad`, which both the XY lane and the A/B lanes share, so
+  all three land in the component rather than per lane.
+
+  **(a) The write is deferred, which buys a peek.** Pressing a pad used to write
+  at `pointerdown`, so *reading* a value on a phone meant destroying it — exactly
+  the "give A and B the same value" move. The commit now waits:
+
+  ```
+  pointerdown  -> show the readout with the cell's CURRENT value; arm a 350 ms
+                  timer. Write nothing yet.
+    travel > 6 px      -> drag: write from here on, live
+    release < 350 ms   -> tap: write the press-position value
+    350 ms, no travel  -> PEEK: readout only. Nothing is written, and releasing
+                          writes nothing either.
+  ```
+
+  A tap therefore commits on release rather than on press — under ~100 ms in
+  practice, so it still reads as instant — and a drag is unchanged, since its
+  first movement commits. The rule the readout obeys is a single one: **it always
+  shows the cell's actual value**, and during a drag the actual value is the one
+  being changed. There is no flip at the 350 ms boundary. Long-press is the same
+  "inspect without disturbing" meaning the trigger grids already give it
+  ([step-grid-editing](step-grid-editing.md) REQ-3), so the gesture arrives
+  already learned. A fired peek also resets the double-tap latch: the peek
+  threshold and the double-tap window are the same 350 ms today, so a peek
+  cannot currently be read as the first half of a clear — the reset is what
+  keeps that true if the peek threshold is ever shortened.
+
+  **(b) A coarse drag snaps to 1/20.** The pad is 64 px tall and absolutely
+  mapped — the pointer position *is* the value — so it offered ~64 levels and no
+  way to land on the same one twice. Coarse values are quantized to `0.05` on
+  **both** axes of the XY lane, as `Math.round(v * SNAP_STEPS) / SNAP_STEPS` —
+  dividing by the integer rather than multiplying by `0.05` matters, because it
+  is what makes two lanes that snap to the same step hold the *identical* double
+  rather than two values that merely round to the same text. `0` and `1` stay
+  reachable. Two lanes now match by construction rather than by
+  pixel-hunting, and this is the only route that works on touch, where there is
+  no modifier key. This is a deliberate change to how an existing gesture feels;
+  it changes no stored data, since only newly written values are snapped.
+
+  **(c) Shift+drag is fine, relative and unsnapped.** The escape hatch from (b),
+  and the same modifier the knobs use. Because the pad is *absolute* it cannot
+  copy the knob's sensitivity ternary — a fine mode needs an anchor:
+  - Shift held at `pointerdown` **does not jump**: the gesture anchors at the
+    cell's current value and nudges from there, so an existing value can be
+    trimmed rather than replaced.
+  - A Shift transition mid-drag **re-anchors** at the current pointer position
+    and value. The knob does not do this and visibly jumps
+    (`onPointerMove` re-divides the whole accumulated `dy` by the new
+    sensitivity); the pad must not inherit that bug.
+  - Once a stroke has gone relative it **stays** relative, at the pad's own
+    height for coarse sensitivity so the feel is unchanged. Snapping back to
+    absolute mapping mid-stroke would jump.
+  - `FINE_PX = 400` px of travel spans the full 0..1 range — roughly 6× the pad's
+    own height. Fine values are never snapped.
+
+  Shift is desktop-only by nature. It is an enhancement, not the only route to a
+  value: (b) is what gives touch exact, repeatable levels, so law 6 holds.
+
 ## Technical design
+
+### Gesture inventory
+
+The pad's own inventory (v11), the [recipe](../recipes/design-an-interaction.md)
+step-1 artefact. Until v11 the motion pad had none of its own — it appeared only
+as a column of [step-grid-editing](step-grid-editing.md)'s table, which is the
+*shared* grid contract and does not cover a pad that sets a value. Both lanes are
+the same component, so one table serves them; `—` is a decision, not a gap.
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| tap / click | set `(x,y)` (XY) or the level (A/B), **written on release** | Korg Electribe; Kaoss Pad |
+| drag | set continuously, snapped to 1/20 | FL Studio, Ableton (draw) |
+| long-press ≥ 350 ms | **peek** — show the value, write nothing | Elektron parameter locks; Ableton Push step detail |
+| Shift + drag | fine: relative, unsnapped, 400 px full travel | this app's knobs |
+| double-tap | clear the anchor / reset the level to default | Electribe (unchanged) |
+| hover (mouse) | update **that lane's header readout only** — never the bubble | DAW status-bar readouts |
+| right-click | — long-press already reads without writing, and works on a phone | — |
+| wheel | — the pad is ~47 px wide and sits in a scrollable panel; a wheel gesture here would fight the page scroll | — |
+| `Delete` / `⌫` | — motion has no selection cursor ([step-grid-editing](step-grid-editing.md) REQ-9, unchanged) | — |
+
+Checked against law 2: every row has exactly one outcome. `tap` and `long-press`
+share a press but split on **duration and travel**, which is the same
+disambiguation the trigger grids use, and the deferred commit is what keeps them
+from both firing. Note the previously "saturated" motion column in
+[step-grid-editing](step-grid-editing.md) REQ-13 no longer holds — `wheel` and
+`right-click` are deliberately free.
 
 ### Contract / public interface
 
+- `MotionStepPad` (`src/ui/components/motion-step-pad.ts`), the v11 additions:
+
+  ```yaml
+  MotionStepPadOpts:
+    beat: boolean
+    mode: 'xy' | 'level'
+    onSet(x, y): void          # the COMMIT — unchanged signature, later timing
+    onClear(): void
+    onGesture?(g): void        # v11 — readout feed; null on release
+  MotionGesture:               # what onGesture reports
+    x: number                  # 0..1, the value the readout should show
+    y: number
+    mode: 'press' | 'drag' | 'peek'
+  # constants (exported for the tests that pin them)
+  HOLD_MS    = 350  # peek threshold; also the existing double-tap window
+  SLOP_PX    = 6    # travel that turns a press into a drag (grid-gestures parity)
+  SNAP_STEPS = 20   # coarse quantization: 1/20
+  FINE_PX    = 400  # px of travel for the full 0..1 range under Shift
+  ```
+
+  The pad takes **no `ParamBus`**: it reports normalized numbers and the panel,
+  which knows each lane's parameter, turns them into text. It caches the value it
+  was last painted with (`setStep` / `setLevel` already receive it) because both
+  the peek display and Shift's anchor need "what is in this cell right now".
+- `src/ui/format-param.ts`: `formatParam(def, v) → string` — discrete `labels`,
+  then `def.format`, then `abs(v) >= 100 ? toFixed(0) : toFixed(2)`. Lifted
+  verbatim out of `Knob`'s private method (its only caller until v11) so the
+  motion readout and the knobs describe a parameter identically.
+- `src/ui/components/value-bubble.ts`: `showValueBubble(anchor, text, opts?)` /
+  `hideValueBubble()` — a module singleton in `toast.ts`'s shape. One reused
+  element on `document.body`, `position: fixed` from the anchor's rect, placed
+  above it and clamped to the viewport, `pointer-events: none`. Writes
+  `textContent` only when the string changed, since it runs per `pointermove`
+  ([runtime-performance](runtime-performance.md) REQ-6). `opts.peek` marks a
+  read-only gesture so it does not read as a write.
 - `MotionMachine` (`src/audio/transport/motion-machine.ts`):
   `setEnabled(on)`, `setMuted(m)` (v2 — effective-active = enabled ∧ ¬muted; either
   deactivation restores baselines), `setSlide(on)` (the XY lane) and
@@ -491,6 +672,62 @@ Scenario: The XY lane and the tracks each carry a short help badge (v6)
     badge anchors to the A track's row, each a short explainer distinct from the
     essay-length `motion` badge on the tab
 # pinned by: tests/ui/help-content.test.ts (topic presence)
+
+Scenario: Holding a pad reads its value without changing it (v11, REQ-23a)
+  Given track A step 5 holds 0.40
+  When the user presses that cell near its top and holds still for 400ms
+  Then the readout shows 0.40 — the value that is THERE, not the press position
+  And releasing writes nothing: step 5 still holds 0.40
+# pinned by: tests/ui/motion-step-pad.test.ts, e2e/motion.spec.ts
+
+Scenario: A tap still sets the value, on release (v11, REQ-23a)
+  Given track A step 5 is empty
+  When the user taps it 25% up from the bottom and releases within 350ms
+  Then step 5 is on at 0.25
+# pinned by: tests/ui/motion-step-pad.test.ts
+
+Scenario: A drag commits from its first movement (v11, REQ-23a)
+  Given the user presses a pad and moves more than 6px without pausing
+  Then the peek never fires and the value tracks the pointer for the rest of the
+    stroke
+# pinned by: tests/ui/motion-step-pad.test.ts
+
+Scenario: Coarse values land on the same level in both lanes (v11, REQ-23b)
+  Given the user drags track A step 5 and track B step 5 to roughly the same height
+  Then both values are multiples of 0.05
+  And two drags that land within half a snap step of each other produce the
+    IDENTICAL number, which is what makes the lanes match
+# pinned by: tests/ui/motion-step-pad.test.ts
+
+Scenario: Shift+drag is fine, and pressing with Shift does not jump (v11, REQ-23c)
+  Given track A step 5 holds 0.40
+  When the user presses it near the top with Shift held
+  Then the value stays 0.40 — no absolute jump to the press position
+  When the user then drags 40px upward with Shift still held
+  Then the value rises by about 0.10 (400px spans the full range), unsnapped
+# pinned by: tests/ui/motion-step-pad.test.ts
+
+Scenario: Releasing Shift mid-drag re-anchors instead of jumping (v11, REQ-23c)
+  Given a fine drag in progress
+  When Shift is released and the pointer moves on
+  Then the value continues from where it was, at coarse sensitivity
+  And it does not jump to the pointer's absolute position
+# pinned by: tests/ui/motion-step-pad.test.ts
+
+Scenario: The value is visible while dragging, on touch as well (v11, REQ-22)
+  Given the Motion tab is open
+  When the user drags track A step 5
+  Then a bubble above the pad and the A lane's header readout both show the same
+    string, carrying the step number, the normalized value and the real parameter
+    value
+  When the user lifts off
+  Then the bubble is gone and the header readout stays, still naming step 5
+# pinned by: tests/ui/value-bubble.test.ts, e2e/motion.spec.ts
+
+Scenario: A lane with no parameter has nothing to convert (v11, REQ-22, edge)
+  Given track B has no parameter chosen
+  Then its readout shows "—" rather than a bare normalized number
+# pinned by: e2e/motion.spec.ts
 
 Scenario: An unassigned extra track writes nothing (v4)
   Given motion track B has anchors but no parameter chosen
@@ -684,11 +921,17 @@ Scenario: Dialect motion bank expands
   `tests/audio/transport/motion-machine.test.ts`, `tests/audio/transport/arrangement.test.ts`,
   `tests/state/{patterns,song-validate,serialize,song-author,authoring-docs}.test.ts`,
   `tests/ui/motion-step-pad.test.ts`, `tests/ui/motion-graph.test.ts`,
+  `tests/ui/value-bubble.test.ts` + `tests/ui/format-param.test.ts` (v11),
   `tests/ui/help-content.test.ts` (the `motion` / `motion.xy` / `motion.tracks`
   topics) — `npm test`
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.
+- By hand (v11): REQ-22/REQ-23 are a *feel* change and no suite covers feel.
+  Check that a coarse drag steps cleanly between snap levels rather than
+  stuttering, that Shift never jumps on press or on release, that the bubble
+  never covers the pad under the pointer, and that the header readouts stay
+  legible at phone width, where the A/B cells are ~13 px wide.
 - Device (REQ-20): play a motion song, background the tab/PWA for ~30 s and listen —
   the sweep must continue and be where the curve says on return. Headless Chromium
   never truly suspends rAF, so `e2e/motion.spec.ts` fakes it (neuters

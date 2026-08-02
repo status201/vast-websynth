@@ -177,6 +177,76 @@ test('the graph traces the selected axis and the view toggle switches it', async
   expect(Math.abs(xFirst - yFirst)).toBeGreaterThan(50);
 });
 
+/**
+ * The value readout + peek (motion-sequencer.md REQ-22/REQ-23). These are the
+ * gestures that make "give lane A and lane B the same value" workable, so they
+ * are checked against the real panel rather than only in jsdom.
+ */
+test('a drag shows its value in the lane readout and a bubble; the bubble is gesture-only',
+  async ({ page }) => {
+    await gotoAndStart(page);
+    await openMotionTab(page);
+    const picker = page.getByTestId('motion-trk-0-param');
+    await picker.click();
+    await picker.getByText('fx.delay.mix', { exact: true }).click();
+
+    const readout = page.getByTestId('motion-readout-trk-0');
+    const bubble = page.getByTestId('motion-value-bubble');
+    await expect(bubble).toHaveCount(0); // no gesture, no bubble
+
+    // Raw page.mouse does not scroll, and a lower lane can sit below the fold —
+    // see setTrackLevel's note. Scroll first, then measure.
+    const pad = page.getByTestId('motion-trk-0-step-5');
+    await pad.scrollIntoViewIfNeeded();
+    const box = (await pad.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.5, { steps: 4 });
+
+    // Both surfaces show the same string: step index, normalized value, real value.
+    await expect(bubble).toHaveCount(1);
+    const shown = (await readout.textContent())!;
+    expect(shown).toBe(await bubble.textContent());
+    expect(shown).toMatch(/^06 · 0\.\d\d · /); // 1-based step, then the level
+
+    await page.mouse.up();
+    await expect(bubble).toHaveCount(0);          // gone on release
+    await expect(readout).toHaveText(shown);      // but the readout sticks
+  });
+
+test('holding a pad reads its value without writing it', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+  const picker = page.getByTestId('motion-trk-1-param');
+  await picker.click();
+  await picker.getByText('fx.reverb.mix', { exact: true }).click();
+  await setTrackLevel(page, 1, 5, 0.4);
+
+  const read = () => page.evaluate(() =>
+    (window as any).__synth.patterns.motionTrack(1).steps[5].v);
+  const before = await read();
+
+  // Press near the top — a write would land far above 0.4 — and hold still.
+  const pad = page.getByTestId('motion-trk-1-step-5');
+  await pad.scrollIntoViewIfNeeded();
+  const box = (await pad.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 3);
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('motion-value-bubble')).toHaveCount(1);
+  // The readout reports what is THERE, not where the pointer is.
+  await expect(page.getByTestId('motion-readout-trk-1')).toContainText('0.40');
+  await page.mouse.up();
+
+  expect(await read()).toBeCloseTo(before, 6);
+});
+
+test('an unassigned track has no value to report', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+  await expect(page.getByTestId('motion-readout-trk-1')).toHaveText('—');
+});
+
 test('motion state survives a save → new → load round-trip', async ({ page }) => {
   await gotoAndStart(page);
   await openMotionTab(page);

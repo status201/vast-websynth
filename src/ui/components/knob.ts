@@ -2,6 +2,7 @@ import styles from '../styles/knob.module.css';
 import type { ParamBus, ParamDef } from '../../state/params';
 import { toNorm, fromNorm } from '../../utils/taper';
 import { clamp01 } from '../../utils/math';
+import { formatParam } from '../format-param';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -173,11 +174,7 @@ export class Knob {
   }
 
   private formatValue(v: number): string {
-    if (this.def.taper === 'discrete' && this.def.labels) {
-      return this.def.labels[Math.round(v - this.def.min)] ?? String(v);
-    }
-    if (this.def.format) return this.def.format(v);
-    return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);
+    return formatParam(this.def, v);
   }
 
   private deriveLabel(id: string): string {
