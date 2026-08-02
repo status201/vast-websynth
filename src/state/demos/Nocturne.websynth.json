@@ -7,24 +7,29 @@
     "osc1.wave": 1,
     "osc1.octave": 0,
     "osc1.detune": 0,
-    "osc1.level": 0.9188,
+    "osc1.level": 0.6988,
+    "osc1.pulseWidth": 0.5,
     "osc2.wave": 2,
-    "osc2.octave": 0,
-    "osc2.detune": 4,
-    "osc2.level": 0.895,
+    "osc2.octave": -1,
+    "osc2.detune": 3,
+    "osc2.level": 0.6,
+    "osc2.pulseWidth": 0.5,
     "sub.wave": 0,
     "sub.octave": -1,
-    "sub.level": 0,
+    "sub.level": 0.295,
     "unison.voices": 1,
     "unison.detune": 0,
     "analog.drift": 0,
-    "mixer.noise": 0.292,
+    "mixer.noise": 0,
     "mixer.glide": 0,
     "glide.mode": 1,
-    "filter.cutoff": 67.04,
-    "filter.resonance": 1.294,
-    "filter.drive": 1.067,
+    "filter.cutoff": 62.5,
+    "filter.resonance": 2.998,
+    "filter.drive": 0.5,
     "filter.envAmount": 25.85,
+    "filter.model": 1,
+    "filter.shape": 0.12,
+    "filter.keytrack": 0.495,
     "env.amp.attack": 0.005,
     "env.amp.decay": 0.2,
     "env.amp.sustain": 0.8,
@@ -33,10 +38,10 @@
     "env.fil.decay": 1.1,
     "env.fil.sustain": 0.195,
     "env.fil.release": 0.4,
-    "lfo.rate": 0.3386,
-    "lfo.amount": 0.2532,
+    "lfo.rate": 0.7333,
+    "lfo.amount": 0.35,
     "lfo.wave": 0,
-    "lfo.dest": 0,
+    "lfo.dest": 1,
     "fx.dist.on": 0,
     "fx.dist.drive": 0.1023,
     "fx.dist.tone": 2307,
@@ -118,7 +123,7 @@
     "seq.t0.mute": 0,
     "seq.t1.mute": 0,
     "seq.t2.mute": 0,
-    "seq.t3.mute": 0,
+    "seq.t3.mute": 1,
     "seq.solo": 0,
     "drum.on": 1,
     "drum.master": 0.895,
@@ -4570,58 +4575,6 @@
   "motionBanks": [
     [
       {
-        "on": true,
-        "x": 0.3704,
-        "y": 0.1406
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      },
-      {
-        "on": false
-      }
-    ],
-    [
-      {
         "on": false
       },
       {
@@ -4722,9 +4675,25 @@
     ],
     [
       {
-        "on": true,
-        "x": 0.2801,
-        "y": 0.5
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
       },
       {
         "on": false
@@ -4748,9 +4717,30 @@
         "on": false
       },
       {
-        "on": true,
-        "x": 0.1039,
-        "y": 0.8438
+        "on": false
+      },
+      {
+        "on": false
+      }
+    ],
+    [
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
       },
       {
         "on": false
@@ -4771,9 +4761,16 @@
         "on": false
       },
       {
-        "on": true,
-        "x": 0.2682,
-        "y": 0.4844
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
+      },
+      {
+        "on": false
       }
     ]
   ],
