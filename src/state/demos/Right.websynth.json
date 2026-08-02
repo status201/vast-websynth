@@ -1,68 +1,68 @@
 {
   "format": "websynth-song",
   "version": 6,
-  "name": "1979",
+  "name": "Right",
   "params": {
     "voicing.mode": 1,
-    "osc1.wave": 0,
-    "osc1.octave": -1,
+    "osc1.wave": 2,
+    "osc1.octave": 0,
     "osc1.detune": 0,
-    "osc1.level": 0.97,
+    "osc1.level": 0,
     "osc1.pulseWidth": 0.5,
     "osc2.wave": 1,
-    "osc2.octave": 0,
-    "osc2.detune": 0.08823,
-    "osc2.level": 0.625,
+    "osc2.octave": 1,
+    "osc2.detune": 0.00001526,
+    "osc2.level": 0.4267,
     "osc2.pulseWidth": 0.5,
-    "sub.wave": 0,
+    "sub.wave": 2,
     "sub.octave": -1,
     "sub.level": 0,
-    "unison.voices": 1,
-    "unison.detune": 0,
-    "analog.drift": 0,
+    "unison.voices": 2,
+    "unison.detune": 4.833,
+    "analog.drift": 0.105,
     "mixer.noise": 0,
     "mixer.glide": 0,
     "glide.mode": 0,
-    "filter.cutoff": 51.59,
-    "filter.resonance": 4.2,
-    "filter.drive": 1.298,
-    "filter.envAmount": 12.48,
+    "filter.cutoff": 72.67,
+    "filter.resonance": 1.485,
+    "filter.drive": 0.5,
+    "filter.envAmount": 23.84,
     "filter.model": 1,
-    "filter.shape": 0.37,
-    "filter.keytrack": 0.495,
+    "filter.shape": 0.46,
+    "filter.keytrack": 0.5033,
     "env.amp.attack": 0.001,
-    "env.amp.decay": 0.1144,
-    "env.amp.sustain": 0.15,
-    "env.amp.release": 0.151,
+    "env.amp.decay": 0.001,
+    "env.amp.sustain": 1,
+    "env.amp.release": 3.54,
     "env.fil.attack": 0.001,
-    "env.fil.decay": 0.12,
-    "env.fil.sustain": 0.05,
-    "env.fil.release": 0.151,
-    "lfo.rate": 0.6167,
-    "lfo.amount": 0.135,
-    "lfo.wave": 2,
-    "lfo.dest": 1,
-    "fx.dist.on": 1,
-    "fx.dist.drive": 0.2003,
-    "fx.dist.tone": 438.6,
-    "fx.dist.mix": 0.1985,
+    "env.fil.decay": 0.07435,
+    "env.fil.sustain": 0.6467,
+    "env.fil.release": 3.5,
+    "lfo.rate": 4,
+    "lfo.amount": 0.1,
+    "lfo.wave": 0,
+    "lfo.dest": 0,
+    "fx.dist.on": 0,
+    "fx.dist.drive": 0.15,
+    "fx.dist.tone": 504,
+    "fx.dist.mix": 0.1,
     "fx.wah.on": 0,
-    "fx.wah.rate": 0.6167,
-    "fx.wah.depth": 0.1,
-    "fx.wah.q": 0.5918,
+    "fx.wah.rate": 2,
+    "fx.wah.depth": 0.05333,
+    "fx.wah.q": 1.66,
     "fx.phaser.on": 0,
-    "fx.phaser.rate": 0.3083,
-    "fx.phaser.depth": 0.2506,
-    "fx.phaser.feedback": 0.4,
-    "fx.phaser.mix": 0,
-    "fx.delay.on": 1,
-    "fx.delay.time": 0.4054,
-    "fx.delay.feedback": 0.1147,
-    "fx.delay.mix": 0.007059,
+    "fx.phaser.rate": 0.5,
+    "fx.phaser.depth": 0.0967,
+    "fx.phaser.feedback": 0.2965,
+    "fx.phaser.mix": 0.25,
+    "fx.delay.on": 0,
+    "fx.delay.time": 0.75,
+    "fx.delay.feedback": 0.1878,
+    "fx.delay.mix": 0.2,
     "fx.reverb.on": 1,
-    "fx.reverb.size": 0.05,
-    "fx.reverb.damp": 0.4,
-    "fx.reverb.mix": 0.2194,
+    "fx.reverb.size": 0.2967,
+    "fx.reverb.damp": 0.5,
+    "fx.reverb.mix": 0.18,
     "fx.drum.phaser.on": 0,
     "fx.drum.phaser.rate": 0.5,
     "fx.drum.phaser.depth": 0.7,
@@ -72,16 +72,16 @@
     "fx.drum.delay.time": 0.35,
     "fx.drum.delay.feedback": 0.4,
     "fx.drum.delay.mix": 0.3,
-    "fx.drum.reverb.on": 1,
-    "fx.drum.reverb.size": 0.1467,
+    "fx.drum.reverb.on": 0,
+    "fx.drum.reverb.size": 0.6,
     "fx.drum.reverb.damp": 0.4,
     "fx.drum.reverb.mix": 0.25,
-    "fx.drum.comp.on": 1,
-    "fx.drum.comp.threshold": -18.08,
-    "fx.drum.comp.ratio": 4,
+    "fx.drum.comp.on": 0,
+    "fx.drum.comp.threshold": -18,
+    "fx.drum.comp.ratio": 0,
     "fx.drum.comp.attack": 0.0002,
     "fx.drum.comp.release": 0.25,
-    "fx.drum.comp.makeup": 5.195,
+    "fx.drum.comp.makeup": 0,
     "fx.sampler.dist.on": 0,
     "fx.sampler.dist.drive": 0.3,
     "fx.sampler.dist.tone": 3000,
@@ -101,37 +101,37 @@
     "fx.sampler.reverb.mix": 0.25,
     "fx.djfilter": 0,
     "fx.master.comp.on": 1,
-    "fx.master.comp.threshold": -18.07,
+    "fx.master.comp.threshold": -19.73,
     "fx.master.comp.ratio": 1,
-    "fx.master.comp.attack": 0.00227,
+    "fx.master.comp.attack": 0.002103,
     "fx.master.comp.release": 4,
     "fx.master.comp.makeup": 0,
-    "master.volume": 1,
+    "master.volume": 0.885,
     "master.pitchBend": 0,
     "master.modWheel": 0,
-    "keyboard.transpose": -2,
-    "transport.bpm": 111,
-    "transport.swing": 0.1067,
+    "keyboard.transpose": -1,
+    "transport.bpm": 120,
+    "transport.swing": 0.1,
     "arp.on": 0,
     "arp.pattern": 0,
     "arp.rate": 2,
     "arp.octaves": 1,
     "arp.gate": 0.5,
     "seq.on": 1,
-    "seq.master": 0.5,
+    "seq.master": 1,
     "seq.mute": 0,
     "seq.t0.mute": 0,
     "seq.t1.mute": 0,
     "seq.t2.mute": 0,
     "seq.t3.mute": 0,
     "seq.solo": 0,
-    "drum.on": 1,
-    "drum.master": 1,
+    "drum.on": 0,
+    "drum.master": 0.85,
     "drum.mute": 0,
     "drum.solo": 0,
-    "drum.t0.vol": 0.5006,
-    "drum.t0.tune": -2,
-    "drum.t0.decay": 0.5,
+    "drum.t0.vol": 0.85,
+    "drum.t0.tune": 0,
+    "drum.t0.decay": 0.3,
     "drum.t0.tone": 1,
     "drum.t0.drive": 0,
     "drum.t0.pan": 0,
@@ -142,55 +142,55 @@
     "drum.t1.decay": 0.3,
     "drum.t1.tone": 1,
     "drum.t1.drive": 0,
-    "drum.t1.pan": -0.1,
+    "drum.t1.pan": 0,
     "drum.t1.mute": 0,
     "drum.t1.model": 1,
-    "drum.t2.vol": 0.3097,
-    "drum.t2.tune": 1,
-    "drum.t2.decay": 0.05,
+    "drum.t2.vol": 0.85,
+    "drum.t2.tune": 0,
+    "drum.t2.decay": 0.3,
     "drum.t2.tone": 1,
     "drum.t2.drive": 0,
-    "drum.t2.pan": -0.31,
+    "drum.t2.pan": 0,
     "drum.t2.mute": 0,
     "drum.t2.model": 2,
-    "drum.t3.vol": 0.3356,
+    "drum.t3.vol": 0.85,
     "drum.t3.tune": 0,
-    "drum.t3.decay": 0.45,
+    "drum.t3.decay": 0.3,
     "drum.t3.tone": 1,
     "drum.t3.drive": 0,
-    "drum.t3.pan": 0.35,
+    "drum.t3.pan": 0,
     "drum.t3.mute": 0,
     "drum.t3.model": 3,
     "drum.t4.vol": 0.85,
-    "drum.t4.tune": -4,
-    "drum.t4.decay": 0.5,
+    "drum.t4.tune": 0,
+    "drum.t4.decay": 0.3,
     "drum.t4.tone": 1,
     "drum.t4.drive": 0,
-    "drum.t4.pan": -0.4,
+    "drum.t4.pan": 0,
     "drum.t4.mute": 0,
     "drum.t4.model": 4,
     "drum.t5.vol": 0.85,
-    "drum.t5.tune": -1,
-    "drum.t5.decay": 0.45,
+    "drum.t5.tune": 0,
+    "drum.t5.decay": 0.3,
     "drum.t5.tone": 1,
     "drum.t5.drive": 0,
-    "drum.t5.pan": -0.1,
+    "drum.t5.pan": 0,
     "drum.t5.mute": 0,
     "drum.t5.model": 5,
     "drum.t6.vol": 0.85,
-    "drum.t6.tune": -24,
-    "drum.t6.decay": 0.4,
-    "drum.t6.tone": 0.22,
-    "drum.t6.drive": 0.215,
-    "drum.t6.pan": 0.4,
+    "drum.t6.tune": 0,
+    "drum.t6.decay": 0.3,
+    "drum.t6.tone": 1,
+    "drum.t6.drive": 0,
+    "drum.t6.pan": 0,
     "drum.t6.mute": 0,
     "drum.t6.model": 6,
-    "drum.t7.vol": 1,
+    "drum.t7.vol": 0.85,
     "drum.t7.tune": 0,
-    "drum.t7.decay": 0.35,
+    "drum.t7.decay": 0.3,
     "drum.t7.tone": 1,
-    "drum.t7.drive": 0.02588,
-    "drum.t7.pan": 0.04,
+    "drum.t7.drive": 0,
+    "drum.t7.pan": 0,
     "drum.t7.mute": 0,
     "drum.t7.model": 7,
     "sampler.on": 0,
@@ -205,7 +205,7 @@
     "sampler.t5.mute": 0,
     "sampler.t6.mute": 0,
     "sampler.t7.mute": 0,
-    "motion.on": 0,
+    "motion.on": 1,
     "motion.mute": 0,
     "motion.slide": 1,
     "motion.t0.slide": 1,
@@ -214,394 +214,394 @@
   "seqBanks": [
     [
       {
-        "on": true,
-        "note": 40,
-        "velocity": 1,
-        "gate": 1
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 64,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 64,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 64,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 40,
-        "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 52,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 66,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 64,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 40,
-        "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 61,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 62,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 64,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 64,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 64,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 64,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": true,
-        "note": 40,
+        "note": 36,
         "velocity": 0.8,
-        "gate": 0.5
-      }
-    ],
-    [
-      {
-        "on": true,
-        "note": 40,
-        "velocity": 0.8,
-        "gate": 1
-      },
-      {
-        "on": true,
-        "note": 40,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 42,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 43,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 65,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 67,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 47,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 49,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.608
-      },
-      {
-        "on": true,
-        "note": 49,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 63,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": true,
-        "note": 50,
+        "note": 36,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 65,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 52,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 1,
-        "gate": 1
+        "gate": 0.9
       }
     ],
     [
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 37,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 37,
+        "velocity": 0.8,
+        "gate": 0.9
       },
       {
         "on": false,
         "note": 62,
         "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 63,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
       },
       {
         "on": true,
-        "note": 45,
+        "note": 39,
         "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 65,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 66,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 67,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 0.8,
-        "gate": 1
-      },
-      {
-        "on": false,
-        "note": 61,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 62,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 63,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 64,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 65,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": false,
-        "note": 66,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       }
     ],
     [
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 1,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 54,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 55,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 55,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": true,
-        "note": 54,
+        "note": 39,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 54,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 45,
-        "velocity": 0.8,
-        "gate": 0.8158
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 45,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
-      },
-      {
-        "on": true,
-        "note": 47,
-        "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 47,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
       },
       {
-        "on": true,
-        "note": 46,
+        "on": false,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
       },
       {
         "on": true,
         "note": 43,
         "velocity": 0.8,
-        "gate": 1
+        "gate": 0.9
       },
       {
         "on": false,
-        "note": 43,
+        "note": 60,
         "velocity": 0.8,
-        "gate": 0.5
+        "gate": 0.9
+      }
+    ],
+    [
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 36,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": true,
+        "note": 37,
+        "velocity": 0.8,
+        "gate": 0.9
+      },
+      {
+        "on": false,
+        "note": 60,
+        "velocity": 0.8,
+        "gate": 0.9
       }
     ]
   ],
@@ -609,8 +609,57 @@
     [
       [
         {
-          "on": false,
-          "velocity": 1
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
         },
         {
           "on": false
@@ -706,122 +755,6 @@
         },
         {
           "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "velocity": 1,
-          "gate": 0.5394
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "ratchet": 2
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "velocity": 1
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        },
-        {
-          "on": false,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "gate": 0.5445
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "gate": 0.5148
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false,
-          "tie": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "tie": true
-        },
-        {
-          "on": true,
-          "gate": 0.4695
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "tie": true
-        },
-        {
-          "on": true,
-          "velocity": 1,
-          "gate": 0.5684
         }
       ],
       [
@@ -988,8 +921,43 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
         },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
         {
           "on": false
         },
@@ -1012,7 +980,22 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1028,8 +1011,25 @@
     [
       [
         {
-          "on": true,
-          "velocity": 1
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1053,7 +1053,39 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1125,117 +1157,6 @@
         },
         {
           "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1,
-          "gate": 0.5394
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "gate": 0.5445
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "gate": 0.5148
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1,
-          "gate": 0.5289
         }
       ],
       [
@@ -1402,8 +1323,43 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
         },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
         {
           "on": false
         },
@@ -1426,7 +1382,22 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1442,8 +1413,13 @@
     [
       [
         {
-          "on": true,
-          "velocity": 1
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1455,7 +1431,13 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1467,7 +1449,27 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1479,7 +1481,25 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -1505,10 +1525,6 @@
           "on": false
         },
         {
-          "on": false,
-          "prob": 0.3468
-        },
-        {
           "on": false
         },
         {
@@ -1530,114 +1546,6 @@
           "on": false
         },
         {
-          "on": false,
-          "prob": 0.337
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1,
-          "gate": 0.5394
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "velocity": 1
-        },
-        {
-          "on": true
-        },
-        {
-          "on": true,
-          "ratchet": 2
-        }
-      ],
-      [
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "gate": 0.5445
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true,
-          "gate": 0.5148
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": false
-        },
-        {
-          "on": true
-        },
-        {
           "on": false
         },
         {
@@ -1650,9 +1558,7 @@
           "on": false
         },
         {
-          "on": true,
-          "velocity": 1,
-          "gate": 0.5289
+          "on": false
         }
       ],
       [
@@ -1819,8 +1725,43 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
         },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        }
+      ],
+      [
         {
           "on": false
         },
@@ -1843,7 +1784,22 @@
           "on": false
         },
         {
-          "on": true
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
+        },
+        {
+          "on": false
         },
         {
           "on": false
@@ -2263,44 +2219,1111 @@
     "enabled": true,
     "steps": [
       0,
-      1,
-      2,
-      3,
-      0,
-      1,
-      3,
-      0,
-      1,
-      3,
-      1,
-      3,
-      0,
-      1,
-      2,
-      3
-    ]
-  },
-  "drumChain": {
-    "enabled": true,
-    "steps": [
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      0,
-      2,
-      2,
-      2,
-      2,
-      0,
-      2,
-      2,
-      2,
       1
     ]
   },
+  "drumChain": {
+    "enabled": false,
+    "steps": [
+      0
+    ]
+  },
+  "seqTracks": [
+    [
+      null,
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 43,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 43,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 56,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 55,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        }
+      ]
+    ],
+    [
+      null,
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 43,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9,
+          "prob": 0.09782
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9,
+          "prob": 0.09782
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9,
+          "prob": 0.09782
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 49,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 49,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 51,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 53,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 53,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 62,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 55,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        }
+      ]
+    ],
+    [
+      null,
+      null,
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 51,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 53,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 53,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 58,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ]
+    ],
+    [
+      null,
+      [
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 43,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 43,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 48,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 49,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        }
+      ],
+      [
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 52,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": false,
+          "note": 60,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 53,
+          "velocity": 0.8,
+          "gate": 0.9
+        },
+        {
+          "on": true,
+          "note": 60,
+          "velocity": 0.7,
+          "gate": 0.9
+        }
+      ]
+    ]
+  ],
   "samplerBanks": [
     [
       [
@@ -3928,7 +4951,7 @@
     null
   ],
   "xy": {
-    "x": "fx.delay.mix",
+    "x": "filter.shape",
     "y": "filter.cutoff"
   },
   "motionBanks": [
@@ -4140,26 +5163,363 @@
     null
   ],
   "motionChain": {
-    "enabled": false,
+    "enabled": true,
     "steps": [
-      0
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      1
     ]
   },
   "motionTracks": [
     [
-      null,
+      {
+        "param": "osc1.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.6667
+          }
+        ]
+      },
+      {
+        "param": "osc2.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.6146
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.2188
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "param": "osc1.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.6563
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0
+          }
+        ]
+      },
+      {
+        "param": "osc2.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.25
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.6146
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "param": "osc1.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.3333
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.5938
+          }
+        ]
+      },
       null
     ],
     [
-      null,
-      null
-    ],
-    [
-      null,
-      null
-    ],
-    [
-      null,
+      {
+        "param": "osc1.level",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.6771
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0
+          }
+        ]
+      },
       null
     ]
   ]
