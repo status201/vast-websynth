@@ -116,6 +116,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   **amp** destination, the volume used to jump between values instantly, which
   ticked on every edge. The movement is smoothed just enough to remove the tick
   without rounding off the shape.
+- **The search box on long dropdowns is readable again.** Menus with 30 or more
+  options carry a filter field, and it was being drawn in the faceplate serif at
+  a size meant for short control labels — hard to read exactly where you are
+  typing. It, and the "No match" line, now use the interface font.
+- **The `BAR n/N` readout above each step grid no longer wiggles as it counts.**
+  It was set in the faceplate serif, whose digits are different widths, so the
+  `/N` after the bar number shuffled sideways every bar. It now uses the same
+  monospaced figures as the transport's own position readout.
 
 ## [2.6.2] - 2026-07-31
 

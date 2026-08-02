@@ -13,6 +13,7 @@ related:
   - onboarding
   - untrusted-input
   - transport
+  - typography          # REQ-5's wizard type follows the app-wide rule
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
@@ -130,11 +131,11 @@ follows whichever delivers.
     self-closes. Textareas are **half** the shared modal height (QR + Copy are the
     primary transfer; the text blob is a fallback). Close is a **fully-styled
     button** (base button style + full-width layout — not a bare text label).
-  - **Typography rule** (applies app-wide): only the modal **title**, step
-    **headings/subtitles**, and **taglines** are serif (`--serif`); all
-    body/intro/instruction text is **sans-serif** (`--sans`). Intro text carries a
-    small top margin off its heading. (`Modal.tagClass` is serif, so body copy
-    must not reuse it.)
+  - **Typography** follows [typography](typography.md) — the app-wide rule used
+    to be stated here, which is why it was unfindable. Local consequences only:
+    the modal title and the step headings/subtitles are serif and everything
+    else in the wizard is sans, intro text carries a small top margin off its
+    heading, and **body copy must not reuse `Modal.tagClass`** (it is serif).
 
   Copy-paste always works; QR **display** uses the vendored encoder; QR
   **scan** is offered on **any device with a camera** (`navigator.mediaDevices

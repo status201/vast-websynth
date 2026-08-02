@@ -442,6 +442,12 @@ into the committed demos and share links.)
 - **CSS Modules** for all component/panel styling (`src/ui/styles/*.module.css`);
   global CSS is only `base.css` / `theme.css` / `layout.css`. State classes
   (`.on`, `.active`, `.playing`, …) are global — match with `:global(...)`.
+- **Typography** — `--serif` is display type (identity, headings, faceplate
+  legends), `--sans` is content (body copy, status lines, anything the user
+  types), `--mono` is readouts and changing digits. Sans is the inherited
+  default, so every other face is a deliberate opt-in, pinned by
+  `tests/ui/typography.test.ts` — CSS is exempt from the SDD guard, so nothing
+  else catches a drift. → [`features/typography.md`](features/typography.md).
 - **Stable `data-testid`s** are minted at the factory level (`knob-<paramId>`,
   `switch-<paramId>`, `seg-<paramId>`, `tab-<id>`, `seq-step-<i>`, …). E2E specs
   select by testid/text/role because CSS Module class names are hashed. The id set

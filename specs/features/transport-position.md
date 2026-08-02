@@ -11,6 +11,7 @@ version: 3  # v3: only an EXPORT blocks a seek — a free manual take no longer
 owner: core
 related:
   - architecture
+  - typography          # REQ-15's readout is mono, not the faceplate serif
   - transport
   - arrangement
   - sequencer
@@ -204,6 +205,11 @@ counter silently desynchronises all four.
   - Otherwise → **`BAR n/N`** with `n = bar % songBars() + 1`, agreeing with the
     Song scrubber ([transport-window](transport-window.md)) instead of
     contradicting it.
+  - The readout is set in **`--mono`**, not the faceplate serif
+    ([typography](typography.md) REQ-3): `n` counts while the transport runs, and
+    Georgia's proportional old-style figures made the trailing `/N` shuffle
+    sideways on every bar. Same finding as
+    [transport-window](transport-window.md) REQ-6's `bar.step`.
 - **REQ-16** (v2) — **A bar stepper, only where bars exist.** In `BAR` mode the
   readout becomes `‹ BAR n/N ›`; the arrows seek ∓/± one bar **preserving the
   16th** (`(bar ± 1) * SEQ_LENGTH + pos % SEQ_LENGTH`), clamped to

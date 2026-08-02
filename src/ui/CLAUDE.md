@@ -7,6 +7,7 @@ All component/panel styling is in `src/ui/styles/*.module.css`. Global CSS is
 now only `src/styles/base.css` (reset), `src/styles/theme.css` (custom
 properties), and `src/styles/layout.css` (`.app` grid + responsive).
 
+- **Typography**: `--serif` is display type only — identity, headings, taglines, and faceplate legends (tabs, step buttons, segmented, track labels). Body copy, status lines and anything the user *types* are `--sans`; readouts with changing digits are `--mono` (Georgia's figures are proportional old-style, so a serif counter jitters). Sans is the inherited default, so a serif is always a deliberate opt-in — and `tests/ui/typography.test.ts` fails on any new one until it's declared. → `specs/features/typography.md`.
 - State classes (`.on`, `.active`, `.hidden`, `.playing`, `.collapsed`) are global — match them with `:global(.on)` in module selectors.
 - Bridge global classes (e.g. `switch-label`) are kept alongside module classes where global descendant selectors still target children: `className: 'switch-label ' + styles.label!`.
 - Use `:global()` when a module selector targets an element with only a global class: `.icons button :global(svg.wave-icon)`.

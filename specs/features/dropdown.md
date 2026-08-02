@@ -3,12 +3,14 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 3  # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
+version: 4  # v4: the filter row is content type, not faceplate legend (REQ-7)
+            # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
             # v2: a live filter row on long lists (REQ-7); REQ-5's focus target
             #     moves to that input where it exists
 owner: ui
 related:
   - architecture
+  - typography        # the filter row is sans; the toggle and options are serif
   - xy-pad            # axis-assign pickers are Dropdowns over every bus param id
   - presets           # header preset selector
   - drum-kits         # KIT picker
@@ -85,6 +87,12 @@ without anyone remembering to ask.
   - `Enter` selects the first still-visible option; the arrow keys move into the
     list (REQ-8); `Escape` closes the menu (REQ-3) rather than clearing the query
     first — one gesture, one outcome.
+  - **The row is content type, not a legend** (v4): the input and the "No match"
+    line are `--sans`, while the toggle and the options stay on the faceplate
+    `--serif` ([typography](typography.md) REQ-1/REQ-2). The input shipped in v2
+    as 10 px Georgia with legend tracking, copied from the sibling `.option`
+    rule — barely readable on the one control in the menu you *type into*. A
+    field holds the user's text; a legend labels a control.
   - The row contains **no `<button>`**. Consumers select the toggle as the
     dropdown's first button (`e2e/onboarding.spec.ts` does), so a clear "✕"
     would break them; open-reset and Escape make one unnecessary anyway.
@@ -251,6 +259,12 @@ Scenario: Past the end, a filtered list returns to its field and a plain one wra
   Then focus returns to the filter field if there is one, else to the first option
 # pinned by: tests/ui/dropdown.test.ts
 
+Scenario: The filter field reads as a field, not a legend (regression, v4)
+  Given the filter row, which the user types into
+  Then its input and its "No match" line render in --sans
+  And the toggle and the options stay on the faceplate --serif
+# pinned by: tests/ui/typography.test.ts
+
 Scenario: An open dropdown swallows Home instead of seeking (regression, v3)
   Given an open Dropdown with an option focused
   When I press Home
@@ -262,6 +276,8 @@ Scenario: An open dropdown swallows Home instead of seeking (regression, v3)
 ## Tests & verification
 
 - Unit: `tests/ui/dropdown.test.ts`, `tests/ui/param-dropdown.test.ts` — `npm test`
+  (the jsdom suite cannot see real CSS; the v4 typeface split is pinned by
+  `tests/ui/typography.test.ts`)
 - E2E: `e2e/xy-pad.spec.ts` (filter an axis picker down to one match and pick it);
   indirect — `e2e/controls.spec.ts` (preset select), `e2e/drum-kit.spec.ts`
   (KIT picker) — `npm run e2e`

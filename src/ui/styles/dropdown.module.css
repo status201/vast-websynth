@@ -108,9 +108,11 @@
   border: 1px solid var(--panel-border);
   border-radius: 3px;
   color: var(--text);
-  font-family: var(--serif);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  /* Sans, not the faceplate serif: this is a field the user types into, not a
+     legend (typography.md REQ-2/REQ-4). Georgia at 10px with legend tracking
+     was barely readable. Tracking goes with it — that is a legend treatment. */
+  font-family: var(--sans);
+  font-size: 11px;
 }
 
 .filterInput:focus {
@@ -122,17 +124,17 @@
   color: var(--text-faint);
   font-style: italic;
   text-transform: none;
-  letter-spacing: 0.06em;
 }
 
+/* "No match" — a sentence addressed to the user, so sans (typography.md REQ-2).
+   Italic and dim keep it reading as status rather than as a pickable option. */
 .empty {
   flex: none;
   padding: 7px 10px;
   color: var(--text-faint);
-  font-family: var(--serif);
-  font-size: 10px;
+  font-family: var(--sans);
+  font-size: 11px;
   font-style: italic;
-  letter-spacing: 0.08em;
 }
 
 .option {

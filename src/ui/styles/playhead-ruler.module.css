@@ -71,10 +71,17 @@
   min-width: 0;
 }
 
+/* Monospaced, NOT `--serif` (typography.md REQ-3): the bar number counts while
+   the transport runs, and Georgia's figures are proportional old-style with no
+   `tnum`, so `1` and `8` set to different widths and the `/N` after them shifted
+   sideways on every bar. Same finding, same fix as `.readout` in
+   transport-controls.module.css. Tracking drops 0.12em -> 0.04em to pay for
+   mono's wider advance — this sits in a cramped row-label slot. */
 .bar {
-  font-family: var(--serif);
+  font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
   text-transform: uppercase;
   color: var(--text-dim);
   white-space: nowrap;

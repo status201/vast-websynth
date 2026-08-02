@@ -7,6 +7,7 @@ version: 1
 owner: ui
 related:
   - architecture
+  - typography          # the display serif's flagship consumer
   - responsive-header   # the header consumer
   - factory-reset       # pins the About modal's card order
   - onboarding          # the About modal's other contents

@@ -9,6 +9,7 @@ owner: core
 related:
   - transport
   - transport-position
+  - typography          # REQ-6's mono readout generalises there (REQ-3)
   - floating-window
   - live-fx-window
   - song-mode
