@@ -1,0 +1,31 @@
+/* Transient value readout pinned above the control being dragged
+   (src/ui/components/value-bubble.ts, motion-sequencer.md REQ-22).
+
+   Fixed-position and pointer-transparent: it is placed from the anchor's
+   viewport rect and must never intercept the gesture that spawned it. Layered
+   just under the toast (980) — a toast is a message the user must be able to
+   read, a value bubble is scenery that follows the finger. */
+
+.bubble {
+  position: fixed;
+  z-index: 970;
+  pointer-events: none;
+  padding: 3px 7px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  box-shadow: var(--panel-shadow);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  /* Digits must not jitter as the value sweeps under the finger. */
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* A peek reads a value rather than writing one, so it drops the accent and
+   reads as quiet chrome — the same distinction the pad itself makes. */
+.peek {
+  border-color: var(--panel-border);
+  color: var(--text-dim);
+}

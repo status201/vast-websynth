@@ -112,6 +112,28 @@
   color: #77664f;
 }
 
+/* Per-lane value readout (motion-sequencer.md REQ-22). Permanent chrome, not a
+   hover popup — the pads are far too small to carry their own label, and
+   ADR-014 law 6 rules out putting the value somewhere only a mouse can reach.
+   Modelled on the Knob's `.num`: a reserved height so appearing text never
+   reflows the header row, tabular figures so digits do not jitter as a drag
+   sweeps, and the accent reserved for a live gesture. `margin-left: auto`
+   parks it at the end of the row, away from the controls. */
+.readout {
+  margin-left: auto;
+  min-height: 12px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: #8f7a63;
+  white-space: nowrap;
+}
+
+.readoutLive {
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+
 /* ---- extra single-param tracks (motion-sequencer.md REQ-16) ---- */
 
 /* Level cell: same box as the XY pad, but the value reads as a bottom-up fill

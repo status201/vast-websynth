@@ -134,6 +134,8 @@ motion tab:                                         # features/motion-sequencer.
   motion-assign-<x|y> · motion-assign-reset
   motion-trk-<0|1>-param · motion-trk-<0|1>-step-<s> · motion-trk-<0|1>-graph
   seg-motion.t<0|1>.slide
+  motion-readout-xy · motion-readout-trk-<0|1>   # per-lane value readout (v11)
+  motion-value-bubble                            # the drag bubble; absent when idle
 
 sampler slots:                                      # features/sampler.md
   sampler-load-<slot> · sampler-name-<slot> · sampler-edit-<slot> ·

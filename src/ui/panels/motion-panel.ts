@@ -1,5 +1,5 @@
 import type { ParamBus } from '../../state/params';
-import type { XyPadStore } from '../../state/xy-pad';
+import type { XyAssign, XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { XyPadWindowController } from '../components/xy-pad-window';
 import type { PatternUndo } from '../../state/pattern-undo';
@@ -8,7 +8,10 @@ import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Segmented } from '../components/segmented';
 import { Dropdown } from '../components/dropdown';
-import { MotionStepPad } from '../components/motion-step-pad';
+import { MotionStepPad, type MotionGesture } from '../components/motion-step-pad';
+import { showValueBubble, hideValueBubble } from '../components/value-bubble';
+import { formatParam } from '../format-param';
+import { fromNorm } from '../../utils/taper';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor,
@@ -91,6 +94,75 @@ export function buildMotionPanel(
   xyHeader.appendChild(viewSel);
   xyHeader.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
 
+  // ---- Per-lane value readout (REQ-22) ----
+  // The pads are ~40px wide and there are 48 of them, so a step's value cannot
+  // live on the cell. Each lane gets one readout in its own header instead —
+  // permanent chrome, the Knob's `.num` pattern, which is what ADR-014 law 6
+  // asks for in place of a hover-only tooltip. The same string also feeds the
+  // drag bubble, so the two can never disagree.
+  const EMPTY_READOUT = '—';
+  /** True while any pad on any lane owns a gesture — hover must not fight it. */
+  let gesturing = false;
+
+  const makeReadout = (testId: string): HTMLElement => {
+    const el = document.createElement('span');
+    el.className = styles.readout!;
+    el.dataset.testid = testId;
+    el.textContent = EMPTY_READOUT;
+    return el;
+  };
+
+  /** The edit bank's effective axes — `motionAxesFor` is the one override/inherit
+   *  rule (REQ-4), shared with the machine and the graph so all three agree on
+   *  which parameter a bank's anchors mean. */
+  const effectiveAxes = (): XyAssign =>
+    motionAxesFor(patterns, patterns.motionEditBank, xy.get());
+
+  /** A normalized 0..1 as the parameter actually reads, or '' when the lane
+   *  drives nothing (an unassigned track, or an id the bus does not know). */
+  const paramText = (id: string | undefined, n: number): string => {
+    const def = id ? bus.def(id) : undefined;
+    return def ? formatParam(def, fromNorm(def, n)) : '';
+  };
+
+  /** 1-based, zero-padded: musicians count steps from one. */
+  const stepLabel = (s: number): string => String(s + 1).padStart(2, '0');
+
+  /**
+   * Render one gesture into a lane's header readout and the floating bubble.
+   * `null` ends the gesture: the bubble goes away, the readout **stays** on the
+   * step it was showing, which is what lets you read A's value and then compare
+   * it while setting B's.
+   */
+  const applyGesture = (
+    readout: HTMLElement,
+    anchor: HTMLElement,
+    g: MotionGesture | null,
+    text: (x: number, y: number) => string,
+  ): void => {
+    if (!g) {
+      gesturing = false;
+      readout.classList.remove(styles.readoutLive!);
+      hideValueBubble();
+      return;
+    }
+    gesturing = true;
+    const s = text(g.x, g.y);
+    readout.textContent = s;
+    readout.classList.add(styles.readoutLive!);
+    showValueBubble(anchor, s, { peek: g.mode === 'peek', testId: 'motion-value-bubble' });
+  };
+
+  /** Mouse hover updates the header readout only — never the bubble, which
+   *  belongs to a live gesture. Touch has no hover and does not need one: a
+   *  hold peeks (REQ-23a). */
+  const wireHover = (el: HTMLElement, readout: HTMLElement, text: () => string): void => {
+    el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' || gesturing) return;
+      readout.textContent = text();
+    });
+  };
+
   const bankBar = bankBarFor(engine, 'motion');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'motion'));
@@ -136,6 +208,15 @@ export function buildMotionPanel(
   // ---- Step grid: one row of 16 mini XY pads ----
   const cells = document.createElement('div');
   cells.className = drumStyles.cells!;
+  const xyReadout = makeReadout('motion-readout-xy');
+  /** Both axes at once, each with the value its parameter actually takes. */
+  const xyReadoutText = (s: number, x: number, y: number): string => {
+    const ax = effectiveAxes();
+    const px = paramText(ax.x, x);
+    const py = paramText(ax.y, y);
+    return `${stepLabel(s)} · x ${x.toFixed(2)}${px ? ` (${px})` : ''}`
+      + ` · y ${y.toFixed(2)}${py ? ` (${py})` : ''}`;
+  };
   const pads: MotionStepPad[] = [];
   for (let s = 0; s < SEQ_LENGTH; s++) {
     const step = s;
@@ -143,9 +224,15 @@ export function buildMotionPanel(
       beat: s % 4 === 0,
       onSet: (px, py) => patterns.setMotionStep(step, { on: true, x: px, y: py }),
       onClear: () => patterns.setMotionStep(step, { on: false }),
+      onGesture: (g) =>
+        applyGesture(xyReadout, pads[step]!.el, g, (x, y) => xyReadoutText(step, x, y)),
     });
     pad.el.dataset.testid = `motion-step-${s}`;
     pad.setStep(patterns.motion[s]!);
+    wireHover(pad.el, xyReadout, () => {
+      const st = patterns.motion[step]!;
+      return xyReadoutText(step, st.x, st.y);
+    });
     cells.appendChild(pad.el);
     pads.push(pad);
   }
@@ -268,16 +355,19 @@ export function buildMotionPanel(
   const hint = document.createElement('span');
   hint.className = styles.hint!;
   xyHeader.appendChild(hint);
+  // Last in the row: the readout reads back what the pads below are doing, so it
+  // sits after the controls that decide what those values mean.
+  xyHeader.appendChild(xyReadout);
 
   const refreshAxes = (): void => {
     const ov = patterns.motionAssign(patterns.motionEditBank);
-    const base = xy.get();
-    xSel.setValue(ov?.x ?? base.x);
-    ySel.setValue(ov?.y ?? base.y);
+    const ax = effectiveAxes();
+    xSel.setValue(ax.x);
+    ySel.setValue(ax.y);
     xSel.el.classList.toggle(styles.inheritedSel!, !ov?.x);
     ySel.el.classList.toggle(styles.inheritedSel!, !ov?.y);
     resetBtn.style.visibility = ov ? '' : 'hidden';
-    const effective = view === 'x' ? (ov?.x ?? base.x) : (ov?.y ?? base.y);
+    const effective = view === 'x' ? ax.x : ax.y;
     hint.textContent = ov
       ? `bank override — graph: ${effective}`
       : `inherited from XY Pad — graph: ${effective}`;
@@ -312,7 +402,16 @@ export function buildMotionPanel(
     // This lane's own interpolation mode (REQ-2/REQ-16). Segmented mints
     // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
     ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
+    const readout = makeReadout(`motion-readout-trk-${track}`);
+    ctrls.appendChild(readout);
     row.appendChild(ctrls);
+
+    // Normalized first — that is the number you match against the other lane —
+    // then what the parameter actually reads (REQ-22).
+    const readoutText = (s: number, v: number): string => {
+      const pt = paramText(patterns.motionTrack(track)?.param, v);
+      return `${stepLabel(s)} · ${v.toFixed(2)}${pt ? ` · ${pt}` : ''}`;
+    };
 
     const cells = document.createElement('div');
     // Wider-gap grid than the XY lane's (styles.trackCells vs drumStyles.cells),
@@ -329,8 +428,15 @@ export function buildMotionPanel(
         // cleared cell reads like an untouched one instead of keeping its old
         // parked height (motion-sequencer.md REQ-16).
         onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
+        // Only y is meaningful on a level cell, so only y reaches the readout.
+        onGesture: (g) =>
+          applyGesture(readout, pads[step]!.el, g, (_x, y) => readoutText(step, y)),
       });
       pad.el.dataset.testid = `motion-trk-${track}-step-${sIdx}`;
+      wireHover(pad.el, readout, () => {
+        const cell = patterns.motionTrack(track)?.steps[step];
+        return cell ? readoutText(step, cell.v) : EMPTY_READOUT;
+      });
       cells.appendChild(pad.el);
       pads.push(pad);
     }
@@ -362,6 +468,10 @@ export function buildMotionPanel(
       // Disabling that is the one thing that would make an unassigned track
       // impossible to assign (ADR-014 law 2: no dead ends).
       row.classList.toggle(styles.trackDim!, !assigned);
+      // An unassigned lane has no value to convert, so it reports none. An
+      // assigned one keeps whatever the readout was last showing — that
+      // stickiness is what makes two lanes comparable (REQ-22).
+      if (!assigned) readout.textContent = EMPTY_READOUT;
       for (let i = 0; i < SEQ_LENGTH; i++) {
         const cell = t.steps[i]!;
         pads[i]!.setLevel(cell.on, cell.v, t.param);

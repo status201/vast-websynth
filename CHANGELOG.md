@@ -53,6 +53,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   square wave gives hard left/right alternation. It sits at the very end of the
   synth channel, so switching it on costs nothing anywhere else, and the movement
   is captured when you render a bank to the sampler.
+- **The motion sequencer now shows you the value you are setting.** Every lane —
+  XY, A and B — carries a readout at the end of its header, and a small bubble
+  follows the cell you are dragging. Both show the step number, the level as a
+  plain 0–1 number and what the parameter itself reads (`06 · 0.40 · 40%`), and
+  the readout **stays put** after you let go, so you can set A, look at it, and
+  match B against it. Until now that number lived only in the hover tooltip:
+  delayed on a mouse, invisible while you dragged, and absent altogether on a
+  phone.
+- **Hold a motion cell to read it without changing it.** Pressing a pad used to
+  overwrite it instantly, which made checking what lane A holds — the exact
+  thing you need before setting lane B to match — destructive. Press and hold
+  still for a moment and the pad just tells you its value; nothing is written,
+  on release either. A tap and a drag behave as before.
 - **Pulse width, and an LFO destination that finally does something.** The square
   wave has a **WIDTH** knob — it appears only when square is selected, since it
   means nothing for the other shapes. At 50% it is the plain square you had
@@ -63,6 +76,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Motion cells now snap to steps of 0.05, with Shift for anything in
+  between.** A motion pad is 64 pixels tall and the value follows your pointer
+  exactly, so landing on the same level twice — let alone on two different lanes
+  — meant pixel-hunting. Drags now settle on round twentieths, which is what
+  makes "give A and B the same value" a thing you can simply do, and the only
+  way to do it at all on a touchscreen, where there is no modifier key. Hold
+  **Shift** while dragging for fine, unsnapped control, the same modifier the
+  knobs use; pressing with Shift held nudges from the value already in the cell
+  instead of jumping to your finger. Nothing you have saved changes — only newly
+  drawn values snap.
 - **The LFO RATE knob now turns in octaves instead of hertz.** It used to be
   linear, which put everything musically useful — the slow 0.1–1 Hz drifts that
   pads and PWM live on — inside the first few millimetres of travel, while half

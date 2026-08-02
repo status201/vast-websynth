@@ -730,6 +730,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>These 16 mini pads automate the <strong>two knobs the XY Pad is wired to</strong>. ' +
       'Drag inside a pad to drop an X/Y <em>anchor</em> for that step; double-click to clear it.</p>' +
+      '<p>The value shows in the readout at the end of this row, and in a bubble above the pad ' +
+      'while you drag. Drags land on <strong>steps of 0.05</strong>, so two lanes can be given ' +
+      'exactly the same value; hold <strong>Shift</strong> for fine control in between. ' +
+      '<strong>Hold a pad still</strong> to read what is in it without changing it.</p>' +
       '<p><strong>SLIDE</strong> ramps smoothly between anchors, <strong>STEP</strong> jumps at ' +
       'each and holds. The <strong>Y / X</strong> toggle only picks which axis the overlay line ' +
       'traces — the dots never move.</p>',
@@ -742,7 +746,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>free to play live</strong>, or add the XY lane on top for up to four in all.</p>' +
       '<p>Drag a cell up or down to set its level, double-click to clear it. Each lane has its own ' +
       '<strong>SLIDE / STEP</strong>, so it can move differently from the XY sweep and from the ' +
-      'other track.</p>',
+      'other track.</p>' +
+      '<p>Giving A and B the <em>same</em> value is the common case, so drags land on ' +
+      '<strong>steps of 0.05</strong> and each lane shows its value in the readout at the end of ' +
+      'its row (plus a bubble above the cell while you drag). <strong>Hold a cell still</strong> ' +
+      'to read it without changing it — that is how you check A before setting B. Hold ' +
+      '<strong>Shift</strong> while dragging for fine, unsnapped control.</p>',
   },
   // One body, four ids — see RULER_HELP.
   'transport.ruler.seq': RULER_HELP,

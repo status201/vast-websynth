@@ -3,7 +3,9 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 3   # v3: a position ruler sits above every grid; its click is a seek (REQ-13)
+version: 4   # v4: the motion grid's press is deferred, so its long-press now PEEKS
+             #     (motion-sequencer REQ-23) — REQ-9 + the inventory's Motion column
+             # v3: a position ruler sits above every grid; its click is a seek (REQ-13)
              # v2: off-screen grids skip their per-tick repaints (REQ-12)
 owner: core
 related:
@@ -122,7 +124,13 @@ answer to "inspect this step without disturbing it".
 - **REQ-9** — **Motion keeps its own primary gesture.** The motion grid's cells
   are mini XY pads where a press *is* a coordinate set, so REQ-1/REQ-3/REQ-4 do
   not apply to it: drag-to-set and double-tap-to-clear stay as specified in
-  [motion-sequencer](motion-sequencer.md) REQ-8. Motion takes **REQ-6/7/8 only**
+  [motion-sequencer](motion-sequencer.md) REQ-8.
+  (v4) The one part of REQ-3 motion *does* now take is its **meaning**: since
+  [motion-sequencer](motion-sequencer.md) REQ-23 defers the pad's commit from
+  `pointerdown` to first-travel-or-release, a held press no longer sets anything,
+  and long-press became free to carry the same "inspect without disturbing" job
+  it has here. It reads the value instead of moving a cursor, because motion has
+  no cursor to move. Motion takes **REQ-6/7/8 only**
   (Clear bank, single-entry undo, the toast). REQ-5's `Delete` deliberately does
   **not** reach it: motion has no selection cursor, so the key would have to act
   on an invisible "last touched" pad — inventing hidden state to delete from is
@@ -174,9 +182,10 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 
 | Gesture | Trigger grids | Motion grid | Precedent |
 | --- | --- | --- | --- |
-| tap / click | toggle `on` + select | set `(x,y)` anchor | TR-808; Electribe |
+| tap / click | toggle `on` + select | set `(x,y)` anchor, on release (v4) | TR-808; Electribe |
 | drag | paint `!first.on` | set `(x,y)` continuously | FL Studio, Ableton |
-| long-press ≥ 350 ms | **select only** | — (press sets a value) | Elektron, Push |
+| long-press ≥ 350 ms | **select only** | **peek** — read the value, write nothing (v4) | Elektron, Push |
+| Shift + drag | — | fine, relative, unsnapped (v4) | this app's knobs |
 | right-click | select only | — | — |
 | double-tap | — (tap already toggles) | clear the anchor | Electribe |
 | wheel | ±1 semitone (seq only) | — | — |
@@ -185,10 +194,13 @@ step-1 artefact). "Trigger grids" = seq / drum / sampler.
 | `Clear ▾` → row | clear the selected row | clear a named lane (XY/A/B) | — |
 
 Every gesture has exactly one outcome, independent of hidden state — there is no
-mode anywhere in this table. Note that it is **full**: every gesture a cell can
-receive is spoken for, which is why the position ruler (REQ-13) is a separate
-target rather than a modifier here. Its own one-row inventory lives in
-[transport-position](transport-position.md).
+mode anywhere in this table. On the **trigger** grids it is still **full**: every
+gesture a cell can receive is spoken for, which is why the position ruler
+(REQ-13) is a separate target rather than a modifier there. Its own one-row
+inventory lives in [transport-position](transport-position.md). On the **motion**
+grid that is no longer true as of v4 — `wheel` and `right-click` are deliberately
+free, and the pad's own fuller inventory (which this column summarises) lives in
+[motion-sequencer](motion-sequencer.md) "Gesture inventory".
 
 ### Contract / public interface
 
