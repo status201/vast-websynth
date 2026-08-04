@@ -24,12 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and letting the pads below paint over it, so picking a parameter meant reading
   grey-on-grey text through the grid. The list now opens at full strength and on
   top of everything, while the picker itself still reads as inherited.
+- **The model number sits straight in its box.** `G1-J8` was riding a pixel high
+  and a couple of pixels left inside its outline. It is centred now — on the
+  faceplate, in About, and on the start screen.
 
 ### Changed
 
 - **The model number on the faceplate is now `G1-J8`** — the synth has eight
   voices, and the badge now says so. Nothing else changed: same instrument, same
   presets, same songs.
+- **The ⓘ button now wears the badge it switches on.** While the info badges are
+  showing, the button's icon fills in solid — the same orange circle with a dark
+  `i` as the badges floating over the controls — so the way to switch them off
+  again is the thing that looks like them. Switched off, it is the same outline
+  it always was.
+- **The Presets info badge moved onto the preset selector.** Perched on the Save
+  button it sat almost next to the ⓘ button and drew the eye away from it.
 
 ## [2.7.0] - 2026-08-02
 
