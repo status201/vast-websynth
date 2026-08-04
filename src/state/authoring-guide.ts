@@ -319,7 +319,7 @@ ${paramTable(bus, isPatchParam)}`;
  */
 export function buildSongPrompt(bus: ParamBus, brief?: string): string {
   const request = brief && brief.trim() ? brief.trim() : REQUEST_PLACEHOLDER;
-  return `You are generating a song file for the WebSynth (VAST G1-J5) browser synthesizer.
+  return `You are generating a song file for the WebSynth (VAST G1-J8) browser synthesizer.
 
 SONG REQUEST
 ${request}

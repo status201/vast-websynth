@@ -85,7 +85,7 @@ describe('MediaSessionKeepAlive', () => {
     // Detached on purpose: the session must survive a suspended context.
     expect(el.getAttribute('playsinline')).toBe('');
     expect((ms.metadata as { init: { title: string; artwork: unknown[] } }).init.title)
-      .toBe('VAST G1-J5');
+      .toBe('VAST G1-J8');
     expect((ms.metadata as { init: { artwork: unknown[] } }).init.artwork).toHaveLength(2);
     expect(keepAlive.diagnostics).toMatchObject({ active: true, status: 'playing', handlers: 3 });
   });

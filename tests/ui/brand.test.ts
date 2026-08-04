@@ -10,14 +10,14 @@ import layoutStyles from '../../src/ui/styles/layout.module.css';
  * block stays one thing with no per-surface variants.
  */
 describe('brand block (brand.md)', () => {
-  it('renders VAST + a boxed G1-J5 + the tagline (REQ-1)', () => {
+  it('renders VAST + a boxed G1-J8 + the tagline (REQ-1)', () => {
     const el = createBrand();
     expect(el.classList.contains(brandStyles.brand!)).toBe(true);
 
     const row = el.querySelector(`.${brandStyles.brandRow!}`);
     expect(row).not.toBeNull();
     expect(row!.querySelector(`.${brandStyles.brandName!}`)?.textContent).toBe('VAST');
-    expect(row!.querySelector(`.${brandStyles.brandModel!}`)?.textContent).toBe('G1-J5');
+    expect(row!.querySelector(`.${brandStyles.brandModel!}`)?.textContent).toBe('G1-J8');
 
     const tagline = el.querySelector(`.${brandStyles.brandTagline!}`);
     expect(tagline?.textContent).toBe('Vast Audio Synthesis Technology');

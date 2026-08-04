@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "websynth-song.schema.json",
-  "title": "VAST G1-J5 song file (.websynth.json)",
-  "description": "Portable song format for the VAST G1-J5 web synthesizer (package name: websynth). A song captures the full parameter snapshot plus all sequencer / drum / sampler / motion banks and the four arrangement chain lanes. The format is additive and forward-compatible: new fields are optional and defaulted, so older files keep loading. Validation mirrors the loader contract — strict on types/structure/ranges/dimensions, lenient on the optional per-step fields (legacy v1 cells omit them). Unknown extra keys are tolerated (forward-compat); decoded audio is never embedded (only sampler filenames persist). Canonical runtime validation is the hand-written validator in src/state/song-validate.ts; this schema is the published machine-readable mirror.",
+  "title": "VAST G1-J8 song file (.websynth.json)",
+  "description": "Portable song format for the VAST G1-J8 web synthesizer (package name: websynth). A song captures the full parameter snapshot plus all sequencer / drum / sampler / motion banks and the four arrangement chain lanes. The format is additive and forward-compatible: new fields are optional and defaulted, so older files keep loading. Validation mirrors the loader contract — strict on types/structure/ranges/dimensions, lenient on the optional per-step fields (legacy v1 cells omit them). Unknown extra keys are tolerated (forward-compat); decoded audio is never embedded (only sampler filenames persist). Canonical runtime validation is the hand-written validator in src/state/song-validate.ts; this schema is the published machine-readable mirror.",
   "type": "object",
   "required": ["format", "version", "name", "params", "seqBanks", "drumBanks", "seqChain", "drumChain"],
   "properties": {

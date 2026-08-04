@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to VAST G1-J5 are documented here.
+All notable changes to VAST G1-J8 are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 -->
 
 ## [Unreleased]
+
+### Changed
+
+- **The model number on the faceplate is now `G1-J8`** — the synth has eight
+  voices, and the badge now says so. Nothing else changed: same instrument, same
+  presets, same songs.
 
 ## [2.7.0] - 2026-08-02
 
@@ -162,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   recognised by their position on the board, which also makes them work on
   layouts where `'` is a dead key.
 - **About and the start screen showed a flattened copy of the logo** — one plain
-  line of text where the header shows the VAST / G1-J5 faceplate. All three now
+  line of text where the header shows the VAST / G1-J8 faceplate. All three now
   draw the same badge from the same place.
 
 ## [2.6.1] - 2026-07-31
@@ -204,7 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   frozen, drops the stretch it slept through, and picks up from the step it was
   on. The crackling was Android throttling the app because, playing sound the way
   a synth does, it did not look like a music player to the system. **It now
-  registers as one**: an Android phone shows VAST G1-J5 in its notifications and
+  registers as one**: an Android phone shows VAST G1-J8 in its notifications and
   on the lock screen, with working play and pause, and the system stops starving
   it. Phones and tablets that already played fine with the screen off are
   unaffected. Coming back to the app also wakes the audio up again on Android,

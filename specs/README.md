@@ -1,4 +1,4 @@
-# Specs — Spec-Driven Development for VAST G1-J5
+# Specs — Spec-Driven Development for VAST G1-J8
 
 This folder is the **architectural source of truth** for the synth. Specs are
 written for both humans and AI agents to read, so an agent can act from a current,
@@ -14,7 +14,7 @@ things in this repo:
    generating the code that implements it.
 
 > The package/repo is `websynth`; the product is presented in-app as
-> **VAST G1-J5**. Same thing.
+> **VAST G1-J8**. Same thing.
 
 ## What a good spec contains
 
@@ -48,7 +48,7 @@ codebase has **neither** (vanilla TypeScript, Web Audio, zero runtime
 dependencies). So the usual spec ingredients map onto what *this* repo actually
 has:
 
-| General SDD concept   | VAST G1-J5 equivalent                                                              |
+| General SDD concept   | VAST G1-J8 equivalent                                                              |
 | --------------------- | --------------------------------------------------------------------------------- |
 | Database schema       | The `ParamBus` registry (`ParamDef`) for scalars; `PatternStore` step grids       |
 | API contract          | Module public interfaces — `ParamBus`, `Engine`, `Song`, `Arrangement`; and the AudioWorklet `port.postMessage` message contracts |
@@ -249,7 +249,7 @@ specs/
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     typography.md      ·  the type rule: serif is display, sans is content, mono is readouts
-    brand.md           ·  the VAST / G1-J5 / tagline block, shared by header + modals
+    brand.md           ·  the VAST / G1-J8 / tagline block, shared by header + modals
     responsive-header.md ·  mobile hamburger menu + header cluster reflow
     responsive-machine-header.md ·  pattern panel control row: wrap + FX cluster
     responsive-synth-panels.md ·  4-knob panels: 2x2 desktop, single row on tablets

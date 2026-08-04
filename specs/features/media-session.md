@@ -69,7 +69,7 @@ never touches `ParamBus`, presets or songs.
   element keeps playing (and keeps the session alive) even while the context is
   suspended, which is exactly when the session must persist.
 - **REQ-3** — **The session identifies the app**: `navigator.mediaSession.metadata`
-  = title `VAST G1-J5`, artist `Vast Audio Synthesis Technology`, artwork from the
+  = title `VAST G1-J8`, artist `Vast Audio Synthesis Technology`, artwork from the
   existing `/icon-192.png` + `/icon-512.png`. Constructing `MediaMetadata` is
   feature-detected and guarded — it is absent in jsdom and older browsers, and a
   missing notification must never cost the synth its audio.
@@ -195,7 +195,7 @@ Scenario: A browser that refuses playback does not break audio (edge)
 Scenario: Playing with the screen off (device)
   Given the transport is playing on a Pixel 8a
   When the screen turns off for a minute
-  Then a media notification for VAST G1-J5 is present
+  Then a media notification for VAST G1-J8 is present
    And playback continues without crackling
    And the Debug panel's dropout count has not moved
 # verified manually on device; jsdom cannot pin this

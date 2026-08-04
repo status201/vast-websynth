@@ -11,7 +11,7 @@ TypeScript. No framework, **zero runtime dependencies**; Vite + `tsc` only. Thre
 libraries are *vendored* under `src/vendor/` (`lamejs`, `qr`, `jsqr`) — see
 `specs/decisions/adr-003-no-runtime-dependencies.md`.
 
-In-app the product is **VAST G1-J5**; the package/repo is `websynth`. Same thing.
+In-app the product is **VAST G1-J8**; the package/repo is `websynth`. Same thing.
 
 ## Spec-Driven Development is enforced
 

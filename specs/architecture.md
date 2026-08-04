@@ -1,4 +1,4 @@
-# Architecture — VAST G1-J5
+# Architecture — VAST G1-J8
 
 ```yaml
 id: architecture
@@ -19,7 +19,7 @@ specs assume the contracts and conventions defined here.
 
 ## Background / Why
 
-VAST G1-J5 is a polyphonic Web Audio synthesizer (+ drum machine + sampler +
+VAST G1-J8 is a polyphonic Web Audio synthesizer (+ drum machine + sampler +
 motion sequencer for param automation) in **vanilla TypeScript**. There is **no UI framework and zero runtime
 dependencies**; build tooling is Vite + `tsc` only. The only third-party
 runtime code is three **vendored** (not npm) libraries under `src/vendor/` —

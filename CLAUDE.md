@@ -32,7 +32,7 @@ Full procedure: `specs/README.md` → "Procedure by change type".
 A Web Audio synthesizer (+ drum machine, sampler, motion sequencer) in **vanilla
 TypeScript** — no framework, **zero runtime dependencies**, Vite + `tsc` only. The
 three vendored libraries under `src/vendor/` (`lamejs`, `qr`, `jsqr`) are not npm
-packages; see ADR-003. Product name in-app: **VAST G1-J5**; package/repo:
+packages; see ADR-003. Product name in-app: **VAST G1-J8**; package/repo:
 `websynth`. Same thing.
 
 ## Read first

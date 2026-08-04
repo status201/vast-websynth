@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "websynth-song-author.schema.json",
-  "title": "VAST G1-J5 song authoring dialect (input-only)",
-  "description": "Compact, AI-friendly authoring format for the VAST G1-J5 web synthesizer (package name: websynth). On import the app expands this into the full canonical 'websynth-song' format (see websynth-song.schema.json) \u2014 the dialect is INPUT-ONLY and is never exported or persisted. Melody banks are positional note lists (rest-padded to 16 steps), drum/sampler banks are hit lists keyed by track name, and chains are strings like 'AABA'. Canonical runtime validation is src/state/song-author.ts (expandAuthorSong); this schema is the published machine-readable mirror. Note: the runtime normalizes drum-track keys (case/punctuation-insensitive, e.g. 'C.Hat' == 'chat'), which JSON Schema cannot express \u2014 this schema documents keys via additionalProperties and the runtime enforces them.",
+  "title": "VAST G1-J8 song authoring dialect (input-only)",
+  "description": "Compact, AI-friendly authoring format for the VAST G1-J8 web synthesizer (package name: websynth). On import the app expands this into the full canonical 'websynth-song' format (see websynth-song.schema.json) \u2014 the dialect is INPUT-ONLY and is never exported or persisted. Melody banks are positional note lists (rest-padded to 16 steps), drum/sampler banks are hit lists keyed by track name, and chains are strings like 'AABA'. Canonical runtime validation is src/state/song-author.ts (expandAuthorSong); this schema is the published machine-readable mirror. Note: the runtime normalizes drum-track keys (case/punctuation-insensitive, e.g. 'C.Hat' == 'chat'), which JSON Schema cannot express \u2014 this schema documents keys via additionalProperties and the runtime enforces them.",
   "type": "object",
   "required": [
     "format",

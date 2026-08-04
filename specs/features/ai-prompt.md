@@ -129,7 +129,7 @@ base `.card` cap/scroll (REQ-6); `.cardWide` wins on width by source order.
 ### Prompt shape (sections, in order)
 
 ```
-intro line (VAST G1-J5)
+intro line (VAST G1-J8)
 SONG REQUEST          <- brief or bracketed placeholder (REQ-1/2)
 OUTPUT RULES          <- anti-give-up guardrails + both absolute schema URLs (REQ-3/7)
 QUICKSTART            <- a complete, valid author-dialect song (REQ-4)

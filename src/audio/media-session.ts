@@ -49,7 +49,7 @@ export interface MediaSessionDiagnostics {
   currentTime: number | null;
 }
 
-const TITLE = 'VAST G1-J5';
+const TITLE = 'VAST G1-J8';
 const ARTIST = 'Vast Audio Synthesis Technology';
 
 export class MediaSessionKeepAlive {

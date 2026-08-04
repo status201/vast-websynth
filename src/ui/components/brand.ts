@@ -7,11 +7,11 @@
 import styles from '../styles/brand.module.css';
 
 const NAME = 'VAST';
-const MODEL = 'G1-J5';
+const MODEL = 'G1-J8';
 const TAGLINE = 'Vast Audio Synthesis Technology';
 
 /**
- * The brand block: `VAST` + a boxed `G1-J5` on one row, the tagline beneath.
+ * The brand block: `VAST` + a boxed `G1-J8` on one row, the tagline beneath.
  * No size or content variant — every surface shows the same thing (REQ-1).
  *
  * Carries no outer framing and no alignment of its own: the header composes its

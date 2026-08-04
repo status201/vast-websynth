@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release helper for VAST G1-J5.
+// Release helper for VAST G1-J8.
 //
 // Takes a version (an explicit x.y.z or a major|minor|patch keyword), bumps
 // package.json — which is the single source of truth the About modal reads via
@@ -76,7 +76,7 @@ function commands(lines) {
 
 function usage() {
   log(`
-${c.bold('VAST G1-J5 — release helper')}
+${c.bold('VAST G1-J8 — release helper')}
 
   ${c.dim('Bumps the version + CHANGELOG, builds the app, and zips dist/ into a')}
   ${c.dim('release artifact — then prints the git + gh commands to publish.')}

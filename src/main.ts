@@ -292,7 +292,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   const card = document.createElement('div');
   card.className = `${Modal.cardClass} start-card`;
   card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', 'Start VAST G1-J5');
+  card.setAttribute('aria-label', 'Start VAST G1-J8');
 
   // The first thing anyone sees, so it shows the real faceplate (brand.md).
   // `.start-card` centres it — the block itself has no alignment (REQ-4).

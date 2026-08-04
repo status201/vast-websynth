@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/status201/vast-websynth/schema/websynth-preset-bank.schema.json",
-  "title": "VAST G1-J5 preset bank file",
-  "description": "MANY sounds for the VAST G1-J5 (websynth) synthesizer in one file, keyed by preset name — the vintage naming: a preset is one sound, a bank is a collection. Each entry has the same shape as a websynth-preset file's `params`. Use a bank when asked for a set or kit of patches. Parameter ids, ranges and defaults are generated live by the app (Song panel → \"AI Prompt\") and by the repo's MCP server tool `get_preset_format`.",
+  "title": "VAST G1-J8 preset bank file",
+  "description": "MANY sounds for the VAST G1-J8 (websynth) synthesizer in one file, keyed by preset name — the vintage naming: a preset is one sound, a bank is a collection. Each entry has the same shape as a websynth-preset file's `params`. Use a bank when asked for a set or kit of patches. Parameter ids, ranges and defaults are generated live by the app (Song panel → \"AI Prompt\") and by the repo's MCP server tool `get_preset_format`.",
   "type": "object",
   "required": ["format", "version", "name", "presets"],
   "additionalProperties": false,

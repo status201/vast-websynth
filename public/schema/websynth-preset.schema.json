@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/status201/vast-websynth/schema/websynth-preset.schema.json",
-  "title": "VAST G1-J5 preset file",
-  "description": "One SOUND for the VAST G1-J5 (websynth) synthesizer: a sparse map of synth parameter values. It carries no notes, patterns or tempo — those belong to a websynth-song file. Parameters that are omitted are filled from the synth's own defaults on import, so an authored preset is always a complete, deterministic patch. Parameter ids, ranges and defaults are generated live by the app (Song panel → \"AI Prompt\") and by the repo's MCP server tool `get_preset_format`; they are deliberately not duplicated here, since they grow with the synth.",
+  "title": "VAST G1-J8 preset file",
+  "description": "One SOUND for the VAST G1-J8 (websynth) synthesizer: a sparse map of synth parameter values. It carries no notes, patterns or tempo — those belong to a websynth-song file. Parameters that are omitted are filled from the synth's own defaults on import, so an authored preset is always a complete, deterministic patch. Parameter ids, ranges and defaults are generated live by the app (Song panel → \"AI Prompt\") and by the repo's MCP server tool `get_preset_format`; they are deliberately not duplicated here, since they grow with the synth.",
   "type": "object",
   "required": ["format", "version", "name", "params"],
   "additionalProperties": false,

@@ -21,7 +21,7 @@ function clickTestId(id: string): void {
 
 export const TOUR_STEPS: TourStep[] = [
   {
-    title: 'Welcome to VAST G1-J5',
+    title: 'Welcome to VAST G1-J8',
     body:
       'This is a real synthesizer — knobs, oscillators, the works. ' +
       "Don't worry, in about a minute you'll be making sound. Hit <strong>Next</strong>.",

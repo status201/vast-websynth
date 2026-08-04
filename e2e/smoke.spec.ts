@@ -43,7 +43,7 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
   // Header mounted. The start modal renders the same brand block (brand.md), so
   // this is unambiguous only because the backdrop is removed before `toBeHidden`
   // above resolves — `exact` no longer does that disambiguating on its own.
-  await expect(page.getByText('G1-J5', { exact: true })).toBeVisible();
+  await expect(page.getByText('G1-J8', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Panic' })).toBeVisible();
 

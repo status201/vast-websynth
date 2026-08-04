@@ -300,7 +300,7 @@ function buildModal(close: () => void, engine: StudioApi, deps: AboutDeps): {
   const card = document.createElement('div');
   card.className = Modal.cardClass;
   card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-label', 'About VAST G1-J5');
+  card.setAttribute('aria-label', 'About VAST G1-J8');
 
   // The real faceplate, not a flattened restatement of it (brand.md REQ-1).
   const brand = createBrand();
@@ -753,7 +753,7 @@ function buildDebugSection(engine: StudioApi): {
   });
 
   const report = (): string => [
-    `VAST G1-J5 ${__APP_VERSION__}`,
+    `VAST G1-J8 ${__APP_VERSION__}`,
     new Date().toISOString(),
     navigator.userAgent,
     '',

@@ -152,7 +152,7 @@ export function makeTools(core, opts = {}) {
     {
       name: 'get_song_format',
       description:
-        'Get the complete, current websynth/VAST G1-J5 song authoring guide: the compact ' +
+        'Get the complete, current websynth/VAST G1-J8 song authoring guide: the compact ' +
         '"websynth-song-author" dialect (recommended), the live synth parameter table with ' +
         'ranges/defaults, musical tips, and the canonical format appendix. Call this before ' +
         'writing a song.',
@@ -252,7 +252,7 @@ export function makeTools(core, opts = {}) {
     {
       name: 'get_preset_format',
       description:
-        'Get the complete, current websynth/VAST G1-J5 PRESET authoring guide: the preset and bank ' +
+        'Get the complete, current websynth/VAST G1-J8 PRESET authoring guide: the preset and bank ' +
         'file shapes, the live synth parameter table with ranges/defaults, and sound-design notes ' +
         '(what makes a bass/pad/pluck/acid patch). A preset is a SOUND only — no notes, patterns or ' +
         'tempo, which belong to a song (see get_song_format). Call this before writing a preset.',

@@ -1,4 +1,4 @@
-# VAST G1-J5 (websynth)
+# VAST G1-J8 (websynth)
 
 > A browser-based virtual-analog synthesizer studio: 8-voice poly synth with a
 > ladder filter, a 4-track 16-step note sequencer, an 8-track drum machine, an
