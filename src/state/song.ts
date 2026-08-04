@@ -274,18 +274,50 @@ export const Song = {
   },
 
   /**
-   * Would persisting this imported song overwrite the user's work?
-   * (session-autosave.md REQ-11, untrusted-input.md REQ-9.)
+   * Is there a stored slot under this song's name holding something **else**?
+   * The one test behind every "may I overwrite?" dialog (session-autosave.md
+   * REQ-14b/14c) — no slot, or a slot already holding these exact bytes, is
+   * false: there is nothing to lose, so there is nothing to ask.
+   *
+   * A name match alone is NOT the question. When the slot holds the exact bytes
+   * the save would write, the write is a no-op, so re-opening the same share
+   * link — or re-saving a song you have not touched — must not ask: a prompt
+   * that returns however you answer it is one the user stops reading. Hence the
+   * comparison against `saveSlot`'s own serialization: canonical and compact
+   * (ADR-011), so equal songs give equal strings, and any encoding difference
+   * errs toward asking.
+   */
+  slotDiffers(file: SongFile): boolean {
+    const raw = store.readRaw(file.name);
+    return raw !== null && raw !== Song.toJSON(file);
+  },
+
+  /**
+   * Would writing this song to its slot destroy work the user would miss?
+   * (session-autosave.md REQ-14/14b/14c.)
    *
    * A *plan*, not an action — the same idiom as `preset-file.ts` `planImport`:
-   * the decision is pure and testable here, and the UI owns the dialog. The
-   * name comes from the file, so with a share link it is attacker-chosen: a song
-   * called "My Song" would otherwise destroy that slot at boot, and the
-   * load-undo toast cannot bring it back (it restores the in-memory session, not
-   * localStorage).
+   * the decision is pure and testable here, and the UI owns the dialog.
+   *
+   * `from` is the slot the current session came from, if any. Saving a song back
+   * to the slot it came from is the normal edit loop and must stay one click;
+   * every other write lands on music the user has not been working on, so it
+   * asks. An import has no provenance at all — hence `planImportSave`.
+   */
+  planSlotSave(file: SongFile, from: string | null): { name: string; conflict: boolean } {
+    return { name: file.name, conflict: file.name !== from && Song.slotDiffers(file) };
+  },
+
+  /**
+   * `planSlotSave` for an import, which never has provenance: nothing about an
+   * arriving file makes its name *yours* (session-autosave.md REQ-14,
+   * untrusted-input.md REQ-9). The name comes from the file, so with a share
+   * link it is attacker-chosen: a song called "My Song" would otherwise destroy
+   * that slot at boot, and the load-undo toast cannot bring it back — it
+   * restores the in-memory session, not localStorage.
    */
   planImportSave(file: SongFile): { name: string; conflict: boolean } {
-    return { name: file.name, conflict: Song.hasSlot(file.name) };
+    return Song.planSlotSave(file, null);
   },
 
   /**

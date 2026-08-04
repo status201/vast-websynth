@@ -4,8 +4,9 @@ import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/dialog.module.css';
 
 /**
- * Promise-returning confirm / prompt / alert dialogs — the styled replacement
- * for the browser's native `confirm()` / `prompt()` / `alert()`. Each is a thin
+ * Promise-returning confirm / prompt / alert / choose dialogs — the styled
+ * replacement for the browser's native `confirm()` / `prompt()` / `alert()`
+ * (`chooseDialog` has no native counterpart). Each is a thin
  * layer over the shared {@link Modal} (backdrop / centred card / fade /
  * Escape-to-close / backdrop-click) that adds only the layout + a resolved
  * promise. Escape and a backdrop click both count as **cancel**; the promise
@@ -42,9 +43,37 @@ export interface AlertOptions {
   okLabel?: string;
 }
 
+/** One answer in a {@link chooseDialog}. `id` is what the promise resolves to. */
+export interface Choice {
+  id: string;
+  label: string;
+  /** Render this button in the destructive (red) style. */
+  danger?: boolean;
+}
+
+export interface ChooseOptions {
+  title: string;
+  message: string;
+  /** Italic muted second paragraph below the message (supporting copy). */
+  detail?: string;
+  /** Two or more, in button order. The **last** is the affirmative (focused). */
+  choices: Choice[];
+  /** Adds a leading dismiss button (resolving null). Omitted → Escape only. */
+  cancelLabel?: string;
+}
+
 function messagePara(text: string): HTMLParagraphElement {
   const p = document.createElement('p');
   p.className = styles.message!;
+  p.textContent = text;
+  return p;
+}
+
+/** The italic muted supporting line under the message (REQ-7) — confirm + choose. */
+function detailPara(text: string): HTMLParagraphElement {
+  const p = document.createElement('p');
+  p.className = `${styles.message!} ${styles.detail!}`;
+  p.dataset.testid = 'dialog-detail';
   p.textContent = text;
   return p;
 }
@@ -81,13 +110,7 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
 
     const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(false) });
     modal.body.appendChild(messagePara(opts.message));
-    if (opts.detail) {
-      const detail = document.createElement('p');
-      detail.className = `${styles.message!} ${styles.detail!}`;
-      detail.dataset.testid = 'dialog-detail';
-      detail.textContent = opts.detail;
-      modal.body.appendChild(detail);
-    }
+    if (opts.detail) modal.body.appendChild(detailPara(opts.detail));
 
     const row = actionsRow();
     row.appendChild(actionButton(opts.cancelLabel ?? 'Cancel', 'dialog-cancel', () => modal.close()));
@@ -170,5 +193,53 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
 
     modal.open();
     ok.focus();
+  });
+}
+
+/**
+ * Ask a question whose answers are two (or more) **positive actions** rather
+ * than yes/no. Resolves the chosen `id`; **every** dismissal — the optional
+ * dismiss button, Escape, a backdrop click — resolves `null`.
+ *
+ * That null is the whole point (dialog.md REQ-8). A `confirmDialog` would have
+ * to spend one of its two answers on `false`, which is also what Escape returns,
+ * so dismissing it would silently *perform* the second action. Here "neither"
+ * stays sayable, so a stray Escape does nothing.
+ *
+ * The **last** choice is the affirmative: it is focused on open and is what
+ * Enter takes, so order the buttons with the likelier (or least destructive)
+ * answer last.
+ */
+export function chooseDialog(opts: ChooseOptions): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const resolveOnce = (v: string | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(v);
+    };
+
+    const modal = new Modal({ title: opts.title, onClose: () => resolveOnce(null) });
+    modal.body.appendChild(messagePara(opts.message));
+    if (opts.detail) modal.body.appendChild(detailPara(opts.detail));
+
+    const row = actionsRow();
+    if (opts.cancelLabel !== undefined) {
+      row.appendChild(actionButton(opts.cancelLabel, 'dialog-cancel', () => modal.close()));
+    }
+    let affirmative: HTMLButtonElement | undefined;
+    for (const choice of opts.choices) {
+      affirmative = actionButton(
+        choice.label,
+        `dialog-choice-${choice.id}`,
+        () => { resolveOnce(choice.id); modal.close(); },
+        choice.danger,
+      );
+      row.appendChild(affirmative);
+    }
+    modal.body.appendChild(row);
+
+    modal.open();
+    affirmative?.focus();
   });
 }

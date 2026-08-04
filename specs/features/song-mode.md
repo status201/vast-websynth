@@ -3,7 +3,10 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 16  # v16: REQ-8 bounds magnitude, not just shape — note 0..127, chain
+version: 17  # v17: REQ-15 — a demo whose name a saved slot shadows asks which of
+             #      the two songs was meant (demo clicks no longer write slots —
+             #      session-autosave REQ-14d)
+             # v16: REQ-8 bounds magnitude, not just shape — note 0..127, chain
              #      length, param-key count, reserved keys (untrusted-input, ADR-015)
              # v15: the Audio row's two buttons open surfaces instead of writing
              #      files; its Format is now the global default (REQ-13 note)
@@ -232,6 +235,30 @@ demos, the load path **must stay backward compatible** as the format grows.
       which deliberately does not route through it (it restores the blank
       snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
       no clock, and pushing one in would move the refusal guard out of `Engine`.
+- **REQ-15 (one name, two songs — ask, v17)** — A demo's name is not reserved:
+  saving your own song as `1979` leaves the **demo button** and the **slot list**
+  offering two different songs under one label, and each door silently picked its
+  own (`loadSlot` prefers the stored slot, a demo button always fetched the demo).
+  Nothing was destroyed — [session-autosave](session-autosave.md) REQ-14d stops
+  demo clicks writing slots at all — but the user could not say which `1979` they
+  meant, and the two controls disagreeing under one name is the kind of guess
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md) forbids.
+  `SongPanel.loadDemo(name)` therefore checks `Song.hasSlot(name)` — a **stored**
+  slot shadowing this demo — and, when one exists, asks which to load
+  (`chooseDialog`, [dialog](dialog.md) REQ-8): *Load the demo* / *Load mine*, with
+  a visible Cancel. Load-bearing details:
+    - The gate sits on **`loadDemo`, the one door** all three demo sources and
+      every caller share (buttons, the Load button's fallback, the guided tour,
+      the empty-play hint) — so no surface can reintroduce the silent guess. The
+      Load button never double-asks: `Song.loadSlot` already returned the stored
+      slot, so it only reaches `loadDemo` for names with no slot.
+    - **Dismissal loads nothing** (`chooseDialog` → `null`). This is the case
+      `confirmDialog` could not express, and it is why REQ-8 exists: with a
+      boolean, Escape would have had to *mean* one of the two songs.
+    - It is a **disambiguation, not a guard** — the "loads stay confirm-free"
+      rule below is intact. A demo whose name nothing shadows loads on one click,
+      exactly as before, and the [Undo toast](session-autosave.md) REQ-7 still
+      covers the session either way.
 
 ## Technical design
 
@@ -250,6 +277,11 @@ Song:   # src/state/song.ts (a plain object of functions, not a class)
   list(): string[]                       # JSON demo names ∪ stored slot names, sorted
                                          #   (zip demos excluded — not song files)
   saveSlot(name, file) / loadSlot(name) / deleteSlot(name)
+  hasSlot(name): boolean                 # a STORED slot (demos excluded) — REQ-15's shadow test
+  slotDiffers(file): boolean             # stored slot under file.name holds something ELSE
+  planSlotSave(file, from): {name, conflict}   # from = the slot this session came from
+  planImportSave(file): {name, conflict}       # = planSlotSave(file, null) — an import has none
+                                         #   (session-autosave REQ-14/14b/14c)
 
 song-validate:  # src/state/song-validate.ts (pure, dependency-free)
   validateSongFile(value: unknown): SongValidation
@@ -440,12 +472,20 @@ ui dialogs (song-panel): Save/New/Import + the per-lane Clear route through the
           shared confirm/prompt/alert helpers (see dialog.md), NOT native
           prompt/confirm/alert. The per-lane Clear (testid chain-clear-<lane>)
           gains a "You sure?" confirm, skipped when the chain is already just [0].
+          Save also guards the SLOT it lands on (session-autosave REQ-14c):
+          confirm when a different song already holds that name, silent when it
+          is the slot this session came from (sessionSlot).
 load-undo safety net (see session-autosave.md): every destructive apply —
           demo buttons, Load, Import/share-link/launchQueue, and New (after its
           confirm) — stashes the outgoing session (SongFile + sampler
           AudioBuffer refs) and shows an Undo toast (song-undo-toast, toast.md).
           Loads themselves stay confirm-free by design; New keeps its danger
-          confirm because it also nulls the sampler buffers.
+          confirm because it also nulls the sampler buffers. REQ-15's demo
+          question is not an exception: it disambiguates WHICH song loads, and
+          only when a stored slot shadows the demo's name.
+demo persistence: loadDemo NEVER writes a slot (session-autosave REQ-14d) —
+          applyProjectBundle(res, { persist }) is true only for real imports, so
+          a zip demo now syncs the dropdown the way applyDemo always has.
 playhead reset (REQ-14): applySong ends `Song.apply(...)` -> `engine.seekTo(0)`
           (AFTER apply, so the chain re-seat re-arms expectFirstBar); New does
           the same after its own restore + chain resets. Both via StudioApi,
@@ -630,6 +670,22 @@ Scenario: Clicking a drop-in demo fetches and applies it (REQ-12)
   Then the song is fetched, validated by Song.parse, applied, and the slot dropdown syncs
   And a fetch or validation failure surfaces in the demo-failed dialog
 # pinned by: e2e/song.spec.ts
+
+Scenario: A demo whose name you have saved asks which one (v17, REQ-15)
+  Given a stored slot named "1979" holding the user's own song
+  When they click the "1979" demo button
+  Then a choice dialog offers "Load the demo" and "Load mine", naming the song
+  And choosing "Load mine" applies the stored slot, not the demo
+  And choosing "Load the demo" applies the demo, leaving the slot untouched
+  And dismissing it (Escape, backdrop, or Cancel) loads neither
+# pinned by: e2e/song.spec.ts
+
+Scenario: An unshadowed demo still loads on one click (v17, REQ-15, boundary)
+  Given no stored slot shares the demo's name
+  When the demo button is clicked
+  Then it loads immediately with no dialog — hasSlot(), not list(), decides,
+       so a name that is only a demo never asks
+# pinned by: e2e/song.spec.ts (every other demo test in the file is this case)
 
 Scenario: Sync leads Audio, and they share a row on a wide screen (UI, v13)
   Given the Song tab is open at 1440px wide

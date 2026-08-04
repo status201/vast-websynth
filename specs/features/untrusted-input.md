@@ -3,7 +3,8 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 1
+version: 2   # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
+             #     not an overwrite worth prompting for
 owner: core
 related:
   - architecture
@@ -125,7 +126,11 @@ decision and the alternatives. This spec is the contract.
   overwrites — the load-undo toast restores the *session*, not the persisted
   slot, so an unconfirmed overwrite is unrecoverable. This mirrors
   [presets](presets.md) REQ-10 ("never a blind merge") and
-  [ADR-014](../decisions/adr-014-dont-make-me-think.md).
+  [ADR-014](../decisions/adr-014-dont-make-me-think.md). **Destroy** is the
+  operative word (v2): a slot already holding byte-identical bytes loses nothing,
+  so re-importing the same link twice does not prompt — a guard that cries wolf
+  is a guard the user learns to click through.
+  [session-autosave](session-autosave.md) REQ-14/14b owns the mechanism.
 
 - **REQ-10 — Defence in depth at the delivery layer.** `index.html` carries a
   CSP `<meta>`, and `public/_headers` carries the frame/sniffing/referrer headers
@@ -272,6 +277,12 @@ Scenario: A malformed wire message is dropped, not applied
   When a peer sends {t:'tempo', bpm:'fast'} or {t:'tempo'} with no bpm
   Then the message is ignored and the tempo is unchanged
 # pinned by: tests/audio/webrtc-sync-transport.test.ts
+
+Scenario: Re-importing an identical song does not prompt (v2, REQ-9, regression)
+  Given a slot holding exactly the song a share link carries
+  When that link is opened again
+  Then no overwrite prompt appears — the write would change nothing
+  And a link carrying a *different* song under that name still prompts
 
 Scenario: An MCP save cannot escape the working directory
   Given save_song called with dir '../..' or an absolute path

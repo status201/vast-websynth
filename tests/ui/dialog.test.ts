@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { confirmDialog, promptDialog, alertDialog } from '../../src/ui/components/dialog';
+import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../../src/ui/components/dialog';
 
 const byId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const clickId = (id: string) => (byId(id) as HTMLButtonElement).click();
@@ -43,11 +43,16 @@ describe('dialog', () => {
     expect(await p).toBe(true);
   });
 
-  it('confirmDialog applies the danger style to the affirmative button', () => {
-    void confirmDialog({ title: 'Wipe?', message: 'x', danger: true, confirmLabel: 'Clear' });
+  it('confirmDialog applies the danger style to the affirmative button', async () => {
+    // Closed at the end, not left open: an un-closed Modal keeps its CAPTURING
+    // Escape listener on window, and that listener stopImmediatePropagation()s —
+    // so it would eat the first Escape a later test dispatches at its own dialog.
+    const p = confirmDialog({ title: 'Wipe?', message: 'x', danger: true, confirmLabel: 'Clear' });
     const confirm = byId('dialog-confirm')!;
     expect(confirm.className).toMatch(/danger/);
     expect(confirm.textContent).toBe('Clear');
+    clickId('dialog-cancel');
+    await p;
   });
 
   it('confirmDialog renders an italic detail line when provided', async () => {
@@ -96,5 +101,63 @@ describe('dialog', () => {
     expect(card()!.textContent).toContain('line two');
     clickId('dialog-confirm');
     await expect(p).resolves.toBeUndefined();
+  });
+
+  // chooseDialog (REQ-8) — for a question whose answers are two positive
+  // actions. Its reason to exist is the null: a confirm would have to spend
+  // `false` on one of the answers, so dismissing it would silently DO something.
+  const twoWays = { id: 'demo', label: 'Load the demo' };
+  const orMine = { id: 'mine', label: 'Load mine' };
+
+  it('chooseDialog resolves the id of the clicked choice', async () => {
+    const p = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    clickId('dialog-choice-mine');
+    expect(await p).toBe('mine');
+  });
+
+  it('chooseDialog resolves each choice by its own id', async () => {
+    const p = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    clickId('dialog-choice-demo');
+    expect(await p).toBe('demo');
+  });
+
+  it('chooseDialog resolves null on Escape — neither action runs', async () => {
+    const p = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(await p).toBeNull();
+  });
+
+  it('chooseDialog resolves null on a backdrop click', async () => {
+    const p = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    card()!.parentElement!.dispatchEvent(new Event('pointerdown'));
+    expect(await p).toBeNull();
+  });
+
+  it('chooseDialog renders a dismiss button only when cancelLabel is given', async () => {
+    const bare = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    expect(byId('dialog-cancel')).toBeNull();
+    clickId('dialog-choice-demo');
+    await bare;
+
+    document.body.innerHTML = '';
+    const p = chooseDialog({
+      title: 'Which?', message: 'x', choices: [twoWays, orMine], cancelLabel: 'Cancel',
+    });
+    clickId('dialog-cancel');
+    expect(await p).toBeNull();
+  });
+
+  it('chooseDialog focuses the last choice and honours detail + danger', async () => {
+    const p = chooseDialog({
+      title: 'Which?',
+      message: 'x',
+      detail: 'fine print',
+      choices: [{ id: 'wipe', label: 'Wipe', danger: true }, orMine],
+    });
+    expect(byId('dialog-detail')!.textContent).toBe('fine print');
+    expect(byId('dialog-choice-wipe')!.className).toMatch(/danger/);
+    expect(document.activeElement).toBe(byId('dialog-choice-mine'));
+    clickId('dialog-choice-mine');
+    await p;
   });
 });

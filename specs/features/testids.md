@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 3  # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
+version: 4  # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
+            #     was always emitted but never catalogued
+            # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
             # v2: the header's ⓘ/? swap — info-badges replaces help-button, the
             #     Help chooser's two ids retire, and the badge ids become
             #     info-badge-* (onboarding.md v15)
@@ -195,7 +197,8 @@ presets:                                            # features/presets.md
     preset-import-back
 
 shared UI:
-  dialog-detail · dialog-input · dialog-confirm     # features/dialog.md
+  dialog-detail · dialog-input · dialog-confirm ·
+    dialog-cancel · dialog-choice-<id>              # features/dialog.md
   dropdown-filter                                   # features/dropdown.md
   toast-host · toast-action · toast-dismiss         # features/toast.md
   fxgroup-<prefix> · fx-patch-decoration            # features/fx-group.md

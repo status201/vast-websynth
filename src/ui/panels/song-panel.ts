@@ -19,7 +19,7 @@ import { buildSyncSection } from '../components/sync-section';
 import {
   buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
 } from '../components/transport-controls';
-import { confirmDialog, promptDialog, alertDialog } from '../components/dialog';
+import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../components/dialog';
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
@@ -114,12 +114,28 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     file: SongFile;
     buffers: (AudioBuffer | null)[];
     slot: string;
+    /** `sessionSlot` at stash time — Undo must not leave the Save guard (REQ-14c)
+     *  describing a session that no longer exists. */
+    sourceSlot: string | null;
   }
+
+  /**
+   * The stored slot this session was last read from or written to — `null` after
+   * a demo, a New, or an import that did not persist (session-autosave.md
+   * REQ-14c). It is what tells Save "this name is *your* song, save it" apart
+   * from "this name is someone else's song, ask first". Deliberately NOT
+   * `dropdown.value`: a demo click sets that to the demo's name, and saving over
+   * a slot that merely shares a demo's name is exactly the silent loss the guard
+   * exists to stop.
+   */
+  let sessionSlot: string | null = null;
+
   // Only ever called from click handlers, so `dropdown` (built below) exists.
   const stashCurrent = (): SessionStash => ({
     file: Song.capture(bus, engine.patterns, engine.arrangement, session.label || 'My Song', xy),
     buffers: [...engine.sampler.buffers],
     slot: dropdown.value,
+    sourceSlot: sessionSlot,
   });
   const restoreStash = (stash: SessionStash): void => {
     applySong(stash.file);
@@ -131,6 +147,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     }
     refreshList();
     dropdown.setValue(stash.slot);
+    sessionSlot = stash.sourceSlot;
   };
   const showUndoToast = (message: string, stash: SessionStash): void => {
     showToast({
@@ -244,15 +261,18 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   };
 
   /**
-   * Persist an imported song to its slot — but never *silently* over an existing
-   * one (session-autosave.md REQ-11, untrusted-input.md REQ-9).
+   * Persist an imported song to its slot — but never *silently* over a
+   * **different** existing one (session-autosave.md REQ-14/14b,
+   * untrusted-input.md REQ-9).
    *
    * The name comes from the file, so with a share link it is attacker-chosen: a
    * song called "My Song" would otherwise destroy the user's slot of that name
    * at boot, and the load-undo toast cannot bring it back — it restores the
    * in-memory session, not localStorage. Declining still leaves the song
    * applied; only the persistence is skipped, so nothing is lost either way.
-   * Returns whether the slot was written.
+   * Re-importing a song the slot already holds asks nothing (`planImportSave`
+   * compares contents, not just the name — REQ-14b). Returns whether the slot
+   * was written.
    */
   const saveImportedSlot = async (file: SongFile): Promise<boolean> => {
     const plan = Song.planImportSave(file);
@@ -271,21 +291,35 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     return true;
   };
 
-  // Shared project-bundle apply (import + demo zips): apply/save the song like
-  // a JSON import, then decode the clips into the sampler — sequentially (8 ×
-  // multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
-  // slot just keeps the .needs-reload hint; failures collect into ONE alert.
-  const applyProjectBundle = async ({ file, clips }: { file: SongFile; clips: ProjectClipIn[] }): Promise<void> => {
-    applySongWithUndo(file, 'Imported');
+  /**
+   * Shared project-bundle apply (import + demo zips): apply the song, persist it
+   * if it is the user's, then decode the clips into the sampler — sequentially
+   * (8 × multi-MB WAVs, project-export.md REQ-8). A failed clip never aborts: the
+   * slot just keeps the .needs-reload hint; failures collect into ONE alert.
+   *
+   * `persist` is what separates the two callers (session-autosave.md REQ-14d).
+   * An import is the user's work arriving and earns a slot; a **demo** is
+   * read-only content and must not write one — this path persisting
+   * unconditionally is why clicking the 1973 zip demo offered to replace your
+   * saved 1973 while clicking the 1979 JSON demo ignored yours entirely.
+   */
+  const applyProjectBundle = async (
+    { file, clips }: { file: SongFile; clips: ProjectClipIn[] },
+    { persist, name = file.name }: { persist: boolean; name?: string },
+  ): Promise<void> => {
+    applySongWithUndo(file, persist ? 'Imported' : 'Loaded');
     // Undo (or any newer apply) during the sequential decodes below must win:
     // a late clip may not touch the restored session's slots (REQ-9).
     const token = applyToken;
     // JSON only — after a reload, .needs-reload correctly reappears.
-    const saved = await saveImportedSlot(file);
-    if (saved) {
+    const saved = persist && await saveImportedSlot(file);
+    // A demo syncs the dropdown the way applyDemo always has; an import only
+    // once its slot exists (a declined overwrite leaves the old selection).
+    if (saved || !persist) {
       refreshList();
-      dropdown.setValue(file.name);
+      dropdown.setValue(name);
     }
+    sessionSlot = saved ? file.name : null;
     bridge.cuePlay(); // imports + zip demos are silent until Play (play-button-blink.md REQ-3)
     const failures: string[] = [];
     for (const clip of clips) {
@@ -310,7 +344,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     if (failures.length > 0) {
       await alertDialog({
         title: 'Some clips failed',
-        message: 'The song was imported, but these clips could not be decoded:\n• ' + failures.join('\n• '),
+        message: `The song ${persist ? 'was imported' : 'loaded'}, but these clips `
+          + 'could not be decoded:\n• ' + failures.join('\n• '),
       });
     }
   };
@@ -321,7 +356,9 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
       const res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
       if (!res.ok) throw new Error(res.errors[0] ?? 'invalid project zip');
-      await applyProjectBundle(res);
+      // A demo, not the user's work: no slot is written (REQ-14d), and the
+      // dropdown follows the DEMO's name — the button's label is the promise.
+      await applyProjectBundle(res, { persist: false, name });
     } catch (e) {
       await alertDialog({
         title: 'Demo failed to load',
@@ -335,7 +372,49 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     applySongWithUndo(file);
     refreshList();
     dropdown.setValue(name);
+    // A demo is content, not a slot of the user's — so Save must still guard
+    // this name (session-autosave.md REQ-14c/14d).
+    sessionSlot = null;
     bridge.cuePlay(); // nudge Play (play-button-blink.md REQ-3)
+  };
+
+  /** Load a STORED slot: the Load button's main branch, and REQ-15's "Load mine". */
+  const loadStoredSlot = (name: string, file: SongFile): void => {
+    applySongWithUndo(file);
+    sessionSlot = name; // the session now IS this slot — Save it back freely
+    bridge.cuePlay();   // a loaded song is silent until Play (play-button-blink.md REQ-3)
+  };
+
+  /**
+   * One name, two songs (song-mode.md REQ-15). A demo's name is not reserved, so
+   * saving your own "1979" leaves the demo button and the slot list offering
+   * different music under one label — and each door used to silently pick its
+   * own. Ask instead, but only when a **stored** slot shadows the name:
+   * `hasSlot`, not `list()`, which reports demos too.
+   *
+   * Returns whether the caller should go on to load the demo. A dismissal loads
+   * neither — the case a boolean confirm could not express (dialog.md REQ-8).
+   */
+  const demoWinsOverSavedSong = async (name: string): Promise<boolean> => {
+    if (!Song.hasSlot(name)) return true;
+    const choice = await chooseDialog({
+      title: `You have your own "${name}"`,
+      message: `The demo button and your saved song share this name. Which one do you want?`,
+      detail: 'Your saved copy is untouched either way.',
+      choices: [{ id: 'demo', label: 'Load the demo' }, { id: 'mine', label: 'Load mine' }],
+      cancelLabel: 'Cancel',
+    });
+    if (choice === 'mine') {
+      const file = Song.loadSlot(name);
+      // Vanished between the check and the answer (another tab, a delete) —
+      // fall through to the demo rather than loading nothing.
+      if (file) {
+        loadStoredSlot(name, file);
+        dropdown.setValue(name);
+        return false;
+      }
+    }
+    return choice === 'demo';
   };
 
   const loadJsonDemo = async (name: string, url: string): Promise<void> => {
@@ -363,7 +442,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // (song-mode.md REQ-12), so any caller that acts on the loaded song — the tour
   // starting the transport, the empty-play modal pressing Play — must await this
   // or it will run against the song that was there before.
+  //
+  // The shadow question (REQ-15) is asked HERE, on the one door all three demo
+  // sources and all four callers share, so no surface can reintroduce the silent
+  // guess. It resolves before any fetch: a declined demo costs no network.
   const loadDemo = async (name: string): Promise<void> => {
+    if (!await demoWinsOverSavedSong(name)) return;
     const file = DEMO_SONGS[name];
     if (file) {
       applyDemo(name, file);
@@ -380,8 +464,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   loadBtn.addEventListener('click', () => {
     const f = Song.loadSlot(dropdown.value);
     if (f) {
-      applySongWithUndo(f);
-      bridge.cuePlay(); // a loaded song is silent until Play (play-button-blink.md REQ-3)
+      // No REQ-15 question here: loadSlot already resolved the name in the
+      // user's favour, so this branch never reaches loadDemo for a stored slot.
+      // (A built-in demo name with no slot also lands here — sessionSlot then
+      // marks a demo, not a slot, so `hasSlot` decides.)
+      if (Song.hasSlot(dropdown.value)) loadStoredSlot(dropdown.value, f);
+      else applyDemo(dropdown.value, f);
       return;
     }
     // The list also carries the drop-in demos, which `loadSlot` cannot return
@@ -401,7 +489,24 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     });
     if (!name) return;
     const file = Song.capture(bus, engine.patterns, engine.arrangement, name, xy);
+    // Save is a slot write like any other, so it is guarded like any other
+    // (session-autosave.md REQ-14c) — it was the one path that could destroy a
+    // saved song with no dialog and no undo. Silent when this IS the slot the
+    // session came from: re-saving your own song after an edit is the normal
+    // loop and must stay one click.
+    if (Song.planSlotSave(file, sessionSlot).conflict) {
+      const ok = await confirmDialog({
+        title: `Replace "${name}"?`,
+        message: `A different song is already saved under this name. Saving replaces it.`,
+        detail: 'That cannot be undone — the Undo toast restores your session, not a saved slot.',
+        confirmLabel: 'Replace',
+        cancelLabel: 'Back',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     Song.saveSlot(name, file);
+    sessionSlot = name;
     // The saved song's params become the new double-tap reset target.
     bus.setBaselines(file.params);
     Song.download(file);
@@ -436,7 +541,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       return false;
     }
     try {
-      await applyProjectBundle(res);
+      await applyProjectBundle(res, { persist: true }); // the user's work — it earns a slot
       return true;
     } catch (e) {
       await alertDialog({
@@ -529,6 +634,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // (song-mode.md REQ-14) — otherwise a blank one-bar song kept the cleared
     // song's bar number in the readout.
     toTop();
+    sessionSlot = null; // a blank session belongs to no slot (REQ-14c)
     showUndoToast('Started a new song', stash);
   });
 

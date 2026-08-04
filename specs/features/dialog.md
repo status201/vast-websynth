@@ -3,7 +3,8 @@
 ```yaml
 id: dialog
 status: implemented
-version: 2
+version: 3   # v3: REQ-8 — chooseDialog, for a question whose answers are two
+             #     positive actions rather than yes/no
 owner: core
 related:
   - architecture
@@ -62,16 +63,29 @@ backdrop-click-to-close) rather than reinventing it.
   (`.detail`, `data-testid="dialog-detail"`) — supporting copy under the main
   question (e.g. [factory-reset](factory-reset.md)'s “Everything not saved will
   be lost.”). Omitted → no extra element.
+- **REQ-8** *(v3)* — **`chooseDialog → Promise<string | null>`** — a fourth
+  helper for the question `confirmDialog` cannot ask honestly: one whose answers
+  are **two positive actions**, not yes/no. Squeezing "load the demo or your own
+  song?" into a confirm would make one of the two answers `false`, which is the
+  same value Escape and a backdrop click produce — so a dismissal would silently
+  *do* something. `chooseDialog` takes `choices: {id, label, danger?}[]` (2+),
+  resolves the chosen **id**, and resolves **`null` on every dismissal**, so
+  "neither" stays expressible. The last choice is the affirmative: it is focused
+  on open (REQ-5) and is the one Enter takes. An optional `cancelLabel` renders a
+  leading dismiss button resolving `null` too, for when the escape hatch should
+  be visible rather than keyboard-only. Everything else — settle-once (REQ-2),
+  `detail` (REQ-7), Modal composition (REQ-1) — is unchanged.
 
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
-dialog:   # src/ui/components/dialog.ts — three functions over Modal, not a class
+dialog:   # src/ui/components/dialog.ts — four functions over Modal, not a class
   confirmDialog(opts: ConfirmOptions): Promise<boolean>       # true=affirmative, false=cancel
   promptDialog(opts: PromptOptions): Promise<string | null>   # value=affirmative, null=cancel
   alertDialog(opts: AlertOptions): Promise<void>              # resolves on OK / dismiss
+  chooseDialog(opts: ChooseOptions): Promise<string | null>   # id=chosen, null=dismissed (v3)
 
 ConfirmOptions:
   title: string
@@ -93,23 +107,39 @@ AlertOptions:
   title: string
   message: string
   okLabel?: string             # default 'OK'
+
+ChooseOptions:                 # v3
+  title: string
+  message: string
+  detail?: string              # same italic muted paragraph as ConfirmOptions
+  choices: Choice[]            # 2+, in button order; the LAST is the affirmative
+  cancelLabel?: string         # omitted -> no dismiss button (Escape/backdrop still work)
+
+Choice:
+  id: string                   # what the promise resolves to
+  label: string
+  danger?: boolean             # red button, same style as ConfirmOptions.danger
 ```
 
 ### Layer touchpoints & ordering
 
 ```yaml
-DOM (inside Modal.body): [ <p .meta message>, (confirm, optional) <p .detail dialog-detail>,
+DOM (inside Modal.body): [ <p .meta message>, (confirm/choose, optional) <p .detail dialog-detail>,
                            (prompt only) <input .input dialog-input>,
                            <div .actions> [ dialog-cancel?, dialog-confirm ] ]
+                         # choose: <div .actions> [ dialog-cancel?, dialog-choice-<id>... ]
 lifecycle: new Modal({ title, onClose: () => resolveOnce(cancelValue) }); modal.open()
 resolve:
   affirmative btn -> resolveOnce(confirmValue); modal.close()
   cancel btn      -> modal.close()   # its onClose resolves cancelValue
   Escape / backdrop -> Modal.close() -> onClose -> resolveOnce(cancelValue)
   settled latch   -> resolveOnce ignores all calls after the first
-focus/keys: after open(), affirmative btn.focus() (confirm/alert) or input.focus()+select()
+focus/keys: after open(), affirmative btn.focus() (confirm/alert/choose) or input.focus()+select()
             (prompt); prompt input keydown Enter -> affirmative path
 alert:      single full-width affirmative button (reuse Modal.closeBtnClass); no cancel btn
+choose:     cancelValue is null; each choice btn -> resolveOnce(id); modal.close()
+            the LAST choice is the affirmative (focused) — order buttons so the
+            likelier / least destructive answer sits there
 ```
 
 Callers that adopt this facility (native → helper):
@@ -131,9 +161,9 @@ src/main.ts:              boot-failure alert() stays NATIVE (app graph never
 
 `Modal` already owns the *modal-ness* — backdrop that captures clicks, the fade,
 and the Escape handler that `stopImmediatePropagation`s to beat the panic
-handler. `dialog.ts` adds only the confirm/prompt/alert **layout + a resolved
-promise**. Contrast [`FloatingWindow`](floating-window.md), which is non-modal and
-deliberately leaves Escape alone.
+handler. `dialog.ts` adds only the confirm/prompt/alert/choose **layout + a
+resolved promise**. Contrast [`FloatingWindow`](floating-window.md), which is
+non-modal and deliberately leaves Escape alone.
 
 ## Scenarios (BDD)
 
@@ -161,6 +191,19 @@ Scenario: Enter confirms a prompt
   Given a promptDialog is open
   When the user presses Enter in the input
   Then the promise resolves the field's value
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Choose resolves the id of the clicked choice (v3, REQ-8)
+  Given a chooseDialog is open with choices "demo" and "mine"
+  When the user clicks the "mine" button
+  Then the promise resolves "mine" and the dialog closes
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: Choose resolves null when dismissed — neither action runs (v3, REQ-8)
+  Given a chooseDialog is open with two positive choices
+  When the user presses Escape, clicks the backdrop, or clicks the dismiss button
+  Then the promise resolves null
+  And no choice id can be mistaken for a dismissal
 # pinned by: tests/ui/dialog.test.ts
 
 Scenario: The promise settles exactly once

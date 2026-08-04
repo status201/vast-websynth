@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { gotoAndStart, sessionDisplay, makeWavBuffer } from './helpers';
+import { gotoAndStart, sessionDisplay, makeWavBuffer, busGet, busSet } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
@@ -230,6 +230,135 @@ test.describe('song mode', () => {
     await expect
       .poll(() => page.evaluate(() => (window as any).__synth.engine.arrangement.seq.steps))
       .toEqual([0, 0, 1, 0, 0, 2, 0, 3]);
+  });
+
+  /**
+   * song-mode.md REQ-15 + session-autosave.md REQ-14d. Saving your own song
+   * under a demo's name leaves two different songs behind one label, and each
+   * door used to silently pick its own: the slot list gave you yours, the demo
+   * button gave you the demo, and nothing said so. Now the demo doors ask.
+   */
+  test('a demo whose name you have saved asks which song you meant', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+
+    // 96 is the discriminator: the Apex Twin demo is 128, so whichever tempo the
+    // session ends on names the song that actually loaded.
+    await busSet(page, 'transport.bpm', 96);
+    const jsonDownload = page.waitForEvent('download');
+    await page.getByTestId('song-save').click();
+    await page.getByTestId('dialog-input').fill('Apex Twin');
+    // No slot holds that name yet, so the save itself is silent (REQ-14c) — the
+    // guard fires on a real clash, not on borrowing a demo's name.
+    await page.getByTestId('dialog-confirm').click();
+    await jsonDownload;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
+    const demoBtn = page.getByTestId('song-demo-Apex Twin');
+    const savedBpm = (): Promise<number | null> => page.evaluate(() => {
+      const raw = localStorage.getItem('websynth.song.Apex Twin');
+      return raw ? (JSON.parse(raw).params['transport.bpm'] as number) : null;
+    });
+
+    // Dismissing loads NEITHER — the case a yes/no confirm could not express.
+    await demoBtn.click();
+    await expect(page.getByTestId('dialog-choice-mine')).toBeVisible();
+    await page.getByTestId('dialog-cancel').click();
+    await expect(page.getByTestId('dialog-choice-mine')).toHaveCount(0);
+    expect(await busGet(page, 'transport.bpm')).toBe(96);
+
+    // "Load the demo" applies the demo and leaves the saved slot untouched.
+    await demoBtn.click();
+    await page.getByTestId('dialog-choice-demo').click();
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(128);
+    expect(await savedBpm()).toBe(96);
+
+    // "Load mine" applies the stored slot instead — the demo button can now
+    // reach the song the slot list was hiding behind the same name.
+    await demoBtn.click();
+    await page.getByTestId('dialog-choice-mine').click();
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(96);
+  });
+
+  /**
+   * session-autosave.md REQ-14d (regression): the zip demos persisted themselves
+   * because they rode the *import* path, so clicking 1973 offered to replace a
+   * saved 1973 while clicking a JSON demo ignored yours entirely. Demos are
+   * content, not the user's work — neither kind writes a slot now.
+   */
+  test('clicking a demo writes no song slot', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const slotKeys = (): Promise<string[]> => page.evaluate(
+      () => Object.keys(localStorage).filter((k) => k.startsWith('websynth.song.')),
+    );
+
+    await page.getByTestId('song-demo-Apex Twin').click();
+    await expect.poll(() => sessionDisplay(page)).toBe('Apex Twin');
+    expect(await slotKeys()).toEqual([]);
+
+    // The zip demo is the one that used to write one. It carries sampler clips,
+    // so it also proves the bundle path still applies without persisting.
+    await page.getByTestId('song-demo-more').click();
+    await page.getByTestId('song-demo-1973').click();
+    await expect.poll(() => sessionDisplay(page), { timeout: 20000 }).toBe('1973');
+    expect(await slotKeys()).toEqual([]);
+    // …and it selected the demo in the slot list, as every other demo does.
+    await expect(page.getByTestId('song-slot-select')).toContainText('1973');
+  });
+
+  /**
+   * session-autosave.md REQ-14c: Save was the one write with no guard at all —
+   * typing a name another song already held destroyed it, with no dialog and no
+   * undo. It asks now, except when the name IS the slot this session came from.
+   */
+  test('Save asks before landing on a song it did not come from', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const savedBpm = (): Promise<number | null> => page.evaluate(() => {
+      const raw = localStorage.getItem('websynth.song.guarded');
+      return raw ? (JSON.parse(raw).params['transport.bpm'] as number) : null;
+    });
+    const saveAs = async (name: string): Promise<void> => {
+      await page.getByTestId('song-save').click();
+      await page.getByTestId('dialog-input').fill(name);
+      await page.getByTestId('dialog-confirm').click();
+    };
+
+    await busSet(page, 'transport.bpm', 96);
+    let jsonDownload = page.waitForEvent('download');
+    await saveAs('guarded');
+    await jsonDownload;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+
+    // Re-saving the song you are working on stays one click, edits and all.
+    await busSet(page, 'transport.bpm', 100);
+    jsonDownload = page.waitForEvent('download');
+    await saveAs('guarded');
+    await jsonDownload;
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    expect(await savedBpm()).toBe(100);
+
+    // A demo click means the session no longer belongs to that slot…
+    await page.getByTestId('song-demo-Apex Twin').click();
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(128);
+
+    // …so saving onto it now asks, and Back leaves the saved song alone.
+    await saveAs('guarded');
+    await expect(page.getByText('A different song is already saved under this name.')).toBeVisible();
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(1); // the prompt has faded out
+    await page.getByTestId('dialog-cancel').click();
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(0);
+    expect(await savedBpm()).toBe(100);
+
+    // Confirming replaces it — and no file is downloaded for a declined save.
+    await saveAs('guarded');
+    await expect(page.getByText('A different song is already saved under this name.')).toBeVisible();
+    await expect(page.getByTestId('dialog-confirm')).toHaveCount(1);
+    jsonDownload = page.waitForEvent('download');
+    await page.getByTestId('dialog-confirm').click();
+    await jsonDownload;
+    await expect.poll(savedBpm).toBe(128);
   });
 
   test('Export Song renders and downloads a WAV', async ({ page }) => {

@@ -3,13 +3,18 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 5   # v5: REQ-11 — an import confirms before overwriting a same-named
-             #     saved slot (the undo toast can't restore one)
+version: 7   # v7: REQ-14c — Save guards the same slot the import path does, and
+             #     REQ-14d — a demo click never writes a slot at all
+             # v6: REQ-14 — an identical slot is not a conflict (re-importing the
+             #     same song no longer re-asks). Also renumbers v5's import gate
+             #     from REQ-11, which collided with the storage-failure REQ-11.
+             # v5: an import confirms before overwriting a same-named saved slot
+             #     (the undo toast can't restore one)
 owner: websynth
 related:
   - architecture
-  - untrusted-input      # REQ-11: the song name is attacker-chosen
-  - presets              # REQ-11 follows the preset importer's never-blind-merge rule
+  - untrusted-input      # REQ-14: the song name is attacker-chosen
+  - presets              # REQ-14 follows the preset importer's never-blind-merge rule
   - runtime-performance  # REQ-5: automation is not an edit (REQ-2b's other half)
   - motion-sequencer     # the frame-rate writer REQ-2b exists for
   - song-mode        # the SongFile the session serializes to; the guarded panel
@@ -89,17 +94,6 @@ happy path.
   the header label, and the slot dropdown's prior selection. The stash lives
   only in the toast's closure — dismissal/replacement releases the buffers
   (toast REQ-5).
-- **REQ-11** (v5) — **The undo net covers the session, not the slot — so an
-  import may not silently overwrite a saved slot.** REQ-8 restores the in-memory
-  session; it cannot restore a `localStorage` slot that `Song.saveSlot` has
-  already replaced, so an unconfirmed overwrite is *unrecoverable*. An import
-  whose song name collides with an existing slot therefore **asks first**
-  (naming the slot), and on a decline the song still **applies to the session** —
-  only the persistence is skipped, so nothing is lost either way. A non-colliding
-  name saves as before. This matters because the name is attacker-chosen: a
-  share link naming its song after a common slot ("My Song") would otherwise
-  destroy that work at boot. Mirrors [presets](presets.md) REQ-10 ("never a
-  blind merge") and [untrusted-input](untrusted-input.md) REQ-9.
 - **REQ-9** — In-flight async work from a superseded apply must not leak into
   the current session: a monotonically increasing apply token invalidates
   project-zip clip decodes still pending when another apply (or Undo) lands.
@@ -125,6 +119,52 @@ happy path.
   literal.** If it ever moves, the scan degrades to `savedAt: null` (the same
   graceful path as a corrupt payload) rather than reporting a wrong time; `bytes`
   is unaffected either way.
+- **REQ-14** (v5, was REQ-11) — **The undo net covers the session, not the slot —
+  so an import may not silently overwrite a saved slot.** REQ-8 restores the
+  in-memory session; it cannot restore a `localStorage` slot that `Song.saveSlot`
+  has already replaced, so an unconfirmed overwrite is *unrecoverable*. An import
+  whose song name collides with an existing slot therefore **asks first**
+  (naming the slot), and on a decline the song still **applies to the session** —
+  only the persistence is skipped, so nothing is lost either way. A non-colliding
+  name saves as before. This matters because the name is attacker-chosen: a
+  share link naming its song after a common slot ("My Song") would otherwise
+  destroy that work at boot. Mirrors [presets](presets.md) REQ-10 ("never a
+  blind merge") and [untrusted-input](untrusted-input.md) REQ-9.
+- **REQ-14b** (v6) — **An identical slot is not a conflict.** The question REQ-14
+  asks is "may I destroy this?", so it may only be asked when there is something
+  to destroy: if the stored slot's bytes are *already* what saving this import
+  would write, the write is a no-op and the prompt is pure noise. `planImportSave`
+  therefore compares `Song.toJSON(file)` against the stored raw and reports a
+  conflict only on a **difference**. Without this, "Replace it" never stuck —
+  re-opening the same share link (or importing the same file after loading
+  another song) re-asked forever, teaching the user that the dialog means
+  nothing, which is exactly how a real overwrite gets waved through. The
+  comparison is on the canonical compact string (ADR-011), so it is exact and
+  order-sensitive: a same-song-different-encoding edge falls back to *asking*,
+  which is the safe side. A **changed** song under a saved name still asks —
+  that is REQ-14's whole point, and a slot the user chose to keep is theirs.
+- **REQ-14c** (v7) — **Every write to a slot is guarded, not just the import
+  one.** The Save button called `Song.saveSlot` unconditionally, so typing a name
+  another song already used destroyed it with no dialog and no undo — the exact
+  loss REQ-14 exists to prevent, reached by a likelier route than a share link.
+  Save therefore asks too, on the same content test (REQ-14b), with one addition:
+  it does **not** ask when the name is the slot **this session came from**.
+  Re-saving your own song after an edit is the normal loop and must stay one
+  click, whereas saving *onto* a name whose song you have not been working on is
+  a Save-As over someone else's work. The panel tracks that provenance as
+  `sessionSlot` — the stored slot the session was last read from or written to,
+  `null` after a demo, a New, or an import that did not persist — and it is
+  stashed and restored with the undo net (REQ-7/REQ-8), so Undo cannot leave the
+  guard describing a session that no longer exists.
+- **REQ-14d** (v7) — **A demo click never writes a slot.** Zip demos routed
+  through the *import* path and so persisted themselves, while JSON and built-in
+  demos did not: clicking `1973` could prompt to replace your saved `1973` while
+  clicking `1979` silently ignored yours, and one of the two kinds quietly filled
+  localStorage with copies of read-only content. Demos are content, not the
+  user's work — `applyProjectBundle` persists only when the caller is an import.
+  What remains of the collision is a *naming* one, and [song-mode](song-mode.md)
+  REQ-15 owns it: the demo button and the slot list can offer two different songs
+  under one name, so the demo doors ask which was meant instead of guessing.
 
 ## Technical design
 
@@ -163,6 +203,19 @@ on `song-validate`/`serialize`, not `song.ts`.
 - Undo re-fires `setSampleName` per slot after restoring buffers — the meta
   event is what clears `.needs-reload` in the sampler panel (same idiom as the
   project-zip import).
+- `Song.slotDiffers(file)` is the one primitive under REQ-14b/14c:
+  `store.readRaw(file.name)` compared to `Song.toJSON(file)` — absent slot **or**
+  equal string ⇒ `false`. It stays in `song.ts` beside `saveSlot`, whose exact
+  serialization it has to mirror. Above it sits one rule,
+  `planSlotSave(file, from)` = `file.name !== from && slotDiffers(file)`, of which
+  `planImportSave(file)` is the no-provenance case (`from = null`) — so the Save
+  button and the import path cannot drift apart. The dialogs live in
+  `song-panel.ts` (`saveImportedSlot`, the Save handler), which own the decisions
+  the plan only describes — the `preset-file.ts` `planImport` idiom.
+- `sessionSlot` (REQ-14c) is a single `string | null` in the panel closure, set
+  by Save and by a Load that resolved to a **stored** slot, cleared by demos /
+  New / a non-persisting import, and carried in `SessionStash` so Undo restores
+  it with the dropdown value it already stashes.
 
 ### Persistence
 
@@ -226,8 +279,8 @@ Scenario: corrupt autosave falls back to a fresh boot
   Then defaults load and the key is cleared
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: an import confirms before overwriting a saved slot (v5)
-  Given a saved slot named "My Song"
+Scenario: an import confirms before overwriting a saved slot (v5, REQ-14)
+  Given a saved slot named "My Song" holding different music
   When a shared song also named "My Song" is imported
   Then Song.planImportSave reports a conflict and writes nothing itself
   And the panel confirms, naming the slot, before Song.saveSlot runs
@@ -235,6 +288,39 @@ Scenario: an import confirms before overwriting a saved slot (v5)
   And a song with an unused name — or a demo's name — saves without asking
 # pinned by: tests/state/song-import-slot.test.ts (the plan; the dialog wiring is
 #   song-panel's saveImportedSlot, following preset-file.ts planImport)
+
+Scenario: re-importing the very same song does not re-ask (v6, REQ-14b, regression)
+  Given a song was imported and the user chose "Replace it"
+  When the user loads another song and then imports that same song again
+  Then Song.planImportSave reports no conflict
+  And the slot is written without a dialog
+# pinned by: tests/state/song-import-slot.test.ts
+
+Scenario: an edited song under a saved name still asks (v6, REQ-14b, boundary)
+  Given a saved slot named "1973"
+  When a song named "1973" with one changed step or param is imported
+  Then Song.planImportSave still reports a conflict
+# pinned by: tests/state/song-import-slot.test.ts
+
+Scenario: Save asks before landing on another song's slot (v7, REQ-14c)
+  Given a saved slot "Night Shift" holding a song the user is not working on
+  When they Save the current session under the name "Night Shift"
+  Then Song.planSlotSave reports a conflict, so a confirm runs before saveSlot
+  And declining leaves both the slot and the session untouched
+# pinned by: tests/state/song-import-slot.test.ts (the rule), e2e/song.spec.ts (the dialog)
+
+Scenario: re-saving the song you are working on never asks (v7, REQ-14c)
+  Given the session was loaded from — or last saved to — the slot "My Song"
+  When the user edits a param and saves under "My Song" again
+  Then planSlotSave reports no conflict and it saves silently
+# pinned by: tests/state/song-import-slot.test.ts, e2e/song.spec.ts
+
+Scenario: a demo click writes no slot (v7, REQ-14d, regression)
+  Given the zip demo "1973" and the JSON demo "1979"
+  When either is clicked
+  Then the song applies with an Undo toast and no localStorage slot is created
+  And a following Save under that name is guarded like any other (REQ-14c)
+# pinned by: e2e/song.spec.ts
 
 Scenario: undo mid-import cancels stale clip decodes
   Given a project-zip import is decoding clips

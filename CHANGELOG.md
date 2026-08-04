@@ -16,6 +16,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **One name, two songs — the app asks which you meant.** Saving your own song
+  under a demo's name ("1979") left the demo button and the Song Slot list
+  offering different music behind one label, each silently picking its own. A
+  demo whose name you have saved now asks: *Load the demo* or *Load mine*.
+  Escape, Cancel or a click outside load neither.
+
+### Changed
+
+- **Clicking a demo no longer saves it as one of your songs.** The project-zip
+  demos (1973, Run Away 2) quietly wrote themselves into a song slot because
+  they rode the import path; the JSON demos never did. Demos are content, not
+  your work — neither kind writes a slot now, which is also what made the two
+  behave so differently when a saved song shared their name.
+
+### Fixed
+
+- **Save no longer overwrites another song without asking.** It was the one
+  path that could destroy a saved song with no dialog and no undo: type a name
+  something else already used and it was gone. Saving onto a song you have not
+  been working on now confirms first. Re-saving the song you *are* working on is
+  unchanged — still one click, edits and all.
+
+- **"Replace it" now sticks.** Importing a song whose name matched a saved slot
+  asked "Replace your saved song?" every single time — even right after you had
+  replaced it, and even when the slot already held that exact song, so the same
+  share link re-asked forever. The prompt now appears only when the saved song
+  genuinely *differs* from the one arriving; re-importing a song you already
+  have saves silently. An edited song under a saved name still asks, which is
+  what the prompt is for.
+
 ## [2.7.1] - 2026-08-04
 
 ### Fixed
