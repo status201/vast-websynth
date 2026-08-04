@@ -40,7 +40,17 @@
   letter-spacing: 0.14em;
   color: var(--accent);
   text-shadow: 0 0 4px var(--accent-glow);
-  padding: 3px 8px;
+  /* Optically centred, not geometrically (brand.md REQ-6). Symmetric padding
+     hangs the text high and left, because the box is sized from metrics the
+     string does not use:
+     - vertical: Courier New reserves 5px of descent under a 15px line, and a
+       model number is caps + digits with no descender, so the ink lands 1px
+       above centre. 4/2 puts it back.
+     - horizontal: letter-spacing is added after the *last* glyph too, leaving
+       0.14em more air on the right. Take it off that side.
+     Both are corrections to this exact string's shape — revisit them if the
+     face, the size or the model number ever changes. */
+  padding: 4px calc(8px - 0.14em) 2px 8px;
   border: 1px solid rgba(232, 116, 46, 0.55);
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.4);
