@@ -105,6 +105,59 @@ export function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number
   return { db: decayPeak(state.db, currentMaxDb, dtSec), holdS: 0 };
 }
 
+/**
+ * Wave auto-gain (REQ-17). The fixed 1:1 scale only looked like an oscilloscope for
+ * material running into clip — a −25 dBFS song drew a flat line ~6% tall. These six
+ * constants are the whole knob set; `WAVE_NORM_STRENGTH` is the one that matters.
+ */
+
+/** Fraction of a region's half-height a *fully* normalized trace would reach. */
+export const WAVE_TARGET_PEAK = 0.9;
+
+/**
+ * How hard to normalize: 1 = flatten every song to the same height, 0 = no boost.
+ * Below 1 the level scale is *compressed*, not erased — in dB the drawn peak is
+ * `S·TARGET_dB + (1−S)·peak_dB` — so a loud song still visibly reads louder.
+ */
+export const WAVE_NORM_STRENGTH = 0.85;
+
+/** Gain ceiling, so a bed of near-silent noise is never blown up to full scale. */
+export const WAVE_MAX_GAIN = 32;
+
+/** ~−66 dBFS. At/below this the gain snaps to unity, so silence draws flat. */
+export const WAVE_SILENCE_PEAK = 0.0005;
+
+/** Seconds. Gain *dropping* (the signal got louder) — fast, so nothing overshoots. */
+export const WAVE_GAIN_FALL_TAU = 0.05;
+
+/** Seconds. Gain *rising* (the signal got quieter) — slow, so the trace can't pump. */
+export const WAVE_GAIN_RISE_TAU = 0.6;
+
+/**
+ * The clamped target gain for a frame peak (REQ-17). Pure (canvas-free), so it is
+ * unit-testable. Three bounds keep it honest: the floor of 1 never *shrinks* a
+ * clipping signal, `WAVE_MAX_GAIN` caps the boost, and the silence gate (written as
+ * `!(peak > …)` so a NaN peak lands here too) keeps quiet passages flat.
+ */
+export function waveGainTarget(peak: number): number {
+  if (!(peak > WAVE_SILENCE_PEAK)) return 1;
+  const g = Math.pow(WAVE_TARGET_PEAK / peak, WAVE_NORM_STRENGTH);
+  return g < 1 ? 1 : g > WAVE_MAX_GAIN ? WAVE_MAX_GAIN : g;
+}
+
+/**
+ * One-pole move toward `waveGainTarget(peak)`, frame-rate independent via `dtSec`
+ * and deliberately **asymmetric**: fast down (a transient can't fly off-screen),
+ * slow up (no pumping). `dtSec <= 0` — the first frame after the tab-hidden pause,
+ * where `lastTs` was reset — leaves the gain alone. (REQ-17)
+ */
+export function updateWaveGain(gain: number, peak: number, dtSec: number): number {
+  if (dtSec <= 0) return gain;
+  const target = waveGainTarget(peak);
+  const tau = target < gain ? WAVE_GAIN_FALL_TAU : WAVE_GAIN_RISE_TAU;
+  return gain + (target - gain) * (1 - Math.exp(-dtSec / tau));
+}
+
 export interface ScopeAnalysers {
   /** Mono down-mix (the default view). */
   mono: AnalyserNode;
@@ -132,7 +185,9 @@ function fpsToInterval(fps: number): number {
 /** An analyser paired with its reusable time-domain + frequency buffers. */
 interface Channel {
   analyser: AnalyserNode;
-  wave: Uint8Array<ArrayBuffer>;
+  /** Float, not byte: 8-bit quantises to 1/128, which the auto-gain would magnify
+   *  into a visible staircase on quiet material. (REQ-18) */
+  wave: Float32Array<ArrayBuffer>;
   freq: Uint8Array<ArrayBuffer>;
   /** Held max level in displayed dB for the Spectrum peak-hold; -Infinity = cleared. */
   peakDb: number;
@@ -164,10 +219,22 @@ export class Scope {
   private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private ro: ResizeObserver | null = null;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
-  private readonly mirrored: { peak: string; peakL: string; peakR: string } =
-    { peak: '', peakL: '', peakR: '' };
+  private readonly mirrored: { peak: string; peakL: string; peakR: string; waveGain: string } =
+    { peak: '', peakL: '', peakR: '', waveGain: '' };
   /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
   private lastTs = 0;
+  /**
+   * Wave auto-gain, shared by *every* region rather than held per channel (REQ-17):
+   * per-channel gains would blow a hard-panned quiet side up to match the loud one
+   * and erase the stereo image the Stereo view exists to show.
+   */
+  private waveGain = 1;
+  /**
+   * Max |sample| seen across all regions in the frame being drawn. It feeds the
+   * *next* frame's gain — accumulating it during the draw pass costs nothing,
+   * whereas a pre-pass to get it first would double the per-sample work. (REQ-18)
+   */
+  private wavePeak = 0;
 
   constructor(analysers: ScopeAnalysers, opts: ScopeOptions = {}) {
     this.frameInterval = fpsToInterval(opts.fps ?? 60);
@@ -199,7 +266,7 @@ export class Scope {
   setMode(m: ScopeMode): void {
     this.mode = m;
     // Leaving Spectrum must drop the held-peak readout; re-entering re-acquires it.
-    this.clearPeakDataset();
+    this.clearDatasetMirror();
   }
 
   /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
@@ -209,14 +276,14 @@ export class Scope {
       c.peakDb = -Infinity;
       c.peakHoldS = 0;
     }
-    this.clearPeakDataset();
+    this.clearDatasetMirror();
   }
 
   /** Switch mono/stereo. Stereo needs both channel analysers; falls back to mono. */
   setChannels(c: ScopeChannels): void {
     this.channels = c === 'stereo' && this.left && this.right ? 'stereo' : 'mono';
     // The set of active peak keys (peak vs peakL/peakR) changes with the layout.
-    this.clearPeakDataset();
+    this.clearDatasetMirror();
   }
 
   /** The effective channel layout (mono unless stereo was set with both analysers). */
@@ -280,7 +347,7 @@ export class Scope {
     for (const c of [this.mono, this.left, this.right]) {
       if (!c) continue;
       c.analyser.fftSize = fftSize;
-      c.wave = new Uint8Array(new ArrayBuffer(c.analyser.fftSize));
+      c.wave = new Float32Array(c.analyser.fftSize);
       c.freq = new Uint8Array(new ArrayBuffer(c.analyser.frequencyBinCount));
     }
   }
@@ -327,6 +394,15 @@ export class Scope {
     const h = this.cssH;
     ctx.clearRect(0, 0, w, h);
 
+    if (this.mode === 'wave') {
+      // Gain for THIS frame comes from the LAST frame's peak (one frame ≈ 16ms of
+      // lag — imperceptible, and it buys a single-pass draw). Only while in Wave, so
+      // the gain freezes in Spectrum exactly as the peak-hold freezes in Wave.
+      this.waveGain = updateWaveGain(this.waveGain, this.wavePeak, dt);
+      this.wavePeak = 0;
+      this.mirrorWaveGain();
+    }
+
     // One renderer drives every region (DRY): mono = 1 region, stereo = 2.
     for (const region of scopeRegions(this.channels, w, h)) {
       const channel = this.channelFor(region.tag);
@@ -372,21 +448,32 @@ export class Scope {
 
   private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
     this.drawMidline(ctx, r);
-    channel.analyser.getByteTimeDomainData(channel.wave);
+    channel.analyser.getFloatTimeDomainData(channel.wave);
     const data = channel.wave;
     const midY = r.y + r.h / 2;
     const amp = r.h / 2 - 4;
+    const gain = this.waveGain;
     ctx.lineWidth = 1.8;
     ctx.strokeStyle = '#e8742e';
     ctx.beginPath();
     const len = data.length;
+    // One pass: draw the scaled sample *and* accumulate the raw peak that will set
+    // the next frame's gain. The two extra ops per sample sit inside a loop already
+    // issuing a lineTo, so the auto-gain costs nothing measurable. (REQ-18)
+    let peak = this.wavePeak;
     for (let i = 0; i < len; i++) {
       const x = r.x + (i / (len - 1)) * r.w;
-      const v = ((data[i] ?? 128) - 128) / 128;
-      const y = midY + v * amp;
+      const v = data[i] ?? 0;
+      const a = v < 0 ? -v : v;
+      if (a > peak) peak = a;
+      // Clamp *after* the gain: there is no ctx.clip(), so an un-clamped overshoot
+      // during the fast fall would paint into the neighbouring stereo region.
+      const s = v * gain;
+      const y = midY + (s < -1 ? -1 : s > 1 ? 1 : s) * amp;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+    this.wavePeak = peak;
     ctx.stroke();
   }
 
@@ -465,11 +552,22 @@ export class Scope {
   }
 
   /**
-   * Drop every mirrored peak. Only called on rare transitions (Wave/Mono-Stereo
+   * Mirror the applied Wave gain for E2E, under the same change-only-write rule as
+   * `mirrorPeak` — a steady scope writes no attribute per frame (REQ-15/16/18).
+   */
+  private mirrorWaveGain(): void {
+    const v = this.waveGain.toFixed(1);
+    if (this.mirrored.waveGain === v) return;
+    this.mirrored.waveGain = v;
+    this.el.dataset.waveGain = v;
+  }
+
+  /**
+   * Drop every mirrored value. Only called on rare transitions (Wave/Mono-Stereo
    * switch, reset) — never per frame — so it clears unconditionally for correctness.
    */
-  private clearPeakDataset(): void {
-    for (const key of ['peak', 'peakL', 'peakR'] as const) {
+  private clearDatasetMirror(): void {
+    for (const key of ['peak', 'peakL', 'peakR', 'waveGain'] as const) {
       this.mirrored[key] = '';
       delete this.el.dataset[key];
     }
@@ -486,7 +584,7 @@ export class Scope {
 function makeChannel(analyser: AnalyserNode): Channel {
   return {
     analyser,
-    wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)),
+    wave: new Float32Array(analyser.fftSize),
     freq: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)),
     peakDb: -Infinity,
     peakHoldS: 0,

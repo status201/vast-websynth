@@ -105,4 +105,31 @@ test.describe('scope mono/stereo', () => {
     await page.waitForTimeout(100);
     expect(await peakDb()).toBeNull();
   });
+
+  test('Wave exposes the applied auto-gain, and Spectrum clears it', async ({ page }) => {
+    await gotoAndStart(page);
+    const mode = page.getByTestId('scope-toggle');
+
+    // The auto-gain mirrored onto the canvas dataset (null when absent/empty).
+    const waveGain = (): Promise<number | null> =>
+      page.evaluate(() => {
+        const v = document.querySelector<HTMLCanvasElement>('[data-testid="scope-canvas"]')
+          ?.dataset.waveGain;
+        return v === undefined || v === '' ? null : parseFloat(v);
+      });
+
+    // Wave is the boot view; the gain appears on the first drawn frame and is
+    // never below unity (a clipping signal is scaled 1:1, never shrunk).
+    await expect(mode).toHaveText('Wave');
+    await page.waitForTimeout(150);
+    const gain = await waveGain();
+    expect(gain).not.toBeNull();
+    expect(gain!).toBeGreaterThanOrEqual(1);
+
+    // Spectrum drops the readout (and freezes the gain).
+    await mode.click();
+    await expect(mode).toHaveText('Spectrum');
+    await page.waitForTimeout(100);
+    expect(await waveGain()).toBeNull();
+  });
 });

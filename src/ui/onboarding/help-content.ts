@@ -962,6 +962,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>A live visualiser of the sound. <strong>Wave</strong> shows the waveform like an ' +
       'oscilloscope (you can see the shape of the tone); <strong>Spectrum</strong> shows the ' +
       'frequency content (bass on the left, treble on the right). Click the button to switch.</p>' +
+      '<p><strong>Wave</strong> auto-ranges like a scope’s volts/div knob, so a quiet song ' +
+      'still draws a readable waveform instead of a flat line — a loud one still draws ' +
+      'taller, but the height is not a level meter. For actual level, read the ' +
+      '<strong>Spectrum</strong> max-dB line below.</p>' +
       '<p>The <strong>Mono/Stereo</strong> button splits the view: <strong>Stereo</strong> shows ' +
       'the <strong>L</strong> and <strong>R</strong> channels separately, so you can see stereo ' +
       'effects (reverb, delay, phaser) move the channels apart.</p>' +

@@ -10,6 +10,10 @@ import {
   dbToFrac,
   decayPeak,
   updatePeak,
+  waveGainTarget,
+  updateWaveGain,
+  WAVE_MAX_GAIN,
+  WAVE_SILENCE_PEAK,
   Scope,
   type ScopeRegion,
 } from '../../src/ui/components/scope';
@@ -132,6 +136,80 @@ describe('updatePeak (push up, hold plateau, then decay)', () => {
   });
 });
 
+/** Linear amplitude for a dBFS peak — the levels the scope actually sees. */
+const dbfs = (db: number): number => Math.pow(10, db / 20);
+
+describe('waveGainTarget (quiet is boosted, loud still reads louder)', () => {
+  it('never shrinks a signal at or above full scale', () => {
+    expect(waveGainTarget(1)).toBe(1);
+    expect(waveGainTarget(2)).toBe(1); // above 0 dBFS (float data can exceed 1)
+  });
+
+  it('boosts a -25 dBFS song (the Nocturne case) to over half the panel', () => {
+    const peak = dbfs(-25); // ~0.056 — used to draw a ~6% flat line
+    const gain = waveGainTarget(peak);
+    expect(gain).toBeGreaterThan(10);
+    expect(gain).toBeLessThan(11);
+    expect(peak * gain).toBeGreaterThan(0.5);
+  });
+
+  it('keeps silence flat instead of blooming into amplified noise', () => {
+    expect(waveGainTarget(WAVE_SILENCE_PEAK)).toBe(1); // gate is inclusive
+    expect(waveGainTarget(0)).toBe(1);
+    expect(waveGainTarget(NaN)).toBe(1); // !(NaN > x) lands on the gate too
+  });
+
+  it('never exceeds the ceiling', () => {
+    expect(waveGainTarget(0.005)).toBe(WAVE_MAX_GAIN);
+    expect(waveGainTarget(WAVE_SILENCE_PEAK * 1.001)).toBe(WAVE_MAX_GAIN);
+  });
+
+  it('draws a louder song taller than a softer one at every level', () => {
+    // The partial normalization compresses the level scale but must never flatten
+    // it: drawn height (peak * gain) has to stay strictly increasing in peak.
+    let prev = -1;
+    for (let db = -80; db <= 0; db += 1) {
+      const peak = dbfs(db);
+      const drawn = peak * waveGainTarget(peak);
+      expect(drawn).toBeGreaterThan(prev);
+      prev = drawn;
+    }
+    expect(prev).toBeLessThanOrEqual(1); // and full scale still fits the region
+  });
+});
+
+describe('updateWaveGain (fast down, slow up, frame-rate independent)', () => {
+  const quiet = dbfs(-25);
+
+  it('moves toward the target without jumping to it', () => {
+    const g = updateWaveGain(1, quiet, 0.016);
+    expect(g).toBeGreaterThan(1);
+    expect(g).toBeLessThan(waveGainTarget(quiet));
+  });
+
+  it('falls much faster than it rises (no overshoot, no pumping)', () => {
+    const dt = 0.05;
+    // Signal got louder: target 1, held gain 10 -> must drop most of the way now.
+    const fall = (10 - updateWaveGain(10, 1, dt)) / (10 - 1);
+    // Signal got quieter: target ~10.6, held gain 1 -> must crawl.
+    const rise = (updateWaveGain(1, quiet, dt) - 1) / (waveGainTarget(quiet) - 1);
+    expect(fall).toBeGreaterThan(0.5);
+    expect(rise).toBeLessThan(0.1);
+    expect(fall).toBeGreaterThan(rise * 5);
+  });
+
+  it('leaves the gain untouched when no time has passed', () => {
+    expect(updateWaveGain(4, quiet, 0)).toBe(4);
+    expect(updateWaveGain(4, quiet, -1)).toBe(4);
+  });
+
+  it('lands in the same place at 15fps as at 60fps', () => {
+    let stepped = 1;
+    for (let i = 0; i < 10; i++) stepped = updateWaveGain(stepped, quiet, 0.01);
+    expect(stepped).toBeCloseTo(updateWaveGain(1, quiet, 0.1), 10);
+  });
+});
+
 describe('Scope.setChannels (defensive fallback)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -139,6 +217,7 @@ describe('Scope.setChannels (defensive fallback)', () => {
     fftSize: 2048,
     frequencyBinCount: 1024,
     getByteTimeDomainData: () => {},
+    getFloatTimeDomainData: () => {},
     getByteFrequencyData: () => {},
   } as unknown as AnalyserNode);
 

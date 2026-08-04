@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 7   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons)
+version: 8   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read
 owner: status201
 related:
   - architecture
@@ -43,6 +43,16 @@ the graph reads **0 dB** without touching the (unchanged) bar heights, the displ
 dB is simply *re-labelled*: the analyser's default `getByteFrequencyData` range
 (−100…−30 dB) is offset by +30 so its −30 dB ceiling shows as 0 dB ("clip"). The
 peak-hold is **Spectrum-only** — Wave view is unaffected.
+
+**Wave auto-gain (v8).** The Wave view drew at a fixed 1:1 scale, so it only
+looked like an oscilloscope for material running into clip. A song peaking at
+−25 dBFS drew a trace ~6 % of the panel height — a flat line, useless. A real
+scope has a volts/div knob for exactly this; here it **auto-ranges** instead. The
+normalization is deliberately **partial**: a fractional exponent compresses the
+level scale rather than flattening it, so quiet songs become legible *and* a loud
+song still visibly reads louder than a soft one. The Wave view is therefore
+explicitly **not** a calibrated level meter — the Spectrum peak-hold (REQ-10/11)
+remains the honest readout, and it is unaffected.
 
 ## Requirements
 
@@ -146,6 +156,45 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
   region's `y`/`h`, invalidated on resize) instead of `createLinearGradient`
   allocating every frame — no per-frame canvas-object allocation on the steady
   path.
+- **REQ-17 (v8)** — The **Wave** view applies an **auto-gain** so quiet material
+  still draws a readable trace. The gain is a **partial** normalization —
+  `clamp((WAVE_TARGET_PEAK / peak) ** WAVE_NORM_STRENGTH, 1, WAVE_MAX_GAIN)`,
+  computed by the pure `waveGainTarget(peak)`. `WAVE_NORM_STRENGTH < 1` is what
+  keeps loud louder than soft: in dB the drawn peak is
+  `STRENGTH·TARGET_dB + (1−STRENGTH)·peak_dB`, i.e. a monotonic *compression* of
+  the level scale, never a flattening. Three bounds make it safe: the gain floor
+  of **1** means a clipping signal is never *shrunk*; the `WAVE_MAX_GAIN` ceiling
+  and a **silence gate** (`peak <= WAVE_SILENCE_PEAK` → gain snaps to 1) together
+  mean silence draws a flat line instead of blooming into amplified noise. The
+  scaled sample is **clamped to `[-1, 1]`** before it maps to Y, so an overshoot
+  can never paint outside its region (there is no `ctx.clip()`; in stacked stereo
+  an unclamped trace would bleed into the neighbouring channel).
+  Smoothing is a frame-rate-independent one-pole (`updateWaveGain(gain, peak,
+  dtSec)`) with **asymmetric** time constants: the gain **falls fast**
+  (`WAVE_GAIN_FALL_TAU`) when the signal gets louder, so a transient cannot fly
+  off-screen, and **rises slowly** (`WAVE_GAIN_RISE_TAU`) when it gets quieter, so
+  the trace does not pump. `dtSec <= 0` (the first frame after the tab-hidden
+  pause, where `lastTs` is reset) leaves the gain untouched.
+  The gain is **shared across L and R**, not held per channel: one `waveGain` on
+  the `Scope`, driven by the maximum peak over every region drawn this frame.
+  Per-channel gains would blow a hard-panned quiet side up to match the loud one
+  and destroy the stereo image the Stereo view exists to show. The gain is
+  **frozen while in Spectrum** (it is neither updated nor decayed), the mirror
+  image of how the peak-hold freezes in Wave (REQ-10).
+- **REQ-18 (v8)** — The Wave read is **float**: `getFloatTimeDomainData` into a
+  per-channel `Float32Array` (reallocated by `setFftSize` exactly like the byte
+  buffers were). `getByteTimeDomainData` quantises to 1/128, so a −25 dBFS signal
+  occupies ~7 of 128 steps and any real boost would paint a visible staircase;
+  float also lets the `[-1,1]` clamp see genuine above-0-dBFS excursions that the
+  byte path had already hard-limited to 0/255. The auto-gain must add **no
+  measurable per-frame cost** (REQ-16, `runtime-performance`): the peak scan is
+  **fused into the existing draw loop** — the frame draws with the *previous*
+  frame's peak (one frame of lag, ~16 ms, imperceptible) while accumulating this
+  frame's peak in the same pass. So the added cost is one `abs` + one compare per
+  sample inside a loop already issuing `lineTo`, plus one `Math.exp` per frame,
+  and **no allocation on the steady path**. The applied gain is mirrored to
+  `el.dataset.waveGain` under the same change-only-write rule as the peak mirror
+  (REQ-15), so a steady scope still performs no per-frame attribute write.
 
 ## Technical design
 
@@ -186,6 +235,16 @@ function byteToDisplayDb(byte: number): number;                 // 255 -> 0, 0 -
 function dbToFrac(db: number): number;                           // inverse of the above, clamped [0,1]
 function decayPeak(heldDb: number, currentMaxDb: number, dtSec: number): number;  // the slow fall
 function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number): PeakState; // push/hold/fall
+
+// Pure, exported, canvas-free — the Wave auto-gain (v8, REQ-17):
+const WAVE_TARGET_PEAK   = 0.9;    // fraction of half-height a fully-normalized trace reaches
+const WAVE_NORM_STRENGTH = 0.85;   // 1 = full normalization, 0 = none; <1 keeps loud louder than soft
+const WAVE_MAX_GAIN      = 32;     // ceiling, so a noise floor is never blown up
+const WAVE_SILENCE_PEAK  = 0.0005; // ~-66 dBFS; at/below this the gain snaps to unity (flat line)
+const WAVE_GAIN_FALL_TAU = 0.05;   // s — gain dropping (signal got louder): fast, no overshoot
+const WAVE_GAIN_RISE_TAU = 0.6;    // s — gain rising  (signal got quieter): slow, no pumping
+function waveGainTarget(peak: number): number;                              // the clamped target gain
+function updateWaveGain(gain: number, peak: number, dtSec: number): number; // asymmetric one-pole toward it
 ```
 
 `Engine` (`src/audio/engine.ts`) — new public fields `analyserL`, `analyserR`.
@@ -233,6 +292,35 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
 #   dataset mirror el.dataset.peak/peakL/peakR (1 dp); dB label centred in each region.
 ```
 
+Wave auto-gain (REQ-17/18) — one gain for the whole display, not per channel:
+
+```yaml
+WAVE_TARGET_PEAK: 0.9        # a fully-normalized trace would reach 90% of the half-height
+WAVE_NORM_STRENGTH: 0.85     # partial normalization; 1 = flatten every song to the same height
+WAVE_MAX_GAIN: 32            # ceiling (binds below ~-36 dBFS)
+WAVE_SILENCE_PEAK: 0.0005    # ~-66 dBFS silence gate
+WAVE_GAIN_FALL_TAU: 0.05     # s, gain decreasing (louder signal) — fast
+WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
+
+# waveGainTarget(peak):
+#   !(peak > WAVE_SILENCE_PEAK) -> 1                       (silence, and NaN, are unity)
+#   else clamp((WAVE_TARGET_PEAK / peak) ** WAVE_NORM_STRENGTH, 1, WAVE_MAX_GAIN)
+# updateWaveGain(gain, peak, dt):
+#   dt <= 0 -> gain                                        (first frame after a pause)
+#   target = waveGainTarget(peak)
+#   tau    = target < gain ? WAVE_GAIN_FALL_TAU : WAVE_GAIN_RISE_TAU
+#   gain + (target - gain) * (1 - exp(-dt / tau))          (frame-rate independent)
+# drawn sample: y = midY + clamp(v * gain, -1, 1) * amp    (amp = r.h / 2 - 4)
+#
+# Drawn height vs source peak (the "loud still reads louder" curve):
+#     0 dBFS -> gain  1.0x -> 100%      -25 dBFS -> gain 10.6x -> 59%
+#    -6 dBFS -> gain  1.7x ->  83%      -36 dBFS -> gain 31.5x -> 50%
+#   -12 dBFS -> gain  2.9x ->  73%     <-66 dBFS -> gain  1.0x -> flat (gated)
+#
+# Scope state: waveGain (init 1) + wavePeak (this-frame max |v| over ALL regions,
+#   reset each frame). Dataset mirror el.dataset.waveGain (1 dp), Wave-view only.
+```
+
 ### Layer touchpoints & ordering
 
 - **`Engine` constructor** builds the analyser tap. Replace the single
@@ -273,6 +361,16 @@ PEAK_HOLD_SEC: ~1.5        # plateau the line is pinned at a new max before it f
   `resetPeak()` (removed in `destroy`). No `engine.ts`/`app.ts` change — the peak
   line, label and reset are entirely inside the component; the toggle buttons already
   sit outside the canvas.
+- **`Scope.drawWave` + `draw`** own the auto-gain (v8). `draw()` updates the shared
+  `waveGain` from the *previous* frame's `wavePeak` and the clamped `dt`, then zeroes
+  `wavePeak`, **before** the region loop — and only while `mode === 'wave'`, so the
+  gain freezes in Spectrum. `drawWave` reads `getFloatTimeDomainData` and, in the one
+  existing per-sample loop, accumulates `max |v|` into `this.wavePeak` while drawing
+  the clamped, scaled sample — no second pass. Like the peak-hold this is entirely
+  inside the component: **no `engine.ts`, `studio-api.ts` or `app.ts` change**, no
+  new button and no new `data-testid` (the gain rides the existing `scope-canvas`
+  dataset). `clearPeakDataset` becomes `clearDatasetMirror` so the `waveGain` key is
+  dropped on the same rare transitions.
 
 ### Persistence
 
@@ -395,21 +493,64 @@ Scenario: The redraw loop performs no per-frame layout read or DOM write (REQ-16
   And the dataset peak mirror is written only on a frame where its value changed
   And no canvas attribute is mutated on a steady frame
 # pinned by: design contract (REQ-16); dataset observability via e2e/scope.spec.ts
+
+Scenario: Quiet material is boosted, but loud still draws taller than soft
+  Given the Wave auto-gain
+  When waveGainTarget is evaluated across the level range
+  Then a peak at or above full scale gets unity gain (a clipping song is never shrunk)
+  And a peak at -25 dBFS gets a gain of about 10x, drawing over half the panel height
+  And the drawn height (peak * gain) still increases monotonically with the peak
+  And the gain never exceeds WAVE_MAX_GAIN
+# pinned by: tests/ui/scope-regions.test.ts
+
+Scenario: Silence draws a flat line, not amplified noise
+  Given a peak at or below WAVE_SILENCE_PEAK (about -66 dBFS)
+  When waveGainTarget is evaluated
+  Then the gain is unity, so the trace settles flat instead of blooming
+  And a NaN peak is likewise treated as unity
+# pinned by: tests/ui/scope-regions.test.ts
+
+Scenario: The gain falls fast and rises slowly, identically at any frame rate
+  Given a held wave gain and a new frame peak
+  When updateWaveGain is applied each frame
+  Then a louder signal (target below the held gain) moves it down quickly
+  And a quieter signal (target above the held gain) moves it up slowly, so it does not pump
+  And ten 10ms steps land at the same gain as one 100ms step
+  And a dt of 0 leaves the gain unchanged
+# pinned by: tests/ui/scope-regions.test.ts
+
+Scenario: The applied wave gain is observable and Wave-only
+  Given the app has booted and audio is running in Wave view
+  Then the canvas exposes a numeric dataset.waveGain of at least 1
+  And switching to Spectrum clears it
+# pinned by: e2e/scope.spec.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/scope-regions.test.ts` — pure `scopeRegions` geometry (mono single
   region; stereo two stacked halves tiling the panel; tags/labels); the peak-hold
-  helpers `byteToDisplayDb`/`dbToFrac`/`decayPeak`; and `Scope.resetPeak()` clearing
-  the dataset mirror — `npm test`.
+  helpers `byteToDisplayDb`/`dbToFrac`/`decayPeak`; the Wave auto-gain helpers
+  `waveGainTarget`/`updateWaveGain` (unity at/above full scale and below the silence
+  gate, the `WAVE_MAX_GAIN` ceiling, monotonic drawn height, asymmetric fall/rise,
+  frame-rate independence); and `Scope.resetPeak()` clearing the dataset mirror —
+  `npm test`.
 - E2E: `e2e/scope.spec.ts` — default "Mono", toggle to "Stereo" and back,
   orthogonality with Wave/Spectrum, the `analyserL`/`analyserR` data path via
-  `window.__synth.engine`, and the Spectrum peak readout rising with sound +
-  click-to-reset (`canvas.dataset.peak`) — `npm run e2e`.
+  `window.__synth.engine`, the Spectrum peak readout rising with sound +
+  click-to-reset (`canvas.dataset.peak`), and the Wave `canvas.dataset.waveGain`
+  mirror appearing in Wave and clearing in Spectrum — `npm run e2e`.
 - Typecheck: `npm run typecheck`.
+- **By eye (ADR-010)** — the auto-gain is a *look*, so a green suite does not verify
+  it. Load a quiet demo (**Nocturne**) and a loud one (**Zombie Nation**) in Wave
+  view: the quiet one must draw a readable trace (roughly half the panel) and the
+  loud one must still draw visibly taller. Then check silence settles flat, a
+  transient from silence does not paint outside its region, and Stereo keeps the L/R
+  height difference on hard-panned material. `WAVE_NORM_STRENGTH` and
+  `WAVE_MAX_GAIN` are the two knobs to retune.
 - Dev-bridge assertions: `window.__synth.engine.analyserL` (DEV only); peak readout
-  via the canvas `dataset.peak`/`peakL`/`peakR`.
+  via the canvas `dataset.peak`/`peakL`/`peakR`; applied wave gain via
+  `dataset.waveGain`.
 
 ## Open questions / future
 
@@ -420,3 +561,10 @@ Scenario: The redraw loop performs no per-frame layout read or DOM write (REQ-16
   tracks actual available space rather than the viewport.
 - A future **goniometer / Lissajous** (X-Y L-vs-R) view could reuse `analyserL/R`;
   out of scope here.
+- The Wave auto-gain (v8) is deliberately **not exposed** — no third overlay button
+  on an already three-cornered panel, and no persisted preference. If a "1×"
+  (calibrated) escape hatch is ever wanted, `WAVE_NORM_STRENGTH = 0` is already the
+  whole implementation of it; the open question is only where the toggle would live.
+- There is still **no trigger / zero-crossing sync**, so the trace free-runs and
+  drifts horizontally. Unrelated to the gain, but the next thing that would make the
+  Wave view read like a scope.
