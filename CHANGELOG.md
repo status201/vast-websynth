@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-08-04
+
 ### Fixed
 
 - **The Motion tab's axis pickers open a readable list again.** When an axis
@@ -1449,7 +1451,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/status201/vast-websynth/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/status201/vast-websynth/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/status201/vast-websynth/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/status201/vast-websynth/compare/v2.6.0...v2.6.1
