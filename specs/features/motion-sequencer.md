@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 11  # v11: the step value is visible while editing — per-lane readout + drag
+version: 12  # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
+             #      dimming the root buried its own menu under the pads (REQ-8)
+             # v11: the step value is visible while editing — per-lane readout + drag
              #      bubble (REQ-22); the pad's write is deferred so a hold PEEKS,
              #      plus snap-to-1/20 and Shift+drag fine (REQ-23)
              # v10: a transport seek drops the tick latch but KEEPS the baselines (REQ-21)
@@ -30,6 +32,7 @@ related:
   - song-mode
   - banks
   - song-authoring-dialect
+  - dropdown              # REQ-8's axis pickers; setDimmed + REQ-9's root invariant
 source:
   - src/audio/transport/motion-curve.ts     # pure anchor/interpolation math
   - src/audio/transport/motion-machine.ts   # transport-driven param writer
@@ -167,6 +170,14 @@ The tab sits between Sampler and Song.
       the axis dropdowns showing the edit bank's *effective* assignment, the
       inherit/reset button and the "graph: `<param>`" hint — the toggle beside
       the readout it drives, rather than three rows apart;
+      (v12) an axis with **no bank override** shows its picker **dimmed**, so the
+      row reads at a glance as "inherited, not chosen here" — the same cue the
+      "inherited from XY Pad" hint spells out. The dim goes through
+      [`Dropdown.setDimmed`](dropdown.md) REQ-9, which scopes it to the toggle:
+      applied to the dropdown *root* it composited the open option list to 62%
+      alpha and formed a stacking context that trapped the fixed-position menu
+      **behind the pads below**. Same shape as REQ-16's rule further down — dim
+      the label, never the container the picker lives in;
     - a single **dashed divider** separates the XY lane from the tracks below (A
       and B are the same kind of lane, so nothing divides them from each other),
       and (v6) a **solid** divider (the Drum tab's below-grid rule) separates the
@@ -658,6 +669,13 @@ Scenario: Every lane's controls sit above its own cells (v5)
   And each track's label, param picker and Slide/Step sit above its own cells
   And a single dashed divider separates the XY lane from the tracks
   And a solid divider separates the machine header from the XY lane (v6)
+# pinned by: e2e/motion.spec.ts
+
+Scenario: An inherited axis picker still opens a readable menu (regression, v12)
+  Given a bank with no override, so both axis pickers read as inherited
+  When I open the X axis picker
+  Then its options render at full opacity, not at the toggle's dimmed alpha
+  And the menu paints above the XY pads below it, not behind them
 # pinned by: e2e/motion.spec.ts
 
 Scenario: The A/B tracks show the playhead while playing (v6)

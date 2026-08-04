@@ -3,7 +3,8 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 4  # v4: the filter row is content type, not faceplate legend (REQ-7)
+version: 5  # v5: setDimmed + the "never dim the root" invariant (REQ-9)
+            # v4: the filter row is content type, not faceplate legend (REQ-7)
             # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
             # v2: a live filter row on long lists (REQ-7); REQ-5's focus target
             #     moves to that input where it exists
@@ -15,6 +16,7 @@ related:
   - presets           # header preset selector
   - drum-kits         # KIT picker
   - floating-window   # z-index tiering (menu sits at the Dropdown/Modal tier, 1000)
+  - motion-sequencer  # the inherited-axis pickers; the bug REQ-9 was written for
 source:
   - src/ui/components/dropdown.ts
   - src/ui/components/param-dropdown.ts   # ParamBus-bound wrapper
@@ -120,6 +122,31 @@ without anyone remembering to ask.
     ([transport-position](transport-position.md) REQ-11); an open dropdown must
     not move the playhead. (`Escape` deliberately keeps its old bubbling
     behaviour — panic-on-Escape is harmless and pre-dates this.)
+- **REQ-9** (v5) — **A dropdown can be dimmed to mark its value as inherited /
+  not explicitly set here**, via `setDimmed(on)`. The dim lands on the
+  **toggle**, never on the root — and that scoping is the requirement, not an
+  implementation detail:
+  - **Nothing may apply `opacity`, `transform`, `filter` (or any other
+    stacking-context-forming property) to a Dropdown root.** The menu is
+    `position: fixed` but it is still a **DOM child** of the root, so such a
+    property does two things at once: it composites the whole subtree as one
+    group — painting the filter row and every option at the ancestor's alpha —
+    and it establishes a stacking context that **traps** the menu's
+    `z-index: 1000`, so later siblings paint over it. REQ-4's "fixed, so it
+    escapes its ancestors" holds only while no ancestor creates a stacking or
+    containing block.
+  - This is written down because it shipped: the Motion tab's inherited axis
+    pickers carried `opacity: 0.62` on `sel.el`, which made their option lists
+    transparent *and* buried them under the XY pad lane
+    ([motion-sequencer](motion-sequencer.md) REQ-8). Both symptoms, one
+    declaration. Consumers get `setDimmed` so the safe target is the easy one —
+    the same reason [motion-sequencer](motion-sequencer.md) REQ-16 dims a lane's
+    label rather than its row.
+  - The dim is **presentation only**: a dimmed dropdown stays fully interactive
+    ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 — the control
+    that says "nothing is set here" must be the one that lets you set it). Use
+    `disabled` on the toggle if a control genuinely should not be operated;
+    that is a different state and this is not it.
 
 ## Technical design
 
@@ -132,6 +159,7 @@ without anyone remembering to ask.
 - `el: HTMLElement` — root (`styles.root` + global `dropdown` class)
 - `setOptions(options: string[]): void`
 - `setValue(v: string): void` / `get value(): string`
+- `setDimmed(on: boolean): void` — inherited/unset styling on the toggle (REQ-9)
 - `onChange(cb: (v: string) => void): void`
 - `destroy(): void`
 
@@ -142,10 +170,12 @@ keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label).
 
 ```yaml
 div.root.dropdown:           # + global `open` class while open
-  button.toggle:             # MUST stay the first <button> child (REQ-7)
+                             # MUST NOT carry opacity/transform/filter (REQ-9)
+  button.toggle[.dimmed]:    # MUST stay the first <button> child (REQ-7)
     span.label               # current value
     span.caret               # ▾
   div.menu:                  # position:fixed, flex column, max-height 280px
+                             # fixed, but still a DOM child of the root (REQ-9)
     div.filterRow:           # present only above the threshold (REQ-7)
       span.searchIcon        # inline SVG, currentColor
       input.filterInput      # data-testid="dropdown-filter"
@@ -181,6 +211,15 @@ div.root.dropdown:           # + global `open` class while open
 - The magnifier glyph is **local to this component**, not in `header-icons.ts`
   (that module is the header's utility buttons, and its `svg.hdr-icon` CSS is
   sized for 15 px header slots).
+- The menu is **not portalled to `<body>`** — it is `position: fixed` and
+  manually anchored, but it stays a DOM child of the root. That keeps
+  `el.contains()` working for the outside-click and focus-return checks (REQ-3,
+  REQ-6) and keeps `destroy()` a single `remove()`, at the cost of REQ-9's
+  invariant: an ancestor that forms a stacking context still captures it. If a
+  consumer ever genuinely needs a transformed/faded dropdown, portalling the
+  menu is the fix — not weakening REQ-9.
+- `.root` therefore stays `position: relative; z-index: auto` (relative purely so
+  nothing else needs to know about it) — deliberately **not** a stacking context.
 
 ### Persistence
 
@@ -271,16 +310,37 @@ Scenario: An open dropdown swallows Home instead of seeking (regression, v3)
   Then focus moves to the first option
   And the key does not reach installShortcuts, so the playhead does not move
 # pinned by: tests/ui/dropdown.test.ts
+
+Scenario: The dimmed state marks the toggle, not the root (regression, v5, REQ-9)
+  Given a Dropdown
+  When setDimmed(true) is called
+  Then the toggle carries the dimmed class and the root's classes are unchanged
+  And setDimmed(false) removes it again
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A dimmed dropdown is still operable (v5, REQ-9)
+  Given a dimmed Dropdown
+  When I click its toggle and pick an option
+  Then the menu opens as usual and onChange fires — dimming is presentation only
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Nothing dims the root, or the menu goes with it (regression, v5, REQ-9)
+  Given dropdown.module.css
+  Then no rule reaching `.root` declares opacity, transform or filter
+  And the dimmed rule is compounded with `.toggle`, so it cannot land on the root
+# pinned by: tests/ui/dropdown-stacking.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/ui/dropdown.test.ts`, `tests/ui/param-dropdown.test.ts` — `npm test`
   (the jsdom suite cannot see real CSS; the v4 typeface split is pinned by
-  `tests/ui/typography.test.ts`)
+  `tests/ui/typography.test.ts` and REQ-9's CSS half by
+  `tests/ui/dropdown-stacking.test.ts` — both read the stylesheets as text)
 - E2E: `e2e/xy-pad.spec.ts` (filter an axis picker down to one match and pick it);
-  indirect — `e2e/controls.spec.ts` (preset select), `e2e/drum-kit.spec.ts`
-  (KIT picker) — `npm run e2e`
+  `e2e/motion.spec.ts` (REQ-9 in a real browser: a dimmed picker's menu is opaque
+  and on top); indirect — `e2e/controls.spec.ts` (preset select),
+  `e2e/drum-kit.spec.ts` (KIT picker) — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Manual: open an XY Pad axis dropdown with a value deep in the param list —
   the list opens scrolled to the highlighted value, with the filter focused;

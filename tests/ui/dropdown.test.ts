@@ -58,6 +58,48 @@ describe('Dropdown', () => {
     expect(dd.el.querySelector(`.${styles.option!}.active`)?.textContent).toBe('B');
   });
 
+  // REQ-9. The class MUST land on the toggle: on the root, `opacity` composites
+  // the fixed-position menu with it (transparent options) and opens a stacking
+  // context that buries the menu under later siblings. jsdom can't see the real
+  // CSS, but it can prove the class never reaches the root — which is the bug.
+  describe('dimmed state (REQ-9)', () => {
+    it('marks the toggle and leaves the root untouched', () => {
+      dd = new Dropdown(['A', 'B'], 'A');
+      document.body.appendChild(dd.el);
+      const rootClasses = dd.el.className;
+
+      dd.setDimmed(true);
+      expect(toggleOf(dd).classList.contains(styles.dimmed!)).toBe(true);
+      expect(dd.el.className).toBe(rootClasses);
+      expect(dd.el.classList.contains(styles.dimmed!)).toBe(false);
+
+      dd.setDimmed(false);
+      expect(toggleOf(dd).classList.contains(styles.dimmed!)).toBe(false);
+      expect(dd.el.className).toBe(rootClasses);
+    });
+
+    it('stays fully operable while dimmed — it is presentation only', () => {
+      dd = new Dropdown(['A', 'B', 'C'], 'A');
+      document.body.appendChild(dd.el);
+      const cb = vi.fn();
+      dd.onChange(cb);
+      dd.setDimmed(true);
+
+      toggleOf(dd).click();
+      expect(dd.el.classList.contains('open')).toBe(true);
+      const optC = [
+        ...dd.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`),
+      ].find((b) => b.textContent === 'C')!;
+      optC.click();
+
+      expect(dd.value).toBe('C');
+      expect(cb).toHaveBeenCalledWith('C');
+      // …and the dim survives the interaction — it tracks the value's origin,
+      // which selecting an option is the consumer's job to re-evaluate.
+      expect(toggleOf(dd).classList.contains(styles.dimmed!)).toBe(true);
+    });
+  });
+
   it('focuses the active option on open, and the first option without one', () => {
     dd = new Dropdown(['A', 'B', 'C'], 'B');
     document.body.appendChild(dd.el);

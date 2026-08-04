@@ -102,11 +102,10 @@
   text-transform: uppercase;
   color: #8f7a63;
 }
-/* An axis dropdown showing an inherited (non-overridden) assignment. */
-.inheritedSel {
-  opacity: 0.62;
-  font-style: italic;
-}
+/* An axis dropdown showing an inherited (non-overridden) assignment is dimmed via
+   `Dropdown.setDimmed` (dropdown.md REQ-9), which owns the styling. There is no
+   rule here on purpose: this used to be `.inheritedSel { opacity }` on the
+   dropdown ROOT, which faded the open option list and trapped it behind the pads. */
 .hint {
   font-size: 10px;
   color: #77664f;

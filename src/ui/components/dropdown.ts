@@ -119,6 +119,19 @@ export class Dropdown {
 
   get value(): string { return this._value; }
 
+  /**
+   * Dim the control to say its value is inherited / not set here (REQ-9).
+   * Presentation only — a dimmed dropdown stays fully operable.
+   *
+   * Scoped to the toggle deliberately: the menu is `position: fixed` but still a
+   * DOM *child* of `this.el`, so `opacity`/`transform`/`filter` on the root would
+   * both fade the open option list and trap it in a new stacking context. That
+   * is the Motion tab bug REQ-9 was written for — never move this to `this.el`.
+   */
+  setDimmed(on: boolean): void {
+    this.toggle.classList.toggle(styles.dimmed!, on);
+  }
+
   onChange(cb: (v: string) => void): void { this.listener = cb; }
 
   destroy(): void {
@@ -248,9 +261,11 @@ export class Dropdown {
   };
 
   /**
-   * The menu is `position: fixed` so it escapes every stacking context and
-   * `overflow` ancestor (panels, tab scrollers). Anchor it to the toggle's
-   * viewport rect, flipping above when it would overflow the bottom edge.
+   * The menu is `position: fixed` so it escapes every `overflow` ancestor
+   * (panels, tab scrollers) — and every stacking context its own ancestors do
+   * not create. `opacity`/`transform`/`filter` on an ancestor still captures it,
+   * which is why nothing may put those on `.root` (REQ-9). Anchor it to the
+   * toggle's viewport rect, flipping above when it would overflow the bottom.
    */
   private position(): void {
     const r = this.toggle.getBoundingClientRect();

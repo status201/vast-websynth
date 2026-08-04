@@ -1,3 +1,7 @@
+/* `position: relative` only — z-index stays `auto` so this is deliberately NOT a
+   stacking context. `.menu` is fixed but still a DOM child, so anything here
+   that forms one (opacity/transform/filter) traps it behind later siblings and
+   fades the options with the toggle (dropdown.md REQ-9). Dim `.toggle` instead. */
 .root {
   position: relative;
   display: inline-block;
@@ -23,6 +27,13 @@
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.7),
     0 1px 0 rgba(244, 205, 94, 0.04);
+}
+
+/* An inherited / not-explicitly-set value (dropdown.md REQ-9). Compounded with
+   `.toggle` so it can only ever land on the toggle — see the `.root` note above
+   for what happens when this treatment reaches the root instead. */
+.toggle.dimmed {
+  opacity: 0.62;
 }
 
 .label {

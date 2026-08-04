@@ -364,8 +364,11 @@ export function buildMotionPanel(
     const ax = effectiveAxes();
     xSel.setValue(ax.x);
     ySel.setValue(ax.y);
-    xSel.el.classList.toggle(styles.inheritedSel!, !ov?.x);
-    ySel.el.classList.toggle(styles.inheritedSel!, !ov?.y);
+    // Dim, not disable: an inherited axis is exactly the one you need to click.
+    // `setDimmed` marks the toggle — dimming the root faded the open option list
+    // and buried it under the pads (dropdown.md REQ-9).
+    xSel.setDimmed(!ov?.x);
+    ySel.setDimmed(!ov?.y);
     resetBtn.style.visibility = ov ? '' : 'hidden';
     const effective = view === 'x' ? ax.x : ax.y;
     hint.textContent = ov

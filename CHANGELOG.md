@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Motion tab's axis pickers open a readable list again.** When an axis
+  follows the XY Pad rather than carrying its own assignment, its picker is
+  dimmed to say so — but that dimming was also fading the *open* parameter list
+  and letting the pads below paint over it, so picking a parameter meant reading
+  grey-on-grey text through the grid. The list now opens at full strength and on
+  top of everything, while the picker itself still reads as inherited.
+
 ### Changed
 
 - **The model number on the faceplate is now `G1-J8`** — the synth has eight

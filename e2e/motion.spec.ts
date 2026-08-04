@@ -226,6 +226,14 @@ test('holding a pad reads its value without writing it', async ({ page }) => {
     (window as any).__synth.patterns.motionTrack(1).steps[5].v);
   const before = await read();
 
+  // `setTrackLevel` above tapped this same cell, and a second press within
+  // MotionStepPad's HOLD_MS is a double-tap — it clears instead of peeking
+  // (motion-sequencer.md REQ-23a; the two windows share one constant). Playwright
+  // gets from that tap to this press in ~120ms, so without stepping outside the
+  // window the hold below is swallowed and nothing is under test. Deterministic
+  // coverage of the window itself is in tests/ui/motion-step-pad.test.ts.
+  await page.waitForTimeout(500); // > HOLD_MS (350)
+
   // Press near the top — a write would land far above 0.4 — and hold still.
   const pad = page.getByTestId('motion-trk-1-step-5');
   await pad.scrollIntoViewIfNeeded();
@@ -233,6 +241,10 @@ test('holding a pad reads its value without writing it', async ({ page }) => {
   await page.mouse.move(box.x + box.width / 2, box.y + 3);
   await page.mouse.down();
   await page.waitForTimeout(500);
+  // The setup value must still be here — if a double-tap had cleared the cell,
+  // every assertion below would be reading a default and passing for the wrong
+  // reason (or failing without saying why).
+  expect(await read()).toBeCloseTo(before, 6);
   await expect(page.getByTestId('motion-value-bubble')).toHaveCount(1);
   // The readout reports what is THERE, not where the pointer is.
   await expect(page.getByTestId('motion-readout-trk-1')).toContainText('0.40');
@@ -426,6 +438,54 @@ test('each lane carries its own controls above its cells', async ({ page }) => {
     }, t);
     expect(ok, `track ${t}`).toBe(true);
   }
+});
+
+/**
+ * motion-sequencer.md REQ-8 / dropdown.md REQ-9 — regression. An inherited axis
+ * picker is dimmed, and that dim used to sit on the dropdown ROOT: `opacity`
+ * composited the fixed-position menu with it (unreadable options) and opened a
+ * stacking context that trapped the menu's z-index behind the pads below.
+ * Only a real browser can see either symptom, so it is pinned here.
+ */
+test('an inherited axis picker opens a menu that is opaque and on top', async ({ page }) => {
+  await gotoAndStart(page);
+  await openMotionTab(page);
+
+  // A fresh song carries no bank override, so both axes read as inherited.
+  await expect(page.getByTestId('motion-assign-reset')).toBeHidden();
+
+  // The testid is on the root (motion-panel.ts), so open via the toggle itself.
+  const picker = page.getByTestId('motion-assign-x');
+  await picker.locator('button').first().click();
+
+  const seen = await picker.evaluate((root) => {
+    const menu = root.lastElementChild as HTMLElement;
+    const option = menu.querySelector('button')!;
+
+    // Every ancestor up to the document composites its subtree as a group, so
+    // one faded ancestor is enough to wash the options out.
+    let faded: string | null = null;
+    for (let n: HTMLElement | null = option; n; n = n.parentElement) {
+      if (getComputedStyle(n).opacity !== '1') { faded = n.className || n.tagName; break; }
+    }
+
+    // Is anything painting over the menu? Sample low in the box, where it
+    // overlaps the pad grid — the exact region that used to swallow it.
+    const r = menu.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom - 6);
+
+    return { faded, covered: !(hit && menu.contains(hit)), hit: hit?.className ?? null };
+  });
+
+  expect(seen.faded, `an ancestor of the options is faded: ${seen.faded}`).toBeNull();
+  expect(seen.covered, `something paints over the menu: ${seen.hit}`).toBe(false);
+
+  // The toggle itself still carries the dim — the cue survives the fix.
+  const toggleOpacity = await picker
+    .locator('button')
+    .first()
+    .evaluate((el) => getComputedStyle(el).opacity);
+  expect(Number(toggleOpacity)).toBeLessThan(1);
 });
 
 test('a track’s Slide/Step is independent of the XY lane and the other track', async ({ page }) => {
