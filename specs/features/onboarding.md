@@ -3,7 +3,10 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 17  # v17: the diagram's caps are labelled from the active keyboard
+version: 18  # v18: while the badges show, the ⓘ button's glyph inverts to the
+             #      badge's own colours, and the `presets` badge moves off its
+             #      neighbour onto the preset selector (REQ-8/REQ-12)
+             # v17: the diagram's caps are labelled from the active keyboard
              #      layout, switchable from a gear beside the section title
              #      (REQ-17c, keyboard-layout.md)
              # v16: the About key list renders keycaps, and the two note rows
@@ -45,6 +48,8 @@ source:
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/index.ts
   - src/ui/components/info-badges-button.ts
+  - src/ui/components/header-icons.ts   # the ⓘ glyph's part hooks (REQ-8b)
+  - src/ui/styles/tour.module.css       # .toggleActive + the badge/glyph colours
   - src/ui/components/about.ts
 ```
 
@@ -111,6 +116,28 @@ thing.
   what [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids; the
   active styling was cited as licensing it. v15 removes the ambiguity instead of
   licensing it.
+- **REQ-8b** (v18) — **While the badges show, the glyph inverts into a badge.**
+  `toggleActive` alone is *generic* active chrome — the Fullscreen button wears
+  the same border and glow — so it says "this button is on", not "this button is
+  the badges' switch". The active ⓘ therefore also takes the badge's own colour
+  pair: the ring fills with `--accent` and the stem + tittle are drawn in
+  `--bg-deep`, exactly `.badge`'s `background`/`color`. A user hunting for the
+  way to turn the badges off finds a button wearing one.
+  - **Idle is unchanged** — an outline ring in `currentColor`. The ⓘ and ? are a
+    matched pair at rest ([responsive-header](responsive-header.md) REQ-5), and
+    a permanently solid disc would both break that pair and make the header
+    louder in the state the user has *not* asked for anything.
+  - The disc takes **`currentColor`**, i.e. the `--accent` `toggleActive` sets
+    one rule above, so the disc can never drift from the border and glow around
+    it.
+  - Geometry does **not** change with state: same `r`, same stem, same tittle,
+    only the colours swap. The badge is 20px and this ring ~16px; matching the
+    badge's literal diameter would leave ⓘ fatter than every sibling icon for
+    no gain. The dark stem gets a hair more stroke weight, because dark-on-orange
+    reads thinner than light-on-dark — an optical correction, not a second shape.
+  - The hooks are **per-part classes on the glyph** (`.disc` / `.stem` / `.dot`
+    in `header-icons.ts`) targeted from `tour.module.css`. Only the ⓘ glyph
+    carries them, so Fullscreen — which shares `toggleActive` — is untouched.
 - **REQ-9** (v5) — Help copy tells the truth about what a control does:
   - The `modWheel` topic explains the wheel's actual routing — it **adds to the
     LFO Amount** (engine clamps the sum to 1), so it deepens whatever the LFO
@@ -149,12 +176,23 @@ thing.
   states its own variant, because its grid has no tap-toggle (drag sets a value,
   double-click clears) and its `Clear ▾` lists lanes rather than a selected row
   (step-grid-editing REQ-6).
-- **REQ-12** (v7) — **A `presets` topic anchors to `preset-save`.** The header's
-  single Presets button ([presets](presets.md) REQ-9) opens save / export-preset /
-  export-bank / import-with-review, none of which was explained anywhere. Its copy
-  must separate a **preset** (one sound) from a **song** (the whole arrangement) —
-  the confusion the badge exists to kill — and must describe the import review
-  step as non-destructive until confirmed.
+- **REQ-12** (v7, re-anchored v18) — **A `presets` topic anchors to
+  `preset-select`.** It covers the whole preset cluster: the selector, and the
+  single Presets button beside it ([presets](presets.md) REQ-9) which opens
+  save / export-preset / export-bank / import-with-review, none of which was
+  explained anywhere. Its copy must separate a **preset** (one sound) from a
+  **song** (the whole arrangement) — the confusion the badge exists to kill —
+  and must describe the import review step as non-destructive until confirmed.
+  - Through v17 it pinned to **`preset-save`**, one button away from the ⓘ
+    toggle. A badge is the loudest mark in the header, so parked there it pulled
+    the eye off the very control REQ-8b exists to make findable — the two were
+    competing inside one cluster. The selector is far enough left to stop that,
+    and it is where the copy already begins ("The dropdown flips through 16
+    factory sounds…"), so the anchor and the first sentence now agree.
+  - Everything else is unchanged: default `'corner'` placement, the `inHeader`
+    exemption from the scrolled-under-the-header rule, and hiding on a zero-size
+    anchor when the cluster collapses behind the hamburger below 720px
+    ([responsive-header](responsive-header.md) REQ-1).
 - **REQ-13** (v7) — **The tour teaches the grid gestures.** A "Paint a pattern"
   step sits between the pattern-tabs step and the Song-tab steps. It targets
   **`panel-drums`** (`precondition: clickTestId('tab-drums')`), deliberately *not*
@@ -324,9 +362,10 @@ thing.
     is suppressed inside editable fields like every other key
     ([input-control](input-control.md) REQ-5).
   - Discoverability (`../recipes/design-an-interaction.md` step 4): the button's
-    glyph **is** the badge glyph, its tooltip names the key (REQ-9), the About
-    key list carries the `?` row (REQ-17), and the tour's closing step spotlights
-    it (REQ-10).
+    glyph **is** the badge glyph — literally so while the badges show, where it
+    takes the badge's colours too (REQ-8b) — its tooltip names the key (REQ-9),
+    the About key list carries the `?` row (REQ-17), and the tour's closing step
+    spotlights it (REQ-10).
 - **REQ-20** (v15) — **About is the single door for help.** With the chooser
   modal gone, the About modal carries a full-width **"Take the guided tour"**
   button (testid `start-tour`) placed **between the version/credits block and
@@ -411,6 +450,16 @@ Scenario: The ⓘ button toggles the badges in one click, both ways (v15, REQ-8)
   Then the badges disappear and aria-pressed is "false"
 # pinned by: tests/ui/info-badges-button.test.ts, e2e/onboarding.spec.ts
 
+Scenario: The active ⓘ button wears the badge it switches off (v18, REQ-8b)
+  Given the info badges are off
+  Then the ⓘ glyph is an outline ring — its disc is unfilled, like the ? beside it
+  When the user clicks the ⓘ button
+  Then the disc fills with the accent and the i is drawn in --bg-deep,
+    the same pair the floating badges use
+   And the Fullscreen button's glyph is unaffected by its own toggleActive state
+# pinned by: tests/ui/info-badges-button.test.ts (the part hooks),
+#            e2e/onboarding.spec.ts (the computed fill, both states)
+
 Scenario: The dropped gestures do nothing special (v15, REQ-19)
   Given the info badges are off
   When the user Shift+clicks the ⓘ button, or presses and holds it for 350 ms
@@ -446,12 +495,13 @@ Scenario: Every step grid explains its gestures the same way (v7)
   Then each names drag-to-paint, hold-to-select, Delete and Clear ▾ in identical words
 # pinned by: tests/ui/help-content.test.ts
 
-Scenario: The Presets button explains what a preset is (v7)
+Scenario: The preset selector explains what a preset is (v7, re-anchored v18)
   Given the info badges are on
-  When the user clicks the badge on the header Presets button
+  When the user clicks the badge on the header preset selector
   Then the modal distinguishes a preset (one sound) from a song, and describes
     exporting a preset/bank and the review step shown before an import is written
-# pinned by: tests/ui/help-content.test.ts
+   And the badge sits on the selector, not on the Save button beside the ⓘ toggle
+# pinned by: tests/ui/help-content.test.ts, e2e/onboarding.spec.ts
 
 Scenario: The tour's gesture step moves the spotlight to the drum grid (v7)
   Given the tour has passed the "Build your own patterns" step

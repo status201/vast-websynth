@@ -62,6 +62,20 @@ describe('Info badges button (onboarding.md REQ-8/REQ-19)', () => {
     expect(btn.querySelector('svg.hdr-icon')).not.toBeNull();
   });
 
+  // REQ-8b: while the badges show, the glyph takes their colours — an accent
+  // disc with `--bg-deep` ink. The colours themselves live in tour.module.css
+  // (jsdom does not resolve CSS Modules, so e2e pins the computed fill); what
+  // is pinned here is the half that lives in the markup: the three part hooks
+  // those rules hang off, without which the active state silently does nothing.
+  it('the ⓘ glyph exposes the part hooks the active state recolours (REQ-8b)', () => {
+    const svg = mount().querySelector('svg.hdr-icon')!;
+    expect(svg.querySelector('.disc')).not.toBeNull();
+    expect(svg.querySelector('.stem')).not.toBeNull();
+    // The tittle keeps `.fill` (switch.module's solid-shape escape hatch) and
+    // adds its own hook, so it can be inked separately from the disc.
+    expect(svg.querySelector('.fill.dot')).not.toBeNull();
+  });
+
   it('a click toggles the badges, in either direction', () => {
     const btn = mount();
     click(btn);

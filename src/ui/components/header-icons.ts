@@ -22,11 +22,17 @@ export const HEADER_ICONS = {
     '<path d="M8 11 L11.2 6.2"/>' +
     '<circle class="fill" cx="8" cy="11" r="1.2"/>',
   ),
-  /** ⓘ — the info-badges toggle. Same glyph the badges themselves draw. */
+  /**
+   * ⓘ — the info-badges toggle. Same glyph the badges themselves draw, and
+   * while they are showing it takes their colours too: `tour.module.css` fills
+   * `.disc` with the accent and inks `.stem`/`.dot` in `--bg-deep`
+   * (onboarding.md REQ-8b). The part classes are inert until then — no colour
+   * is declared here, as for every other glyph.
+   */
   info: icon(
-    '<circle cx="8" cy="8" r="6"/>' +
-    '<path d="M8 7.5 V11.2"/>' +
-    '<circle class="fill" cx="8" cy="5" r="1"/>',
+    '<circle class="disc" cx="8" cy="8" r="6"/>' +
+    '<path class="stem" d="M8 7.5 V11.2"/>' +
+    '<circle class="fill dot" cx="8" cy="5" r="1"/>',
   ),
   /** ? in a circle — Help & About. */
   help: icon(

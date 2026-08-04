@@ -75,12 +75,22 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await startBtn(page).click();
   await expect(page.getByTestId('tour-callout')).toBeHidden(); // no auto-launch
 
+  // Idle, the ⓘ glyph is an outline ring — a matched pair with the ? beside it.
+  const disc = page.locator('[data-testid="info-badges"] svg.hdr-icon .disc');
+  const tittle = page.locator('[data-testid="info-badges"] svg.hdr-icon .dot');
+  await expect(disc).toHaveCSS('fill', 'none');
+
   // One click on ⓘ switches the badges on (onboarding.md REQ-8).
   await page.getByTestId('info-badges').click();
 
   // The ⓘ button now reads as active (orange) while the badges show.
   await expect(page.getByTestId('info-badges')).toHaveClass(/toggleActive/);
   await expect(page.getByTestId('info-badges')).toHaveAttribute('aria-pressed', 'true');
+
+  // …and the glyph itself becomes a badge — the accent disc and --bg-deep ink
+  // the floating badges use — so the control that hides them wears one (REQ-8b).
+  await expect(disc).toHaveCSS('fill', 'rgb(232, 116, 46)'); // --accent
+  await expect(tittle).toHaveCSS('fill', 'rgb(5, 3, 2)'); // --bg-deep
 
   // A section badge anchored via `data-help` opens its contextual modal.
   const subuni = page.getByTestId('info-badge-subuni');
@@ -90,10 +100,21 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
   await expect(subuniDialog).toBeVisible();
   await subuniDialog.getByRole('button', { name: 'Close' }).click();
 
-  // The header Presets button carries its own badge (onboarding.md REQ-12); its
+  // The header preset selector carries its own badge (onboarding.md REQ-12); its
   // copy has to separate a preset (one sound) from a song (the arrangement).
   const presetBadge = page.getByTestId('info-badge-presets');
   await expect(presetBadge).toBeVisible();
+
+  // It hangs off the selector, not off Save — there it sat beside the ⓘ toggle
+  // and outshouted the very control it should have been leading the eye to (v18).
+  const badgeBox = (await presetBadge.boundingBox())!;
+  const selectBox = (await page.getByTestId('preset-select').boundingBox())!;
+  const saveBox = (await page.getByTestId('preset-save').boundingBox())!;
+  const badgeMid = badgeBox.x + badgeBox.width / 2;
+  expect(badgeMid).toBeGreaterThan(selectBox.x);
+  expect(badgeMid).toBeLessThan(selectBox.x + selectBox.width);
+  expect(badgeMid).toBeLessThan(saveBox.x);
+
   await presetBadge.click();
   const presetDialog = page.getByRole('dialog', { name: 'Presets' });
   await expect(presetDialog).toContainText('one sound');

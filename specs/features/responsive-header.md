@@ -3,7 +3,9 @@
 ```yaml
 id: responsive-header
 status: implemented
-version: 5  # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
+version: 6  # v6: a glyph may carry per-part hook classes for a state stylesheet
+            #     to recolour (the ⓘ disc/stem/dot, onboarding.md REQ-8b)
+            # v5: the two ⓘ/? utility buttons swap roles — ⓘ toggles the info
             #     badges, ? opens Help & About (onboarding.md v15)
 owner: ui
 related:
@@ -148,6 +150,14 @@ addition to the shared `headerGroup` class.
   `switch.module.css` sizes/strokes `svg.hdr-icon` inside any switch-styled
   button (`stroke: currentColor; fill: none`, with a `.fill` escape hatch for
   solid dots).
+  A glyph may also carry **per-part hook classes** that some *state* stylesheet
+  recolours — the ⓘ's `.disc` / `.stem` / `.dot`, inverted from
+  `tour.module.css` while the info badges show
+  ([onboarding.md](onboarding.md) REQ-8b). They stay inert here: `header-icons.ts`
+  still declares no colour, and a glyph with no state stylesheet behind it
+  renders exactly as before. Hooks belong to one glyph, so a class shared with
+  another button's state (ⓘ and Fullscreen both wear `toggleActive`) cannot
+  bleed across.
 
 ### Layer touchpoints & ordering
 

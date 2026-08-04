@@ -40,9 +40,12 @@ const ANCHORS: Anchor[] = [
   { topic: 'transport.swing', find: () => byTestId('knob-transport.swing') },
   { topic: 'voicing', find: () => byTestId('seg-voicing.mode') },
   { topic: 'panic', find: () => byTestId('panic') },
-  // The header's one door for sounds — save / export preset / export bank /
-  // import-with-review (presets.md REQ-9, onboarding.md REQ-12).
-  { topic: 'presets', find: () => byTestId('preset-save') },
+  // Covers the whole preset cluster — the selector plus the one door beside it
+  // for save / export preset / export bank / import-with-review (presets.md
+  // REQ-9). Pinned to the selector rather than that button (onboarding.md
+  // REQ-12): on Save the badge sat close enough to the ⓘ toggle to pull the eye
+  // off it, and the topic's copy opens on the dropdown anyway.
+  { topic: 'presets', find: () => byTestId('preset-select') },
   { topic: 'oscillators', find: () => byHelp('oscillators') },
   { topic: 'subuni', find: () => byHelp('subuni') },
   { topic: 'mixer', find: () => byHelp('mixer') },
