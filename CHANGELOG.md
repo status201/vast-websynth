@@ -16,14 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-
-- **One name, two songs — the app asks which you meant.** Saving your own song
-  under a demo's name ("1979") left the demo button and the Song Slot list
-  offering different music behind one label, each silently picking its own. A
-  demo whose name you have saved now asks: *Load the demo* or *Load mine*.
-  Escape, Cancel or a click outside load neither.
-
 ### Changed
 
 - **Clicking a demo no longer saves it as one of your songs.** The project-zip
@@ -31,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   they rode the import path; the JSON demos never did. Demos are content, not
   your work — neither kind writes a slot now, which is also what made the two
   behave so differently when a saved song shared their name.
+
+- **One name, two songs — the app asks which you meant.** Saving your own song
+  under a demo's name ("1979") left the demo button and the Song Slot list
+  offering different music behind one label, each silently picking its own. A
+  demo whose name you have saved now asks: *Load the demo* or *Load mine*.
+  Escape, Cancel or a click outside load neither.
 
 ### Fixed
 
