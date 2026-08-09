@@ -1,5 +1,5 @@
 import type { PatternStore } from '../../state/patterns';
-import { SEQ_LENGTH, REST, clampChainStep } from '../../state/patterns';
+import { SEQ_LENGTH, REST, clampChainStep, clampTranspose } from '../../state/patterns';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -17,6 +17,16 @@ import type { TickSubscriber } from './tick-source';
 export interface ChainLane {
   enabled: boolean;
   steps: number[]; // bank indices
+  /**
+   * Semitone offset per slot, **parallel to `steps`** and always the same length
+   * (arrangement.md REQ-8). `0` — the value every existing path produces — means
+   * "as written", so this is a no-op field for every song that predates it.
+   *
+   * Only the **seq** lane acts on it: drums and the sampler are unpitched and
+   * motion carries parameters, not notes. The other three lanes keep the field
+   * so there is one `ChainLane` type, and ignore it.
+   */
+  transpose: number[];
 }
 
 export type LaneName = 'seq' | 'drum' | 'sampler' | 'motion';
@@ -24,15 +34,25 @@ export type LaneName = 'seq' | 'drum' | 'sampler' | 'motion';
 const ALL_LANES: readonly LaneName[] = ['seq', 'drum', 'sampler', 'motion'];
 
 export class Arrangement {
-  readonly seq: ChainLane = { enabled: false, steps: [0] };
-  readonly drum: ChainLane = { enabled: false, steps: [0] };
-  readonly sampler: ChainLane = { enabled: false, steps: [0] };
-  readonly motion: ChainLane = { enabled: false, steps: [0] };
+  readonly seq: ChainLane = { enabled: false, steps: [0], transpose: [0] };
+  readonly drum: ChainLane = { enabled: false, steps: [0], transpose: [0] };
+  readonly sampler: ChainLane = { enabled: false, steps: [0], transpose: [0] };
+  readonly motion: ChainLane = { enabled: false, steps: [0], transpose: [0] };
 
   seqPlayBank = 0;
   drumPlayBank = 0;
   samplerPlayBank = 0;
   motionPlayBank = 0;
+
+  /**
+   * The semitone offset of the seq lane's current slot — what `StepSequencer`
+   * adds to every note it triggers (sequencer.md REQ-16). `0` whenever the lane
+   * is disabled or resting, so the un-chained path is untouched.
+   *
+   * Recomputed in `recompute()` alongside the play banks, for the same reason
+   * they are: the machines read it on the same tick and it must be settled first.
+   */
+  seqTranspose = 0;
 
   // True while an enabled lane's current slot is a REST (an empty bar): the
   // machine plays silence this bar. See arrangement-rest.md.
@@ -138,8 +158,16 @@ export class Arrangement {
   get samplerChainPos(): number { return this.samplerPos; }
   get motionChainPos(): number { return this.motionPos; }
 
-  setSeqChain(steps: number[], enabled: boolean): void {
+  /**
+   * @param transpose per-slot semitone offsets (arrangement.md REQ-8). Omitted
+   * by every caller that does not arrange pitch — including the whole pre-v7
+   * corpus — in which case the lane keeps the offsets it already had, resized to
+   * the new chain. That is what lets `◀ ▶ ✕` and the bank-add buttons keep
+   * calling this with two arguments and still do the right thing.
+   */
+  setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
     this.seq.steps = steps.length ? steps.map(clampChainStep) : [0];
+    this.seq.transpose = fitTranspose(transpose ?? this.seq.transpose, this.seq.steps.length);
     this.seq.enabled = enabled;
     this.seqPos = 0;
     this.recompute();
@@ -148,6 +176,7 @@ export class Arrangement {
 
   setDrumChain(steps: number[], enabled: boolean): void {
     this.drum.steps = steps.length ? steps.map(clampChainStep) : [0];
+    this.drum.transpose = fitTranspose(this.drum.transpose, this.drum.steps.length);
     this.drum.enabled = enabled;
     this.drumPos = 0;
     this.recompute();
@@ -156,6 +185,7 @@ export class Arrangement {
 
   setSamplerChain(steps: number[], enabled: boolean): void {
     this.sampler.steps = steps.length ? steps.map(clampChainStep) : [0];
+    this.sampler.transpose = fitTranspose(this.sampler.transpose, this.sampler.steps.length);
     this.sampler.enabled = enabled;
     this.samplerPos = 0;
     this.recompute();
@@ -164,6 +194,7 @@ export class Arrangement {
 
   setMotionChain(steps: number[], enabled: boolean): void {
     this.motion.steps = steps.length ? steps.map(clampChainStep) : [0];
+    this.motion.transpose = fitTranspose(this.motion.transpose, this.motion.steps.length);
     this.motion.enabled = enabled;
     this.motionPos = 0;
     this.recompute();
@@ -183,6 +214,11 @@ export class Arrangement {
     const seq = resolveLane(this.seq, this.seqPos, this.patterns.seqEditBank);
     this.seqPlayBank = seq.playBank;
     this.seqResting = seq.resting;
+    // A disabled lane is live editing, not an arrangement, and a rest bar plays
+    // nothing — neither has a slot whose transpose could mean anything (REQ-8).
+    this.seqTranspose = this.seq.enabled && !seq.resting
+      ? this.seq.transpose[this.seqPos % (this.seq.transpose.length || 1)] ?? 0
+      : 0;
     const drum = resolveLane(this.drum, this.drumPos, this.patterns.drumEditBank);
     this.drumPlayBank = drum.playBank;
     this.drumResting = drum.resting;
@@ -203,6 +239,22 @@ export class Arrangement {
     this.motionNextPlayBank = after.playBank;
     this.motionNextResting = after.resting;
   }
+}
+
+/**
+ * A transpose array resized to exactly `len` — padded with 0, truncated when the
+ * chain shrinks (arrangement.md REQ-8).
+ *
+ * The invariant this exists to hold: `transpose.length === steps.length`, always.
+ * Two parallel arrays are only safe while nothing can desynchronize them, so
+ * every write goes through here rather than trusting its caller — including the
+ * ones that pass a chain built by the UI's `[...lane.steps, i]` splices.
+ * Padding with **0** is what makes a newly added slot a no-op.
+ */
+function fitTranspose(src: readonly number[], len: number): number[] {
+  const out = new Array<number>(len);
+  for (let i = 0; i < len; i++) out[i] = clampTranspose(src[i] ?? 0);
+  return out;
 }
 
 /** Chain position for a lane at absolute bar `bar` — the wrapped slot index,

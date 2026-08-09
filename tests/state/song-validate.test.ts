@@ -10,6 +10,7 @@ import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
 import { MAX_CHAIN_STEPS, MAX_PARAM_KEYS } from '../../src/state/limits';
+import { fakeArr } from '../fixtures/fake-arrangement';
 
 /** Deep clone so a test never mutates the shared DEMO_SONGS objects. */
 function clone<T>(v: T): T {
@@ -17,21 +18,12 @@ function clone<T>(v: T): T {
 }
 
 /** Minimal Arrangement stand-in: only the surface Song.capture touches. */
-function fakeArr() {
-  return {
-    seq: { enabled: false, steps: [0] as number[] },
-    drum: { enabled: false, steps: [0] as number[] },
-    sampler: { enabled: false, steps: [0] as number[] },
-    motion: { enabled: false, steps: [0] as number[] },
-  };
-}
-
 /** A guaranteed-valid, full-dimension current-version file (independent of the demos). */
 function captureValid(): SongFile {
   const bus = new ParamBus();
   registerDefaults(bus);
   const patterns = new PatternStore();
-  return Song.capture(bus, patterns, fakeArr() as never, 'Valid');
+  return Song.capture(bus, patterns, fakeArr(), 'Valid');
 }
 
 /** Assert validation fails and the joined error text contains every needle. */
@@ -73,6 +65,17 @@ describe('validateSongFile — accepts', () => {
     const res = validateSongFile(clone(shipped[name]!));
     if (!res.ok) throw new Error(`${name} failed validation:\n${res.errors.join('\n')}`);
     expect(res.ok).toBe(true);
+  });
+
+  // untrusted-input.md REQ-12. A warning here is not a validator bug — it means a
+  // *shipped demo* names an automation target that no longer resolves, so that
+  // lane is silently dead in the product. Fail loudly and fix the demo.
+  it.each(Object.keys(shipped))('no shipped demo has a dead automation target: %s', (name) => {
+    const res = validateSongFile(clone(shipped[name]!));
+    expect(res.ok).toBe(true);
+    if (res.ok && res.warnings?.length) {
+      throw new Error(`${name} has dead automation targets:\n${res.warnings.join('\n')}`);
+    }
   });
 
   // The suite's own song stands in for a demo everywhere a test needs to assert
@@ -307,6 +310,76 @@ describe('validateSongFile — v4 motion fields', () => {
     const f = withMotion();
     (f.motionChain as { steps: unknown[] }).steps = [9];
     expectReject(f, 'motionChain.steps[0]');
+  });
+});
+
+// untrusted-input.md REQ-12. The bug this closes: MotionMachine.write does
+// `const def = this.bus.def(id); if (!def) return;` — so before this, one typo'd
+// id cost an entire automation lane with no error at author time, at import, or
+// anywhere in the UI. It is a *warning* and not a rejection because ADR-007
+// promises a song from a newer build keeps loading, and a target naming a
+// parameter added after this build shipped is exactly that case.
+describe('validateSongFile — unresolvable automation targets warn (REQ-12)', () => {
+  /** The warnings of a song that must still be valid. */
+  const warningsOf = (file: unknown): string[] => {
+    const res = validateSongFile(file);
+    if (!res.ok) throw new Error(`expected ok, got errors:\n${res.errors.join('\n')}`);
+    return res.warnings ?? [];
+  };
+
+  it('warns on a misspelled xy axis but still accepts the song', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.xy = { x: 'filter.cuttoff', y: 'filter.resonance' };
+    const w = warningsOf(f);
+    expect(w).toHaveLength(1);
+    expect(w[0]).toContain('xy.x');
+    expect(w[0]).toContain('filter.cuttoff');
+  });
+
+  it('warns on an unknown motionTracks param, naming bank and track', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.motionTracks = [
+      [{ param: 'not.a.param', steps: Array.from({ length: 16 }, () => ({ on: false })) }, null],
+      [null, null], [null, null], [null, null],
+    ];
+    const w = warningsOf(f);
+    expect(w).toHaveLength(1);
+    expect(w[0]).toContain('motionTracks[0][0].param');
+    expect(w[0]).toContain('not.a.param');
+  });
+
+  it('warns on an unknown per-bank motionAssigns override', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    (f.motionAssigns as unknown[])[2] = { x: 'nope.nope' };
+    const w = warningsOf(f);
+    expect(w).toHaveLength(1);
+    expect(w[0]).toContain('motionAssigns[2].x');
+  });
+
+  it('reports every bad target, not just the first', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.xy = { x: 'bad.one', y: 'bad.two' };
+    (f.motionAssigns as unknown[])[0] = { x: 'bad.three' };
+    expect(warningsOf(f)).toHaveLength(3);
+  });
+
+  it('omits warnings entirely when every target resolves', () => {
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.xy = { x: 'filter.cutoff', y: 'filter.resonance' };
+    const res = validateSongFile(f);
+    expect(res.ok).toBe(true);
+    // Omitted, not empty: a clean song's result stays deep-equal to its
+    // pre-REQ-12 shape, so nothing downstream can start depending on the key.
+    if (res.ok) expect(res.warnings).toBeUndefined();
+  });
+
+  it('never turns a warning into a rejection (ADR-007 forward-compat)', () => {
+    // Stands in for a song authored on a future build against a param this one
+    // has not got. It must load — that is the whole promise of ADR-007.
+    const f = clone(captureValid()) as Record<string, unknown>;
+    f.xy = { x: 'filter.velAmount', y: 'filter.resonance' };
+    const res = validateSongFile(f);
+    expect(res.ok).toBe(true);
   });
 });
 

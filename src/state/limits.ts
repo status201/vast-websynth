@@ -35,6 +35,15 @@ export const MAX_CHAIN_STEPS = 1024;
 /** `{enabled, steps: {enabled, steps: …}}` nesting in the authoring dialect. */
 export const MAX_CHAIN_DEPTH = 8;
 
+/**
+ * Per-slot arrangement transpose, in semitones (arrangement.md REQ-8).
+ * ±2 octaves — the same span as `drum.t*.tune`, and enough for any progression.
+ * Kept modest deliberately: the offset is added to a stored note before the
+ * `MIDI_NOTE_MIN/MAX` clamp, so a huge range would just clamp into silence at
+ * the edges while making the UI's readout wider for no musical gain.
+ */
+export const MAX_CHAIN_TRANSPOSE = 24;
+
 /** Keys in a `params` map. The bus registers ~150; unknown ids are kept (ADR-007). */
 export const MAX_PARAM_KEYS = 512;
 

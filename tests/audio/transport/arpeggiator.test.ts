@@ -183,3 +183,71 @@ describe('Arpeggiator pattern generation', () => {
     expect(playNote).toHaveBeenLastCalledWith(64, 0.85, 0.125);
   });
 });
+
+// arpeggiator.md REQ-6. The clock only ticks in 16ths, so 1/32 used to fall into
+// an `else` branch that fired once per tick and called itself "sample-accurate
+// enough" — which made it play exactly 1/16. The dropdown offered a rate that
+// changed nothing.
+describe('Arpeggiator sub-16th rates (REQ-6)', () => {
+  const SIXTEENTH = 0.125; // TestClock at 120 BPM
+
+  it('schedules two hits per tick at 1/32, a half-sixteenth apart', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true);
+    arp.setPattern(0); // up
+    arp.setRate(3);    // 1/32 → division 0.5
+    bus.noteOn(60);
+    bus.noteOn(64);
+
+    clock.fireTick(0);
+    expect(played(playNote)).toEqual([60, 64]);
+    expect(playNote.mock.calls[0]![2]).toBe(0);
+    expect(playNote.mock.calls[1]![2]).toBeCloseTo(SIXTEENTH / 2, 10);
+  });
+
+  it('plays twice as many notes as 1/16 over the same ticks (regression)', () => {
+    const sixteenth = setup();
+    sixteenth.arp.setEnabled(true);
+    sixteenth.arp.setRate(2); // 1/16
+    sixteenth.bus.noteOn(60);
+    sixteenth.clock.fireTicks(4);
+
+    const thirtysecond = setup();
+    thirtysecond.arp.setEnabled(true);
+    thirtysecond.arp.setRate(3); // 1/32
+    thirtysecond.bus.noteOn(60);
+    thirtysecond.clock.fireTicks(4);
+
+    expect(sixteenth.playNote).toHaveBeenCalledTimes(4);
+    expect(thirtysecond.playNote).toHaveBeenCalledTimes(8);
+  });
+
+  it('gates against the 1/32 step, not the 1/16 it is nested in', () => {
+    const { clock, bus, arp, releaseNote } = setup();
+    arp.setEnabled(true);
+    arp.setRate(3);   // 1/32 → stepDur 0.0625
+    arp.setGate(0.5);
+    bus.noteOn(60);
+
+    clock.fireTick(0);
+    // First hit at t=0 holds for 0.0625 * 0.5 — half of what a 1/16 gate gives.
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.03125);
+  });
+});
+
+// arpeggiator.md REQ-7 — this is the design, not a defect. A song saves arp.on
+// to *arm* the arp for a player; the sequencer deliberately does not feed it.
+describe('Arpeggiator armed by a song (REQ-7)', () => {
+  it('sounds nothing while no key is held, then arpeggiates when one is', () => {
+    const { clock, bus, arp, playNote } = setup();
+    arp.setEnabled(true); // as a loaded song's arp.on: 1 would
+    clock.fireStart();    // the song plays
+
+    clock.fireTicks(8);
+    expect(playNote).not.toHaveBeenCalled();
+
+    bus.noteOn(60); // the player joins in over the running song
+    clock.fireTicks(2);
+    expect(played(playNote)).toEqual([60, 60]);
+  });
+});

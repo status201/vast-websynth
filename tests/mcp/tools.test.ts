@@ -82,8 +82,9 @@ describe('get_song_format', () => {
 describe('validate_song', () => {
   it('ok:true for a valid author song (object or JSON string)', async () => {
     const t = tool('validate_song');
-    expect(jsonOf(await t.handler({ song: AUTHOR }))).toEqual({ ok: true, errors: [] });
-    expect(jsonOf(await t.handler({ song: JSON.stringify(AUTHOR) }))).toEqual({ ok: true, errors: [] });
+    const clean = { ok: true, errors: [], warnings: [] };
+    expect(jsonOf(await t.handler({ song: AUTHOR }))).toEqual(clean);
+    expect(jsonOf(await t.handler({ song: JSON.stringify(AUTHOR) }))).toEqual(clean);
   });
 
   it('validation failure is a SUCCESSFUL call carrying the errors', async () => {
@@ -103,7 +104,27 @@ describe('validate_song', () => {
   it('canonical files route through validateSongFile', async () => {
     const canonical = expandAuthorSong(AUTHOR);
     if (!canonical.ok) throw new Error('fixture invalid');
-    expect(jsonOf(await tool('validate_song').handler({ song: canonical.file as never }))).toEqual({ ok: true, errors: [] });
+    expect(jsonOf(await tool('validate_song').handler({ song: canonical.file as never })))
+      .toEqual({ ok: true, errors: [], warnings: [] });
+  });
+
+  // untrusted-input.md REQ-12. This is the tool that exists to close the
+  // authoring loop, and before this a typo'd automation target came back
+  // `{ok:true, errors:[]}` — then silently never moved anything at play time.
+  it('reports an unresolvable automation target as a warning, not an error', async () => {
+    const res = await tool('validate_song').handler({
+      song: {
+        ...AUTHOR,
+        xy: { x: 'filter.cuttoff', y: 'filter.resonance' },
+        motionTracks: [[{ param: 'not.a.param', steps: [{ step: 0, v: 0.5 }] }, null]],
+      },
+    });
+    const out = jsonOf(res);
+    expect(out.ok).toBe(true);
+    expect(out.errors).toEqual([]);
+    expect(out.warnings).toHaveLength(2);
+    expect(out.warnings.join('\n')).toContain('filter.cuttoff');
+    expect(out.warnings.join('\n')).toContain('not.a.param');
   });
 });
 

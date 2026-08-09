@@ -1,5 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { gotoAndStart, busGet } from './helpers';
+// `song-version.ts` is deliberately import-free (see its header), so a spec can
+// read the constant without dragging the app in. Asserting the literal instead
+// is what made this spec fail on the v7 bump while testing nothing about v6.
+import { SONG_VERSION } from '../src/state/song-version';
 
 /**
  * Motion sequencer (specs/features/motion-sequencer.md): anchor input on the
@@ -286,7 +290,7 @@ test('motion state survives a save → new → load round-trip', async ({ page }
   // The stored file is the current version and carries the motion fields.
   const stored = await page.evaluate(() => localStorage.getItem('websynth.song.e2e-motion'));
   const parsed = JSON.parse(stored!) as { version: number; motionBanks: unknown[] };
-  expect(parsed.version).toBe(6);
+  expect(parsed.version).toBe(SONG_VERSION);
   expect(parsed.motionBanks).toHaveLength(4);
 });
 

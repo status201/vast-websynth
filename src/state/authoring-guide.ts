@@ -23,6 +23,7 @@ import { DRUM_TRACK_LABELS } from './params';
 import { isPatchParam } from './preset-session';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-validate';
 import { SONG_VERSION } from './song-version';
+import { MAX_CHAIN_TRANSPOSE } from './limits';
 import {
   SEQ_LENGTH,
   SEQ_TRACK_COUNT,
@@ -111,6 +112,8 @@ COMPACT AUTHOR FORMAT (recommended output)
   "drums": [ HitBank, … up to ${BANK_COUNT} ],      // drum banks
   "sampler": [ HitBank, … up to ${BANK_COUNT} ],    // OPTIONAL — sampler banks (slots play user-loaded audio files)
   "seqChain": Chain,                   // OPTIONAL — bar-by-bar bank order (omitted = just play bank A)
+                                       //   letters may carry a transpose: "A A+5 A+7 A+3" (see TRANSPOSE)
+  "seqTranspose": [0, 5, 7, 3],        // OPTIONAL — the same offsets for the non-string chain forms
   "drumChain": Chain,
   "samplerChain": Chain,
   "sampleNames": ["kick.wav", …],      // OPTIONAL — display names per sampler slot (max ${SAMPLER_SLOT_COUNT}; audio is NEVER embedded)
@@ -122,13 +125,16 @@ COMPACT AUTHOR FORMAT (recommended output)
 
 SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), any of these forms:
 - Positional array of up to ${SEQ_LENGTH} entries, one per step; short arrays are rest-padded.
-- { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}] } — simultaneous tracks, for chords and
-  counter-lines. The first is track 1; tracks 2-4 sound only in POLY voicing
-  ("voicing.mode": 1), so set that when you use them.
+- { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? }
+  — simultaneous tracks, for chords and counter-lines. The first is track 1;
+  tracks 2-4 sound only in POLY voicing ("voicing.mode": 1), so set that when you
+  use them. Settings next to "tracks" apply to EVERY track, so a chord bank sets
+  its gate once: { "tracks": [["C3"],["E3"],["G3"]], "gate": 0.9 }.
   Entry = null (rest) | MIDI number 0-127 | note name "A2"/"C#4"/"Db3" (C4 = 60)
         | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool }
 - Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? } —
   the bank-level settings apply to every sounded step (a per-entry object still overrides them).
+Settings cascade bank -> track -> step; the nearest one wins.
 Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false.
 
 HitBank — one bar of triggers: an object mapping a track to its hits.
@@ -144,6 +150,16 @@ MotionBank — one bar of XY param automation: anchors the synth moves through w
   "motion.slide" chooses the XY lane's curve: 1 (default) ramps linearly between anchors (sweeps),
   0 jumps at each anchor and holds (param-lock stabs). A bank with no anchors automates nothing —
   e.g. a one-bar min→max→min cutoff sweep is [ {"step":0,"y":0,"x":0.5}, {"step":8,"y":1,"x":0.5}, {"step":15,"y":0,"x":0.5} ].
+
+TRANSPOSE — a "seqChain" bank letter may carry "+n"/"-n" semitones (max ${MAX_CHAIN_TRANSPOSE}):
+  "seqChain": "A A+5 A+7 A+3"  — one bank, four bars, a whole chord progression.
+  This is the biggest lever in the format: there are only 4 banks of 16 steps, so
+  without it a four-chord progression spends every bank and leaves nothing for a
+  variation. Write ONE good bar and transpose it; save the other banks for a
+  different part. It shifts the note the sequencer plays (clamped to 0-127), never
+  the stored bank. Only "seqChain" is pitched — drums/sampler/motion chains reject
+  a suffix, and so does a rest (".+5"). The array/object chain forms take a
+  parallel "seqTranspose": [0,5,7,3] instead.
 
 Chain — the song structure, one bank per bar, looped:
 - a string of bank letters where "." or "-" is a silent bar: "AABA", "AAAB AAAC" (spaces ignored), or
@@ -171,6 +187,14 @@ NOTES
 - Each drum track's VOICE is swappable via "drum.t{i}.model" (see its value map in PARAMS): models 8-12
   (Conga/Bongo/Cowbell/Clave/Shaker) turn tracks into a percussion section — great for latin/afro grooves.
   The track keys (kick/snare/chat/...) still address the same slots whatever voice is selected.
+- A song is a STAGE SETUP for a player, not only a description of what sounds by itself. It is correct
+  and often deliberate to set a param that makes no sound on playback: "arp.on": 1 arms the arpeggiator
+  for whoever holds a key over the running song (the arp follows the keyboard/MIDI, never the sequencer),
+  and an effect left bypassed or at "mix": 0 is staged for the XY pad or a motion lane to open up. Do not
+  "fix" these by removing them; say in your reply what you armed and how to play it.
+- An automation target — "xy", a per-bank "assign", or a "motionTracks" param — must name a REAL param id
+  from PARAMS below. An id that does not exist is not an error, but nothing will move: validate_song
+  reports it as a warning, so check those before you call a song done.
 
 PARAMS (id, range, default, discrete value map)
 ${params}

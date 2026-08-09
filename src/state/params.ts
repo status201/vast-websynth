@@ -469,6 +469,31 @@ export function registerDefaults(bus: ParamBus): void {
   ]);
 }
 
+/** Memoized by {@link paramIds} — the id set never changes within a process. */
+let paramIdCache: ReadonlySet<ParamId> | null = null;
+
+/**
+ * Every parameter id `registerDefaults` registers.
+ *
+ * For validators that must tell a real automation target from a typo
+ * (`untrusted-input.md` REQ-12) without standing up an Engine or reaching for
+ * the live bus — `song-validate.ts` runs in Node inside the MCP server and in
+ * tests, where no Engine exists.
+ *
+ * Built **lazily**, not at module init: the validator sits on the boot path via
+ * the share-link and session-restore routes, and `runtime-performance.md` REQ-1
+ * counts work done before first paint. A song with no automation targets never
+ * pays for this at all.
+ */
+export function paramIds(): ReadonlySet<ParamId> {
+  if (!paramIdCache) {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    paramIdCache = new Set(bus.ids());
+  }
+  return paramIdCache;
+}
+
 function samplerTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
   for (let i = 0; i < 8; i++) {

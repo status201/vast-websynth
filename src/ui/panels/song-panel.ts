@@ -23,7 +23,10 @@ import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../compo
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
-import { BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot } from '../../state/patterns';
+import { unresolvedTargets } from '../../state/song-validate';
+import {
+  BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot, clampTranspose,
+} from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import { createChainToggle } from '../components/chain-toggle';
 import switchStyles from '../styles/switch.module.css';
@@ -162,7 +165,20 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const applySongWithUndo = (file: SongFile, verb = 'Loaded'): void => {
     const stash = stashCurrent();
     applySong(file);
-    showUndoToast(`${verb} "${file.name}"`, stash);
+    // untrusted-input.md REQ-12. Asked here rather than threaded from each
+    // importer because every route in — file, paste, share link, zip, demo —
+    // funnels through this one call, so one question covers all of them.
+    //
+    // Folded into the undo toast rather than raised as its own: the toast host
+    // is single-slot, so a second toast would replace this one and take the Undo
+    // affordance with it. And never a dialog — the song loaded fine, and
+    // interrupting a good import to report a lane that will not sweep is the
+    // guard-crying-wolf failure REQ-9 warns about.
+    const dead = unresolvedTargets(file);
+    const note = dead.length > 0
+      ? ` — ${dead.length} automation target${dead.length > 1 ? 's' : ''} not recognised`
+      : '';
+    showUndoToast(`${verb} "${file.name}"${note}`, stash);
   };
 
   // ---- Chain lanes (each with DJ mute / solo / volume) ----
@@ -170,7 +186,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const laneEls: Record<LaneId, HTMLElement> = {
     seq: buildChainLane(
       'Sequencer', 'seq', bus, engine.arrangement.seq,
-      (s, en) => engine.arrangement.setSeqChain(s, en),
+      (s, en, tr) => engine.arrangement.setSeqChain(s, en, tr),
       () => engine.arrangement.seqChainPos, engine, bridge),
     drum: buildChainLane(
       'Drums', 'drum', bus, engine.arrangement.drum,
@@ -765,7 +781,7 @@ function buildChainLane(
   prefix: LaneId | 'motion',
   bus: ParamBus,
   lane: ChainLane,
-  setChain: (steps: number[], enabled: boolean) => void,
+  setChain: (steps: number[], enabled: boolean, transpose?: number[]) => void,
   getPos: () => number,
   engine: StudioApi,
   bridge: UiBridge,
@@ -773,6 +789,22 @@ function buildChainLane(
 ): HTMLElement {
   const root = el('div', styles.lane!);
   root.dataset.testid = `song-lane-${prefix}`;
+
+  // Only the seq lane is pitched, so only it gets the transpose gestures at all
+  // — an absent control, not a disabled one (arrangement.md REQ-8: drums and the
+  // sampler are unpitched, motion carries parameters).
+  const pitched = prefix === 'seq';
+  /** Write one slot's semitone offset, clamped, and re-render. */
+  const setSlotTranspose = (idx: number, semis: number): void => {
+    if (!pitched || idx < 0 || idx >= lane.steps.length) return;
+    if (lane.steps[idx] === REST) return; // nothing to shift (REQ-8)
+    const next = [...lane.transpose];
+    next[idx] = clampTranspose(semis);
+    if (next[idx] === lane.transpose[idx]) return;
+    setChain([...lane.steps], lane.enabled, next);
+  };
+  const nudgeSlot = (idx: number, delta: number): void =>
+    setSlotTranspose(idx, (lane.transpose[idx] ?? 0) + delta);
 
   const head = el('div', styles.head!);
 
@@ -851,15 +883,43 @@ function buildChainLane(
     b.addEventListener('click', fn);
     return b;
   };
-  controls.appendChild(mk('◀', () => {
-    if (sel > 0) { const s = [...lane.steps]; [s[sel - 1], s[sel]] = [s[sel]!, s[sel - 1]!]; sel--; setChain(s, lane.enabled); }
-  }));
-  controls.appendChild(mk('▶', () => {
-    if (sel >= 0 && sel < lane.steps.length - 1) { const s = [...lane.steps]; [s[sel + 1], s[sel]] = [s[sel]!, s[sel + 1]!]; sel++; setChain(s, lane.enabled); }
-  }));
+  /** Swap the selected slot with its neighbour. The transpose swaps **with** it:
+   *  the offset belongs to the slot, not to the position in the chain. */
+  const moveSel = (to: number) => {
+    if (sel < 0 || to < 0 || to >= lane.steps.length) return;
+    const s = [...lane.steps];
+    const t = [...lane.transpose];
+    [s[to], s[sel]] = [s[sel]!, s[to]!];
+    [t[to], t[sel]] = [t[sel]!, t[to]!];
+    sel = to;
+    setChain(s, lane.enabled, t);
+  };
+  controls.appendChild(mk('◀', () => { moveSel(sel - 1); }));
+  controls.appendChild(mk('▶', () => { moveSel(sel + 1); }));
   controls.appendChild(mk('✕', () => {
-    if (sel >= 0) { const s = [...lane.steps]; s.splice(sel, 1); sel = -1; setChain(s, lane.enabled); }
+    if (sel >= 0) {
+      const s = [...lane.steps];
+      const t = [...lane.transpose];
+      s.splice(sel, 1);
+      t.splice(sel, 1);   // the offset belongs to the slot, so it goes with it
+      sel = -1;
+      setChain(s, lane.enabled, t);
+    }
   }));
+  // Transpose the selected slot. Wheel is the fast path on a desktop, but this
+  // app installs as a mobile PWA, so the gesture needs a touch-reachable twin
+  // (arrangement.md gesture inventory).
+  if (pitched) {
+    const minus = mk('−', () => { if (sel >= 0) nudgeSlot(sel, -1); });
+    minus.dataset.testid = 'chain-transpose-down-seq';
+    minus.title = 'Transpose the selected bar down a semitone';
+    minus.setAttribute('aria-label', 'Transpose the selected bar down a semitone');
+    const plus = mk('+', () => { if (sel >= 0) nudgeSlot(sel, 1); });
+    plus.dataset.testid = 'chain-transpose-up-seq';
+    plus.title = 'Transpose the selected bar up a semitone';
+    plus.setAttribute('aria-label', 'Transpose the selected bar up a semitone');
+    controls.append(minus, plus);
+  }
   const clearBtn = mk('Clear', async () => {
     // Nothing to lose if the chain is already a single step — reset silently.
     if (lane.steps.length > 1) {
@@ -906,16 +966,40 @@ function buildChainLane(
         c.title = 'Rest (empty bar)';
         c.innerHTML = restIcon();
       } else {
-        c.textContent = BANK_LABELS[b] ?? '?';
+        // The offset is ON the chip, never hidden behind a selection — a slot
+        // that plays a different pitch has to look different (ADR-014).
+        const semis = lane.transpose[idx] ?? 0;
+        const label = BANK_LABELS[b] ?? '?';
+        c.textContent = semis === 0 ? label : `${label}${semis > 0 ? '+' : ''}${semis}`;
+        if (semis !== 0) {
+          c.dataset.transposed = 'true';
+          c.title = `Bank ${label}, ${semis > 0 ? 'up' : 'down'} ${Math.abs(semis)} semitone${Math.abs(semis) === 1 ? '' : 's'}`;
+        }
       }
       c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; renderPlayState(); });
+      if (pitched && !isRest) {
+        // Wheel = ±1 semitone. `passive: false` because the gesture is the
+        // transpose, not a scroll — without preventDefault the Song panel
+        // scrolls out from under the chip you are editing.
+        c.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          nudgeSlot(idx, e.deltaY < 0 ? 1 : -1);
+        }, { passive: false });
+        // Double-click resets to +0, matching the knob double-tap idiom.
+        c.addEventListener('dblclick', () => { setSlotTranspose(idx, 0); });
+      }
       chips.appendChild(c);
       return c;
     });
   };
 
   const render = () => {
-    const key = lane.steps.join(',');
+    // The transpose is part of a chip's *label*, so it belongs in the key that
+    // decides whether the DOM is rebuilt — otherwise nudging a slot changes the
+    // lane but not what you see (renderPlayState only touches classes).
+    const key = pitched
+      ? lane.steps.join(',') + '|' + lane.transpose.join(',')
+      : lane.steps.join(',');
     if (key !== lastKey) { lastKey = key; renderStructure(); }
     renderPlayState();
   };

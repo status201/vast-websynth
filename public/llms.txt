@@ -20,12 +20,12 @@ Two JSON formats are accepted on import:
   structure is a chain string like "AABA". Input-only: the app expands it to
   the canonical format on import.
   Schema: /schema/websynth-song-author.schema.json
-- `websynth-song` (v6) — the canonical full format the app exports. Requires
+- `websynth-song` (v7) — the canonical full format the app exports. Requires
   literal grids: seqBanks[4][16], drumBanks[4][8][16], optional
   samplerBanks[4][8][16] and motionBanks[4][16] (XY param automation).
-  Older versions still load: every addition is optional. v6 adds seqTracks
-  (note-sequencer tracks 2-4) and v5 motionTracks (motion's two extra
-  single-parameter tracks).
+  Older versions still load: every addition is optional. v7 adds seqTranspose
+  (a semitone offset per seqChain slot), v6 seqTracks (note-sequencer tracks
+  2-4) and v5 motionTracks (motion's two extra single-parameter tracks).
   Schema: /schema/websynth-song.schema.json
 
 Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note steps per bar;
@@ -37,7 +37,11 @@ index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
 The motion sequencer (dialect key `motion`) steps/interpolates the XY Pad's two
 assigned params through per-step anchors {step, x, y} in normalized 0..1, plus
 two optional single-parameter tracks per bank (motionTracks) that each name
-their own parameter id and carry 16 levels.
+their own parameter id and carry 16 levels. A seqChain slot may also carry a
+transpose in semitones (-24..24) — `seqTranspose[]` in the canonical format,
+or an `A+5` suffix in the dialect's chain string — so one bank can play a
+whole chord progression. It shifts the note the sequencer triggers, never the
+stored bank, and only the seq lane has it.
 
 ## Preset formats
 
@@ -88,15 +92,16 @@ MCP server (`get_params` for the JSON catalogue, `get_song_format` /
 | `websynth-preset-bank` | 1 | /schema/websynth-preset-bank.schema.json | the app + agents |
 
 Song versioning is ADDITIVE: every bump only adds optional fields, so all
-versions 1..6 still load and there is no migration step. Each version added:
+versions 1..7 still load and there is no migration step. Each version added:
 
 - v2 — the sampler fields
 - v3 — the XY Pad axis assignment
 - v4 — the motion sequencer (XY anchors)
 - v5 — `motionTracks` (motion's two extra single-parameter tracks)
 - v6 — `seqTracks` (note-sequencer tracks 2-4)
+- v7 — `seqTranspose` (a semitone offset per `seqChain` slot)
 
-So a v1 file lacks all of the above; a v5 file lacks only `seqTracks`. Versions
+So a v1 file lacks all of the above; a v6 file lacks only `seqTranspose`. Versions
 beyond those a build knows are rejected. The authoring dialect expands to the
 LOWEST canonical version that holds its content, not always 6.
 

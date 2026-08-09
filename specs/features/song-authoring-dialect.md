@@ -3,7 +3,10 @@
 ```yaml
 id: song-authoring-dialect
 status: implemented
-version: 3   # v3: the emitted canonical version is the LOWEST that holds the content
+version: 5   # v5: a seqChain letter may carry a +n/-n transpose suffix (REQ-15)
+             # v4: bank-level step settings cascade into `tracks` instead of being
+             #     refused next to it (REQ-13b)
+             # v3: the emitted canonical version is the LOWEST that holds the content
              #     (REQ-12), plus the two dialect forms that were shipped but never
              #     specified — multi-track seq banks (REQ-13) and motionTracks (REQ-14)
 owner: state
@@ -72,6 +75,23 @@ exported — see ADR-013.
   array** (−1..3, −1 = rest), or the full `{enabled, steps}` object. String/array
   shorthands imply `enabled: true`; an omitted chain expands to
   `{enabled: false, steps: [0]}`.
+- **REQ-15** — **A `seqChain` letter may carry a transpose suffix** (v5):
+  `"A A+5 A+7 A+3"` — an optional `+n` / `-n` of up to `MAX_CHAIN_TRANSPOSE` (24)
+  semitones after a bank letter, expanding to the canonical `seqTranspose` array
+  ([song-mode](song-mode.md) REQ-16). This is the dialect's headline win from
+  [arrangement](arrangement.md) REQ-8: a four-chord progression that used to need
+  all four banks is now one bank and one chain string.
+    - The suffix is **`seqChain`-only** — `drumChain`/`samplerChain`/`motionChain`
+      reject it with a message saying so, rather than parsing it and dropping it,
+      which is the silent-loss failure Stage 1 spent its effort removing.
+    - A suffix on a **rest** (`.+5`) is an error: there is no note to shift, and
+      accepting it would imply the rest does something.
+    - Whitespace stays insignificant, so `"A+5A+7"` and `"A+5 A+7"` are the same
+      chain. This is why the parser must scan tokens rather than characters —
+      `+` and the digits belong to the letter before them.
+    - The explicit array/object forms take a **parallel `seqTranspose`** key
+      instead; mixing a suffix into a non-string chain is not a thing, because
+      those forms carry numbers, not letters.
 - **REQ-7** — Sampler fields (`samplerBanks`/`samplerChain`/`sampleNames`) are
   emitted in the canonical file **only when** the author provided sampler
   content (`sampler`, `samplerChain`, or `sampleNames`). `sampleNames` (≤8
@@ -112,11 +132,20 @@ exported — see ADR-013.
   tracks** as `{tracks: [entryList, entryList, …]}` — chords and counter-lines.
   Each list is a REQ-4 bank in its own right (positional or bank-defaults form).
   The **plain** (non-`tracks`) form is unchanged and lands on **track 1**, so
-  every pre-existing dialect song expands byte-identically. A `tracks` key may
-  not be combined with the bank-defaults settings keys (put them inside each
-  track) and more than 4 tracks is an authoring error. Tracks 2-4 sound only in
-  poly voicing ([sequencer](sequencer.md) REQ-8); a bank using them lifts the
-  emitted version to 6 (REQ-12), where they land in `seqTracks`.
+  every pre-existing dialect song expands byte-identically. More than 4 tracks is
+  an authoring error. Tracks 2-4 sound only in poly voicing
+  ([sequencer](sequencer.md) REQ-8); a bank using them lifts the emitted version
+  to 6 (REQ-12), where they land in `seqTracks`.
+- **REQ-13b** — **Bank-level settings cascade into `tracks` (v4).** `velocity`,
+  `gate`, `prob`, `ratchet` and `tie` may sit alongside `tracks` and apply to
+  every track that does not set its own. Precedence is the same three-tier rule
+  REQ-4 already states, extended by one level: **bank → track → step**, nearest
+  wins. Previously these keys were a hard error next to `tracks`
+  (`seq[0].gate cannot be combined with tracks`), which meant the shorthand
+  vanished exactly where a song gets musical — a three-note chord bank had to
+  repeat `"gate": 0.42` three times. The verbosity was landing on the case the
+  `tracks` form exists to serve. Unknown keys are still an error, and a track's
+  own bank-defaults form still overrides, so no existing song changes.
 - **REQ-14** — **`motionTracks` is a top-level author key**: 0..4 banks × 0..2
   (`MOTION_TRACK_COUNT`) extra single-param automation tracks, each
   `{param: "<ParamBus id>", steps: [{step: 0..15, v: 0..1}, …]}` or `null`.

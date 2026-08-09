@@ -409,4 +409,71 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
       expect([arr.motionPrevResting, arr.motionNextResting]).toEqual([false, false]);
     });
   });
+  // arrangement.md REQ-8. `transpose` is a SECOND array kept parallel to `steps`,
+  // which is only safe while nothing can desynchronize the two — so every write
+  // goes through `fitTranspose` rather than trusting its caller.
+  describe('per-slot transpose (REQ-8)', () => {
+    const arr = () => new Arrangement(new PatternStore(), new TestClock());
+
+    it('exposes the current slot’s offset while the chain runs', () => {
+      const clock = new TestClock();
+      const a = new Arrangement(new PatternStore(), clock);
+      a.setSeqChain([0, 0, 0], true, [0, 5, 7]);
+      clock.fireStart();
+      playBar(clock, 0);           // bar 0 consumes expectFirstBar (REQ-4)
+      expect(a.seqTranspose).toBe(0);
+      playBar(clock, 1);
+      expect(a.seqTranspose).toBe(5);
+      playBar(clock, 2);
+      expect(a.seqTranspose).toBe(7);
+      playBar(clock, 3);           // wraps back to slot 0
+      expect(a.seqTranspose).toBe(0);
+    });
+
+    it('reports 0 while the lane is disabled or resting', () => {
+      const clock = new TestClock();
+      const a = new Arrangement(new PatternStore(), clock);
+      a.setSeqChain([0], false, [7]);   // disabled = live editing, not an arrangement
+      clock.fireStart();
+      expect(a.seqTranspose).toBe(0);
+
+      a.setSeqChain([REST, 0], true, [7, 5]);
+      clock.fireStart();
+      playBar(clock, 0);
+      expect(a.seqTranspose).toBe(0);   // a rest bar has no note to shift
+      playBar(clock, 1);
+      expect(a.seqTranspose).toBe(5);
+    });
+
+    it('pads a shorter transpose with 0 and truncates a longer one', () => {
+      const a = arr();
+      a.setSeqChain([0, 1, 2, 3], true, [5]);
+      expect(a.seq.transpose).toEqual([5, 0, 0, 0]);
+      a.setSeqChain([0, 1], true, [1, 2, 3, 4]);
+      expect(a.seq.transpose).toEqual([1, 2]);
+    });
+
+    it('keeps transpose the same length as steps through the UI’s edits', () => {
+      const a = arr();
+      a.setSeqChain([0, 0, 0, 0], true, [0, 5, 7, 3]);
+      // The chip buttons all rebuild `steps` and pass no transpose (they are not
+      // about pitch); the lane must keep its own, resized.
+      a.setSeqChain([...a.seq.steps, 1], a.seq.enabled);
+      expect(a.seq.transpose).toEqual([0, 5, 7, 3, 0]); // a new slot is a no-op
+      a.setSeqChain(a.seq.steps.slice(0, 2), a.seq.enabled);
+      expect(a.seq.transpose).toEqual([0, 5]);
+    });
+
+    it('clamps an out-of-range or non-finite offset', () => {
+      const a = arr();
+      a.setSeqChain([0, 0, 0], true, [999, -999, NaN]);
+      expect(a.seq.transpose).toEqual([24, -24, 0]);
+    });
+
+    it('defaults every slot to 0 when no transpose is given', () => {
+      const a = arr();
+      a.setSeqChain([0, 1, 2], true);
+      expect(a.seq.transpose).toEqual([0, 0, 0]);
+    });
+  });
 });

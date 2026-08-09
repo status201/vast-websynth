@@ -185,8 +185,11 @@ export function makeTools(core, opts = {}) {
     {
       name: 'validate_song',
       description:
-        'Validate a song (author dialect or canonical format). Returns {ok, errors[]}. ' +
-        'A failed validation is a normal result: read the errors, fix the song, validate again.',
+        'Validate a song (author dialect or canonical format). Returns {ok, errors[], warnings[]}. ' +
+        'A failed validation is a normal result: read the errors, fix the song, validate again. ' +
+        'Warnings do not fail the song but say what will not work: an automation target ' +
+        '(xy, motionAssigns, motionTracks) naming a parameter that does not exist is a lane ' +
+        'that will never move. Fix those too unless you meant a parameter this build lacks.',
       inputSchema: {
         type: 'object',
         properties: { song: SONG_ARG },
@@ -195,7 +198,12 @@ export function makeTools(core, opts = {}) {
       },
       handler: async ({ song }) => {
         const res = resolveSong(core, song);
-        return json(res.ok ? { ok: true, errors: [] } : { ok: false, errors: res.errors });
+        // untrusted-input.md REQ-12: warnings ride the success branch. They are
+        // the whole point of this tool for an agent — a misspelled motion target
+        // is otherwise accepted here and then silently dropped at play time.
+        return json(res.ok
+          ? { ok: true, errors: [], warnings: res.warnings ?? [] }
+          : { ok: false, errors: res.errors });
       },
     },
     {
@@ -205,7 +213,8 @@ export function makeTools(core, opts = {}) {
       description:
         'Expand a compact "websynth-song-author" song into the canonical "websynth-song" ' +
         'JSON the app exports (also accepts an already-canonical song and returns its compact ' +
-        'form). Returns the JSON, or {ok:false, errors[]} to fix.',
+        'form). Returns the JSON, or {ok:false, errors[]} to fix. This returns the song text ' +
+        'only — call validate_song for warnings about targets that will not resolve.',
       inputSchema: {
         type: 'object',
         properties: { song: SONG_ARG },
@@ -243,7 +252,10 @@ export function makeTools(core, opts = {}) {
         mkdirSync(target, { recursive: true });
         const path = resolve(target, safeName(res.file.name));
         writeFileSync(path, compactJson(res.file));
-        return json({ ok: true, path, name: res.file.name });
+        // A write is a commitment, so REQ-12's warnings are worth repeating here
+        // rather than making the agent call validate_song separately to learn
+        // that the song it just saved has an automation lane that cannot move.
+        return json({ ok: true, path, name: res.file.name, warnings: res.warnings ?? [] });
       },
     },
     {

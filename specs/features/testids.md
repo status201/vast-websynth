@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 5  # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
+version: 6  # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
+            # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
             #     by a test, never spelled — see REQ-8
             # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
             #     was always emitted but never catalogued
@@ -170,6 +171,9 @@ song panel — lanes, chains & live FX:
   song-lane-title-<lane>             # opens that machine's tab (features/machine-status.md)
   song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
+  chain-transpose-<up|down>-seq                     # SEQ ONLY — the other lanes are
+                                                    #   unpitched, so the control is
+                                                    #   absent, not disabled (REQ-8)
   perf-fill · perf-stutter · perf-stutter-size-<n> · perf-drop · perf-tapestop
   livefx-open · livefx-window + the same five under the `livefx` prefix
                                                     # features/live-fx-window.md

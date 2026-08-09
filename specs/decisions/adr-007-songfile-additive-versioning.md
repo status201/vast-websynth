@@ -75,3 +75,13 @@ new files degrade gracefully. The procedure is captured in
 > class of drift the trade-off below warns about: the contract holds in code, but
 > the *record* of it has to be maintained deliberately. The mechanical parts are
 > now pinned by `tests/state/authoring-docs.test.ts`; this narrative is not.
+
+> **Follow-up (2026-08-09):** **v7** — the optional `seqTranspose`, one semitone
+> offset per `seqChain` slot ([`features/arrangement`](../features/arrangement.md)
+> REQ-8). Additive in the strictest form the contract allows: it is a **sibling**
+> of `seqChain` rather than a field inside `ChainData`, so `steps` keeps its exact
+> meaning and no existing reader changes; and it is **omitted entirely when every
+> offset is 0**, the same trick v6's `seqTracks` used, so a song that does not
+> transpose still serializes byte-for-byte as it did before v7 and still declares
+> the lowest version that holds it. v1–v6 files load with every slot at 0 and
+> sound identical. The decision is unchanged.

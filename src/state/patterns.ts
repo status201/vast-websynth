@@ -1,4 +1,5 @@
 import { assertIndex } from '../utils/array';
+import { MAX_CHAIN_TRANSPOSE } from './limits';
 
 /**
  * Non-scalar state — step grids for the sequencer and drum machine.
@@ -177,6 +178,20 @@ function clampBank(i: number): number {
  */
 export function clampChainStep(i: number): number {
   return i === REST ? REST : clampBank(i);
+}
+
+/**
+ * Clamp an arrangement-chain slot's transpose to a whole number of semitones
+ * within `±MAX_CHAIN_TRANSPOSE` (arrangement.md REQ-8).
+ *
+ * `Math.round` before the clamp, and a non-finite input floored to 0: the
+ * app-wide `Math.max(min, Math.min(max, v))` idiom returns `NaN` for `NaN`
+ * (untrusted-input.md REQ-6), and a `NaN` here would reach the oscillator as a
+ * note offset.
+ */
+export function clampTranspose(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-MAX_CHAIN_TRANSPOSE, Math.min(MAX_CHAIN_TRANSPOSE, Math.round(n)));
 }
 
 /** One track's 16 steps. The default note ladder is the pre-v3 seeding. */

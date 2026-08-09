@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { gotoAndStart, busSet } from './helpers';
+// Import-free by design, so a spec can read it without pulling in the app —
+// see the header of src/state/song-version.ts.
+import { SONG_VERSION } from '../src/state/song-version';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const seqOn = (page: import('@playwright/test').Page, i: number): Promise<boolean> =>
@@ -387,7 +390,7 @@ test.describe('sequencer tracks', () => {
     const stored = await page.evaluate(() =>
       localStorage.getItem('websynth.song.e2e-seqtracks'));
     const parsed = JSON.parse(stored!) as { version: number; seqTracks: unknown[][] };
-    expect(parsed.version).toBe(6);
+    expect(parsed.version).toBe(SONG_VERSION);
     expect(parsed.seqTracks[0]![0]).toBeNull();
 
     await page.getByTestId('song-new').click();

@@ -14,16 +14,12 @@ import { Song } from '../../src/state/song';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
-
-function fakeArr() {
-  const lane = { enabled: false, steps: [0] as number[] };
-  return { seq: { ...lane }, drum: { ...lane }, sampler: { ...lane }, motion: { ...lane } };
-}
+import { fakeArr } from '../fixtures/fake-arrangement';
 
 function songNamed(name: string): SongFile {
   const bus = new ParamBus();
   registerDefaults(bus);
-  return Song.capture(bus, new PatternStore(), fakeArr() as never, name);
+  return Song.capture(bus, new PatternStore(), fakeArr(), name);
 }
 
 /** The same song after an edit — a different cutoff is enough to change the bytes. */

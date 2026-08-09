@@ -3,7 +3,8 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 5   # v5: release held notes on a transport stop, too (REQ-15)
+version: 6   # v6: notes are shifted by the arrangement slot's transpose (REQ-16)
+             # v5: release held notes on a transport stop, too (REQ-15)
 owner: core
 related:
   - architecture
@@ -149,6 +150,22 @@ and tracks 2–4 start empty and silent.
   the tail off a song. It also fixes stop's silent partner — `Engine.panic()` calls
   `clock.stop()` first, so the stale `lastPlayedNote`/`prevTied` that used to
   survive a panic (and slur the first step after the next Play) is now cleared too.
+
+- **REQ-16** (v6) — **Every triggered note is shifted by the arrangement slot's
+  transpose.** `tickTrack` reads `arrangement.seqTranspose` once and adds it to
+  `s.note`, clamped to `MIDI_NOTE_MIN..MAX`
+  ([arrangement](arrangement.md) REQ-8/REQ-9). The shift applies to the note-on,
+  to the per-sub-hit `releaseNote` of a ratchet, and to what is reported to
+  `onNote` — so the keyboard highlight shows the pitch actually sounding.
+
+  **The tie across a bar line is the trap.** A held note's release goes through
+  `SeqTrackState.lastPlayedNote`, which stores the note that was *played*. Storing
+  the **transposed** note there is what makes the release correct for free: when a
+  step ties into a bar whose slot transposes differently, the ringing voice is
+  released at its own pitch instead of at a pitch that was never started — which
+  would leave a stuck voice. This is why the transpose is applied once at the top
+  of `tickTrack` and the local is used everywhere `s.note` was, rather than being
+  re-derived at each release site.
 
 ## Technical design
 

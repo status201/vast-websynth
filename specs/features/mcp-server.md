@@ -3,7 +3,8 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 5   # v5: REQ-5d — get_params; baseUrl defaults to the published site
+version: 6   # v6: REQ-13 — validate_song/save_song report REQ-12 warnings
+             # v5: REQ-5d — get_params; baseUrl defaults to the published site
              # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
              # v3: expand_song's description names no song version (it drifted to "v3")
              # v2: preset/bank authoring tools alongside the song ones
@@ -124,6 +125,18 @@ first run and imports that.
   Code (`node scripts/mcp/websynth-mcp.mjs`); the README documents wiring for
   other MCP clients. `scripts/mcp/dist/` is gitignored.
 
+- **REQ-13** — (v6) **A song that validates can still be wrong, and the agent is
+  told.** `validate_song` returns `{ok, errors[], warnings[]}` and `save_song`
+  adds `warnings[]` to its success payload, carrying
+  [untrusted-input](untrusted-input.md) REQ-12's unresolvable automation targets.
+  This closes the authoring loop's one silent hole: an `xy` or `motionTracks`
+  target naming a parameter that does not exist used to come back
+  `{ok:true, errors:[]}` and then move nothing at play time, which an agent has
+  no way to discover — it cannot hear the result. `expand_song` keeps returning
+  the song **text alone** (its output is parsed, so a wrapper object would be a
+  breaking change); its description points at `validate_song` for warnings.
+  Warnings never set `ok:false` — REQ-12 owns why.
+
 ## Technical design
 
 ### Contract / public interface
@@ -185,6 +198,13 @@ Scenario: A save cannot escape the working directory (v4)
   Given save_song (or save_preset) called with dir '../..' or an absolute path
   Then the call fails and no file or directory is created
   And dir 'sub/dir' still writes normally
+# pinned by: tests/mcp/tools.test.ts
+
+Scenario: A dead automation target comes back as a warning (v6, REQ-13)
+  Given a song whose xy.x is "filter.cuttoff" and whose motionTracks names "not.a.param"
+  When validate_song runs
+  Then ok is true and errors is empty
+  And warnings names both ids, so the agent can fix a lane it cannot hear
 # pinned by: tests/mcp/tools.test.ts
 
 Scenario: Unknown method

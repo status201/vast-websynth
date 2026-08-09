@@ -22,18 +22,64 @@
 import type { SongFile } from './song';
 import { KNOWN_SONG_VERSIONS } from './song-version';
 import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
+import { paramIds } from './params';
 import {
-  MAX_CHAIN_STEPS, MAX_PARAM_KEYS, MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
+  MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
+  MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
 } from './limits';
 
 export type SongValidation =
-  | { ok: true; file: SongFile }
+  | { ok: true; file: SongFile; warnings?: string[] }
   | { ok: false; errors: string[] };
 
 /** Cap reported errors so a wildly-malformed file can't produce thousands of lines. */
 const MAX_ERRORS = 50;
 
 type AddError = (msg: string) => void;
+
+/**
+ * Every automation target in a song that does not name a live parameter
+ * (untrusted-input.md REQ-12).
+ *
+ * `xy`, `motionAssigns` and `motionTracks[].param` are **pointers, not values**.
+ * `MotionMachine.write` does `const def = this.bus.def(id); if (!def) return;`,
+ * so an id this build does not register is a silent no-op and the lane it drives
+ * is dead — one typo (`filter.cuttoff`) used to cost a whole automation lane with
+ * no feedback at author time, at import, or anywhere in the UI.
+ *
+ * Advisory, never a refusal: rejecting would orphan a song authored on a newer
+ * build against a parameter added after this one shipped, which is exactly the
+ * failure [ADR-007] exists to prevent.
+ *
+ * Exported because both the validator (below) and the UI's apply path need the
+ * same answer, and a second traversal would be a second thing to keep in step.
+ * Shape is *not* checked here — a non-string id is the validator's error to
+ * report, and reporting it twice in two registers would be noise.
+ */
+export function unresolvedTargets(file: Pick<SongFile, 'xy' | 'motionAssigns' | 'motionTracks'>): string[] {
+  const known = paramIds();
+  const out: string[] = [];
+  const check = (path: string, id: unknown): void => {
+    if (typeof id !== 'string' || id.length === 0) return;
+    if (!known.has(id)) out.push(`${path}: unknown parameter "${id}" — that lane will not move`);
+  };
+
+  if (file.xy) {
+    check('xy.x', file.xy.x);
+    check('xy.y', file.xy.y);
+  }
+  file.motionAssigns?.forEach((a, i) => {
+    if (!a) return;
+    check(`motionAssigns[${i}].x`, a.x);
+    check(`motionAssigns[${i}].y`, a.y);
+  });
+  file.motionTracks?.forEach((bank, b) => {
+    bank?.forEach((t, i) => {
+      if (t) check(`motionTracks[${b}][${i}].param`, t.param);
+    });
+  });
+  return out;
+}
 type CellValidator = (path: string, value: unknown, add: AddError) => void;
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -258,6 +304,33 @@ function checkMotionTracks(v: unknown, add: AddError): void {
   });
 }
 
+/**
+ * v7 per-slot transpose — integers in ±MAX_CHAIN_TRANSPOSE, parallel to
+ * `seqChain.steps` (arrangement.md REQ-8).
+ *
+ * A length mismatch is **not** an error: `fitTranspose` pads and truncates on
+ * load, so a short or long array is well-defined rather than broken, and
+ * refusing it would reject a song a future build might legitimately write.
+ * It is bounded here because ADR-004 guarantees nothing below re-checks it, and
+ * an unbounded offset reaches `midiToHz` (untrusted-input.md REQ-2/REQ-4).
+ */
+function checkSeqTranspose(v: unknown, add: AddError): void {
+  if (!Array.isArray(v)) { add(`seqTranspose must be an array (got ${describe(v)})`); return; }
+  // Bounded by the chain limit for the same reason `steps` is: it is sized by
+  // the same payload and a million entries is a million entries.
+  if (v.length > MAX_CHAIN_STEPS) {
+    add(`seqTranspose has ${v.length} entries — the limit is ${MAX_CHAIN_STEPS}`);
+    return;
+  }
+  v.forEach((t: unknown, i) => {
+    const ok = typeof t === 'number' && Number.isInteger(t)
+      && t >= -MAX_CHAIN_TRANSPOSE && t <= MAX_CHAIN_TRANSPOSE;
+    if (!ok) {
+      add(`seqTranspose[${i}] must be an integer ${-MAX_CHAIN_TRANSPOSE}..${MAX_CHAIN_TRANSPOSE} semitones (got ${describe(t)})`);
+    }
+  });
+}
+
 /** v4 per-bank axis overrides — BANK_COUNT entries, each null or {x?, y?} of ids. */
 function checkMotionAssigns(v: unknown, add: AddError): void {
   if (!Array.isArray(v)) { add(`motionAssigns must be an array of ${BANK_COUNT} entries (got ${describe(v)})`); return; }
@@ -313,7 +386,16 @@ export function validateSongFile(value: unknown): SongValidation {
   if (o.motionTracks !== undefined) checkMotionTracks(o.motionTracks, add);
   // v6 (optional) — sequencer tracks 2-4 (index 0 is null: track 1 is seqBanks).
   if (o.seqTracks !== undefined) checkSeqTracks(o.seqTracks, add);
+  // v7 (optional) — per-slot transpose, parallel to seqChain.steps.
+  if (o.seqTranspose !== undefined) checkSeqTranspose(o.seqTranspose, add);
 
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, file: value as unknown as SongFile };
+
+  // REQ-12 — advisory, and only once the shape is known good, so the traversal
+  // can trust the fields it walks. `warnings` is omitted rather than empty when
+  // there is nothing to say, so a clean song's result stays deep-equal to its
+  // pre-REQ-12 shape and nothing downstream can start depending on the key.
+  const file = value as unknown as SongFile;
+  const warnings = unresolvedTargets(file);
+  return warnings.length > 0 ? { ok: true, file, warnings } : { ok: true, file };
 }

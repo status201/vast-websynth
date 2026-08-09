@@ -12,17 +12,9 @@ import { zipWrite, zipRead } from '../../src/utils/zip';
 import { Song, type SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
+import { fakeArr } from '../fixtures/fake-arrangement';
 
 /** Minimal Arrangement stand-in: only the surface Song.capture touches. */
-function fakeArr() {
-  return {
-    seq: { enabled: false, steps: [0] as number[] },
-    drum: { enabled: false, steps: [0] as number[] },
-    sampler: { enabled: false, steps: [0] as number[] },
-    motion: { enabled: false, steps: [0] as number[] },
-  };
-}
-
 /** A guaranteed-valid current-version file with optional sample names. */
 function captureValid(sampleNames: Record<number, string> = {}): SongFile {
   const bus = new ParamBus();
@@ -31,7 +23,7 @@ function captureValid(sampleNames: Record<number, string> = {}): SongFile {
   for (const [slot, name] of Object.entries(sampleNames)) {
     patterns.setSampleName(Number(slot), name);
   }
-  return Song.capture(bus, patterns, fakeArr() as never, 'Proj');
+  return Song.capture(bus, patterns, fakeArr(), 'Proj');
 }
 
 const bytesOf = (s: string) => new TextEncoder().encode(s);

@@ -3,7 +3,9 @@
 ```yaml
 id: effects
 status: implemented
-version: 4   # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-6/REQ-7)
+version: 5   # v5: REQ-8 — a bypassed / mix-0 effect in a song can be *staged* for
+             #     the player or a motion lane, and is not a defect to clean up
+             # v4: lazy+shared reverb IR bank, bucketed drive curves (REQ-6/REQ-7)
              # v3: true bypass — bypassed effects disconnect their processed path (ADR-012)
 owner: core
 related:
@@ -91,6 +93,17 @@ subsets, so a song can colour each bus independently.
   unchanged `shaper.curve` assignment with a `!==`. Each caller keeps its own
   cache and its own curve *shape*: only the drum's is anchored at a true
   identity, preserving `drive 0` as an exact no-op (ADR-006).
+
+- **REQ-8** — **A bypassed or `mix: 0` effect in a saved song may be deliberate**
+  (v5). A song is a *stage setup for a player*, not only a description of what
+  sounds by itself: an effect saved with `<fx>.on: 0`, or on with `mix: 0`, is
+  routinely **staged** — dialled in and waiting for the [XY pad](xy-pad.md), a
+  [motion](motion-sequencer.md) lane or the player's hand to open it up. The same
+  reading covers an armed `arp.on` ([arpeggiator](arpeggiator.md) REQ-7). So an
+  inert effect setting is **not** evidence of a mistake and must not be
+  "cleaned up" out of a demo, a preset or the authoring guide's advice. The
+  no-op-default rule (ADR-006) is what makes this safe: a staged effect that
+  nothing opens is silent, exactly as if it were absent.
 
 ## Technical design
 

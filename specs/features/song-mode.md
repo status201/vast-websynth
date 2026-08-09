@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 18  # v18: REQ-12 — loadDemo resolves an unknown name to the first demo
+version: 19  # v19: REQ-2/REQ-16 — SongFile v7 adds the optional per-slot
+             #      `seqTranspose`, so one bank can carry a progression
+             # v18: REQ-12 — loadDemo resolves an unknown name to the first demo
              #      instead of returning silently, so renaming or deleting a demo
              #      cannot leave a caller (the tour) staring at nothing
              # v17: REQ-15 — a demo whose name a saved slot shadows asks which of
@@ -73,13 +75,14 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 - **REQ-1** — A song captures the full bus snapshot + all seq/drum/sampler/motion
   banks + all four chain lanes into one `SongFile`.
-- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | 2 | 3 | 4 | 5 | 6`);
+- **REQ-2** — `SongFile` is a **versioned union** (`version: 1 | … | 7`);
   v2 adds optional sampler fields, v3 adds the optional [XY Pad](xy-pad.md) axis
   assignment (`xy`), v4 adds the optional
   [motion sequencer](motion-sequencer.md) fields
   (`motionBanks`/`motionAssigns`/`motionChain`), v5 the optional `motionTracks`
   (motion's two extra single-param tracks) and v6 the optional `seqTracks`
-  ([sequencer](sequencer.md) tracks 2–4). Older files (incl. built-in demos) must
+  ([sequencer](sequencer.md) tracks 2–4), and v7 the optional `seqTranspose`
+  (REQ-16). Older files (incl. built-in demos) must
   still load. The version `capture()` writes is the exported **`SONG_VERSION`**
   constant, not a literal — the published schema and `llms.txt` are pinned to it
   by `tests/state/authoring-docs.test.ts`, which is what stops the shipped docs
@@ -292,6 +295,22 @@ demos, the load path **must stay backward compatible** as the format grows.
       rule below is intact. A demo whose name nothing shadows loads on one click,
       exactly as before, and the [Undo toast](session-autosave.md) REQ-7 still
       covers the session either way.
+- **REQ-16 (SongFile v7 — per-slot transpose, v19)** — v7 adds one optional
+  top-level field, `seqTranspose: number[]`, the semitone offset of each
+  `seqChain` slot ([arrangement](arrangement.md) REQ-8).
+
+  It is a **sibling of `seqChain`, not a field inside it**, and that is the whole
+  design: `ChainData` keeps its exact `{enabled, steps}` shape, so `cloneChain`,
+  `checkChain`, `expandChain` and every existing reader are untouched, and a v1–v6
+  file round-trips through `compactSongForExport` **byte-identically** — which
+  `npm run check:demos` enforces across all 15 shipped demos.
+
+  Serialization follows the `seqTracks` precedent (REQ-2): the field is **omitted
+  entirely when every offset is 0**, so a song that does not transpose serializes
+  exactly as it did before v7 and `SONG_VERSION`'s floor logic
+  ([song-authoring-dialect](song-authoring-dialect.md) REQ-12) keeps emitting 6 or
+  lower for it. `apply()` defaults it to all-zeros, per REQ-3's
+  reset-then-restore contract, so a pre-v7 file plays exactly as written.
 
 ## Technical design
 
@@ -299,7 +318,7 @@ demos, the load path **must stay backward compatible** as the format grows.
 
 ```yaml
 Song:   # src/state/song.ts (a plain object of functions, not a class)
-  SONG_VERSION: 6                                   # the version capture() writes (exported, not a literal)
+  SONG_VERSION: 7                                   # the version capture() writes (exported, not a literal)
   capture(bus, patterns, arr, name, xy?): SongFile   # writes SONG_VERSION; xy included only when passed
   apply(file, bus, patterns, arr, xyStore?): void    # ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
@@ -369,7 +388,7 @@ ChainData:
 ### Versioning & backward-compat (the load-bearing detail)
 
 ```yaml
-capture: always writes SONG_VERSION (6)
+capture: always writes SONG_VERSION (7)
 fromJSON: version-agnostic — only checks format === 'websynth-song'
           AND presence of params + seqBanks + drumBanks  -> v1..v6 all parse
 apply (migration point):

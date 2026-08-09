@@ -28,7 +28,7 @@ import {
   makeMotionTrack,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
-import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH } from './limits';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE } from './limits';
 
 export const AUTHOR_FORMAT = 'websynth-song-author';
 
@@ -42,6 +42,7 @@ const ALLOWED_KEYS = new Set([
   'format', 'version', 'name', 'params',
   'seq', 'drums', 'sampler', 'motion',
   'seqChain', 'drumChain', 'samplerChain', 'motionChain', 'motionTracks',
+  'seqTranspose', // v7 — the explicit form of seqChain's "A+5" suffix (REQ-15)
   'sampleNames', 'xy',
   '$schema', // tolerated so schema-aware editors/agents can self-reference
 ]);
@@ -163,6 +164,15 @@ interface StepOverrides {
   tie?: boolean;
 }
 
+/** The per-step settings a bank, a track or a step may carry — the keys
+ *  {@link readOverrides} understands. One list, so the three "is that a bank
+ *  field?" checks below cannot drift apart. */
+const STEP_SETTING_KEYS = ['velocity', 'gate', 'prob', 'ratchet', 'tie'] as const;
+/** …plus the note list, for the `{notes: […], …}` bank-defaults form. */
+const SEQ_NOTES_BANK_KEYS: readonly string[] = ['notes', ...STEP_SETTING_KEYS];
+/** …plus the track list, for the `{tracks: […], …}` multi-track form (REQ-13b). */
+const SEQ_BANK_SETTING_KEYS: readonly string[] = ['tracks', ...STEP_SETTING_KEYS];
+
 /** Pull the optional velocity/gate/prob/ratchet/tie overrides off an object. */
 function readOverrides(path: string, o: Record<string, unknown>, add: AddError): StepOverrides {
   const out: StepOverrides = {};
@@ -221,10 +231,21 @@ function expandSeqEntry(
   return cell;
 }
 
-/** Expand one seq bank — positional array or the {notes, ...defaults} form. */
-function expandSeqBank(path: string, bank: unknown, add: AddError): SeqStep[] {
+/**
+ * Expand one seq bank — positional array or the {notes, ...defaults} form.
+ *
+ * `inherited` carries the settings a surrounding `{tracks: […]}` bank set for
+ * all of its tracks (REQ-13b). Precedence runs outward-in, nearest wins:
+ * bank → track → step.
+ */
+function expandSeqBank(
+  path: string,
+  bank: unknown,
+  add: AddError,
+  inherited: StepOverrides = {},
+): SeqStep[] {
   let entries: unknown[];
-  let bankDefaults: StepOverrides = {};
+  let bankDefaults: StepOverrides = inherited;
   if (Array.isArray(bank)) {
     entries = bank;
   } else if (isObject(bank)) {
@@ -233,12 +254,13 @@ function expandSeqBank(path: string, bank: unknown, add: AddError): SeqStep[] {
       return makeEmptySeqBank();
     }
     for (const k of Object.keys(bank)) {
-      if (!['notes', 'velocity', 'gate', 'prob', 'ratchet', 'tie'].includes(k)) {
-        add(`${path}.${k} is not a bank field (allowed: notes, velocity, gate, prob, ratchet, tie)`);
+      if (!SEQ_NOTES_BANK_KEYS.includes(k)) {
+        add(`${path}.${k} is not a bank field (allowed: ${SEQ_NOTES_BANK_KEYS.join(', ')})`);
       }
     }
     entries = bank.notes;
-    bankDefaults = readOverrides(path, bank, add);
+    // The track's own settings win over the ones it inherited from the bank.
+    bankDefaults = { ...inherited, ...readOverrides(path, bank, add) };
   } else {
     add(`${path} must be an array of steps or a {notes: [...]} object (got ${describe(bank)})`);
     return makeEmptySeqBank();
@@ -271,9 +293,16 @@ function expandSeqBankTracks(path: string, v: unknown, add: AddError): SeqStep[]
   // pre-existing bank-defaults form ({ notes, gate, velocity, … }), which stays
   // exactly as it was and lands on track 1.
   if (isObject(v) && !Array.isArray(v) && v.tracks !== undefined) {
+    // Bank-level step settings cascade into every track that does not set its
+    // own (REQ-13b). They used to be a hard error here, which cost the shorthand
+    // exactly where a song gets musical: a three-track chord bank had to repeat
+    // the same `gate` three times.
     for (const k of Object.keys(v)) {
-      if (k !== 'tracks') add(`${path}.${k} cannot be combined with tracks (put it inside each track)`);
+      if (!SEQ_BANK_SETTING_KEYS.includes(k)) {
+        add(`${path}.${k} is not a bank field (allowed: tracks, ${STEP_SETTING_KEYS.join(', ')})`);
+      }
     }
+    const inherited = readOverrides(path, v, add);
     const tracks = v.tracks;
     if (!Array.isArray(tracks)) {
       add(`${path}.tracks must be an array of up to ${SEQ_TRACK_COUNT} note lists (got ${describe(tracks)})`);
@@ -283,7 +312,7 @@ function expandSeqBankTracks(path: string, v: unknown, add: AddError): SeqStep[]
       add(`${path}.tracks has ${tracks.length} tracks — the sequencer has ${SEQ_TRACK_COUNT}`);
     }
     for (let t = 0; t < Math.min(tracks.length, SEQ_TRACK_COUNT); t++) {
-      bank[t] = expandSeqBank(`${path}.tracks[${t}]`, tracks[t], add);
+      bank[t] = expandSeqBank(`${path}.tracks[${t}]`, tracks[t], add, inherited);
     }
     return bank;
   }
@@ -561,7 +590,129 @@ function expandMotionBanks(
 const CHAIN_HELP =
   'a string of bank letters A..D ("." or "-" = rest), an array of bank indices (-1 = rest), or {enabled, steps}';
 
-function expandChain(path: string, v: unknown, add: AddError, depth = 0): ChainData {
+const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' && c <= '9';
+
+/**
+ * Scan a chain string into slots and their transposes
+ * (song-authoring-dialect.md REQ-15): `"A A+5 A+7 A+3"`.
+ *
+ * A **scanner**, not a per-character loop, because `+`/`-` and the digits after
+ * a letter belong to that letter — and whitespace stays insignificant, so
+ * `"A+5A+7"` must parse the same as `"A+5 A+7"`.
+ *
+ * The one genuine ambiguity is `-`, which is both the rest character and a
+ * minus sign. It is resolved by lookahead: a sign is only a sign when a **digit
+ * follows it**. So `"A-3"` is A down three semitones, while `"A-"` is A then a
+ * rest — and neither reading can be reached by accident.
+ */
+function scanChainString(
+  path: string,
+  raw: string,
+  add: AddError,
+  allowTranspose: boolean,
+): { steps: number[]; transpose: number[] } {
+  const src = raw.replace(/\s+/g, '');
+  const steps: number[] = [];
+  const transpose: number[] = [];
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i]!;
+    i++;
+    let slot: number;
+    if (ch === '.' || ch === '-') {
+      slot = REST;
+    } else {
+      const idx = ch.toUpperCase().charCodeAt(0) - 65; // 'A' -> 0
+      if (idx < 0 || idx >= BANK_COUNT) {
+        add(`${path} has an invalid bank letter "${ch}" — use A..${String.fromCharCode(64 + BANK_COUNT)}, "." or "-" for a rest`);
+        continue;
+      }
+      slot = idx;
+    }
+
+    let semis = 0;
+    const sign = src[i];
+    if ((sign === '+' || sign === '-') && isDigit(src[i + 1])) {
+      let j = i + 1;
+      while (isDigit(src[j])) j++;
+      const magnitude = Number(src.slice(i + 1, j));
+      i = j;
+      if (!allowTranspose) {
+        // Named, not silently dropped: a transpose that parses and then does
+        // nothing is exactly the failure this whole change set exists to remove.
+        add(`${path} cannot carry a transpose ("${sign}${magnitude}") — only seqChain is pitched`);
+      } else if (slot === REST) {
+        add(`${path} has a transpose on a rest ("${ch}${sign}${magnitude}") — a rest has no note to shift`);
+      } else if (magnitude > MAX_CHAIN_TRANSPOSE) {
+        add(`${path} transpose ${sign}${magnitude} is out of range — at most ${MAX_CHAIN_TRANSPOSE} semitones`);
+      } else {
+        semis = sign === '-' ? -magnitude : magnitude;
+      }
+    }
+    steps.push(slot);
+    transpose.push(semis);
+  }
+  return { steps, transpose };
+}
+
+/**
+ * A `seqChain` plus its per-slot transposes (REQ-15). Only the string form
+ * carries the `+n` suffix; the array and object forms are numbers, so they take
+ * a parallel `seqTranspose` key at the top level instead.
+ */
+function expandSeqChain(
+  v: unknown,
+  topTranspose: unknown,
+  add: AddError,
+): { chain: ChainData; transpose: number[] } {
+  const chain = expandChain('seqChain', v, add, 0, true);
+  let transpose = chainTransposeOf(chain);
+  if (topTranspose !== undefined) {
+    if (!Array.isArray(topTranspose)) {
+      add(`seqTranspose must be an array of semitone offsets (got ${describe(topTranspose)})`);
+    } else {
+      // An explicit key wins over anything a string suffix produced; mixing the
+      // two is not an error, it just has an obvious precedence.
+      transpose = chain.steps.map((_, i) => {
+        const t = topTranspose[i];
+        if (t === undefined) return 0;
+        const ok = typeof t === 'number' && Number.isInteger(t)
+          && t >= -MAX_CHAIN_TRANSPOSE && t <= MAX_CHAIN_TRANSPOSE;
+        if (!ok) {
+          add(`seqTranspose[${i}] must be an integer ${-MAX_CHAIN_TRANSPOSE}..${MAX_CHAIN_TRANSPOSE} (got ${describe(t)})`);
+          return 0;
+        }
+        return t;
+      });
+    }
+  }
+  return { chain, transpose };
+}
+
+/** The transposes `scanChainString` stashed on a chain, sized to its steps. */
+function chainTransposeOf(chain: ChainData): number[] {
+  const src = chainTranspose.get(chain) ?? [];
+  return chain.steps.map((_, i) => src[i] ?? 0);
+}
+
+/**
+ * Side-channel for the transposes a chain string carried.
+ *
+ * `expandChain` returns `ChainData`, which is the *canonical* shape and must not
+ * grow a field the format does not have (`seqTranspose` is a sibling of
+ * `seqChain`, never a member — song-mode.md REQ-16). A `WeakMap` keyed on the
+ * returned object keeps the parse result reachable without widening that type or
+ * threading an out-parameter through the recursive `{steps: {...}}` form.
+ */
+const chainTranspose = new WeakMap<ChainData, number[]>();
+
+function expandChain(
+  path: string,
+  v: unknown,
+  add: AddError,
+  depth = 0,
+  allowTranspose = false,
+): ChainData {
   if (v === undefined) return { enabled: false, steps: [0] };
   // `{steps: {steps: {…}}}` recurses through the isObject branch below, so a
   // deeply nested payload would blow the stack before any length check ran.
@@ -570,26 +721,22 @@ function expandChain(path: string, v: unknown, add: AddError, depth = 0): ChainD
     return { enabled: false, steps: [0] };
   }
   if (typeof v === 'string') {
-    const chars = v.replace(/\s+/g, '').split('');
-    if (chars.length === 0) {
+    const compact = v.replace(/\s+/g, '');
+    if (compact.length === 0) {
       add(`${path} must not be an empty string — ${CHAIN_HELP}`);
       return { enabled: false, steps: [0] };
     }
-    if (chars.length > MAX_CHAIN_STEPS) {
-      add(`${path} has ${chars.length} slots — the limit is ${MAX_CHAIN_STEPS}`);
+    // Bound the *input* before scanning, not the slot count after: a transpose
+    // suffix makes a slot several characters wide, so the character length is
+    // the only pre-scan bound, and it is the one that caps the work done.
+    if (compact.length > MAX_CHAIN_STEPS) {
+      add(`${path} has ${compact.length} characters — the limit is ${MAX_CHAIN_STEPS}`);
       return { enabled: false, steps: [0] };
     }
-    const steps: number[] = [];
-    for (const ch of chars) {
-      if (ch === '.' || ch === '-') { steps.push(REST); continue; }
-      const i = ch.toUpperCase().charCodeAt(0) - 65; // 'A' → 0
-      if (i < 0 || i >= BANK_COUNT) {
-        add(`${path} has an invalid bank letter "${ch}" — use A..${String.fromCharCode(64 + BANK_COUNT)}, "." or "-" for a rest`);
-        continue;
-      }
-      steps.push(i);
-    }
-    return { enabled: true, steps: steps.length > 0 ? steps : [0] };
+    const { steps, transpose } = scanChainString(path, compact, add, allowTranspose);
+    const chain: ChainData = { enabled: true, steps: steps.length > 0 ? steps : [0] };
+    if (transpose.some((t) => t !== 0)) chainTranspose.set(chain, transpose);
+    return chain;
   }
   if (Array.isArray(v)) {
     if (v.length === 0) {
@@ -613,8 +760,13 @@ function expandChain(path: string, v: unknown, add: AddError, depth = 0): ChainD
   }
   if (isObject(v)) {
     if (typeof v.enabled !== 'boolean') add(`${path}.enabled must be a boolean (got ${describe(v.enabled)})`);
-    const inner = expandChain(path + '.steps', v.steps === undefined ? [0] : v.steps, add, depth + 1);
-    return { enabled: v.enabled === true, steps: inner.steps };
+    const inner = expandChain(path + '.steps', v.steps === undefined ? [0] : v.steps, add, depth + 1, allowTranspose);
+    const chain: ChainData = { enabled: v.enabled === true, steps: inner.steps };
+    // The object form wraps a string form, so carry any suffixes it parsed
+    // through the rebuild — `{enabled: true, steps: "A+5 A+7"}` is legal.
+    const inherited = chainTranspose.get(inner);
+    if (inherited) chainTranspose.set(chain, inherited);
+    return chain;
   }
   add(`${path} must be ${CHAIN_HELP} (got ${describe(v)})`);
   return { enabled: false, steps: [0] };
@@ -694,7 +846,8 @@ export function expandAuthorSong(value: unknown): SongValidation {
   const params = expandParams(o.params, add);
   const seqBanks = expandSeqBanks(o.seq, add);
   const drumBanks = expandHitBanks('drums', o.drums, DRUM_TRACK_COUNT, add);
-  const seqChain = expandChain('seqChain', o.seqChain, add);
+  const { chain: seqChain, transpose: seqTranspose } =
+    expandSeqChain(o.seqChain, o.seqTranspose, add);
   const drumChain = expandChain('drumChain', o.drumChain, add);
 
   // Sampler fields are emitted only when the author supplied sampler content,
@@ -746,8 +899,10 @@ export function expandAuthorSong(value: unknown): SongValidation {
     format: 'websynth-song',
     // The lowest version that can hold what was authored — so a simple song
     // still expands to the same v3 file it always did (ADR-007).
-    version: seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
-      ? 6 : motionTracks ? 5 : motion ? 4 : 3,
+    version: seqTranspose.some((t) => t !== 0)
+      ? 7
+      : seqBanks.some((bank) => bank.slice(1).some((row) => row.some((st) => st.on)))
+        ? 6 : motionTracks ? 5 : motion ? 4 : 3,
     name: o.name as string,
     params,
     // Track 1 in the v1-v5 field; 2-4 only when used (sequencer.md REQ-13).
@@ -774,6 +929,9 @@ export function expandAuthorSong(value: unknown): SongValidation {
     file.motionChain = motionChain;
   }
   if (motionTracks) file.motionTracks = motionTracks;
+  // Only when it says something, matching capture()/compactSongForExport — an
+  // all-zero array would push every song to v7 for no behaviour (REQ-15).
+  if (seqTranspose.some((t) => t !== 0)) file.seqTranspose = seqTranspose;
 
   // Final gate: the expansion must yield a file the canonical validator accepts.
   return validateSongFile(file);

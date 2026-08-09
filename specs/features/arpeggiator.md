@@ -3,7 +3,9 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 2  # v2: the tab carries a status LED for `arp.on` (REQ-5)
+version: 3  # v3: 1/32 actually plays 1/32 (REQ-6); `arp.on` in a saved song is
+            #     an *armed* control, by design, and is documented as one (REQ-7)
+            # v2: the tab carries a status LED for `arp.on` (REQ-5)
 owner: core
 related:
   - architecture
@@ -45,6 +47,30 @@ releasing the last key stops it again (only if the arp was what started it).
   answerable without opening the tab. The lamp is the tab-bar indicator owned by
   [machine-status](machine-status.md) REQ-10 — two states only (`on`/`off`), and
   the arp deliberately stays out of `MachineId`; that spec holds the detail.
+
+- **REQ-6 (every rate plays its own rate, v3)** — The clock ticks in **16ths**, so
+  a rate finer than 1/16 cannot be one-hit-per-tick. `1/32` used to fall into an
+  `else` branch that fired once per tick with a comment conceding the
+  approximation, which made it **audibly identical to 1/16** — the control was in
+  the dropdown, changed nothing, and said nothing. A division below 1 now
+  schedules `round(1 / division)` evenly-spaced hits from the single tick, each at
+  `when + i * sixteenth * division`, with the gate measured against that shorter
+  step. `when` is sample-accurate and the scheduler works ahead, so a sub-16th hit
+  lands exactly as precisely as a tick-aligned one. The rule is general, not a
+  1/32 special case: a finer rate added to `RATES` needs no new branch.
+
+- **REQ-7 (`arp.on` in a song is armed, not broken, v3)** — A song may save
+  `arp.on: 1` while carrying no arp notes of its own. The arp is driven by
+  `bus.onNote` — the keyboard and MIDI — and the [sequencer](sequencer.md) does
+  **not** route through it, so on autonomous playback an armed arp sounds nothing
+  until someone holds a key. **This is the design, not a defect**: a saved song is
+  a *stage setup for a player*, not only a description of what sounds by itself,
+  and `arp.on` is an invitation to play over the running song (`Tosti` and the
+  `1973` project demo both ship this way). The same reading covers an effect saved
+  bypassed or at `mix: 0`, waiting for the XY pad or a motion lane
+  ([effects](effects.md), [motion-sequencer](motion-sequencer.md)). Nothing here
+  is to be "fixed" by making the sequencer feed the arp; what was missing was
+  saying so, which is why this REQ exists and why the authoring guide states it.
 
 ## Technical design
 
@@ -105,6 +131,27 @@ Scenario: The tab LED shows whether the arp is armed (v2, REQ-5)
   When arp.on goes to 1
   Then tab-arp's LED lights, without the tab being opened
 # pinned by: e2e/machine-status.spec.ts
+
+Scenario: 1/32 plays twice per 16th (v3, REQ-6)
+  Given arp.on is 1, arp.rate is 1/32 and one key is held
+  When a single clock tick is dispatched
+  Then two notes are scheduled, the second a half-sixteenth after the first
+  And each note's gate is measured against the 1/32 step, not the 1/16
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: 1/32 is audibly different from 1/16 (v3, REQ-6, regression)
+  Given the same held key and the same number of ticks
+  When the rate is 1/32 rather than 1/16
+  Then twice as many notes are scheduled
+  # the bug: both rates fired once per tick, so the dropdown entry did nothing
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: An armed arp in a loaded song sounds nothing until a key is held (v3, REQ-7)
+  Given a song saved with arp.on 1 and no key held
+  When the transport runs
+  Then the arp emits no notes
+  And holding a key arpeggiates over the running song
+# pinned by: tests/audio/transport/arpeggiator.test.ts
 ```
 
 ## Tests & verification

@@ -6,21 +6,9 @@ import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore, TRIGGER_CELL_DEFAULTS } from '../../src/state/patterns';
 import type { SeqStep, TriggerCell } from '../../src/state/patterns';
+import { fakeArrangement } from '../fixtures/fake-arrangement';
 
 /** Minimal Arrangement stand-in (mirrors tests/state/song.test.ts). */
-function fakeArr() {
-  return {
-    seq: { enabled: false, steps: [0] as number[] },
-    drum: { enabled: false, steps: [0] as number[] },
-    sampler: { enabled: false, steps: [0] as number[] },
-    motion: { enabled: false, steps: [0] as number[] },
-    setSeqChain(steps: number[], enabled: boolean) { this.seq = { enabled, steps: [...steps] }; },
-    setDrumChain(steps: number[], enabled: boolean) { this.drum = { enabled, steps: [...steps] }; },
-    setSamplerChain(steps: number[], enabled: boolean) { this.sampler = { enabled, steps: [...steps] }; },
-    setMotionChain(steps: number[], enabled: boolean) { this.motion = { enabled, steps: [...steps] }; },
-  };
-}
-
 /** Build a structurally-minimal SongFile for unit-level compaction checks. */
 function songWith(partial: Partial<SongFile>): SongFile {
   return {
@@ -164,7 +152,7 @@ describe('round-trip fidelity', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
-    Song.apply(compactFile, bus, patterns, fakeArr() as never);
+    Song.apply(compactFile, bus, patterns, fakeArrangement() as never);
 
     expect(bus.get('transport.bpm')).toBe(FIXTURE.bpm);
     const plain = patterns.seqBanks[0]![0]![FIXTURE.plainStep]!;

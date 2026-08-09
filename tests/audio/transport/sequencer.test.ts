@@ -402,4 +402,102 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
     clock.fireTick(0);   // step 16 = bar boundary, now a rest bar
     expect(released.map((r) => r.note).sort((a, b) => a - b)).toEqual([60, 64]);
   });
+
+  // sequencer.md REQ-16 / arrangement.md REQ-8. What this buys: four banks of
+  // sixteen steps used to be a song's entire melodic vocabulary, so a four-chord
+  // progression spent every bank.
+  describe('arrangement transpose (REQ-16)', () => {
+    it('shifts the notes a chained slot triggers', () => {
+      const { patterns, clock, arrangement, played, seq } = build();
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0, 0], true, [0, 5]);
+
+      clock.fireTick(0);              // bar 1, slot 0 → +0
+      clock.step = 16;
+      clock.fireTick(0.1);            // bar 2, slot 1 → +5
+      expect(played.map((p) => p.note)).toEqual([60, 65]);
+    });
+
+    it('never rewrites the stored bank (REQ-9)', () => {
+      const { patterns, clock, arrangement, seq } = build();
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0], true, [7]);
+      clock.fireTick(0);
+      expect(patterns.seqBanks[0]![0]![0]!.note).toBe(60);
+    });
+
+    it('does not transpose while the lane is disabled', () => {
+      const { patterns, clock, arrangement, played, seq } = build();
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0], false, [7]); // chain off = live editing
+      clock.fireTick(0);
+      expect(played.map((p) => p.note)).toEqual([60]);
+    });
+
+    it('clamps a transposed note into the MIDI range instead of dropping it', () => {
+      const { patterns, clock, arrangement, played, seq } = build();
+      patterns.setSeqStep(0, 0, { on: true, note: 120, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0], true, [24]);
+      clock.fireTick(0);
+      // 144 would be Infinity Hz at the oscillator; a dropped note would make a
+      // transposed bar silently lose part of its line.
+      expect(played.map((p) => p.note)).toEqual([127]);
+    });
+
+    it('releases a note tied across a bar line at ITS OWN pitch (edge)', () => {
+      const { patterns, clock, arrangement, played, released, seq } = build();
+      // Step 15 ties into the next bar, which is transposed differently. Step 0
+      // is untied, so bar 2's step 0 releases at its own gate end — that release
+      // is the one that must carry the *new* slot's pitch, while the tied voice
+      // from bar 1 must not be re-pitched under it.
+      patterns.setSeqStep(0, 15, { on: true, note: 60, gate: 0.5, tie: true });
+      patterns.setSeqStep(0, 0, { on: true, note: 62, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0, 0], true, [0, 7]);
+
+      // The FIRST bar-line tick only consumes `expectFirstBar` (arrangement.md
+      // REQ-4) — it does not advance — so bar 1 has to actually be played for
+      // the tick at step 16 to move the lane to slot 1.
+      clock.step = 0;
+      clock.fireTick(0);              // bar 1, slot 0 (+0): step 0 plays 62
+      clock.step = 15;
+      clock.fireTick(0.1);            // still bar 1: plays 60 and ties
+      expect(played.map((p) => p.note)).toEqual([62, 60]);
+      played.length = 0;
+      released.length = 0;
+
+      clock.step = 16;
+      clock.fireTick(0.2);            // bar 2, slot 1 (+7): step 0 plays 62+7
+      expect(played.map((p) => p.note)).toEqual([69]);
+      // A tie deliberately schedules no release of the held note — that is what
+      // makes it slur. What must NOT happen is the new bar's release carrying a
+      // pitch the old bar never started; the 69 released here is its own note.
+      expect(released.map((r) => r.note)).toEqual([69]);
+    });
+
+    it('releases a tie into a REST at the pitch it started, not the new slot’s (edge)', () => {
+      const { patterns, clock, arrangement, played, released, seq } = build();
+      patterns.setSeqStep(0, 15, { on: true, note: 60, gate: 0.5, tie: true });
+      seq.setEnabled(true);
+      // Bar 2 is a rest, so the tied voice is released rather than slurred —
+      // and `lastPlayedNote` is the only thing that knows its pitch.
+      arrangement.setSeqChain([0, -1], true, [0, 7]);
+
+      clock.step = 0;
+      clock.fireTick(0);
+      clock.step = 15;
+      clock.fireTick(0.1);            // plays 60 (+0) and ties
+      played.length = 0;
+      released.length = 0;
+
+      clock.step = 16;
+      clock.fireTick(0.2);            // rest bar: release the tied voice
+      expect(played).toEqual([]);
+      expect(released.map((r) => r.note)).toEqual([60]); // NOT 67
+    });
+  });
 });

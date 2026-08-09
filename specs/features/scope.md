@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 8   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read
+version: 9   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono
 owner: status201
 related:
   - architecture
@@ -23,9 +23,12 @@ The bottom panel hosts a live oscilloscope/analyser (`Scope`) tapped **pre-maste
 so the display is independent of the master-volume knob. It already toggles between
 a **Wave** (time-domain) and a **Spectrum** (frequency) view via a single button.
 
-The synth's signal is **stereo** (reverb, delay, phaser, ping-pong delay and the DJ
-FX all produce L≠R content), but the scope down-mixes to mono — so stereo motion is
-invisible. This feature adds an orthogonal **Mono/Stereo** toggle: Mono keeps the
+The synth's signal is **stereo** (reverb, phaser, the LFO auto-pan, the drum
+tracks' per-track pans and the DJ FX all produce L≠R content), but the scope
+down-mixes to mono — so stereo motion is invisible. (This paragraph used to list a
+"ping-pong delay"; there has never been one — `effects/delay.ts` is a single mono
+`DelayNode` with a damped feedback loop. Corrected in v9.)
+This feature adds an orthogonal **Mono/Stereo** toggle: Mono keeps the
 existing single full-panel trace (the down-mix, the default); Stereo splits the
 panel into two stacked halves — the **LEFT** channel on top, the **RIGHT** channel
 below — each drawn with the same Wave/Spectrum renderer.

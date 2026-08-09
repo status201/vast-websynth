@@ -111,7 +111,9 @@ describe('websynth MCP server over stdio', () => {
       },
     });
     expect(res.result.isError).toBeFalsy();
-    expect(JSON.parse(res.result.content[0].text)).toEqual({ ok: true, errors: [] });
+    // `warnings` is always present on the success payload (mcp-server.md REQ-13)
+    // — empty here because every automation target in this song resolves.
+    expect(JSON.parse(res.result.content[0].text)).toEqual({ ok: true, errors: [], warnings: [] });
   }, 30_000);
 
   it('validate_song: broken song → ok:false with authoring-term errors (still not isError)', async () => {

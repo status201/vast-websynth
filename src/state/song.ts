@@ -35,7 +35,7 @@ export interface SongFile {
   format: 'websynth-song';
   /** Hand-maintained alongside `SONG_VERSION` — TS cannot derive `1|…|N` from a
    *  number without recursive-type machinery this codebase doesn't use. */
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   name: string;
   params: Record<string, number>;
   /** v1-v5: one track per bank. Since v6 this is still **track 1** only —
@@ -64,6 +64,13 @@ export interface SongFile {
   motionChain?: ChainData;
   /** v5 — the two extra single-param motion tracks per bank. */
   motionTracks?: (MotionTrack | null)[][];
+  /**
+   * v7 — one semitone offset per `seqChain` slot, parallel to `seqChain.steps`
+   * (arrangement.md REQ-8). A **sibling** of `seqChain`, not a field inside it,
+   * so `ChainData` keeps its exact shape and every v1-v6 file round-trips
+   * byte-identically. Omitted when every offset is 0.
+   */
+  seqTranspose?: number[];
 }
 
 /**
@@ -130,6 +137,13 @@ export const Song = {
       motionAssigns: snap.motionAssigns,
       motionTracks: snap.motionTracks,
       motionChain: { enabled: arr.motion.enabled, steps: [...arr.motion.steps] },
+      // v7, and only when it says something: an all-zero array is what every
+      // pre-v7 song has, so omitting it keeps those files byte-identical and
+      // lets compactSongForExport's version floor stay below 7 (song-mode.md
+      // REQ-16). Same trick seqTracks uses.
+      ...(arr.seq.transpose.some((t) => t !== 0)
+        ? { seqTranspose: [...arr.seq.transpose] }
+        : {}),
     };
   },
 
@@ -174,7 +188,14 @@ export const Song = {
       motionAssigns: file.motionAssigns ?? blank.motionAssigns,
       motionTracks: file.motionTracks ?? blank.motionTracks,
     });
-    arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false);
+    // `?? []` — not "leave it alone": apply() is authoritative (REQ-3), so a file
+    // without transposes must clear the last song's, not inherit them. fitTranspose
+    // pads to the chain length, so [] means every slot at 0.
+    arr.setSeqChain(
+      file.seqChain?.steps ?? [0],
+      file.seqChain?.enabled ?? false,
+      file.seqTranspose ?? [],
+    );
     arr.setDrumChain(file.drumChain?.steps ?? [0], file.drumChain?.enabled ?? false);
     arr.setSamplerChain(file.samplerChain?.steps ?? [0], file.samplerChain?.enabled ?? false);
     arr.setMotionChain(file.motionChain?.steps ?? [0], file.motionChain?.enabled ?? false);

@@ -66,8 +66,8 @@
       }
     },
     "seqChain": {
-      "$ref": "#/$defs/chain",
-      "description": "Sequencer arrangement lane. Omitted = play bank A (chain disabled)."
+      "$ref": "#/$defs/seqChain",
+      "description": "Sequencer arrangement lane. Omitted = play bank A (chain disabled). A bank letter may carry a transpose: 'A A+5 A+7 A+3'."
     },
     "drumChain": {
       "$ref": "#/$defs/chain",
@@ -161,6 +161,16 @@
         }
       },
       "additionalProperties": false
+    },
+    "seqTranspose": {
+      "type": "array",
+      "maxItems": 1024,
+      "description": "Per-slot semitone offsets for 'seqChain', parallel to its slots \u2014 the explicit form of the chain string's '+n' suffix, for when the chain is written as an array or object. Omit it (or leave every entry 0) for a song that does not transpose.",
+      "items": {
+        "type": "integer",
+        "minimum": -24,
+        "maximum": 24
+      }
     }
   },
   "$defs": {
@@ -242,7 +252,7 @@
       ]
     },
     "seqBank": {
-      "description": "One bar of melody (16 sixteenth-note steps): a positional entry array (short arrays are rest-padded), the bank-defaults form {notes, ...settings} where the settings apply to every sounded step, or {tracks: [...]} for up to 4 simultaneous tracks (chords/counter-lines; tracks 2-4 need poly voicing).",
+      "description": "One bar of melody (16 sixteenth-note steps): a positional entry array (short arrays are rest-padded), the bank-defaults form {notes, ...settings} where the settings apply to every sounded step, or {tracks: [...], ...settings} for up to 4 simultaneous tracks (chords/counter-lines; tracks 2-4 need poly voicing). Settings cascade bank -> track -> step, nearest wins.",
       "oneOf": [
         {
           "type": "array",
@@ -296,6 +306,21 @@
               "items": {
                 "$ref": "#/$defs/seqBank"
               }
+            },
+            "velocity": {
+              "$ref": "#/$defs/stepSettings/velocity"
+            },
+            "gate": {
+              "$ref": "#/$defs/stepSettings/gate"
+            },
+            "prob": {
+              "$ref": "#/$defs/stepSettings/prob"
+            },
+            "ratchet": {
+              "$ref": "#/$defs/stepSettings/ratchet"
+            },
+            "tie": {
+              "$ref": "#/$defs/stepSettings/tie"
             }
           }
         }
@@ -455,6 +480,56 @@
             }
           },
           "additionalProperties": false
+        }
+      ]
+    },
+    "seqChain": {
+      "description": "The sequencer's arrangement lane. Everything $defs/chain allows, plus a per-slot transpose: a bank letter may carry '+n'/'-n' semitones (max 24), as in 'A A+5 A+7 A+3' \u2014 so one bank can play a whole chord progression. A suffix on a rest is an error, and only this lane accepts one. The array and object forms take the parallel 'seqTranspose' key instead.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\s*([A-Da-d.-]([+-]\\d{1,2})?\\s*)+$",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 3
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "enabled",
+            "steps"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "steps": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "integer",
+                    "minimum": -1,
+                    "maximum": 3
+                  }
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\s*([A-Da-d.-]([+-]\\d{1,2})?\\s*)+$",
+                  "minLength": 1
+                }
+              ]
+            }
+          }
         }
       ]
     }

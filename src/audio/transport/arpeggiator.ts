@@ -97,14 +97,33 @@ export class Arpeggiator {
   private onTick(step: number, when: number): void {
     if (!this.enabled || this.heldOrder.length === 0) return;
     const division = RATE_DIVISIONS[this.rateIdx] ?? 1;
-    // Trigger only on steps that fall on the chosen subdivision boundary
+    const sixteenth = this.clock.sixteenthDuration();
+
+    // At or above a 16th, one tick is at most one hit: skip the ticks that are
+    // not on the subdivision boundary.
     if (division >= 1) {
       if (step % division !== 0) return;
-    } else {
-      // 1/32 — twice per 16th; we run on every tick AND a half-tick offset.
-      // Approximation: just run every tick (clock is already 16ths) — keeps it sample-accurate enough.
+      this.fire(when, sixteenth * division);
+      return;
     }
 
+    // Below a 16th the clock cannot help — it only ticks in 16ths — so a single
+    // tick schedules all of that step's hits itself, evenly spaced.
+    // `when` is sample-accurate and the scheduler runs ahead of the audio clock,
+    // so an off-tick hit lands exactly as precisely as a tick-aligned one.
+    //
+    // This replaces a branch that fired *once* per tick with a comment calling
+    // it a good-enough approximation: it made 1/32 audibly identical to 1/16, so
+    // the dropdown entry did nothing at all (arpeggiator.md REQ-6). Written
+    // generally, so a finer rate appended to RATE_DIVISIONS needs no new branch.
+    const stepDur = sixteenth * division;
+    const hits = Math.round(1 / division); // 0.5 -> 2
+    for (let i = 0; i < hits; i++) this.fire(when + i * stepDur, stepDur);
+  }
+
+  /** Pick this step's note and schedule it for `when`, holding it for `stepDur`
+   *  × gate. Advances the pattern cursor — one call is one arpeggiated note. */
+  private fire(when: number, stepDur: number): void {
     // Build the full note pool (held notes × octave range), ordered low to high.
     const sorted = [...this.heldOrder].sort((a, b) => a - b);
     const pool: number[] = [];
@@ -153,7 +172,6 @@ export class Arpeggiator {
     // Release the previous arp note before triggering the next
     if (this.lastTriggered) this.output.releaseNote(this.lastTriggered.note, when);
 
-    const stepDur = this.clock.sixteenthDuration() * (division >= 1 ? division : 1);
     const gateLen = stepDur * this.gate;
     this.output.playNote(note, 0.85, when);
     const release = when + gateLen;

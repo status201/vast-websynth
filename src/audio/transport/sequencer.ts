@@ -2,6 +2,7 @@ import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore, SeqStep } from '../../state/patterns';
 import { SEQ_TRACK_COUNT } from '../../state/patterns';
+import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../../state/limits';
 import type { SynthOutput } from './note-output';
 import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
@@ -26,6 +27,20 @@ interface SeqTrackState {
 
 const newTrackState = (): SeqTrackState =>
   ({ lastPlayedNote: -1, lastReleaseAt: 0, prevTied: false, muted: false });
+
+/**
+ * A stored note shifted by an arrangement slot's transpose, clamped to the MIDI
+ * range (sequencer.md REQ-16, untrusted-input.md REQ-4).
+ *
+ * **Clamped, not dropped.** Skipping a note that lands out of range would make a
+ * transposed bar silently lose part of its line — the same class of silent loss
+ * this work exists to remove — and `midiToHz` of an unbounded note is `Infinity`,
+ * which throws inside an `AudioParam` write.
+ */
+function transposeNote(note: number, semitones: number): number {
+  if (semitones === 0) return note; // the overwhelmingly common path
+  return Math.max(MIDI_NOTE_MIN, Math.min(MIDI_NOTE_MAX, note + semitones));
+}
 
 /**
  * Four-track 16-step note sequencer. Triggers the synth engine on each active
@@ -169,17 +184,27 @@ export class StepSequencer {
     // glide slurs into the new note (audible slide needs mixer.glide > 0).
     if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, when);
 
+    // The arrangement slot's transpose (sequencer.md REQ-16). Resolved ONCE, and
+    // `note` used everywhere `s.note` used to be — including what lands in
+    // `st.lastPlayedNote`. That is what keeps a tie across a bar line correct:
+    // the next bar releases through `lastPlayedNote`, so a note started in a bar
+    // transposed +5 is released at +5 even when the new bar is at +7. Re-deriving
+    // the shift at each release site would strand that voice at the wrong pitch.
+    // The stored SeqStep is never rewritten (arrangement.md REQ-9).
+    const note = transposeNote(s.note, this.arrangement.seqTranspose);
+
     const hits = stepHits(s, when, this.clock.sixteenthDuration());
     for (const h of hits) {
-      this.output.playNote(s.note, s.velocity, h.t);
+      this.output.playNote(note, s.velocity, h.t);
       // The final sub-hit holds (no release) when the step ties into the next.
-      if (!h.holds) this.output.releaseNote(s.note, h.gateEnd);
+      if (!h.holds) this.output.releaseNote(note, h.gateEnd);
     }
-    st.lastPlayedNote = s.note;
+    st.lastPlayedNote = note;
     st.lastReleaseAt = hits[hits.length - 1]!.gateEnd;
     st.prevTied = s.tie;
     // The LAST sub-hit's gate end, so a ratcheted step's key viz doesn't go dark
-    // after the first sub-hit while the step is still sounding.
-    this.noteListeners.emit(s.note, when, st.lastReleaseAt);
+    // after the first sub-hit while the step is still sounding. The transposed
+    // note, so the keyboard highlight shows the pitch actually sounding.
+    this.noteListeners.emit(note, when, st.lastReleaseAt);
   }
 }

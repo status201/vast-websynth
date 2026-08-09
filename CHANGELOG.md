@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A bar in the arrangement can now be transposed** — so one bank can carry a
+  whole chord progression. Until now a chain slot was just a bank, which meant
+  four banks of sixteen steps was the entire melodic vocabulary of a song: a
+  four-chord progression spent every bank and left nothing for a chorus. Select a
+  slot in the Song tab's Sequencer chain and use **−/+** (or scroll the chip;
+  double-click resets it) to shift that bar by up to two octaves — the chip shows
+  `A+5`, and the bank itself is never rewritten, so turning the chain off plays
+  your bank exactly as written. Only the Sequencer lane has it: drums and the
+  sampler have no pitch to shift.
+
+  In the AI authoring format it is a suffix on the chain string —
+  `"seqChain": "A A+5 A+7 A+3"` — and songs carrying one are format **v7**.
+  Every older song still loads and sounds identical, as always.
+
 - **The parameter list is now published**, so an AI agent can look up what the
   synth has without opening the app or running a tool. `/params.md` is the
   readable table — split into the parameters a *preset* carries and the
@@ -37,6 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   mid-performance, and until now the only way to check was to open the tab.
 
 ### Changed
+
+- **Writing a chord no longer means repeating yourself.** In the compact
+  authoring format, the bank-level `velocity`, `gate`, `prob`, `ratchet` and
+  `tie` shorthand was *refused* next to `tracks` — so the moment a bank held a
+  chord, every track had to restate the same settings. They now apply to all of
+  a bank's tracks, and any track or step can still override: settings cascade
+  bank → track → step, nearest wins.
 
 - **Clicking a demo no longer saves it as one of your songs.** The project-zip
   demos (1973, Run Away 2) quietly wrote themselves into a song slot because
@@ -67,6 +88,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   once again a pure data drop-in.
 
 ### Fixed
+
+- **A mistyped automation target no longer disappears in silence.** Point the XY
+  pad, a per-bank override or a motion track at a parameter that does not exist
+  — `filter.cuttoff` for `filter.cutoff` — and that lane simply never moved:
+  nothing said so when the song was written, when it was imported, or while it
+  played. Songs still **load** (one authored on a newer build may legitimately
+  name a parameter this one lacks, and refusing it would orphan the song), but
+  the import toast now says how many targets were not recognised, and
+  `validate_song` returns them as warnings so an AI agent can fix a lane it
+  cannot hear.
+
+- **The arpeggiator's 1/32 setting now plays 1/32.** It was in the dropdown and
+  it did nothing: the clock ticks in sixteenths and the arp fired once per tick
+  whatever you picked, so 1/32 was note-for-note identical to 1/16. It now
+  schedules both hits of the step, and the gate is measured against the shorter
+  step.
 
 - **The schema links the MCP server hands an AI agent now work.** They were
   built from a base URL that defaulted to a local dev server, so unless one

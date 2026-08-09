@@ -145,6 +145,20 @@
 
 .chip:global(.sel) { border-color: var(--accent-secondary); }
 
+/* A transposed slot (e.g. "A+5"): the label grows a sign and a number, so the
+   chip has to widen from its square default or the text clips. Tabular figures
+   keep a column of chips from jittering as the offsets change — the same reason
+   readouts use --mono (specs/features/typography.md). */
+.chip[data-transposed='true'] {
+  width: auto;
+  min-width: 28px;
+  padding: 0 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  border-color: var(--accent-secondary);
+}
+
 .chip:global(.playing) {
   background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
   color: #f4e4c2;

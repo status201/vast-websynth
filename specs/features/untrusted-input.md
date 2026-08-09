@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 2   # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
+version: 3   # v3: REQ-12 — an unresolvable automation target warns instead of
+             #     rejecting; the validator gains a `warnings` channel
+             # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
              #     not an overwrite worth prompting for
 owner: core
 related:
@@ -25,7 +27,9 @@ source:
   - src/utils/compression.ts            # inflateRaw(bytes, maxBytes)
   - src/utils/zip.ts                    # entry/total/count caps + declared-size pre-flight
   - src/state/song-link.ts              # https-only songUrl; payload cap
-  - src/state/song-validate.ts          # note/chain/param bounds; reserved-key refusal
+  - src/state/params.ts                 # paramIds() — the registered id set (REQ-12)
+  - src/state/song-validate.ts          # note/chain/param bounds; reserved-key refusal;
+                                        #   unresolvable automation targets (REQ-12)
   - src/state/song-author.ts            # the same bounds for the dialect
   - src/state/song.ts                   # Song.parse error boundary
   - src/audio/transport/clock.ts        # listener isolation + NaN-safe setBpm
@@ -144,6 +148,36 @@ decision and the alternatives. This spec is the contract.
   and an agent reading a hostile song file is a prompt-injection path to an
   arbitrary file write.
 
+- **REQ-12 — An unresolvable automation target warns; it never rejects, and it
+  never passes unremarked.** `xy.x` / `xy.y`, `motionAssigns[i].x` / `.y` and
+  `motionTracks[b][t].param` each name a `ParamBus` id. Three facts collide here:
+
+  1. `MotionMachine.write` does `const def = this.bus.def(id); if (!def) return;`
+     — an id this build does not register is a **silent** no-op, so one typo
+     (`filter.cuttoff`) costs an entire automation lane with no feedback at
+     author time, at import, or in the UI.
+  2. Rejecting the song is not available:
+     [ADR-007](../decisions/adr-007-songfile-additive-versioning.md) promises a
+     song from a *newer* build keeps loading, and a target naming a parameter
+     added after this build shipped is exactly that case. Refusing it would
+     orphan forward-authored songs — the failure ADR-007 exists to prevent.
+  3. Unlike the `params` map, an automation target is a **pointer, not a value**.
+     An unknown param key is preserved verbatim and costs nothing; an unknown
+     pointer resolves to nothing and the lane is dead.
+
+  So `validateSongFile` returns `warnings: string[]` alongside `ok: true`, one
+  per unresolvable target, named by path
+  (`motionTracks[0][1].param: unknown parameter "not.a.param"`). The song loads
+  unchanged — behaviour is byte-for-byte what it was — but every authoring
+  surface can now say what will not move. `warnings` is **advisory and
+  order-independent**; a consumer that ignores it behaves exactly as before.
+
+  Consumers: `validate_song` / `expand_song` report warnings in their payload
+  ([mcp-server](mcp-server.md) REQ-13), and the app's import surfaces show them
+  as a non-blocking toast — never a dialog, because the song did load and
+  interrupting a successful import to report a lane that will not sweep is the
+  guard-crying-wolf failure REQ-9 already warns about.
+
 ## Technical design
 
 ### Contract / public interface
@@ -168,6 +202,17 @@ export function inflateRaw(bytes: Uint8Array, maxBytes?: number): Promise<Uint8A
 
 // src/utils/zip.ts — unchanged signature; caps applied internally
 export function zipRead(bytes: Uint8Array): Promise<ZipEntry[]>;  // throws ZipError
+
+// src/state/song-validate.ts — REQ-12: warnings ride the success branch, so
+// every existing caller keeps compiling and keeps behaving identically.
+export type SongValidation =
+  | { ok: true; file: SongFile; warnings?: string[] }
+  | { ok: false; errors: string[] };
+
+// src/state/params.ts — the id set, without standing up an Engine. Built once,
+// lazily: the validator is on the boot path via the share-link and session
+// restore, and runtime-performance.md REQ-1 counts module-init work.
+export function paramIds(): ReadonlySet<string>;
 ```
 
 ### Data shapes (the limits)
@@ -202,8 +247,15 @@ mcp:                save_* -> containedDir(dir) + safeName(name) # REQ-11
 
 The error paths are the **existing** typed ones — `ZipError`,
 `SignalDecodeError`, and the validator's `errors: string[]` — so a breach
-surfaces through the import-error dialog the user already knows. No new error
+surfaces through the import-error dialog the user already knows. No new *error*
 channel is introduced.
+
+REQ-12's `warnings` is deliberately **not** an error path: it rides the `ok: true`
+branch, nothing rejects on it, and it is the only thing the validator reports
+that is not a refusal. Earlier versions of this spec said "no new error channel
+is introduced" full stop; that still holds for refusals, and the distinction is
+the point — a warning must never acquire the power to stop an import, or it has
+quietly become an error and taken ADR-007's forward-compatibility with it.
 
 ### Persistence
 
@@ -289,6 +341,27 @@ Scenario: An MCP save cannot escape the working directory
   Then it throws without writing
   And dir 'sub/dir' still writes normally
 # pinned by: tests/mcp/tools.test.ts
+
+Scenario: A misspelled automation target is reported, not swallowed (v3, REQ-12)
+  Given a song with xy.x "filter.cuttoff" and motionTracks[0][0].param "not.a.param"
+  When it is validated
+  Then ok is true and the song is unchanged
+  And warnings names both paths and both offending ids
+# pinned by: tests/state/song-validate.test.ts
+
+Scenario: A forward-authored target still loads (v3, REQ-12, ADR-007)
+  Given a song whose motion track targets a parameter this build does not register
+  When it is imported
+  Then the import succeeds and every other lane behaves normally
+  And the unknown target is reported as a warning, never as an error
+# pinned by: tests/state/song-validate.test.ts
+
+Scenario: Every shipped demo validates without warnings (v3, REQ-12)
+  Given each song in src/state/demos and each built-in DEMO_SONGS literal
+  When it is validated
+  Then ok is true and warnings is empty
+  # a warning here means a real demo has a dead automation lane
+# pinned by: tests/state/song-validate.test.ts
 ```
 
 ## Tests & verification

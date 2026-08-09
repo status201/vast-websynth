@@ -7,6 +7,8 @@ import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
 import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
+import { fakeArrangement } from '../fixtures/fake-arrangement';
+import { SONG_VERSION } from '../../src/state/song-version';
 
 /**
  * The song these tests assert against — the suite's own, never a shipped demo
@@ -16,27 +18,6 @@ import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
 const demo = (): SongFile => fixtureSong();
 
 /** Minimal Arrangement stand-in: only the surface Song.capture/apply touch. */
-function fakeArr() {
-  return {
-    seq: { enabled: false, steps: [0] as number[] },
-    drum: { enabled: false, steps: [0] as number[] },
-    sampler: { enabled: false, steps: [0] as number[] },
-    motion: { enabled: false, steps: [0] as number[] },
-    setSeqChain(steps: number[], enabled: boolean) {
-      this.seq = { enabled, steps: [...steps] };
-    },
-    setDrumChain(steps: number[], enabled: boolean) {
-      this.drum = { enabled, steps: [...steps] };
-    },
-    setSamplerChain(steps: number[], enabled: boolean) {
-      this.sampler = { enabled, steps: [...steps] };
-    },
-    setMotionChain(steps: number[], enabled: boolean) {
-      this.motion = { enabled, steps: [...steps] };
-    },
-  };
-}
-
 // jsdom's localStorage isn't reliably wired here; a tiny in-memory Storage
 // keeps the slot tests deterministic and version-independent.
 const store = new Map<string, string>();
@@ -99,7 +80,7 @@ describe('Song', () => {
       // The expanded file applies like any canonical file.
       const bus = new ParamBus();
       registerDefaults(bus);
-      Song.apply(res.file, bus, new PatternStore(), fakeArr() as never);
+      Song.apply(res.file, bus, new PatternStore(), fakeArrangement() as never);
       expect(bus.get('transport.bpm')).toBe(124);
     });
 
@@ -146,7 +127,7 @@ describe('Song', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
-    const arr = fakeArr();
+    const arr = fakeArrangement();
     const file = demo();
 
     Song.apply(file, bus, patterns, arr as never);
@@ -164,7 +145,7 @@ describe('Song', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
-    const arr = fakeArr();
+    const arr = fakeArrangement();
 
     bus.set('fx.drum.delay.on', 1);                   // simulate a prior full snapshot
     Song.apply(demo(), bus, patterns, arr as never);  // the fixture omits the key
@@ -176,7 +157,7 @@ describe('Song', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
-    const arr = fakeArr();
+    const arr = fakeArrangement();
 
     // A per-param subscriber stands in for BOTH an Engine audio applier and a
     // UI control: on load they repaint through this one `subscribe` channel.
@@ -198,7 +179,7 @@ describe('Song', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
-    const arr = fakeArr();
+    const arr = fakeArrangement();
     arr.setDrumChain([0, -1, 1], true); // REST in the middle
 
     const file = Song.capture(bus, patterns, arr as never, 'Rest song');
@@ -207,7 +188,7 @@ describe('Song', () => {
     // Survives serialization, and apply() (via set*Chain / clampChainStep) preserves it.
     const parsed = Song.fromJSON(Song.toJSON(file));
     expect(parsed!.drumChain.steps).toEqual([0, -1, 1]);
-    const arr2 = fakeArr();
+    const arr2 = fakeArrangement();
     Song.apply(parsed!, bus, new PatternStore(), arr2 as never);
     expect(arr2.drum.steps).toEqual([0, -1, 1]);
   });
@@ -217,7 +198,7 @@ describe('Song', () => {
     registerDefaults(bus);
     bus.set('transport.bpm', 142);
     const patterns = new PatternStore();
-    const arr = fakeArr();
+    const arr = fakeArrangement();
     arr.setSeqChain([1, 2], true);
 
     const file = Song.capture(bus, patterns, arr as never, 'Take 1');
@@ -234,7 +215,7 @@ describe('Song', () => {
     const patterns = new PatternStore();
     patterns.setDrumCell(2, 5, { on: true, gate: 0.5, ratchet: 3 });
 
-    const file = Song.capture(bus, patterns, fakeArr() as never, 'Full');
+    const file = Song.capture(bus, patterns, fakeArrangement() as never, 'Full');
     expect(file.drumBanks[0]![2]![5]!).toEqual(
       { on: true, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 3, tie: false });
   });
@@ -244,7 +225,7 @@ describe('Song', () => {
     registerDefaults(bus);
     const patterns = new PatternStore();
     patterns.setDrumCell(0, 0, { gate: 0.25, ratchet: 4, tie: true }); // live edits to reset
-    const arr = fakeArr();
+    const arr = fakeArrangement();
     const v1 = demo();
     expect(v1.version).toBe(1);
     // Strip the cells down to the legacy { on, velocity } shape.
@@ -267,11 +248,11 @@ describe('Song', () => {
       const patterns = new PatternStore();
       patterns.setSamplerCell(0, 3, { on: true });
       patterns.setSampleName(1, 'kick.wav');
-      const arr = fakeArr();
+      const arr = fakeArrangement();
       arr.setSamplerChain([2, 3], true);
 
       const file = Song.capture(bus, patterns, arr as never, 'S');
-      expect(file.version).toBe(6);
+      expect(file.version).toBe(SONG_VERSION);
       expect(file.samplerChain).toEqual({ enabled: true, steps: [2, 3] });
       expect(file.samplerBanks!.length).toBe(4);
       expect(file.samplerBanks![0]![0]![3]!.on).toBe(true);
@@ -283,7 +264,7 @@ describe('Song', () => {
       registerDefaults(bus);
       const patterns = new PatternStore();
       patterns.setSampleName(0, 'snare.mp3');
-      const arr = fakeArr();
+      const arr = fakeArrangement();
       arr.setSamplerChain([1], true);
       const file = Song.capture(bus, patterns, arr as never, 'RT');
       expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
@@ -295,13 +276,16 @@ describe('Song', () => {
       const patterns = new PatternStore();
       patterns.setSamplerCell(0, 5, { on: true }); // pre-existing edit state
       patterns.setSampleName(0, 'leftover.wav');
-      const arr = fakeArr();
+      const arr = fakeArrangement();
       const v1 = demo(); // the fixture is version 1, no sampler fields
       expect(v1.version).toBe(1);
 
       Song.apply(v1, bus, patterns, arr as never);
 
-      expect(arr.sampler).toEqual({ enabled: false, steps: [0] });
+      // transpose rides along on every lane (one ChainLane type) and is always
+      // sized to steps — all zeros here, i.e. a no-op, which is the only shape a
+      // pre-v7 file can produce.
+      expect(arr.sampler).toEqual({ enabled: false, steps: [0], transpose: [0] });
       // restore() with absent sampler fields leaves banks/names untouched,
       // so applying a v1 song never corrupts sampler state.
       expect(patterns.samplerBanks[0]![0]![5]!.on).toBe(true);
@@ -314,7 +298,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
-      const arr = fakeArr();
+      const arr = fakeArrangement();
 
       // A previously-loaded song's live state: motion (an XY anchor, an assigned +
       // anchored extra track, and a per-bank axis override) AND sampler (cell + name).
@@ -358,14 +342,14 @@ describe('Song', () => {
       const patterns = new PatternStore();
       patterns.setSampleName(0, 'beep.wav');
       patterns.setSampleName(1, 'kick.wav');
-      return { bus, patterns, arr: fakeArr() };
+      return { bus, patterns, arr: fakeArrangement() };
     };
 
     it('evicts the buffer of every slot the incoming song renames', () => {
       const { bus, patterns, arr } = rig();
       const sampler = fakeSampler();
 
-      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Other');
+      const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'Other');
       file.sampleNames = ['snare.wav', 'kick.wav', null, null, null, null, null, null];
 
       Song.apply(file, bus, patterns, arr as never, undefined, sampler);
@@ -379,7 +363,7 @@ describe('Song', () => {
       const { bus, patterns, arr } = rig();
       const sampler = fakeSampler();
 
-      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Blank');
+      const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'Blank');
       expect(file.sampleNames!.every((n) => n === null)).toBe(true);
 
       Song.apply(file, bus, patterns, arr as never, undefined, sampler);
@@ -400,7 +384,7 @@ describe('Song', () => {
 
     it('is a no-op without a sampler handle (unit callers keep the old shape)', () => {
       const { bus, patterns, arr } = rig();
-      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'Blank');
+      const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'Blank');
       expect(() => Song.apply(file, bus, patterns, arr as never)).not.toThrow();
     });
   });
@@ -413,16 +397,16 @@ describe('Song', () => {
       const xy = new XyPadStore();
       xy.set({ x: 'lfo.rate', y: 'master.volume' });
 
-      const file = Song.capture(bus, patterns, fakeArr() as never, 'XY', xy);
-      expect(file.version).toBe(6);
+      const file = Song.capture(bus, patterns, fakeArrangement() as never, 'XY', xy);
+      expect(file.version).toBe(SONG_VERSION);
       expect(file.xy).toEqual({ x: 'lfo.rate', y: 'master.volume' });
     });
 
     it('capture() without a store still writes the default assignment (v3)', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
-      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'XY');
-      expect(file.version).toBe(6);
+      const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'XY');
+      expect(file.version).toBe(SONG_VERSION);
       expect(file.xy).toEqual(XY_DEFAULT_ASSIGN);
     });
 
@@ -430,7 +414,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
-      const arr = fakeArr();
+      const arr = fakeArrangement();
       const xy = new XyPadStore();
       const file = Song.capture(bus, patterns, arr as never, 'XY', xy);
       file.xy = { x: 'filter.drive', y: 'fx.delay.mix' };
@@ -444,7 +428,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
-      const arr = fakeArr();
+      const arr = fakeArrangement();
       const target = new XyPadStore();
       target.set({ x: 'lfo.rate', y: 'lfo.amount' }); // pre-existing assignment
 
@@ -461,7 +445,7 @@ describe('Song', () => {
       registerDefaults(bus);
       const xy = new XyPadStore();
       xy.set({ x: 'lfo.rate', y: 'filter.cutoff' });
-      const file = Song.capture(bus, new PatternStore(), fakeArr() as never, 'RT', xy);
+      const file = Song.capture(bus, new PatternStore(), fakeArrangement() as never, 'RT', xy);
       const parsed = Song.fromJSON(Song.toJSON(file));
       expect(parsed!.xy).toEqual({ x: 'lfo.rate', y: 'filter.cutoff' });
       expect(parsed).toEqual(compactSongForExport(file));
@@ -481,7 +465,7 @@ describe('Song', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
-      const arr = fakeArr();
+      const arr = fakeArrangement();
 
       Song.apply(file, bus, patterns, arr as never);
 
@@ -556,7 +540,7 @@ describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
   it('a one-track song omits seqTracks entirely, so it is unchanged from v5', () => {
     const { bus, patterns } = rig();
     patterns.setSeqStep(0, 0, { on: true, note: 60 });
-    const file = Song.capture(bus, patterns, fakeArr() as never, 'One');
+    const file = Song.capture(bus, patterns, fakeArrangement() as never, 'One');
     expect(file.seqTracks).toBeUndefined();
     expect(file.seqBanks[0]![0]).toMatchObject({ on: true, note: 60 });
   });
@@ -565,15 +549,15 @@ describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
     const { bus, patterns } = rig();
     patterns.setSeqStep(0, 0, { on: true, note: 60 });
     patterns.setSeqStep(2, 5, { on: true, note: 67 });
-    const file = Song.capture(bus, patterns, fakeArr() as never, 'Four');
-    expect(file.version).toBe(6);
+    const file = Song.capture(bus, patterns, fakeArrangement() as never, 'Four');
+    expect(file.version).toBe(SONG_VERSION);
     expect(file.seqTracks![0]![0]).toBeNull();       // never duplicates track 1
     expect(file.seqTracks![0]![1]).toBeNull();       // empty track stays null
     expect(file.seqTracks![0]![2]![5]).toMatchObject({ on: true, note: 67 });
 
     const parsed = Song.fromJSON(Song.toJSON(file))!;
     const fresh = new PatternStore();
-    Song.apply(parsed, bus, fresh, fakeArr() as never);
+    Song.apply(parsed, bus, fresh, fakeArrangement() as never);
     expect(fresh.seqTrack(0)![0]).toMatchObject({ on: true, note: 60 });
     expect(fresh.seqTrack(2)![5]).toMatchObject({ on: true, note: 67 });
   });
@@ -583,7 +567,7 @@ describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
     // Dirty the extra tracks first: the load must be authoritative about them.
     patterns.setSeqStep(3, 2, { on: true, note: 99 });
     const legacy = { ...demo(), version: 5 as const };
-    Song.apply(legacy, bus, patterns, fakeArr() as never);
+    Song.apply(legacy, bus, patterns, fakeArrangement() as never);
     expect(patterns.seqTrack(1)!.every((s) => !s.on)).toBe(true);
     expect(patterns.seqTrack(3)!.every((s) => !s.on)).toBe(true);
     expect(patterns.seqTrack(0)!.some((s) => s.on)).toBe(true);

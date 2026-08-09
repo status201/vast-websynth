@@ -503,14 +503,50 @@ describe('expandAuthorSong — four sequencer tracks (sequencer.md REQ-13)', () 
     expect(res.file.seqBanks[0]![0]!.note).toBe(48);
   });
 
-  it('rejects tracks combined with bank-level settings', () => {
+  // REQ-13b. These keys used to be a hard error next to `tracks`, which meant
+  // the shorthand disappeared exactly where a song gets musical — every chord
+  // bank had to repeat the same gate/velocity once per track.
+  it('cascades bank-level settings into every track (REQ-13b)', () => {
     const res = expandAuthorSong({
-      format: 'websynth-song-author', version: 1, name: 'Mixed',
-      seq: [{ tracks: [['C3']], gate: 0.9 }],
+      format: 'websynth-song-author', version: 1, name: 'Chords',
+      params: { 'voicing.mode': 1 },
+      seq: [{ tracks: [['C3'], ['E3'], ['G3']], gate: 0.9, velocity: 0.6 }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // Track 1 lives in seqBanks; tracks 2-4 in seqTracks (REQ-13).
+    expect(res.file.seqBanks[0]![0]).toMatchObject({ on: true, note: 48, gate: 0.9, velocity: 0.6 });
+    expect(res.file.seqTracks![0]![1]![0]).toMatchObject({ on: true, note: 52, gate: 0.9, velocity: 0.6 });
+    expect(res.file.seqTracks![0]![2]![0]).toMatchObject({ on: true, note: 55, gate: 0.9, velocity: 0.6 });
+  });
+
+  it('lets a track override what the bank cascaded, and a step override both', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Precedence',
+      params: { 'voicing.mode': 1 },
+      seq: [{
+        gate: 0.9,
+        tracks: [
+          ['C3', { note: 'D3', gate: 0.1 }],   // [0] inherits 0.9, [1] overrides
+          { notes: ['E3'], gate: 0.5 },        // the track overrides the bank
+        ],
+      }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqBanks[0]![0]!.gate).toBe(0.9); // bank
+    expect(res.file.seqBanks[0]![1]!.gate).toBe(0.1); // step beats bank
+    expect(res.file.seqTracks![0]![1]![0]!.gate).toBe(0.5); // track beats bank
+  });
+
+  it('still rejects a key that is neither tracks nor a step setting', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Typo',
+      seq: [{ tracks: [['C3']], gata: 0.9 }],
     });
     expect(res.ok).toBe(false);
     if (res.ok) return;
-    expect(res.errors.join('\n')).toMatch(/gate cannot be combined with tracks/);
+    expect(res.errors.join('\n')).toMatch(/gata is not a bank field/);
   });
 
   it('the bank-defaults form still works and is not mistaken for tracks', () => {
@@ -564,5 +600,93 @@ describe('expandAuthorSong — chain bounds', () => {
 
   it('still expands ordinary chains (regression)', () => {
     expect(expandOk({ ...base, seqChain: 'AABB' }).seqChain.steps).toEqual([0, 0, 1, 1]);
+  });
+});
+
+// song-authoring-dialect.md REQ-15 / arrangement.md REQ-8. The headline win: a
+// four-chord progression that used to consume all four banks is now one bank.
+describe('expandAuthorSong — seqChain transpose suffix (REQ-15)', () => {
+  const song = (extra: Record<string, unknown>) => expandAuthorSong({
+    format: 'websynth-song-author', version: 1, name: 'Prog',
+    seq: [['C2', 'E2', 'G2']],
+    ...extra,
+  });
+
+  it('parses "A A+5 A+7 A+3" into one bank and four transposed bars', () => {
+    const res = song({ seqChain: 'A A+5 A+7 A+3' });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqChain.steps).toEqual([0, 0, 0, 0]);
+    expect(res.file.seqTranspose).toEqual([0, 5, 7, 3]);
+    expect(res.file.version).toBe(7); // the floor lifts only when it must
+  });
+
+  it('accepts a negative suffix, and reads a bare "-" as a rest (the ambiguity)', () => {
+    const down = song({ seqChain: 'A A-3' });
+    expect(down.ok).toBe(true);
+    if (down.ok) expect(down.file.seqTranspose).toEqual([0, -3]);
+
+    // "A-" has no digit after the sign, so the "-" is the rest character.
+    const rest = song({ seqChain: 'A-' });
+    expect(rest.ok).toBe(true);
+    if (rest.ok) {
+      expect(rest.file.seqChain.steps).toEqual([0, -1]);
+      expect(rest.file.seqTranspose).toBeUndefined();
+    }
+  });
+
+  it('ignores whitespace, so "A+5A+7" === "A+5 A+7"', () => {
+    const tight = song({ seqChain: 'A+5A+7' });
+    const spaced = song({ seqChain: 'A+5 A+7' });
+    expect(tight.ok && spaced.ok).toBe(true);
+    if (!tight.ok || !spaced.ok) return;
+    expect(tight.file.seqChain.steps).toEqual(spaced.file.seqChain.steps);
+    expect(tight.file.seqTranspose).toEqual(spaced.file.seqTranspose);
+  });
+
+  it('omits seqTranspose (and stays below v7) when every offset is 0', () => {
+    const res = song({ seqChain: 'AABA' });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqTranspose).toBeUndefined();
+    expect(res.file.version).toBeLessThan(7);
+  });
+
+  it('refuses a transpose on an unpitched lane instead of dropping it', () => {
+    const res = expandAuthorSong({
+      format: 'websynth-song-author', version: 1, name: 'Bad',
+      seq: [['C2']], drums: [{ kick: [0] }], drumChain: 'A A+5',
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.errors.join('\n')).toMatch(/drumChain cannot carry a transpose/);
+  });
+
+  it('refuses a transpose on a rest', () => {
+    const res = song({ seqChain: 'A .+5' });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.errors.join('\n')).toMatch(/transpose on a rest/);
+  });
+
+  it('refuses an out-of-range suffix', () => {
+    const res = song({ seqChain: 'A A+99' });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.errors.join('\n')).toMatch(/out of range/);
+  });
+
+  it('takes an explicit seqTranspose array for the non-string chain forms', () => {
+    const res = song({ seqChain: [0, 0, 0], seqTranspose: [0, 5, 7] });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqTranspose).toEqual([0, 5, 7]);
+  });
+
+  it('carries a suffix through the {enabled, steps} object form', () => {
+    const res = song({ seqChain: { enabled: true, steps: 'A A+5' } });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.file.seqTranspose).toEqual([0, 5]);
   });
 });

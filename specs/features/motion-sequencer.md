@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 12  # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
+version: 13  # v13: an unresolvable automation target is reported as a warning
+             #      instead of silently no-op'ing (REQ-17b; untrusted-input REQ-12)
+             # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
              #      dimming the root buried its own menu under the pads (REQ-8)
              # v11: the step value is visible while editing — per-lane readout + drag
              #      bubble (REQ-22); the pad's write is deferred so a hold PEEKS,
@@ -281,6 +283,15 @@ The tab sits between Sampler and Song.
   is default-sparse (a dead step is `{on:false}`, `v` rounded to 4 sig-figs) and a
   track that is entirely empty *and* unassigned is omitted. The authoring dialect
   gains a matching key; both public schemas and the authoring guide document it.
+- **REQ-17b** — **A target that does not resolve is reported, not swallowed.**
+  `write(id, norm)` starts `const def = this.bus.def(id); if (!def) return;` —
+  correct at play time (a lane must never throw its way into the clock) but it
+  makes a misspelled `motionTracks[].param` or `motionAssigns[].x` a *silent*
+  dead lane. [untrusted-input](untrusted-input.md) REQ-12 owns the contract:
+  `unresolvedTargets(file)` names them, validation reports them as **warnings**
+  (never errors — ADR-007 forward-compat), and the import toast says how many.
+  The runtime guard above stays exactly as it is; it is the last line of defence,
+  not the place to report.
 - **REQ-18** — **Automation is not an edit** (v8). Every write the machine makes —
   the XY axes, the extra tracks, and the baseline restore that undoes them — runs
   inside `ParamBus.withoutChangeSignal`. Per-param listeners still fire, so knobs,
