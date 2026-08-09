@@ -1,0 +1,2034 @@
+{
+  "format": "websynth-params",
+  "version": 1,
+  "songVersion": 6,
+  "count": 207,
+  "params": [
+    {
+      "id": "voicing.mode",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "mono",
+        "poly"
+      ]
+    },
+    {
+      "id": "osc1.wave",
+      "min": 0,
+      "max": 3,
+      "default": 2,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "sine",
+        "triangle",
+        "saw",
+        "square"
+      ]
+    },
+    {
+      "id": "osc1.octave",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "unit": "oct"
+    },
+    {
+      "id": "osc1.detune",
+      "min": -50,
+      "max": 50,
+      "default": 0,
+      "patch": true,
+      "unit": "c"
+    },
+    {
+      "id": "osc1.level",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "patch": true
+    },
+    {
+      "id": "osc1.pulseWidth",
+      "min": 0.5,
+      "max": 0.95,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "osc2.wave",
+      "min": 0,
+      "max": 3,
+      "default": 2,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "sine",
+        "triangle",
+        "saw",
+        "square"
+      ]
+    },
+    {
+      "id": "osc2.octave",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "unit": "oct"
+    },
+    {
+      "id": "osc2.detune",
+      "min": -50,
+      "max": 50,
+      "default": 7,
+      "patch": true,
+      "unit": "c"
+    },
+    {
+      "id": "osc2.level",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "osc2.pulseWidth",
+      "min": 0.5,
+      "max": 0.95,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "sub.wave",
+      "min": 0,
+      "max": 3,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "sine",
+        "triangle",
+        "saw",
+        "square"
+      ]
+    },
+    {
+      "id": "sub.octave",
+      "min": -2,
+      "max": -1,
+      "default": -1,
+      "patch": true,
+      "step": 1,
+      "unit": "oct"
+    },
+    {
+      "id": "sub.level",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "unison.voices",
+      "min": 1,
+      "max": 4,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "unison.detune",
+      "min": 0,
+      "max": 50,
+      "default": 12,
+      "patch": true,
+      "unit": "c"
+    },
+    {
+      "id": "analog.drift",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mixer.noise",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mixer.glide",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "glide.mode",
+      "min": 0,
+      "max": 2,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "always",
+        "legato"
+      ]
+    },
+    {
+      "id": "filter.cutoff",
+      "min": 30,
+      "max": 130,
+      "default": 90,
+      "patch": true
+    },
+    {
+      "id": "filter.resonance",
+      "min": 0,
+      "max": 4.2,
+      "default": 0.5,
+      "patch": true,
+      "taper": "power",
+      "curve": 0.6
+    },
+    {
+      "id": "filter.drive",
+      "min": 0.5,
+      "max": 6,
+      "default": 1.2,
+      "patch": true
+    },
+    {
+      "id": "filter.envAmount",
+      "min": -48,
+      "max": 48,
+      "default": 24,
+      "patch": true
+    },
+    {
+      "id": "filter.model",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "ladder",
+        "poly"
+      ]
+    },
+    {
+      "id": "filter.shape",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "filter.keytrack",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "env.amp.attack",
+      "min": 0.001,
+      "max": 4,
+      "default": 0.005,
+      "patch": true
+    },
+    {
+      "id": "env.amp.decay",
+      "min": 0.001,
+      "max": 4,
+      "default": 0.2,
+      "patch": true
+    },
+    {
+      "id": "env.amp.sustain",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "patch": true
+    },
+    {
+      "id": "env.amp.release",
+      "min": 0.001,
+      "max": 6,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "env.fil.attack",
+      "min": 0.001,
+      "max": 4,
+      "default": 0.005,
+      "patch": true
+    },
+    {
+      "id": "env.fil.decay",
+      "min": 0.001,
+      "max": 4,
+      "default": 0.6,
+      "patch": true
+    },
+    {
+      "id": "env.fil.sustain",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "patch": true
+    },
+    {
+      "id": "env.fil.release",
+      "min": 0.001,
+      "max": 6,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "lfo.rate",
+      "min": 0.05,
+      "max": 20,
+      "default": 4,
+      "patch": true,
+      "taper": "exp"
+    },
+    {
+      "id": "lfo.amount",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "lfo.wave",
+      "min": 0,
+      "max": 3,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "sine",
+        "triangle",
+        "saw",
+        "square"
+      ]
+    },
+    {
+      "id": "lfo.dest",
+      "min": 0,
+      "max": 6,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "cutoff",
+        "pitch",
+        "amp",
+        "pulse",
+        "pan",
+        "shape"
+      ]
+    },
+    {
+      "id": "fx.dist.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.dist.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "patch": true
+    },
+    {
+      "id": "fx.dist.tone",
+      "min": 200,
+      "max": 8000,
+      "default": 3000,
+      "patch": true
+    },
+    {
+      "id": "fx.dist.mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": true
+    },
+    {
+      "id": "fx.wah.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.wah.rate",
+      "min": 0.05,
+      "max": 10,
+      "default": 2,
+      "patch": true
+    },
+    {
+      "id": "fx.wah.depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "fx.wah.q",
+      "min": 0.5,
+      "max": 20,
+      "default": 4,
+      "patch": true
+    },
+    {
+      "id": "fx.phaser.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.phaser.rate",
+      "min": 0.05,
+      "max": 5,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "fx.phaser.depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "fx.phaser.feedback",
+      "min": 0,
+      "max": 0.9,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "fx.phaser.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": true
+    },
+    {
+      "id": "fx.delay.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.delay.time",
+      "min": 0.01,
+      "max": 1.5,
+      "default": 0.35,
+      "patch": true
+    },
+    {
+      "id": "fx.delay.feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "fx.delay.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "patch": true
+    },
+    {
+      "id": "fx.reverb.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.reverb.size",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "patch": true
+    },
+    {
+      "id": "fx.reverb.damp",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "patch": true
+    },
+    {
+      "id": "fx.reverb.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "patch": true
+    },
+    {
+      "id": "fx.drum.phaser.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.drum.phaser.rate",
+      "min": 0.05,
+      "max": 5,
+      "default": 0.5,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.phaser.depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.phaser.feedback",
+      "min": 0,
+      "max": 0.9,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.phaser.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.delay.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.drum.delay.time",
+      "min": 0.01,
+      "max": 1.5,
+      "default": 0.35,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.delay.feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.delay.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.reverb.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.drum.reverb.size",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.reverb.damp",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.reverb.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.comp.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.drum.comp.threshold",
+      "min": -40,
+      "max": 0,
+      "default": -18,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.comp.ratio",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "4:1",
+        "8:1",
+        "12:1",
+        "20:1",
+        "ALL"
+      ]
+    },
+    {
+      "id": "fx.drum.comp.attack",
+      "min": 0.00002,
+      "max": 0.0008,
+      "default": 0.0002,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.drum.comp.release",
+      "min": 0.05,
+      "max": 1.1,
+      "default": 0.25,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.drum.comp.makeup",
+      "min": 0,
+      "max": 24,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.dist.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.dist.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.dist.tone",
+      "min": 200,
+      "max": 8000,
+      "default": 3000,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.dist.mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.phaser.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.phaser.rate",
+      "min": 0.05,
+      "max": 5,
+      "default": 0.5,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.phaser.depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.phaser.feedback",
+      "min": 0,
+      "max": 0.9,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.phaser.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.delay.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.delay.time",
+      "min": 0.01,
+      "max": 1.5,
+      "default": 0.35,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.delay.feedback",
+      "min": 0,
+      "max": 0.95,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.delay.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.reverb.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.reverb.size",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.reverb.damp",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.reverb.mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "patch": false
+    },
+    {
+      "id": "fx.djfilter",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.master.comp.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.master.comp.threshold",
+      "min": -40,
+      "max": 0,
+      "default": -12,
+      "patch": true
+    },
+    {
+      "id": "fx.master.comp.ratio",
+      "min": 0,
+      "max": 2,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "2:1",
+        "4:1",
+        "10:1"
+      ]
+    },
+    {
+      "id": "fx.master.comp.attack",
+      "min": 0.0001,
+      "max": 0.03,
+      "default": 0.01,
+      "patch": true,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.master.comp.release",
+      "min": 0,
+      "max": 4,
+      "default": 4,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "0.1s",
+        "0.3s",
+        "0.6s",
+        "1.2s",
+        "auto"
+      ]
+    },
+    {
+      "id": "fx.master.comp.makeup",
+      "min": 0,
+      "max": 12,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "master.volume",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "patch": true
+    },
+    {
+      "id": "master.pitchBend",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "master.modWheel",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "keyboard.transpose",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete"
+    },
+    {
+      "id": "transport.bpm",
+      "min": 40,
+      "max": 240,
+      "default": 120,
+      "patch": false,
+      "step": 1
+    },
+    {
+      "id": "transport.swing",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "arp.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "arp.pattern",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "up",
+        "down",
+        "updn",
+        "rand",
+        "play"
+      ]
+    },
+    {
+      "id": "arp.rate",
+      "min": 0,
+      "max": 3,
+      "default": 2,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32"
+      ]
+    },
+    {
+      "id": "arp.octaves",
+      "min": 1,
+      "max": 4,
+      "default": 1,
+      "patch": false,
+      "step": 1
+    },
+    {
+      "id": "arp.gate",
+      "min": 0.05,
+      "max": 1,
+      "default": 0.5,
+      "patch": false
+    },
+    {
+      "id": "seq.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "seq.master",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "seq.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "seq.t0.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "seq.t1.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "seq.t2.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "seq.t3.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "seq.solo",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "solo"
+      ]
+    },
+    {
+      "id": "drum.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "drum.master",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.solo",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "solo"
+      ]
+    },
+    {
+      "id": "drum.t0.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t0.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t0.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t0.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t0.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t0.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t0.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t0.model",
+      "min": 0,
+      "max": 12,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t1.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t1.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t1.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t1.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t1.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t1.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t1.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t1.model",
+      "min": 0,
+      "max": 12,
+      "default": 1,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t2.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t2.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t2.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t2.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t2.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t2.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t2.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t2.model",
+      "min": 0,
+      "max": 12,
+      "default": 2,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t3.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t3.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t3.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t3.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t3.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t3.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t3.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t3.model",
+      "min": 0,
+      "max": 12,
+      "default": 3,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t4.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t4.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t4.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t4.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t4.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t4.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t4.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t4.model",
+      "min": 0,
+      "max": 12,
+      "default": 4,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t5.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t5.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t5.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t5.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t5.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t5.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t5.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t5.model",
+      "min": 0,
+      "max": 12,
+      "default": 5,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t6.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t6.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t6.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t6.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t6.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t6.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t6.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t6.model",
+      "min": 0,
+      "max": 12,
+      "default": 6,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "drum.t7.vol",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "drum.t7.tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "drum.t7.decay",
+      "min": 0.02,
+      "max": 1.5,
+      "default": 0.3,
+      "patch": false
+    },
+    {
+      "id": "drum.t7.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "drum.t7.drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t7.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "drum.t7.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "drum.t7.model",
+      "min": 0,
+      "max": 12,
+      "default": 7,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Conga",
+        "Bongo",
+        "Cowbell",
+        "Clave",
+        "Shaker"
+      ]
+    },
+    {
+      "id": "sampler.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "sampler.master",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "patch": false
+    },
+    {
+      "id": "sampler.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.solo",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "solo"
+      ]
+    },
+    {
+      "id": "sampler.t0.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t1.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t2.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t3.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t4.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t5.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t6.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "sampler.t7.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "motion.mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "on",
+        "mute"
+      ]
+    },
+    {
+      "id": "motion.slide",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "step",
+        "slide"
+      ]
+    },
+    {
+      "id": "motion.t0.slide",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "step",
+        "slide"
+      ]
+    },
+    {
+      "id": "motion.t1.slide",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "step",
+        "slide"
+      ]
+    }
+  ]
+}

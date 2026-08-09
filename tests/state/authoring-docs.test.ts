@@ -16,8 +16,10 @@ import {
 import { SONG_VERSION } from '../../src/state/song';
 import { KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { buildAuthoringGuide } from '../../src/state/authoring-guide';
+import { buildAuthoringGuide, paramTable } from '../../src/state/authoring-guide';
 import { PRESET_FORMAT, BANK_FORMAT } from '../../src/state/preset-validate';
+import { isPatchParam } from '../../src/state/preset-session';
+import { buildParamCatalog, PARAMS_FORMAT, PARAMS_VERSION } from '../../src/state/param-catalog';
 
 const read = (rel: string) =>
   readFileSync(fileURLToPath(new URL(`../../public/${rel}`, import.meta.url)), 'utf8');
@@ -145,6 +147,76 @@ describe('the published preset schemas', () => {
   });
 });
 
+/**
+ * The published parameter reference (param-catalogue.md). Unlike the schemas and
+ * llms.txt these files ARE generated — `npm run gen:params` — so the pin here is
+ * not "did someone forget to hand-edit it" but "was the generator run at all".
+ * `npm run check:params` is the byte-exact gate in CI; these assertions cover the
+ * contract a fetching agent depends on, which a byte comparison alone doesn't
+ * describe.
+ */
+describe('the published parameter reference', () => {
+  const bus = new ParamBus();
+  registerDefaults(bus);
+  const catalog = JSON.parse(read('params.json')) as ReturnType<typeof buildParamCatalog>;
+
+  it('is stamped with its own format, not the app version', () => {
+    expect(catalog.format).toBe(PARAMS_FORMAT);
+    expect(catalog.version).toBe(PARAMS_VERSION);
+    expect(catalog.songVersion).toBe(SONG_VERSION);
+    // A release bump must not be able to redden `check:params`.
+    expect(read('params.json')).not.toContain('appVersion');
+  });
+
+  it('names every registered param, in bus order, with its range', () => {
+    const ids = bus.ids();
+    expect(catalog.count).toBe(ids.length);
+    expect(catalog.params.map((p) => p.id)).toEqual(ids);
+    for (const entry of catalog.params) {
+      const def = bus.def(entry.id)!;
+      expect([entry.min, entry.max, entry.default], entry.id)
+        .toEqual([def.min, def.max, def.default]);
+    }
+  });
+
+  it('carries the fields the prose table drops', () => {
+    const wave = catalog.params.find((p) => p.id === 'osc1.wave');
+    expect(wave?.taper).toBe('discrete');
+    expect(wave?.labels).toEqual(['sine', 'triangle', 'saw', 'square']);
+    // At least one param exercises each of the fields paramTable() omits.
+    expect(catalog.params.some((p) => p.taper === 'exp' || p.taper === 'power')).toBe(true);
+    expect(catalog.params.some((p) => p.curve !== undefined)).toBe(true);
+    expect(catalog.params.some((p) => p.unit !== undefined)).toBe(true);
+  });
+
+  it('omits unset optional fields rather than emitting null', () => {
+    expect(read('params.json')).not.toContain('null');
+    for (const entry of catalog.params) {
+      const def = bus.def(entry.id)!;
+      expect(Object.hasOwn(entry, 'unit'), entry.id).toBe(def.unit !== undefined);
+      expect(Object.hasOwn(entry, 'step'), entry.id).toBe(def.step !== undefined);
+    }
+  });
+
+  it('splits sound from song exactly as the preset validator does', () => {
+    for (const entry of catalog.params) {
+      expect(entry.patch, entry.id).toBe(isPatchParam(entry.id));
+    }
+    // Both halves are non-empty, or one of the two markdown sections is a lie.
+    expect(catalog.params.some((p) => p.patch)).toBe(true);
+    expect(catalog.params.some((p) => !p.patch)).toBe(true);
+  });
+
+  it('renders params.md through the one shared paramTable()', () => {
+    const md = read('params.md');
+    expect(md).toContain(paramTable(bus, isPatchParam));
+    expect(md).toContain(paramTable(bus, (id) => !isPatchParam(id)));
+    expect(md).toContain('GENERATED');
+    // ADR-005 — the trap an agent falls into first.
+    expect(md).toContain('MIDI note number');
+  });
+});
+
 describe('llms.txt', () => {
   const txt = read('llms.txt');
 
@@ -168,9 +240,21 @@ describe('llms.txt', () => {
     for (const t of DRUM_TRACKS) expect(txt).toContain(t);
   });
 
-  it('points at the in-app AI Prompt instead of duplicating the params table', () => {
+  it('links the generated params reference instead of duplicating the table', () => {
+    expect(txt).toContain('/params.json');
+    expect(txt).toContain('/params.md');
+    // The other two doors to the same table stay named.
     expect(txt).toContain('AI Prompt');
+    expect(txt).toContain('get_params');
     // The live table is bus-generated; llms.txt must not carry param ids that drift.
     expect(txt).not.toMatch(/env\.amp\.attack|fx\.delay\.mix/);
+  });
+
+  it('publishes every format version it advertises a schema for', () => {
+    for (const fmt of ['websynth-song', 'websynth-song-author', PRESET_FORMAT, BANK_FORMAT]) {
+      expect(txt).toContain(`/schema/${fmt}.schema.json`);
+    }
+    // The version matrix must reach the version the app actually writes.
+    expect(txt).toContain(`- v${SONG_VERSION} —`);
   });
 });

@@ -234,6 +234,7 @@ specs/
     sample-persistence.md ·  sampler clips in IndexedDB, so audio survives a reload
     presets.md         ·  sound snapshots (param-only)
     preset-authoring.md ·  AI preset/bank guide + validator + sparse→full expansion (MCP)
+    param-catalogue.md ·  published param list (/params.json, /params.md) + format/version table
     param-reset-baseline.md ·  knob double-tap resets to the loaded preset/song value
     ai-prompt.md       ·  copyable prompt that has an AI generate a song file
     paste-import.md    ·  paste song/preset JSON (AI reply) instead of importing a file

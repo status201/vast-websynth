@@ -18,6 +18,10 @@ export { isAuthorSong, expandAuthorSong, AUTHOR_FORMAT } from '../../src/state/s
 export { compactSongForExport } from '../../src/state/serialize';
 export { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';
 export { ParamBus, registerDefaults } from '../../src/state/params';
+// The structured parameter catalogue `get_params` serves — the same registry the
+// guides render as prose, minus the prose (param-catalogue.md REQ-8).
+export { buildParamCatalog, PARAMS_FORMAT } from '../../src/state/param-catalog';
+export type { ParamCatalog, ParamCatalogEntry } from '../../src/state/param-catalog';
 // Presets are the other half of what the synth stores (preset-authoring.md).
 // The subtree is preset-validate → preset-session (pure) and preset-file →
 // serialize; `preset.ts` itself is never pulled in (localStorage), only its

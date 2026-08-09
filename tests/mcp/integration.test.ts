@@ -68,9 +68,20 @@ describe('websynth MCP server over stdio', () => {
   it('tools/list names the song and preset tools', async () => {
     const res = await request('tools/list');
     expect(res.result.tools.map((t: { name: string }) => t.name)).toEqual([
+      'get_params',
       'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
       'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
+  }, 30_000);
+
+  // Proves `buildParamCatalog` survived the Vite lib build of song-core-entry —
+  // the catalogue is only useful to an agent if it comes back over real stdio.
+  it('get_params returns the catalogue over real stdio', async () => {
+    const res = await request('tools/call', { name: 'get_params', arguments: {} });
+    const cat = JSON.parse(res.result.content[0].text);
+    expect(cat.format).toBe('websynth-params');
+    expect(cat.count).toBeGreaterThan(100);
+    expect(cat.params.some((p: { id: string }) => p.id === 'filter.cutoff')).toBe(true);
   }, 30_000);
 
   // The preset half rides the same bundle (mcp-server.md REQ-4): proving one

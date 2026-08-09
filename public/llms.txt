@@ -58,13 +58,47 @@ Import (or by pasting them into the app):
 gated by its own `.on` flag. Song-level ids (transport/seq/drum/sampler/arp) are
 accepted in a preset but belong in a song.
 
-## The live parameter table
+## The parameter list
 
-Synth parameters (ids, ranges, defaults, discrete value maps) are generated
-from the running app and are NOT duplicated here — open the app's Song panel
--> "✨ AI Prompt" for the complete, always-current authoring prompt including
-the PARAMS table. Tool-using agents can fetch the same tables from the repo's
-MCP server (`get_song_format`, `get_preset_format`).
+Parameter ids, ranges, defaults and discrete value maps are GENERATED from the
+running synth's registry — never hand-written, so they cannot go stale — and
+published as two files you can fetch directly:
+
+- /params.md   — the prose table, split into sound parameters (what a preset
+  carries) and song-only ones. Same lines the in-app prompt shows.
+- /params.json — the same list as structured JSON, plus each parameter's
+  `taper`, `curve` and `unit`. Shape: `{format: "websynth-params", version,
+  songVersion, count, params: [{id, min, max, default, patch, step?, taper?,
+  curve?, unit?, labels?}]}`. `patch: true` means the parameter is part of a
+  SOUND; `false` means it is song-level (transport, arp, seq, drums, sampler).
+  A parameter with `labels` is a CHOICE: its value is the index into that list.
+
+Two other doors serve the same table: the app's Song panel -> "✨ AI Prompt"
+(the complete authoring prompt with the PARAMS table inlined), and the repo's
+MCP server (`get_params` for the JSON catalogue, `get_song_format` /
+`get_preset_format` for the guides).
+
+## Formats and versions
+
+| Format | Version | Schema | Written by |
+| --- | --- | --- | --- |
+| `websynth-song` | 6 | /schema/websynth-song.schema.json | the app (export) |
+| `websynth-song-author` | 1 | /schema/websynth-song-author.schema.json | agents (input only) |
+| `websynth-preset` | 1 | /schema/websynth-preset.schema.json | the app + agents |
+| `websynth-preset-bank` | 1 | /schema/websynth-preset-bank.schema.json | the app + agents |
+
+Song versioning is ADDITIVE: every bump only adds optional fields, so all
+versions 1..6 still load and there is no migration step. Each version added:
+
+- v2 — the sampler fields
+- v3 — the XY Pad axis assignment
+- v4 — the motion sequencer (XY anchors)
+- v5 — `motionTracks` (motion's two extra single-parameter tracks)
+- v6 — `seqTracks` (note-sequencer tracks 2-4)
+
+So a v1 file lacks all of the above; a v5 file lacks only `seqTracks`. Versions
+beyond those a build knows are rejected. The authoring dialect expands to the
+LOWEST canonical version that holds its content, not always 6.
 
 ## For developers
 

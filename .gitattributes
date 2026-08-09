@@ -1,3 +1,8 @@
 # Demo drop-ins must stay byte-identical to `npm run clean:demos` output (LF),
 # even on Windows checkouts with core.autocrlf — see `npm run check:demos`.
 src/state/demos/*.json text eol=lf
+
+# Same rule for the published parameter reference: byte-identical to
+# `npm run gen:params` output (LF) — see `npm run check:params`.
+public/params.json text eol=lf
+public/params.md text eol=lf

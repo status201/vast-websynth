@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The parameter list is now published**, so an AI agent can look up what the
+  synth has without opening the app or running a tool. `/params.md` is the
+  readable table — split into the parameters a *preset* carries and the
+  song-only ones — and `/params.json` is the same list as data, with each
+  parameter's taper, curve and unit, which the prose table never showed. Both
+  are generated from the synth's own registry on every build, so they cannot
+  quietly go stale, and a new **Formats & schemas** section in the README ties
+  them together with the four file formats, their versions and their schemas.
+
+- **`get_params` on the MCP server** — the whole parameter catalogue as JSON.
+  The two format guides teach you how to *write* a file; this gives you the
+  ranges to compute against.
+
 - **The Arpeggiator tab now has a status light**, like every other machine tab.
   It is lit whenever the ARP is on, so you can see at a glance whether the
   keyboard is going to arpeggiate — the one thing about the arp you need to know
@@ -38,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Escape, Cancel or a click outside load neither.
 
 ### Fixed
+
+- **The schema links the MCP server hands an AI agent now work.** They were
+  built from a base URL that defaulted to a local dev server, so unless one
+  happened to be running, every link in the song and preset guides — and every
+  share link the server made — pointed nowhere. They point at the published site
+  now; `WEBSYNTH_BASE_URL` still redirects them at a dev server or a fork.
 
 - **Save no longer overwrites another song without asking.** It was the one
   path that could destroy a saved song with no dialog and no undo: type a name

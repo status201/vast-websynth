@@ -40,6 +40,9 @@ jobs:
       # Demo drop-ins must stay canonical pretty-printed (readable diffs);
       # check mode never writes — fails naming files that need `npm run clean:demos`.
       - run: npm run check:demos
+      # The published parameter reference is generated from the registry —
+      # fails if a param was added without `npm run gen:params`.
+      - run: npm run check:params
 
   e2e:
     runs-on: ubuntu-latest

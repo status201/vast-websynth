@@ -99,14 +99,20 @@ function containedDir(cwd, dir) {
 const toBase64Url = (buf) => buf.toString('base64url');
 
 /**
- * Build the five tools.
+ * Build the tool list: one shared discovery tool, then the song half and the
+ * preset half.
  * @param {object} core - the song core (bundle or src imports): validateSongFile,
  *   isAuthorSong, expandAuthorSong, compactSongForExport, buildAuthoringGuide,
- *   ParamBus, registerDefaults.
+ *   buildParamCatalog, ParamBus, registerDefaults.
  * @param {{baseUrl?: string, cwd?: string}} [opts]
  */
 export function makeTools(core, opts = {}) {
-  const baseUrl = (opts.baseUrl ?? process.env.WEBSYNTH_BASE_URL ?? 'http://localhost:5173')
+  // The guides cite absolute schema URLs off this. It defaulted to the dev
+  // server, so every schema link an agent was handed 404'd unless the operator
+  // happened to have a `vite dev` running — the published site is the only base
+  // that is true by default. Override with WEBSYNTH_BASE_URL to point at a local
+  // dev server or a fork's host.
+  const baseUrl = (opts.baseUrl ?? process.env.WEBSYNTH_BASE_URL ?? 'https://vast.status201.com')
     .replace(/\/+$/, '');
   const cwd = opts.cwd ?? process.cwd();
 
@@ -149,6 +155,23 @@ export function makeTools(core, opts = {}) {
   };
 
   return [
+    /* ---------------- shared discovery (param-catalogue.md) ---------------- */
+
+    {
+      name: 'get_params',
+      description:
+        'Get the complete synth parameter catalogue as structured JSON: every parameter id with its ' +
+        'min/max/default, its taper/curve/unit, and — for a choice parameter — the value map its ' +
+        'stored index refers to. Each entry has patch:true if it belongs to a SOUND (a preset) or ' +
+        'patch:false if it is song-level (transport, arp, sequencer, drums, sampler). Use this when ' +
+        'you need ranges to compute against; use get_preset_format / get_song_format for the prose ' +
+        'guides that teach how to write a file.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      handler: async () => json(core.buildParamCatalog(bus())),
+    },
+
+    /* ---------------- songs (song-authoring-dialect.md) ---------------- */
+
     {
       name: 'get_song_format',
       description:

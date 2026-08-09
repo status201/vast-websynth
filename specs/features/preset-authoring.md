@@ -3,11 +3,12 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 1
+version: 2   # v2: REQ-6 — the schemas point at the published /params.* reference
 owner: tooling
 related:
   - presets
   - mcp-server
+  - param-catalogue
   - ai-prompt
   - song-authoring-dialect
   - paste-import
@@ -93,8 +94,10 @@ passes it.
 - **REQ-6** — Both formats are **published** as draft 2020-12 JSON Schemas under
   `public/schema/` and named in `public/llms.txt`. Like the song schemas they
   describe the *shape* and deliberately do **not** enumerate parameter ids, which
-  grow with the synth — they point at the live table instead. Drift is pinned by
-  `tests/state/authoring-docs.test.ts`.
+  grow with the synth — they point at the **generated** parameter reference
+  instead (`/params.json`, `/params.md` — [param-catalogue](param-catalogue.md)),
+  which is the same registry rendered rather than a second copy of it. Drift is
+  pinned by `tests/state/authoring-docs.test.ts`.
 - **REQ-7** — Four MCP tools (see [mcp-server](mcp-server.md) REQ-5b) serve this:
   `get_preset_format`, `validate_preset`, `expand_preset`, `save_preset`. A failed
   validation is a **successful** call carrying the errors — the same rule the song

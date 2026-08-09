@@ -3,13 +3,15 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 4   # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
+version: 5   # v5: REQ-5d — get_params; baseUrl defaults to the published site
+             # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
              # v3: expand_song's description names no song version (it drifted to "v3")
              # v2: preset/bank authoring tools alongside the song ones
 owner: tooling
 related:
   - song-authoring-dialect
   - preset-authoring
+  - param-catalogue
   - song-share-link
   - ai-prompt
   - untrusted-input
@@ -77,7 +79,7 @@ first run and imports that.
     `<safe-name>.websynth.json` (canonical compact), return the absolute path.
   - `make_share_link` — canonical compact JSON → `node:zlib.deflateRawSync` →
     base64url → `<base>/#song=…` (the wire format of song-share-link.md);
-    base URL from `$WEBSYNTH_BASE_URL`, default `http://localhost:5173`.
+    base URL from `$WEBSYNTH_BASE_URL`, default the published site (REQ-5e).
 - **REQ-5b** — (v2) Four **preset** tools, same shape and same "a failed
   validation is a successful call" rule (see
   [preset-authoring](preset-authoring.md)), listed after the song five:
@@ -91,6 +93,18 @@ first run and imports that.
     `save_song`.
   All preset tools and `get_song_format` share **one** `ParamBus` +
   `registerDefaults` per process — the registry is read-only here.
+- **REQ-5d** — (v5) One **shared** tool ahead of both halves: `get_params`
+  returns `buildParamCatalog(bus)` as JSON ([param-catalogue](param-catalogue.md)
+  REQ-8). The two `get_*_format` tools serve *prose* — an agent that wants a
+  range to compute against had to parse a comment out of the PARAMS table, and
+  `taper`, `curve` and `unit` were not in that text at all. It shares the same
+  per-process bus as the rest.
+- **REQ-5e** — (v5) `baseUrl` defaults to the **published site**, not
+  `http://localhost:5173`. Every schema URL the guides cite is built from it, so
+  the old default handed the model dead links unless a dev server happened to be
+  running — the one thing a *published* schema must not do.
+  `$WEBSYNTH_BASE_URL` still overrides, which is how a local dev server or a
+  fork's host is pointed at.
 - **REQ-5c** — (v4) **A write stays inside the working directory.** Both
   `save_song` and `save_preset` sanitize the *filename* (`safeName`) **and**
   contain the `dir` argument: `resolve(cwd, dir)` must remain under `cwd` or the

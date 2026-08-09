@@ -17,11 +17,12 @@ import { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../sr
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { validatePresetPayload, expandPresetParams } from '../../src/state/preset-validate';
 import { buildPresetFile, buildBankFile, presetFilename, bankFilename } from '../../src/state/preset-file';
+import { buildParamCatalog } from '../../src/state/param-catalog';
 
 const core = {
   validateSongFile, isAuthorSong, expandAuthorSong,
   compactSongForExport, buildAuthoringGuide, buildSongPrompt,
-  ParamBus, registerDefaults,
+  ParamBus, registerDefaults, buildParamCatalog,
   // presets (preset-authoring.md)
   buildPresetGuide, validatePresetPayload, expandPresetParams,
   buildPresetFile, buildBankFile, presetFilename, bankFilename,
@@ -59,6 +60,7 @@ describe('makeTools', () => {
   it('exposes the song and preset tools with object schemas', () => {
     const tools = makeTools(core) as Tool[];
     expect(tools.map((t) => t.name)).toEqual([
+      'get_params',
       'get_song_format', 'validate_song', 'expand_song', 'save_song', 'make_share_link',
       'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
@@ -165,12 +167,14 @@ describe('make_share_link', () => {
     expect(validateSongFile(song).ok).toBe(true);
   });
 
-  it('defaults the base URL to localhost:5173 (WEBSYNTH_BASE_URL absent)', async () => {
+  it('defaults the base URL to the published site (WEBSYNTH_BASE_URL absent)', async () => {
+    // Was localhost:5173 — a share link the recipient could not open, from a
+    // server that usually runs nowhere near a dev server (mcp-server.md REQ-5e).
     const prev = process.env.WEBSYNTH_BASE_URL;
     delete process.env.WEBSYNTH_BASE_URL;
     try {
       const res = await tool('make_share_link').handler({ song: AUTHOR });
-      expect(jsonOf(res).url).toMatch(/^http:\/\/localhost:5173\/#song=/);
+      expect(jsonOf(res).url).toMatch(/^https:\/\/vast\.status201\.com\/#song=/);
     } finally {
       if (prev !== undefined) process.env.WEBSYNTH_BASE_URL = prev;
     }
@@ -192,6 +196,40 @@ const BANK = {
   name: 'Tool Set',
   presets: { one: { 'filter.cutoff': 60 }, two: { 'filter.cutoff': 90 } },
 };
+
+describe('get_params', () => {
+  it('returns the structured catalogue, not prose (param-catalogue.md REQ-8)', async () => {
+    const cat = jsonOf(await tool('get_params').handler({}));
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    expect(cat.format).toBe('websynth-params');
+    expect(cat.count).toBe(bus.ids().length);
+    const cutoff = cat.params.find((p: { id: string }) => p.id === 'filter.cutoff');
+    // A range an agent can compute against — the whole point over the prose table.
+    expect(cutoff).toMatchObject({ min: 30, max: 130, patch: true });
+    // The fields paramTable() drops reach the agent here.
+    const wave = cat.params.find((p: { id: string }) => p.id === 'osc1.wave');
+    expect(wave.labels).toEqual(['sine', 'triangle', 'saw', 'square']);
+    // Song-level params ARE present (unlike the preset guide's narrowed table).
+    expect(cat.params.some((p: { id: string }) => p.id === 'transport.bpm')).toBe(true);
+  });
+});
+
+describe('the default base URL', () => {
+  it('is the published site, so cited schema URLs resolve (REQ-5e)', async () => {
+    // No baseUrl and no $WEBSYNTH_BASE_URL: the guides used to hand the model
+    // http://localhost:5173 links, dead unless a dev server happened to run.
+    const prev = process.env['WEBSYNTH_BASE_URL'];
+    delete process.env['WEBSYNTH_BASE_URL'];
+    try {
+      const guide = textOf(await tool('get_preset_format').handler({}));
+      expect(guide).toContain('https://vast.status201.com/schema/websynth-preset.schema.json');
+      expect(guide).not.toContain('localhost');
+    } finally {
+      if (prev !== undefined) process.env['WEBSYNTH_BASE_URL'] = prev;
+    }
+  });
+});
 
 describe('get_preset_format', () => {
   it('returns the preset guide with the configured base URL', async () => {

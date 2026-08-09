@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "prebuild": "npm run clean:demos",
+    "prebuild": "npm run clean:demos && npm run gen:params",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,8 @@
     "build:mcp": "vite build --config scripts/mcp/vite.lib.config.ts",
     "clean:demos": "vitest run --config scripts/clean-demos.config.ts",
     "check:demos": "vitest run --config scripts/check-demos.config.ts",
+    "gen:params": "vitest run --config scripts/gen-params.config.ts",
+    "check:params": "vitest run --config scripts/check-params.config.ts",
     "spec:lint": "node scripts/spec-lint.mjs",
     "bench:audio": "node scripts/audio-bench.mjs",
     "bench:metrics": "node scripts/audio-metrics.mjs",
