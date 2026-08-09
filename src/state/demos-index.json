@@ -1,17 +1,182 @@
 {
-  "1979.websynth.json": "1979",
-  "1983.websynth.json": "1983",
-  "1985-1.websynth.json": "1985-1",
-  "1985-2.websynth.json": "1985-2",
-  "Night_Rider.websynth.json": "Night Rider",
-  "Night_Shift.websynth.json": "Night Shift",
-  "Nocturne.websynth.json": "Nocturne",
-  "Right.websynth.json": "Right",
-  "Run_Away.websynth.json": "Run Away",
-  "Tosti.websynth.json": "Tosti",
-  "apex-twin.json": "Apex Twin",
-  "around_and_around.websynth.json": "Around and around",
-  "fat.json": "Fat",
-  "hacienda_neworder.json": "Haçienda",
-  "spazio_moroder.json": "Spazio"
+  "1973.websynth.zip": {
+    "name": "1973",
+    "bpm": 111,
+    "bars": 10,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler",
+      "motion"
+    ],
+    "armed": [
+      "arp"
+    ],
+    "blurb": "A project bundle, so its sampled parts travel inside the file."
+  },
+  "1979.websynth.json": {
+    "name": "1979",
+    "bpm": 111,
+    "bars": 16,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "1983.websynth.json": {
+    "name": "1983",
+    "bpm": 101,
+    "bars": 19,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "armed": [
+      "motion"
+    ]
+  },
+  "1985-1.websynth.json": {
+    "name": "1985-1",
+    "bpm": 96,
+    "bars": 11,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "1985-2.websynth.json": {
+    "name": "1985-2",
+    "bpm": 96,
+    "bars": 11,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "Night_Rider.websynth.json": {
+    "name": "Night Rider",
+    "bpm": 125,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "Night_Shift.websynth.json": {
+    "name": "Night Shift",
+    "bpm": 138,
+    "bars": 12,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "armed": [
+      "motion"
+    ]
+  },
+  "Nocturne.websynth.json": {
+    "name": "Nocturne",
+    "bpm": 66,
+    "bars": 25,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "blurb": "The long, slow one: four sequencer tracks through the POLY filter, with motion driving it."
+  },
+  "Right.websynth.json": {
+    "name": "Right",
+    "bpm": 120,
+    "bars": 14,
+    "uses": [
+      "seq",
+      "motion"
+    ],
+    "blurb": "No drums anywhere — four sequencer tracks and motion carry the whole piece."
+  },
+  "Run_Away.websynth.json": {
+    "name": "Run Away",
+    "bpm": 125,
+    "bars": 12,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "Run_Away_2.websynth.zip": {
+    "name": "Run Away 2",
+    "bpm": 125,
+    "bars": 20,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler",
+      "motion"
+    ],
+    "blurb": "The Run Away idea rebuilt as a project bundle, sampled parts alongside the synth."
+  },
+  "Tosti.websynth.json": {
+    "name": "Tosti",
+    "bpm": 118,
+    "bars": 12,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "armed": [
+      "arp"
+    ],
+    "blurb": "Three sequencer tracks over a conga-and-clave kit."
+  },
+  "apex-twin.json": {
+    "name": "Apex Twin",
+    "bpm": 128,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "around_and_around.websynth.json": {
+    "name": "Around and around",
+    "bpm": 121,
+    "bars": 23,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ]
+  },
+  "fat.json": {
+    "name": "Fat",
+    "bpm": 127,
+    "bars": 16,
+    "uses": [
+      "seq",
+      "drums"
+    ]
+  },
+  "hacienda_neworder.json": {
+    "name": "Haçienda",
+    "bpm": 130,
+    "bars": 10,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "blurb": "A nod to the Haçienda."
+  },
+  "spazio_moroder.json": {
+    "name": "Spazio",
+    "bpm": 126,
+    "bars": 8,
+    "uses": [
+      "seq",
+      "drums"
+    ],
+    "armed": [
+      "motion"
+    ]
+  }
 }

@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The demo buttons now say what they are.** The row was nineteen unlabelled
+  names — no tempo, no length, nothing about what any of them shows off. Hover
+  one (or reach it with a screen reader) and it now reads
+  *"124 BPM · 16 bars · seq + drums + motion"*, with a hand-written line for some
+  of them. It also tells you what a demo has **armed for you to play**: two of
+  them switch the arpeggiator on, so holding a key arpeggiates over the song, and
+  three carry motion automation that is loaded but switched off. All of it is
+  generated from the songs themselves whenever the demos change, so it cannot go
+  stale — and the two project-zip demos, the only ones that use the sampler, are
+  described for the first time instead of being labelled from their filenames.
+
 - **A bar in the arrangement can now be transposed** — so one bank can carry a
   whole chord progression. Until now a chain slot was just a bank, which meant
   four banks of sixteen steps was the entire melodic vocabulary of a song: a

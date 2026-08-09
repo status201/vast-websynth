@@ -35,8 +35,10 @@ import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
 import {
-  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, isDemoName, resolveDemoName, type SongFile,
+  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, isDemoName, resolveDemoName,
+  type SongFile,
 } from '../../state/song';
+import { demoSummary } from '../../state/demo-meta';
 import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
@@ -680,6 +682,20 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const mkDemoBtn = (name: string, onClick: () => void): HTMLButtonElement => {
     const d = el('button', `${switchStyles.root!} ${styles.demo!}`, name) as HTMLButtonElement;
     d.dataset.testid = `song-demo-${name}`;
+    // Say what the demo IS without needing a click (demo-library.md REQ-6).
+    // The row was nineteen unlabelled buttons; the visible label stays the name
+    // because the row is already tight on mobile, so the answer is a richer
+    // tooltip, not nineteen wider buttons.
+    const meta = demoMetaFor(name);
+    if (meta) {
+      const summary = demoSummary(meta);
+      if (summary) {
+        d.title = `${name} — ${summary}`;
+        // The title alone is invisible to a screen reader on a button that
+        // already has a text label, so the same sentence goes on aria-label.
+        d.setAttribute('aria-label', `${name}. ${summary}`);
+      }
+    }
     d.addEventListener('click', onClick);
     return d;
   };

@@ -225,6 +225,7 @@ specs/
     xy-pad.md          ·  assignable momentary XY controller (spring-back)
     # — songs & persistence —
     song-mode.md       ·  the cross-cutting integration feature
+    demo-library.md    ·  what a shipped demo is + the generated metadata behind the shelf
     untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)
     song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link

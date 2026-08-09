@@ -105,35 +105,46 @@ const demoButtons = (page: Page) =>
   page.locator('[data-testid^="song-demo-"]:not([data-testid="song-demo-more"])');
 
 /**
+ * The generated index, keyed by filename. Values carry each demo's name plus
+ * its derived facts (specs/features/demo-library.md) — only the name is needed
+ * here. Read as a file rather than imported: Playwright has no Vite, so it
+ * cannot evaluate `song.ts`'s globs.
+ */
+interface IndexEntry { name: string }
+const demoIndex = (): Record<string, IndexEntry | undefined> =>
+  JSON.parse(readFileSync(repoPath('src/state/demos-index.json'), 'utf8')) as
+    Record<string, IndexEntry | undefined>;
+
+/**
  * Shipped drop-ins in registration order — `src/state/song.ts` globs
  * `./demos/*.json` and sorts by path, labelling each from `demos-index.json`
  * with a filename fallback.
  */
 export function dropInDemos(): DemoRef[] {
-  const index = JSON.parse(
-    readFileSync(repoPath('src/state/demos-index.json'), 'utf8'),
-  ) as Record<string, string>;
+  const index = demoIndex();
   return readdirSync(repoPath(DEMO_DIR))
     .filter((f) => f.endsWith('.json'))
     .sort()
     .map((file) => ({
-      name: index[file] ?? file.replace(/\.(websynth\.)?json$/i, ''),
+      name: index[file]?.name ?? file.replace(/\.(websynth\.)?json$/i, ''),
       kind: 'drop-in' as const,
       path: repoPath(`${DEMO_DIR}/${file}`),
     }));
 }
 
 /**
- * Shipped project-zip demos in registration order. The zip cannot be opened at
- * build time, so the name is the filename minus the extension with underscores
- * turned back into spaces (project-export.md REQ-7).
+ * Shipped project-zip demos in registration order. The index covers these too
+ * now (demo-library.md REQ-3) — the generator opens them in Node — so the name
+ * comes from there, with the old filename mangling kept as the fallback
+ * (project-export.md REQ-7).
  */
 export function zipDemos(): DemoRef[] {
+  const index = demoIndex();
   return readdirSync(repoPath(DEMO_DIR))
     .filter((f) => /\.websynth\.zip$/i.test(f))
     .sort()
     .map((file) => ({
-      name: file.replace(/\.websynth\.zip$/i, '').replace(/_+/g, ' '),
+      name: index[file]?.name ?? file.replace(/\.websynth\.zip$/i, '').replace(/_+/g, ' '),
       kind: 'zip' as const,
       path: repoPath(`${DEMO_DIR}/${file}`),
     }));
