@@ -1,16 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Song, DEMO_SONGS, JSON_DEMOS, demoNames } from '../../src/state/song';
-import { DROP_IN_DEMOS } from './demo-files';
+import { Song, DEMO_SONGS, JSON_DEMOS, demoNames, isDemoName, resolveDemoName } from '../../src/state/song';
+import { DROP_IN_DEMOS, DROP_IN_NAMES } from './demo-files';
+import { fixtureSong, FIXTURE } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { compactSongForExport } from '../../src/state/serialize';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
 import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
 
-/** Deep clone via JSON so a test never mutates the shared DEMO_SONGS object. */
-function demo(): SongFile {
-  return JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
-}
+/**
+ * The song these tests assert against — the suite's own, never a shipped demo
+ * (tests/fixtures/song-fixture.ts explains why). Already a fresh deep copy, so
+ * a test may mutate it freely.
+ */
+const demo = (): SongFile => fixtureSong();
 
 /** Minimal Arrangement stand-in: only the surface Song.capture/apply touch. */
 function fakeArr() {
@@ -58,7 +61,7 @@ describe('Song', () => {
     const file = demo();
     const parsed = Song.fromJSON(Song.toJSON(file));
     expect(parsed).not.toBeNull();
-    expect(parsed!.name).toBe('Zombie Nation');
+    expect(parsed!.name).toBe(FIXTURE.name);
     // toJSON emits the canonical compact form (rounded + default-sparse cells),
     // so fromJSON returns that, not the full-cell input. apply() re-expands it.
     expect(parsed).toEqual(compactSongForExport(file));
@@ -115,11 +118,9 @@ describe('Song', () => {
     });
   });
 
-  it('list() includes the demo songs', () => {
-    expect(Song.list()).toEqual(
-      expect.arrayContaining(['Zombie Nation', 'I Feel Love']),
-    );
-  });
+  // `list()` carrying every demo name is covered derivably by
+  // "Song.list with fetched demos" below, over the whole library rather than two
+  // spelled names.
 
   it('saveSlot → loadSlot → deleteSlot via localStorage', () => {
     const file = demo();
@@ -136,7 +137,9 @@ describe('Song', () => {
   });
 
   it('loadSlot falls back to a demo song when no slot is stored', () => {
-    expect(Song.loadSlot('Zombie Nation')?.name).toBe('Zombie Nation');
+    // Any built-in: they are the bundled, synchronous ones loadSlot can return.
+    const builtIn = Object.keys(DEMO_SONGS)[0]!;
+    expect(Song.loadSlot(builtIn)?.name).toBe(builtIn);
   });
 
   it('apply() restores params + banks + both chain lanes into live state', () => {
@@ -144,17 +147,17 @@ describe('Song', () => {
     registerDefaults(bus);
     const patterns = new PatternStore();
     const arr = fakeArr();
-    const file = demo(); // Zombie Nation: bpm 130, mono voicing
+    const file = demo();
 
     Song.apply(file, bus, patterns, arr as never);
 
-    expect(bus.get('transport.bpm')).toBe(130);
+    expect(bus.get('transport.bpm')).toBe(FIXTURE.bpm);
     expect(bus.get('voicing.mode')).toBe(0);
     expect(arr.seq.enabled).toBe(true);
-    expect(arr.seq.steps).toEqual([0, 1, 2, 3]);
-    expect(arr.drum.steps).toEqual([0, 0, 0, 1]);
-    // first sounded note of the Zombie Nation hook (step 0 is a rest)
-    expect(patterns.seqBanks[0]![0]![2]!.note).toBe(69);
+    expect(arr.seq.steps).toEqual([...FIXTURE.seqChain]);
+    expect(arr.drum.steps).toEqual([...FIXTURE.drumChain]);
+    // the fixture's first sounded note (step 0 is a rest)
+    expect(patterns.seqBanks[0]![0]![FIXTURE.plainStep]!.note).toBe(FIXTURE.plainNote);
   });
 
   it('apply() resets params omitted from the snapshot back to their defaults', () => {
@@ -164,7 +167,7 @@ describe('Song', () => {
     const arr = fakeArr();
 
     bus.set('fx.drum.delay.on', 1);                   // simulate a prior full snapshot
-    Song.apply(demo(), bus, patterns, arr as never);  // Zombie Nation omits the key
+    Song.apply(demo(), bus, patterns, arr as never);  // the fixture omits the key
 
     expect(bus.get('fx.drum.delay.on')).toBe(0);      // back to registered default
   });
@@ -183,10 +186,10 @@ describe('Song', () => {
     const edits: string[] = [];
     bus.onChange((id) => edits.push(id));
 
-    Song.apply(demo(), bus, patterns, arr as never); // Zombie Nation: bpm 130
+    Song.apply(demo(), bus, patterns, arr as never);
 
     // The per-param channel delivered the restored value, so audio + UI update…
-    expect(bpmSeen).toContain(130);
+    expect(bpmSeen).toContain(FIXTURE.bpm);
     // …but loading a song is NOT an edit, so the global onChange never fired.
     expect(edits).toEqual([]);
   });
@@ -293,7 +296,7 @@ describe('Song', () => {
       patterns.setSamplerCell(0, 5, { on: true }); // pre-existing edit state
       patterns.setSampleName(0, 'leftover.wav');
       const arr = fakeArr();
-      const v1 = demo(); // Zombie Nation is version 1, no sampler fields
+      const v1 = demo(); // the fixture is version 1, no sampler fields
       expect(v1.version).toBe(1);
 
       Song.apply(v1, bus, patterns, arr as never);
@@ -322,7 +325,7 @@ describe('Song', () => {
       patterns.setSamplerCell(0, 5, { on: true });
       patterns.setSampleName(0, 'kept.wav');
 
-      // Load Zombie Nation (v1 — no motion AND no sampler fields) into the SAME store.
+      // Load the fixture (v1 — no motion AND no sampler fields) into the SAME store.
       const v1 = demo();
       expect(v1.version).toBe(1);
       Song.apply(v1, bus, patterns, arr as never);
@@ -465,97 +468,80 @@ describe('Song', () => {
     });
   });
 
-  describe('"I Feel Love" demo', () => {
-    it('exists and round-trips through toJSON/fromJSON', () => {
-      const ifl = DEMO_SONGS['I Feel Love'];
-      expect(ifl).toBeDefined();
-      const parsed = Song.fromJSON(Song.toJSON(ifl!));
-      expect(parsed).toEqual(compactSongForExport(ifl!));
-    });
-
-    it('applies the ladder-filter bass params + octave-pulse riff', () => {
+  /**
+   * The shipped demos, asserted **as a set**. Naming one here would make the
+   * suite fail for a data edit that broke nothing (see
+   * tests/fixtures/song-fixture.ts); everything a specific song used to pin —
+   * per-step settings, long chains, v1 migration — is the fixture's job now.
+   * These run over the whole library, so a new demo gains coverage for free.
+   */
+  describe('shipped demos', () => {
+    /** Applying a file must restore every param it actually declares. */
+    const appliesOwnContents = (file: SongFile): void => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
       const arr = fakeArr();
 
-      Song.apply(DEMO_SONGS['I Feel Love']!, bus, patterns, arr as never);
+      Song.apply(file, bus, patterns, arr as never);
 
-      expect(bus.get('transport.bpm')).toBe(125);
-      expect(bus.get('voicing.mode')).toBe(0); // mono
-      expect(bus.get('filter.resonance')).toBe(1.5);
-      expect(bus.get('lfo.dest')).toBe(1); // LFO → cutoff
-      // step 2 jumps the octave (45 → 57) in the bassline
-      expect(patterns.seqBanks[0]![0]![2]!.note).toBe(57);
-      expect(arr.seq.enabled).toBe(true);
+      for (const [key, value] of Object.entries(file.params)) {
+        expect(bus.get(key), `${file.name}: ${key}`).toBe(value);
+      }
+      expect(arr.seq.steps, `${file.name}: seq chain`).toEqual(file.seqChain.steps);
+      expect(arr.drum.steps, `${file.name}: drum chain`).toEqual(file.drumChain.steps);
+    };
+
+    describe.each(Object.keys(DEMO_SONGS))('built-in: %s', (name) => {
+      it('round-trips through toJSON/fromJSON', () => {
+        const file = DEMO_SONGS[name]!;
+        expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
+      });
+
+      it('applies its own declared params and chains', () => {
+        appliesOwnContents(DEMO_SONGS[name]!);
+      });
     });
-  });
 
-  describe('"Fat" drop-in demo', () => {
-    it('is a v2 file and round-trips through toJSON/fromJSON', () => {
-      const fat = DROP_IN_DEMOS['Fat'];
-      expect(fat).toBeDefined();
-      expect(fat!.version).toBe(2);
-      expect(Song.fromJSON(Song.toJSON(fat!))).toEqual(compactSongForExport(fat!));
+    describe.each(DROP_IN_NAMES)('drop-in: %s', (name) => {
+      it('round-trips through toJSON/fromJSON', () => {
+        const file = DROP_IN_DEMOS[name]!;
+        expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
+      });
+
+      it('applies its own declared params and chains', () => {
+        appliesOwnContents(DROP_IN_DEMOS[name]!);
+      });
     });
 
-    it('applies its acid params and per-step settings', () => {
-      const bus = new ParamBus();
-      registerDefaults(bus);
-      const patterns = new PatternStore();
-      const arr = fakeArr();
-
-      const fat = DROP_IN_DEMOS['Fat']!;
-      Song.apply(fat, bus, patterns, arr as never);
-
-      expect(bus.get('transport.bpm')).toBe(127);
-      expect(bus.get('voicing.mode')).toBe(0);             // mono 303
-      // resonance is fine-tuned on every re-export, so assert it transferred
-      // faithfully rather than pinning a float that drifts on each retune.
-      expect(bus.get('filter.resonance')).toBe(fat.params['filter.resonance']);
-      expect(bus.get('fx.drum.comp.ratio')).toBe(4);       // ALL buttons in
-      expect(patterns.seqBanks[0]![0]![2]!.tie).toBe(true);    // acid slide
-      expect(patterns.drumBanks[0]![3]![2]!.gate).toBeCloseTo(0.45); // choked open hat
-      expect(patterns.drumBanks[0]![2]![1]!.prob).toBeCloseTo(0.35); // ghost hat
-      expect(arr.seq.steps).toHaveLength(16);              // long chains
-      expect(arr.drum.steps).toHaveLength(16);
-    });
-  });
-
-  describe('"Apex Twin" drop-in demo', () => {
-    it('is auto-registered ahead of the built-ins and round-trips', () => {
-      const apex = DROP_IN_DEMOS['Apex Twin'];
-      expect(apex).toBeDefined();
-      // Drop-in demos are listed *before* the hand-authored built-ins, so any
-      // drop-in precedes any built-in regardless of how many demos exist.
-      // (Asserting a fixed [0] key breaks the moment another drop-in is added.)
+    it('lists every drop-in ahead of every built-in', () => {
+      // The order rule, stated over the whole library rather than through two
+      // spelled names — it holds however many demos exist, in any order.
       const names = demoNames();
-      expect(names.indexOf('Apex Twin')).toBeLessThan(names.indexOf('Zombie Nation'));
-      expect(Song.fromJSON(Song.toJSON(apex!))).toEqual(compactSongForExport(apex!));
+      const dropIns = DROP_IN_NAMES.map((n) => names.indexOf(n));
+      const builtIns = Object.keys(DEMO_SONGS).map((n) => names.indexOf(n));
+      expect(Math.min(...dropIns)).toBeGreaterThanOrEqual(0);
+      expect(Math.max(...dropIns)).toBeLessThan(Math.min(...builtIns));
     });
 
     // song-mode.md REQ-11: the drop-ins are fetched on click, so their *names*
     // come from the generated index rather than from the files at build time.
     // A drifted index would silently mislabel every button.
-    it('is listed by its song name, resolved through the generated index', () => {
-      expect(JSON_DEMOS.map((d) => d.name)).toEqual(Object.keys(DROP_IN_DEMOS));
+    it('labels every drop-in by its song name, via the generated index', () => {
+      // DROP_IN_NAMES, not Object.keys — object key order hoists the year-named
+      // demos ahead of the rest, whatever order they registered in.
+      expect(JSON_DEMOS.map((d) => d.name)).toEqual(DROP_IN_NAMES);
       for (const d of JSON_DEMOS) {
         expect(d.url, `${d.name} has no url`).toBeTruthy();
       }
     });
 
-    it('applies its params + 8-step chains', () => {
-      const bus = new ParamBus();
-      registerDefaults(bus);
-      const patterns = new PatternStore();
-      const arr = fakeArr();
-
-      Song.apply(DROP_IN_DEMOS['Apex Twin']!, bus, patterns, arr as never);
-
-      expect(bus.get('transport.bpm')).toBe(128);
-      expect(patterns.seqBanks[0]![0]![0]!.note).toBe(45);
-      expect(arr.seq.steps).toEqual([0, 0, 1, 0, 0, 2, 0, 3]);
-      expect(arr.drum.steps).toEqual([0, 0, 1, 1, 2, 0, 1, 3]);
+    // Relied on wherever a caller round-trips a built-in through its name — the
+    // demo row's label, `loadSlot`, and e2e's pick-a-demo-by-kind helpers.
+    it('keys every built-in by its own name', () => {
+      for (const [key, file] of Object.entries(DEMO_SONGS)) {
+        expect(file.name, `DEMO_SONGS['${key}']`).toBe(key);
+      }
     });
   });
 });
@@ -618,10 +604,36 @@ describe('Song.list with fetched demos', () => {
   });
 
   it('loadSlot stays sync and returns only built-ins, never a fetched demo', () => {
-    expect(Song.loadSlot('Zombie Nation')).not.toBeNull();
+    expect(Song.loadSlot(Object.keys(DEMO_SONGS)[0]!)).not.toBeNull();
     // A drop-in is listed but not loadable here — the Song panel's Load button
     // falls back to loadDemo for exactly this case.
-    expect(Song.loadSlot('Apex Twin')).toBeNull();
-    expect(Song.list()).toContain('Apex Twin');
+    const dropIn = DROP_IN_NAMES[0]!;
+    expect(Song.loadSlot(dropIn)).toBeNull();
+    expect(Song.list()).toContain(dropIn);
+  });
+});
+
+/**
+ * song-mode.md REQ-12 (v18). Demo names are *data* — `src/state/demos/` is a
+ * drop-in directory — but callers name one: the tour applies `DEMO_FOR_TOUR` by
+ * string constant. `loadDemo` used to return silently for a name no source
+ * owned, so renaming that one file turned the tour's headline step into a no-op
+ * and the step after it into narration over silence.
+ */
+describe('demo name resolution', () => {
+  const NOT_A_DEMO = 'no demo is called this — zzz';
+
+  it('recognises every name the three sources own, and nothing else', () => {
+    for (const name of demoNames()) expect(isDemoName(name), name).toBe(true);
+    expect(isDemoName(NOT_A_DEMO)).toBe(false);
+  });
+
+  it('resolves a known name to itself', () => {
+    for (const name of demoNames()) expect(resolveDemoName(name)).toBe(name);
+  });
+
+  it('resolves an unknown name to the first demo, never to undefined', () => {
+    expect(resolveDemoName(NOT_A_DEMO)).toBe(demoNames()[0]);
+    expect(resolveDemoName(NOT_A_DEMO)).toBeDefined();
   });
 });

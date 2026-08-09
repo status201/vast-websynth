@@ -399,6 +399,10 @@ tour.ts:
                              #   ASYNC: all but the two built-ins are fetched on
                              #   click (song-mode REQ-12), so a step that acts on
                              #   the loaded song must await it (see below).
+                             #   The tour names DEMO_FOR_TOUR by constant while
+                             #   demo files are data; song-mode REQ-12's
+                             #   resolveDemoName means a renamed or deleted demo
+                             #   degrades to the first one, never to nothing.
     resumeAudio(): Promise   # idempotent AudioContext resume (before note step)
     expandFx()               # open the collapsible FX section
 info-badges.ts / help-content.ts: per-control info badges + copy

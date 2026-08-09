@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { roundNum, roundParams, compactSongForExport } from '../../src/state/serialize';
-import { Song, DEMO_SONGS } from '../../src/state/song';
+import { Song } from '../../src/state/song';
+import { fixtureSong, FIXTURE } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore, TRIGGER_CELL_DEFAULTS } from '../../src/state/patterns';
@@ -136,7 +137,7 @@ describe('compactSongForExport — whole-song', () => {
   });
 
   it('is idempotent (re-compacting a compact file is a no-op)', () => {
-    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
+    const file = fixtureSong();
     const compact = compactSongForExport(file);
     const reloaded = JSON.parse(JSON.stringify(compact)) as SongFile;
     expect(compactSongForExport(reloaded)).toEqual(compact);
@@ -153,25 +154,34 @@ describe('compactSongForExport — whole-song', () => {
 
 describe('round-trip fidelity', () => {
   it('fromJSON(toJSON(x)) deep-equals the canonical compact form', () => {
-    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
+    const file = fixtureSong();
     expect(Song.fromJSON(Song.toJSON(file))).toEqual(compactSongForExport(file));
   });
 
   it('applying the compact file reproduces the original-sounding state', () => {
-    const file = JSON.parse(JSON.stringify(DEMO_SONGS['Zombie Nation'])) as SongFile;
-    const compactFile = Song.fromJSON(Song.toJSON(file))!;
+    const compactFile = Song.fromJSON(Song.toJSON(fixtureSong()))!;
 
     const bus = new ParamBus();
     registerDefaults(bus);
     const patterns = new PatternStore();
     Song.apply(compactFile, bus, patterns, fakeArr() as never);
 
-    expect(bus.get('transport.bpm')).toBe(130);
-    expect(patterns.seqBanks[0]![0]![2]!.note).toBe(69);
+    expect(bus.get('transport.bpm')).toBe(FIXTURE.bpm);
+    const plain = patterns.seqBanks[0]![0]![FIXTURE.plainStep]!;
+    expect(plain.note).toBe(FIXTURE.plainNote);
     // default fields the sparse cells omitted are re-expanded by restore()
-    expect(patterns.seqBanks[0]![0]![2]!.prob).toBe(1);
-    expect(patterns.seqBanks[0]![0]![2]!.ratchet).toBe(1);
+    expect(plain.prob).toBe(1);
+    expect(plain.ratchet).toBe(1);
     expect(patterns.drumBanks[0]![0]![0]!.gate).toBe(1);
+    // …while the cells that carry real per-step settings keep them.
+    const settings = patterns.seqBanks[0]![0]![FIXTURE.settingsStep]!;
+    expect(settings.prob).toBeCloseTo(FIXTURE.settingsProb);
+    expect(settings.ratchet).toBe(FIXTURE.settingsRatchet);
+    expect(settings.tie).toBe(true);
+    expect(patterns.drumBanks[0]![FIXTURE.chokedTrack]![FIXTURE.chokedStep]!.gate)
+      .toBeCloseTo(FIXTURE.chokedGate);
+    expect(patterns.drumBanks[0]![FIXTURE.ghostTrack]![FIXTURE.ghostStep]!.prob)
+      .toBeCloseTo(FIXTURE.ghostProb);
   });
 });
 

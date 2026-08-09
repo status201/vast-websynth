@@ -84,6 +84,8 @@ export function mountApp(
   // Only the built-ins are reachable here — the drop-in and zip demos are
   // fetched on click and so are inherently async (song-mode.md REQ-11) — but
   // this fallback is replaced a few lines below and never actually used.
+  // The real unknown-name fallback lives in `resolveDemoName` (REQ-12, v18),
+  // which `SongPanel.loadDemo` applies to every caller including the tour.
   let songLoadDemo: (name: string) => Promise<void> = async (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
     if (file) {

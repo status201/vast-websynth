@@ -3,7 +3,10 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 17  # v17: REQ-15 — a demo whose name a saved slot shadows asks which of
+version: 18  # v18: REQ-12 — loadDemo resolves an unknown name to the first demo
+             #      instead of returning silently, so renaming or deleting a demo
+             #      cannot leave a caller (the tour) staring at nothing
+             # v17: REQ-15 — a demo whose name a saved slot shadows asks which of
              #      the two songs was meant (demo clicks no longer write slots —
              #      session-autosave REQ-14d)
              # v16: REQ-8 bounds magnitude, not just shape — note 0..127, chain
@@ -147,10 +150,14 @@ demos, the load path **must stay backward compatible** as the format grows.
   by the guided tour) keeps working for hidden demos — visibility only affects
   the buttons. Loading a demo — like every song load/import — also fires
   `UiBridge.cuePlay` (see [play-button-blink](play-button-blink.md)).
-  The limit was 6 when there were 8 demos; at 17 it hid two thirds of the
-  library behind a click. The row is a wrapping flex (`.io`), so the only cost of
-  a higher limit is horizontal space, and 10 is what fits a desktop row before
-  wrapping.
+  The limit was 6, which hid most of a growing library behind a click. The row is
+  a wrapping flex (`.io`), so the only cost of a higher limit is horizontal
+  space, and 10 is what fits a desktop row before wrapping.
+
+  **Which** demos fall into the overflow is a function of the library's size and
+  filename order — i.e. of data. A test may therefore assert the *rule* (at most
+  10 inline, the rest behind the toggle, both directions) but never that a named
+  demo is hidden; see [write-a-test](../recipes/write-a-test.md).
 - **REQ-11 (lane titles navigate, v8)** — Each lane card's title is a button
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
   tab, and the tab bar carries a per-machine status LED. Both are governed by
@@ -182,6 +189,26 @@ demos, the load path **must stay backward compatible** as the format grows.
   `demoNames()` is the single source of button order (drop-ins → built-ins →
   zips), shared by the demo row, the tour fallback and the empty-play random pick.
 
+  **Name resolution (v18).** A demo name is *data* — `src/state/demos/**` is a
+  drop-in directory anyone may add to, rename in or delete from without touching
+  code. But callers name one: the guided tour applies `DEMO_FOR_TOUR` by string
+  constant. `loadDemo` used to try the three sources and **return silently** when
+  none owned the name, so renaming that one file turned the tour's headline step
+  into a no-op followed by a "the transport is now playing" step over silence.
+  So `resolveDemoName(name)` (in `song.ts`, beside the sources it consults)
+  returns the name when a source owns it and otherwise **the first name in
+  `demoNames()`** — a missing demo degrades to a real song rather than to nothing.
+  It returns `undefined` only for an empty library. `loadDemo` resolves *before*
+  asking the REQ-15 shadow question, so the dialog can never name a song other
+  than the one about to load.
+
+  The one caller that must **not** fall back is the Load button's fallthrough for
+  a slot-picker entry `loadSlot` could not return (`isDemoName` guards it). Every
+  entry there is a stored slot or a drop-in, so the branch is reachable only when
+  a slot is deleted in another tab mid-click — and loading an unrelated song is a
+  worse answer to that race than doing nothing. The demo buttons, the tour and the
+  empty-play random pick all take the fallback.
+
   Offline (see [pwa-install](pwa-install.md)): a demo not yet clicked is not in
   the cache, exactly as for the zip demos — one clicked once is, since the
   service worker is cache-first for hashed `/assets/*`.
@@ -190,6 +217,12 @@ demos, the load path **must stay backward compatible** as the format grows.
   drop-in until a user clicks it, so `tests/state/demo-files.ts` eagerly globs
   them for the **test** bundle and every one is still asserted against
   `validateSongFile`.
+
+  E2E reaches the same library a third way. Playwright runs in plain Node with no
+  Vite, so `song.ts`'s globs are not evaluable there: `e2e/helpers.ts` reads
+  `demos-index.json` and `readdirSync`s `src/state/demos/` instead, mirroring the
+  registration rules, and derives the built-ins as (rendered buttons − drop-ins −
+  zips). A stale index therefore fails E2E loudly, naming `npm run clean:demos`.
 - **REQ-13 (Sync and Audio pair up, v13)** — The panel's last two rows are
   **Sync** then **Audio**, in that order: Audio export is the tab's terminal
   action (render the finished thing), so it reads last, while Sync is setup that
@@ -656,7 +689,8 @@ Scenario: A drop-in demo keeps its own name as its button label (REQ-12)
   Given the drop-ins are referenced by url, not imported
   Then JSON_DEMOS lists them in filename order under the names inside the files
   And demoNames() puts every drop-in ahead of every built-in
-# pinned by: tests/state/song.test.ts
+  And the demo row renders exactly that library, each drop-in labelled from the index
+# pinned by: tests/state/song.test.ts, e2e/song.spec.ts
 
 Scenario: A stale demo index fails CI (REQ-12, drift gate)
   Given a demo whose song name no longer matches src/state/demos-index.json
@@ -671,9 +705,18 @@ Scenario: Clicking a drop-in demo fetches and applies it (REQ-12)
   And a fetch or validation failure surfaces in the demo-failed dialog
 # pinned by: e2e/song.spec.ts
 
+Scenario: A demo name no source owns falls back to the first demo (v18, REQ-12)
+  Given a name no demo source owns — the tour's demo was renamed or deleted
+  When loadDemo runs with it
+  Then resolveDemoName returns demoNames()[0] and that song loads, not nothing
+  And the REQ-15 question, if any, is asked about the resolved name
+  But the Load button's slot fallthrough stays strict (isDemoName), so a slot
+      deleted in another tab loads nothing rather than an unrelated song
+# pinned by: tests/state/song.test.ts
+
 Scenario: A demo whose name you have saved asks which one (v17, REQ-15)
-  Given a stored slot named "1979" holding the user's own song
-  When they click the "1979" demo button
+  Given a stored slot whose name a demo button also carries
+  When they click that demo button
   Then a choice dialog offers "Load the demo" and "Load mine", naming the song
   And choosing "Load mine" applies the stored slot, not the demo
   And choosing "Load the demo" applies the demo, leaving the slot untouched
@@ -699,7 +742,13 @@ Scenario: Demo row overflow hides behind an All Demos toggle (UI, v6/v12)
   When the Song panel renders
   Then only the first 10 demo buttons are visible plus an "All Demos" toggle
    And clicking the toggle reveals the remaining demo buttons (and flips to "Less")
+   And clicking it again re-collapses them, so it is a toggle either way
    And a hidden demo button, once revealed, loads its demo like any other
+# pinned by: e2e/song.spec.ts
+
+Scenario: With no overflow there is no toggle (REQ-10, boundary)
+  Given DEMO_ROW_LIMIT or fewer demos are registered
+  Then every demo button is visible and no "All Demos" toggle is rendered
 # pinned by: e2e/song.spec.ts
 ```
 

@@ -31,6 +31,13 @@ Assert engine state through the dev-only bridge `window.__synth =
   `context.grantPermissions(['microphone'])`, so `getUserMedia` resolves with a
   synthetic stream — and a secure context, which `localhost` satisfies.
 - Shared fixtures (WAV builders etc.) live in `e2e/helpers.ts`.
+- **Never spell a demo song's name.** `src/state/demos/` is a drop-in directory,
+  so naming one couples the spec to data — and to the demo *row position* that
+  decides whether its button is inline or hidden behind "All Demos". Pick by kind
+  with `pickDemo(page, 'drop-in' | 'built-in' | 'zip')` + `clickDemo`, and read
+  expected values from the shipped file via `dropInDeclaring` (all in
+  `helpers.ts`). `tests/no-shipped-demo-names.test.ts` fails the build otherwise;
+  the full rule is `specs/recipes/write-a-test.md`.
 
 ## Environment-bound specs
 

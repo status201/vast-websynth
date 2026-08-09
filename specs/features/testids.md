@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 4  # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
+version: 5  # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
+            #     by a test, never spelled — see REQ-8
+            # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
             #     was always emitted but never catalogued
             # v3: the About modal's keyboard-layout picker (keyboard-layout.md)
             # v2: the header's ⓘ/? swap — info-badges replaces help-button, the
@@ -71,6 +73,20 @@ through the shared factories gets a correct, predictable testid for free.
 - **REQ-7** — Engine/state assertions go through the DEV-only `window.__synth`
   bridge, never through the DOM (see [architecture](../architecture.md) → Global
   conventions).
+- **REQ-8 (ids interpolated from data)** — Most ids are minted from a fixed
+  vocabulary, so the catalogue below is the whole set and REQ-6 protects it. A few
+  interpolate **runtime data** instead: `song-demo-<name>` takes the demo's own
+  song name (via `demos-index.json`). That set changes whenever the data does —
+  with no spec change, since `src/state/demos/` is a drop-in directory — so a test
+  must **enumerate** those ids rather than spell one:
+  `[data-testid^="song-demo-"]:not([data-testid="song-demo-more"])`, wrapped by
+  the helpers in `e2e/helpers.ts`. Spelling one couples the suite to data it does
+  not own; `tests/no-shipped-demo-names.test.ts` fails any test that does, and
+  [write-a-test](../recipes/write-a-test.md) has the full rule.
+  Two consequences worth knowing: the enumeration must exclude `song-demo-more`,
+  which shares the prefix but is a toggle, not a demo — and a demo literally named
+  `more` would mint a colliding id. Nothing prevents that today; it has not
+  happened, and the fix (slugging the name) would break every existing selector.
 
 ## Technical design
 
@@ -164,7 +180,7 @@ song panel — lanes, chains & live FX:
 song panel — files:
   song-save · song-load · song-new · song-slot-select
   song-export · song-import · song-import-file · song-undo-toast
-  song-demo-<name> · song-demo-more
+  song-demo-<name> · song-demo-more    # <name> is DATA — see REQ-8, never spell one
   song-paste + paste-modal · paste-input · paste-status · paste-confirm ·
     paste-cancel · paste-read-clipboard             # features/paste-import.md
   export-modal · export-kind-<json|project> · export-project-note ·

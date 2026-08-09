@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { sessionDisplay, renderedDemoNames } from './helpers';
 
 /**
  * The onboarding tour + contextual help. A fresh Playwright context starts with
@@ -41,7 +42,15 @@ test('auto-launches on first visit, drives first sound, and never nags again', a
   await expect(page.getByTestId('transport-play')).toHaveClass(/\bon\b/);
 
   // …and the Song slot dropdown reflects the demo that was just loaded.
-  await expect(page.getByTestId('song-slot-select').locator('button').first()).toContainText('Night Rider');
+  // Which demo the tour uses is a production constant over data (help-content's
+  // DEMO_FOR_TOUR), so derive it: a song really landed, it was one of the demos,
+  // and the dropdown names it. `not.toBe('basic')` is the load-bearing half —
+  // the dropdown is seeded with Song.list()[0], already a demo name, so without
+  // it this would pass even if the tour step did nothing.
+  const loaded = await sessionDisplay(page);
+  expect(loaded).not.toBe('basic');
+  expect(await renderedDemoNames(page)).toContain(loaded);
+  await expect(page.getByTestId('song-slot-select').locator('button').first()).toContainText(loaded);
 
   // Bail out of the rest; finishing or skipping both set the done-flag.
   await page.getByTestId('tour-skip').click();

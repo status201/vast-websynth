@@ -50,6 +50,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   demo whose name you have saved now asks: *Load the demo* or *Load mine*.
   Escape, Cancel or a click outside load neither.
 
+- **A demo the app can no longer find falls back to a real song.** The guided
+  tour asks for one demo by name, and demo files are a drop-in folder anyone can
+  rename in — so renaming that one file used to turn the tour's headline step
+  into a no-op, with the next step narrating a transport playing silence. An
+  unknown demo name now loads the first demo instead of nothing. (Pressing Load
+  on a song slot that vanished mid-click still does nothing, deliberately —
+  loading something unrelated would be a worse answer.)
+
+- **Adding or editing a demo song can no longer break the test suite.** Adding
+  one demo pushed another past the ten that fit the row, into the "All Demos"
+  overflow — and five tests that clicked that one by name started failing over a
+  change that broke nothing. Tests now pick demos by *kind*, read expected values
+  out of the shipped files, and use their own song rather than a demo as a
+  fixture; a guard fails any test that spells a demo's name. Adding a demo is
+  once again a pure data drop-in.
+
 ### Fixed
 
 - **The schema links the MCP server hands an AI agent now work.** They were

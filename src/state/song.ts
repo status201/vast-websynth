@@ -451,8 +451,8 @@ const IFL_DRUM_B = drumFrom({
  * dropped-in songs lead the demo button row.
  *
  * **Fetched on click, not bundled** (song-mode.md REQ-11). Eagerly importing
- * them put ~835 kB of JSON — 13 songs — into the boot payload, parsed as JS
- * object literals and held resident, so that the user could load at most one.
+ * them put the whole library — hundreds of kB of JSON — into the boot payload,
+ * parsed as JS object literals and held resident, so the user could load one.
  * A `?url` glob keeps only the URLs (a handful of strings); the same treatment
  * `ZIP_DEMOS` below has always had.
  *
@@ -553,7 +553,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
  * The demos that ship *inside the bundle* — the two hand-authored literals.
  * They stay synchronous because callers depend on it: the guided tour applies
  * one mid-step, and `ai-prompt.ts` renders `DEMO_SONGS['I Feel Love']` as its
- * worked example. The 13 drop-ins are `JSON_DEMOS` (fetched on click) and the
+ * worked example. The drop-ins are `JSON_DEMOS` (fetched on click) and the
  * project bundles are `ZIP_DEMOS`; `SongPanel.loadDemo` dispatches across all
  * three, and `demoNames()` lists them in button order.
  */
@@ -593,4 +593,31 @@ export function demoNames(): string[] {
     ...Object.keys(DEMO_SONGS),
     ...ZIP_DEMOS.map((d) => d.name),
   ];
+}
+
+/**
+ * Does any of the three sources own this exact name? No fallback — for the one
+ * caller that must stay strict (song-mode.md REQ-12).
+ */
+export function isDemoName(name: string): boolean {
+  return name in DEMO_SONGS
+    || JSON_DEMOS.some((d) => d.name === name)
+    || ZIP_DEMOS.some((d) => d.name === name);
+}
+
+/**
+ * The demo a name refers to: itself when a source owns it, otherwise the **first
+ * demo in button order** (song-mode.md REQ-12, v18).
+ *
+ * Demo names are data — `src/state/demos/` is a drop-in directory, so renaming or
+ * deleting a file is a legitimate change that touches no code. Callers name one
+ * anyway: the tour applies `DEMO_FOR_TOUR` by string constant. `loadDemo` used to
+ * return silently for an unowned name, which turned a renamed demo into a tour
+ * step that loads nothing and a following step that narrates silence. Falling
+ * back to a real song keeps every such caller honest.
+ *
+ * `undefined` only when there are no demos at all.
+ */
+export function resolveDemoName(name: string): string | undefined {
+  return isDemoName(name) ? name : demoNames()[0];
 }

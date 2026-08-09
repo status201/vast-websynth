@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busGet, busSet } from './helpers';
+import { gotoAndStart, busGet, busSet, clickDemo, dropInDeclaring, otherBpm } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const drumOn = (page: Page, t: number, s: number): Promise<boolean> =>
@@ -31,25 +31,31 @@ test.describe('session safety net', () => {
   test('a demo click shows an Undo toast that restores the prior session', async ({ page }) => {
     await gotoAndStart(page);
 
+    // A drop-in that states a tempo, so the assertions below come out of the
+    // shipped file rather than a literal, and the user's edit is chosen to
+    // differ from it — otherwise "whose BPM is this?" has no answer.
+    const { demo, song } = dropInDeclaring(['transport.bpm']);
+    const demoBpm = song.params['transport.bpm']!;
+    const mine = otherBpm(demoBpm);
+
     await page.getByTestId('tab-drums').click();
     await page.getByTestId('drum-step-0-3').click();
-    await busSet(page, 'transport.bpm', 99);
+    await busSet(page, 'transport.bpm', mine);
 
-    // Zombie Nation lives behind the "All Demos" toggle (song-mode.md REQ-10).
     await page.getByTestId('tab-song').click();
-    await page.getByTestId('song-demo-more').click();
-    await page.getByTestId('song-demo-Zombie Nation').click();
+    await clickDemo(page, demo.name);
 
     // The demo replaced the session (its own drum bank, its own BPM)…
-    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(130);
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(demoBpm);
     expect(await drumOn(page, 0, 3)).toBe(false);
     const toast = page.getByTestId('song-undo-toast');
     await expect(toast).toBeVisible();
-    await expect(toast).toContainText('Zombie Nation');
+    // The toast quotes the loaded file's own name — the index proved again.
+    await expect(toast).toContainText(demo.name);
 
     // …and Undo brings the user's work back.
     await page.getByTestId('toast-action').click();
-    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(99);
+    await expect.poll(() => busGet(page, 'transport.bpm')).toBe(mine);
     expect(await drumOn(page, 0, 3)).toBe(true);
     await expect(toast).toHaveCount(0);
   });

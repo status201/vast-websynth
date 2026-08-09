@@ -38,66 +38,68 @@ describe('Song.planImportSave', () => {
   });
 
   it('reports no conflict when the name is unused', () => {
-    expect(Song.planImportSave(songNamed('Brand New'))).toEqual({
-      name: 'Brand New', conflict: false,
+    expect(Song.planImportSave(songNamed('test-brand-new'))).toEqual({
+      name: 'test-brand-new', conflict: false,
     });
   });
 
   it('reports a conflict when a stored slot of that name holds different music', () => {
-    Song.saveSlot('My Song', editedSong('My Song'));
-    expect(Song.planImportSave(songNamed('My Song'))).toEqual({
-      name: 'My Song', conflict: true,
+    Song.saveSlot('test-my-song', editedSong('test-my-song'));
+    expect(Song.planImportSave(songNamed('test-my-song'))).toEqual({
+      name: 'test-my-song', conflict: true,
     });
   });
 
   it('reports no conflict when the slot already holds this exact song (REQ-14b)', () => {
     // The bug: name-only matching re-asked "Replace your saved song?" every time
     // the same share link was re-opened, so answering "Replace it" never stuck.
-    Song.saveSlot('1973', songNamed('1973'));
-    expect(Song.planImportSave(songNamed('1973'))).toEqual({
-      name: '1973', conflict: false,
+    Song.saveSlot('test-bootleg', songNamed('test-bootleg'));
+    expect(Song.planImportSave(songNamed('test-bootleg'))).toEqual({
+      name: 'test-bootleg', conflict: false,
     });
   });
 
   it('asks again once the song under that name has changed (REQ-14b, boundary)', () => {
-    Song.saveSlot('1973', songNamed('1973'));
-    expect(Song.planImportSave(editedSong('1973')).conflict).toBe(true);
+    Song.saveSlot('test-bootleg', songNamed('test-bootleg'));
+    expect(Song.planImportSave(editedSong('test-bootleg')).conflict).toBe(true);
   });
 
   it('a replaced slot stays replaced — the same import is silent afterwards', () => {
     // The reported round trip: import v2 over a saved v1 (asks), replace, load
     // something else, import v2 again (must not ask).
-    Song.saveSlot('1973', songNamed('1973'));
-    const v2 = editedSong('1973');
+    Song.saveSlot('test-bootleg', songNamed('test-bootleg'));
+    const v2 = editedSong('test-bootleg');
     expect(Song.planImportSave(v2).conflict).toBe(true);
-    Song.saveSlot('1973', v2);                 // the user chose "Replace it"
+    Song.saveSlot('test-bootleg', v2);                 // the user chose "Replace it"
     expect(Song.planImportSave(v2).conflict).toBe(false);
   });
 
   it('does not treat a built-in demo name as the user\'s work', () => {
     // list() includes demos, hasSlot() deliberately does not: overwriting a demo
     // name costs the user nothing, and prompting there would be noise.
+    // With no slots stored, every list() entry is a demo — which one is
+    // irrelevant, so take the first rather than naming one.
     const demoName = Song.list()[0]!;
     expect(Song.hasSlot(demoName)).toBe(false);
     expect(Song.planImportSave(songNamed(demoName)).conflict).toBe(false);
   });
 
   it('is a plan only — it writes nothing', () => {
-    const file = songNamed('Untouched');
+    const file = songNamed('test-untouched');
     Song.planImportSave(file);
-    expect(Song.hasSlot('Untouched')).toBe(false);
+    expect(Song.hasSlot('test-untouched')).toBe(false);
   });
 
   it('stops seeing a conflict once the slot is deleted', () => {
-    Song.saveSlot('Temp', editedSong('Temp'));
-    expect(Song.planImportSave(songNamed('Temp')).conflict).toBe(true);
-    Song.deleteSlot('Temp');
-    expect(Song.planImportSave(songNamed('Temp')).conflict).toBe(false);
+    Song.saveSlot('test-temp', editedSong('test-temp'));
+    expect(Song.planImportSave(songNamed('test-temp')).conflict).toBe(true);
+    Song.deleteSlot('test-temp');
+    expect(Song.planImportSave(songNamed('test-temp')).conflict).toBe(false);
   });
 
   it('is the no-provenance case of planSlotSave', () => {
-    Song.saveSlot('Shared', editedSong('Shared'));
-    const file = songNamed('Shared');
+    Song.saveSlot('test-shared', editedSong('test-shared'));
+    const file = songNamed('test-shared');
     expect(Song.planImportSave(file)).toEqual(Song.planSlotSave(file, null));
   });
 
@@ -105,8 +107,8 @@ describe('Song.planImportSave', () => {
     // The real path never compares two in-memory objects — the slot is a STRING
     // written by a previous import, and the incoming file has been through
     // Song.parse. Both sides must still land on the same canonical bytes.
-    const file = songNamed('Shared');
-    Song.saveSlot('Shared', file);
+    const file = songNamed('test-shared');
+    Song.saveSlot('test-shared', file);
     const reimported = Song.fromJSON(Song.toJSON(file))!;
     expect(Song.planImportSave(reimported).conflict).toBe(false);
   });
@@ -123,33 +125,34 @@ describe('Song.planSlotSave', () => {
   });
 
   it('does not ask when saving back to the slot the session came from', () => {
-    Song.saveSlot('My Song', songNamed('My Song'));
+    Song.saveSlot('test-my-song', songNamed('test-my-song'));
     // Edited since it was loaded — the normal save loop, and it must stay silent.
-    expect(Song.planSlotSave(editedSong('My Song'), 'My Song').conflict).toBe(false);
+    expect(Song.planSlotSave(editedSong('test-my-song'), 'test-my-song').conflict).toBe(false);
   });
 
   it('asks when the name belongs to a song the session did not come from', () => {
-    Song.saveSlot('Night Shift', songNamed('Night Shift'));
-    expect(Song.planSlotSave(editedSong('Night Shift'), 'My Song')).toEqual({
-      name: 'Night Shift', conflict: true,
+    Song.saveSlot('test-night-watch', songNamed('test-night-watch'));
+    expect(Song.planSlotSave(editedSong('test-night-watch'), 'test-my-song')).toEqual({
+      name: 'test-night-watch', conflict: true,
     });
   });
 
   it('asks after a demo click, which leaves the session belonging to no slot', () => {
-    // The loss this guard closes: click the "1979" demo (sessionSlot -> null),
-    // edit, Save as "1979" — and the user's own 1979 is gone with no prompt.
-    Song.saveSlot('1979', songNamed('1979'));
-    expect(Song.planSlotSave(editedSong('1979'), null).conflict).toBe(true);
+    // The loss this guard closes: click a demo button whose name a slot of yours
+    // also carries (sessionSlot -> null), edit, Save under that same name — and
+    // your own song is gone with no prompt.
+    Song.saveSlot('test-reissue', songNamed('test-reissue'));
+    expect(Song.planSlotSave(editedSong('test-reissue'), null).conflict).toBe(true);
   });
 
   it('never asks for an unused name, whatever the provenance', () => {
-    expect(Song.planSlotSave(songNamed('Brand New'), null).conflict).toBe(false);
-    expect(Song.planSlotSave(songNamed('Brand New'), 'Other').conflict).toBe(false);
+    expect(Song.planSlotSave(songNamed('test-brand-new'), null).conflict).toBe(false);
+    expect(Song.planSlotSave(songNamed('test-brand-new'), 'test-other').conflict).toBe(false);
   });
 
   it('never asks when the slot already holds this exact song', () => {
     // Nothing to destroy (REQ-14b) — provenance does not even come into it.
-    Song.saveSlot('Twin', songNamed('Twin'));
-    expect(Song.planSlotSave(songNamed('Twin'), null).conflict).toBe(false);
+    Song.saveSlot('test-twin', songNamed('test-twin'));
+    expect(Song.planSlotSave(songNamed('test-twin'), null).conflict).toBe(false);
   });
 });

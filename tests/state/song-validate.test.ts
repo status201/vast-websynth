@@ -5,6 +5,7 @@ import { validateSongFile } from '../../src/state/song-validate';
 import { KNOWN_SONG_VERSIONS } from '../../src/state/song-version';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import { DROP_IN_DEMOS } from './demo-files';
+import { fixtureSong } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { PatternStore } from '../../src/state/patterns';
@@ -71,6 +72,15 @@ describe('validateSongFile — accepts', () => {
   it.each(Object.keys(shipped))('every shipped demo conforms: %s', (name) => {
     const res = validateSongFile(clone(shipped[name]!));
     if (!res.ok) throw new Error(`${name} failed validation:\n${res.errors.join('\n')}`);
+    expect(res.ok).toBe(true);
+  });
+
+  // The suite's own song stands in for a demo everywhere a test needs to assert
+  // on a song's *contents* (tests/fixtures/song-fixture.ts). It is hand-written
+  // rather than captured, so nothing else would catch it drifting out of shape.
+  it('the test-owned fixture song conforms', () => {
+    const res = validateSongFile(fixtureSong());
+    if (!res.ok) throw new Error(`the fixture failed validation:\n${res.errors.join('\n')}`);
     expect(res.ok).toBe(true);
   });
 

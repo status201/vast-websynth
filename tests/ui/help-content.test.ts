@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { HELP_TOPICS, TOUR_STEPS } from '../../src/ui/onboarding/help-content';
+import { HELP_TOPICS, TOUR_STEPS, DEMO_FOR_TOUR } from '../../src/ui/onboarding/help-content';
+import { demoNames } from '../../src/state/song';
 
 /** A topic's authored copy — asserts it exists and is static (not a widget). */
 function bodyOf(id: keyof typeof HELP_TOPICS): string {
@@ -204,5 +205,19 @@ describe('help-content transport-position topics', () => {
     expect(body).toContain('external clock');       // Tape Stop while slaved
     // The compressor sharing the row has its own badge; don't duplicate it.
     expect(body).not.toMatch(/compressor/i);
+  });
+});
+
+/**
+ * song-mode.md REQ-12 (v18). The tour names its demo by string constant, while
+ * `src/state/demos/` is a drop-in directory anyone may rename in. `loadDemo`
+ * now falls back to the first demo, so an orphaned constant no longer breaks the
+ * tour — but it would quietly demonstrate a song the script was not written for,
+ * which is worth a warning. Reads the constant rather than spelling a name, so
+ * adding or editing a demo can never fail this.
+ */
+describe('the tour names a demo that exists', () => {
+  it('DEMO_FOR_TOUR is a registered demo', () => {
+    expect(demoNames()).toContain(DEMO_FOR_TOUR);
   });
 });

@@ -31,7 +31,9 @@ import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
 import layout from '../styles/layout.module.css';
-import { Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, type SongFile } from '../../state/song';
+import {
+  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, isDemoName, resolveDemoName, type SongFile,
+} from '../../state/song';
 import {
   buildProjectZip, parseProjectZip, encodeClip, projectFilename, parseSongOrProject,
   type ProjectClipOut, type ProjectClipIn,
@@ -44,7 +46,7 @@ import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10).
- *  Was 6 when there were 8 demos; at 17 that hid two thirds of the library. */
+ *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
 const DEMO_ROW_LIMIT = 10;
 
 function el(tag: string, cls?: string, text?: string): HTMLElement {
@@ -446,16 +448,22 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // The shadow question (REQ-15) is asked HERE, on the one door all three demo
   // sources and all four callers share, so no surface can reintroduce the silent
   // guess. It resolves before any fetch: a declined demo costs no network.
+  // A name no source owns resolves to the first demo rather than to silence
+  // (REQ-12, v18) — demo files are data, so the tour's `DEMO_FOR_TOUR` constant
+  // can be orphaned by a rename that touches no code. Resolving BEFORE the
+  // shadow question keeps the dialog naming the song that is actually loading.
   const loadDemo = async (name: string): Promise<void> => {
-    if (!await demoWinsOverSavedSong(name)) return;
-    const file = DEMO_SONGS[name];
+    const resolved = resolveDemoName(name);
+    if (!resolved) return; // no demos at all
+    if (!await demoWinsOverSavedSong(resolved)) return;
+    const file = DEMO_SONGS[resolved];
     if (file) {
-      applyDemo(name, file);
+      applyDemo(resolved, file);
       return;
     }
-    const jsonDemo = JSON_DEMOS.find((d) => d.name === name);
+    const jsonDemo = JSON_DEMOS.find((d) => d.name === resolved);
     if (jsonDemo) return loadJsonDemo(jsonDemo.name, jsonDemo.url);
-    const zipDemo = ZIP_DEMOS.find((d) => d.name === name);
+    const zipDemo = ZIP_DEMOS.find((d) => d.name === resolved);
     if (zipDemo) return loadZipDemo(zipDemo.name, zipDemo.url);
   };
 
@@ -474,8 +482,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     }
     // The list also carries the drop-in demos, which `loadSlot` cannot return
     // because they are fetched rather than bundled (song-mode.md REQ-12).
-    // `loadDemo` knows all three demo sources and cues Play itself.
-    void loadDemo(dropdown.value);
+    // `loadDemo` knows all three demo sources and cues Play itself — but this
+    // one caller opts OUT of its unknown-name fallback: every picker entry is a
+    // slot or a drop-in, so we only land here when a slot vanished mid-click
+    // (deleted in another tab), and loading an unrelated song is a worse answer
+    // to that race than loading nothing.
+    if (isDemoName(dropdown.value)) void loadDemo(dropdown.value);
   });
 
   const saveBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Save') as HTMLButtonElement;

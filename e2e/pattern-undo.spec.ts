@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, clickDemo, pickDemo } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const drumOn = (page: Page, t: number, s: number): Promise<boolean> =>
@@ -79,9 +79,10 @@ test.describe('pattern undo', () => {
     await page.getByTestId('drum-step-3-5').click();
     await expect(page.getByTestId('undo-drum')).toBeEnabled();
 
+    // A built-in: synchronous, so the undo stacks are cleared by the time the
+    // click resolves. Which one is irrelevant — never name a demo.
     await page.getByTestId('tab-song').click();
-    await page.getByTestId('song-demo-more').click();
-    await page.getByTestId('song-demo-Zombie Nation').click();
+    await clickDemo(page, (await pickDemo(page, 'built-in')).name);
 
     await page.getByTestId('tab-drums').click();
     await expect(page.getByTestId('undo-drum')).toBeDisabled();

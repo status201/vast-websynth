@@ -3,11 +3,14 @@
 ```yaml
 id: add-a-demo-song
 status: implemented
-version: 2   # v2: demos are fetched on click; `npm run clean:demos` is now required
+version: 3   # v3: no test needs editing either — tests pick demos by kind and read
+             #     values from the shipped file (write-a-test.md)
+             # v2: demos are fetched on click; `npm run clean:demos` is now required
 owner: core
 related:
   - song-mode
   - runtime-performance
+  - write-a-test        # why adding a demo never touches a test
 source:
   - src/state/demos/                     # drop your *.json here
   - src/state/demos-index.json           # generated filename -> song name
@@ -74,17 +77,30 @@ It runs automatically before `npm run build`, and CI's `npm run check:demos` is 
 same script in non-mutating mode — it fails on a drifted file **or a stale index**,
 so a forgotten run is caught rather than shipped.
 
-### 3. That's it
+### 3. That's it — and **no test needs editing**
 
 It appears in the demo row and the song-load list on next build. To verify the
 shape parses: `Song.parse` requires `format === 'websynth-song'` plus
 `params` + `seqBanks` + `drumBanks`.
 
+No suite has to be touched, and that is enforced rather than hoped for: tests
+select demos by *kind* and read expected values out of the shipped files, and
+`tests/no-shipped-demo-names.test.ts` fails any test that spells a demo's name
+([write-a-test](write-a-test.md)). Your demo also gains coverage for free — the
+validator and apply suites run `it.each` over the whole library.
+
+This was not always true. A test that clicked one demo by name broke when a demo
+sorting before it was added, because that pushed it past `DEMO_ROW_LIMIT` into
+the collapsed overflow — a data change failing a suite it had no business
+failing, which is what the rule now prevents.
+
 ## Gotchas
 
 - **Run `npm run clean:demos` and commit `demos-index.json`.** It is the one manual
   step, and the only symptom of forgetting is a wrong-looking button label — easy to
-  miss locally, which is why `check:demos` fails the build.
+  miss locally, which is why `check:demos` fails the build. The E2E helpers read the
+  index too (Playwright has no Vite, so it cannot evaluate the glob), and they fail
+  with "run `npm run clean:demos`" rather than misclassifying your demo.
 - `name` is the key — a duplicate name overwrites another demo.
 - Demos lead the row in **filename** order (drop-ins are sorted, then the built-ins).
 - The song is fetched on click, so it is **not** in the offline cache until it has
@@ -111,6 +127,13 @@ Scenario: A demo added without regenerating the index fails CI
   When `npm run check:demos` runs
   Then it fails, naming demos-index.json
 # pinned by: scripts/clean-demos.ts
+
+Scenario: Adding a demo needs no test change
+  Given a new drop-in, wherever it sorts in the row — inline or in the overflow
+  When the unit and E2E suites run unedited
+  Then they pass, because no test names a demo or pins one's values
+  And the new demo is validated and applied by the library-wide it.each suites
+# pinned by: tests/no-shipped-demo-names.test.ts, tests/state/song-validate.test.ts
 ```
 
 ## Tests & verification

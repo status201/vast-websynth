@@ -5,8 +5,6 @@ import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import modalStyles from '../../src/ui/styles/modal.module.css';
 
-const EXAMPLE_NAME = 'I Feel Love';
-
 function bus() {
   const b = new ParamBus();
   registerDefaults(b);
@@ -66,8 +64,11 @@ describe('buildSongPrompt', () => {
     const prompt = buildSongPrompt(bus());
     expect(prompt).toContain('EXAMPLE SHAPE');
     expect(prompt).toContain('…');
-    // The whole "I Feel Love" demo must no longer be pasted into the prompt.
-    expect(prompt).not.toContain(Song.toJSON(DEMO_SONGS[EXAMPLE_NAME]!));
+    // No demo may be pasted in whole — asserted over all of them rather than the
+    // one the modal happens to use, so renaming or swapping it changes nothing.
+    for (const file of Object.values(DEMO_SONGS)) {
+      expect(prompt, file.name).not.toContain(Song.toJSON(file));
+    }
   });
 });
 
