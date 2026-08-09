@@ -18,7 +18,10 @@ import { Strip } from './components/strip';
 import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
-import { MACHINE_IDS, MACHINE_TAB, readMachineStatus, subscribeMachineStatus } from './machine-status';
+import {
+  ARP_TAB, MACHINE_IDS, MACHINE_TAB,
+  readArpStatus, readMachineStatus, subscribeArpStatus, subscribeMachineStatus,
+} from './machine-status';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
@@ -397,7 +400,7 @@ function buildPatternRow(
   const sampler = buildSamplerPanel(bus, engine, patternUndo, bridge);
   const motion = buildMotionPanel(bus, engine, xy, xyWin, patternUndo, bridge);
   const tabs = new TabContainer([
-    { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus) },
+    { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus), indicator: true },
     { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },
     { id: 'drums', label: 'Drum Machine', content: drums.el, indicator: true },
     { id: 'sampler', label: 'Sampler', content: sampler.el, indicator: true },
@@ -463,6 +466,10 @@ function buildPatternRow(
     const status = readMachineStatus(bus);
     for (const m of MACHINE_IDS) tabs.setIndicator(MACHINE_TAB[m], status[m]);
   });
+  // The arp is not a machine — no lane, so no mute or solo — but whether it is
+  // armed changes what the keyboard does, which is worth reading at a glance
+  // mid-performance (machine-status.md REQ-10).
+  subscribeArpStatus(bus, () => tabs.setIndicator(ARP_TAB, readArpStatus(bus)));
 
   return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }

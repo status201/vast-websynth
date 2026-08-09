@@ -69,6 +69,27 @@ export function readMachineStatus(bus: ParamBus): Record<MachineId, MachineState
 }
 
 /**
+ * The Arpeggiator's tab id. It is deliberately NOT a `MachineId`: `machineFlags`
+ * reads `<m>.mute` and `<m>.solo` for every id, and neither param exists for the
+ * arp — it is not an audio lane. Same lamp, own two-state rule
+ * (machine-status.md REQ-10).
+ */
+export const ARP_TAB = 'arp';
+
+/**
+ * `arp.on` is the whole truth: armed or not. Never `muted` — with no mute, solo
+ * or chain there is no mixer state that could dim it (machine-status.md REQ-10).
+ */
+export function readArpStatus(bus: ParamBus): MachineState {
+  return bus.get('arp.on') >= 0.5 ? 'on' : 'off';
+}
+
+/** Mirrors `subscribeMachineStatus`, over the one param the arp lamp reads. */
+export function subscribeArpStatus(bus: ParamBus, fn: () => void): () => void {
+  return bus.subscribe('arp.on', fn);
+}
+
+/**
  * Subscribe to every param the status depends on (11 of them). Returns a
  * disposer that drops them all. `ParamBus.subscribe` fires immediately with the
  * current value, so this also drives the initial paint — no separate seed call.

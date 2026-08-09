@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   machineStatus,
+  readArpStatus,
+  subscribeArpStatus,
   type MachineFlags,
   type MachineId,
   type MachineState,
 } from '../../src/ui/machine-status';
+import { ParamBus, registerDefaults } from '../../src/state/params';
 import type { LaneFlags } from '../../src/audio/transport/lane-mix';
 
 const NONE: MachineFlags = { seq: false, drum: false, sampler: false, motion: false };
@@ -57,5 +60,51 @@ describe('machineStatus', () => {
   it('mutes motion from its own flag only', () => {
     expect(status(ALL, flags({ motion: true })).motion).toBe('muted');
     expect(status(flags({ seq: true, drum: true, sampler: true })).motion).toBe('off');
+  });
+});
+
+// machine-status.md REQ-10 — the arp lamp. Two states, not three: the arp is not
+// an audio lane, so it has no mute, solo or chain to dim it.
+//
+// The defs must be registered: `ParamBus.set` on an *unregistered* id writes once
+// and notifies nobody, so a bare bus would silently pass every assertion below.
+const newBus = (): ParamBus => {
+  const bus = new ParamBus();
+  registerDefaults(bus);
+  return bus;
+};
+
+describe('readArpStatus', () => {
+  it('reads off at the param default and on once armed', () => {
+    const bus = newBus();
+    expect(readArpStatus(bus)).toBe('off');
+    bus.set('arp.on', 1);
+    expect(readArpStatus(bus)).toBe('on');
+    bus.set('arp.on', 0);
+    expect(readArpStatus(bus)).toBe('off');
+  });
+
+  it('never reports muted, whatever the mixer is doing', () => {
+    // Every lane muted and another soloed — none of it reaches the arp.
+    const bus = newBus();
+    bus.set('arp.on', 1);
+    for (const m of ['seq', 'drum', 'sampler', 'motion']) bus.set(`${m}.mute`, 1);
+    bus.set('seq.solo', 1);
+    expect(readArpStatus(bus)).toBe('on');
+  });
+
+  it('subscribes to arp.on, paints immediately, and disposes', () => {
+    const bus = newBus();
+    const seen: MachineState[] = [];
+    const off = subscribeArpStatus(bus, () => { seen.push(readArpStatus(bus)); });
+    // `subscribe` fires with the current value, so this is the initial paint.
+    expect(seen).toEqual(['off']);
+
+    bus.set('arp.on', 1);
+    expect(seen).toEqual(['off', 'on']);
+
+    off();
+    bus.set('arp.on', 0);
+    expect(seen).toEqual(['off', 'on']);
   });
 });

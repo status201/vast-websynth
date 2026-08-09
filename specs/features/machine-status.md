@@ -3,7 +3,8 @@
 ```yaml
 id: machine-status
 status: implemented
-version: 3  # v3: the lane-title ↗ glyph is dropped below 720px (REQ-6)
+version: 4  # v4: the Arpeggiator tab gets a lamp too, driven by arp.on (REQ-10)
+            # v3: the lane-title ↗ glyph is dropped below 720px (REQ-6)
             # v2: Chain/Mute/Solo in every machine header, shared with the Song
             #     tab's lane cards (REQ-9)
 owner: core
@@ -11,6 +12,7 @@ related:
   - song-mode
   - arrangement
   - motion-sequencer
+  - arpeggiator
   - responsive-machine-header
   - architecture
 source:
@@ -22,6 +24,7 @@ source:
   - src/ui/styles/tabs.module.css         # LED states
   - src/ui/panels/song-panel.ts           # clickable lane titles
   - src/ui/styles/song-panel.module.css   # title link affordance
+  - src/ui/app.ts                         # which tabs ask for a lamp + the wiring
   - src/ui/ui-bridge.ts                   # showTab hook
   - src/audio/transport/lane-mix.ts       # audibleLanes (reused, not reimplemented)
 ```
@@ -110,6 +113,30 @@ answers "is this on?" and clicking it leads to where the real toggle lives.
   - Sizing is the one deliberate difference: the Song tab's compact `.ctl` padding
     exists for its cramped lane cards, so the header copies take the default
     switch size and match the switches beside them.
+- **REQ-10 (the Arpeggiator has a lamp too, v4)** — The Arpeggiator tab carries
+  the same indicator, driven by **`arp.on` alone**: `on` at ≥ 0.5, `off` below.
+  It is the same `Tab.indicator` lamp, so REQ-3 (inert — every click navigates)
+  and REQ-4 (never colour-only — "Arpeggiator — on") hold unchanged.
+  The arp is not a machine, and this requirement exists precisely to say so:
+  - **It never reads `muted`.** There is no `arp.mute`, `arp.solo` or arp chain —
+    it is not an audio lane, it has no pattern and it does not appear on the Song
+    tab. Two states are the whole truth.
+  - **`machineStatus` must not grow an `arp` member.** `MachineId` feeds
+    `machineFlags`, which reads `<m>.mute` and `<m>.solo` for every id; an `arp`
+    entry would read params that do not exist. The arp gets its own two-line
+    adapter (`readArpStatus` / `subscribeArpStatus`) *in the same module*, so
+    REQ-1 still holds where it means something — every tab lamp in the app is
+    minted from `machine-status.ts`, and no call site re-derives a lamp state.
+  - **Why it earns one anyway.** With the arp engaged, key and MIDI presses stop
+    sounding directly — the arp owns note triggering — and a held key can start
+    the transport ([arpeggiator](arpeggiator.md) REQ-1/REQ-3). Whether it is
+    armed changes what the keyboard *does*, which is exactly what a player needs
+    to read at a glance mid-performance. Before v4 the Arpeggiator was the only
+    tab holding an on/off switch that could not answer "am I armed?" without
+    being opened.
+  - **Song stays lampless.** It is the one tab with nothing to report: no on/off
+    param, no engaged state — its lane cards carry their own status already
+    (REQ-8).
 
 ## Technical design
 
@@ -125,6 +152,10 @@ machine-status:  # src/ui/machine-status.ts (pure core + bus adapter)
   laneFlags(bus, suffix): LaneFlags             # shared bus reader (seq/drum/sampler)
   readMachineStatus(bus): Record<MachineId, MachineState>
   subscribeMachineStatus(bus, fn): () => void   # returns a disposer
+  # the arp is not a MachineId — same lamp, its own two-state adapter (REQ-10)
+  ARP_TAB: 'arp'
+  readArpStatus(bus): MachineState              # 'on' | 'off' only, never 'muted'
+  subscribeArpStatus(bus, fn): () => void       # returns a disposer
 
 TabContainer:  # src/ui/components/tabs.ts
   Tab { id, label, content, indicator?: boolean }
@@ -146,6 +177,10 @@ per machine:
   else motion:
     motion.mute >= 0.5            -> 'muted' else 'on'
 params read: seq|drum|sampler .on/.mute/.solo  (9) + motion.on/.mute  (2) = 11
+
+arp (REQ-10, outside the rule above):
+  arp.on >= 0.5                   -> 'on' else 'off'    # no third state
+params read: arp.on  (1)
 ```
 
 ### Layer touchpoints & ordering
@@ -161,6 +196,8 @@ wiring (after `tabs` exists, beside bridge.undoActiveMachine):
   bridge.showTab = (id) => tabs.reveal(id)
   refreshStatus() -> readMachineStatus(bus) -> tabs.setIndicator(MACHINE_TAB[m], s[m])
   subscribeMachineStatus(bus, refreshStatus); refreshStatus()   # initial paint
+  subscribeArpStatus(bus, () => tabs.setIndicator(ARP_TAB, readArpStatus(bus)))
+tabs asking for a lamp: arp, seq, drums, sampler, motion — every tab but `song`.
 ```
 
 ### Visual language
@@ -178,6 +215,11 @@ on:    --led-on  + 8px red glow    # fully lit — enabled and audible
 muted: #8c2414, no glow            # half lit  — enabled but silent
 off:   --led-off + inset shadow    # unlit     — disabled (the .led base)
 ```
+
+The Arpeggiator's lamp reuses the same three-state stylesheet and simply never
+reaches the middle brightness (REQ-10) — no new CSS, no arp-specific look. A lamp
+that only ever swings between the two extremes is the correct read for a control
+that is either armed or not.
 
 ## Scenarios (BDD)
 
@@ -241,6 +283,26 @@ Scenario: A tab without an indicator renders no LED (edge)
   Given a tab registered without `indicator`
   Then its button contains no LED span and setIndicator on it is a no-op
 # pinned by: tests/ui/tabs.test.ts
+
+Scenario: The Arpeggiator lamp follows arp.on (v4, REQ-10)
+  Given the app is booted with arp.on at its default 0
+  Then tab-arp's LED carries the 'off' state
+  When the user switches the ARP on from its panel
+  Then tab-arp's LED carries the 'on' state and its aria-label reads
+    "Arpeggiator — on"
+# pinned by: e2e/machine-status.spec.ts, tests/ui/machine-status.test.ts
+
+Scenario: The Arpeggiator is never 'muted' (edge, v4, REQ-10)
+  Given arp.on is 1 and every audio lane is soloed, muted or off
+  Then tab-arp's LED still reads 'on' — the arp is not a lane, so no mixer
+    state can dim it
+# pinned by: tests/ui/machine-status.test.ts
+
+Scenario: Song is the only tab without a lamp (v4, REQ-10)
+  Given the app is booted
+  Then tab-arp, tab-seq, tab-drums, tab-sampler and tab-motion each hold an LED
+  And tab-song holds none — it has no on/off state to report
+# pinned by: e2e/machine-status.spec.ts
 ```
 
 ## Tests & verification

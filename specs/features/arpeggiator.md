@@ -3,17 +3,19 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 1
+version: 2  # v2: the tab carries a status LED for `arp.on` (REQ-5)
 owner: core
 related:
   - architecture
   - transport
   - voicing
+  - machine-status
 source:
   - src/audio/transport/arpeggiator.ts
   - src/state/params.ts
   - src/audio/engine.ts
   - src/ui/panels/arp-panel.ts
+  - src/ui/machine-status.ts   # readArpStatus / subscribeArpStatus (REQ-5)
 ```
 
 A held-note arpeggiator that owns note triggering while engaged and can auto-start
@@ -36,6 +38,13 @@ releasing the last key stops it again (only if the arp was what started it).
   auto-stops it — but only if the arp started it (`startedTransport`).
 - **REQ-4** — If the transport stops by other means (Play, panic, export), the arp
   resets its auto-start ownership.
+- **REQ-5 (armed is visible from outside the tab, v2)** — The Arpeggiator tab
+  carries a status LED lit by `arp.on`. Because REQ-1 means an engaged arp takes
+  the keyboard away from direct playing and REQ-3 means a held key can start the
+  transport, "is the arp armed?" is a live-performance question that must be
+  answerable without opening the tab. The lamp is the tab-bar indicator owned by
+  [machine-status](machine-status.md) REQ-10 — two states only (`on`/`off`), and
+  the arp deliberately stays out of `MachineId`; that spec holds the detail.
 
 ## Technical design
 
@@ -90,6 +99,12 @@ Scenario: Play toggled manually is not auto-stopped (ownership)
   When the last arp key is released
   Then the transport keeps running
 # pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: The tab LED shows whether the arp is armed (v2, REQ-5)
+  Given the Arpeggiator tab is not the active tab
+  When arp.on goes to 1
+  Then tab-arp's LED lights, without the tab being opened
+# pinned by: e2e/machine-status.spec.ts
 ```
 
 ## Tests & verification

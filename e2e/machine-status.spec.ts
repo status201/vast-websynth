@@ -115,6 +115,38 @@ test.describe('machine status', () => {
     await expect(page.getByTestId('machine-drum-chain')).not.toHaveClass(/\bon\b/);
   });
 
+  // --- v4: the Arpeggiator's lamp (REQ-10) ---
+  test('the arp LED follows arp.on from another tab', async ({ page }) => {
+    // Still on the Song tab from beforeEach — the whole point is that the lamp
+    // answers "am I armed?" without opening the Arpeggiator.
+    await expect(led(page, 'arp')).toHaveAttribute('data-state', 'off');
+
+    await busSet(page, 'arp.on', 1);
+    await expect(led(page, 'arp')).toHaveAttribute('data-state', 'on');
+    await expect(page.getByTestId('tab-arp')).toHaveAttribute('aria-label', 'Arpeggiator — on');
+
+    // The arp is not a lane: no mixer state can dim it to 'muted'.
+    await busSet(page, 'seq.solo', 1);
+    await busSet(page, 'drum.mute', 1);
+    await expect(led(page, 'arp')).toHaveAttribute('data-state', 'on');
+
+    await busSet(page, 'arp.on', 0);
+    await expect(led(page, 'arp')).toHaveAttribute('data-state', 'off');
+  });
+
+  test("the arp panel's own switch drives the lamp", async ({ page }) => {
+    await page.getByTestId('tab-arp').click();
+    await page.getByTestId('switch-arp.on').click();
+    await expect(led(page, 'arp')).toHaveAttribute('data-state', 'on');
+  });
+
+  test('Song is the only tab without a lamp', async ({ page }) => {
+    for (const t of ['arp', 'seq', 'drums', 'sampler', 'motion']) {
+      await expect(led(page, t)).toHaveCount(1);
+    }
+    await expect(led(page, 'song')).toHaveCount(0);
+  });
+
   test('the LED is inert — clicking it navigates and changes no param (REQ-3)', async ({ page }) => {
     await busSet(page, 'drum.on', 1);
     await expect(led(page, 'drums')).toHaveAttribute('data-state', 'on');

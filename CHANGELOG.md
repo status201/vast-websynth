@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Arpeggiator tab now has a status light**, like every other machine tab.
+  It is lit whenever the ARP is on, so you can see at a glance whether the
+  keyboard is going to arpeggiate — the one thing about the arp you need to know
+  mid-performance, and until now the only way to check was to open the tab.
+
 ### Changed
 
 - **Clicking a demo no longer saves it as one of your songs.** The project-zip
