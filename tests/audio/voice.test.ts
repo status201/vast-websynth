@@ -150,3 +150,88 @@ describe('Voice filter key tracking', () => {
     expect(stepped(cutoff)).toBe(135);
   });
 });
+
+/**
+ * Velocity → filter (envelopes.md REQ-5). The bug this closes: `noteOn`
+ * triggered the amp envelope at the note's velocity and the filter envelope at a
+ * hard-coded 1, so playing harder got louder and never brighter.
+ *
+ * Asserted at the envelope's PEAK, because that is what scales the sweep: the
+ * filter envelope feeds `filEnvScale` (the `envAmount` semitone gain), which
+ * sums onto the worklet's `cutoffNote`.
+ */
+describe('Voice velocity → filter envelope (REQ-5)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    installMockAudioWorkletNode();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function build() {
+    const ctx = makeMockAudioContext();
+    const voice = await Voice.create(ctx as unknown as AudioContext);
+    return { voice };
+  }
+
+  /** The peak each envelope was triggered at, captured via a spy on trigger. */
+  function spyPeaks(voice: Voice) {
+    const amp = vi.spyOn(voice.ampEnv, 'trigger');
+    const fil = vi.spyOn(voice.filEnv, 'trigger');
+    return {
+      ampPeak: () => amp.mock.calls.at(-1)?.[1] as number | undefined,
+      filPeak: () => fil.mock.calls.at(-1)?.[1] as number | undefined,
+    };
+  }
+
+  it('leaves the filter envelope at full depth by default (ADR-006)', async () => {
+    const { voice } = await build();
+    const { filPeak } = spyPeaks(voice);
+    voice.noteOn(60, 0.2, 0);
+    expect(filPeak()).toBe(1);
+    voice.noteOn(60, 1, 0);
+    expect(filPeak()).toBe(1); // identical to the pre-v3 hard-coded 1
+  });
+
+  it('scales the sweep straight with velocity at full amount', async () => {
+    const { voice } = await build();
+    voice.setFilterVelAmount(1);
+    const { filPeak, ampPeak } = spyPeaks(voice);
+    voice.noteOn(60, 0.25, 0);
+    expect(filPeak()).toBeCloseTo(0.25, 10);
+    // The amp envelope is untouched by the setting — this shapes brightness,
+    // not loudness.
+    expect(ampPeak()).toBeCloseTo(0.25, 10);
+  });
+
+  it('interpolates at a partial amount, and never reaches silence', async () => {
+    const { voice } = await build();
+    voice.setFilterVelAmount(0.5);
+    const { filPeak } = spyPeaks(voice);
+    voice.noteOn(60, 0, 0);
+    expect(filPeak()).toBeCloseTo(0.5, 10); // half depth, not none
+    voice.noteOn(60, 1, 0);
+    expect(filPeak()).toBeCloseTo(1, 10);
+  });
+
+  it('clamps the amount, so a bad param write cannot invert the sweep', async () => {
+    const { voice } = await build();
+    voice.setFilterVelAmount(5);
+    const { filPeak } = spyPeaks(voice);
+    voice.noteOn(60, 0.5, 0);
+    expect(filPeak()).toBeCloseTo(0.5, 10); // as if amount were exactly 1
+  });
+
+  it('takes effect on the next note, not under a held one', async () => {
+    const { voice } = await build();
+    const { filPeak } = spyPeaks(voice);
+    voice.noteOn(60, 0.4, 0);
+    expect(filPeak()).toBe(1);
+    voice.setFilterVelAmount(1); // knob moves while the note rings
+    expect(filPeak()).toBe(1);   // the ringing note's sweep is already scheduled
+    voice.noteOn(62, 0.4, 0.5);
+    expect(filPeak()).toBeCloseTo(0.4, 10);
+  });
+});

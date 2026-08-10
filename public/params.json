@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 7,
-  "count": 207,
+  "count": 210,
   "params": [
     {
       "id": "voicing.mode",
@@ -229,6 +229,13 @@
       "patch": true
     },
     {
+      "id": "filter.velAmount",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
       "id": "filter.model",
       "min": 0,
       "max": 1,
@@ -357,6 +364,36 @@
         "pulse",
         "pan",
         "shape"
+      ]
+    },
+    {
+      "id": "lfo.sync",
+      "min": 0,
+      "max": 18,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "free",
+        "1/1",
+        "1/1 D",
+        "1/1 T",
+        "1/2",
+        "1/2 D",
+        "1/2 T",
+        "1/4",
+        "1/4 D",
+        "1/4 T",
+        "1/8",
+        "1/8 D",
+        "1/8 T",
+        "1/16",
+        "1/16 D",
+        "1/16 T",
+        "1/32",
+        "1/32 D",
+        "1/32 T"
       ]
     },
     {
@@ -1123,6 +1160,19 @@
     },
     {
       "id": "drum.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "drum.choke",
       "min": 0,
       "max": 1,
       "default": 0,

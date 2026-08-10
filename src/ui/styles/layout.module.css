@@ -57,6 +57,22 @@
   width: 100%;
 }
 
+/* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-5).
+   Five items in a 2-column grid would leave a lone knob hanging in column 1, so
+   the fifth spans the row and `justify-items: center` centres it: A D / S R /
+   VEL. Deliberate, not ragged. The ≤1280px reflow widens the panel enough for
+   one row of five, where the span must be undone (see the media block below). */
+.quint {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 4px;
+  justify-items: center;
+  align-items: center;
+  width: 100%;
+}
+
+.quint > *:last-child { grid-column: 1 / -1; }
+
 /* The 6-knob FILTER panel (.quad's sibling since the model switch added SHAPE
    and KEYTRK). A knob's box is a fixed `--knob-size + 8px`, so a column count
    that outruns the panel width makes the boxes overlap, not merely crowd — the
@@ -457,6 +473,10 @@
   /* Panels widen on the 4-col (and later 2-col) reflow — the four knobs fit one
      row. Holds through every narrower width. */
   .quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Five across, and the fifth stops spanning — the row it would span is now
+     the only row. */
+  .quint { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .quint > *:last-child { grid-column: auto; }
   .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* Distribute the 3-/2-knob rows across the widened panel so they match the
      .quad panels' generosity instead of clustering centre. */

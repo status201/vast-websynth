@@ -5,7 +5,10 @@ import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
 import type { SyncStatus } from '../audio/transport/sync/sync-types';
-import { WAVE_LABELS, LFO_DEST_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS } from '../state/params';
+import {
+  WAVE_LABELS, LFO_DEST_LABELS, LFO_SYNC_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS,
+  FILTER_MODEL_LABELS,
+} from '../state/params';
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
@@ -550,12 +553,17 @@ function buildMain(bus: ParamBus): HTMLElement {
   }, 'ampenv'));
 
   main.appendChild(panel('FILTER ENV', (b) => {
+    // VEL sits with the filter envelope, not on the FILTER panel, because it
+    // scales *this* envelope's depth (envelopes.md REQ-5) — the same pairing
+    // hardware uses. At its default 0 it does nothing, so the panel reads
+    // exactly as it did until someone reaches for it.
     b.appendChild(row([
       new Knob({ bus, paramId: 'env.fil.attack', label: 'A' }).el,
       new Knob({ bus, paramId: 'env.fil.decay', label: 'D' }).el,
       new Knob({ bus, paramId: 'env.fil.sustain', label: 'S' }).el,
       new Knob({ bus, paramId: 'env.fil.release', label: 'R' }).el,
-    ], styles.quad!));
+      new Knob({ bus, paramId: 'filter.velAmount', label: 'VEL' }).el,
+    ], styles.quint!));
   }, 'filterenv'));
 
   main.appendChild(panel('LFO', (b) => {
@@ -566,6 +574,13 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
     ], styles.spread!));
     b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
+    b.appendChild(new ParamDropdown(bus, 'lfo.sync', LFO_SYNC_LABELS).el);
+    // While the rate is tempo-locked the knob is not what sets it (lfo.md
+    // REQ-9), so dim it — the same treatment the BPM knob gets while
+    // clock-slaved and SHAPE gets on the LADDER model. Dim, never hide: the
+    // control keeps its place and its value, which is what it returns to on
+    // 'free' (ADR-014).
+    bus.subscribe('lfo.sync', (s) => rate.setDisabled(Math.round(s) > 0));
     b.appendChild(pulseRateDisclosure(bus, rate));
   }, 'lfo'));
 

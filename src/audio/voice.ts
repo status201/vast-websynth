@@ -38,6 +38,13 @@ export class Voice {
   // is derived from these plus `currentNote`, never stored.
   private baseCutoff = 90;
   private keytrack = 0;
+  /**
+   * How much of the filter envelope's depth velocity controls (envelopes.md
+   * REQ-5). A plain scalar, not an `AudioParam`: it is only ever read at
+   * `noteOn`, so there is nothing to ramp — the value in force when a note
+   * starts shapes that note, and the next note picks up any change.
+   */
+  private filVelAmount = 0;
 
   static async create(ctx: AudioContext): Promise<Voice> {
     const filter = await LadderFilterNode.create(ctx);
@@ -124,7 +131,12 @@ export class Voice {
       this.filter.cutoffNote.setValueAtTime(this.effectiveCutoff(), when);
     }
     this.ampEnv.trigger(when, Math.max(0.01, velocity));
-    this.filEnv.trigger(when, 1);
+    // Velocity → filter (envelopes.md REQ-5). `filVelAmount` 0 gives exactly the
+    // hard-coded 1 this used to pass, so the default changes nothing; at 1 the
+    // sweep scales straight with velocity. Scaling the envelope's PEAK scales the
+    // sweep depth in semitones (filEnv → filEnvScale → cutoffNote), so a soft
+    // note is duller without its base cutoff moving.
+    this.filEnv.trigger(when, 1 - this.filVelAmount + this.filVelAmount * velocity);
   }
 
   setSubWave(idx: number): void { this.sub.setWave(idx); }
@@ -202,6 +214,12 @@ export class Voice {
 
   setFilterShape(s: number): void {
     rampTo(this.filter.shape, s, this.ctx, RAMP_FAST);
+  }
+
+  /** envelopes.md REQ-5. Takes effect on the NEXT note — a held note's sweep is
+   *  already scheduled, and re-shaping it mid-flight would click. */
+  setFilterVelAmount(amount: number): void {
+    this.filVelAmount = Math.max(0, Math.min(1, amount));
   }
 
   setFilterKeytrack(amount: number): void {

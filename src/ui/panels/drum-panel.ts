@@ -236,9 +236,16 @@ export function buildDrumPanel(
     onClick: () => randomizeKit(bus),
   });
 
+  // The hat choke group (drum-machine.md REQ-12) sits with the kit controls
+  // rather than the per-track strip: it is a property of the *kit*, not of the
+  // selected track, and it is keyed on voice models across all eight.
+  const choke = new Switch(bus, 'drum.choke', 'CHOKE');
+  choke.el.title = 'Closed hat cuts the open hat, as on an 808';
+
   tuning.appendChild(kitLabel);
   tuning.appendChild(kitDd.el);
   tuning.appendChild(kitRandom);
+  tuning.appendChild(choke.el);
   tuning.appendChild(tuningLabel);
   tuning.appendChild(tuningKnobs);
   tuning.appendChild(tuningReset);

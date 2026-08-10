@@ -18,6 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Playing harder now opens the filter.** Velocity moved the volume and nothing
+  else, which on a subtractive synth is the one thing you expect it to do. The
+  FILTER ENV panel has a new **VEL** knob: at 0 (where every existing sound
+  stays) velocity leaves the filter alone exactly as before; turn it up and a
+  soft note is duller, a hard one brighter. It follows the keyboard, MIDI and the
+  sequencer's per-step velocities alike.
+
+- **A closed hat can cut the open hat**, the way it does on an 808 where the two
+  share one voice. The Drum tab's kit row has a **CHOKE** switch — off by
+  default, since turning it on changes how a song sounds. It follows the *voice*,
+  not the track, so moving an open hat to another track keeps it working.
+
+- **The LFO can lock to the tempo.** A new **SYNC** setting on the LFO panel
+  takes note divisions (1/4, 1/8 D, 1/4 T … down to 1/32) instead of a free Hz
+  value, so a wobble stays in time when you change tempo — or when an external
+  MIDI clock changes it for you. Leave it on *free* and nothing changes; the RATE
+  knob dims while synced and returns to its own value when you go back.
+
 - **The demo buttons now say what they are.** The row was nineteen unlabelled
   names — no tempo, no length, nothing about what any of them shows off. Hover
   one (or reach it with a screen reader) and it now reads

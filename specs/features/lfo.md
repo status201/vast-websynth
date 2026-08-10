@@ -3,7 +3,8 @@
 ```yaml
 id: lfo
 status: implemented
-version: 5                  # v5: lfo.rate is exponentially tapered (REQ-8)
+version: 6                  # v6: REQ-9 — lfo.sync locks the rate to the tempo
+                            # v5: lfo.rate is exponentially tapered (REQ-8)
                             # v4: `shape` destination — v3: `pulse` implemented
 owner: core
 related:
@@ -88,6 +89,26 @@ in on top of the patched base amount — clamped to `[0, 1]` so it never oversho
     axis. Accepted rather than migrated: the alternative is a song-format
     version that rewrites stored coordinates per axis param, which is a lot of
     machinery for a lane nothing ships.
+
+- **REQ-9** — (v6) **`lfo.sync` locks the rate to the tempo.** A free-running LFO
+  drifts against the song: set a 3 Hz wobble at 120 BPM, change to 128, and it no
+  longer lines up with anything. `lfo.sync` is a discrete param whose index 0 is
+  `free` — **the default, and an exact no-op** — followed by the note divisions
+  from `utils/tempo.ts` (`1/1`, `1/1 D`, `1/1 T`, … `1/32 T`). Rules:
+  - While synced, the effective rate is `1 / (beats * 60 / bpm)` and is
+    recomputed on **every** `transport.bpm` change, so the wobble tracks a tempo
+    ramp or an incoming MIDI clock without the user touching anything.
+  - `lfo.rate` itself is **not rewritten**. The stored patch value is what the
+    knob returns to when sync goes back to `free`, and a synced patch that loads
+    on a build without this param still sounds as it always did (ADR-006).
+  - The rate knob **dims** while synced — the same treatment `filter.shape` gets
+    on the LADDER model (filter-models.md REQ-7) and the BPM knob gets while
+    clock-slaved: the control keeps its place and stops pretending to be live.
+  - The division list is the **same table** the tempo-sync help badges recommend
+    from (tempo-sync-help.md), so the advisory and the real thing cannot
+    disagree. That spec's "Open questions" proposed exactly this promotion.
+  - `pwm.setRate` follows the same effective rate, since PWM rides the LFO
+    (REQ-6).
 
 ## Technical design
 
@@ -208,7 +229,30 @@ Scenario: An existing patch's stored rate survives the taper change (v5, REQ-8)
   Then lfo.rate is still exactly 12.5 and validation accepts it
   And only the knob position it maps to has moved
 # pinned by: tests/state/params.test.ts
+Scenario: A synced LFO takes its rate from the tempo (v6, REQ-9)
+  Given transport.bpm 120 and lfo.rate 7
+  When lfo.sync is set to 1/4
+  Then the LFO runs at 2 Hz, and at 1 Hz once the tempo halves
+# pinned by: tests/ui/tempo-sync.test.ts, e2e/lfo-sync.spec.ts
+
+Scenario: Free-running is the default and nothing changes (v6, REQ-9, ADR-006)
+  Given lfo.sync is 0
+  When the tempo changes
+  Then the LFO keeps the rate the knob set
+# pinned by: e2e/lfo-sync.spec.ts
+
+Scenario: Leaving sync restores the knob's own rate (v6, REQ-9)
+  Given a synced LFO whose stored lfo.rate is 7
+  When lfo.sync goes back to free
+  Then the LFO returns to 7 Hz — the stored value was never rewritten
+# pinned by: e2e/lfo-sync.spec.ts
+
+Scenario: The rate knob dims while synced (v6, REQ-9)
+  When lfo.sync names a division
+  Then knob-lfo.rate is aria-disabled, still visible and still holding its value
+# pinned by: e2e/lfo-sync.spec.ts
 ```
+
 
 ## Tests & verification
 

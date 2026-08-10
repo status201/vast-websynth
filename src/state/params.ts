@@ -1,5 +1,6 @@
 import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
 import { clamp, midiToHz } from '../utils/math';
+import { SYNC_LABELS } from '../utils/tempo';
 
 export type ParamId = string;
 
@@ -215,6 +216,8 @@ export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
  *  link, so reordering silently rewrites saved patches (lfo.md REQ-3). */
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape'];
+/** `lfo.sync` — index 0 is free-running (lfo.md REQ-9). Append-only, same reason. */
+export const LFO_SYNC_LABELS = SYNC_LABELS;
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
@@ -278,6 +281,10 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'filter.resonance', min: 0, max: 4.2, default: 0.5, taper: 'power', curve: 0.6, format: (v) => v.toFixed(2) },
     { id: 'filter.drive', min: 0.5, max: 6, default: 1.2, format: (v) => v.toFixed(2) + 'x' },
     { id: 'filter.envAmount', min: -48, max: 48, default: 24, format: fmtSemi },
+    // How much of the filter envelope's depth velocity controls (envelopes.md
+    // REQ-5). 0 is an exact no-op — the peak stays the hard-coded 1 the filter
+    // envelope always used — so no existing preset or song changes (ADR-006).
+    { id: 'filter.velAmount', min: 0, max: 1, default: 0, format: fmtPct },
     // Model + its morph (filter-models.md). Both default to a no-op: index 0 is
     // the ladder, shape 0 is a plain 4-pole low-pass.
     { id: 'filter.model', min: 0, max: FILTER_MODEL_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: FILTER_MODEL_LABELS },
@@ -306,6 +313,10 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'lfo.amount', min: 0, max: 1, default: 0, format: fmtPct },
     { id: 'lfo.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
     { id: 'lfo.dest', min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
+    // Tempo lock (lfo.md REQ-9). 0 = free-running, which is what every existing
+    // patch has and an exact no-op — `lfo.rate` keeps its stored value and is
+    // simply overridden while synced (ADR-006).
+    { id: 'lfo.sync', min: 0, max: LFO_SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_SYNC_LABELS },
 
     // ----- FX: Distortion -----
     { id: 'fx.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -437,6 +448,10 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Drum machine -----
     { id: 'drum.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
+    // Hat choke group (drum-machine.md REQ-12). Default OFF: switching it on
+    // changes how an existing song sounds, which is exactly what ADR-006 says a
+    // new param's default must not do.
+    { id: 'drum.choke', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'drum.master', min: 0, max: 1, default: 0.85, format: fmtPct },
     { id: 'drum.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     { id: 'drum.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },

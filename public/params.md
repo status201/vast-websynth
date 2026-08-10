@@ -43,6 +43,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "filter.resonance": number  // range 0..4.2, default 0.5
 - "filter.drive": number  // range 0.5..6, default 1.2
 - "filter.envAmount": number  // range -48..48, default 24
+- "filter.velAmount": number  // range 0..1, default 0
 - "filter.model": number  // range 0..1, default 0, step 1, values 0=ladder 1=poly
 - "filter.shape": number  // range 0..1, default 0
 - "filter.keytrack": number  // range 0..1, default 0
@@ -58,6 +59,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "lfo.amount": number  // range 0..1, default 0
 - "lfo.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
 - "lfo.dest": number  // range 0..6, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape
+- "lfo.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.dist.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.dist.drive": number  // range 0..1, default 0.3
 - "fx.dist.tone": number  // range 200..8000, default 3000
@@ -150,6 +152,7 @@ Schemas: [`llms.txt`](llms.txt).
 - "seq.t3.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "seq.solo": number  // range 0..1, default 0, step 1, values 0=off 1=solo
 - "drum.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "drum.choke": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "drum.master": number  // range 0..1, default 0.85
 - "drum.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "drum.solo": number  // range 0..1, default 0, step 1, values 0=off 1=solo

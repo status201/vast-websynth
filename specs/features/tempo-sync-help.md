@@ -3,13 +3,14 @@
 ```yaml
 id: tempo-sync-help
 status: implemented
-version: 1
+version: 2   # v2: the divisions module moved to src/utils/tempo.ts and now
+             #     drives a real tempo lock on the LFO (lfo.md REQ-9)
 owner: ui/onboarding
 related:
   - architecture
   - performance-mode        # both live under ui/onboarding chrome
 source:
-  - src/ui/onboarding/tempo-sync.ts
+  - src/utils/tempo.ts                  # the pure math (moved out of ui/ for lfo.md REQ-9)
   - src/ui/onboarding/help-widgets.ts
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/info-badges.ts
@@ -155,7 +156,13 @@ Scenario: End-to-end click-to-snap in the browser
 
 ## Open questions / future
 
-- Could promote the pure divisions helper to a real per-knob **tempo-sync toggle**
-  (quantise the knob) later; the math already lives in `tempo-sync.ts`.
+- **Done for the LFO** (`lfo.sync`, [lfo](lfo.md) REQ-9): the divisions helper is
+  now a real tempo lock there, not just advice. Doing it moved the module from
+  `src/ui/onboarding/tempo-sync.ts` to `src/utils/tempo.ts` — the audio layer may
+  not import from `src/ui/` (architecture REQ-1, ADR-001), and that import rule is
+  what had kept the math advisory. The badges are unchanged and still read from
+  the same table, so the recommendation and the lock cannot disagree.
+- The same promotion is still open for the **delay times** and the phaser/wah
+  rates; those knobs stay free-valued and advisory.
 - Relationship badges are display-only for now; some (e.g. env sweep target)
   could gain click-to-set presets.

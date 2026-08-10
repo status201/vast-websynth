@@ -216,3 +216,91 @@ describe('DrumMachine voice models', () => {
     expect(dm.tracks[0]).toBe(v);
   });
 });
+
+/**
+ * The hat choke group — drum-machine.md REQ-12. Every track is an independent
+ * voice here, so before this an open hat rang straight through the closed hats
+ * on top of it; on an 808 the two share one voice.
+ *
+ * Asserted on the per-track choke gain's scheduled ramp, which is the mechanism:
+ * `voice → choke → drive → …`, cut and restored inside one call.
+ */
+describe('DrumMachine hat choke group (REQ-12)', () => {
+  /** Ramp targets scheduled on a track's choke gain, in call order. */
+  function ramps(dm: DrumMachine, t: number): number[] {
+    const g = chokeNode(dm, t);
+    return (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls.map((c) => c[0] as number);
+  }
+
+  /** Reach the private per-track choke gain without widening the public API. */
+  function chokeNode(dm: DrumMachine, t: number) {
+    const gains = (dm as unknown as { trackChokes: GainNode[] }).trackChokes;
+    return gains[t]!;
+  }
+
+  function hats() {
+    const rig = build();
+    rig.dm.setEnabled(true);
+    // Track 2 is C.Hat and track 3 is O.Hat by default (model = track index).
+    return rig;
+  }
+
+  it('does nothing at all while drum.choke is off (ADR-006 default)', () => {
+    const { clock, patterns, dm } = hats();
+    patterns.setDrumCell(3, 0, { on: true }); // open hat
+    patterns.setDrumCell(2, 0, { on: true }); // closed hat on the same step
+    clock.fireTick(0);
+    expect(ramps(dm, 3)).toEqual([]);
+  });
+
+  it('a closed hat cuts the open hat once enabled', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true });
+    clock.fireTick(0);
+    // Ramped to 0 — the cut — and restored by a later setValueAtTime.
+    expect(ramps(dm, 3)).toEqual([0]);
+  });
+
+  it('restores the gain, so the next open hat is at full level', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true });
+    clock.fireTick(0);
+    const g = chokeNode(dm, 3);
+    const set = (g.gain.setValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(set.at(-1)?.[0]).toBe(1);
+    // …and the restore is scheduled after the fade, not before it.
+    expect(set.at(-1)?.[1] as number).toBeGreaterThan(set.at(0)?.[1] as number);
+  });
+
+  it('never chokes itself, or a kick', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true });
+    clock.fireTick(0);
+    expect(ramps(dm, 2)).toEqual([]); // the closed hat itself
+    expect(ramps(dm, 0)).toEqual([]); // the kick
+  });
+
+  it('follows the voice MODEL, not the track index (REQ-11 makes models movable)', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    // Move the open hat onto track 6 and take it off track 3.
+    dm.setTrackModel(6, 3); // O.Hat
+    dm.setTrackModel(3, 0); // that slot becomes a kick
+    patterns.setDrumCell(2, 0, { on: true }); // closed hat fires
+    clock.fireTick(0);
+    expect(ramps(dm, 6)).toEqual([0]); // the relocated open hat is choked
+    expect(ramps(dm, 3)).toEqual([]);  // the slot that is now a kick is not
+  });
+
+  it('chokes on every sub-hit of a ratcheted closed hat', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true, ratchet: 3 });
+    clock.fireTick(0);
+    expect(ramps(dm, 3)).toEqual([0, 0, 0]);
+  });
+});

@@ -16,6 +16,9 @@
 //   --name <id>        output basename (bench/<id>.wav)              [required]
 //   --note <spec>      notes to hold: "A2", "45", "45,52,57"         [default A2]
 //   --seconds <n>      take length in note mode                      [default 6]
+//   --velocity <0..1>  note velocity in note mode                    [default 0.9]
+//                      Needed to hear anything velocity-sensitive — `filter.velAmount`
+//                      only differs BETWEEN velocities (envelopes.md REQ-5).
 //   --demo <name>      load a demo song and render one full pass instead
 //   --runs <n>         passes to render in --demo mode (1..10)        [default 1]
 //   --tail-bar         hold the capture open a whole bar after the last step,
@@ -55,6 +58,9 @@ const opts = {
   name: flag('name'),
   note: flag('note', 'A2'),
   seconds: Number(flag('seconds', 6)),
+  // 0.9 is what every take before this flag used, so an old command still
+  // renders the same file. Clamped, since it goes straight to bus.noteOn.
+  velocity: Math.max(0, Math.min(1, Number(flag('velocity', 0.9)))),
   demo: flag('demo'),
   url: flag('url'),
   format: flag('format', 'wav'),
@@ -179,12 +185,12 @@ try {
       { format: opts.format, runs: opts.runs, tailBar: opts.tailBar },
     );
   } else {
-    console.log(`audio-bench: holding ${notes.join(', ')} for ${opts.seconds}s…`);
+    console.log(`audio-bench: holding ${notes.join(', ')} at vel ${opts.velocity} for ${opts.seconds}s…`);
     await page.evaluate((a) => {
       const bus = window.__synth.bus;
       window.__synth.engine.recorder.startManual();
-      for (const n of a.notes) bus.noteOn(n, 0.9);
-    }, { notes });
+      for (const n of a.notes) bus.noteOn(n, a.velocity);
+    }, { notes, velocity: opts.velocity });
     // Release a little early so the take includes the envelope + FX tail rather
     // than being cut mid-sustain.
     await page.waitForTimeout(Math.max(0, opts.seconds - 1) * 1000);

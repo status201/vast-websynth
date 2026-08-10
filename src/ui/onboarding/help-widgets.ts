@@ -4,7 +4,7 @@
 // copy deck; imported there by value, and only the HelpContext *type* comes back
 // the other way — no runtime import cycle.
 import type { HelpContext } from './help-content';
-import { sweetSpotsInRange, spotValue, noteToHz, type TempoQuantity } from './tempo-sync';
+import { sweetSpotsInRange, spotValue, noteToHz, type TempoQuantity } from '../../utils/tempo';
 import styles from '../styles/tour.module.css';
 
 const BPM_ID = 'transport.bpm';

@@ -3,7 +3,10 @@ import {
   sweetSpots,
   sweetSpotsInRange,
   noteToHz,
-} from '../../src/ui/onboarding/tempo-sync';
+  syncedRateHz,
+  SYNC_LABELS,
+  DIVISIONS,
+} from '../../src/utils/tempo';
 import { renderTempoSync } from '../../src/ui/onboarding/help-widgets';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 
@@ -105,5 +108,48 @@ describe('renderTempoSync (delay time)', () => {
     expect(quarter.textContent).toContain('2.00 Hz');
     quarter.click();
     expect(b.get('lfo.rate')).toBeCloseTo(2, 6);
+  });
+});
+
+/**
+ * `lfo.sync` resolution — lfo.md REQ-9. The same division table the advisory
+ * badges recommend from, now driving a real rate, which is why the module had to
+ * leave `src/ui/onboarding/` (the audio layer may not import from the UI).
+ */
+describe('syncedRateHz', () => {
+  it('returns null for free-running, so the caller keeps the knob value', () => {
+    expect(syncedRateHz(0, 120)).toBeNull();
+  });
+
+  it('resolves a division against the tempo', () => {
+    // 1/4 at 120 BPM is 0.5 s → 2 Hz.
+    const quarter = SYNC_LABELS.indexOf('1/4');
+    expect(syncedRateHz(quarter, 120)).toBeCloseTo(2, 10);
+    // Half the tempo, half the rate.
+    expect(syncedRateHz(quarter, 60)).toBeCloseTo(1, 10);
+    // 1/8 at 120 → 0.25 s → 4 Hz.
+    expect(syncedRateHz(SYNC_LABELS.indexOf('1/8'), 120)).toBeCloseTo(4, 10);
+  });
+
+  it('handles dotted and triplet divisions', () => {
+    // 1/8 D is 1.5x an eighth = 0.375 s at 120 → 2.667 Hz.
+    expect(syncedRateHz(SYNC_LABELS.indexOf('1/8 D'), 120)).toBeCloseTo(1 / 0.375, 10);
+    // 1/4 T is 2/3 of a quarter = 0.3333 s at 120 → 3 Hz.
+    expect(syncedRateHz(SYNC_LABELS.indexOf('1/4 T'), 120)).toBeCloseTo(3, 10);
+  });
+
+  it('refuses an out-of-range index or a nonsense tempo', () => {
+    expect(syncedRateHz(999, 120)).toBeNull();
+    expect(syncedRateHz(-1, 120)).toBeNull();
+    // A song payload drives this param directly, and 1/0 would reach an
+    // AudioParam (untrusted-input.md REQ-6).
+    expect(syncedRateHz(1, 0)).toBeNull();
+    expect(syncedRateHz(1, NaN)).toBeNull();
+    expect(syncedRateHz(1, Infinity)).toBeNull();
+  });
+
+  it('keeps index 0 as "free" — the label list is append-only', () => {
+    expect(SYNC_LABELS[0]).toBe('free');
+    expect(SYNC_LABELS).toHaveLength(DIVISIONS.length + 1);
   });
 });

@@ -3,7 +3,8 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 5   # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
+version: 6   # v6: REQ-12 — an optional hat choke group (drum.choke, default off)
+             # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
 owner: core
 related:
   - architecture
@@ -87,6 +88,30 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   - UI: the sound-design row's tuning strip gains a per-track **model dropdown**
     (testid `drum-model`), and the grid's row label follows the selected model's
     name (the classic `DRUM_TRACK_LABELS` remain the slot names).
+- **REQ-12** (v6) — **A closed hat can cut an open hat.** On a real 808/909 the
+  two hats share one voice, so a closed hat ends whatever the open hat was doing;
+  here every track is independent, so an open hat rang straight through the
+  closed hats on top of it — the one thing that stops a hat pattern from
+  breathing. `drum.choke` (discrete, **default 0 = off**) enables it. Rules:
+  - **Off by default**, because switching it on changes how existing songs sound
+    — the one thing [ADR-006](../decisions/adr-006-no-op-param-defaults.md)
+    forbids a new param from doing. Every shipped demo is unaffected until
+    someone reaches for the switch.
+  - The group is decided by **model, not by track index** (REQ-11 makes models
+    swappable): *any* track whose model is `C.Hat` chokes *every* track whose
+    model is `O.Hat`. Move an open hat onto track 6 and it still chokes; put a
+    cowbell on track 3 and it stops being choked.
+  - The cut is a short fade on a dedicated per-track **choke gain** placed
+    directly after the voice — upstream of drive, so a tail is cut before it is
+    saturated — and the gain is restored immediately after the fade, so the next
+    open-hat hit is at full level. It never touches `drum.t{i}.vol`, which is the
+    user's.
+  - It applies to **scheduled** hits (`when`), not to `currentTime`, so a choke
+    lands sample-accurately inside the transport look-ahead like every other
+    drum event.
+  - A closed hat does **not** choke itself, and nothing chokes a kick/snare/tom —
+    this is the hat pair only. A general per-track choke-group matrix is
+    deliberately out of scope; see Open questions.
 - **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
   track changes**, not on every step click (its knobs bind per-track paramIds that
   depend on the track alone; their displayed values already track the bus via
@@ -223,7 +248,30 @@ Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-10, 
   Then the tuning knobs are not rebuilt (a rebuild happens only when the selected track changes)
   And a destroyed Knob has removed every window pointer listener it added
 # pinned by: tests/ui/knob.test.ts
+Scenario: A closed hat cuts the open hat once choke is on (v6, REQ-12)
+  Given drum.choke is on, with a C.Hat and an O.Hat track
+  When the closed hat fires
+  Then the open hat's choke gain ramps to 0 and is restored straight after
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: Choke is off by default, so no shipped song changes (v6, REQ-12, ADR-006)
+  Given drum.choke at its default 0
+  When a closed hat fires over a ringing open hat
+  Then nothing is choked
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: The group follows the voice model, not the track (v6, REQ-12)
+  Given the O.Hat model has been moved onto another track
+  When a closed hat fires
+  Then the relocated open hat is choked and the vacated slot is not
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A ratcheted closed hat chokes on every sub-hit (v6, REQ-12, edge)
+  Given a closed-hat step with ratchet 3 and choke on
+  Then the open hat is cut three times, at each sub-hit's own time
+# pinned by: tests/audio/transport/drum-machine.test.ts
 ```
+
 
 ## Tests & verification
 

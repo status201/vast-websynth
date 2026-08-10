@@ -28,6 +28,7 @@ import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
 import { BackgroundAudioWatchdog, type WatchdogDiagnostics } from './background-watchdog';
+import { syncedRateHz } from '../utils/tempo';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -632,6 +633,7 @@ export class Engine {
     bus.subscribe('filter.resonance', all((v, x) => v.setFilterResonance(x)));
     bus.subscribe('filter.drive', all((v, x) => v.setFilterDrive(x)));
     bus.subscribe('filter.envAmount', all((v, x) => v.setFilterEnvAmount(x)));
+    bus.subscribe('filter.velAmount', all((v, x) => v.setFilterVelAmount(x)));
     bus.subscribe('filter.model', all((v, x) => v.setFilterModel(x)));
     bus.subscribe('filter.shape', all((v, x) => v.setFilterShape(x)));
     bus.subscribe('filter.keytrack', all((v, x) => v.setFilterKeytrack(x)));
@@ -658,7 +660,25 @@ export class Engine {
       this.lfo.setAmount(amount);
       this.pwm.setAmount(amount);
     };
-    bus.subscribe('lfo.rate', (x) => { this.lfo.setRate(x); this.pwm.setRate(x); });
+    /**
+     * The rate the LFO actually runs at (lfo.md REQ-9): the tempo-locked value
+     * while `lfo.sync` names a division, otherwise the knob's own `lfo.rate`.
+     *
+     * Reading `transport.bpm` is right in **both** sync modes — the MIDI/WiFi
+     * slave transport writes the incoming tempo back to that param
+     * (`setLocalBpm`), so a synced LFO follows an external clock for free.
+     *
+     * `lfo.rate` is never rewritten: it stays the value the patch stored and the
+     * knob returns to when sync goes back to `free`.
+     */
+    const applyLfoRate = (): void => {
+      const hz = syncedRateHz(bus.get('lfo.sync'), bus.get('transport.bpm'))
+        ?? bus.get('lfo.rate');
+      this.lfo.setRate(hz);
+      this.pwm.setRate(hz);
+    };
+    bus.subscribe('lfo.rate', () => applyLfoRate());
+    bus.subscribe('lfo.sync', () => applyLfoRate());
     bus.subscribe('lfo.amount', () => updateLfoAmount());
     bus.subscribe('lfo.wave', (x) => { this.lfo.setWave(x); this.pwm.setWave(x); });
     bus.subscribe('lfo.dest', (x) => { this.lfo.setDest(x); this.pwm.setDest(x); });
@@ -693,6 +713,9 @@ export class Engine {
     // disconnected Slave leaves the knob in charge (REQ-19).
     bus.subscribe('transport.bpm', (b) => {
       if (this.sync.activeMode !== 'slave') this.clock.setBpm(b);
+      // A tempo-locked LFO tracks the tempo, including a slave's incoming clock
+      // (lfo.md REQ-9). A no-op while `lfo.sync` is free.
+      applyLfoRate();
     });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 
@@ -726,6 +749,7 @@ export class Engine {
 
     // ----- Drums -----
     bus.subscribe('drum.on', (v) => this.drums.setEnabled(v >= 0.5));
+    bus.subscribe('drum.choke', (v) => this.drums.setChokeEnabled(v >= 0.5));
     bus.subscribe('drum.master', (v) => this.laneMixer.setDrumVol(v));
     for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
       const track = i;
