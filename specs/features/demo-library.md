@@ -63,6 +63,12 @@ what a demo owes the shelf.
   promises — dropping a `.json` into `src/state/demos/` and running one command is
   still the whole procedure.
 
+  `demo-notes.json` is **allowlisted in the SDD guard** alongside
+  `src/state/demos/` itself: it is prose about songs, carries no behaviour, and
+  writing a line for a demo must not require a spec change. (It was not, at
+  first — the guard blocked the very first blurb, which is how the omission was
+  found.)
+
 - **REQ-3 — The zip demos are indexed too.** `1973` and `Run Away 2` are the only
   demos that use the sampler (a `.json` cannot embed audio), and they were absent
   from the index entirely — their labels came from mangling the filename

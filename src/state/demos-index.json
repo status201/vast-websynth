@@ -53,6 +53,20 @@
       "drums"
     ]
   },
+  "First_Light.websynth.json": {
+    "name": "First Light",
+    "bpm": 112,
+    "bars": 16,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "armed": [
+      "arp"
+    ],
+    "blurb": "One riff, four chords: the whole progression is bar transposes on two banks. POLY filter, hat choke, tempo-locked LFO — and the arp is armed, so hold a key."
+  },
   "Night_Rider.websynth.json": {
     "name": "Night Rider",
     "bpm": 125,

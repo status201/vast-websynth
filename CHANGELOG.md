@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A new demo, "First Light"** — 112 BPM, 16 bars. Its whole four-chord
+  progression is one riff transposed bar by bar, so two banks carry what used to
+  take all four; it runs the POLY filter with motion morphing the filter *type*
+  across sections, uses the new hat choke and a tempo-locked LFO, and leaves the
+  arpeggiator armed, so you can hold a key and play over it.
+
 - **Playing harder now opens the filter.** Velocity moved the volume and nothing
   else, which on a subtractive synth is the one thing you expect it to do. The
   FILTER ENV panel has a new **VEL** knob: at 0 (where every existing sound

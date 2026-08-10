@@ -50,7 +50,12 @@ function isProductionPath(rel) {
     p.endsWith('.css') ||
     p.includes('/styles/') ||
     p.startsWith('src/vendor/') ||
-    p.startsWith('src/state/demos/');
+    p.startsWith('src/state/demos/') ||
+    // Hand-written prose ABOUT the demos (demo-library.md REQ-2). Same category
+    // as the demos themselves: pure data, no behaviour, and writing a line for a
+    // song must not require a spec change — that is exactly the filler-spec
+    // ritual the demos allowlist exists to avoid.
+    p === 'src/state/demo-notes.json';
   return !allow;
 }
 
