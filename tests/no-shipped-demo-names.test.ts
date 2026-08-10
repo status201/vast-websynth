@@ -83,11 +83,25 @@ describe('no test names a shipped demo song', () => {
       matchers(name).map(({ label, re }) => ({ name, label, re })));
     const offences: string[] = [];
 
+    // Cheap pre-filter, tested against the WHOLE file once. A clean file — which is
+    // every file, almost always — then costs one regex pass instead of lines x probes,
+    // and only a file that actually mentions a demo pays for the per-line walk that
+    // locates it. Without this the scan grew with the suite and tipped over its
+    // timeout under load: it went red on a run whose only change was six new test
+    // files, which is the worst kind of flake because it accuses innocent code.
+    //
+    // Deliberately the BARE names, not the probe sources joined together: every probe
+    // contains its name literally, so a name-miss is a probe-miss and the filter
+    // cannot hide an offence. Joining the sources would be wrong — the quoted-literal
+    // probe carries a `\1` backreference, and alternation renumbers the groups.
+    const mentionsAny = new RegExp(demoNames().map(escape).join('|'));
+
     for (const dir of SCANNED) {
       for (const file of tsFiles(dir)) {
         if (ALLOWLIST.has(file)) continue;
-        const lines = readFileSync(repo(file), 'utf8').split(/\r?\n/);
-        lines.forEach((line, i) => {
+        const text = readFileSync(repo(file), 'utf8');
+        if (!mentionsAny.test(text)) continue;
+        text.split(/\r?\n/).forEach((line, i) => {
           for (const { name, label, re } of probes) {
             if (re.test(line)) offences.push(`  ${file}:${i + 1}  "${name}"  [${label}]`);
           }
@@ -107,7 +121,11 @@ describe('no test names a shipped demo song', () => {
         + '        fixtureSong() — tests/fixtures/song-fixture.ts\n',
       );
     }
-  });
+    // Explicit, generous timeout on top of the pre-filter above. This test reads every
+    // file in two directories, so its cost tracks the size of the suite while its
+    // budget does not — and a repo-wide guard that goes red from *contention* teaches
+    // people to re-run rather than to look, which is how a guard stops being believed.
+  }, 30_000);
 
   it('every allowlist entry still exists and still needs its exemption', () => {
     // A stale allowlist is how a rule quietly stops applying.
