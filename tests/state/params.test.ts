@@ -282,6 +282,29 @@ describe('ParamBus', () => {
     expect(bus.get('lfo.dest')).toBe(6);
   });
 
+  // Both LFOs come from one lfoParams(prefix) factory, so "identical to the
+  // first one" is structural (lfo.md REQ-10). This is what pins that: any def
+  // that drifts apart fails here rather than in someone's ears.
+  it('registers LFO 2 as an exact twin of LFO 1', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (const key of ['rate', 'amount', 'wave', 'dest', 'sync']) {
+      const a = bus.def(`lfo.${key}`);
+      const b = bus.def(`lfo2.${key}`);
+      expect(b, `lfo2.${key} is not registered`).toBeDefined();
+      expect({ ...b, id: '' }).toEqual({ ...a, id: '' });
+    }
+  });
+
+  it('defaults every LFO 2 param to a no-op, so pre-v7 patches are unchanged', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    // dest `off` and amount 0 are each independently silencing (ADR-006).
+    expect(bus.get('lfo2.dest')).toBe(0);
+    expect(bus.get('lfo2.amount')).toBe(0);
+    expect(bus.get('lfo2.sync')).toBe(0);   // free-running
+  });
+
   it('registers the drum reverb params with off-by-default bypass', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

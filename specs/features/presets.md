@@ -3,7 +3,8 @@
 ```yaml
 id: presets
 status: implemented
-version: 5   # v5: the import wizard is reachable with an already-parsed payload
+version: 6   # v6: REQ-2b spells out WHY only presets leak, and is now pinned
+             # v5: the import wizard is reachable with an already-parsed payload
 owner: core
 related:
   - architecture
@@ -59,10 +60,19 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   ensemble/poly (`pad`, `solina`, `brass`), leads/plucks (`lead`, `pluck`) and
   FX basses (`wobble`).
 - **REQ-2b** — Every factory preset sets the **full sound** (all osc/sub/unison/
-  drift/mixer/glide/filter/env/LFO params plus every synth-FX `.on` flag), so
-  switching between factory presets is deterministic — no param from the previous
-  patch leaks through (per the [add-a-factory-preset](../recipes/add-a-factory-preset.md)
-  recipe).
+  drift/mixer/glide/filter/env/LFO params — *both* LFOs, including their `.sync`
+  — plus every synth-FX `.on` flag), so switching between factory presets is
+  deterministic: no param from the previous patch leaks through (per the
+  [add-a-factory-preset](../recipes/add-a-factory-preset.md) recipe).
+  - **Why this is the preset side's job and not the loader's.** `Song.apply`
+    calls `bus.resetDefaults()` before `bus.restore(file.params)`, so a song
+    cannot leak — anything it omits returns to its default. `Presets.apply` is a
+    bare `bus.restore(snap)`, so a preset leaks whatever it omits. Adding a reset
+    there would change what a *user-saved sparse* preset means, so the fix is for
+    each factory bank to be complete. That makes REQ-2b an invariant a human has
+    to remember on every new param — which is exactly why it is now pinned by a
+    test rather than by the recipe's prose. Two params had already slipped
+    through (`lfo.sync` from [lfo](lfo.md) v6, `lfo2.*` from v7).
 - **REQ-3** — `list()` merges factory names with stored user names, sorted.
 - **REQ-4** — Loading a preset restores params via the bus (a bulk apply, not seen
   as an edit). The bulk apply also refreshes the per-param **reset baseline**, so a
@@ -217,6 +227,12 @@ Scenario: Saving then loading a preset round-trips the sound
   When they load another preset then reload "MyLead"
   Then bus values match the saved snapshot
 # pinned by: tests/state/preset.test.ts, e2e/presets.spec.ts
+
+Scenario: No factory preset can leak an LFO param (regression, v6, REQ-2b)
+  Given every factory bank
+  Then each one sets all five params of both LFOs, sync included
+  So switching from a patch with an armed LFO cannot carry it into the next
+# pinned by: tests/state/preset.test.ts
 
 Scenario: Save names the preset via the custom prompt dialog
   Given the preset manager is open

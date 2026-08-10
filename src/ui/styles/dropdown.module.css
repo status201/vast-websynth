@@ -176,6 +176,20 @@
   color: var(--accent-secondary);
 }
 
+/* Spoken for by something else, so listed but not choosable (REQ-10). Greyed
+   rather than hidden: a row that vanishes tells the reader nothing. The hover
+   rule above is cancelled so the surface stops inviting the click. */
+.option:disabled {
+  color: var(--text-faint);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.option:disabled:hover {
+  background: none;
+  color: var(--text-faint);
+}
+
 .option:global(.active) {
   background: linear-gradient(180deg, #4a3525, #2a1c10);
   color: var(--accent-secondary);

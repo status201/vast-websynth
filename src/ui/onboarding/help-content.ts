@@ -210,6 +210,7 @@ export type TopicId =
   | 'filterenv'
   | 'lfo'
   | 'lfo.rate'
+  | 'lfo2.rate'
   | 'fx'
   | 'fx.dist'
   | 'fx.wah'
@@ -456,7 +457,13 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>AMT</strong> — how much it moves the target.</li>' +
       '<li><strong>Destination</strong> — what it modulates (e.g. pitch for vibrato, filter for ' +
       'wobble, pan to sweep the sound between the speakers).</li>' +
-      '</ul>',
+      '</ul>' +
+      '<p>There are <strong>two</strong>, on the <strong>1</strong> and <strong>2</strong> tabs ' +
+      'above — so you can have a filter wobble <em>and</em> a vibrato at once. Each one takes a ' +
+      'different destination: whichever one is in use is greyed out on the other tab. A tab ' +
+      'lights up when its LFO is moving something, even while you are looking at the other.</p>' +
+      '<p>The mod wheel adds depth to <strong>LFO 1</strong> only, so it stays a performance ' +
+      'control for one thing rather than opening everything at once.</p>',
   },
   fx: {
     title: 'Effects chain',
@@ -558,8 +565,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body: (ctx) => renderTempoSync(ctx, 'fx.sampler.delay.time', 'time'),
   },
   'lfo.rate': {
-    title: 'LFO Rate — sync to tempo',
+    title: 'LFO 1 Rate — sync to tempo',
     body: (ctx) => renderTempoSync(ctx, 'lfo.rate', 'freq'),
+  },
+  'lfo2.rate': {
+    title: 'LFO 2 Rate — sync to tempo',
+    body: (ctx) => renderTempoSync(ctx, 'lfo2.rate', 'freq'),
   },
   'fx.wah.rate': {
     title: 'Wah Rate — sync to tempo',

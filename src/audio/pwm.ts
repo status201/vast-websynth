@@ -23,6 +23,14 @@ export interface PwmVoice {
   readonly osc2: Osc;
 }
 
+/** What one LFO contributes to the shared driver (lfo.md REQ-14). */
+interface PwmSource {
+  pulse: boolean;
+  amount: number;
+  rate: number;
+  wave: number;
+}
+
 /** One LFO cycle, evaluated in JS. Shapes mirror `WAVE_TYPES` in `lfo.ts`:
  *  sine / triangle / sawtooth / square, each bipolar and starting at 0 (or +1
  *  for square), matching the phase convention of the native OscillatorNode. */
@@ -46,6 +54,11 @@ function shape(wave: number, p: number): number {
  * The timer exists **only while the destination is `pulse`** — every other patch
  * pays nothing. It owns its own interval rather than riding the render loop,
  * because the weak perf tier caps that at 15 fps (runtime-performance.md).
+ *
+ * There is **one driver and two LFOs** (lfo.md REQ-14), so every LFO-owned
+ * setter takes a source index and the driver tracks an owner. Without that,
+ * the LFO that is *not* doing PWM would stop the sweep of the one that is,
+ * simply by moving its own destination — `setDest(cutoff)` would reach `stop()`.
  */
 export class PwmDriver {
   /** `window.setInterval`, as `Polyphony`'s drift timer does: the bare global
@@ -55,33 +68,70 @@ export class PwmDriver {
   private phase = 0;
   private lastT = 0;
 
-  private dest: LfoDest = LfoDest.Off;
-  private amount = 0;
-  private rate = 4;
-  private wave = 0;
+  /** Which LFO index drives PWM, or null when nobody is on `pulse`. */
+  private owner: number | null = null;
   /** Per-oscillator base width, straight from the `osc{N}.pulseWidth` knobs. */
   private base: [number, number] = [PWM_MIN_WIDTH, PWM_MIN_WIDTH];
+  /**
+   * One slot per LFO. Each source keeps its own slot current unconditionally and
+   * `tick()` reads only the owner's, so ownership can change hands without
+   * anyone re-pushing anything — including the case where the owner leaves
+   * `pulse` while the other LFO is still on it.
+   */
+  private readonly srcs: PwmSource[] = [];
 
   constructor(
     private readonly voices: readonly PwmVoice[],
     private readonly now: () => number,
   ) {}
 
-  setDest(d: number): void {
-    this.dest = Math.round(d);
+  /** A source declares whether it is on `pulse`; the driver re-decides the owner. */
+  setDest(src: number, d: number): void {
+    this.slot(src).pulse = Math.round(d) === LfoDest.Pulse;
+    this.reown();
+  }
+
+  setAmount(src: number, a: number): void {
+    this.slot(src).amount = Math.max(0, Math.min(1, a));
+  }
+
+  setRate(src: number, hz: number): void {
+    if (Number.isFinite(hz)) this.slot(src).rate = hz;
+  }
+
+  setWave(src: number, idx: number): void {
+    this.slot(src).wave = Math.max(0, Math.min(3, Math.round(idx)));
+  }
+
+  /** Which LFO is sweeping the width, or null. Exposed for tests + the specs. */
+  get pwmOwner(): number | null {
+    return this.owner;
+  }
+
+  private slot(src: number): PwmSource {
+    let s = this.srcs[src];
+    if (!s) {
+      s = { pulse: false, amount: 0, rate: 4, wave: 0 };
+      this.srcs[src] = s;
+    }
+    return s;
+  }
+
+  /**
+   * **The lowest index on `pulse` wins**, rather than the last to claim:
+   * `bus.restore()` walks a snapshot's own key order, which is JSON insertion
+   * order and so not deterministic across hand-authored files. Lowest-index-wins
+   * gives the same answer whichever order the two `dest` params arrive in, and
+   * matches the "LFO 1 got there first" reading (lfo.md REQ-14).
+   */
+  private reown(): void {
+    let next: number | null = null;
+    for (let i = 0; i < this.srcs.length; i++) {
+      if (this.srcs[i]?.pulse) { next = i; break; }
+    }
+    if (next === this.owner) return;
+    this.owner = next;
     this.sync();
-  }
-
-  setAmount(a: number): void {
-    this.amount = Math.max(0, Math.min(1, a));
-  }
-
-  setRate(hz: number): void {
-    if (Number.isFinite(hz)) this.rate = hz;
-  }
-
-  setWave(idx: number): void {
-    this.wave = Math.max(0, Math.min(3, Math.round(idx)));
   }
 
   /** `i` is 0 for osc1, 1 for osc2. Writing a base while PWM is idle applies it
@@ -96,9 +146,9 @@ export class PwmDriver {
     this.stop();
   }
 
-  /** Start or stop the loop to match the destination. */
+  /** Start or stop the loop to match whether anyone owns the driver. */
   private sync(): void {
-    if (this.dest === LfoDest.Pulse) {
+    if (this.owner !== null) {
       if (this.timer) return;
       this.lastT = this.now();
       this.timer = window.setInterval(() => this.tick(), 1000 / PWM_CONTROL_HZ);
@@ -124,20 +174,25 @@ export class PwmDriver {
   }
 
   private tick(): void {
+    // Only the owner's slot is read, so a non-owner keeping its own rate/wave/
+    // amount up to date costs nothing and changes nothing (lfo.md REQ-14).
+    const s = this.owner === null ? undefined : this.srcs[this.owner];
+    if (!s) return;
+
     const t = this.now();
     const dt = Math.min(Math.max(t - this.lastT, 0), MAX_TICK_S);
     this.lastT = t;
 
     // Phase is accumulated rather than derived from absolute time, so changing
     // the rate bends the sweep instead of jumping it.
-    this.phase = (this.phase + Math.min(this.rate, PWM_RATE_MAX) * dt) % 1;
+    this.phase = (this.phase + Math.min(s.rate, PWM_RATE_MAX) * dt) % 1;
 
     // Unipolar and upward from each base (oscillators.md REQ-7): duty `d` and
     // `1-d` share a magnitude spectrum, so a bipolar sweep through 0.5 would
     // sound like double the LFO rate.
-    const u = (shape(this.wave, this.phase) + 1) / 2;
-    const w0 = this.base[0] + this.amount * u * (PWM_MAX_WIDTH - this.base[0]);
-    const w1 = this.base[1] + this.amount * u * (PWM_MAX_WIDTH - this.base[1]);
+    const u = (shape(s.wave, this.phase) + 1) / 2;
+    const w0 = this.base[0] + s.amount * u * (PWM_MAX_WIDTH - this.base[0]);
+    const w1 = this.base[1] + s.amount * u * (PWM_MAX_WIDTH - this.base[1]);
 
     for (const v of this.voices) {
       v.osc1.setPulseWidth(w0);

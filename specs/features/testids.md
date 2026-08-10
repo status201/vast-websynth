@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 6  # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
+version: 7  # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
+            #     the LFO panel's per-page ids (lfo.md REQ-12, REQ-15)
+            # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
             # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
             #     by a test, never spelled — see REQ-8
             # v4: chooseDialog's dialog-choice-<id> (dialog.md REQ-8); dialog-cancel
@@ -25,6 +27,7 @@ source:
   - src/ui/components/segmented.ts    # seg-<paramId>[-<idx>]
   - src/ui/components/strip.ts        # strip-<paramId>
   - src/ui/components/tabs.ts         # tab-<id> / panel-<id>
+  - src/ui/components/panel-tabs.ts   # ptab-<prefix>-<page> / ppage-<prefix>-<page>
   - src/ui/components/bank-bar.ts     # testidPrefix namespacing
   - src/ui/components/clear-menu.ts   # clear-<lane>-…
   - src/ui/components/button.ts       # opts.testId passthrough
@@ -60,7 +63,15 @@ through the shared factories gets a correct, predictable testid for free.
   colliding: `BankBar`'s `testidPrefix` (`bank-<lane>-…`), `clearMenu`'s `lane`
   (`clear-<lane>-…`), `buildLiveFxControls`' `testIdPrefix` (`perf` on the Song
   tab, `livefx` in the floating window), `buildTransportControls`' `testIdPrefix`
-  (`transport` in the Song panel row, `transportw` in the floating window).
+  (`transport` in the Song panel row, `transportw` in the floating window),
+  `createPanelTabs`' `prefix` (`ptab-<prefix>-<page>`).
+  - **`ptab-`/`ppage-` is deliberately distinct from `tab-`/`panel-`.** Two
+    different components page two different things: `TabContainer` owns the
+    machine row, and its `tab-<id>` ids are anchored by e2e specs, the guided
+    tour's spotlight targets, `info-badges.ts` and `UiBridge.showTab`.
+    `createPanelTabs` pages the body of one faceplate panel
+    ([panel-tabs](panel-tabs.md) REQ-3). Reusing `tab-<id>` for both would let a
+    panel page shadow a machine tab.
 - **REQ-3** — Non-param buttons take an explicit `testId` (`createButton` →
   `opts.testId`); per-instance panel ids encode their coordinates
   (`drum-step-<track>-<step>`, `sampler-step-<slot>-<step>`).
@@ -110,6 +121,7 @@ prefix-namespaced components:
   buildTransportControls({ testIdPrefix: P = 'transport' })
                                  -> <P>-toggle · <P>-tostart · <P>-readout ·
                                     <P>-scrub · <P>-scrub-<bar>
+  createPanelTabs({ prefix: P })  -> ptab-<P>-<page> · ppage-<P>-<page>
 ```
 
 ### Catalogue
@@ -125,6 +137,14 @@ shell (app.ts):
   info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
                                             # ids follow function, not glyph order
                                             # (features/responsive-header.md REQ-6)
+
+synth faceplate panels:
+  # The eight panel() panels carry no id of their own — their controls mint from
+  # param ids (REQ-1). Only the LFO panel's pages and hints are named:
+  ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-3
+  pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-9 — per page, so
+                                     #   the two hints don't collide by text (REQ-4)
+  dest-taken-<lfo|lfo2>              # features/lfo.md REQ-12 — names the holder
 
 step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1

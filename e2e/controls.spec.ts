@@ -126,7 +126,9 @@ test.describe('control surface (testids + debug bridge)', () => {
   // would be worse than neither.
   test('the LFO rate cap is disclosed by both the hint and the knob arc', async ({ page }) => {
     await gotoAndStart(page);
-    const hint = page.getByText('Pulse width follows the rate up to');
+    // By testid, not by text: with two LFOs the same sentence renders twice, one
+    // per page, and a text selector matches both (testids.md REQ-4).
+    const hint = page.getByTestId('pulse-hint-lfo');
     const rate = page.getByTestId('knob-lfo.rate');
     await expect(hint).toBeHidden();
     await expect(rate).not.toHaveAttribute('data-uimax');

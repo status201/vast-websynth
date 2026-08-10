@@ -3,7 +3,8 @@
 ```yaml
 id: responsive-synth-panels
 status: implemented
-version: 3   # v3: the 6-knob FILTER panel (.hex)
+version: 4   # v4: the LFO panel's title row now carries a tab strip (REQ-5)
+             # v3: the 6-knob FILTER panel (.hex)
 owner: ui
 related:
   - responsive-header
@@ -66,6 +67,12 @@ before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
   1280px** the row distributes its knobs `space-evenly` across the widened
   panel, so their spacing matches the neighbouring `.quad` panels rather than
   clustering in the middle.
+  - (v4) The LFO panel's **title row is a two-tab strip**
+    ([panel-tabs](panel-tabs.md), [lfo](lfo.md) REQ-15). It replaces the title
+    rather than joining it, holds a plain `.panelTitle`'s height so the panel
+    stays on its neighbours' baseline, and its tabs take an even share of the
+    row — so the labels fit the ~191 px 8-column cell by construction at every
+    width, with no metric to re-tune per breakpoint.
 - **REQ-6** — The **6-knob FILTER** panel ([filter-models.md](filter-models.md)
   added SHAPE and KEYTRK) uses a `.hex` grid with **three** shapes, each an even
   split — no 4+2 or 5+1, the same rule as REQ-4:

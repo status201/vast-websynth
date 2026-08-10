@@ -3,7 +3,8 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 3                     # v3: the REQ-9 rate cap is shown on the knob, not only in prose
+version: 4                     # v4: one PwmDriver, two LFOs — the source claim (REQ-8)
+                               # v3: the REQ-9 rate cap is shown on the knob, not only in prose
                                # v2: pulse-width modulation on osc1/osc2
 owner: core
 related:
@@ -60,11 +61,20 @@ scalar params, so they snapshot into presets/songs for free.
   destinations, which are bipolar around their base.
 - **REQ-8** — (v2) `setPeriodicWave` is an immediate call, not schedulable
   automation, so PWM runs from a control loop at `PWM_CONTROL_HZ`. It runs
-  **only while `lfo.dest === pulse`** and is stopped otherwise, so the feature
-  costs nothing in any other patch. It owns its own timer and must **not** ride
-  `requestAnimationFrame` — `PERF_PROFILES.weak` caps fps at 15
+  **only while some LFO's destination is `pulse`** and is stopped otherwise, so
+  the feature costs nothing in any other patch. It owns its own timer and must
+  **not** ride `requestAnimationFrame` — `PERF_PROFILES.weak` caps fps at 15
   ([runtime-performance](runtime-performance.md)), which would make PWM unusable
   on that tier.
+  - (v4) **There is one driver and there are two LFOs**
+    ([lfo](lfo.md) REQ-14), so every setter takes a **source index** and the
+    driver tracks an **owner**. A source claims it by selecting `pulse` when the
+    driver is unowned or owned by a higher index (lowest index wins); it releases
+    by leaving `pulse`; a non-owner's `setRate`/`setWave`/`setAmount` are ignored.
+    Without the claim, the *other* LFO changing its destination would call
+    `setDest(non-pulse)` and stop a sweep it does not own — the whole reason the
+    driver is not simply shared. Cost is unchanged: still one timer, still only
+    while someone is on `pulse`.
 - **REQ-9** — (v2) On the PWM path the LFO rate is clamped to `PWM_RATE_MAX`,
   because smoothness is `PWM_CONTROL_HZ ÷ rate` updates per cycle and a faster
   LFO steps audibly. `lfo.rate`'s registered range is **unchanged** — narrowing
@@ -76,6 +86,10 @@ scalar params, so they snapshot into presets/songs for free.
   driven from the same `lfo.dest` listener so they cannot drift apart, and both
   disappear for every other destination, where the full `0.05..20` range really
   is live. The cap is paint only — dragging still reaches and stores 20 Hz.
+  (v4) Each LFO page owns its own pair, keyed off `${prefix}.dest`; the hint
+  carries a per-page testid (`pulse-hint-lfo` / `pulse-hint-lfo2`) because two
+  copies of the same sentence can no longer be selected by text
+  ([testids](testids.md) REQ-4).
 - **REQ-10** — (v2) A background tab throttles main-thread timers to ~1 Hz while
   audio keeps playing ([audio-lifecycle](audio-lifecycle.md)). The duty then
   freezes at its last value: no click, no drift, and it resumes on return.
@@ -109,7 +123,11 @@ pwm.ts:
   PWM_BANK_SIZE   # duty-bank resolution
   PWM_CONTROL_HZ  # control-loop rate
   PWM_RATE_MAX    # LFO rate ceiling on this path (REQ-9)
-  PwmDriver.setDest / setBase / setAmount / setRate / setWave / dispose
+  PwmDriver.setBase(i, width) / dispose
+  PwmDriver.setDest(src, d) / setAmount(src, a) / setRate(src, hz) / setWave(src, i)
+    # v4: `src` is the LFO index. setDest claims/releases the driver; the other
+    # three are ignored unless src === the owner. setBase is osc-owned, not
+    # LFO-owned, so it takes no src.
 ```
 
 Both `PWM_CONTROL_HZ` and `PWM_RATE_MAX` are tuning constants: smoothness is
@@ -129,12 +147,15 @@ engine:   src/audio/engine.ts -> subscribeParams()
   osc{1,2}.pulseWidth -> pwm.setBase(i, x)          # v2
   lfo.{dest,rate,wave,amount} + master.modWheel -> pwm.<setter>  # v2
 graph (v2):
-  PwmDriver --(timer @ PWM_CONTROL_HZ, only while dest=pulse)--> every voice's
-    osc1/osc2 .setPulseWidth(...)      # a param write, never an audio connection
+  PwmDriver --(timer @ PWM_CONTROL_HZ, only while its OWNER is on pulse)--> every
+    voice's osc1/osc2 .setPulseWidth(...)  # a param write, never an audio connection
+  # v4: LFO.bind(bus, prefix, pwm, src) feeds the driver; Engine keeps
+  #     osc{1,2}.pulseWidth -> pwm.setBase(i, x), which belongs to the oscillators
 ui:       src/ui/app.ts  (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
   osc{N}.pulseWidth knob is shown only while osc{N}.wave === square
-  LFO panel: pulseRateDisclosure() — ONE lfo.dest listener drives both REQ-9 cues,
-    the rate-cap hint's visibility AND knob-lfo.rate's soft ceiling (v3)
+  LFO panel (src/ui/panels/lfo-panel.ts): pulseRateDisclosure(bus, prefix, rate) —
+    ONE ${prefix}.dest listener per page drives both REQ-9 cues, the rate-cap
+    hint's visibility AND knob-${prefix}.rate's soft ceiling (v3, per page in v4)
 ```
 
 Each `Voice` (`src/audio/voice.ts`) owns its own `Oscillator` instances
@@ -143,8 +164,14 @@ Each `Voice` (`src/audio/voice.ts`) owns its own `Oscillator` instances
 PWM is the one modulation path that is **not** an audio-node connection: there is
 no width `AudioParam` on a native `OscillatorNode`, so the LFO shape is mirrored
 in JS and applied as a parameter write. It therefore does not use the audio LFO's
-own oscillator, and cannot drift against it in any way that matters — destinations
-are exclusive, so nothing else reads the audio LFO while `pulse` is selected.
+own oscillator, and cannot drift against it in any way that matters — one LFO
+holds one destination, so nothing reads the owning LFO's audio oscillator while
+`pulse` is selected. That still holds with two LFOs: each owns its own
+oscillator, and only the driver's owner runs a mirror.
+
+Being a parameter write rather than a summed connection is exactly why `pulse`
+needs the REQ-8 owner claim while every other destination tolerates two LFOs by
+simply summing ([lfo](lfo.md) REQ-13).
 
 ## Scenarios (BDD)
 
@@ -184,6 +211,18 @@ Scenario: The control loop runs only for the pulse destination
   Then no PWM timer is scheduled
   When lfo.dest becomes "pulse"
   Then the timer starts, and stops again when the destination changes away
+# pinned by: tests/audio/pwm.test.ts
+
+Scenario: The other LFO cannot stop a sweep it does not own (regression, v4, REQ-8)
+  Given LFO 1 owns the driver and is sweeping the width
+  When LFO 2 moves its destination from "off" to "cutoff"
+  Then the timer keeps running and the width keeps sweeping
+# pinned by: tests/audio/pwm.test.ts
+
+Scenario: The lowest LFO index wins the driver (v4, REQ-8, edge)
+  Given LFO 2 claims pulse first and LFO 1 then claims it too
+  Then LFO 1 owns the driver, and LFO 2's rate and amount are ignored
+  And releasing the owner stops the timer and restores the base widths
 # pinned by: tests/audio/pwm.test.ts
 
 Scenario: PWM modulation is unipolar and upward from the base (REQ-7)

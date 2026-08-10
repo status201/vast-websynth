@@ -3,7 +3,8 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 5  # v5: setDimmed + the "never dim the root" invariant (REQ-9)
+version: 6  # v6: setDisabledOptions — individual options can be unselectable (REQ-10)
+            # v5: setDimmed + the "never dim the root" invariant (REQ-9)
             # v4: the filter row is content type, not faceplate legend (REQ-7)
             # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
             # v2: a live filter row on long lists (REQ-7); REQ-5's focus target
@@ -147,6 +148,27 @@ without anyone remembering to ask.
     that says "nothing is set here" must be the one that lets you set it). Use
     `disabled` on the toggle if a control genuinely should not be operated;
     that is a different state and this is not it.
+- **REQ-10** (v6) — **Individual options can be made unselectable**, via
+  `setDisabledOptions(labels)`. A disabled option is **greyed, not removed**:
+  - *Why not just leave it out of `setOptions`?* Because a shrinking list is the
+    more dangerous operation. `setOptions` contains
+    `if (!options.includes(this._value)) this._value = options[0]` — dropping the
+    option that happens to be current **silently rewrites the value**. Disabling
+    never reaches that branch. And a row that vanishes gives the user nothing to
+    reason about, while a greyed one shows the choice exists and is spoken for
+    ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 5).
+  - The option button gets the native `disabled` attribute, so it fires no click
+    and selection is blocked without a guard. It **also** drops out of the
+    arrow-key walk (REQ-8): a disabled button is not focusable, so leaving it in
+    the cycle would stall navigation on it.
+  - `disabled` and `hidden` are **independent channels**: `hidden` belongs to the
+    filter (REQ-7), `disabled` to this requirement. A disabled option still
+    matches the filter and still shows.
+  - The component only paints the state; *which* options are unselectable is the
+    caller's rule. The first consumer is the LFO panel's mutually exclusive
+    destinations ([lfo](lfo.md) REQ-12), reached through `ParamDropdown`'s
+    `setDisabledLabels`, which keeps the full label array as the index authority
+    so the index↔label mapping cannot drift with the offered set.
 
 ## Technical design
 
@@ -160,11 +182,15 @@ without anyone remembering to ask.
 - `setOptions(options: string[]): void`
 - `setValue(v: string): void` / `get value(): string`
 - `setDimmed(on: boolean): void` — inherited/unset styling on the toggle (REQ-9)
+- `setDisabledOptions(labels: Iterable<string>): void` — greyed, unselectable
+  options (REQ-10); survives a later `setOptions`
 - `onChange(cb: (v: string) => void): void`
 - `destroy(): void`
 
 `ParamDropdown` (`src/ui/components/param-dropdown.ts`) wraps a `Dropdown` and
-keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label).
+keeps it in sync with a discrete numeric `ParamBus` param (index ↔ label). It
+adds `setDisabledLabels(labels)`, a pass-through to `setDisabledOptions` — the
+wrapper stays a thin index↔label binder and the consumer owns the rule.
 
 ### Data shapes — the menu's DOM
 
@@ -180,7 +206,9 @@ div.root.dropdown:           # + global `open` class while open
       span.searchIcon        # inline SVG, currentColor
       input.filterInput      # data-testid="dropdown-filter"
     div.list:                # the only scrolling box (overflow-y:auto)
-      button.option[.active] # one per option; [hidden] while filtered out
+      button.option[.active] # one per option; [hidden] while filtered out (REQ-7)
+                             # [disabled] while unselectable (REQ-10) — separate
+                             # channels: a disabled option still shows
       div.empty              # "No match", hidden unless zero matches
 ```
 
@@ -329,6 +357,29 @@ Scenario: Nothing dims the root, or the menu goes with it (regression, v5, REQ-9
   Then no rule reaching `.root` declares opacity, transform or filter
   And the dimmed rule is compounded with `.toggle`, so it cannot land on the root
 # pinned by: tests/ui/dropdown-stacking.test.ts
+
+Scenario: A disabled option is greyed, shown, and unselectable (v6, REQ-10)
+  Given setDisabledOptions(['cutoff'])
+  Then that option carries the disabled attribute and is still visible
+  And clicking it fires no onChange
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Arrows skip disabled options (v6, REQ-10, REQ-8)
+  Given the second of three options is disabled
+  When I press ArrowDown from the first
+  Then focus lands on the third, never stalling on the disabled one
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Disabling never rewrites the value (edge, v6, REQ-10)
+  Given the current value is "cutoff"
+  When setDisabledOptions(['cutoff']) runs
+  Then the value is still "cutoff" and the toggle still reads it
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: Disabled survives a later setOptions (edge, v6, REQ-10)
+  Given setDisabledOptions(['pan']) then setOptions with the same labels
+  Then "pan" is still disabled in the rebuilt list
+# pinned by: tests/ui/dropdown.test.ts
 ```
 
 ## Tests & verification

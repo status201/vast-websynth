@@ -89,6 +89,15 @@ describe('semantic layer (with a bus)', () => {
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 7 }), bus()).ok).toBe(false);
   });
 
+  // Exclusivity is a UI affordance, not a data invariant (lfo.md REQ-12): a
+  // hand-authored or MCP-authored file may put both LFOs anywhere, including
+  // on the same destination, and must still load.
+  it('range-checks lfo2.dest exactly like lfo.dest, and independently', () => {
+    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 6 }), bus()).ok).toBe(true);
+    expect(validatePresetPayload(PRESET({ 'lfo2.dest': 7 }), bus()).ok).toBe(false);
+    expect(validatePresetPayload(PRESET({ 'lfo.dest': 1, 'lfo2.dest': 1 }), bus()).ok).toBe(true);
+  });
+
   it('rejects a fractional index on a choice parameter', () => {
     const res = validatePresetPayload(PRESET({ 'osc1.wave': 1.5 }), bus());
     expect(res.ok).toBe(false);

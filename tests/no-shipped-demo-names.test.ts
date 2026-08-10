@@ -75,7 +75,12 @@ describe('no test names a shipped demo song', () => {
   });
 
   it('no file under tests/ or e2e/ spells a demo name', () => {
-    const names = demoNames();
+    // Compiled once per demo, not once per LINE per demo: the scan is
+    // files x lines x demos, so building the regexes inside the loop meant
+    // ~10^6 RegExp constructions and put the whole test on the edge of its
+    // timeout under a loaded parallel run.
+    const probes = demoNames().flatMap((name) =>
+      matchers(name).map(({ label, re }) => ({ name, label, re })));
     const offences: string[] = [];
 
     for (const dir of SCANNED) {
@@ -83,10 +88,8 @@ describe('no test names a shipped demo song', () => {
         if (ALLOWLIST.has(file)) continue;
         const lines = readFileSync(repo(file), 'utf8').split(/\r?\n/);
         lines.forEach((line, i) => {
-          for (const name of names) {
-            for (const { label, re } of matchers(name)) {
-              if (re.test(line)) offences.push(`  ${file}:${i + 1}  "${name}"  [${label}]`);
-            }
+          for (const { name, label, re } of probes) {
+            if (re.test(line)) offences.push(`  ${file}:${i + 1}  "${name}"  [${label}]`);
           }
         });
       }

@@ -1,6 +1,21 @@
+import { syncedRateHz } from '../utils/tempo';
+import type { ParamBus } from '../state/params';
 import { rampTo, RAMP_MEDIUM } from './param-utils';
 
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
+
+/**
+ * The slice of `PwmDriver` an LFO is allowed to drive (oscillators.md REQ-8).
+ *
+ * Structural rather than an import of the class, so `lfo.ts` pulls nothing from
+ * `pwm.ts` and the existing `pwm.ts -> lfo.ts` dependency stays a one-way edge.
+ */
+export interface LfoPulseSink {
+  setDest(src: number, d: number): void;
+  setRate(src: number, hz: number): void;
+  setWave(src: number, idx: number): void;
+  setAmount(src: number, a: number): void;
+}
 
 export const enum LfoDest {
   Off = 0,
@@ -19,11 +34,17 @@ const SMOOTH_HZ = 200;
 const SMOOTH_Q = 0.5;
 
 /**
- * Global LFO. Exposes four pre-scaled output nodes: pitch (cents), cutoff
- * (semitones), amp (linear), pan (-1..1). Only the active destination's gain is
- * non-zero — the others are silent. Voices connect pitch/cutoff/amp to the
- * matching AudioParam (osc detune, filter cutoffNote, tremolo gain); Engine
- * connects pan to the synth bus panner.
+ * A global LFO. Exposes five pre-scaled output nodes: pitch (cents), cutoff
+ * (semitones), amp (linear), pan (-1..1), shape (pole mix). Only the active
+ * destination's gain is non-zero — the others are silent. Voices connect
+ * pitch/cutoff/amp/shape to the matching AudioParam (osc detune, filter
+ * cutoffNote, tremolo gain, filter shape); Engine connects pan to the synth bus
+ * panner.
+ *
+ * `Engine` builds **two** of these (lfo.md REQ-10). Nothing here is shared or
+ * static, and every output lands on a summing AudioParam, so two instances on
+ * one destination simply add (REQ-13). The single exception is `Pulse`, which is
+ * a parameter write and has to be arbitrated — see `bind` and `PwmDriver`.
  *
  * `Pulse` is the fifth destination and has **no output node here**: a native
  * OscillatorNode has no width AudioParam to drive, so it is handled by
@@ -78,6 +99,62 @@ export class LFO {
     smooth.connect(this.toShape);
 
     this.osc.start();
+  }
+
+  /**
+   * Wire this LFO to its own `<prefix>.*` params — the house pattern (ADR-008,
+   * as `Effect.bind(bus, prefix)`). Called once per LFO from
+   * `Engine.subscribeParams()`, which necessarily runs after `init()` has built
+   * the shared `PwmDriver`.
+   *
+   * `modWheelId` is passed for **LFO 1 only** (lfo.md REQ-11): the wheel is a
+   * performance gesture with one meaning, and opening a second unrelated
+   * modulation with it would be one gesture with two outcomes (ADR-014 law 2).
+   *
+   * `src` is this LFO's index into the shared pulse driver. `dest` is subscribed
+   * first so the driver knows who wants it before any rate/wave/amount arrives;
+   * `subscribe` fires synchronously, so no tick can land mid-sequence.
+   */
+  bind(
+    bus: ParamBus,
+    prefix: string,
+    pulse: LfoPulseSink | null,
+    src: number,
+    modWheelId?: string,
+  ): void {
+    const applyDest = (x: number): void => {
+      this.setDest(x);
+      pulse?.setDest(src, x);
+    };
+    const applyRate = (): void => {
+      // Tempo-locked while `sync` names a division, else the knob's own rate.
+      // The knob value is never rewritten (lfo.md REQ-9).
+      const hz =
+        syncedRateHz(bus.get(`${prefix}.sync`), bus.get('transport.bpm')) ??
+        bus.get(`${prefix}.rate`);
+      this.setRate(hz);
+      pulse?.setRate(src, hz);
+    };
+    const applyAmount = (): void => {
+      const base = bus.get(`${prefix}.amount`);
+      const a = modWheelId === undefined ? base : Math.min(1, base + bus.get(modWheelId));
+      this.setAmount(a);
+      pulse?.setAmount(src, a);
+    };
+    const applyWave = (x: number): void => {
+      this.setWave(x);
+      pulse?.setWave(src, x);
+    };
+
+    bus.subscribe(`${prefix}.dest`, applyDest);
+    bus.subscribe(`${prefix}.rate`, applyRate);
+    bus.subscribe(`${prefix}.sync`, applyRate);
+    bus.subscribe(`${prefix}.wave`, applyWave);
+    bus.subscribe(`${prefix}.amount`, applyAmount);
+    if (modWheelId !== undefined) bus.subscribe(modWheelId, applyAmount);
+    // A tempo-locked LFO tracks the tempo, including a slave's incoming clock.
+    // A no-op while `sync` is free.
+    bus.subscribe('transport.bpm', applyRate);
   }
 
   setRate(hz: number): void {

@@ -34,6 +34,105 @@
   flex: 1;
 }
 
+/* ===== Tabbed panels (specs/features/panel-tabs.md) ===== */
+
+/* The tab strip IS the panel header — it replaces .panelTitle rather than
+   sitting beside it, and must occupy the same vertical space so a tabbed panel
+   still lines up with its untabbed neighbours across the grid (REQ-9).
+   .panelTitle's footprint is a 10px line + 6px padding + a 1px rule; the tabs
+   reach the same total from their own padding + border. */
+.panelTabs {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.panelTab {
+  /* Even share of the row: 50/50 for two, 33/33/33 for three (REQ-10). */
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  padding: 3px 6px;
+  /* Rounded at the top only — the shape is what says "tab" at this size. */
+  border-radius: 4px 4px 0 0;
+  /* Unselected: the same dark well as a Switch, so the page you are not on
+     reads as something to press rather than as a heading. */
+  background: linear-gradient(180deg, #1a1410, #0a0805);
+  border: 1px solid var(--panel-border);
+  color: var(--text-faint);
+  /* Deliberately NO font-family: the active tab has to match .panelTitle, which
+     inherits the sans (typography.md REQ-1). Declaring a serif here would also
+     add an entry to the typography drift allowlist. */
+  font-size: 10px;
+  /* Explicit, so the row lands on .panelTitle's exact height (REQ-9) rather
+     than on whatever line box the font happens to give: 13 + 3 + 3 + 1 + 1 = 21,
+     which is .panelTitle's 13-ish line + 6px padding + its 1px rule. Pinned by
+     e2e/lfo2.spec.ts — jsdom has no layout, so only a real browser can measure
+     it, and a font or padding change would otherwise drift it unnoticed. */
+  line-height: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  text-align: center;
+  /* Letter-spacing puts a trailing gap after the last glyph, which drags a
+     centred label left by half of it. .panelTitle has the same flaw and lives
+     with it; a tab is a box with a border, where it shows. */
+  text-indent: 0.2em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Selected: the panel-title look exactly — same type, same colour — over the
+   panel's own ground, with a subtle outline that keeps it reading as a tab. */
+.panelTab:global(.active) {
+  background: none;
+  border-color: rgba(244, 205, 94, 0.28);
+  color: var(--accent-secondary);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* The off-screen-active lamp (REQ-6). Out of flow, so it cannot pull the label
+   off centre, and always laid out so lighting it never reflows the row. */
+.panelTabLamp {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.panelTab:global(.lit) .panelTabLamp {
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--accent-secondary-glow);
+}
+
+.panelPages {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Visibility only — the page's own .panelBody child does the centering, so this
+   must NOT repeat align-items:center or it would shrink that child below the
+   panel width and collapse the full-width dropdowns inside it. Hidden pages
+   stay in the DOM and stay subscribed (REQ-5). */
+.panelPage {
+  display: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.panelPage:global(.visible) {
+  display: flex;
+}
+
 .panelRow {
   display: flex;
   align-items: center;

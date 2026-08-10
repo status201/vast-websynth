@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A second LFO.** One modulator meant every patch chose between a filter sweep
+  *and* a vibrato. There are now two, identical in every control, sharing the LFO
+  panel as a **1 / 2** tab pair in its title bar — so the pair costs no extra
+  space on the faceplate. The two take **different destinations**: whichever one
+  is in use is greyed out on the other tab, with a line naming which LFO holds
+  it. A tab lights up when its LFO is moving something, so a modulation on the
+  page you are not looking at is never invisible. LFO 2 starts off, so every
+  existing sound, song and share link is unchanged. The mod wheel still opens
+  LFO 1 only, keeping it a performance control for one thing rather than for
+  everything at once.
+
 - **A new demo, "First Light"** — 112 BPM, 16 bars. Its whole four-chord
   progression is one riff transposed bar by bar, so two banks carry what used to
   take all four; it runs the POLY filter with motion morphing the filter *type*

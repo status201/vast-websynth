@@ -211,6 +211,9 @@ const fmtDb = (v: number) => `${(20 * Math.log10(Math.max(v, 0.001))).toFixed(1)
 const fmtDbRaw = (v: number) => `${v.toFixed(0)}dB`;
 const fmtUs = (v: number) => (v < 0.001 ? `${(v * 1e6).toFixed(0)}µs` : fmtMs(v));
 const fmtNoteFromCutoff = (note: number) => fmtHz(midiToHz(note));
+/** Module-level, so both LFOs share one instance and their defs are identical
+ *  by reference as well as by value (lfo.md REQ-10). */
+const fmtLfoRate = (v: number) => v.toFixed(2) + 'Hz';
 
 export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
@@ -304,19 +307,12 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'env.fil.sustain', min: 0, max: 1, default: 0.2, format: fmtPct },
     { id: 'env.fil.release', min: 0.001, max: 6, default: 0.4, format: fmtMs },
 
-    // ----- LFO -----
-    // Exponentially tapered (lfo.md REQ-8): rate is heard in octaves, so equal
-    // turns give equal ratios. Linear spent half the dial above 10 Hz and
-    // crammed the useful sub-1 Hz region into its first ~5%. Stored values are
-    // in Hz and unaffected — only the knob position they map to moves.
-    { id: 'lfo.rate', min: 0.05, max: 20, default: 4, taper: 'exp', format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'lfo.amount', min: 0, max: 1, default: 0, format: fmtPct },
-    { id: 'lfo.wave', min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
-    { id: 'lfo.dest', min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
-    // Tempo lock (lfo.md REQ-9). 0 = free-running, which is what every existing
-    // patch has and an exact no-op — `lfo.rate` keeps its stored value and is
-    // simply overridden while synced (ADR-006).
-    { id: 'lfo.sync', min: 0, max: LFO_SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_SYNC_LABELS },
+    // ----- LFO 1 and LFO 2 -----
+    // Both from one factory, so "identical to the first one" (lfo.md REQ-10) is
+    // structural and cannot drift. Kept adjacent so the generated catalogue
+    // (public/params.md) lists them together.
+    ...lfoParams('lfo'),
+    ...lfoParams('lfo2'),
 
     // ----- FX: Distortion -----
     { id: 'fx.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -507,6 +503,31 @@ export function paramIds(): ReadonlySet<ParamId> {
     paramIdCache = new Set(bus.ids());
   }
   return paramIdCache;
+}
+
+/**
+ * One LFO's five params. Called once per prefix (`lfo`, `lfo2`) so the two LFOs
+ * cannot drift apart in range, default, taper or label array — lfo.md REQ-10.
+ *
+ * Every default is a no-op: `amount` 0 and `dest` 0 (`off`) mean a patch that
+ * predates a given LFO sounds exactly as it did (ADR-006), which is what lets
+ * LFO 2 ship without a song-format version bump.
+ */
+function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
+  return [
+    // Exponentially tapered (lfo.md REQ-8): rate is heard in octaves, so equal
+    // turns give equal ratios. Linear spent half the dial above 10 Hz and
+    // crammed the useful sub-1 Hz region into its first ~5%. Stored values are
+    // in Hz and unaffected — only the knob position they map to moves.
+    { id: `${prefix}.rate`, min: 0.05, max: 20, default: 4, taper: 'exp', format: fmtLfoRate },
+    { id: `${prefix}.amount`, min: 0, max: 1, default: 0, format: fmtPct },
+    { id: `${prefix}.wave`, min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
+    { id: `${prefix}.dest`, min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
+    // Tempo lock (lfo.md REQ-9). 0 = free-running, which is what every existing
+    // patch has and an exact no-op — the rate keeps its stored value and is
+    // simply overridden while synced (ADR-006).
+    { id: `${prefix}.sync`, min: 0, max: LFO_SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_SYNC_LABELS },
+  ];
 }
 
 function samplerTrackParams(): ParamDef[] {

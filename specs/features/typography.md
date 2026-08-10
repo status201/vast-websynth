@@ -3,7 +3,7 @@
 ```yaml
 id: typography
 status: implemented
-version: 1
+version: 2  # v2: REQ-1 carve-out — a panel-heading tab takes the heading's face
 owner: ui
 related:
   - architecture
@@ -60,6 +60,14 @@ otherwise never gets.
   A legend is a *label on a control*, not the control's contents. The distinction
   that matters: `.toggle` (a legend showing the current value) is serif;
   `.filterInput` (a field holding the user's text) is not.
+
+  **One carve-out: a tab that is a panel's heading.** "Tab labels" above means
+  `TabContainer`'s machine tabs, which sit on the faceplate as legends.
+  [panel-tabs](panel-tabs.md) tabs *replace* a `.panelTitle` (its REQ-9), and
+  synth panel titles have always been sans — so those tabs declare no face and
+  inherit it, because matching the heading they stand in for beats matching the
+  other thing called a tab. The test cannot catch this either way (declaring
+  nothing adds no allowlist entry), which is exactly why it is written down.
 
 - **REQ-2** — **`--sans` (Inter) is content type.** Anything the user reads as
   prose or enters as data:

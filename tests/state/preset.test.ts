@@ -55,6 +55,20 @@ describe('Presets', () => {
       }
     });
 
+    // Same rule, the instance that actually slipped twice: `lfo.sync` shipped
+    // in lfo v6 and never reached the banks, and `lfo2.*` would have repeated
+    // it. Only presets leak — Song.apply resets defaults first, Presets.apply
+    // does not (presets.md REQ-2b).
+    it('sets every param of both LFOs in every bank', () => {
+      const ids = ['lfo', 'lfo2'].flatMap((p) =>
+        ['rate', 'amount', 'wave', 'dest', 'sync'].map((k) => `${p}.${k}`));
+      for (const [name, snap] of Object.entries(Presets.factory())) {
+        for (const id of ids) {
+          expect(snap[id], `${name}: '${id}' missing`).toBeTypeOf('number');
+        }
+      }
+    });
+
     it('names at least one bank per filter model', () => {
       const models = new Set(Object.values(Presets.factory()).map((s) => s['filter.model']));
       expect(models).toContain(0); // LADDER

@@ -123,6 +123,7 @@ const ANCHORS: Anchor[] = [
   // out (same reflow path as the Song per-button badges above).
   { topic: 'fx.delay.time', find: () => byTestId('knob-fx.delay.time') },
   { topic: 'lfo.rate', find: () => byTestId('knob-lfo.rate') },
+  { topic: 'lfo2.rate', find: () => byTestId('knob-lfo2.rate') },
   { topic: 'fx.wah.rate', find: () => byTestId('knob-fx.wah.rate') },
   { topic: 'fx.phaser.rate', find: () => byTestId('knob-fx.phaser.rate') },
   { topic: 'fx.drum.delay.time', find: () => byTestId('knob-fx.drum.delay.time') },
@@ -196,7 +197,14 @@ export class InfoBadges {
     // resize on those toggles; any one resizing repositions every badge.
     this.ro = new ResizeObserver(() => this.reflow());
     this.ro.observe(document.body);
-    for (const sel of ['[data-testid="fx"]', '[data-testid="pattern-row"]', '[data-testid="panel-seq"]']) {
+    for (const sel of [
+      '[data-testid="fx"]', '[data-testid="pattern-row"]', '[data-testid="panel-seq"]',
+      // The LFO panel's first page — a display:none <-> flex shell like
+      // panel-seq, so the lfo.rate badge needs it to come back after a page
+      // switch (onboarding.md REQ-5a). Page 2 needs no entry: revealing it is
+      // what collapses page 1, which is what fires this.
+      '[data-testid="ppage-lfo-1"]',
+    ]) {
       const el = document.querySelector(sel);
       if (el) this.ro.observe(el);
     }

@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 18  # v18: while the badges show, the ⓘ button's glyph inverts to the
+version: 19  # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
+             #      shell joins the reflow observer list (REQ-5a, lfo.md REQ-15)
+             # v18: while the badges show, the ⓘ button's glyph inverts to the
              #      badge's own colours, and the `presets` badge moves off its
              #      neighbour onto the preset selector (REQ-8/REQ-12)
              # v17: the diagram's caps are labelled from the active keyboard
@@ -98,6 +100,16 @@ thing.
   Song the WAV/MP3 audio). These pin to the buttons' existing testids, so they
   reposition/hide on tab switch via the same reflow path as other in-panel
   badges (e.g. `seq.prob`).
+- **REQ-5a** (v19) — **Every container that shows and hides a badge's anchor must
+  be in the reflow observer's selector list.** `position()` hides a badge whose
+  anchor measures zero, and `enable()` re-runs it from a `ResizeObserver` over
+  the containers that toggle — which is why `[data-testid="panel-seq"]` is
+  observed. A [panel-tabs](panel-tabs.md) page shell is the same kind of
+  `display:none ↔ flex` container, so the LFO panel's first page
+  (`ppage-lfo-1`) joins the list; without it the `lfo.rate` badge does not come
+  back when the user returns from LFO 2's page. The second page needs no entry:
+  its own anchor (`knob-lfo2.rate`) lives inside it, and revealing it is what
+  triggers the observer on page 1 collapsing.
 - **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
   on-screen.
 - **REQ-7** (v3) — A `motion` help topic anchors to the Motion machine's tab

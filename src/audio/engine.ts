@@ -28,7 +28,6 @@ import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
 import { BackgroundAudioWatchdog, type WatchdogDiagnostics } from './background-watchdog';
-import { syncedRateHz } from '../utils/tempo';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -47,6 +46,21 @@ const RESUME_FADE_S = 0.15;
  * point is only that the exit isn't itself a click.
  */
 const GLITCH_FADE_S = 0.06;
+
+/**
+ * Fan one LFO's per-voice outputs into a voice (lfo.md REQ-13). Every target is
+ * a summing `AudioParam`, so calling this for both LFOs is what makes two of
+ * them on one destination add rather than fight. `pan` is bus-wide and wired
+ * once in the constructor instead; `pulse` has no node at all.
+ */
+function connectLfoToVoice(lfo: LFO, v: Voice): void {
+  lfo.toPitch.connect(v.osc1.detuneParam);
+  lfo.toPitch.connect(v.osc2.detuneParam);
+  lfo.toPitch.connect(v.sub.detuneParam);
+  lfo.toCutoff.connect(v.filter.cutoffNote);
+  lfo.toShape.connect(v.filter.shape);
+  lfo.toAmp.connect(v.tremolo.gain);
+}
 
 /**
  * Boot-time tuning chosen by Performance mode (see `state/perf-mode.ts`). Both
@@ -120,8 +134,13 @@ export class Engine {
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
-  /** Drives the LFO's `pulse` destination. Built in `init()` — it writes to the
-   *  voices, so it needs the pool to exist (oscillators.md REQ-8). */
+  /** The second LFO (lfo.md REQ-10). Identical to `lfo` except that the mod
+   *  wheel does not reach it (REQ-11). Off by default, so it costs an idle
+   *  oscillator and nothing else until a patch arms it. */
+  readonly lfo2: LFO;
+  /** Drives whichever LFO holds the `pulse` destination. Built in `init()` — it
+   *  writes to the voices, so it needs the pool to exist (oscillators.md REQ-8).
+   *  One driver, two possible sources: it arbitrates by index (lfo.md REQ-14). */
   pwm!: PwmDriver;
   private readonly pitchBend: ConstantSourceNode;
   private readonly noise: AudioBufferSourceNode;
@@ -252,9 +271,13 @@ export class Engine {
     this.master.connect(this.ctx.destination);
 
     this.lfo = new LFO(this.ctx);
+    this.lfo2 = new LFO(this.ctx);
     // Pan is the one destination that is bus-wide rather than per-voice, so it
     // is wired here and not in the per-voice loop below. `pan` is a-rate.
+    // Two GainNodes into one AudioParam sum, and the panner clamps to ±1, so
+    // both LFOs on `pan` stays bounded (lfo.md REQ-13).
     this.lfo.toPan.connect(this.synthPan.pan);
+    this.lfo2.toPan.connect(this.synthPan.pan);
 
     this.pitchBend = this.ctx.createConstantSource();
     this.pitchBend.offset.value = 0;
@@ -282,13 +305,10 @@ export class Engine {
       v.out.connect(this.voiceBus);
       this.noise.connect(v.noiseGain);
 
-      // LFO routing
-      this.lfo.toPitch.connect(v.osc1.detuneParam);
-      this.lfo.toPitch.connect(v.osc2.detuneParam);
-      this.lfo.toPitch.connect(v.sub.detuneParam);
-      this.lfo.toCutoff.connect(v.filter.cutoffNote);
-      this.lfo.toShape.connect(v.filter.shape);
-      this.lfo.toAmp.connect(v.tremolo.gain);
+      // LFO routing — every target is a summing AudioParam, so both LFOs can
+      // land on the same one and simply add (lfo.md REQ-13).
+      connectLfoToVoice(this.lfo, v);
+      connectLfoToVoice(this.lfo2, v);
 
       // Pitch bend
       this.pitchBend.connect(v.osc1.detuneParam);
@@ -302,7 +322,7 @@ export class Engine {
     }
 
     // PWM writes params on every voice, so it is built once the pool exists.
-    // Its timer only runs while lfo.dest is `pulse` (oscillators.md REQ-8).
+    // Its timer only runs while an LFO is on `pulse` (oscillators.md REQ-8).
     this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime);
 
     // Arrangement first so its clock tick runs before the machines read
@@ -650,38 +670,13 @@ export class Engine {
     bus.subscribe('env.fil.sustain', all((v, x) => v.filEnv.setSustain(x)));
     bus.subscribe('env.fil.release', all((v, x) => v.filEnv.setRelease(x)));
 
-    // LFO (amount = base knob + mod wheel, clamped to [0, 1]). The `pulse`
-    // destination has no width AudioParam to connect to, so it is driven by
-    // PwmDriver from the same four params (oscillators.md REQ-8).
-    const updateLfoAmount = () => {
-      const base = bus.get('lfo.amount');
-      const mw = bus.get('master.modWheel');
-      const amount = Math.min(1, base + mw);
-      this.lfo.setAmount(amount);
-      this.pwm.setAmount(amount);
-    };
-    /**
-     * The rate the LFO actually runs at (lfo.md REQ-9): the tempo-locked value
-     * while `lfo.sync` names a division, otherwise the knob's own `lfo.rate`.
-     *
-     * Reading `transport.bpm` is right in **both** sync modes — the MIDI/WiFi
-     * slave transport writes the incoming tempo back to that param
-     * (`setLocalBpm`), so a synced LFO follows an external clock for free.
-     *
-     * `lfo.rate` is never rewritten: it stays the value the patch stored and the
-     * knob returns to when sync goes back to `free`.
-     */
-    const applyLfoRate = (): void => {
-      const hz = syncedRateHz(bus.get('lfo.sync'), bus.get('transport.bpm'))
-        ?? bus.get('lfo.rate');
-      this.lfo.setRate(hz);
-      this.pwm.setRate(hz);
-    };
-    bus.subscribe('lfo.rate', () => applyLfoRate());
-    bus.subscribe('lfo.sync', () => applyLfoRate());
-    bus.subscribe('lfo.amount', () => updateLfoAmount());
-    bus.subscribe('lfo.wave', (x) => { this.lfo.setWave(x); this.pwm.setWave(x); });
-    bus.subscribe('lfo.dest', (x) => { this.lfo.setDest(x); this.pwm.setDest(x); });
+    // The LFOs self-wire their own params (ADR-008), including the tempo lock
+    // and the `pulse` path's share of PwmDriver — which arbitrates between the
+    // two by index, so neither can stop the other's sweep (lfo.md REQ-14).
+    // Only LFO 1 takes the mod wheel (lfo.md REQ-11).
+    this.lfo.bind(bus, 'lfo', this.pwm, 0, 'master.modWheel');
+    this.lfo2.bind(bus, 'lfo2', this.pwm, 1);
+    // The base widths belong to the oscillators, not to an LFO, so they stay here.
     bus.subscribe('osc1.pulseWidth', (x) => this.pwm.setBase(0, x));
     bus.subscribe('osc2.pulseWidth', (x) => this.pwm.setBase(1, x));
 
@@ -704,7 +699,7 @@ export class Engine {
     bus.subscribe('master.pitchBend', (x) => {
       rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, this.ctx, RAMP_FAST);
     });
-    bus.subscribe('master.modWheel', () => updateLfoAmount());
+    // `master.modWheel` is subscribed by LFO 1's own bind() above (REQ-11).
 
     // ----- Transport -----
     // Gated while *actively* slaved: incoming MIDI clock owns the tempo then;
@@ -714,8 +709,7 @@ export class Engine {
     bus.subscribe('transport.bpm', (b) => {
       if (this.sync.activeMode !== 'slave') this.clock.setBpm(b);
       // A tempo-locked LFO tracks the tempo, including a slave's incoming clock
-      // (lfo.md REQ-9). A no-op while `lfo.sync` is free.
-      applyLfoRate();
+      // (lfo.md REQ-9) — each LFO subscribes transport.bpm in its own bind().
     });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 

@@ -43,8 +43,8 @@ describe('PwmDriver lifecycle (REQ-8)', () => {
 
   it('schedules nothing for any destination but pulse', () => {
     const { pwm, widths, advance } = build();
-    pwm.setAmount(1);
-    pwm.setDest(CUTOFF);
+    pwm.setAmount(0, 1);
+    pwm.setDest(0, CUTOFF);
     advance(500);
     expect(widths[0]).toEqual([]);
     expect(vi.getTimerCount()).toBe(0);
@@ -52,14 +52,14 @@ describe('PwmDriver lifecycle (REQ-8)', () => {
 
   it('starts on pulse and stops again when the destination moves away', () => {
     const { pwm, widths, advance } = build();
-    pwm.setAmount(1);
+    pwm.setAmount(0, 1);
 
-    pwm.setDest(PULSE);
+    pwm.setDest(0, PULSE);
     expect(vi.getTimerCount()).toBe(1);
     advance(100);
     expect(widths[0].length).toBeGreaterThan(0);
 
-    pwm.setDest(CUTOFF);
+    pwm.setDest(0, CUTOFF);
     expect(vi.getTimerCount()).toBe(0);
     const settled = widths[0].length;
     advance(500);
@@ -69,18 +69,18 @@ describe('PwmDriver lifecycle (REQ-8)', () => {
   it('leaves the oscillators at the knob base, not mid-sweep', () => {
     const { pwm, widths, advance } = build();
     pwm.setBase(0, 0.7);
-    pwm.setAmount(1);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setDest(0, PULSE);
     advance(200);
 
-    pwm.setDest(CUTOFF);
+    pwm.setDest(0, CUTOFF);
     expect(widths[0].at(-1)).toBeCloseTo(0.7, 6);
   });
 
   it('re-entering pulse does not stack timers', () => {
     const { pwm } = build();
-    pwm.setDest(PULSE);
-    pwm.setDest(PULSE);
+    pwm.setDest(0, PULSE);
+    pwm.setDest(0, PULSE);
     expect(vi.getTimerCount()).toBe(1);
     pwm.dispose();
     expect(vi.getTimerCount()).toBe(0);
@@ -94,8 +94,8 @@ describe('PwmDriver lifecycle (REQ-8)', () => {
 
   it('writes to every voice in the pool', () => {
     const { pwm, widths, advance } = build(4);
-    pwm.setAmount(1);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setDest(0, PULSE);
     advance(TICK_MS * 3);
     expect(widths[0].length % 4).toBe(0);
     expect(widths[0].length).toBeGreaterThanOrEqual(4);
@@ -109,10 +109,10 @@ describe('PwmDriver sweep shape (REQ-7)', () => {
   it('is unipolar and upward from the base, never below it', () => {
     const { pwm, widths, advance } = build(1);
     pwm.setBase(0, PWM_MIN_WIDTH);
-    pwm.setAmount(1);
-    pwm.setRate(2);
-    pwm.setWave(0); // sine
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setRate(0, 2);
+    pwm.setWave(0, 0); // sine
+    pwm.setDest(0, PULSE);
     advance(2000); // several full cycles
 
     const swept = widths[0];
@@ -125,9 +125,9 @@ describe('PwmDriver sweep shape (REQ-7)', () => {
   it('narrows the sweep as the base rises, always ending at the ceiling', () => {
     const { pwm, widths, advance } = build(1);
     pwm.setBase(0, 0.8);
-    pwm.setAmount(1);
-    pwm.setRate(2);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setRate(0, 2);
+    pwm.setDest(0, PULSE);
     advance(2000);
 
     expect(Math.min(...widths[0])).toBeGreaterThanOrEqual(0.8 - 1e-9);
@@ -137,8 +137,8 @@ describe('PwmDriver sweep shape (REQ-7)', () => {
   it('holds the base at zero depth', () => {
     const { pwm, widths, advance } = build(1);
     pwm.setBase(0, 0.6);
-    pwm.setAmount(0);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 0);
+    pwm.setDest(0, PULSE);
     advance(500);
     for (const w of widths[0]) expect(w).toBeCloseTo(0.6, 6);
   });
@@ -146,10 +146,10 @@ describe('PwmDriver sweep shape (REQ-7)', () => {
   it('crosses the whole range on a square wave (edge)', () => {
     const { pwm, widths, advance } = build(1);
     pwm.setBase(0, PWM_MIN_WIDTH);
-    pwm.setAmount(1);
-    pwm.setRate(4);
-    pwm.setWave(3); // square — two values only
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setRate(0, 4);
+    pwm.setWave(0, 3); // square — two values only
+    pwm.setDest(0, PULSE);
     advance(1000);
 
     const uniq = [...new Set(widths[0].map((w) => w.toFixed(4)))].sort();
@@ -176,15 +176,15 @@ describe('PwmDriver rate cap (REQ-9)', () => {
   it('runs a 20 Hz LFO at the cap, not at 20 Hz', () => {
     const span = PWM_MAX_WIDTH - PWM_MIN_WIDTH;
     const fast = build(1);
-    fast.pwm.setAmount(1);
-    fast.pwm.setRate(20); // double the cap
-    fast.pwm.setDest(PULSE);
+    fast.pwm.setAmount(0, 1);
+    fast.pwm.setRate(0, 20); // double the cap
+    fast.pwm.setDest(0, PULSE);
     fast.advance(2000);
 
     const capped = build(1);
-    capped.pwm.setAmount(1);
-    capped.pwm.setRate(PWM_RATE_MAX);
-    capped.pwm.setDest(PULSE);
+    capped.pwm.setAmount(0, 1);
+    capped.pwm.setRate(0, PWM_RATE_MAX);
+    capped.pwm.setDest(0, PULSE);
     capped.advance(2000);
 
     expect(cycles(fast.widths[0], PWM_MIN_WIDTH, span))
@@ -194,9 +194,9 @@ describe('PwmDriver rate cap (REQ-9)', () => {
   it('leaves rates under the cap alone', () => {
     const span = PWM_MAX_WIDTH - PWM_MIN_WIDTH;
     const { pwm, widths, advance } = build(1);
-    pwm.setAmount(1);
-    pwm.setRate(2);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setRate(0, 2);
+    pwm.setDest(0, PULSE);
     advance(2000); // 2 s at 2 Hz ≈ 4 cycles
 
     expect(cycles(widths[0], PWM_MIN_WIDTH, span)).toBe(4);
@@ -212,9 +212,9 @@ describe('PwmDriver background throttling (REQ-10)', () => {
     let t = 0;
     const pwm = new PwmDriver(voices, () => t);
     pwm.setBase(0, PWM_MIN_WIDTH);
-    pwm.setAmount(1);
-    pwm.setRate(PWM_RATE_MAX);
-    pwm.setDest(PULSE);
+    pwm.setAmount(0, 1);
+    pwm.setRate(0, PWM_RATE_MAX);
+    pwm.setDest(0, PULSE);
 
     t += TICK_MS / 1000;
     vi.advanceTimersByTime(TICK_MS);
@@ -228,5 +228,99 @@ describe('PwmDriver background throttling (REQ-10)', () => {
     // Without the cap this would land at an arbitrary phase and click.
     const maxStep = PWM_RATE_MAX * (4 / PWM_CONTROL_HZ) * (PWM_MAX_WIDTH - PWM_MIN_WIDTH) * Math.PI;
     expect(Math.abs(after - before)).toBeLessThan(maxStep);
+  });
+});
+
+/**
+ * One driver, two LFOs (lfo.md REQ-14 / oscillators.md REQ-8).
+ *
+ * PWM is a parameter write rather than a summed connection, so it is the one
+ * destination two LFOs cannot share. The first test here is the regression the
+ * whole owner mechanism exists for, and it is otherwise only audible.
+ */
+describe('PwmDriver arbitration (REQ-8)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const LFO1 = 0;
+  const LFO2 = 1;
+
+  it('lets the other LFO change destination without stopping the sweep', () => {
+    const { pwm, widths, advance } = build(1);
+    pwm.setAmount(LFO1, 1);
+    pwm.setRate(LFO1, 2);
+    pwm.setDest(LFO1, PULSE);
+    advance(100);
+    const swept = widths[0].length;
+
+    // LFO 2 was never on pulse, so this must not reach stop().
+    pwm.setDest(LFO2, CUTOFF);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(pwm.pwmOwner).toBe(LFO1);
+
+    advance(100);
+    expect(widths[0].length).toBeGreaterThan(swept);
+  });
+
+  it('gives the driver to the lower index when both want it', () => {
+    const { pwm } = build(1);
+    pwm.setDest(LFO2, PULSE);
+    expect(pwm.pwmOwner).toBe(LFO2);
+
+    pwm.setDest(LFO1, PULSE);
+    expect(pwm.pwmOwner).toBe(LFO1);
+  });
+
+  it('ignores the same claim arriving in the other order (edge)', () => {
+    const { pwm } = build(1);
+    pwm.setDest(LFO1, PULSE);
+    pwm.setDest(LFO2, PULSE);
+    expect(pwm.pwmOwner).toBe(LFO1);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('sweeps at the owner rate, not the loser one', () => {
+    const span = PWM_MAX_WIDTH - PWM_MIN_WIDTH;
+    const { pwm, widths, advance } = build(1);
+    pwm.setAmount(LFO1, 1);
+    pwm.setRate(LFO1, 2);
+    pwm.setAmount(LFO2, 1);
+    pwm.setRate(LFO2, 8);        // stored, but LFO 2 does not own the driver
+    pwm.setDest(LFO2, PULSE);
+    pwm.setDest(LFO1, PULSE);    // LFO 1 takes it
+    advance(2000);
+
+    let n = 0;
+    let above = false;
+    for (const w of widths[0]) {
+      const hot = w > PWM_MIN_WIDTH + span * 0.5;
+      if (hot && !above) n++;
+      above = hot;
+    }
+    expect(n).toBe(4);           // 2 s at LFO 1's 2 Hz, not LFO 2's 8 Hz
+  });
+
+  it('hands over when the owner leaves and the other still wants it', () => {
+    const { pwm } = build(1);
+    pwm.setDest(LFO1, PULSE);
+    pwm.setDest(LFO2, PULSE);
+    expect(pwm.pwmOwner).toBe(LFO1);
+
+    pwm.setDest(LFO1, CUTOFF);
+    expect(pwm.pwmOwner).toBe(LFO2);   // still on pulse, so it picks up
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('stops and restores the base once nobody is on pulse', () => {
+    const { pwm, widths, advance } = build(1);
+    pwm.setBase(0, 0.7);
+    pwm.setAmount(LFO2, 1);
+    pwm.setDest(LFO2, PULSE);
+    advance(200);
+
+    pwm.setDest(LFO2, CUTOFF);
+    expect(pwm.pwmOwner).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(widths[0].at(-1)).toBeCloseTo(0.7, 6);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { LFO } from '../../src/audio/lfo';
+import { ParamBus, registerDefaults } from '../../src/state/params';
+import { SYNC_LABELS } from '../../src/utils/tempo';
 import { makeMockAudioContext } from './mock-audio-context';
 
 /**
@@ -159,5 +161,102 @@ describe('LFO rate and waveform', () => {
     };
     lfo.setRate(12);
     expect(osc.frequency.setTargetAtTime).toHaveBeenCalledWith(12, expect.any(Number), expect.any(Number));
+  });
+});
+
+/**
+ * `LFO.bind` — the param wiring each LFO owns (lfo.md REQ-10/REQ-11, ADR-008).
+ *
+ * This lived as a closure inside the private `Engine.subscribeParams()` until
+ * v7, where it was unreachable without a full AudioContext + worklet boot; the
+ * mod-wheel sum was the spec's standing "not unit-pinned" open question. It is
+ * a method now, so a mock context and a real bus are enough.
+ */
+describe('LFO.bind', () => {
+  /** Two LFOs on one bus, wired exactly as the Engine wires them. */
+  function pair() {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const one = build();
+    const two = build();
+    one.lfo.bind(bus, 'lfo', null, 0, 'master.modWheel');
+    two.lfo.bind(bus, 'lfo2', null, 1);
+    return { bus, one: one.lfo, two: two.lfo, oneCtx: one.ctx, twoCtx: two.ctx };
+  }
+
+  /** The frequency the LFO's oscillator was last ramped to. */
+  function rateOf(ctx: ReturnType<typeof build>['ctx']): number | undefined {
+    const osc = ctx.createOscillator.mock.results[0]!.value as {
+      frequency: { setTargetAtTime: ReturnType<typeof vi.fn> };
+    };
+    return osc.frequency.setTargetAtTime.mock.calls.at(-1)?.[0] as number | undefined;
+  }
+
+  it('opens LFO 1 with the mod wheel and leaves LFO 2 alone (REQ-11)', () => {
+    const { bus, one, two } = pair();
+    bus.set('lfo.dest', 1);      // cutoff
+    bus.set('lfo2.dest', 2);     // pitch
+    bus.set('lfo.amount', 0.3);
+    bus.set('lfo2.amount', 0.4);
+
+    bus.set('master.modWheel', 0.5);
+
+    // LFO 1: (0.3 + 0.5) of ±24 semitones.
+    expect(depth(one.toCutoff)).toBeCloseTo(0.8 * 24, 6);
+    // LFO 2: its own 0.4 of ±1200 cents — the wheel never reached it.
+    expect(depth(two.toPitch)).toBeCloseTo(0.4 * 1200, 6);
+  });
+
+  it('still clamps the summed LFO 1 amount at full (edge, REQ-2)', () => {
+    const { bus, one } = pair();
+    bus.set('lfo.dest', 2);      // pitch
+    bus.set('lfo.amount', 0.8);
+    bus.set('master.modWheel', 0.9);
+    expect(depth(one.toPitch)).toBeCloseTo(1200, 6); // not 1.7 * 1200
+  });
+
+  it('tempo-locks each LFO independently off transport.bpm (REQ-9, REQ-10)', () => {
+    const { bus, oneCtx, twoCtx } = pair();
+    bus.set('transport.bpm', 120);
+    bus.set('lfo.rate', 7);
+    bus.set('lfo2.rate', 7);
+
+    bus.set('lfo2.sync', SYNC_LABELS.indexOf('1/4'));
+    expect(rateOf(twoCtx)).toBeCloseTo(2, 6);   // a 1/4 at 120 BPM
+    expect(rateOf(oneCtx)).toBeCloseTo(7, 6);   // still free-running
+
+    bus.set('transport.bpm', 60);
+    expect(rateOf(twoCtx)).toBeCloseTo(1, 6);
+    expect(rateOf(oneCtx)).toBeCloseTo(7, 6);
+  });
+
+  it('returns to the stored rate when sync goes back to free (REQ-9)', () => {
+    const { bus, twoCtx } = pair();
+    bus.set('transport.bpm', 120);
+    bus.set('lfo2.rate', 7);
+    bus.set('lfo2.sync', SYNC_LABELS.indexOf('1/8'));
+    expect(rateOf(twoCtx)).toBeCloseTo(4, 6);
+
+    bus.set('lfo2.sync', 0);
+    expect(rateOf(twoCtx)).toBeCloseTo(7, 6);
+    expect(bus.get('lfo2.rate')).toBe(7);       // never rewritten
+  });
+
+  it('leaves both LFOs silent at their defaults (REQ-10, ADR-006)', () => {
+    const { one, two } = pair();
+    for (const d of [depths(one), depths(two)]) {
+      expect(d).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0 });
+    }
+  });
+
+  it('sums two LFOs pointed at one destination (REQ-13, edge)', () => {
+    const { bus, one, two } = pair();
+    bus.set('lfo.dest', 5);      // pan, on both — only a hand-authored file can
+    bus.set('lfo2.dest', 5);     // do this; the panel greys it out (REQ-12)
+    bus.set('lfo.amount', 1);
+    bus.set('lfo2.amount', 1);
+    // Each contributes its own full ±1; the panner clamps the sum.
+    expect(depth(one.toPan)).toBe(1);
+    expect(depth(two.toPan)).toBe(1);
   });
 });

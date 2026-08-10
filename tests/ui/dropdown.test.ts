@@ -444,4 +444,77 @@ describe('Dropdown', () => {
       });
     });
   });
+  describe('disabled options (v6, REQ-10)', () => {
+    const optionsOf = (d: Dropdown) =>
+      [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+    const optionOf = (d: Dropdown, label: string) =>
+      optionsOf(d).find((o) => o.textContent === label)!;
+
+    it('greys an option and still lists it', () => {
+      dd = new Dropdown(['A', 'B', 'C'], 'A');
+      document.body.appendChild(dd.el);
+      dd.setDisabledOptions(['B']);
+
+      expect(optionOf(dd, 'B').disabled).toBe(true);
+      expect(optionOf(dd, 'B').hidden).toBe(false);   // greyed, not gone
+      expect(optionsOf(dd)).toHaveLength(3);
+      expect(optionOf(dd, 'C').disabled).toBe(false);
+    });
+
+    it('never fires onChange for a disabled option', () => {
+      dd = new Dropdown(['A', 'B', 'C'], 'A');
+      document.body.appendChild(dd.el);
+      const cb = vi.fn();
+      dd.onChange(cb);
+      dd.setDisabledOptions(['B']);
+
+      optionOf(dd, 'B').click();
+      expect(cb).not.toHaveBeenCalled();
+      expect(dd.value).toBe('A');
+    });
+
+    it('leaves the current value alone when it is the one disabled (edge)', () => {
+      // The path a shrinking setOptions would silently rewrite.
+      dd = new Dropdown(['A', 'B', 'C'], 'B');
+      document.body.appendChild(dd.el);
+      dd.setDisabledOptions(['B']);
+
+      expect(dd.value).toBe('B');
+      expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('B');
+    });
+
+    it('survives a later setOptions rebuilding the list (edge)', () => {
+      dd = new Dropdown(['A', 'B', 'C'], 'A');
+      document.body.appendChild(dd.el);
+      dd.setDisabledOptions(['C']);
+      dd.setOptions(['A', 'B', 'C']);
+
+      expect(optionOf(dd, 'C').disabled).toBe(true);
+    });
+
+    it('clears when called with nothing', () => {
+      dd = new Dropdown(['A', 'B'], 'A');
+      document.body.appendChild(dd.el);
+      dd.setDisabledOptions(['B']);
+      dd.setDisabledOptions([]);
+
+      expect(optionOf(dd, 'B').disabled).toBe(false);
+    });
+
+    it('arrow keys step over a disabled option instead of stalling (REQ-8)', () => {
+      dd = new Dropdown(['A', 'B', 'C'], 'A');
+      document.body.appendChild(dd.el);
+      dd.setDisabledOptions(['B']);
+      // Opening lands on the current selection (REQ-5), so A already has focus.
+      toggleOf(dd).click();
+      expect(document.activeElement).toBe(optionOf(dd, 'A'));
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+      );
+      // Straight past B: a disabled button cannot take focus, so leaving it in
+      // the walk would strand the user on it.
+      expect(document.activeElement).toBe(optionOf(dd, 'C'));
+    });
+  });
 });

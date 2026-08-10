@@ -6,8 +6,7 @@ import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
 import type { SyncStatus } from '../audio/transport/sync/sync-types';
 import {
-  WAVE_LABELS, LFO_DEST_LABELS, LFO_SYNC_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS,
-  FILTER_MODEL_LABELS,
+  WAVE_LABELS, VOICING_LABELS, GLIDE_MODE_LABELS, FILTER_MODEL_LABELS,
 } from '../state/params';
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
@@ -15,7 +14,7 @@ import { Segmented } from './components/segmented';
 import { WAVE_ICONS } from './components/wave-icons';
 import { HEADER_ICONS } from './components/header-icons';
 import { fxPatchDecoration } from './components/fx-patch-decoration';
-import { ParamDropdown } from './components/param-dropdown';
+import { createPanel } from './components/panel';
 import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
@@ -29,7 +28,6 @@ import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
 import { anythingToPlay } from '../audio/transport/anything-to-play';
-import { PWM_RATE_MAX } from '../audio/pwm';
 import switchStyles from './styles/switch.module.css';
 import { createAboutButton } from './components/about';
 import { createBrand } from './components/brand';
@@ -50,6 +48,7 @@ import { buildSamplerPanel } from './panels/sampler-panel';
 import type { MachinePanel } from './panels/step-panel-scaffold';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
+import { buildLfoPanel } from './panels/lfo-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
 import { createEffectiveXy } from '../state/xy-effective';
 
@@ -134,20 +133,9 @@ export function mountApp(
   return onboarding;
 }
 
-function panel(title: string, build: (body: HTMLElement) => void, helpId?: string): HTMLElement {
-  const el = document.createElement('div');
-  el.className = styles.panel!;
-  const t = document.createElement('div');
-  t.className = styles.panelTitle!;
-  t.textContent = title;
-  if (helpId) t.dataset.help = helpId;
-  el.appendChild(t);
-  const body = document.createElement('div');
-  body.className = styles.panelBody!;
-  build(body);
-  el.appendChild(body);
-  return el;
-}
+/** The faceplate panel shell now lives in `components/panel.ts`, so a tabbed
+ *  panel can share it (panel-tabs.md REQ-8). Same signature, same call sites. */
+const panel = createPanel;
 
 function buildHeader(
   engine: StudioApi, bus: ParamBus, bridge: UiBridge, onboarding: Onboarding, session: PresetSession,
@@ -566,29 +554,14 @@ function buildMain(bus: ParamBus): HTMLElement {
     ], styles.quint!));
   }, 'filterenv'));
 
-  main.appendChild(panel('LFO', (b) => {
-    b.appendChild(new Segmented(bus, 'lfo.wave', WAVE_LABELS, WAVE_ICONS).el);
-    const rate = new Knob({ bus, paramId: 'lfo.rate', label: 'RATE' });
-    b.appendChild(row([
-      rate.el,
-      new Knob({ bus, paramId: 'lfo.amount', label: 'AMT' }).el,
-    ], styles.spread!));
-    b.appendChild(new ParamDropdown(bus, 'lfo.dest', LFO_DEST_LABELS).el);
-    b.appendChild(new ParamDropdown(bus, 'lfo.sync', LFO_SYNC_LABELS).el);
-    // While the rate is tempo-locked the knob is not what sets it (lfo.md
-    // REQ-9), so dim it — the same treatment the BPM knob gets while
-    // clock-slaved and SHAPE gets on the LADDER model. Dim, never hide: the
-    // control keeps its place and its value, which is what it returns to on
-    // 'free' (ADR-014).
-    bus.subscribe('lfo.sync', (s) => rate.setDisabled(Math.round(s) > 0));
-    b.appendChild(pulseRateDisclosure(bus, rate));
-  }, 'lfo'));
+  // Two LFOs behind a tab strip, so the pair costs one grid column, not two
+  // (lfo.md REQ-15). Its own module — see the note there.
+  main.appendChild(buildLfoPanel(bus));
 
   return main;
 }
 
 const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
-const PULSE_DEST = LFO_DEST_LABELS.indexOf('pulse');
 
 /**
  * The pulse-width knob, shown only while that oscillator is on `square` —
@@ -607,30 +580,6 @@ function pulseWidthRow(bus: ParamBus, osc: 'osc1' | 'osc2'): HTMLElement {
   return el;
 }
 
-/**
- * `lfo.rate` is shared by every destination, but the PWM path clamps it
- * (oscillators.md REQ-9) — without this the knob would move above the cap with
- * nothing happening. Narrowing the param's own range is not an option: it would
- * make `preset-validate` reject every saved patch with a faster LFO.
- *
- * Two cues, deliberately on **one** subscription so they cannot drift apart: the
- * sentence, and a soft ceiling on the RATE knob that stops its arc filling
- * through the dead travel (knob-soft-ceiling.md). The arc is what gets noticed —
- * it is what sends the user to the sentence, which is ADR-014 law 1 (self-evident
- * beats explained) applied without giving up the explanation. Both are scoped to
- * `pulse`: every other destination really does run the full 0.05..20 Hz.
- */
-function pulseRateDisclosure(bus: ParamBus, rate: Knob): HTMLElement {
-  const el = document.createElement('p');
-  el.className = styles.paramHint!;
-  el.textContent = `Pulse width follows the rate up to ${PWM_RATE_MAX} Hz.`;
-  bus.subscribe('lfo.dest', (d) => {
-    const pulse = Math.round(d) === PULSE_DEST;
-    el.style.display = pulse ? '' : 'none';
-    rate.setUiMax(pulse ? PWM_RATE_MAX : null);
-  });
-  return el;
-}
 
 function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   const section = document.createElement('div');

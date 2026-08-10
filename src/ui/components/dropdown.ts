@@ -38,6 +38,9 @@ export class Dropdown {
   private filterRow: HTMLElement | null = null;
   private filterInput: HTMLInputElement | null = null;
   private options: string[] = [];
+  /** Labels that render but cannot be chosen (REQ-10). Kept as a set rather
+   *  than a per-button flag so it survives `setOptions` rebuilding the list. */
+  private disabledOpts = new Set<string>();
   private _value = '';
   private listener: ((v: string) => void) | null = null;
   private open = false;
@@ -93,6 +96,7 @@ export class Dropdown {
       item.className = styles.option!;
       item.textContent = opt;
       if (opt === this._value) item.classList.add('active');
+      this.paintDisabled(item);
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         this.setValue(opt);
@@ -130,6 +134,26 @@ export class Dropdown {
    */
   setDimmed(on: boolean): void {
     this.toggle.classList.toggle(styles.dimmed!, on);
+  }
+
+  /**
+   * Mark options as unselectable — greyed, still listed (REQ-10).
+   *
+   * Deliberately not "drop them from `setOptions`": that path silently rewrites
+   * `_value` when the current label is the one removed, and a row that vanishes
+   * tells the user nothing about why. The native `disabled` attribute blocks the
+   * click for free, and `visibleOptions` skips these so the arrow keys cannot
+   * stall on a button that refuses focus.
+   */
+  setDisabledOptions(labels: Iterable<string>): void {
+    this.disabledOpts = new Set(labels);
+    for (const item of this.optionEls()) this.paintDisabled(item);
+  }
+
+  private paintDisabled(item: HTMLButtonElement): void {
+    const off = this.disabledOpts.has(item.textContent ?? '');
+    item.disabled = off;
+    item.classList.toggle('disabled', off);
   }
 
   onChange(cb: (v: string) => void): void { this.listener = cb; }
@@ -194,9 +218,11 @@ export class Dropdown {
     this.empty.hidden = visible > 0 || this.options.length === 0;
   }
 
-  /** The options a filter has not hidden — what the arrow keys walk (REQ-8). */
+  /** The options a filter has not hidden and REQ-10 has not disabled — what the
+   *  arrow keys walk (REQ-8). A disabled button is not focusable, so leaving it
+   *  in the walk would stall navigation on it. */
   private visibleOptions(): HTMLButtonElement[] {
-    return this.optionEls().filter((o) => !o.hidden);
+    return this.optionEls().filter((o) => !o.hidden && !o.disabled);
   }
 
   private focusOption(o: HTMLButtonElement): void {

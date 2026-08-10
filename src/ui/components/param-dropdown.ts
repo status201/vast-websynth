@@ -32,6 +32,18 @@ export class ParamDropdown {
     });
   }
 
+  /**
+   * Grey out options this param may not take right now (dropdown.md REQ-10).
+   *
+   * A pass-through on purpose: which options are spoken for is the consumer's
+   * rule, not the binder's. The first caller is the LFO panel's mutually
+   * exclusive destinations (lfo.md REQ-12). The full `labels` array stays the
+   * index authority, so disabling never disturbs the index ↔ label mapping.
+   */
+  setDisabledLabels(labels: readonly string[]): void {
+    this.dd.setDisabledOptions(labels);
+  }
+
   destroy(): void {
     this.unsub();
     this.dd.destroy();
