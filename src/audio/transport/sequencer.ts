@@ -4,6 +4,7 @@ import type { PatternStore, SeqStep } from '../../state/patterns';
 import { SEQ_TRACK_COUNT } from '../../state/patterns';
 import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../../state/limits';
 import type { SynthOutput } from './note-output';
+import { ScaleQuantizer } from './scale-quantizer';
 import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
@@ -65,6 +66,7 @@ export class StepSequencer {
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,
+    private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
     clock.onTick((step, when) => this.onTick(step, when));
     // A playhead jump makes the per-track tie/held-note state meaningless: it
@@ -191,7 +193,12 @@ export class StepSequencer {
     // transposed +5 is released at +5 even when the new bar is at +7. Re-deriving
     // the shift at each release site would strand that voice at the wrong pitch.
     // The stored SeqStep is never rewritten (arrangement.md REQ-9).
-    const note = transposeNote(s.note, this.arrangement.seqTranspose);
+    // Transpose FIRST, then quantize (sequencer.md REQ-17). The order is the point:
+    // a +5 bar lands back in the key instead of leaving it, which is the chromatic
+    // drift REQ-16's shift otherwise creates. Quantizing first would preserve it.
+    // The quantized note is what lands in `st.lastPlayedNote` below, so the tie
+    // safety REQ-16 describes covers this transform too, for free.
+    const note = this.scale.get(transposeNote(s.note, this.arrangement.seqTranspose));
 
     const hits = stepHits(s, when, this.clock.sixteenthDuration());
     for (const h of hits) {

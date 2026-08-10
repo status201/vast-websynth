@@ -3,7 +3,8 @@
 ```yaml
 id: arpeggiator
 status: implemented
-version: 3  # v3: 1/32 actually plays 1/32 (REQ-6); `arp.on` in a saved song is
+version: 4  # v4: the pool is chord-expanded and key-quantized (REQ-8)
+            # v3: 1/32 actually plays 1/32 (REQ-6); `arp.on` in a saved song is
             #     an *armed* control, by design, and is documented as one (REQ-7)
             # v2: the tab carries a status LED for `arp.on` (REQ-5)
 owner: core
@@ -12,8 +13,11 @@ related:
   - transport
   - voicing
   - machine-status
+  - scale-quantization
+  - chord-tools
 source:
   - src/audio/transport/arpeggiator.ts
+  - src/audio/transport/scale-quantizer.ts   # REQ-8
   - src/state/params.ts
   - src/audio/engine.ts
   - src/ui/panels/arp-panel.ts
@@ -71,6 +75,24 @@ releasing the last key stops it again (only if the arp was what started it).
   ([effects](effects.md), [motion-sequencer](motion-sequencer.md)). Nothing here
   is to be "fixed" by making the sequencer feed the arp; what was missing was
   saying so, which is why this REQ exists and why the authoring guide states it.
+
+- **REQ-8 (the pool is chord-expanded, then key-quantized, v4)** — `fire()` builds its
+  pool from the held set. Two transforms now sit on that build: each held note is
+  expanded through chord memory ([chord-tools](chord-tools.md) REQ-6), and every entry
+  is quantized to the key **after** the `n + o * 12` octave stacking, so stacked octaves
+  land in scale too ([scale-quantization](scale-quantization.md) REQ-4).
+
+  Expansion has to happen **here as well as** in the engine's passthrough, not instead
+  of it: REQ-1 means an engaged arp takes the note stream away from the engine entirely,
+  so an expansion that only lived in the passthrough would leave the arp playing single
+  notes. That duplication is the direct consequence of REQ-1 owning note triggering, and
+  it is what lets one finger drive an arpeggiated progression.
+
+  Release safety comes free from the existing shape: `lastTriggered` already stores the
+  note that was played, so the quantized note is what gets released
+  ([scale-quantization](scale-quantization.md) REQ-6). Both transforms are early returns
+  at their defaults (`chromatic`, `chord.voicing: off`), so v4 is inaudible until a key
+  is chosen.
 
 ## Technical design
 
@@ -151,6 +173,18 @@ Scenario: An armed arp in a loaded song sounds nothing until a key is held (v3, 
   When the transport runs
   Then the arp emits no notes
   And holding a key arpeggiates over the running song
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: Stacked octaves are quantized too (v4, REQ-8)
+  Given an active key and arp.octaves is 2
+  When a held note is arpeggiated
+  Then the octave-stacked copies are in the key, not just the base note
+# pinned by: tests/audio/transport/arpeggiator.test.ts
+
+Scenario: One held key arpeggiates a whole chord (v4, REQ-8)
+  Given chord.voicing is triad and one key is held
+  When ticks are dispatched
+  Then the arp cycles the chord's notes rather than repeating the single held note
 # pinned by: tests/audio/transport/arpeggiator.test.ts
 ```
 

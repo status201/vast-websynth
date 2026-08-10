@@ -1,0 +1,177 @@
+/* The KEY tab's two-octave keyboard map (scale-quantization.md REQ-9).
+   Deliberately NOT a white-and-black piano: both rows sit in muted panel tones so
+   every bit of colour in here means something. Topology is real, palette is not. */
+
+/* One vertically centred row: keyboard, the three dropdowns, then the hint.
+   `wrap` is the whole responsive story — items keep their DOM order and drop to the
+   next line when they no longer fit, so a phone stacks keyboard / dropdowns / hint in
+   that same reading order without a single media query (REQ-9). */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Basis is the keyboard's full size and it may shrink but never grow, so it is 380px
+   wherever there is room and fills the line when there is not — instead of sitting at
+   its 200px floor with empty space beside it on a phone. */
+.mapGroup {
+  flex: 0 1 380px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;   /* the dropdowns line up, whatever their label wraps to */
+  gap: 18px;
+  flex: 0 1 auto;
+  min-width: 0;
+  /* The three want ~396px side by side, which does not fit a 390px phone. Wrapping
+     inside the group splits them 2 + 1 rather than letting them overflow the panel
+     and get clipped — they still travel together, and still after the keyboard. */
+  flex-wrap: wrap;
+}
+
+/* Takes whatever is left on a wide row, and claims a full line once it cannot fit
+   beside the controls. `paramHint` brings the type; this brings the flexing — and
+   left alignment, so on a wide row the sentence starts beside the controls instead
+   of floating in the middle of the space left over. */
+.hint {
+  flex: 1 1 260px;
+  margin: 0;
+  min-width: 0;
+  text-align: left;
+}
+
+.map {
+  position: relative;
+  display: flex;
+  /* No gap: the black keys are placed by percentage across the whole row, so any
+     inter-key gap would drift them off their real semitone positions. The 1px
+     borders already separate the whites. */
+  gap: 0;
+  height: 56px;
+  min-width: 200px;
+  max-width: 380px;
+  width: 100%;
+  padding: 0;
+  /* A readout, not an instrument — nothing here is grabbable (REQ-9). */
+  user-select: none;
+  cursor: default;
+}
+
+/* ---- key bodies ---- */
+
+/* Out of scale: present and legible, but clearly inert. */
+.white,
+.black {
+  border: 1px solid #4a3d2e;
+  background: #2a241d;
+  transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.white {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 0 0 3px 3px;
+  /* The root's letter is absolutely placed INSIDE its key; without this it would
+     resolve against `.map` and every label would stack at the map's centre. */
+  position: relative;
+}
+
+/* Inset at its true position, so the semitone spacing is the real thing —
+   `left` is set inline from the white-key index it follows. */
+.black {
+  position: absolute;
+  top: -1px;
+  height: 62%;
+  /* A share of ONE white key, not of the whole row — 14 whites span the map, so a
+     flat percentage of the row would make the blacks wider than the keys they sit
+     between. */
+  width: calc(100% / 14 * 0.62);
+  z-index: 1;
+  background: #16120e;
+  border-radius: 0 0 3px 3px;
+  transform: translateX(-50%);
+}
+
+/* ---- states, in falling precedence: root > chord > scale > out ----
+   Driven by `data-role`, not a class: one attribute write per key per repaint
+   instead of three classList toggles, and a jsdom test can read it without
+   depending on how CSS Modules resolve under Vitest.
+
+   Every selector is anchored on `.white` / `.black` (or `.swatch`). A bare
+   `[data-role=…]` carries no class for CSS Modules to hash, so it would escape this
+   module and style the whole app.
+
+   Solid colours, not alpha washes: four states need four *predictable* steps, and a
+   translucent fill composites against whatever is behind it. `out` is the base above. */
+
+.white[data-role='scale'] { background: #7a4a24; border-color: #96602f; }
+.black[data-role='scale'] { background: #4a2a13; border-color: #7a4a24; }
+
+.white[data-role='chord'] {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+.black[data-role='chord'] { background: #b8912f; border-color: var(--accent-secondary); }
+
+.white[data-role='root'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.black[data-role='root'] { background: #b4501a; border-color: var(--accent); }
+
+/* Legend swatches wear the same four steps, at white-key weight. */
+.swatch[data-role='scale'] { background: #7a4a24; border-color: #96602f; }
+.swatch[data-role='chord'] { background: var(--accent-secondary); border-color: var(--accent-secondary); }
+.swatch[data-role='root'] { background: var(--accent); border-color: var(--accent); }
+
+/* The root's letter, so the map is readable without hovering. Sans, not serif:
+   it is a readout, not a faceplate legend (typography.md). */
+.rootLabel {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--bg-deep);
+  pointer-events: none;
+}
+.black > .rootLabel {
+  color: var(--text);
+}
+
+/* ---- legend ---- */
+
+.legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+  font-family: var(--sans);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--panel-border);
+  box-shadow: none;
+}

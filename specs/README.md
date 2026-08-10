@@ -209,6 +209,8 @@ specs/
     transport-window.md · the Song-panel transport row + its floating window
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
+    scale-quantization.md ·  key/scale as a live pitch filter over every note source
+    chord-tools.md     ·  diatonic chord writer (4 tracks) + live chord memory
     drum-machine.md    ·  8-track synth drums
     drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler

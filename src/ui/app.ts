@@ -21,8 +21,9 @@ import { Scope } from './components/scope';
 import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
 import {
-  ARP_TAB, MACHINE_IDS, MACHINE_TAB,
-  readArpStatus, readMachineStatus, subscribeArpStatus, subscribeMachineStatus,
+  ARP_TAB, KEY_TAB, MACHINE_IDS, MACHINE_TAB,
+  readArpStatus, readKeyStatus, readMachineStatus,
+  subscribeArpStatus, subscribeKeyStatus, subscribeMachineStatus,
 } from './machine-status';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
@@ -42,6 +43,7 @@ import { Presets } from '../state/preset';
 import { openPresetManagerModal } from './components/preset-manager-modal';
 import { Song, DEMO_SONGS, demoNames } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
+import { buildKeyPanel } from './panels/key-panel';
 import { buildSeqPanel } from './panels/seq-panel';
 import { buildDrumPanel } from './panels/drum-panel';
 import { buildSamplerPanel } from './panels/sampler-panel';
@@ -394,6 +396,7 @@ function buildPatternRow(
   const motion = buildMotionPanel(bus, engine, xy, xyWin, patternUndo, bridge);
   const tabs = new TabContainer([
     { id: 'arp', label: 'Arpeggiator', content: buildArpPanel(bus), indicator: true },
+    { id: 'key', label: 'Key', content: buildKeyPanel(bus), indicator: true },
     { id: 'seq', label: 'Sequencer', content: seq.el, indicator: true },
     { id: 'drums', label: 'Drum Machine', content: drums.el, indicator: true },
     { id: 'sampler', label: 'Sampler', content: sampler.el, indicator: true },
@@ -463,6 +466,9 @@ function buildPatternRow(
   // armed changes what the keyboard does, which is worth reading at a glance
   // mid-performance (machine-status.md REQ-10).
   subscribeArpStatus(bus, () => tabs.setIndicator(ARP_TAB, readArpStatus(bus)));
+  // Same reasoning for the key: an active scale silently re-pitches every note, so
+  // "is anything re-pitching me?" must be answerable without opening the tab.
+  subscribeKeyStatus(bus, () => tabs.setIndicator(KEY_TAB, readKeyStatus(bus)));
 
   return { el: tabs.el, loadDemo: song.loadDemo, importSongBytes: song.importBytes };
 }

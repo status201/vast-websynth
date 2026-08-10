@@ -90,6 +90,24 @@ export function subscribeArpStatus(bus: ParamBus, fn: () => void): () => void {
 }
 
 /**
+ * The Key tab's id. Not a `MachineId` for the same reason as the arp: no lane, so no
+ * mute or solo. Its lamp answers "is anything re-pitching my notes?", which — like an
+ * armed arp — changes what the keyboard does and is worth reading without opening the
+ * tab (machine-status.md REQ-10).
+ */
+export const KEY_TAB = 'key';
+
+/** Lit whenever a real scale is chosen; `chromatic` (0) is the inert default. */
+export function readKeyStatus(bus: ParamBus): MachineState {
+  return bus.get('scale.type') >= 0.5 ? 'on' : 'off';
+}
+
+/** Mirrors `subscribeArpStatus`, over the one param the key lamp reads. */
+export function subscribeKeyStatus(bus: ParamBus, fn: () => void): () => void {
+  return bus.subscribe('scale.type', fn);
+}
+
+/**
  * Subscribe to every param the status depends on (11 of them). Returns a
  * disposer that drops them all. `ParamBus.subscribe` fires immediately with the
  * current value, so this also drives the initial paint — no separate seed call.

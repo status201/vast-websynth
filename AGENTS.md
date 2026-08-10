@@ -29,7 +29,7 @@ commit message (CI).
 | --- | --- |
 | `CLAUDE.md` | The map: commands, invariants, and a "code area → spec" routing table |
 | `specs/architecture.md` | System-wide contracts, audio graph, event flows, conventions |
-| `specs/README.md` | The SDD method + an annotated map of all 100 specs |
+| `specs/README.md` | The SDD method + an annotated map of every spec |
 | `specs/decisions/README.md` | ADR index (the *why*) |
 | `src/ui/CLAUDE.md` | CSS Module conventions |
 | `e2e/CLAUDE.md` | Playwright conventions |

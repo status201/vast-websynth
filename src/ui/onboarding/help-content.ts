@@ -229,10 +229,12 @@ export type TopicId =
   | 'fx.sampler.phaser.rate'
   | 'fx.sampler.delay.time'
   | 'arp'
+  | 'key'
   | 'seq'
   | 'seq.prob'
   | 'seq.ratchet'
   | 'seq.tie'
+  | 'seq.chord'
   | 'seq.render'
   | 'drums'
   | 'sampler'
@@ -619,6 +621,23 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>Octaves</strong> — how many octaves it climbs through.</li>' +
       '<li><strong>Gate</strong> — how long each note is held.</li></ul>',
   },
+  key: {
+    title: 'Key (scale & chords)',
+    body:
+      '<p>Pick a <strong>root</strong> and a <strong>scale</strong>, and every note the synth ' +
+      'plays is nudged onto the nearest note of that key — the sequencer, the arpeggiator and ' +
+      'the keyboard alike. Wrong notes stop being possible.</p>' +
+      '<p>The keyboard picture is the map: <strong>orange</strong> is the root, ' +
+      '<strong>yellow</strong> the notes of the chord, <strong>brown</strong> the rest of the ' +
+      'scale, and dark keys are the notes now out of play.</p>' +
+      '<ul><li><strong>Scale</strong> — <em>chromatic</em> means "leave everything alone", so ' +
+      'nothing changes until you choose a real scale.</li>' +
+      '<li><strong>Chord memory</strong> — one held key sounds a whole chord from the scale, ' +
+      'and the arpeggiator picks it up. Needs POLY voicing.</li></ul>' +
+      '<p><strong>Your notes are never rewritten.</strong> This only changes what you hear, so ' +
+      'switching back to <em>chromatic</em> restores your pattern exactly. To make it permanent, ' +
+      'use <strong>Snap</strong> on the Sequencer tab.</p>',
+  },
   seq: {
     title: 'Sequencer',
     body:
@@ -665,6 +684,18 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'smooth legato lines.</p>' +
       '<p>With <strong>glide</strong> turned up (and Mono voicing) the held note <em>slides</em> ' +
       'in pitch to the next step — the classic acid-bassline slide.</p>',
+  },
+  'seq.chord': {
+    title: 'Chord (write a chord across the tracks)',
+    body:
+      '<p>Writes a whole chord into the selected step, one note per track — so the four ' +
+      'sequencer tracks sound together as a chord. Pick a degree and it is written straight ' +
+      'away; one <strong>Undo</strong> takes the whole chord back.</p>' +
+      '<p>The degrees are built from the key you set on the <strong>Key</strong> tab, which is ' +
+      'why the list is greyed out until you choose a scale. Roman numerals tell you the chord: ' +
+      'capital <em>I</em> is major, small <em>ii</em> is minor, <em>vii°</em> is diminished.</p>' +
+      '<p>The chord keeps each step\'s own velocity, gate and ratchet — it only sets the notes. ' +
+      'Tracks 2–4 need <strong>POLY</strong> voicing to be heard.</p>',
   },
   'seq.render': {
     title: 'Import into sampler (Render)',

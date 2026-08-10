@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 19  # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
+version: 20  # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-20)
+             # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
              #      shell joins the reflow observer list (REQ-5a, lfo.md REQ-15)
              # v18: while the badges show, the ⓘ button's glyph inverts to the
              #      badge's own colours, and the `presets` badge moves off its
@@ -40,6 +41,8 @@ related:
   - motion-sequencer
   - step-grid-editing
   - sequencer
+  - scale-quantization
+  - chord-tools
   - render-to-sampler
   - presets
   - audio-export
@@ -251,6 +254,22 @@ thing.
   discard-on-close confirm, and `Shift`+`R`; the export topic must cover runs and
   what the tail bar is for. The anchors (`song-record`, `song-export-audio`) are
   unchanged.
+- **REQ-20** (v20) — **The key and the chord writer each carry a badge.** `key` is
+  anchored to `tab-key`, the machine-tab convention the arp/seq/drums badges already
+  follow: an active scale silently re-pitches *every* note source
+  ([scale-quantization](scale-quantization.md)), so "why does my note not sound where
+  I put it?" has to be answerable from the tab itself. Its copy leads with the fact
+  the panel cannot show — that the filter is **non-destructive**, and `chromatic`
+  means nothing changes — and names the map's four colours, which is otherwise the
+  one thing on the tab with no on-screen legend beyond three words.
+
+  `seq.chord` is anchored to `seq-chord` on the Sequencer's step row
+  ([chord-tools](chord-tools.md)). It earns a per-control badge on two counts that
+  the badge policy already recognises: it is the only control in that row that writes
+  to **four tracks at once**, and it is the only one whose options are disabled by a
+  setting on **another tab** — a dead control with an off-screen cause is exactly the
+  case ADR-014 says must explain itself. The copy also decodes the Roman numerals,
+  which are the notation a non-musician will not have.
 - **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
   anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
   written as `transport.song`'s **sibling** — the two rows sit against each other
@@ -602,6 +621,20 @@ Scenario: The shortcut list is folded through Space by default (v15, REQ-17b)
    And the choice is persisted under websynth.shortcuts.about, independently of
     the Debug section's own fold
 # pinned by: tests/ui/about.test.ts
+
+Scenario: The Key badge says the filter is non-destructive (v20, REQ-20)
+  Given the info badges are on
+  When the user clicks the badge on the Key tab
+  Then the modal says stored notes are never rewritten and chromatic changes nothing
+  And it names what the map's colours mean
+# pinned by: tests/ui/help-content.test.ts
+
+Scenario: The Chord badge decodes the Roman numerals (v20, REQ-20)
+  Given the info badges are on and the Sequencer tab is open
+  When the user clicks the badge on the Chord control
+  Then the modal explains the write across four tracks, the single Undo,
+    and that a capital numeral is major and a small one minor
+# pinned by: tests/ui/help-content.test.ts
 
 Scenario: The Render button says why it takes two bars (v9)
   Given the info badges are on and the Sequencer tab is open

@@ -3,11 +3,14 @@
 ```yaml
 id: voicing
 status: implemented
-version: 2
+version: 3   # v3: the passthrough stores what it played, so a re-pitched or
+             #     chord-expanded key still releases correctly (REQ-8)
 owner: core
 related:
   - architecture
   - oscillators
+  - scale-quantization
+  - chord-tools
 source:
   - src/audio/polyphony.ts     # voice pool, alloc, unison, glide, drift (ADR-008)
   - src/audio/engine.ts        # builds voices; thin playNote/releaseNote delegators
@@ -44,6 +47,27 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   globally.
 - **REQ-6** — Note events flow `bus.onNote → Engine.playNote / releaseNote` unless
   `passthroughSuppressed` (arp/sequencer own triggering then).
+
+- **REQ-8 (the passthrough remembers what it played, v3)** — a raw key no longer maps
+  1:1 to a sounding note: it may be re-pitched by the key or expanded into a chord
+  ([scale-quantization](scale-quantization.md), [chord-tools](chord-tools.md)). Since
+  `Polyphony.releaseNote` looks up `heldNotes` **by the note number passed in**, a
+  note-off that re-derived that mapping after the key or voicing changed would miss the
+  lookup and **strand the voice forever**.
+
+  So the passthrough keeps `Engine.heldIn: Map<number, number[]>` — raw key → the notes
+  actually sounded. Note-on stores; note-off replays that array and deletes the entry.
+  This is the same "resolve once, release through the stored note" rule the sequencer
+  states at [sequencer](sequencer.md) REQ-16, now applied to the one note source that
+  previously had nowhere to store it. It is what lets a player change key, or switch on
+  chord memory, **while holding a chord**. The map is bounded at 128 keys × ≤4 notes and
+  is cleared alongside `killAll` — REQ-1's mode switch and panic both go through it, so
+  no entry outlives the voices it names.
+
+  *Accepted consequence:* two raw keys can quantize onto the same note, so releasing one
+  stops it while the other is still held. That is inherent to quantization and is how
+  hardware quantizers behave; it is not to be "fixed" by refcounting, which would make a
+  legato retrigger stop working.
 - **REQ-7** — (v2) The voice lifecycle drives the ladder filter's **idle gating**:
   voices boot inactive, `noteOn` activates the filter unconditionally, and
   release-completion / `kill` deactivate it — see
@@ -88,6 +112,12 @@ Scenario: Switching mono<->poly never leaves a hanging note
   When the user toggles voicing.mode
   Then all voices are killed and no note hangs
 # pinned by: tests/state/params.test.ts (subscription); manual/e2e controls
+
+Scenario: Changing the key while a note is held never hangs it (v3, REQ-8, regression)
+  Given a key is held and sounding through the passthrough
+  When scale.root changes and the key is then released
+  Then the note that was started is the note released, and no voice is left sounding
+# pinned by: tests/audio/engine-scale.test.ts
 
 Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
   Given glide.mode is 'always' (1) and mixer.glide is 0

@@ -3,7 +3,8 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 6   # v6: notes are shifted by the arrangement slot's transpose (REQ-16)
+version: 7   # v7: the transposed note is then quantized to the key (REQ-17)
+             # v6: notes are shifted by the arrangement slot's transpose (REQ-16)
              # v5: release held notes on a transport stop, too (REQ-15)
 owner: core
 related:
@@ -16,8 +17,11 @@ related:
   - arrangement
   - input-control
   - envelopes
+  - scale-quantization
+  - chord-tools
 source:
   - src/audio/transport/sequencer.ts
+  - src/audio/transport/scale-quantizer.ts   # REQ-17
   - src/state/patterns.ts
   - src/audio/engine.ts
   - src/ui/panels/seq-panel.ts
@@ -166,6 +170,18 @@ and tracks 2–4 start empty and silent.
   would leave a stuck voice. This is why the transpose is applied once at the top
   of `tickTrack` and the local is used everywhere `s.note` was, rather than being
   re-derived at each release site.
+
+- **REQ-17** (v7) — **The transposed note is then quantized to the key.** `tickTrack`
+  passes the transposed note through `ScaleQuantizer.get` before it is played
+  ([scale-quantization](scale-quantization.md) REQ-4/REQ-5). The **order matters and is
+  the point**: transposing first and quantizing second is what makes a `+5` bar land
+  back in the key instead of leaving it, which is the musical defect REQ-16's chromatic
+  shift otherwise creates. Quantizing first would preserve that drift.
+
+  This inherits REQ-16's tie safety for free rather than re-earning it: the *quantized*
+  note is what lands in `SeqTrackState.lastPlayedNote`, so a note started in one key or
+  transpose is released at the pitch it actually started, exactly as above. While
+  `scale.type` is `chromatic` the call is an early return and this REQ is invisible.
 
 ## Technical design
 
@@ -344,6 +360,19 @@ Scenario: Arming pins the take to the visible bank (REQ-6)
   Then Follow turns off, so recorded notes cannot spray across banks as bars advance
   And disarming leaves Follow off for the user to re-enable
 # pinned by: e2e/patterns.spec.ts, tests/ui/bank-bar.test.ts
+
+Scenario: Transpose is applied before quantization, not after (v7, REQ-17)
+  Given an active key and an arrangement slot that transposes +5
+  When a step fires
+  Then the note is transposed first and the sum is quantized into the key
+  And reversing the order would leave the bar out of key
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A chromatic key leaves every triggered note untouched (v7, REQ-17, back-compat)
+  Given scale.type is 0
+  When any step fires
+  Then the note sounding is exactly the pre-v7 note
+# pinned by: tests/audio/transport/sequencer.test.ts
 ```
 
 ## Tests & verification

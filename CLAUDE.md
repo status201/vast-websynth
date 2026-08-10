@@ -40,7 +40,7 @@ packages; see ADR-003. Product name in-app: **VAST G1-J8**; package/repo:
 | File | What it holds |
 | --- | --- |
 | `specs/architecture.md` | System-wide contracts: ParamBus/Engine, layer surfaces, the four event flows, audio graph, persistence keys, global conventions |
-| `specs/README.md` | The SDD method + an annotated map of all 100 specs |
+| `specs/README.md` | The SDD method + an annotated map of every spec |
 | `specs/decisions/README.md` | The ADR index — *why* things are the way they are |
 
 Feature specs are standalone and restate the conventions they rely on, so reading

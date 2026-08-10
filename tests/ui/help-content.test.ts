@@ -208,6 +208,43 @@ describe('help-content transport-position topics', () => {
   });
 });
 
+/** The scale/chord badges (onboarding.md REQ-20). */
+describe('help-content key & chord topics', () => {
+  it('has a `key` topic that leads with the non-destructive promise', () => {
+    const t = HELP_TOPICS['key'];
+    expect(t).toBeTruthy();
+    expect(t.title).toContain('Key');
+    const body = bodyOf('key');
+    // The two things the panel itself cannot say, and the reason the filter is
+    // safe to leave switched on.
+    expect(body).toMatch(/never rewritten/i);
+    expect(body).toContain('chromatic');
+    // Every note source is affected, which is the surprising part.
+    for (const source of ['sequencer', 'arpeggiator', 'keyboard']) {
+      expect(body, source).toContain(source);
+    }
+    // The map's colours have no on-screen legend beyond three words.
+    for (const colour of ['orange', 'yellow', 'brown']) {
+      expect(body, colour).toContain(colour);
+    }
+    // Where to make it permanent — that lives on another tab.
+    expect(body).toContain('Snap');
+  });
+
+  it('has a `seq.chord` topic decoding the numerals and the four-track write', () => {
+    const t = HELP_TOPICS['seq.chord'];
+    expect(t).toBeTruthy();
+    expect(t.title).toContain('Chord');
+    const body = bodyOf('seq.chord');
+    expect(body).toMatch(/one note per track|across the tracks/i);
+    expect(body).toContain('Undo');            // the whole chord is one undo
+    expect(body).toMatch(/greyed out|disabled/); // why the list can be dead
+    expect(body).toContain('major');           // the numerals a non-musician lacks
+    expect(body).toContain('minor');
+    expect(body).toContain('POLY');            // tracks 2-4 need it
+  });
+});
+
 /**
  * song-mode.md REQ-12 (v18). The tour names its demo by string constant, while
  * `src/state/demos/` is a drop-in directory anyone may rename in. `loadDemo`

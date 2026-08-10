@@ -1,6 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import type { SynthOutput } from './note-output';
 import type { TickSubscriber } from './tick-source';
+import { ScaleQuantizer } from './scale-quantizer';
 
 // Dropdown labels live in ARP_PATTERN_LABELS / ARP_RATE_LABELS (state/params.ts).
 const RATE_DIVISIONS = [4, 2, 1, 0.5]; // 16ths per step at each rate
@@ -32,6 +33,7 @@ export class Arpeggiator {
     private readonly output: SynthOutput,
     private readonly bus: ParamBus,
     private readonly clock: TickSubscriber,
+    private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
     bus.onNote((on, note) => {
       if (!this.enabled) return;
@@ -125,10 +127,15 @@ export class Arpeggiator {
    *  × gate. Advances the pattern cursor — one call is one arpeggiated note. */
   private fire(when: number, stepDur: number): void {
     // Build the full note pool (held notes × octave range), ordered low to high.
-    const sorted = [...this.heldOrder].sort((a, b) => a - b);
+    // Chord memory widens the pool BEFORE stacking, and the key is applied AFTER it,
+    // so the octave copies land in scale too (arpeggiator.md REQ-8). Expanding here
+    // as well as in the engine's passthrough is required, not duplicated by accident:
+    // REQ-1 means an engaged arp takes the note stream away from the engine entirely.
+    const held = this.expand(this.heldOrder);
+    const sorted = [...held].sort((a, b) => a - b);
     const pool: number[] = [];
     for (let o = 0; o < this.octaves; o++) {
-      for (const n of sorted) pool.push(n + o * 12);
+      for (const n of sorted) pool.push(this.scale.get(n + o * 12));
     }
     if (pool.length === 0) return;
 
@@ -159,7 +166,7 @@ export class Arpeggiator {
         {
           const ordered: number[] = [];
           for (let o = 0; o < this.octaves; o++) {
-            for (const n of this.heldOrder) ordered.push(n + o * 12);
+            for (const n of held) ordered.push(this.scale.get(n + o * 12));
           }
           note = ordered[this.cursor % ordered.length]!;
           this.cursor++;
@@ -177,5 +184,19 @@ export class Arpeggiator {
     const release = when + gateLen;
     this.output.releaseNote(note, release);
     this.lastTriggered = { note, when, release };
+  }
+
+  /**
+   * Held notes widened through chord memory, preserving press order so `as-played`
+   * still means what it says (chord-tools.md REQ-6).
+   *
+   * Returns the source array itself when chord memory is inert, so the default path
+   * allocates nothing beyond what `fire` already copies.
+   */
+  private expand(notes: readonly number[]): readonly number[] {
+    if (!this.scale.chordActive) return notes;
+    const out: number[] = [];
+    for (const n of notes) for (const c of this.scale.chord(n)) out.push(c);
+    return out;
   }
 }

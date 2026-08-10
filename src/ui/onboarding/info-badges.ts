@@ -70,10 +70,16 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },
   { topic: 'fx.master.comp', find: () => byTestId('fxgroup-fx.master.comp') },
   { topic: 'arp', find: () => byTestId('tab-arp') },
+  // Pinned to the tab, like the other machines: an active key silently re-pitches
+  // every note, so the explanation has to be reachable from the tab itself.
+  { topic: 'key', find: () => byTestId('tab-key') },
   { topic: 'seq', find: () => byTestId('tab-seq') },
   { topic: 'seq.prob', find: () => byTestId('seq-prob') },
   { topic: 'seq.ratchet', find: () => byTestId('seq-ratchet') },
   { topic: 'seq.tie', find: () => byTestId('seq-tie') },
+  // The one control on the step row that writes to FOUR tracks at once, and the
+  // only one whose options are disabled until something on another tab is set.
+  { topic: 'seq.chord', find: () => byTestId('seq-chord') },
   // "Import into sampler" (render-to-sampler.md REQ-10): the section is
   // unexplained on screen and the two-pass render looks like a hang.
   { topic: 'seq.render', find: () => byTestId('seq-import-render') },

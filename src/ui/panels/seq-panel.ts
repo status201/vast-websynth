@@ -18,6 +18,10 @@ import { attachGridGestures } from '../components/grid-gestures';
 import { noteName } from '../components/keyboard';
 import { StepSettingsEditor, stepTitle } from '../components/step-settings';
 import { Dropdown } from '../components/dropdown';
+import { showToast } from '../components/toast';
+import {
+  buildQuantizeTable, chordDegrees, degreeLabel, diatonicChord, scaleSize,
+} from '../../utils/music';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import {
   BANK_LABELS,
@@ -66,6 +70,39 @@ export function buildSeqPanel(
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
+  // SNAP bakes the live key into the stored notes — the destructive counterpart of
+  // the filter (scale-quantization.md REQ-8). No confirm dialog on purpose: it is one
+  // Ctrl+Z away, and the Clear ▾ beside it wipes a whole bank without asking either.
+  const snapBtn = createButton({
+    label: 'Snap',
+    testId: 'seq-snap',
+    onClick: () => {
+      // Built here from the bus rather than read off the Engine: snapping is a state
+      // edit, and the UI does not reach into the audio layer (ADR-009). The table is
+      // a pure function of the same two params the Engine subscribes to, so what SNAP
+      // writes is exactly what the live filter would have played.
+      const table = buildQuantizeTable(
+        Math.round(bus.get('scale.root')), Math.round(bus.get('scale.type')),
+      );
+      if (!table) {
+        showToast({ message: 'Choose a scale in the Key tab first', testId: 'seq-snap-toast' });
+        return;
+      }
+      const moved = engine.patterns.snapSeqBank((n) => table[n] ?? n);
+      showToast({
+        message: moved ? 'Bank snapped to the scale' : 'Every note is already in the scale',
+        testId: 'seq-snap-toast',
+      });
+    },
+  });
+  header.appendChild(snapBtn);
+  const refreshSnap = (): void => {
+    const active = Math.round(bus.get('scale.type')) > 0;
+    snapBtn.title = active
+      ? 'Rewrite every stored note in this bank into the scale (one undo)'
+      : 'Choose a scale in the Key tab to snap this bank';
+  };
+  bus.subscribe('scale.type', refreshSnap);
   header.appendChild(clearMenuFor(engine, 'seq', undo, () => [{
     label: `track ${SEQ_TRACK_LABELS[cursor.selRow] ?? cursor.selRow + 1}`,
     clear: () => engine.patterns.clearSeqTrack(cursor.selRow),
@@ -325,6 +362,60 @@ export function buildSeqPanel(
   upBtn.addEventListener('click', (e) => bumpNote(e.shiftKey ? 12 : 1));
   noteCtrl.appendChild(upBtn);
   edit.insertBefore(noteCtrl, edit.firstChild); // note picker leads the row
+
+  // ---- Chord writer (chord-tools.md) ----
+  // Sits beside the note stepper because it edits the same thing — the pitch of the
+  // step under the cursor — only across all four tracks at once. Picking a degree
+  // writes immediately; there is no separate commit, matching the Clear ▾ rows.
+  const chordCtrl = document.createElement('div');
+  chordCtrl.className = editStyles.ctrl!;
+  const chordLabel = document.createElement('div');
+  chordLabel.className = editStyles.ctrlLabel!;
+  chordLabel.textContent = 'Chord';
+  chordCtrl.appendChild(chordLabel);
+  const chordDd = new Dropdown(['—']);
+  chordDd.el.dataset.testid = 'seq-chord';
+  chordCtrl.appendChild(chordDd.el);
+  edit.insertBefore(chordCtrl, noteCtrl.nextSibling);
+
+  /** Degree labels for the current key, or a single placeholder when chromatic. */
+  function chordOptions(): string[] {
+    const scale = Math.round(bus.get('scale.type'));
+    const root = Math.round(bus.get('scale.root'));
+    const n = scaleSize(scale);
+    if (n === 0) return ['—'];
+    return Array.from({ length: n }, (_, d) => degreeLabel(root, scale, d));
+  }
+
+  function refreshChord(): void {
+    const opts = chordOptions();
+    chordDd.setOptions(opts);
+    const active = Math.round(bus.get('scale.type')) > 0;
+    // No scale means no degrees to stack, so every option is spoken for. A disabled
+    // control that says why beats one that quietly does nothing (chord-tools.md REQ-8).
+    chordDd.setDisabledOptions(active ? [] : opts);
+    chordCtrl.title = active
+      ? 'Write this degree as a chord across the four tracks, at the selected step'
+      : 'Choose a scale in the Key tab to write chords';
+  }
+  bus.subscribe('scale.root', refreshChord);
+  bus.subscribe('scale.type', refreshChord);
+
+  chordDd.onChange((label) => {
+    const scale = Math.round(bus.get('scale.type'));
+    const root = Math.round(bus.get('scale.root'));
+    if (scale === 0) return;
+    const degree = chordOptions().indexOf(label);
+    if (degree < 0) return;
+    const anchor = engine.patterns.seqTrack(cursor.selRow)?.[cursor.selCol]?.note ?? 60;
+    const voicing = Math.round(bus.get('chord.voicing'));
+    // The writer stands on its own: `chord.voicing` is the live-performance control,
+    // so a triad is the sensible thing to write when it is off rather than nothing.
+    const degrees = chordDegrees(voicing === 0 ? 1 : voicing);
+    const notes = diatonicChord(anchor, root, scale, degrees, degree);
+    if (notes.length === 0) return;
+    engine.patterns.writeSeqChord(cursor.selCol, notes);
+  });
 
   function bumpNote(delta: number, track = cursor.selRow, index = cursor.selCol): void {
     const s = engine.patterns.seqTrack(track)?.[index];

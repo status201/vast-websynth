@@ -1,6 +1,7 @@
 import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
 import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
+import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
 
 export type ParamId = string;
 
@@ -224,6 +225,10 @@ export const LFO_SYNC_LABELS = SYNC_LABELS;
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
+// Re-exported so panels pull the key's labels from the same place as every other
+// label array; the tables themselves are pure and live in utils
+// (specs/features/scale-quantization.md).
+export { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS };
 export const ARP_PATTERN_LABELS = ['up', 'down', 'updn', 'rand', 'play'];
 export const ARP_RATE_LABELS = ['1/4', '1/8', '1/16', '1/32'];
 export const DRUM_TRACK_LABELS = ['Kick', 'Snare', 'C.Hat', 'O.Hat', 'L.Tom', 'M.Tom', 'H.Tom', 'Clap'];
@@ -425,6 +430,13 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'arp.rate', min: 0, max: 3, default: 2, step: 1, taper: 'discrete', labels: ARP_RATE_LABELS },
     { id: 'arp.octaves', min: 1, max: 4, default: 1, step: 1 },
     { id: 'arp.gate', min: 0.05, max: 1, default: 0.5, format: fmtPct },
+
+    // ----- Key / scale (specs/features/scale-quantization.md, chord-tools.md) -----
+    // `scale.type` 0 is 'chromatic' and `chord.voicing` 0 is 'off': both are true
+    // no-ops, so every preset and song predating these keys sounds identical (ADR-006).
+    { id: 'scale.root', min: 0, max: 11, default: 0, step: 1, taper: 'discrete', labels: NOTE_LABELS },
+    { id: 'scale.type', min: 0, max: SCALE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: SCALE_LABELS },
+    { id: 'chord.voicing', min: 0, max: CHORD_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: CHORD_LABELS },
 
     // ----- Sequencer -----
     { id: 'seq.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },

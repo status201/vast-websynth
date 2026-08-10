@@ -93,6 +93,9 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.master.comp.release": number  // range 0..4, default 4, step 1, values 0=0.1s 1=0.3s 2=0.6s 3=1.2s 4=auto
 - "fx.master.comp.makeup": number  // range 0..12, default 0
 - "master.volume": number  // range 0..1, default 0.8
+- "scale.root": number  // range 0..11, default 0, step 1, values 0=C 1=C# 2=D 3=D# 4=E 5=F 6=F# 7=G 8=G# 9=A 10=A# 11=B
+- "scale.type": number  // range 0..10, default 0, step 1, values 0=chromatic 1=major 2=minor 3=dorian 4=mixolydian 5=phrygian 6=lydian 7=harm minor 8=pent maj 9=pent min 10=blues
+- "chord.voicing": number  // range 0..4, default 0, step 1, values 0=off 1=triad 2=7th 3=sus4 4=power
 - "motion.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "motion.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "motion.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide

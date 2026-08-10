@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A key, and chord tools to play in it.** A new **KEY** tab sets a root and a
+  scale, and every note the instrument plays — sequencer, arpeggiator and
+  keyboard alike — is snapped onto the nearest note of that key. It is a **live
+  filter, not an edit**: the notes you stored are untouched, so switching back to
+  *chromatic* restores the pattern exactly, and `chromatic` is the default, so no
+  existing sound, song or share link changes. Because the snap happens *after* an
+  arrangement slot's transpose, a progression built from bar transposes — like
+  the one in "First Light" — now stays in key instead of drifting out of it. A
+  two-octave keyboard map shows the whole key at a glance: the root, the notes of
+  the chord, the rest of the scale, and the notes now out of play.
+
+- **Chords, two ways.** **Chord memory** turns one held key into a triad, 7th,
+  sus4 or power chord built from the scale — and the arpeggiator picks it up, so
+  one finger drives an arpeggiated progression. On the Sequencer tab, **Chord ▾**
+  writes a chord across all four tracks at the selected step, and one Undo takes
+  the whole thing back. Both build chords by stacking scale degrees rather than
+  from a table, so `ii` comes out minor and `vii°` diminished on their own. The
+  Sequencer's **Snap** bakes the current key into the stored bank for when you do
+  want it permanent — also a single Undo.
+
 - **A second LFO.** One modulator meant every patch chose between a filter sweep
   *and* a vibrato. There are now two, identical in every control, sharing the LFO
   panel as a **1 / 2** tab pair in its title bar — so the pair costs no extra

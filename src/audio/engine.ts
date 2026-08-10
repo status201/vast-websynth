@@ -17,6 +17,7 @@ import { DrumMachine } from './transport/drum-machine';
 import { SamplerMachine } from './transport/sampler-machine';
 import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
+import { ScaleQuantizer } from './transport/scale-quantizer';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { WebRtcSyncTransport } from './webrtc-sync-transport';
@@ -126,6 +127,8 @@ export class Engine {
   sampler!: SamplerMachine;
   motion!: MotionMachine;
   arrangement!: Arrangement;
+  /** The live key — shared by the sequencer, the arp and the note passthrough. */
+  scale!: ScaleQuantizer;
   perf!: Performance;
   recorder!: RecorderController;
   bankRender!: BankRenderController;
@@ -149,6 +152,13 @@ export class Engine {
   // mixer (mute/solo/volume) are delegated out of the Engine (ADR-008).
   private polyphony!: Polyphony;
   private laneMixer!: LaneMixer;
+
+  /**
+   * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
+   * what its note-on started even if the key or chord voicing changed mid-hold
+   * (voicing.md REQ-8). Bounded at 128 keys × ≤4 notes, and cleared with the voices.
+   */
+  private readonly heldIn = new Map<number, number[]>();
 
   /** When true, bus.noteOn/Off do not directly play notes — arp/seq do. */
   passthroughSuppressed = false;
@@ -328,6 +338,8 @@ export class Engine {
     // Arrangement first so its clock tick runs before the machines read
     // the play banks for the same tick.
     this.arrangement = new Arrangement(this.patterns, this.clock);
+    // The key, built before the machines so seq/arp can hold it by reference.
+    this.scale = new ScaleQuantizer();
     this.perf = new Performance(this.ctx, this.clock, this.bus, this.djFilter);
 
     // Transport modules — created after voices so they can call engine.playNote
@@ -335,8 +347,8 @@ export class Engine {
       playNote: (n, v, w) => this.playNote(n, v, w),
       releaseNote: (n, w) => this.releaseNote(n, w),
     };
-    this.arp = new Arpeggiator(synthOutput, this.bus, this.clock);
-    this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf);
+    this.arp = new Arpeggiator(synthOutput, this.bus, this.clock, this.scale);
+    this.seq = new StepSequencer(synthOutput, this.clock, this.patterns, this.arrangement, this.perf, this.scale);
     this.drums = new DrumMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.drumBus, this.fxOversample);
     this.sampler = new SamplerMachine(this.ctx, this.clock, this.patterns, this.arrangement, this.perf, this.samplerBus);
     // Motion writes params (not audio), evaluated against the audio clock's now.
@@ -407,11 +419,7 @@ export class Engine {
     this.perf.clockRampAllowed = () => this.sync.activeMode !== 'slave';
 
     this.subscribeParams();
-    this.bus.onNote((on, note, vel) => {
-      if (this.arpPassthroughSuppressed) return;
-      if (on) this.playNote(note, vel);
-      else this.releaseNote(note);
-    });
+    this.bus.onNote((on, note, vel) => this.handleNote(on, note, vel));
 
     this.installContextRearm();
 
@@ -566,10 +574,41 @@ export class Engine {
     this.polyphony.releaseNote(note, when);
   }
 
+  /**
+   * The keyboard/MIDI note passthrough (voicing.md REQ-6/REQ-8).
+   *
+   * A raw key no longer maps 1:1 to a sounding note — the key can re-pitch it and
+   * chord memory can expand it — so what was played is **remembered** rather than
+   * re-derived on release. Re-deriving would miss `Polyphony.heldNotes` (keyed by the
+   * note passed in) the moment the key or voicing changed mid-hold, and strand the
+   * voice forever. Same "resolve once, release through the stored note" rule the
+   * sequencer states at sequencer.md REQ-16.
+   *
+   * A method rather than an inline closure so it can be exercised against a
+   * structural stub, as `seekTo`/`canSeek` are.
+   */
+  handleNote(on: boolean, note: number, velocity: number): void {
+    if (this.arpPassthroughSuppressed) return;
+    if (on) {
+      const notes = this.scale.chord(note);
+      this.heldIn.set(note, notes);
+      for (const n of notes) this.playNote(n, velocity);
+    } else {
+      // The fallback only matters for a note-off with no matching note-on (a stuck
+      // MIDI message, or a key held across a panic) — otherwise the map always hits.
+      const notes = this.heldIn.get(note) ?? [this.scale.get(note)];
+      this.heldIn.delete(note);
+      for (const n of notes) this.releaseNote(n);
+    }
+  }
+
   /** Stop the transport AND silence everything (Panic button / Esc). */
   panic(): void {
     this.clock.stop();
     this.polyphony.killAll();
+    // The map names voices that no longer exist; leaving entries would make the next
+    // note-off release notes that were already killed (voicing.md REQ-8).
+    this.heldIn.clear();
   }
 
   // ---------- Transport position (transport-position.md) ----------
@@ -618,6 +657,14 @@ export class Engine {
 
     // Voicing (poly/mono, unison, glide, drift all live in Polyphony)
     bus.subscribe('voicing.mode', (v) => this.polyphony.setPoly(v >= 0.5));
+
+    // Key / scale. `subscribe` fires immediately, so the table is built at boot and
+    // rebuilt only on change — never per note (scale-quantization.md REQ-7).
+    bus.subscribe('scale.root', (v) => this.scale.setRoot(Math.round(v)));
+    bus.subscribe('scale.type', (v) => this.scale.setScale(Math.round(v)));
+    bus.subscribe('chord.voicing', (v) => this.scale.setChord(Math.round(v)));
+    // Mono suppresses chord expansion — chord-tools.md REQ-7.
+    bus.subscribe('voicing.mode', (v) => this.scale.setPoly(v >= 0.5));
 
     // OSC 1
     bus.subscribe('osc1.wave', all((v, x) => v.osc1.setWave(x)));

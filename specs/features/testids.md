@@ -150,6 +150,9 @@ step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
   seq-step-<t>-<i>                   # sequencer tracks 2-4  (features/sequencer.md)
   seq-track-<t> · seq-track-fold-<t> · seq-step-input
+  seq-chord · seq-snap · seq-snap-toast      # features/chord-tools.md — the degree
+                                             #   writer and SNAP. `seq-chord` is a
+                                             #   Dropdown, which mints no per-row ids.
   drum-step-<track>-<step> · drum-track-<track>
   drum-kit · drum-model · drum-randomize · drum-reset      # features/drum-kits.md
   sampler-step-<slot>-<step>
@@ -167,6 +170,13 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
   undo-<lane>                                       # features/pattern-undo.md
   machine-<lane>-chain                              # features/machine-status.md
+
+key tab:                     # features/scale-quantization.md, features/chord-tools.md
+  # scale.root / scale.type / chord.voicing are ParamDropdowns, which mint no id of
+  # their own (REQ-1 covers factory-minted ids; Dropdown takes one per call site):
+  key-root · key-scale · key-chord · key-hint
+  key-map · key-map-<0..23> · key-legend   # the two-octave map; the per-key id is
+                                           #   the SEMITONE, so 0..11 is octave 1
 
 motion tab:                                         # features/motion-sequencer.md
   motion-view · motion-view-<x|y> · motion-graph · motion-xypad

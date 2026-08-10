@@ -399,6 +399,74 @@ export class PatternStore {
     for (const l of this.seqListeners) l(track, index, s);
   }
 
+  /**
+   * Write `notes` down the tracks at one step index — the chord writer's one mutation
+   * (chord-tools.md REQ-2/REQ-3).
+   *
+   * Takes **plain notes**, never a scale or a degree: the theory lives in
+   * `utils/music.ts` and the caller applies it, so the store stays a data store
+   * (ADR-004) and this is testable without a key (REQ-4).
+   *
+   * Only `on` and `note` are written, so a chord dropped onto shaped steps keeps their
+   * velocity/gate/prob/ratchet/tie. Tracks past `notes.length` are switched **off**
+   * rather than left alone — otherwise a triad written over a 7th would leave the old
+   * seventh ringing underneath it.
+   */
+  writeSeqChord(index: number, notes: readonly number[]): boolean {
+    const bank = this.seqBanks[this._seqEdit];
+    if (!bank || notes.length === 0) return false;
+    if (index < 0 || index >= SEQ_LENGTH) return false;
+    // One entry for the whole gesture, so a chord costs one Ctrl+Z, not four.
+    this.emitMutate(() => ({
+      kind: 'seq-copy', bank: this._seqEdit,
+      before: bank.map((row) => row.map((s) => ({ ...s }))),
+    }));
+    for (let t = 0; t < bank.length; t++) {
+      const s = bank[t]?.[index];
+      if (!s) continue;
+      const note = notes[t];
+      if (note === undefined) {
+        if (!s.on) continue;
+        s.on = false;
+      } else {
+        s.on = true;
+        s.note = note;
+      }
+      for (const l of this.seqListeners) l(t, index, s);
+    }
+    return true;
+  }
+
+  /**
+   * Rewrite every stored note in the edit bank through `map` — the destructive
+   * counterpart of the live key filter (scale-quantization.md REQ-8).
+   *
+   * `map` is a plain function for the same reason as above: no music theory in here.
+   * Returns false when nothing moved, so the caller can report "already in key"
+   * instead of pushing an undo entry that would restore identical data.
+   */
+  snapSeqBank(map: (note: number) => number): boolean {
+    const bank = this.seqBanks[this._seqEdit];
+    if (!bank) return false;
+    const changed = bank.some((row) => row.some((s) => map(s.note) !== s.note));
+    if (!changed) return false;
+    this.emitMutate(() => ({
+      kind: 'seq-copy', bank: this._seqEdit,
+      before: bank.map((row) => row.map((s) => ({ ...s }))),
+    }));
+    for (let t = 0; t < bank.length; t++) {
+      const row = bank[t]!;
+      for (let i = 0; i < row.length; i++) {
+        const s = row[i]!;
+        const next = map(s.note);
+        if (next === s.note) continue;
+        s.note = next;
+        for (const l of this.seqListeners) l(t, i, s);
+      }
+    }
+    return true;
+  }
+
   setDrumCell(track: number, step: number, patch: Partial<DrumCell>): void {
     const cell = this.drumBanks[this._drumEdit]?.[track]?.[step];
     if (!cell) return;

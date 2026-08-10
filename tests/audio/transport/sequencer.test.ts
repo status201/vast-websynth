@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { StepSequencer } from '../../../src/audio/transport/sequencer';
 import type { SynthOutput } from '../../../src/audio/transport/note-output';
 import { makeTransportRig } from './rig';
+import { ScaleQuantizer } from '../../../src/audio/transport/scale-quantizer';
+import { SCALE_LABELS } from '../../../src/utils/music';
 
 describe('StepSequencer', () => {
   it('plays notes from the pattern on each tick', () => {
@@ -328,7 +330,7 @@ describe('StepSequencer', () => {
 describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () => {
   /** Rig with recording output stubs — the four-track cases care about the SET
    *  of notes per tick, which vi.fn() call order alone makes awkward to read. */
-  function build() {
+  function build(scale = new ScaleQuantizer()) {
     const { clock, patterns, arrangement, perf } = makeTransportRig();
     const played: { note: number; when: number }[] = [];
     const released: { note: number }[] = [];
@@ -336,8 +338,8 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       playNote: (note, _vel, when) => { played.push({ note, when: when ?? 0 }); },
       releaseNote: (note) => { released.push({ note }); },
     };
-    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
-    return { clock, patterns, arrangement, seq, played, released };
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf, scale);
+    return { clock, patterns, arrangement, seq, played, released, scale };
   }
 
   it('plays every track on the same step, layering into a chord', () => {
@@ -446,6 +448,91 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       // 144 would be Infinity Hz at the oscillator; a dropped note would make a
       // transposed bar silently lose part of its line.
       expect(played.map((p) => p.note)).toEqual([127]);
+    });
+
+    it('quantizes AFTER transposing, so a shifted bar stays in key (REQ-17)', () => {
+      // The whole point of the feature. C major, bar 2 transposed +5:
+      // 60 -> 65 (F, in key). A step on 62 -> 67 (G, in key).
+      const scale = new ScaleQuantizer();
+      scale.setRoot(0);
+      scale.setScale(SCALE_LABELS.indexOf('major'));
+      const { patterns, clock, arrangement, played, seq } = build(scale);
+      patterns.setSeqStep(0, 0, { on: true, note: 61, gate: 0.5 }); // C#, out of key
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0, 0], true, [0, 5]);
+
+      clock.fireTick(0);       // bar 1: 61 + 0 = 61 -> quantized to 60
+      clock.step = 16;
+      clock.fireTick(0.1);     // bar 2: 61 + 5 = 66 -> quantized to 65
+      expect(played.map((p) => p.note)).toEqual([60, 65]);
+      // Every note sounded is a C-major pitch class, transposed bar included.
+      const C_MAJOR = [0, 2, 4, 5, 7, 9, 11];
+      for (const p of played) expect(C_MAJOR).toContain(p.note % 12);
+    });
+
+    it('brings an in-key note transposed off-key back into the scale (REQ-17)', () => {
+      // 60 (C, in key) + 1 = 61 (C#, NOT in key). Quantize-first would play 61.
+      const scale = new ScaleQuantizer();
+      scale.setRoot(0);
+      scale.setScale(SCALE_LABELS.indexOf('major'));
+      const { patterns, clock, arrangement, played, seq } = build(scale);
+      patterns.setSeqStep(0, 0, { on: true, note: 60, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0], true, [1]);
+      clock.fireTick(0);
+      expect(played.map((p) => p.note)).toEqual([60]);
+    });
+
+    it('never rewrites the stored bank when quantizing (REQ-17 + REQ-9)', () => {
+      const scale = new ScaleQuantizer();
+      scale.setRoot(0);
+      scale.setScale(SCALE_LABELS.indexOf('major'));
+      const { patterns, clock, seq } = build(scale);
+      patterns.setSeqStep(0, 0, { on: true, note: 61, gate: 0.5 });
+      seq.setEnabled(true);
+      clock.fireTick(0);
+      // Turning the scale off must restore the original line exactly.
+      expect(patterns.seqBanks[0]![0]![0]!.note).toBe(61);
+    });
+
+    it('leaves every note untouched while chromatic (REQ-17, back-compat)', () => {
+      const { patterns, clock, arrangement, played, seq } = build(); // default = chromatic
+      patterns.setSeqStep(0, 0, { on: true, note: 61, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0], true, [5]);
+      clock.fireTick(0);
+      expect(played.map((p) => p.note)).toEqual([66]);
+    });
+
+    it('releases a tie at the quantized pitch it started (REQ-17, edge)', () => {
+      // The stuck-voice trap: the release goes through lastPlayedNote, which must
+      // hold the QUANTIZED note, not the raw stored one.
+      const scale = new ScaleQuantizer();
+      scale.setRoot(0);
+      scale.setScale(SCALE_LABELS.indexOf('major'));
+      const { patterns, clock, arrangement, played, released, seq } = build(scale);
+      patterns.setSeqStep(0, 15, { on: true, note: 61, gate: 0.5, tie: true });
+      patterns.setSeqStep(0, 0, { on: true, note: 61, gate: 0.5 });
+      seq.setEnabled(true);
+      arrangement.setSeqChain([0, 0], true, [0, 5]);
+
+      // Bar 1 must actually be played for the step-16 tick to advance the lane —
+      // the first bar-line tick only consumes `expectFirstBar` (arrangement.md REQ-4).
+      clock.step = 0;
+      clock.fireTick(0);        // bar 1, slot 0: 61 -> 60
+      clock.step = 15;
+      clock.fireTick(0.1);      // still bar 1: 61 -> 60, and ties
+      expect(played.map((p) => p.note)).toEqual([60, 60]);
+      played.length = 0;
+      released.length = 0;
+
+      clock.step = 16;
+      clock.fireTick(0.2);      // bar 2, slot 1 (+5): 61 + 5 = 66 -> 65
+      expect(played.map((p) => p.note)).toEqual([65]);
+      // The release carries 65 — bar 2's OWN quantized pitch. The tied voice from
+      // bar 1 is still ringing at 60 and must not be re-pitched under it, which is
+      // exactly what re-deriving the quantize at the release site would do.
+      expect(released.map((r) => r.note)).toEqual([65]);
     });
 
     it('releases a note tied across a bar line at ITS OWN pitch (edge)', () => {

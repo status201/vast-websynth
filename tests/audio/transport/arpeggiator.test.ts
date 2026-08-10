@@ -3,15 +3,25 @@ import { Arpeggiator } from '../../../src/audio/transport/arpeggiator';
 import { ParamBus } from '../../../src/state/params';
 import { TestClock } from './test-clock';
 import type { SynthOutput } from '../../../src/audio/transport/note-output';
+import { ScaleQuantizer } from '../../../src/audio/transport/scale-quantizer';
+import { SCALE_LABELS, CHORD_LABELS } from '../../../src/utils/music';
 
-function setup() {
+function setup(scale = new ScaleQuantizer()) {
   const clock = new TestClock();
   const bus = new ParamBus();
   const playNote = vi.fn();
   const releaseNote = vi.fn();
   const output: SynthOutput = { playNote, releaseNote };
-  const arp = new Arpeggiator(output, bus, clock);
-  return { clock, bus, arp, playNote, releaseNote };
+  const arp = new Arpeggiator(output, bus, clock, scale);
+  return { clock, bus, arp, playNote, releaseNote, scale };
+}
+
+/** A quantizer already set to a key, for the REQ-8 cases. */
+function inKey(scaleName: string, root = 0): ScaleQuantizer {
+  const s = new ScaleQuantizer();
+  s.setRoot(root);
+  s.setScale(SCALE_LABELS.indexOf(scaleName));
+  return s;
 }
 
 /** The note arg of each playNote call, in order. */
@@ -249,5 +259,70 @@ describe('Arpeggiator armed by a song (REQ-7)', () => {
     bus.noteOn(60); // the player joins in over the running song
     clock.fireTicks(2);
     expect(played(playNote)).toEqual([60, 60]);
+  });
+});
+
+// arpeggiator.md REQ-8. Two transforms sit on the pool build: chord memory widens
+// it, and the key snaps every entry — including the octave-stacked copies.
+describe('Arpeggiator key + chord memory (REQ-8)', () => {
+  it('quantizes the held note into the key', () => {
+    const { clock, bus, arp, playNote } = setup(inKey('major'));
+    arp.setEnabled(true);
+    bus.noteOn(61); // C#, not in C major
+    clock.fireTick(0);
+    expect(played(playNote)).toEqual([60]);
+  });
+
+  it('quantizes the octave-stacked copies too, not just the base note', () => {
+    // The stack happens first (n + o*12), so an octave copy can land off-key on its
+    // own; quantizing after the stack is what this pins.
+    const { clock, bus, arp, playNote } = setup(inKey('pent maj'));
+    arp.setEnabled(true);
+    arp.setOctaves(2);
+    bus.noteOn(66); // F# -> G in C pentatonic major
+    clock.fireTicks(2);
+    // 66 -> 67, and 66+12 = 78 -> 79. Both in scale.
+    expect(played(playNote)).toEqual([67, 79]);
+  });
+
+  it('leaves everything alone while chromatic (back-compat)', () => {
+    const { clock, bus, arp, playNote } = setup(); // default = chromatic
+    arp.setEnabled(true);
+    bus.noteOn(61);
+    clock.fireTick(0);
+    expect(played(playNote)).toEqual([61]);
+  });
+
+  it('arpeggiates a whole chord from one held key (chord-tools.md REQ-6)', () => {
+    const scale = inKey('major');
+    scale.setChord(CHORD_LABELS.indexOf('triad'));
+    const { clock, bus, arp, playNote } = setup(scale);
+    arp.setEnabled(true);
+    bus.noteOn(60);            // C -> C E G
+    clock.fireTicks(3);
+    expect(played(playNote)).toEqual([60, 64, 67]);
+  });
+
+  it('does not expand chord memory in mono (chord-tools.md REQ-7)', () => {
+    const scale = inKey('major');
+    scale.setChord(CHORD_LABELS.indexOf('triad'));
+    scale.setPoly(false);
+    const { clock, bus, arp, playNote } = setup(scale);
+    arp.setEnabled(true);
+    bus.noteOn(60);
+    clock.fireTicks(3);
+    expect(played(playNote)).toEqual([60, 60, 60]);
+  });
+
+  it('keeps press order in as-played when chord memory expands', () => {
+    const scale = inKey('major');
+    scale.setChord(CHORD_LABELS.indexOf('triad'));
+    const { clock, bus, arp, playNote } = setup(scale);
+    arp.setEnabled(true);
+    arp.setPattern(4); // as-played
+    bus.noteOn(67);    // G held FIRST -> G B D
+    bus.noteOn(60);    // C held second -> C E G
+    clock.fireTicks(6);
+    expect(played(playNote)).toEqual([67, 71, 74, 60, 64, 67]);
   });
 });
