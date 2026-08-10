@@ -171,6 +171,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   have saves silently. An edited song under a saved name still asks, which is
   what the prompt is for.
 
+- **The LFO panel sits on its neighbours' baseline on every machine.** Its
+  **1 / 2** tab row is built to be exactly as tall as a plain panel title, but
+  the title's height was left to the font — and the app's Inter is whatever your
+  system substitutes. Where that substitute set 10px text tighter (most Linux
+  setups), every plain panel header came up 3px short and the LFO panel's knobs
+  stood proud of the row. Both heights are now fixed, so the faceplate lines up
+  whatever font you have.
+
 ## [2.7.1] - 2026-08-04
 
 ### Fixed

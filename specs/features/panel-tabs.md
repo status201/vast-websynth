@@ -3,7 +3,7 @@
 ```yaml
 id: panel-tabs
 status: implemented
-version: 1
+version: 2
 owner: core
 related:
   - architecture
@@ -115,11 +115,23 @@ whole of this component.
   only repeat them, and a title-plus-strip row costs vertical space that the
   8-column faceplate does not have. The row therefore occupies **exactly a plain
   `.panelTitle`'s height** (21 px today: a 13 px line box + 3 px padding + 1 px
-  border top and bottom, against the title's line + 6 px padding + 1 px rule), so
-  a tabbed panel's controls stay on the same baseline as its untabbed
-  neighbours across the grid. The line-height is set explicitly rather than left
-  to the font, and the match is measured in a real browser — jsdom has no layout
-  engine, so only an E2E assertion can pin it.
+  border top and bottom, against the title's 14 px line box + 6 px padding + 1 px
+  rule), so a tabbed panel's controls stay on the same baseline as its untabbed
+  neighbours across the grid.
+  - **Both sides of the match declare their `line-height` in px.** Leaving
+    either to the font makes the equality a property of the machine rather than
+    of the stylesheet: `--sans` is `'Inter', system-ui, …` and no build ships
+    Inter as a webfont, so `line-height: normal` at 10 px resolves against
+    whatever the OS substitutes — a 14 px line box on Segoe UI, 11 px on the
+    Linux CI runner's fallback. That is exactly how a title that measured 21 px
+    on the author's box measured 18 px under a 21 px tab row in CI: the tab had
+    its explicit line-height from the start; `.panelTitle`, which predates this
+    component, did not.
+  - Because the drift only shows where the fonts differ, the requirement is
+    pinned **twice**: as CSS text (`tests/ui/panel-header-height.test.ts`, which
+    runs everywhere and computes both box heights from the declarations), and by
+    measuring the laid-out rows in a real browser (`e2e/lfo2.spec.ts` — jsdom has
+    no layout engine, so only an E2E assertion can see the rendered box).
   - **Unselected** tabs use the `Switch` well (`linear-gradient(180deg, #1a1410,
     #0a0805)` + `--panel-border`), so the page you are *not* on reads as a
     control to press. **Selected** wears the panel-title look exactly — same
@@ -242,6 +254,13 @@ Scenario: A tabbed header is exactly as tall as a plain one (REQ-9)
   So the two panels' controls sit on the same baseline
 # pinned by: e2e/lfo2.spec.ts
 
+Scenario: The header match does not depend on which sans the OS substitutes (REQ-9)
+  Given a machine whose fallback sans gives 10px text an 11px line box
+  When the faceplate lays out
+  Then the plain panel title is still 21px tall, as the tab row is
+  Because both rules declare a px line-height instead of inheriting the font's
+# pinned by: tests/ui/panel-header-height.test.ts
+
 Scenario: Each tab names its own page, with no separate heading (REQ-9)
   Given a two-page LFO panel
   Then the tabs read "LFO 1" and "LFO 2" and the panel carries no other title
@@ -299,7 +318,8 @@ requirement to revisit first.
 ## Tests & verification
 
 - Unit: `tests/ui/panel-tabs.test.ts`, `tests/ui/lfo-panel.test.ts` — `npm test`
-- Drift pin: `tests/ui/typography.test.ts` (REQ-4)
+- Drift pin: `tests/ui/typography.test.ts` (REQ-4),
+  `tests/ui/panel-header-height.test.ts` (REQ-9, from CSS text)
 - E2E: `e2e/lfo2.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 
