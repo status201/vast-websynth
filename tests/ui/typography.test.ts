@@ -37,6 +37,10 @@ const DISPLAY_TYPE = [
   'floating-window.module.css .closeBtn',
   'floating-window.module.css .minBtn',
   'keyboard.module.css .key',
+  // The mod matrix's two fixed rows name a part of the instrument — "LFO 1",
+  // "LFO 2" — rather than carrying a value, so they are a faceplate legend in the
+  // same sense as `drum .trackLabel`. Every other cell in that window is a control.
+  'mod.module.css .fixedSrc',
   'rest-overlay.module.css .caption',
   'segmented.module.css .root button, :global(.segmented) button',
   'seq.module.css .noteDisplay',

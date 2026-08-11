@@ -3,6 +3,7 @@ import type { ParamBus, ParamDef } from '../../state/params';
 import { toNorm, fromNorm } from '../../utils/taper';
 import { clamp01 } from '../../utils/math';
 import { formatParam } from '../format-param';
+import { modDepthDeps, modDepthFor, modOffsetFor, modSignFor } from '../../state/mod-depth';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -30,6 +31,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ROTATION_PRECISION = 2;
 const ARC_PRECISION = 2;
 
+/** Radius of the modulation range ring — inside the value arc's 26, so the two
+ *  never overlap and a bipolar band stays visible on both sides of the value. */
+const MOD_ARC_R = 21;
+
+/** Angular width of the live-position tick, in degrees of the knob's sweep. */
+const MARKER_DEG = 7;
+
 export class Knob {
   readonly el: HTMLElement;
   private readonly indicator: HTMLElement;
@@ -49,6 +57,23 @@ export class Knob {
   private uiMaxNorm = 1;
   /** The dead-travel marker, built on demand — see `paintDead`. */
   private dead: SVGCircleElement | null = null;
+  /**
+   * The modulation range arc, built on demand — most knobs never have one, and a
+   * knob nothing modulates must cost nothing (mod-matrix.md REQ-8).
+   */
+  private modArc: SVGCircleElement | null = null;
+  /** Reach of the routes pointed here, in **param units**. 0 = no arc. */
+  private modDepth = 0;
+  private lastModDash = '';
+  /**
+   * Live position inside the band, from sources the main thread already knows — the
+   * mod wheel today. `null` when there are none, which is the usual case.
+   */
+  private modOffset: number | null = null;
+  private modMarker: SVGCircleElement | null = null;
+  private lastMarkerDash = '';
+  /** -1 when every route here is inverted; 0 when mixed or none; 1 when all positive. */
+  private modSign: -1 | 0 | 1 = 0;
   /** Last values actually written to the DOM — see `render`. */
   private lastDeg = '';
   private lastDash = '';
@@ -122,6 +147,27 @@ export class Knob {
     if (opts.uiMax !== undefined) this.applyUiMax(opts.uiMax);
 
     this.unsubscribe = bus.subscribe(opts.paramId, (v) => this.render(v));
+
+    // Self-wiring, ADR-008: the knob asks whether anything can modulate *it* and
+    // subscribes only if so. `modDepthDeps` is empty for all but a handful of params,
+    // so the ~100 knobs on the faceplate overwhelmingly subscribe to nothing here.
+    const deps = modDepthDeps(opts.paramId);
+    if (deps.length > 0) {
+      const read = (id: string): number => bus.get(id);
+      const refresh = (): void => {
+        this.setModDepth(modDepthFor(opts.paramId, read));
+        this.setModOffset(modOffsetFor(opts.paramId, read));
+        // The band itself carries the sign, so an inverted route is visible on the
+        // faceplate with the matrix window shut (mod-matrix.md REQ-13).
+        this.setModSign(modSignFor(opts.paramId, read));
+      };
+      const unsubs = deps.map((id) => bus.subscribe(id, refresh));
+      const dropValue = this.unsubscribe;
+      this.unsubscribe = (): void => {
+        dropValue();
+        for (const u of unsubs) u();
+      };
+    }
   }
 
   /**
@@ -163,6 +209,139 @@ export class Knob {
       this.lastLabel = label;
       this.valueLabel.textContent = label;
     }
+
+    if (this.modDepth > 0) this.paintModRange(value);
+    if (this.modOffset !== null) this.paintModMarker(value);
+  }
+
+  /**
+   * A tick showing where a **main-thread-knowable** source currently has this param —
+   * the mod wheel (mod-matrix.md REQ-11).
+   *
+   * The band alone says how far a route *can* move the knob; for a control the player
+   * is holding, that reads as nothing happening. This is the one source whose live
+   * value costs nothing to know, so it is the one that gets a position.
+   */
+  private paintModMarker(value: number): void {
+    const circ = 2 * Math.PI * MOD_ARC_R;
+    const dashOn = (circ * SWEEP_DEG) / 360;
+    const at = clamp01(this.normalize(value + (this.modOffset ?? 0)));
+    const seg = (dashOn * MARKER_DEG) / SWEEP_DEG;
+    // Centred on the position, so it does not drift off the end at the extremes.
+    const start = Math.max(0, Math.min(dashOn - seg, dashOn * at - seg / 2));
+    const dash = `${seg.toFixed(ARC_PRECISION)} ${(circ - seg).toFixed(ARC_PRECISION)}`;
+    const offset = (-start).toFixed(ARC_PRECISION);
+    const key = `${dash}|${offset}`;
+    if (key === this.lastMarkerDash) return;
+    this.lastMarkerDash = key;
+    const m = this.ensureModMarker();
+    m.setAttribute('stroke-dasharray', dash);
+    m.setAttribute('stroke-dashoffset', offset);
+  }
+
+  private ensureModMarker(): SVGCircleElement {
+    if (this.modMarker) return this.modMarker;
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('class', styles.modMarker!);
+    c.setAttribute('cx', '28');
+    c.setAttribute('cy', '28');
+    c.setAttribute('r', String(MOD_ARC_R));
+    c.setAttribute('transform', `rotate(${90 + (360 - SWEEP_DEG) / 2} 28 28)`);
+    // Above the band it rides in, below the value arc.
+    this.arc.parentNode!.insertBefore(c, this.arc);
+    this.modMarker = c;
+    return c;
+  }
+
+  /** Colour the band and tick by which way the routes push (REQ-13). */
+  setModSign(sign: -1 | 0 | 1): void {
+    if (sign === this.modSign) return;
+    this.modSign = sign;
+    this.el.classList.toggle(styles.modPos!, sign === 1);
+    this.el.classList.toggle(styles.modNeg!, sign === -1);
+  }
+
+  /**
+   * Set the live position, in **param units** offset from the knob's own value, or
+   * `null` when no main-thread-knowable source targets this param.
+   */
+  setModOffset(offset: number | null): void {
+    if (offset === this.modOffset) return;
+    this.modOffset = offset;
+    if (offset === null) {
+      this.modMarker?.remove();
+      this.modMarker = null;
+      this.lastMarkerDash = '';
+      return;
+    }
+    this.lastMarkerDash = '';
+    this.render(this.opts.bus.get(this.opts.paramId));
+  }
+
+  /**
+   * The band modulation can move this knob over: `value ± depth`, drawn behind the
+   * value arc (mod-matrix.md REQ-8).
+   *
+   * Both ends are converted through the param's own taper rather than offsetting the
+   * normalized position, so the arc is honest on a `power`-tapered knob like
+   * `filter.resonance`, where equal param steps are not equal travel.
+   *
+   * This shows **reach, not position**. Where modulation currently *is* lives on the
+   * audio thread and is per-voice — eight voices have eight different filter-envelope
+   * values — so drawing it would need a port message per frame and an answer to
+   * "which voice?". Reach costs nothing and answers the question a player actually
+   * has: how far will this move?
+   */
+  private paintModRange(value: number): void {
+    // Its own, smaller circumference: the band rides an INNER ring (MOD_ARC_R), not
+    // the value arc's radius. Sharing the radius put the value arc on top of the
+    // band's lower half, so a bipolar route — which swings both ways — read as
+    // one-sided headroom.
+    const circ = 2 * Math.PI * MOD_ARC_R;
+    const dashOn = (circ * SWEEP_DEG) / 360;
+    const lo = clamp01(this.normalize(value - this.modDepth));
+    const hi = clamp01(this.normalize(value + this.modDepth));
+    const seg = dashOn * Math.max(0, hi - lo);
+    const dash = `${seg.toFixed(ARC_PRECISION)} ${(circ - seg).toFixed(ARC_PRECISION)}`;
+    const offset = (-dashOn * lo).toFixed(ARC_PRECISION);
+    const key = `${dash}|${offset}`;
+    if (key === this.lastModDash) return;
+    this.lastModDash = key;
+    const arc = this.ensureModArc();
+    arc.setAttribute('stroke-dasharray', dash);
+    arc.setAttribute('stroke-dashoffset', offset);
+  }
+
+  private ensureModArc(): SVGCircleElement {
+    if (this.modArc) return this.modArc;
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('class', styles.modRange!);
+    c.setAttribute('cx', '28');
+    c.setAttribute('cy', '28');
+    c.setAttribute('r', String(MOD_ARC_R));
+    c.setAttribute('transform', `rotate(${90 + (360 - SWEEP_DEG) / 2} 28 28)`);
+    // Behind the value arc: the value is what you set, the band is context.
+    this.arc.parentNode!.insertBefore(c, this.arc);
+    this.modArc = c;
+    return c;
+  }
+
+  /**
+   * Set how far modulation can move this knob, in **param units**. `0` removes the
+   * arc. Called by the self-wiring in the constructor; also usable directly.
+   */
+  setModDepth(depth: number): void {
+    const d = Math.max(0, depth);
+    if (d === this.modDepth) return;
+    this.modDepth = d;
+    if (d === 0) {
+      this.modArc?.remove();
+      this.modArc = null;
+      this.lastModDash = '';
+      return;
+    }
+    this.lastModDash = '';                       // force a repaint at the new depth
+    this.render(this.opts.bus.get(this.opts.paramId));
   }
 
   private normalize(v: number): number {

@@ -144,7 +144,7 @@ synth faceplate panels:
   ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-3
   pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-9 — per page, so
                                      #   the two hints don't collide by text (REQ-4)
-  dest-taken-<lfo|lfo2>              # features/lfo.md REQ-12 — names the holder
+  # dest-taken-<lfo|lfo2> REMOVED in lfo.md v8 — REQ-12 is superseded by the matrix
 
 step grids, rulers & overlays:
   seq-step-<i>                       # sequencer track 1
@@ -177,6 +177,13 @@ key tab:                     # features/scale-quantization.md, features/chord-to
   key-root · key-scale · key-chord · key-hint
   key-map · key-map-<0..23> · key-legend   # the two-octave map; the per-key id is
                                            #   the SEMITONE, so 0..11 is octave 1
+
+mod matrix window:                                  # features/mod-matrix.md
+  mod-window · mod-row-<0..7> · mod-hint
+  mod-src-<2..7> · mod-dst-<0..7>    # rows 0-1 are the LFOs: fixed source, so no
+                                     #   src picker, and their dst/amt bind to
+                                     #   lfo.dest / lfo.amount (REQ-2)
+  perf-mod                           # the launcher, beside perf-xypad
 
 motion tab:                                         # features/motion-sequencer.md
   motion-view · motion-view-<x|y> · motion-graph · motion-xypad

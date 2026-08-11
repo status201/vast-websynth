@@ -1,0 +1,65 @@
+/* The mod matrix window (specs/features/mod-matrix.md REQ-1..REQ-9).
+   A table of routes: source -> destination -> depth, one row each. */
+
+.matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 320px;
+}
+
+.row {
+  display: grid;
+  /* Two pickers of equal weight, then a fixed slot for the depth knob. */
+  grid-template-columns: 1fr 1fr 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.head {
+  font-family: var(--sans);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+/* Rows 0-1: the source is fixed, so it reads as a label rather than a control.
+   Serif is faceplate legend type, and this names a piece of the instrument. */
+.fixedSrc {
+  font-family: var(--serif);
+  font-size: 11px;
+  color: var(--text);
+  padding-left: 2px;
+}
+
+/* An unassigned route fades its cells — never the row itself, or its own pickers
+   would become unreachable (motion-sequencer.md REQ-16). The source picker is
+   deliberately left at full strength: it is the one control you need to click. */
+.idle > *:not(:first-child) {
+  opacity: 0.45;
+}
+
+.hint {
+  margin: 4px 0 0;
+  font-family: var(--sans);
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--text-dim);
+  max-width: 340px;
+}
+
+/* Phones: the grid would crush three controls into ~110px each, well under the
+   44px touch target once padding is counted. Stack instead (ADR-014 law 6). */
+@media (max-width: 560px) {
+  .matrix { min-width: 0; }
+  .row {
+    grid-template-columns: 1fr 44px;
+    grid-template-areas: 'src src' 'dst amt';
+    row-gap: 4px;
+  }
+  .row > *:nth-child(1) { grid-area: src; }
+  .row > *:nth-child(2) { grid-area: dst; }
+  .row > *:nth-child(3) { grid-area: amt; }
+  .head { display: none; }
+}

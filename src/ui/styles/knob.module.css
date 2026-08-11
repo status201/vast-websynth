@@ -97,3 +97,52 @@
 .disabled .dial {
   cursor: default;
 }
+
+/*
+ * How far modulation can move this knob (mod-matrix.md REQ-8): a band drawn from
+ * `value - depth` to `value + depth`, behind the value arc.
+ *
+ * Deliberately dimmer and thinner than `.value` — the value is what you set, the
+ * band is context. Amber rather than the value's orange so the two never read as one
+ * arc, and no drop-shadow: a glow here would compete with the value it sits under.
+ */
+.modRange {
+  fill: none;
+  stroke: var(--accent-secondary);
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+/*
+ * Where a main-thread-knowable source currently has the knob (mod-matrix.md REQ-11).
+ * Today that is the mod wheel — the one source a player is holding, and the one whose
+ * live value costs nothing to read.
+ *
+ * Brighter and thicker than the band it rides, because this is a *position* and the
+ * band is only its range; at the same weight the tick vanished into it.
+ */
+.modMarker {
+  fill: none;
+  stroke: var(--accent-secondary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px var(--accent-secondary-glow));
+}
+
+/*
+ * Direction of the modulation band and its tick (mod-matrix.md REQ-13): green is up,
+ * yellow is down.
+ *
+ * Only the INNER band is coloured. A knob's own value needs no colour — its pointer
+ * already says where it is, and colouring that too spent a signal on something
+ * already obvious. What is not obvious is which way an unseen route pushes, so that
+ * is what the colour is for. Mixed-sign routes stay neutral amber, because "negative"
+ * would not then be a true statement about the knob.
+ */
+.modPos .modRange,
+.modPos .modMarker { stroke: var(--accent-good); }
+.modPos .modMarker { filter: drop-shadow(0 0 3px var(--accent-good-glow)); }
+
+.modNeg .modRange,
+.modNeg .modMarker { stroke: var(--accent-secondary); }
+.modNeg .modMarker { filter: drop-shadow(0 0 3px var(--accent-secondary-glow)); }

@@ -1,6 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
 import type { XyPadWindowController } from './xy-pad-window';
+import type { ModMatrixWindowController } from './mod-matrix-window';
 import { Knob } from './knob';
 import { FloatingWindow } from './floating-window';
 import switchStyles from '../styles/switch.module.css';
@@ -131,5 +132,25 @@ export function createLiveFxWindowLauncher(
     win.open();
     b.classList.add('on');
   });
+  return b;
+}
+
+/**
+ * The MOD launcher — the mod matrix's door, and the sibling of `xyPadLaunchButton`
+ * above. Both live here so they wear the same faceplate button, and both take a
+ * shared controller so every door toggles the SAME window rather than spawning a
+ * second (specs/features/mod-matrix.md, floating-window.md REQ-2).
+ *
+ * It sits in this row because the row is where *assignable controller* launchers
+ * already live: the XY Pad beside it is itself a modulation controller whose
+ * assignment saves with the song.
+ */
+export function modMatrixLaunchButton(
+  win: ModMatrixWindowController, testId: string,
+): HTMLButtonElement {
+  const b = djButton('MOD', testId);
+  b.title = 'Modulation matrix';
+  b.addEventListener('click', () => win.toggle());
+  win.onChange((open) => b.classList.toggle('on', open));
   return b;
 }

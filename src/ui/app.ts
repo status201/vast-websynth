@@ -52,6 +52,7 @@ import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
 import { buildLfoPanel } from './panels/lfo-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
+import { createModMatrixWindowController } from './components/mod-matrix-window';
 import { createEffectiveXy } from '../state/xy-effective';
 
 /**
@@ -387,7 +388,10 @@ function buildPatternRow(
   // override wins while motion is on), so its labels stay truthful per bar.
   const effectiveXy = createEffectiveXy(xy, engine.patterns, engine.arrangement, bus);
   const xyWin = createXyPadWindowController(bus, xy, effectiveXy);
-  const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin);
+  // One controller for the whole app, like `xyWin`: every launcher must toggle the
+  // SAME window, never spawn a second (mod-matrix.md, floating-window.md REQ-2).
+  const modWin = createModMatrixWindowController(bus);
+  const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin, modWin);
   // Hoisted out of the tabs array: the panel is built before the TabContainer
   // exists, so this is the only way to keep a handle on it (see below).
   const seq = buildSeqPanel(bus, engine, patternUndo, bridge);

@@ -50,3 +50,17 @@ export function fxGroup(
 
   return group;
 }
+
+/**
+ * The bare vertical rule `fxGroup` puts before its title, on its own.
+ *
+ * Exported so a row can separate something that is **not** an FX group with the same
+ * mark — the Song row's MOD launcher, which is a door onto the patch's modulation
+ * routing rather than one of the momentary Live FX gestures beside it. Reused rather
+ * than re-drawn so the two rules in that row cannot drift apart.
+ */
+export function rowDivider(): HTMLElement {
+  const el = document.createElement('div');
+  el.className = styles.divider!;
+  return el;
+}

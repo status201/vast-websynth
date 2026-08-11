@@ -328,3 +328,178 @@ describe('Knob soft ceiling', () => {
     expect(knob.el.textContent).toContain('20.00Hz');
   });
 });
+
+/**
+ * The modulation range arc (specs/features/mod-matrix.md REQ-8): how far routes can
+ * move this knob, drawn from the route params alone — no audio-thread readback.
+ */
+describe('Knob modulation range arc', () => {
+  const arcs = (k: Knob): number => k.el.querySelectorAll('circle').length;
+  /** The range arc itself — circles are [track, modRange, value], so index is a trap. */
+  const band = (k: Knob): SVGCircleElement | null =>
+    k.el.querySelector('.' + styles.modRange!);
+
+  it('draws no arc, and subscribes to nothing, on an unmodulatable param', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'master.volume' });
+    // Track + value only. A knob nothing can modulate must cost nothing.
+    expect(arcs(k)).toBe(2);
+    b.set('mod.0.src', 1);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 1);
+    expect(arcs(k)).toBe(2);
+  });
+
+  it('grows an arc when a route points at it, and drops it again', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    expect(arcs(k)).toBe(2);
+
+    b.set('mod.0.src', 1);          // LFO 1
+    b.set('mod.0.dst', 1);          // cutoff
+    b.set('mod.0.amt', 0.5);
+    expect(arcs(k)).toBe(3);
+
+    // Built on demand, and removed again — not just hidden.
+    b.set('mod.0.amt', 0);
+    expect(arcs(k)).toBe(2);
+  });
+
+  it('appears for an LFO row too, not only a matrix row', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('lfo.dest', 1);           // cutoff
+    b.set('lfo.amount', 0.5);
+    expect(arcs(k)).toBe(3);
+  });
+
+  it('widens with depth', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 1);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 0.2);
+    const narrow = band(k)!.getAttribute('stroke-dasharray');
+    b.set('mod.0.amt', 0.8);
+    const wide = band(k)!.getAttribute('stroke-dasharray');
+    expect(wide).not.toBe(narrow);
+    expect(parseFloat(wide!)).toBeGreaterThan(parseFloat(narrow!));
+  });
+
+  it('follows the knob value, since the band is centred on it', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 1);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 0.3);
+    const before = band(k)!.getAttribute('stroke-dashoffset');
+    b.set('filter.cutoff', 60);
+    const after = band(k)!.getAttribute('stroke-dashoffset');
+    expect(after).not.toBe(before);
+  });
+
+  it('stops widening once the band reaches the end of the dial (edge)', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 1);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 1);
+    const full = parseFloat(band(k)!.getAttribute('stroke-dasharray')!);
+    // The band is clamped into the dial, so it can never draw past the sweep.
+    const sweep = 2 * Math.PI * 21 * (280 / 360);
+    expect(full).toBeLessThanOrEqual(sweep + 0.01);
+  });
+});
+
+/** REQ-11's live tick — only for sources the main thread already knows. */
+describe('Knob modulation position marker', () => {
+  const marker = (k: Knob): SVGCircleElement | null =>
+    k.el.querySelector('.' + styles.modMarker!);
+
+  it('appears for a mod-wheel route and tracks the wheel', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.resonance' });
+    b.set('mod.0.src', 3);          // mod wheel
+    b.set('mod.0.dst', 2);          // resonance
+    b.set('mod.0.amt', 0.5);
+    expect(marker(k)).not.toBeNull();
+
+    const down = marker(k)!.getAttribute('stroke-dashoffset');
+    b.set('master.modWheel', 1);
+    expect(marker(k)!.getAttribute('stroke-dashoffset')).not.toBe(down);
+  });
+
+  it('shows even with the wheel down, so you can see where it will travel from', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 3);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 1);
+    expect(b.get('master.modWheel')).toBe(0);
+    expect(marker(k)).not.toBeNull();
+  });
+
+  it('stays absent for an audio-thread source, which has no knowable position', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 1);          // LFO 1 — lives on the audio thread
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 1);
+    expect(k.el.querySelector('.' + styles.modRange!)).not.toBeNull();  // band, yes
+    expect(marker(k)).toBeNull();                                        // tick, no
+  });
+
+  it('is removed when the wheel route goes away', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 3);
+    b.set('mod.0.dst', 1);
+    b.set('mod.0.amt', 1);
+    expect(marker(k)).not.toBeNull();
+    b.set('mod.0.src', 0);          // off
+    expect(marker(k)).toBeNull();
+  });
+});
+
+/**
+ * Sign colouring (mod-matrix.md REQ-13). Green is up, yellow is down — the direction
+ * a control pushes, not how much of it.
+ */
+describe('Knob modulation direction colouring', () => {
+  it('colours the band by the route sign, window or no window', () => {
+    // The point of the colour: an inverted route is visible on the FILTER panel
+    // without the matrix open.
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.resonance' });
+    b.set('mod.0.src', 1);          // LFO 1
+    b.set('mod.0.dst', 2);          // resonance
+    b.set('mod.0.amt', 0.5);
+    expect(k.el.className).toContain(styles.modPos!);
+
+    b.set('mod.0.amt', -0.5);
+    expect(k.el.className).toContain(styles.modNeg!);
+    expect(k.el.className).not.toContain(styles.modPos!);
+  });
+
+  it('stays neutral when routes disagree, because "negative" would be a lie', () => {
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
+    b.set('mod.0.src', 1); b.set('mod.0.dst', 1); b.set('mod.0.amt', 0.5);
+    b.set('mod.1.src', 4); b.set('mod.1.dst', 1); b.set('mod.1.amt', -0.5);
+    expect(k.el.className).not.toContain(styles.modPos!);
+    expect(k.el.className).not.toContain(styles.modNeg!);
+  });
+
+  it('leaves a knob own value arc alone, however negative it goes', () => {
+    // Colour is spent on what position cannot say. A bipolar knob's own value is
+    // already legible from its pointer, so ENV at -26st stays the faceplate amber.
+    const b = bus();
+    const k = new Knob({ bus: b, paramId: 'filter.envAmount' });
+    b.set('filter.envAmount', -26);
+    const cls = k.el.className;
+    expect(cls).not.toContain(styles.modPos!);
+    expect(cls).not.toContain(styles.modNeg!);
+    // ...and nothing else got added either: the class list is just the root.
+    expect(cls.trim()).toBe(styles.root!);
+  });
+});

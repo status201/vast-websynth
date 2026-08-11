@@ -10,10 +10,11 @@ import { Switch } from '../components/switch';
 import { Dropdown } from '../components/dropdown';
 import { audibleLanes, LANE_IDS, type LaneId } from '../../audio/transport/lane-mix';
 import { laneFlags, MACHINE_TAB } from '../machine-status';
-import { fxGroup } from '../components/fx-group';
+import { fxGroup, rowDivider } from '../components/fx-group';
 import { GrMeter } from '../components/gr-meter';
 import type { XyPadWindowController } from '../components/xy-pad-window';
-import { buildLiveFxControls, xyPadLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
+import { buildLiveFxControls, xyPadLaunchButton, modMatrixLaunchButton, createLiveFxWindowLauncher } from '../components/live-fx';
+import type { ModMatrixWindowController } from '../components/mod-matrix-window';
 import { createAiPromptButton } from '../components/ai-prompt';
 import { buildSyncSection } from '../components/sync-section';
 import {
@@ -80,7 +81,7 @@ export interface SongPanel {
   importBytes: (bytes: Uint8Array, name: string) => Promise<boolean>;
 }
 
-export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController): SongPanel {
+export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: PresetSession, xy: XyPadStore, bridge: UiBridge, xyWin: XyPadWindowController, modWin: ModMatrixWindowController): SongPanel {
   const root = el('div', `${layout.patternPanel!} ${styles.panel!}`);
 
   // Apply a song AND label the selector with its name (all apply sites route
@@ -252,6 +253,12 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   fx.appendChild(new Knob({ bus, paramId: 'fx.djfilter', label: 'DJ FLT' }).el);
   for (const c of buildLiveFxControls(engine)) fx.appendChild(c); // Fill / Stutter / Drop / Tape Stop (perf-*)
   fx.appendChild(xyPadLaunchButton(xyWin, 'perf-xypad'));
+  // MOD is *not* a Live FX control — the rest of this row is momentary performance
+  // gestures, and this is a door onto the patch's modulation routing. Same vertical
+  // rule `fxGroup` puts before COMP on the other side, so the row reads as three
+  // things rather than one long strip.
+  fx.appendChild(rowDivider());
+  fx.appendChild(modMatrixLaunchButton(modWin, 'perf-mod'));
   const masterGr = new GrMeter('grmeter-fx.master.comp');
   engine.masterComp.onGr((db) => masterGr.update(db));
   fx.appendChild(fxGroup(bus, 'COMP', 'fx.master.comp', [
