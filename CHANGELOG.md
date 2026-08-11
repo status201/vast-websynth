@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-08-11
+
 ### Added
 
 - **A mod matrix.** Eight routes, each sending one **source** — either LFO, an
@@ -174,6 +176,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   once again a pure data drop-in.
 
 ### Fixed
+
+- **`llms.txt` told AI agents the song format was a version behind.** Its
+  formats-and-versions table still advertised `websynth-song` v6 after v7 added
+  per-slot transposes, so an agent reading the published guide could author to a
+  stale contract. The file states the version in four places and the test that
+  guards it only ever checked one of them; it now pins all four, counts the
+  version-history list, and separately fails if the superseded version survives
+  anywhere it should not.
 
 - **A mistyped automation target no longer disappears in silence.** Point the XY
   pad, a per-bank override or a motion track at a parameter that does not exist
@@ -1654,7 +1664,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.7.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/status201/vast-websynth/compare/v2.7.1...v2.8.0
 [2.7.1]: https://github.com/status201/vast-websynth/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/status201/vast-websynth/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/status201/vast-websynth/compare/v2.6.1...v2.6.2
