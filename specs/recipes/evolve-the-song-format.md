@@ -88,8 +88,17 @@ docs go stale (they fell a version behind **twice** — song-mode.md REQ-2):
 - `public/schema/websynth-song.schema.json` — bump `version.enum`, extend the
   `version.description`'s "capture() always writes N" sentence, and add the optional
   property (docs/tooling mirror).
-- `public/llms.txt` — the `websynth-song` bullet names the canonical version and
-  what the newest versions added; it is what crawling agents read.
+- `public/llms.txt` — it is what crawling agents read, and it states the version in
+  **four** places. Change all of them:
+  1. the `websynth-song` bullet under *Song formats* — `` `websynth-song` (vN) ``,
+     plus a line saying what the new version added;
+  2. the **Formats and versions table** row;
+  3. the "all versions 1..N still load" sentence;
+  4. the closing "expands to the LOWEST canonical version …, not always N".
+
+  This is the step that has actually been missed: the v7 bump updated the bullet and
+  left the table advertising v6, because the backstop below pinned only the bullet.
+  It now pins all four and counts the history list, so a partial edit fails.
 
 `src/state/authoring-guide.ts` (which `buildSongPrompt` and the MCP
 `get_song_format` tool both serve) interpolates `SONG_VERSION`, so its version
@@ -97,9 +106,10 @@ literals move on their own — but its TOP-LEVEL SHAPE still needs a
 `// ---- v7 …, OPTIONAL ----` block describing the new field.
 
 **`tests/state/authoring-docs.test.ts` is the backstop for this whole step**: it
-pins the schema enum, the schema description, `llms.txt` and every canonical
-example in the authoring guide to `SONG_VERSION`. If you skip a bullet here, that
-suite fails — trust it rather than your memory of this list.
+pins the schema enum, the schema description, **all four** `llms.txt` sites and every
+canonical example in the authoring guide to `SONG_VERSION` — and separately asserts
+that the *superseded* version survives nowhere outside the history list. If you skip a
+bullet here, that suite fails — trust it rather than your memory of this list.
 
 ### 4c. Teach the authoring dialect the new field
 

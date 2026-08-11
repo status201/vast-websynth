@@ -101,6 +101,45 @@ describe('the published canonical version', () => {
     expect(txt).toContain('motionTracks');
   });
 
+  /**
+   * llms.txt states the song version in FOUR places, and this used to pin only the
+   * first — so the v7 bump updated the prose and left the table saying 6, with every
+   * test green. One occurrence checked is one occurrence maintained; the rest drift
+   * silently. Each is pinned separately below, and the history list is counted, so a
+   * future bump cannot satisfy the guard by touching one line.
+   */
+  it('states ONE song version throughout llms.txt (regression)', () => {
+    const txt = read('llms.txt');
+    // 1. the formats-and-versions table row
+    expect(txt).toContain(`| \`websynth-song\` | ${SONG_VERSION} |`);
+    // 2. the "every version still loads" claim
+    expect(txt).toContain(`versions 1..${SONG_VERSION} still load`);
+    // 3. the dialect's expansion note
+    expect(txt).toContain(`not always ${SONG_VERSION}`);
+    // 4. one bullet per bump, v2..vN — a bump that adds no line fails here
+    const bullets = [...txt.matchAll(/^- v(\d+) — /gm)].map((m) => Number(m[1]));
+    expect(bullets).toEqual(
+      Array.from({ length: SONG_VERSION - 1 }, (_, i) => i + 2),
+    );
+  });
+
+  it('carries no superseded song version anywhere in llms.txt (regression)', () => {
+    const txt = read('llms.txt');
+    // The catch-all: the previous version must never appear as a bare `(vN)` claim,
+    // a table cell, or the dialect note. It may still appear in the history list,
+    // which is prose about what that version ADDED — so those lines are excluded.
+    const prev = SONG_VERSION - 1;
+    // Plain substrings, not a built regex: every one of these needs escaping inside a
+    // template literal, and getting that wrong silently produces empty alternations
+    // that match every line — a guard that passes on nothing and fails on everything.
+    const stale = [`(v${prev})`, `| ${prev} |`, `not always ${prev}`];
+    const suspect = txt
+      .split(/\r?\n/)
+      .filter((l) => !/^- v\d+ — /.test(l))
+      .filter((l) => stale.some((p) => l.includes(p)));
+    expect(suspect).toEqual([]);
+  });
+
   it('is what EVERY canonical example in the authoring guide names', () => {
     const bus = new ParamBus();
     registerDefaults(bus);

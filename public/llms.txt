@@ -86,7 +86,7 @@ MCP server (`get_params` for the JSON catalogue, `get_song_format` /
 
 | Format | Version | Schema | Written by |
 | --- | --- | --- | --- |
-| `websynth-song` | 6 | /schema/websynth-song.schema.json | the app (export) |
+| `websynth-song` | 7 | /schema/websynth-song.schema.json | the app (export) |
 | `websynth-song-author` | 1 | /schema/websynth-song-author.schema.json | agents (input only) |
 | `websynth-preset` | 1 | /schema/websynth-preset.schema.json | the app + agents |
 | `websynth-preset-bank` | 1 | /schema/websynth-preset-bank.schema.json | the app + agents |
@@ -103,7 +103,7 @@ versions 1..7 still load and there is no migration step. Each version added:
 
 So a v1 file lacks all of the above; a v6 file lacks only `seqTranspose`. Versions
 beyond those a build knows are rejected. The authoring dialect expands to the
-LOWEST canonical version that holds its content, not always 6.
+LOWEST canonical version that holds its content, not always 7.
 
 ## For developers
 
