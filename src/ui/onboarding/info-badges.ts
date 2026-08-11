@@ -116,6 +116,9 @@ const ANCHORS: Anchor[] = [
   // the LIVE FX launcher doubles as the section title (live-fx-window.md
   // REQ-6/REQ-7), so its badge leads the row too.
   { topic: 'song.fx', find: () => byTestId('livefx-open') },
+  // The MOD launcher sits in the same row but is NOT a Live FX control — it opens the
+  // patch's modulation routing. A divider says so visually; this says what it is.
+  { topic: 'mod', find: () => byTestId('perf-mod') },
   // Transport-sync section (Song tab): the mode control + the WiFi pairing button.
   { topic: 'sync', find: () => byTestId('sync-mode-master') },
   { topic: 'sync.wifi', find: () => byTestId('sync-wifi-link') },

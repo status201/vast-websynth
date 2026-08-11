@@ -258,3 +258,23 @@ describe('the tour names a demo that exists', () => {
     expect(demoNames()).toContain(DEMO_FOR_TOUR);
   });
 });
+
+/** The mod matrix badge (onboarding.md REQ-21). */
+describe('help-content mod topic', () => {
+  it('has a `mod` topic covering bipolar depth, the knob colours and the boundary', () => {
+    const t = HELP_TOPICS['mod'];
+    expect(t).toBeTruthy();
+    expect(t.title).toContain('Mod');
+    const body = bodyOf('mod');
+    // "MOD" names nothing a newcomer knows, so the copy has to say what a route is.
+    expect(body).toMatch(/source/i);
+    expect(body).toMatch(/destination/i);
+    // The three things the window itself cannot show.
+    expect(body).toMatch(/bipolar/i);
+    expect(body).toMatch(/invert/i);
+    for (const colour of ['green', 'yellow']) expect(body, colour).toContain(colour);
+    // ADR-017's boundary — without it the short list reads as a missing feature.
+    expect(body).toContain('Motion');
+    expect(body).toContain('XY Pad');
+  });
+});

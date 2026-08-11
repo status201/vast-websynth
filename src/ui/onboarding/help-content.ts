@@ -252,6 +252,7 @@ export type TopicId =
   | 'transport.song'
   | 'song'
   | 'song.fx'
+  | 'mod'
   | 'song.load'
   | 'song.save'
   | 'song.import'
@@ -830,6 +831,25 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   // Deliberately the sibling of `transport.song` above: same shape — what the
   // row is, then each control, then what the floating window adds, then where
   // it is reduced. The two rows sit next to each other, so their badges should
+  mod: {
+    title: 'Mod Matrix',
+    body:
+      '<p>Where movement comes from. Each row sends one <strong>source</strong> — an LFO, an ' +
+      'envelope, the mod wheel, velocity, the note you played, or a random value — into one ' +
+      '<strong>destination</strong>, by as much as you set. Eight rows, so several things can ' +
+      'move at once, and two rows may share a destination: they simply add.</p>' +
+      '<p>The first two rows are <strong>LFO 1</strong> and <strong>LFO 2</strong>. They are ' +
+      'the same controls that live on the LFO panel, shown here beside the rest.</p>' +
+      '<p><strong>Amount is bipolar.</strong> Past zero the route inverts — the source pushes ' +
+      'its destination <em>down</em> instead of up. On the synth panels a modulated knob draws ' +
+      'an inner arc over the range it can now reach: <strong>green</strong> for up, ' +
+      '<strong>yellow</strong> for down. A mod-wheel route also shows a moving tick, so you ' +
+      'can see where the wheel currently has it.</p>' +
+      '<p>The destination list is short on purpose: these are the things the synth can move ' +
+      '<em>as it plays a note</em>, at full audio rate, for free. To move anything else — an ' +
+      'effect mix, a level, the tempo — use a <strong>Motion</strong> lane or the ' +
+      '<strong>XY Pad</strong> instead.</p>',
+  },
   // read as a pair (live-fx-window.md REQ-7).
   'song.fx': {
     title: 'Live FX',

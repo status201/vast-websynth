@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 20  # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-20)
+version: 21  # v21: a `mod` badge on the Song row's MOD launcher (REQ-21)
+             # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-20)
              # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
              #      shell joins the reflow observer list (REQ-5a, lfo.md REQ-15)
              # v18: while the badges show, the ⓘ button's glyph inverts to the
@@ -43,6 +44,7 @@ related:
   - sequencer
   - scale-quantization
   - chord-tools
+  - mod-matrix
   - render-to-sampler
   - presets
   - audio-export
@@ -270,6 +272,18 @@ thing.
   setting on **another tab** — a dead control with an off-screen cause is exactly the
   case ADR-014 says must explain itself. The copy also decodes the Roman numerals,
   which are the notation a non-musician will not have.
+- **REQ-21** (v21) — **The MOD launcher carries a badge**, `mod` anchored to
+  `perf-mod` ([mod-matrix](mod-matrix.md)). It sits in the Live FX row but is not a
+  Live FX control — it opens the patch's **modulation routing**, which is sound design
+  rather than a momentary performance gesture. A vertical divider says that visually;
+  the badge is what says *what it is*, since "MOD" alone names nothing a newcomer knows.
+
+  Its copy carries the three things the window cannot show on its own: that **amount is
+  bipolar** and past zero the route inverts; that a modulated knob on the synth panels
+  grows an inner arc, **green for up and yellow for down**, so the effect is visible
+  with the window shut; and **why the destination list is short** — ADR-017's boundary,
+  pointing at Motion and the XY Pad for everything else. Without that last part a
+  curated list reads as a missing feature.
 - **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
   anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
   written as `transport.song`'s **sibling** — the two rows sit against each other
@@ -621,6 +635,14 @@ Scenario: The shortcut list is folded through Space by default (v15, REQ-17b)
    And the choice is persisted under websynth.shortcuts.about, independently of
     the Debug section's own fold
 # pinned by: tests/ui/about.test.ts
+
+Scenario: The MOD badge explains bipolar amount and the knob colours (v21, REQ-21)
+  Given the info badges are on and the Song tab is open
+  When the user clicks the badge on the MOD button
+  Then the modal says amount is bipolar and that past zero the route inverts
+  And it names the green/yellow arc a modulated knob grows
+  And it points at Motion and the XY Pad for what the matrix cannot reach
+# pinned by: tests/ui/help-content.test.ts
 
 Scenario: The Key badge says the filter is non-destructive (v20, REQ-20)
   Given the info badges are on

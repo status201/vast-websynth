@@ -56,36 +56,52 @@ describe('buildQuantizeTable', () => {
     expect(q(65, C, PENT_MAJ)).toBe(64);
   });
 
+  /**
+   * The three sweeps below cover every (scale, root, note) — ~17k combinations.
+   *
+   * Each collects **offenders** and asserts once, rather than calling `expect` in the
+   * inner loop: at ~30k assertions apiece they ran for seconds and went red on a
+   * loaded parallel run, which is a flake that accuses innocent code. Coverage is
+   * identical, and a failure now names the exact combination instead of just the
+   * first one to trip.
+   */
+  const eachTable = (fn: (t: Uint8Array, scale: number, root: number) => void): void => {
+    for (let scale = 1; scale < SCALE_LABELS.length; scale++) {
+      for (let root = 0; root < 12; root++) fn(buildQuantizeTable(root, scale)!, scale, root);
+    }
+  };
+
   it('is idempotent for every note, root and scale (REQ-3)', () => {
     // The stability property chord tools rely on: diatonic output survives the filter.
-    for (let scale = 1; scale < SCALE_LABELS.length; scale++) {
-      for (let root = 0; root < 12; root++) {
-        const t = buildQuantizeTable(root, scale)!;
-        for (let n = 0; n < 128; n++) expect(t[t[n]!]).toBe(t[n]);
+    const bad: string[] = [];
+    eachTable((t, scale, root) => {
+      for (let n = 0; n < 128; n++) {
+        if (t[t[n]!] !== t[n]) bad.push(`${SCALE_LABELS[scale]} root ${root} note ${n}`);
       }
-    }
+    });
+    expect(bad).toEqual([]);
   });
 
   it('always lands in the MIDI range, clamped rather than dropped (REQ-3)', () => {
-    for (let scale = 1; scale < SCALE_LABELS.length; scale++) {
-      for (let root = 0; root < 12; root++) {
-        const t = buildQuantizeTable(root, scale)!;
-        for (let n = 0; n < 128; n++) {
-          expect(t[n]).toBeGreaterThanOrEqual(0);
-          expect(t[n]).toBeLessThanOrEqual(127);
-        }
+    const bad: string[] = [];
+    eachTable((t, scale, root) => {
+      for (let n = 0; n < 128; n++) {
+        const v = t[n]!;
+        if (v < 0 || v > 127) bad.push(`${SCALE_LABELS[scale]} root ${root} note ${n} -> ${v}`);
       }
-    }
+    });
+    expect(bad).toEqual([]);
   });
 
   it('never moves a note more than 2 semitones', () => {
     // A quantizer that jumped further would be re-composing, not correcting.
-    for (let scale = 1; scale < SCALE_LABELS.length; scale++) {
-      for (let root = 0; root < 12; root++) {
-        const t = buildQuantizeTable(root, scale)!;
-        for (let n = 2; n < 126; n++) expect(Math.abs(t[n]! - n)).toBeLessThanOrEqual(2);
+    const bad: string[] = [];
+    eachTable((t, scale, root) => {
+      for (let n = 2; n < 126; n++) {
+        if (Math.abs(t[n]! - n) > 2) bad.push(`${SCALE_LABELS[scale]} root ${root} note ${n}`);
       }
-    }
+    });
+    expect(bad).toEqual([]);
   });
 
   it('handles the extremes without escaping the range (edge)', () => {

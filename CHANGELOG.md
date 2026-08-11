@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A mod matrix.** Eight routes, each sending one **source** — either LFO, an
+  envelope, the mod wheel, velocity, the note you played, or a sample-and-hold
+  **random** — into one **destination**, at its own depth. Depth is **bipolar**:
+  past zero the route inverts and the source pushes its destination down instead
+  of up. Two routes may point at the same destination and simply add, so the old
+  rule that the two LFOs could not share one is gone — nothing that was possible
+  before has changed, only what was needlessly forbidden. It also reaches
+  **resonance**, which no modulator could touch until now. Open it from **MOD**
+  in the Song tab's Live FX row; the window is movable and stays open while you
+  play. Every existing sound is untouched — routes start empty, and the two LFO
+  rows are the same `dest`/`amount` controls the LFO panel always had.
+
+- **Modulation you can see.** A knob on the synth panels that something is
+  modulating grows an **inner arc** across the range that modulation can take it
+  — **green** when the route pushes up, **yellow** when it is inverted — so an
+  invisible route is no longer invisible. A route from the mod wheel adds a live
+  tick that follows the wheel, because that is the one source whose position the
+  app can know for free. The arcs cost nothing to draw: they come from the route
+  settings, not from listening to the audio.
+
 - **A key, and chord tools to play in it.** A new **KEY** tab sets a root and a
   scale, and every note the instrument plays — sequencer, arpeggiator and
   keyboard alike — is snapped onto the nearest note of that key. It is a **live
