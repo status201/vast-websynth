@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { LFO_DEST_LABELS, LFO_SYNC_LABELS, WAVE_LABELS } from '../../state/params';
-import { blockedDests, LFO_PREFIXES, otherLfo, type LfoPrefix } from '../../state/lfo-routing';
+import { LFO_PREFIXES, otherLfo, type LfoPrefix } from '../../state/lfo-routing';
 import { PWM_RATE_MAX } from '../../audio/pwm';
 import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';
@@ -12,21 +12,24 @@ import styles from '../styles/layout.module.css';
 const PULSE_DEST = LFO_DEST_LABELS.indexOf('pulse');
 const OFF_DEST = LFO_DEST_LABELS.indexOf('off');
 
-/** Human name for a prefix, used in the "already taken" hint. */
+/** Human name for a prefix — the tab labels, which are this panel's heading. */
 const LFO_NAMES: Record<LfoPrefix, string> = { lfo: 'LFO 1', lfo2: 'LFO 2' };
 
-interface LfoPage {
-  /** Re-read the other LFO's destination and repaint what this page may offer. */
-  refreshDest(): void;
-}
+/**
+ * A built page. Empty since v8: it used to carry `refreshDest()`, which repainted the
+ * destinations the *other* LFO had claimed. The mod matrix superseded that rule
+ * (lfo.md REQ-12), so a page no longer depends on its sibling's state at all.
+ */
+type LfoPage = Record<string, never>;
 
 /**
  * The LFO panel: two identical pages, one per LFO, behind a tab strip in the
  * panel's own title row (lfo.md REQ-15).
  *
- * Extracted from `app.ts`, unlike the other seven faceplate panels, because it
- * is the only one with cross-instance state (REQ-12's exclusivity), two pages,
- * and a body that is a parameterised builder rather than a literal.
+ * Extracted from `app.ts`, unlike the other seven faceplate panels, because it has
+ * two pages and a body that is a parameterised builder rather than a literal. It was
+ * also the only panel with cross-instance state until v8, when the mod matrix
+ * superseded REQ-12's exclusivity and the two pages became fully independent.
  */
 export function buildLfoPanel(bus: ParamBus): HTMLElement {
   const pages = {} as Record<LfoPrefix, LfoPage>;
@@ -44,12 +47,9 @@ export function buildLfoPanel(bus: ParamBus): HTMLElement {
   });
 
   LFO_PREFIXES.forEach((prefix, i) => {
-    // Each page watches the OTHER LFO's destination, so claiming one greys it
-    // on the facing page (REQ-12). `subscribe` fires immediately, so both lists
-    // are correct on first paint.
-    bus.subscribe(`${otherLfo(prefix)}.dest`, () => pages[prefix].refreshDest());
-    // ...and its own, since "my own value is never blocked" depends on it.
-    bus.subscribe(`${prefix}.dest`, () => pages[prefix].refreshDest());
+    // No cross-page watching any more: REQ-12's mutual exclusion is superseded by the
+    // mod matrix (lfo.md v8), so the two LFOs may hold one destination and simply sum
+    // — which REQ-13 always specified and the audio graph always did.
 
     // A modulating LFO on the hidden page would otherwise be invisible state
     // (ADR-014 law 5). The mod wheel only counts for LFO 1, which is the only
@@ -79,14 +79,6 @@ function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage
   const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS);
   b.appendChild(dest.el);
 
-  // A greyed row says a destination is unavailable but not who holds it, and a
-  // tooltip would be a hover-only affordance (ADR-014 law 6). So the reason is
-  // a line of text — directly under the control it explains, not after SYNC.
-  const taken = document.createElement('p');
-  taken.className = styles.paramHint!;
-  taken.dataset.testid = `dest-taken-${prefix}`;
-  b.appendChild(taken);
-
   b.appendChild(new ParamDropdown(bus, `${prefix}.sync`, LFO_SYNC_LABELS).el);
 
   // While the rate is tempo-locked the knob is not what sets it (lfo.md
@@ -97,15 +89,7 @@ function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage
   bus.subscribe(`${prefix}.sync`, (s) => rate.setDisabled(Math.round(s) > 0));
   b.appendChild(pulseRateDisclosure(bus, prefix, rate));
 
-  return {
-    refreshDest(): void {
-      const blocked = blockedDests(bus.get(`${prefix}.dest`), bus.get(`${otherLfo(prefix)}.dest`));
-      dest.setDisabledLabels(blocked.map((i) => LFO_DEST_LABELS[i]!));
-      const name = blocked[0] === undefined ? '' : LFO_DEST_LABELS[blocked[0]]!;
-      taken.textContent = name ? `${name} is used by ${LFO_NAMES[otherLfo(prefix)]}.` : '';
-      taken.style.display = name ? '' : 'none';
-    },
-  };
+  return {};
 }
 
 /** The 2-knob `.spread` row, as `app.ts`'s `row()` builds it for every panel. */

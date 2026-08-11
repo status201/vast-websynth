@@ -1,7 +1,7 @@
 import { Osc } from './oscillator';
 import { Envelope } from './envelope';
 import { LadderFilterNode } from './ladder-filter/node';
-import { midiToHz } from '../utils/math';
+import { clamp, midiToHz } from '../utils/math';
 import { rampTo, RAMP_FAST, RAMP_MEDIUM } from './param-utils';
 
 export type VoiceState = 'idle' | 'playing' | 'releasing';
@@ -25,6 +25,18 @@ export class Voice {
   readonly ampEnv: Envelope;
   readonly filEnv: Envelope;
   readonly filEnvScale: GainNode;
+
+  /**
+   * Per-voice modulation sources for the mod matrix (mod-matrix.md REQ-7).
+   *
+   * `ConstantSourceNode`s rather than the plain scalars the envelope depth uses,
+   * because the matrix routes them as *signals* into summing `AudioParam`s. Both are
+   * set once at `noteOn` and then hold, so they cost nothing while a note sustains.
+   * `velocitySource` carries 0..1; `keySource` carries the note as -1..1 around
+   * middle C, so a route's depth reads the same way on every destination.
+   */
+  readonly velocitySource: ConstantSourceNode;
+  readonly keySource: ConstantSourceNode;
 
   currentNote = -1;
   state: VoiceState = 'idle';
@@ -83,6 +95,13 @@ export class Voice {
     this.out = ctx.createGain();
     this.out.gain.value = 1 / 4;
 
+    this.velocitySource = ctx.createConstantSource();
+    this.velocitySource.offset.value = 0;
+    this.velocitySource.start();
+    this.keySource = ctx.createConstantSource();
+    this.keySource.offset.value = 0;
+    this.keySource.start();
+
     // Signal path
     this.osc1.out.connect(this.mix);
     this.osc2.out.connect(this.mix);
@@ -130,6 +149,12 @@ export class Voice {
     if (this.keytrack !== 0) {
       this.filter.cutoffNote.setValueAtTime(this.effectiveCutoff(), when);
     }
+    // Matrix sources land with the note, like key tracking above — they describe
+    // *this* note, so a ramp from the previous note's values would smear two notes
+    // together (mod-matrix.md REQ-7). Key is normalised around middle C over ±4
+    // octaves, so a route's depth means the same thing on every destination.
+    this.velocitySource.offset.setValueAtTime(velocity, when);
+    this.keySource.offset.setValueAtTime(clamp((note - 60) / 48, -1, 1), when);
     this.ampEnv.trigger(when, Math.max(0.01, velocity));
     // Velocity → filter (envelopes.md REQ-5). `filVelAmount` 0 gives exactly the
     // hard-coded 1 this used to pass, so the default changes nothing; at 1 the

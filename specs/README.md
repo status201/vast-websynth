@@ -197,6 +197,7 @@ specs/
     key-tracking.md    ·  note number -> cutoff, in semitones (both models)
     envelopes.md       ·  amp + filter ADSR
     lfo.md             ·  LFO + mod wheel
+    mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
     effects.md         ·  distortion/wah/phaser/delay/reverb insert chain
@@ -314,6 +315,7 @@ specs/
     adr-014-dont-make-me-think.md              ·  interaction design: six ordered UX laws
     adr-015-untrusted-input-is-bounded.md      ·  bound every payload; no listener wedges the clock
     adr-016-one-filter-worklet-model-per-block.md ·  filter models branch per block, not per node
+    adr-017-modulation-in-graph.md             ·  modulation in the graph, automation on the bus
 ```
 
 > Coverage note: the feature set above documents the current system. New features

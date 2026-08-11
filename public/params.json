@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 7,
-  "count": 218,
+  "count": 236,
   "params": [
     {
       "id": "voicing.mode",
@@ -1137,6 +1137,282 @@
       "max": 1,
       "default": 0.5,
       "patch": false
+    },
+    {
+      "id": "mod.0.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.0.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.0.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mod.1.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.1.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.1.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mod.2.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.2.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.2.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mod.3.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.3.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.3.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mod.4.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.4.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.4.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "mod.5.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "lfo 1",
+        "lfo 2",
+        "mod wheel",
+        "random",
+        "filter env",
+        "amp env",
+        "velocity",
+        "key"
+      ]
+    },
+    {
+      "id": "mod.5.dst",
+      "min": 0,
+      "max": 7,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "none",
+        "cutoff",
+        "resonance",
+        "pitch",
+        "shape",
+        "amp",
+        "drive",
+        "pan"
+      ]
+    },
+    {
+      "id": "mod.5.amt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": true
     },
     {
       "id": "scale.root",

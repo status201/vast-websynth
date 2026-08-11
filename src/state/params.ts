@@ -2,6 +2,7 @@ import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './pattern
 import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
+import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
 
 export type ParamId = string;
 
@@ -431,6 +432,12 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'arp.octaves', min: 1, max: 4, default: 1, step: 1 },
     { id: 'arp.gate', min: 0.05, max: 1, default: 0.5, format: fmtPct },
 
+    // ----- Mod matrix (specs/features/mod-matrix.md, ADR-017) -----
+    // Six free rows; LFO 1/2 are rows 0-1 and keep lfo.dest / lfo.amount (REQ-2).
+    // src 0 = off, dst 0 = none, amt 0 = silent: all three are no-ops, so a preset
+    // that predates the matrix loads unchanged (ADR-006).
+    ...modMatrixParams(),
+
     // ----- Key / scale (specs/features/scale-quantization.md, chord-tools.md) -----
     // `scale.type` 0 is 'chromatic' and `chord.voicing` 0 is 'off': both are true
     // no-ops, so every preset and song predating these keys sounds identical (ADR-006).
@@ -525,6 +532,25 @@ export function paramIds(): ReadonlySet<ParamId> {
  * predates a given LFO sounds exactly as it did (ADR-006), which is what lets
  * LFO 2 ship without a song-format version bump.
  */
+/**
+ * The mod matrix's six free rows (mod-matrix.md REQ-2/REQ-3). A factory for the same
+ * reason `lfoParams` is one: six identical triples written out by hand is six chances
+ * to typo an index.
+ */
+function modMatrixParams(): ParamDef[] {
+  const out: ParamDef[] = [];
+  for (let n = 0; n < MOD_ROWS; n++) {
+    out.push(
+      { id: `mod.${n}.src`, min: 0, max: MOD_SOURCE_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_SOURCE_LABELS },
+      { id: `mod.${n}.dst`, min: 0, max: MOD_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: MOD_DEST_LABELS },
+      // Bipolar (REQ-9): a negative amount inverts the route, so no source needs an
+      // inverted twin. 0 is the no-op.
+      { id: `mod.${n}.amt`, min: -1, max: 1, default: 0, format: fmtPct },
+    );
+  }
+  return out;
+}
+
 function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
   return [
     // Exponentially tapered (lfo.md REQ-8): rate is heard in octaves, so equal

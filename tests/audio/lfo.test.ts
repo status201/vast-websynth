@@ -129,8 +129,12 @@ describe('LFO control-signal smoothing (REQ-5)', () => {
 
     // amp/pan/shape go via the lowpass — a stepped gain is a click, and so is a
     // stepped filter *coefficient*, which is what shape moves (lfo.md REQ-7).
-    expect(smoothed).toEqual([lfo.toAmp, lfo.toPan, lfo.toShape]);
+    // The matrix tap rides the smoothed path too (mod-matrix.md REQ-8): its route
+    // may land on an amplitude destination, and at LFO rates the 200 Hz lowpass
+    // costs the frequency-domain ones nothing.
+    expect(smoothed).toEqual([lfo.toAmp, lfo.toPan, lfo.toShape, lfo.modTap]);
     expect(direct).toContain(smooth);
+    expect(direct).not.toContain(lfo.modTap);
   });
 
   it('is critically damped so a smoothed depth never overshoots', () => {

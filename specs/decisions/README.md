@@ -32,6 +32,7 @@ the old one rather than rewriting it. An ADR's `status` is its own lifecycle —
 | [014](adr-014-dont-make-me-think.md) | Interaction design follows *"Don't Make Me Think"* (six ordered laws) | accepted |
 | [015](adr-015-untrusted-input-is-bounded.md) | Every untrusted payload is bounded; no subscriber can wedge the clock | accepted |
 | [016](adr-016-one-filter-worklet-model-per-block.md) | One filter worklet, the model selected per block (not a node swap) | accepted |
+| [017](adr-017-modulation-in-graph.md) | Modulation lives in the audio graph; automation lives on the bus | accepted |
 
 New ADRs copy [`_adr-template.md`](_adr-template.md) to `adr-NNN-<slug>.md`, numbered
 contiguously. Keep this index and the folder map in [`../README.md`](../README.md) in

@@ -3,7 +3,10 @@
 ```yaml
 id: lfo
 status: implemented
-version: 7                  # v7: REQ-10..15 — a second LFO (lfo2.*), mutually
+version: 8                  # v8: REQ-12's mutual exclusion is SUPERSEDED by the mod
+                            #     matrix; the two LFOs become its rows 0-1, keeping
+                            #     lfo.dest / lfo.amount unchanged (mod-matrix.md)
+                            # v7: REQ-10..15 — a second LFO (lfo2.*), mutually
                             #     exclusive destinations, arbitrated PWM, tab pages
                             # v6: REQ-9 — lfo.sync locks the rate to the tempo
                             # v5: lfo.rate is exponentially tapered (REQ-8)
@@ -18,13 +21,14 @@ related:
   - render-to-sampler    # the bank-render tap moved downstream of the panner
   - oscillators          # owns pulse width; the `pulse` destination drives it
   - panel-tabs           # v7: hosts the LFO 1 / LFO 2 pages
-  - dropdown             # v7: the greyed-out taken destination (REQ-12)
+  - dropdown             # v8: greying now serves mod-matrix REQ-7, not REQ-12
+  - mod-matrix           # v8: the LFOs are its rows 0-1; supersedes REQ-12
 source:
   - src/audio/lfo.ts
   - src/audio/pwm.ts       # the `pulse` destination's control loop (v3)
   - src/state/params.ts
-  - src/state/lfo-routing.ts   # v7: the mutual-exclusion rule (pure)
   - src/audio/engine.ts    # panner construction + LFO fan-out
+  - src/state/lfo-routing.ts   # v8: the two-LFO vocabulary; the REQ-12 rule is gone
   - src/ui/panels/lfo-panel.ts # v7: the two-page panel
 ```
 
@@ -69,6 +73,11 @@ destinations, genuinely cannot be shared (REQ-14).
   `cutoff`) are fed from the oscillator directly: a stepped octave or filter jump
   is a musical event, not a click. At LFO rates the smoothing is inaudible on
   shape (−0.02 dB, ~6° at 20 Hz). Each LFO owns its own smoothing filter.
+  - (v8) `modTap`, the unit-amplitude output the [mod matrix](mod-matrix.md) reads,
+    is a **fourth consumer of the smoothed path**. It has to be: a matrix route can
+    land on any destination, including the amplitude-domain ones, and the tap cannot
+    know which in advance. The same "inaudible at LFO rates" measurement is what
+    makes that safe for the frequency-domain destinations it may also feed.
 - **REQ-6** — (v3) The `pulse` destination sweeps oscillator **pulse width**. It
   is the one destination with **no audio-node output**: a native
   `OscillatorNode` has no width `AudioParam`, so it is driven by `PwmDriver`
@@ -145,21 +154,28 @@ destinations, genuinely cannot be shared (REQ-14).
   single gesture with two outcomes (ADR-014 law 2). LFO 2 is the patched,
   set-and-forget modulator; LFO 1 is the played one.
 
-- **REQ-12** — (v7) **Destinations are mutually exclusive, in the UI.** A
-  destination held by one LFO is rendered **disabled** in the other's list —
-  visible and greyed, never removed, so the list does not reflow and the reason
-  can be read. Two exceptions are never blocked: `off`, which both may hold, and
-  an LFO's **own current value**, so a patch always displays truthfully. A
-  `paramHint` line under the dropdown names the holder (*"cutoff is used by
-  LFO 1"*), because a greyed row says *that* it is unavailable but not *who* took
-  it, and a hover tooltip would be an affordance that does not exist on touch
-  (ADR-014 law 6).
-  - **This is not a data invariant.** `preset-validate` and `song-validate` keep
-    accepting `lfo.dest` and `lfo2.dest` anywhere in `0..6` **independently**.
-    Rejecting a duplicate would break ADR-007's lenient additive stance and make
-    a legally hand-authored or MCP-authored song fail to load. The UI prevents
-    the state; the data model tolerates it and REQ-13 defines what it sounds
-    like.
+- **REQ-12** — (v7) ~~**Destinations are mutually exclusive, in the UI.**~~
+  **Superseded in v8 by [mod-matrix](mod-matrix.md) REQ-10.** The two LFOs may now
+  hold the same destination, and it sums — which REQ-13 below already specified and
+  the audio graph already did. `blockedDests` is deleted along with the `paramHint`
+  that named the holder; `lfo-routing.ts` keeps the prefix vocabulary the two-page
+  panel still needs.
+
+  The rule was never musical: it existed because each LFO had exactly **one**
+  destination slot, so sharing one meant losing a route. Once depth is per-route
+  that cost is gone, and blocking the combination only withheld something the
+  engine handled correctly. It also never was a data invariant — `preset-validate`
+  and `song-validate` always accepted both `dest` params anywhere in `0..6`
+  **independently** (rejecting a duplicate would break ADR-007's lenient additive
+  stance), so a hand-authored file could already reach the state the UI forbade.
+  **Removing the block therefore cannot change how any saved sound plays**; it only
+  stops the UI from disagreeing with the data model.
+
+  What replaces it is a rule with an actual reason behind it:
+  [mod-matrix](mod-matrix.md) REQ-7 greys a **bus-wide** destination while a
+  **per-voice** source is selected, because that combination is genuinely
+  ill-defined. The greying idiom itself — disabled and visible, never removed, with
+  the reason readable without hover (ADR-014 law 6) — is inherited unchanged.
 
 - **REQ-13** — (v7) **Duplicated destinations sum, and stay bounded.** Every
   destination except `pulse` is a `GainNode` into a summing `AudioParam`, so a
@@ -249,13 +265,17 @@ each LFO subscribes its own `${prefix}.{rate,sync,amount,wave,dest}` plus
 Putting the mod-wheel sum here rather than in a closure inside the private
 `Engine.subscribeParams()` is what makes it unit-testable against a mock context.
 
-`src/state/lfo-routing.ts` holds the REQ-12 rule, pure and DOM-free:
+`src/state/lfo-routing.ts` keeps the two-LFO vocabulary and **loses only the rule**:
 
 ```yaml
 LFO_PREFIXES:  ['lfo', 'lfo2']
 otherLfo(p)              -> the other prefix
-blockedDests(mine, theirs) -> number[]   # [] when theirs is 0 (off) or === mine
+# blockedDests(mine, theirs) — DELETED with REQ-12 (v8)
 ```
+
+What greys a destination now is the per-voice/bus-wide rule in
+[mod-matrix](mod-matrix.md) REQ-7, which lives in `src/state/mod-routing.ts` in exactly
+this shape — pure, so the panel and the audio layer cannot disagree.
 
 Depth at full amount, per destination: pitch `±1200` cents, cutoff `±24`
 semitones, amp `±0.5` linear (added to the tremolo VCA's base `1.0`), pan `±1.0`,
@@ -385,19 +405,19 @@ Scenario: The mod wheel opens LFO 1 and leaves LFO 2 alone (v7, REQ-11)
   Then LFO 1's depth is 0.8 of full scale and LFO 2's is still 0.4
 # pinned by: tests/audio/lfo.test.ts
 
-Scenario: A destination taken by one LFO is greyed out for the other (v7, REQ-12)
+Scenario: Both LFOs may now hold one destination (v8, REQ-12 superseded)
   Given lfo.dest is "cutoff"
   When the user opens LFO 2's destination list
-  Then "cutoff" is present but disabled, "off" is selectable
-  And a hint names LFO 1 as the holder
+  Then "cutoff" is selectable, not greyed
+  And choosing it sums the two, as REQ-13 always specified
 # pinned by: tests/ui/lfo-panel.test.ts, e2e/lfo2.spec.ts
 
-Scenario: An LFO always offers its own current destination (v7, REQ-12, edge)
-  Given a hand-authored song puts both LFOs on "amp"
+Scenario: A hand-authored duplicate still loads and renders truthfully (v8, edge)
+  Given a song puts both LFOs on "amp"
   When the panel renders
   Then each dropdown shows "amp" as its own value, neither is blank
-  And validation accepted the file, because exclusivity is a UI rule only
-# pinned by: tests/state/lfo-routing.test.ts, tests/state/preset-validate.test.ts
+  And validation accepted the file, as it always did
+# pinned by: tests/ui/lfo-panel.test.ts, tests/state/preset-validate.test.ts
 
 Scenario: Two LFOs on one destination sum, bounded (v7, REQ-13, edge)
   Given both LFOs are routed to "pan" at full amount
@@ -426,7 +446,7 @@ Scenario: A modulating LFO on the hidden page lights its tab (v7, REQ-15)
 ## Tests & verification
 
 - `tests/audio/lfo.test.ts`, `tests/audio/pwm.test.ts`,
-  `tests/state/params.test.ts`, `tests/state/lfo-routing.test.ts`,
+  `tests/state/params.test.ts`, `tests/audio/mod-matrix.test.ts`,
   `tests/state/preset-validate.test.ts`, `tests/ui/lfo-panel.test.ts`,
   `e2e/lfo-sync.spec.ts`, `e2e/lfo2.spec.ts`, `e2e/controls.spec.ts`.
 - `npm test` / `npm run e2e`.
@@ -443,11 +463,13 @@ Scenario: A modulating LFO on the hidden page lights its tab (v7, REQ-15)
 
 - The LFOs are monophonic/global by design; a per-voice LFO would be a separate
   feature with its own params.
-- **Two is a hard-coded count, not a pool.** `LFO_PREFIXES` and the `lfoParams`
-  factory would extend to a third, but `PwmDriver`'s owner arbitration, the
-  pairwise REQ-12 rule and the two-tab panel all assume exactly two. A modulation
-  *matrix* — many sources, many destinations, per-destination depth — is the real
-  next step, and it would supersede REQ-12 rather than extend it.
+- **Two is a hard-coded count, not a pool** — and it stayed that way. The matrix
+  ([mod-matrix](mod-matrix.md)) answered the *routing* half of this: many
+  destinations per source, depth per route, REQ-12 gone (v8). What it did **not**
+  do is add a third oscillator — `LFO_PREFIXES`, the `lfoParams` factory,
+  `PwmDriver`'s owner arbitration and the two-tab panel all still assume exactly
+  two. A third LFO is now a small, separate change: register `lfo3.*`, and it
+  becomes another matrix source.
 - `Engine` never calls `pwm.dispose()`. Pre-existing; one shared driver (REQ-14)
   keeps it a single gap rather than two.
 - `e2e/lfo-sync.spec.ts` and `e2e/lfo2.spec.ts` read `engine.lfo.osc` /

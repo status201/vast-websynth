@@ -63,6 +63,8 @@ export class LFO {
   readonly toAmp: GainNode;
   readonly toPan: GainNode;
   readonly toShape: GainNode;
+  /** Unit-amplitude tap for the mod matrix — see the constructor. */
+  readonly modTap: GainNode;
 
   private readonly osc: OscillatorNode;
   private amount = 0;
@@ -97,6 +99,14 @@ export class LFO {
     smooth.connect(this.toAmp);
     smooth.connect(this.toPan);
     smooth.connect(this.toShape);
+
+    // The mod matrix's tap: unit amplitude, ahead of this LFO's own `amount`, because
+    // each matrix route carries its own depth (mod-matrix.md REQ-8). Taken from the
+    // smoothed path so a square wave cannot click into an amplitude-domain
+    // destination — at LFO rates the 200 Hz lowpass is otherwise transparent.
+    this.modTap = ctx.createGain();
+    this.modTap.gain.value = 1;
+    smooth.connect(this.modTap);
 
     this.osc.start();
   }

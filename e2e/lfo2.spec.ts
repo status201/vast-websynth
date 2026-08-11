@@ -68,11 +68,10 @@ test.describe('LFO 2', () => {
     expect(await w('1')).toBeCloseTo(await w('2'), 1);
   });
 
-  test('a destination taken by LFO 1 is greyed out for LFO 2', async ({ page }) => {
+  test('LFO 2 may take a destination LFO 1 already holds (v8, REQ-12 superseded)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('ptab-lfo-2').click();
 
-    const taken = page.getByTestId('dest-taken-lfo2');
     // The destination picker is the first of the page's two dropdowns (dest,
     // sync). Its options live in a popover, so open it — a closed menu is out
     // of the accessibility tree entirely.
@@ -81,17 +80,11 @@ test.describe('LFO 2', () => {
     const cutoff = destDd.locator('button').filter({ hasText: /^cutoff$/i });
 
     await expect(cutoff).toBeEnabled();
-    await expect(taken).toBeHidden();
-
     await busSet(page, 'lfo.dest', CUTOFF);
-    await expect(cutoff).toBeDisabled();
-    // Greyed, not gone — and the hint says who has it (ADR-014 law 5).
-    await expect(cutoff).toBeVisible();
-    await expect(taken).toHaveText('cutoff is used by LFO 1.');
-
-    await busSet(page, 'lfo.dest', 0);
+    // Still enabled: the mod matrix gave every route its own depth, so sharing a
+    // destination no longer costs anything and the two simply sum (lfo.md REQ-13).
     await expect(cutoff).toBeEnabled();
-    await expect(taken).toBeHidden();
+    await expect(page.getByTestId('dest-taken-lfo2')).toHaveCount(0);
   });
 
   test('routing LFO 2 to pan actually opens its pan output', async ({ page }) => {

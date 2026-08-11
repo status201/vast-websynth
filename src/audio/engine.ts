@@ -18,6 +18,8 @@ import { SamplerMachine } from './transport/sampler-machine';
 import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
 import { ScaleQuantizer } from './transport/scale-quantizer';
+import { ModMatrix } from './mod-matrix';
+import { MOD_ROWS } from '../state/mod-routing';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { WebRtcSyncTransport } from './webrtc-sync-transport';
@@ -129,6 +131,8 @@ export class Engine {
   arrangement!: Arrangement;
   /** The live key — shared by the sequencer, the arp and the note passthrough. */
   scale!: ScaleQuantizer;
+  /** Modulation routing (mod-matrix.md). Lives in the graph; costs nothing per frame. */
+  readonly modMatrix: ModMatrix;
   perf!: Performance;
   recorder!: RecorderController;
   bankRender!: BankRenderController;
@@ -146,6 +150,9 @@ export class Engine {
    *  One driver, two possible sources: it arbitrates by index (lfo.md REQ-14). */
   pwm!: PwmDriver;
   private readonly pitchBend: ConstantSourceNode;
+  /** Global matrix sources with no other home (mod-matrix.md). */
+  private readonly modWheelSource: ConstantSourceNode;
+  private readonly randomSource: ConstantSourceNode;
   private readonly noise: AudioBufferSourceNode;
 
   // Voice allocation + voicing (poly/unison/glide/drift) and the Song-tab lane
@@ -293,6 +300,26 @@ export class Engine {
     this.pitchBend.offset.value = 0;
     this.pitchBend.start();
 
+    // Two global matrix sources that have no node of their own yet (mod-matrix.md).
+    // The mod wheel is otherwise only a depth scalar on LFO 1 (lfo.md REQ-11); as a
+    // matrix source it becomes a signal, so a performance gesture can drive anything.
+    this.modWheelSource = this.ctx.createConstantSource();
+    this.modWheelSource.offset.value = 0;
+    this.modWheelSource.start();
+    // Sample & hold: one value, re-rolled per clock tick (wired in init()). Bipolar,
+    // so a route's depth reads like every other source's.
+    this.randomSource = this.ctx.createConstantSource();
+    this.randomSource.offset.value = 0;
+    this.randomSource.start();
+
+    this.modMatrix = new ModMatrix(this.ctx, {
+      lfo1: this.lfo.modTap,
+      lfo2: this.lfo2.modTap,
+      modWheel: this.modWheelSource,
+      random: this.randomSource,
+    });
+    this.modMatrix.setPanTarget(this.synthPan.pan);
+
     this.noise = this.createNoiseSource();
 
     this.patterns = new PatternStore();
@@ -319,6 +346,10 @@ export class Engine {
       // land on the same one and simply add (lfo.md REQ-13).
       connectLfoToVoice(this.lfo, v);
       connectLfoToVoice(this.lfo2, v);
+      // The matrix builds this voice's six route gains here, for the same reason:
+      // the fan-out is created once at boot and never touched per note or per frame
+      // (mod-matrix.md REQ-1).
+      this.modMatrix.connectVoice(v);
 
       // Pitch bend
       this.pitchBend.connect(v.osc1.detuneParam);
@@ -417,6 +448,13 @@ export class Engine {
     // While slaved, Tape Stop skips its clock-BPM ramp (pitch ramp still sounds)
     // so incoming clock keeps driving the tempo (midi-clock-sync REQ-13).
     this.perf.clockRampAllowed = () => this.sync.activeMode !== 'slave';
+
+    // Sample & hold: one new value per 16th, scheduled at the tick's own time so it
+    // lands with the beat rather than whenever the main thread got round to it
+    // (mod-matrix.md). One write per tick, not per frame.
+    this.clock.onTick((_step, when) => {
+      this.randomSource.offset.setValueAtTime(Math.random() * 2 - 1, when);
+    });
 
     this.subscribeParams();
     this.bus.onNote((on, note, vel) => this.handleNote(on, note, vel));
@@ -657,6 +695,20 @@ export class Engine {
 
     // Voicing (poly/mono, unison, glide, drift all live in Polyphony)
     bus.subscribe('voicing.mode', (v) => this.polyphony.setPoly(v >= 0.5));
+
+    // Mod matrix (mod-matrix.md). `src`/`dst` re-patch under a mute ramp; `amt` is a
+    // gain write, so it is safe to drag. None of this runs per frame (ADR-017).
+    for (let n = 0; n < MOD_ROWS; n++) {
+      const row = n;
+      bus.subscribe(`mod.${n}.src`, (v) => this.modMatrix.setSource(row, v));
+      bus.subscribe(`mod.${n}.dst`, (v) => this.modMatrix.setDest(row, v));
+      bus.subscribe(`mod.${n}.amt`, (v) => this.modMatrix.setAmount(row, v));
+    }
+    // The mod wheel is a depth scalar on LFO 1 (lfo.md REQ-11) AND a matrix source.
+    // Mirroring it into a node here is what lets one gesture drive anything.
+    bus.subscribe('master.modWheel', (v) => {
+      rampTo(this.modWheelSource.offset, v, this.ctx, RAMP_MEDIUM);
+    });
 
     // Key / scale. `subscribe` fires immediately, so the table is built at boot and
     // rebuilt only on change — never per note (scale-quantization.md REQ-7).

@@ -52,46 +52,35 @@ describe('LFO panel', () => {
     expect(el.querySelector('[data-testid="knob-lfo2.rate"]')).not.toBeNull();
   });
 
-  it('greys the destination the other LFO holds, and frees it again (REQ-12)', () => {
+  // REQ-12's mutual exclusion is superseded by the mod matrix (lfo.md v8). What was
+  // three tests enforcing the block is now one test enforcing its ABSENCE — the pair
+  // may share a destination, and REQ-13 has always said what that sounds like.
+  it('lets both LFOs hold one destination (v8, REQ-12 superseded)', () => {
     const { bus, el } = build();
     expect(destOption(el, '2', 'cutoff').disabled).toBe(false);
 
     bus.set('lfo.dest', CUTOFF);
-    expect(destOption(el, '2', 'cutoff').disabled).toBe(true);
-    expect(destOption(el, '2', 'pan').disabled).toBe(false);
-    expect(destOption(el, '2', 'off').disabled).toBe(false);
-
-    bus.set('lfo.dest', 0);
     expect(destOption(el, '2', 'cutoff').disabled).toBe(false);
-  });
+    expect(destOption(el, '1', 'cutoff').disabled).toBe(false);
 
-  it('blocks in both directions', () => {
-    const { bus, el } = build();
     bus.set('lfo2.dest', PAN);
-    expect(destOption(el, '1', 'pan').disabled).toBe(true);
-    expect(destOption(el, '2', 'pan').disabled).toBe(false); // its own value
+    expect(destOption(el, '1', 'pan').disabled).toBe(false);
   });
 
-  it('never greys an LFO own destination, even when duplicated (REQ-12, edge)', () => {
+  it('renders a hand-authored duplicate truthfully (v8, edge)', () => {
     const { bus, el } = build();
-    // What a hand-authored file can produce; the panel must still read true.
+    // This state was always reachable from a file; now it is reachable from the UI too.
     bus.set('lfo.dest', CUTOFF);
     bus.set('lfo2.dest', CUTOFF);
     expect(destOption(el, '1', 'cutoff').disabled).toBe(false);
     expect(destOption(el, '2', 'cutoff').disabled).toBe(false);
   });
 
-  it('names the holder in a hint, and hides it when nothing is taken', () => {
+  it('no longer carries a holder hint (v8, REQ-12 superseded)', () => {
     const { bus, el } = build();
-    expect(hint(el, 'dest-taken-lfo2').style.display).toBe('none');
-
     bus.set('lfo.dest', CUTOFF);
-    expect(hint(el, 'dest-taken-lfo2').textContent).toBe('cutoff is used by LFO 1.');
-    expect(hint(el, 'dest-taken-lfo2').style.display).not.toBe('none');
-    expect(hint(el, 'dest-taken-lfo').style.display).toBe('none');
-
-    bus.set('lfo.dest', 0);
-    expect(hint(el, 'dest-taken-lfo2').style.display).toBe('none');
+    expect(el.querySelector('[data-testid="dest-taken-lfo2"]')).toBeNull();
+    expect(el.querySelector('[data-testid="dest-taken-lfo"]')).toBeNull();
   });
 
   it('scopes the pulse-rate hint to the page that selected pulse', () => {
