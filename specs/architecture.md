@@ -50,10 +50,10 @@ means a UI control and its audio effect can be reasoned about independently.
 
 ```yaml
 language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess
-build:      Vite                # ^8.1.4   (vite build) + tsc --noEmit
+build:      Vite                # ^8.2.1   (vite build) + tsc --noEmit
 unit_tests: Vitest              # ^4.1.10  (jsdom env)
-e2e_tests:  "@playwright/test"  # ^1.61.1  (headless Chromium)
-dom_env:    jsdom               # ^29.1.1  (unit-test DOM)
+e2e_tests:  "@playwright/test"  # ^1.62.1  (headless Chromium)
+dom_env:    jsdom               # ^30.0.1  (unit-test DOM)
 runtime_deps: none              # zero — no `dependencies` block in package.json
 vendored:                       # NOT npm dependencies — see ADR-003
   lamejs: src/vendor/lamejs/    # MIT MP3 encoder (audio export)
@@ -192,6 +192,14 @@ utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
 utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
 ```
 
+Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
+`AudioParam` write shares: `rampTo(param, value, ctx, tau)` /
+`rampCancelAndSet(...)` over the four named time constants — `RAMP_FAST` 5 ms,
+`RAMP_MEDIUM` 10 ms, `RAMP_SMOOTH` 20 ms (the insert effects' own controls, which
+zipper audibly at anything shorter), `RAMP_SLOW` 50 ms. These are dialled by ear
+under ADR-010, so they are named in one place rather than spelled as literals at
+the call site.
+
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.
@@ -224,7 +232,29 @@ seq/drum/sampler machines. The **motion** machine deliberately uses the raw
 Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
 (`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and
 `${prefix}.mix` → `setMix` subscriptions every `Effect.bind` opened by hand.
-`Compressor.bind` does not use it (discrete ratio/release index tables, no mix).
+`Compressor.bind` calls it too, for the `.on` half alone: it defines no `setMix`,
+and that absence is exactly how the helper knows not to subscribe a `.mix` param
+the compressors and the wah do not have.
+
+All six insert effects extend **`WrappedEffect`** (`audio/effects/effect.ts`),
+which owns the `BypassWrapper`, publishes its `input`/`output` as the `Effect`
+surface and delegates `setBypass`. A subclass is then only its DSP span plus its
+`bind`; `Compressor` overrides `setBypass` to also clear its GR meter.
+`setMix` stays off the base deliberately — see effects.md REQ-1.
+
+Their **params** come from one factory per shared effect in
+`state/params.ts` (`distParams`, `phaserParams`, `delayParams`, `reverbParams`,
+over `fxOnParam`), instantiated per prefix, so the three chains cannot drift into
+three different delays. Per-chain defaults are arguments, not copies. The wah and
+the compressors stay longhand — each appears once. `npm run check:params` is the
+gate: `public/params.json` and `public/params.md` must regenerate byte-identical.
+
+The four payload validators share `state/validate-utils.ts`
+(`isObject`, `describeValue`, `MAX_ERRORS`, `AddError`) — `isObject` is a
+security predicate under ADR-015, and it had four copies. `checkUnit` /
+`checkRatchet` keep one copy each in `song-validate.ts` and `song-author.ts`:
+same names, different signatures, because the canonical validator refuses what
+the dialect coerces (ADR-013).
 
 ### Event flow / propagation
 
