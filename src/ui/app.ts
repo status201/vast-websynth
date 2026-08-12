@@ -1,6 +1,7 @@
 import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { PresetSession } from '../state/preset-session';
+import { patchSnapshot } from '../state/preset-session';
 import type { XyPadStore } from '../state/xy-pad';
 import type { PatternUndo, UndoMachine } from '../state/pattern-undo';
 import type { UiBridge } from './ui-bridge';
@@ -105,7 +106,7 @@ export function mountApp(
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
     if (file) {
       Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-      session.setActive(file.name);
+      session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
     }
   };
 
@@ -185,11 +186,57 @@ function buildHeader(
 
   const dropdown = new Dropdown(Presets.list(), Presets.list()[0] ?? '');
   dropdown.el.dataset.testid = 'preset-select';
-  // The selector mirrors the active sound (preset/song name + dirty marker).
-  session.subscribe(() => dropdown.setValue(session.display));
+
+  /**
+   * The preset list, with the loaded song's sound pinned on top (presets.md
+   * REQ-13). A stored preset of the same name drops out while the song is
+   * loaded, so one label never renders twice and the pinned sound wins.
+   */
+  const presetOptions = (): string[] => {
+    const song = session.songSound;
+    if (!song) return Presets.list();
+    return [song.name, ...Presets.list().filter((n) => n !== song.name)];
+  };
+
+  /** The pinned name currently rendered, so a rebuild happens only when the
+   *  list actually changes (see `syncSelector`). */
+  let pinnedInList: string | null = null;
+
+  /**
+   * Rebuild the options, then re-assert the label.
+   *
+   * The order is the requirement (presets.md REQ-14): `setOptions` falls back to
+   * the first option when the current value is absent (dropdown.md REQ-2/REQ-12),
+   * and the displayed value here is often absent — a song name, or a dirty
+   * "Ember *". Without the re-assert, a preset *import* — which changes no sound
+   * at all — silently relabelled the header to "acid".
+   */
+  const refreshPresetOptions = (): void => {
+    pinnedInList = session.songSound?.name ?? null;
+    dropdown.setOptions(presetOptions(), { dividerAfter: pinnedInList ? 1 : 0 });
+    dropdown.setValue(session.display);
+  };
+
+  /**
+   * The selector mirrors the active sound (preset/song name + dirty marker) and
+   * owns the pinned entry — one subscription keeps label, marker and list in step.
+   *
+   * Most emissions (`setActive`, `markDirty`) change only the *label*, so the
+   * option list is rebuilt only when the pinned song changed. That keeps a dirty
+   * transition off the DOM (runtime-performance.md) and, more to the point, stops
+   * a stray param edit from tearing down an open menu under the user's focus.
+   */
+  const syncSelector = (): void => {
+    if ((session.songSound?.name ?? null) !== pinnedInList) refreshPresetOptions();
+    else dropdown.setValue(session.display);
+  };
+  session.subscribe(syncSelector);
+
   dropdown.onChange((name) => {
-    const p = Presets.load(name);
-    if (p) Presets.apply(bus, p);
+    const song = session.songSound;
+    // The pinned entry restores the song's patch; everything else is a preset.
+    const snap = song && name === song.name ? song.patch : Presets.load(name);
+    if (snap) Presets.apply(bus, snap);
     session.setActive(name);
   });
 
@@ -203,7 +250,7 @@ function buildHeader(
     onClick: () => void openPresetManagerModal({
       bus,
       session,
-      onPresetsChanged: () => dropdown.setOptions(Presets.list()),
+      onPresetsChanged: refreshPresetOptions,
     }),
   });
 
@@ -213,7 +260,7 @@ function buildHeader(
   bridge.openPresetImport = (parse) => void openPresetManagerModal({
     bus,
     session,
-    onPresetsChanged: () => dropdown.setOptions(Presets.list()),
+    onPresetsChanged: refreshPresetOptions,
     initialImport: parse,
   });
 

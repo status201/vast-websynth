@@ -3,7 +3,9 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 6  # v6: setDisabledOptions — individual options can be unselectable (REQ-10)
+version: 7  # v7: setOptions takes a dividerAfter group separator, and REQ-11 writes
+            #     down that a rebuild can strand the displayed value
+            # v6: setDisabledOptions — individual options can be unselectable (REQ-10)
             # v5: setDimmed + the "never dim the root" invariant (REQ-9)
             # v4: the filter row is content type, not faceplate legend (REQ-7)
             # v3: Up/Down/Home/End walk the options in every dropdown (REQ-8)
@@ -169,6 +171,31 @@ without anyone remembering to ask.
     destinations ([lfo](lfo.md) REQ-12), reached through `ParamDropdown`'s
     `setDisabledLabels`, which keeps the full label array as the index authority
     so the index↔label mapping cannot drift with the offered set.
+- **REQ-11** (v7) — **A list can be split into groups by a divider**, via
+  `setOptions(options, { dividerAfter })`: the option at index `dividerAfter - 1`
+  gets a rule beneath it. Omitted (or `0`) renders exactly as before, so every
+  existing call site is untouched.
+  - It is **presentation only** — no group model, no headers, no per-group
+    behaviour. The one caller needs to say "this first row is a different kind of
+    thing", not to grow the component a taxonomy; the first consumer is the header
+    preset selector separating the loaded song's pinned sound from the preset list
+    ([presets](presets.md) REQ-13). An option count is enough for that, and it
+    cannot desynchronize from the array the way a parallel group list would.
+  - The divider is a `border-bottom` on the option, not a separate element, so it
+    stays out of the arrow-key walk (REQ-8) and out of the filter's visible count
+    (REQ-7) for free — a rule the user cannot focus or land on.
+- **REQ-12** (v7, regression) — **`setOptions` can strand the displayed value, so
+  a caller whose label may not be an option must re-assert it.** REQ-2's fallback
+  (`if (!options.includes(this._value)) this._value = options[0]`) exists for the
+  common case where the value is one of the options. It is *wrong* for a consumer
+  whose toggle shows something else — the preset selector shows a song name or a
+  dirty `"Ember *"` ([presets](presets.md) REQ-5) — where any rebuild silently
+  repainted the toggle with the first option while the underlying state said
+  otherwise. The component keeps the fallback (dropping it would leave `_value`
+  pointing at a row that no longer exists), and the contract is documented here:
+  **call `setValue` after `setOptions`, not before**, whenever the displayed value
+  is not guaranteed to be in the list. `setValue` early-returns when unchanged, so
+  the re-assert costs nothing in the common case.
 
 ## Technical design
 
@@ -179,7 +206,10 @@ without anyone remembering to ask.
 - `constructor(options: string[], initial?: string, opts?: DropdownOptions)`
   — `DropdownOptions = { filter?: boolean }` (omitted ⇒ auto by option count)
 - `el: HTMLElement` — root (`styles.root` + global `dropdown` class)
-- `setOptions(options: string[]): void`
+- `setOptions(options: string[], opts?: SetOptionsOptions): void`
+  — `SetOptionsOptions = { dividerAfter?: number }` (REQ-11; omitted ⇒ no divider).
+  Call `setValue` **after** this when the displayed value may not be an option
+  (REQ-12)
 - `setValue(v: string): void` / `get value(): string`
 - `setDimmed(on: boolean): void` — inherited/unset styling on the toggle (REQ-9)
 - `setDisabledOptions(labels: Iterable<string>): void` — greyed, unselectable
@@ -209,6 +239,8 @@ div.root.dropdown:           # + global `open` class while open
       button.option[.active] # one per option; [hidden] while filtered out (REQ-7)
                              # [disabled] while unselectable (REQ-10) — separate
                              # channels: a disabled option still shows
+                             # [.divider] on index dividerAfter-1 (REQ-11):
+                             # a border-bottom, not an element — nothing to focus
       div.empty              # "No match", hidden unless zero matches
 ```
 
@@ -379,6 +411,18 @@ Scenario: Disabling never rewrites the value (edge, v6, REQ-10)
 Scenario: Disabled survives a later setOptions (edge, v6, REQ-10)
   Given setDisabledOptions(['pan']) then setOptions with the same labels
   Then "pan" is still disabled in the rebuilt list
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A divider marks the end of the first group (v7, REQ-11)
+  Given setOptions(['Night Rider', 'acid', 'bass'], { dividerAfter: 1 })
+  Then the first option carries the divider class and no other option does
+  And omitting dividerAfter leaves every option without it
+# pinned by: tests/ui/dropdown.test.ts
+
+Scenario: A rebuild does not repaint a value the list never held (regression, v7, REQ-12)
+  Given a Dropdown showing "Night Rider" while its options are preset names
+  When setOptions runs and the caller re-asserts setValue("Night Rider")
+  Then the toggle still reads "Night Rider", not the first option
 # pinned by: tests/ui/dropdown.test.ts
 ```
 

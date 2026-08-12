@@ -83,4 +83,17 @@ How each worklet embodies it:
   improvements (ZDF, oversampling, thermal models) are **deliberately declined**
   unless they are *also* cheap and stable — propose them against this ADR rather
   than adding them silently.
-```
+
+## Note (2026-08-12) — a factual correction, not a change of decision
+
+"Across **8-voice polyphony × 2 channels**" in *Context / Forces* above described
+the budget at the time of writing. It has been stale since
+[ladder-filter](../features/ladder-filter.md) REQ-9 (v3) pinned the filter worklet
+to **one** channel (`channelCount: 1`, `outputChannelCount: [1]`) — forcing it
+stereo only computed identical samples twice. The real multipliers today: the
+**ladder filter** is one instance per voice at 1 channel; the **compressors** are
+two bus instances at 2 channels.
+
+The decision is untouched — a smaller budget than stated argues *for*
+*musical, stable, cheap*, not against it. Recorded here rather than edited above,
+because ADRs are append-only ([`specs/README.md`](../README.md) → Decisions).

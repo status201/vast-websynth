@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PresetSession, isPatchParam } from '../../src/state/preset-session';
+import { PresetSession, isPatchParam, patchSnapshot } from '../../src/state/preset-session';
 
 describe('PresetSession', () => {
   it('formats display with a dirty marker once edited', () => {
@@ -48,6 +48,75 @@ describe('PresetSession', () => {
     expect(s.display).toBe('');
     s.markDirty(); // no label yet → no spurious " *"
     expect(s.display).toBe('');
+  });
+});
+
+// presets.md REQ-13 — a loaded song's sound stays selectable while presets are
+// auditioned against it.
+describe('PresetSession.songSound', () => {
+  it('starts unpinned', () => {
+    expect(new PresetSession().songSound).toBeNull();
+  });
+
+  it('setActiveSong pins the patch and labels the selector, clean', () => {
+    const s = new PresetSession();
+    s.setActive('basic');
+    s.markDirty();
+    s.setActiveSong('A Test Song', { 'filter.cutoff': 61 });
+    expect(s.songSound).toEqual({ name: 'A Test Song', patch: { 'filter.cutoff': 61 } });
+    expect(s.display).toBe('A Test Song');
+    expect(s.dirty).toBe(false);
+  });
+
+  it('selecting a preset does not unpin the song being compared against', () => {
+    const s = new PresetSession();
+    s.setActiveSong('A Test Song', { 'filter.cutoff': 61 });
+    s.setActive('lead');
+    expect(s.display).toBe('lead');
+    expect(s.songSound?.name).toBe('A Test Song'); // still reachable — the point of REQ-13
+  });
+
+  it('a second song replaces the pin rather than accumulating history', () => {
+    const s = new PresetSession();
+    s.setActiveSong('A Test Song', { 'filter.cutoff': 61 });
+    s.setActiveSong('Another Test Song', { 'filter.cutoff': 80 });
+    expect(s.songSound).toEqual({ name: 'Another Test Song', patch: { 'filter.cutoff': 80 } });
+  });
+
+  it('emits so the selector can rebuild its options', () => {
+    const s = new PresetSession();
+    const seen: (string | null)[] = [];
+    s.subscribe(() => seen.push(s.songSound?.name ?? null));
+    s.setActiveSong('A Test Song', {});
+    expect(seen).toEqual([null, 'A Test Song']);
+  });
+});
+
+describe('patchSnapshot', () => {
+  it('keeps the patch and drops the song-level machines', () => {
+    const snap = {
+      'filter.cutoff': 61, 'osc1.wave': 2, 'fx.reverb.mix': 0.3, 'master.volume': 0.8,
+      'transport.bpm': 138, 'drum.t0.pan': -0.3, 'seq.on': 1, 'fx.drum.delay.on': 1,
+      'master.modWheel': 0.5,
+    };
+    expect(patchSnapshot(snap)).toEqual({
+      'filter.cutoff': 61, 'osc1.wave': 2, 'fx.reverb.mix': 0.3, 'master.volume': 0.8,
+    });
+  });
+
+  it('agrees with isPatchParam id for id, so the marker and the pin cannot diverge', () => {
+    const snap = { 'filter.cutoff': 61, 'transport.bpm': 138, 'lfo.rate': 4, 'arp.on': 1 };
+    for (const id of Object.keys(snap)) {
+      expect(id in patchSnapshot(snap), id).toBe(isPatchParam(id));
+    }
+  });
+
+  it('does not mutate or alias its input', () => {
+    const snap = { 'filter.cutoff': 61, 'transport.bpm': 138 };
+    const out = patchSnapshot(snap);
+    out['filter.cutoff'] = 99;
+    expect(snap['filter.cutoff']).toBe(61);
+    expect(snap['transport.bpm']).toBe(138);
   });
 });
 

@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Song, DEMO_SONGS, JSON_DEMOS, demoNames, isDemoName, resolveDemoName } from '../../src/state/song';
+import {
+  Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, isDemoName, resolveDemoName,
+  compareSongNames,
+} from '../../src/state/song';
 import { DROP_IN_DEMOS, DROP_IN_NAMES } from './demo-files';
 import { fixtureSong, FIXTURE } from '../fixtures/song-fixture';
 import type { SongFile } from '../../src/state/song';
@@ -498,14 +501,35 @@ describe('Song', () => {
       });
     });
 
-    it('lists every drop-in ahead of every built-in', () => {
-      // The order rule, stated over the whole library rather than through two
-      // spelled names — it holds however many demos exist, in any order.
+    // song-mode.md REQ-12 (v20). Stated over the whole library rather than
+    // through spelled names — it holds however many demos exist. This replaced
+    // "every drop-in ahead of every built-in": which of the three sources a demo
+    // comes from is a loading detail, and it used to pin the project zips to the
+    // end of the shelf.
+    it('orders the shelf alphabetically, whatever source a demo comes from', () => {
       const names = demoNames();
-      const dropIns = DROP_IN_NAMES.map((n) => names.indexOf(n));
-      const builtIns = Object.keys(DEMO_SONGS).map((n) => names.indexOf(n));
-      expect(Math.min(...dropIns)).toBeGreaterThanOrEqual(0);
-      expect(Math.max(...dropIns)).toBeLessThan(Math.min(...builtIns));
+      expect(names).toEqual([...names].sort(compareSongNames));
+    });
+
+    it('lists every demo from every source exactly once', () => {
+      const names = demoNames();
+      for (const n of [...DROP_IN_NAMES, ...Object.keys(DEMO_SONGS), ...ZIP_DEMOS.map((d) => d.name)]) {
+        expect(names.filter((x) => x === n), n).toHaveLength(1);
+      }
+      expect(names).toHaveLength(
+        DROP_IN_NAMES.length + Object.keys(DEMO_SONGS).length + ZIP_DEMOS.length,
+      );
+    });
+
+    // The regression this change was made for: a zip demo sat last purely for
+    // being a zip, which pushed it past DEMO_ROW_LIMIT into the "All Demos"
+    // fold. Each zip must sit exactly where its *name* puts it.
+    it('places each project zip by its name, not at the end', () => {
+      const names = demoNames();
+      for (const zip of ZIP_DEMOS) {
+        const expected = [...names].sort(compareSongNames).indexOf(zip.name);
+        expect(names.indexOf(zip.name), zip.name).toBe(expected);
+      }
     });
 
     // song-mode.md REQ-11: the drop-ins are fetched on click, so their *names*
@@ -584,7 +608,9 @@ describe('Song.list with fetched demos', () => {
     const list = Song.list();
     for (const name of Object.keys(DROP_IN_DEMOS)) expect(list).toContain(name);
     for (const name of Object.keys(DEMO_SONGS)) expect(list).toContain(name);
-    expect(list).toEqual([...list].sort());
+    // The same comparator the demo row uses (song-mode.md REQ-12) — the picker
+    // and the shelf must not disagree about where a name sits.
+    expect(list).toEqual([...list].sort(compareSongNames));
   });
 
   it('loadSlot stays sync and returns only built-ins, never a fetched demo', () => {

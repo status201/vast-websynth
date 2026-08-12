@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { gotoAndStart, busGet, busSet, sessionDisplay } from './helpers';
+import { gotoAndStart, busGet, busSet, sessionDisplay, pickDemo, clickDemo } from './helpers';
 
 /**
  * Preset dropdown applies a snapshot to the ParamBus, and Save persists a new
@@ -141,6 +141,75 @@ test.describe('preset files', () => {
     // The live patch is untouched (REQ-12).
     expect(await busGet(page, 'filter.cutoff')).toBe(before);
     await expect(page.getByTestId('preset-select')).toContainText('basic');
+  });
+
+  /**
+   * presets.md REQ-13 — auditioning a preset against a demo used to destroy the
+   * demo's sound: its name labelled the selector but was never an option, so the
+   * only way back was reloading the demo and losing every other edit.
+   *
+   * No demo is named here (e2e/CLAUDE.md) — one is picked by kind.
+   */
+  test("a loaded song's sound stays selectable while presets are auditioned", async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const demo = await pickDemo(page, 'built-in');
+    await clickDemo(page, demo.name);
+
+    await expect.poll(() => sessionDisplay(page)).toBe(demo.name);
+    const songCutoff = await busGet(page, 'filter.cutoff');
+    const songBpm = await busGet(page, 'transport.bpm');
+
+    // The demo's sound is the first option. Index 0 is the toggle itself —
+    // the options carry no testid of their own (dropdown.md).
+    const select = page.getByTestId('preset-select');
+    await select.click();
+    await expect(select.locator('button').nth(1)).toHaveText(demo.name);
+
+    // Audition a factory preset — the sound changes, the pin survives.
+    await select.getByText('pad', { exact: true }).click();
+    await expect.poll(() => sessionDisplay(page)).toBe('pad');
+    await expect.poll(() => busGet(page, 'filter.cutoff')).not.toBe(songCutoff);
+
+    // …and a BPM tweak, which returning to the song's sound must not undo.
+    await busSet(page, 'transport.bpm', songBpm + 7);
+
+    await select.click();
+    await select.getByText(demo.name, { exact: true }).click();
+
+    await expect.poll(() => busGet(page, 'filter.cutoff')).toBe(songCutoff);
+    expect(await busGet(page, 'transport.bpm')).toBe(songBpm + 7); // patch only
+    expect(await sessionDisplay(page)).toBe(demo.name);            // clean again
+  });
+
+  /**
+   * presets.md REQ-14 (regression) — `setOptions` falls back to the first option
+   * when the current value is absent, so an import (which changes no sound at
+   * all, REQ-12) silently relabelled the header from the song's name to "acid".
+   */
+  test('importing presets does not relabel the selector', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    const demo = await pickDemo(page, 'built-in');
+    await clickDemo(page, demo.name);
+    await expect.poll(() => sessionDisplay(page)).toBe(demo.name);
+    const before = await busGet(page, 'filter.cutoff');
+
+    await page.getByTestId('preset-save').click();
+    await page.getByTestId('preset-mgr-file').setInputFiles({
+      name: 'e2e-relabel.preset.websynth.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'websynth-preset', version: 1, name: 'e2e-relabel',
+        params: { 'filter.cutoff': 33 },
+      })),
+    });
+    await page.getByTestId('preset-import-confirm').click();
+
+    // The list grew; the label and the sound did not move.
+    await expect(page.getByTestId('preset-select')).toContainText(demo.name);
+    expect(await sessionDisplay(page)).toBe(demo.name);
+    expect(await busGet(page, 'filter.cutoff')).toBe(before);
   });
 
   test('a preset file dropped on the song importer points at the right door', async ({ page }) => {

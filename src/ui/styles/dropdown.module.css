@@ -197,6 +197,16 @@
   box-shadow: inset 0 1px 0 rgba(244, 205, 94, 0.15);
 }
 
+/* Group rule (dropdown.md REQ-11) — a border on the last option of the first
+   group, so there is no extra element for the arrow keys to land on. Sits below
+   `.active` so a selected divider option keeps its own background. */
+.option.divider {
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 3px 3px 0 0;
+  margin-bottom: 3px;
+  padding-bottom: 9px;
+}
+
 .compact { display: block; width: 100%; }
 .compact .toggle {
   width: 100%;

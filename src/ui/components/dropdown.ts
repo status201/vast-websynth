@@ -23,6 +23,15 @@ export interface DropdownOptions {
   filter?: boolean;
 }
 
+export interface SetOptionsOptions {
+  /**
+   * Draw a group rule beneath the option at index `dividerAfter - 1` (REQ-11).
+   * Presentation only — a count, not a group model, so it cannot desynchronize
+   * from `options` the way a parallel group list would.
+   */
+  dividerAfter?: number;
+}
+
 /**
  * Vintage-styled dropdown. Native `<select>` can't have its open menu
  * cross-browser-styled, so this is a button + absolute-positioned popover.
@@ -84,17 +93,29 @@ export class Dropdown {
     document.addEventListener('keydown', this.onKey);
   }
 
-  setOptions(options: string[]): void {
+  /**
+   * Rebuild the option list.
+   *
+   * **Callers whose displayed value may not be an option must call `setValue`
+   * after this, not before** (REQ-12): the fallback below rewrites `_value` to
+   * the first option, which silently repainted the header preset selector from
+   * a song's name to "acid" on any rebuild.
+   */
+  setOptions(options: string[], opts?: SetOptionsOptions): void {
     this.options = [...options];
     // The threshold can be crossed in both directions (`Presets.list()` grows as
     // the user saves), so the row is (re)decided on every call.
     this.ensureFilter(this.forceFilter ?? options.length >= FILTER_MIN_OPTIONS);
     this.list.innerHTML = '';
-    for (const opt of options) {
+    // A border on the option itself, not a separate element: nothing extra for
+    // the arrow-key walk to land on or the filter to count (REQ-11).
+    const dividerAt = (opts?.dividerAfter ?? 0) - 1;
+    for (const [i, opt] of options.entries()) {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = styles.option!;
       item.textContent = opt;
+      if (i === dividerAt) item.classList.add(styles.divider!);
       if (opt === this._value) item.classList.add('active');
       this.paintDisabled(item);
       item.addEventListener('click', (e) => {

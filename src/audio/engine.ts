@@ -250,9 +250,11 @@ export class Engine {
     this.samplerBus = this.ctx.createGain();
     this.samplerBus.gain.value = 1;
 
-    // Synth auto-pan (lfo.md REQ-4): last stage of the synth channel, so the
-    // insert chain upstream stays 1-channel (ADR-010, cheap). Centred until the
-    // LFO's `pan` destination drives it.
+    // Synth auto-pan (lfo.md REQ-4): last stage of the synth channel, so one
+    // node pans instead of one per voice and the inserts ahead of the reverb
+    // stay 1-channel (ADR-010, cheap). The reverb — last in the chain — is where
+    // the channel actually becomes stereo: its IR has 2 decorrelated channels,
+    // so a mono input convolves to two. Centred until the LFO's `pan` drives it.
     this.synthPan = this.ctx.createStereoPanner();
     this.synthPan.pan.value = 0;
 
