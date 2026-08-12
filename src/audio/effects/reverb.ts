@@ -1,4 +1,4 @@
-import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
 import type { ParamBus } from '../../state/params';
 
 /** The five selectable tail lengths (seconds), shortest → longest. */
@@ -37,19 +37,14 @@ function irFor(ctx: AudioContext, durationSec: number): AudioBuffer {
  * generated impulse response. `size` selects from a small bank of IRs, each
  * generated once on first use and shared across every Reverb (see `irCache`).
  */
-export class Reverb implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Reverb extends WrappedEffect {
   private readonly convolver: ConvolverNode;
   private readonly damp: BiquadFilterNode;
   /** Longest tail this instance may use; weak perf tiers shorten it. */
   private readonly maxIrS: number;
 
-  constructor(private readonly ctx: AudioContext, opts?: { maxIrS?: number }) {
-    this.wrap = new BypassWrapper(ctx, 0.25);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext, opts?: { maxIrS?: number }) {
+    super(ctx, 0.25);
 
     this.convolver = ctx.createConvolver();
     this.damp = ctx.createBiquadFilter();
@@ -72,7 +67,6 @@ export class Reverb implements Effect {
     return irFor(this.ctx, Math.min(IR_DURATIONS[idx]!, this.maxIrS));
   }
 
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setSize(v: number): void {
     const last = IR_DURATIONS.length - 1;

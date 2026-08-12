@@ -1,14 +1,11 @@
-import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01 } from '../../utils/math';
 import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 const STAGES = 4;
 
-export class Phaser implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Phaser extends WrappedEffect {
   private readonly stages: BiquadFilterNode[];
   private readonly lfo: OscillatorNode;
   private readonly lfoDepth: GainNode;
@@ -18,10 +15,8 @@ export class Phaser implements Effect {
 
   private depthOct = 1.5;
 
-  constructor(private readonly ctx: AudioContext) {
-    this.wrap = new BypassWrapper(ctx, 0.5);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext) {
+    super(ctx, 0.5);
 
     this.stages = [];
     for (let i = 0; i < STAGES; i++) {
@@ -66,7 +61,6 @@ export class Phaser implements Effect {
     this.fbDelay.connect(this.inGain);
   }
 
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setRate(hz: number): void {
     this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);

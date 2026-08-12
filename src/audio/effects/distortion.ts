@@ -1,4 +1,4 @@
-import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
 import { memoizeDriveCurve } from '../drive-curve';
 import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
@@ -16,19 +16,14 @@ function buildTanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffe
 /** Bucketed + shared across every Distortion instance — see drive-curve.ts. */
 const tanhCurve = memoizeDriveCurve((amount) => buildTanhCurve(amount));
 
-export class Distortion implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Distortion extends WrappedEffect {
   private readonly shaper: WaveShaperNode;
   private readonly preGain: GainNode;
   private readonly tone: BiquadFilterNode;
   private readonly postGain: GainNode;
 
-  constructor(private readonly ctx: AudioContext, opts?: { oversample?: boolean }) {
-    this.wrap = new BypassWrapper(ctx, 1);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext, opts?: { oversample?: boolean }) {
+    super(ctx, 1);
 
     this.preGain = ctx.createGain();
     this.preGain.gain.value = 1;
@@ -54,7 +49,6 @@ export class Distortion implements Effect {
       .connect(this.wrap.processedOut);
   }
 
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setDrive(amount: number): void {
     // The gains track `amount` continuously (that is what makes a drag sound
