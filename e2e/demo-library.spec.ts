@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart, revealAllDemos } from './helpers';
+import { gotoAndStart, revealAllDemos, renderedDemoNames, zipDemos } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -59,6 +59,31 @@ test.describe('demo library', () => {
     for (const name of armedNames) {
       const title = await page.getByTestId(`song-demo-${name}`).getAttribute('title');
       expect(title, `"${name}" is armed but says nothing`).toMatch(/arp armed|motion ready/);
+    }
+  });
+
+  /**
+   * song-mode.md REQ-12 (v20). The row used to be the three demo sources
+   * concatenated, which pinned the project zips to the end — so the library's
+   * most feature-complete demo sat in the "All Demos" fold purely for being a
+   * `.zip`. Which source a demo loads from is not something a listener can see.
+   */
+  test('the row reads alphabetically, with the project zips in their place', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-song').click();
+    await revealAllDemos(page);
+
+    const rendered = await renderedDemoNames(page);
+    expect(rendered.length).toBeGreaterThan(0);
+
+    // The same comparator src/state/song.ts uses (compareSongNames).
+    const sorted = [...rendered].sort(
+      (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }));
+    expect(rendered).toEqual(sorted);
+
+    // And the regression itself: no zip is parked at the end for being a zip.
+    for (const zip of zipDemos()) {
+      expect(rendered.indexOf(zip.name), zip.name).toBe(sorted.indexOf(zip.name));
     }
   });
 });

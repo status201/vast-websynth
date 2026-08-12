@@ -253,8 +253,11 @@ test.describe('song mode', () => {
   });
 
   // song-mode.md REQ-12: the row IS the shipped library, and each drop-in wears
-  // the name from inside its own file (via the generated index), not its filename.
-  test('the demo row is exactly the shipped library, in source order', async ({ page }) => {
+  // the name from inside its own file (via the generated index), not its
+  // filename. Since v20 the row is one alphabetical list rather than the three
+  // sources concatenated, so membership is what this asserts — the ordering rule
+  // itself is pinned by e2e/demo-library.spec.ts.
+  test('the demo row is exactly the shipped library', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
 
@@ -262,9 +265,11 @@ test.describe('song mode', () => {
     const dropIns = dropInDemos().map((d) => d.name);
     const zips = zipDemos().map((d) => d.name);
 
-    expect(all.slice(0, dropIns.length)).toEqual(dropIns);
-    expect(all.slice(all.length - zips.length)).toEqual(zips);
-    // The built-ins are what is left in the middle, and there is at least one.
+    // Every file-backed demo is on the shelf, wherever its name puts it…
+    for (const name of [...dropIns, ...zips]) expect(all).toContain(name);
+    // …exactly once…
+    expect(new Set(all).size).toBe(all.length);
+    // …and the built-ins are what is left over, of which there is at least one.
     expect(all.length).toBeGreaterThan(dropIns.length + zips.length);
 
     for (const name of dropIns) {

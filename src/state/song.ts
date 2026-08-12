@@ -29,6 +29,18 @@ const DEMO_INDEX = demoIndexJson as Record<string, DemoMeta | undefined>;
 
 const store = new SlotStore('websynth.song.');
 
+/**
+ * How every user-facing song/demo name is ordered — the demo row (`demoNames`)
+ * and the slot picker (`Song.list`), so the two cannot disagree about where a
+ * name sits (song-mode.md REQ-12).
+ *
+ * `numeric` so the year-named demos read as numbers (1973 · 1979 · 1983 ·
+ * 1985-1 · 1985-2) rather than lexically; `sensitivity: 'base'` so an accent
+ * files under its base letter and case never splits the list in two.
+ */
+export const compareSongNames = (a: string, b: string): number =>
+  a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+
 export interface ChainData {
   enabled: boolean;
   steps: number[];
@@ -280,7 +292,7 @@ export const Song = {
       ...JSON_DEMOS.map((d) => d.name),
       ...Object.keys(DEMO_SONGS),
       ...store.readIndex(),
-    ])].sort();
+    ])].sort(compareSongNames);
   },
 
   saveSlot(name: string, file: SongFile): void {
@@ -621,17 +633,24 @@ export const ZIP_DEMOS: DemoRef[] = Object.keys(ZIP_URLS)
   });
 
 /**
- * Every demo name, in the order the Song panel's buttons show them: drop-in
- * JSON first, then the built-ins, then the project zips. One source of order so
- * the button row, the tour's fallback and the empty-play modal's random pick
- * cannot disagree about what exists.
+ * Every demo name, in the order the Song panel's buttons show them: **one
+ * alphabetical list by display name**, across all three sources. One source of
+ * order so the button row, the tour's fallback and the empty-play modal's random
+ * pick cannot disagree about what exists.
+ *
+ * Which source a demo comes from is a loading detail (song-mode.md REQ-12), and
+ * it used to leak into the shelf: the list was the three sources concatenated,
+ * each sorted by *filename*. So the project zips always sat last — `1973`, the
+ * most feature-complete demo in the library, was pushed past DEMO_ROW_LIMIT into
+ * the "All Demos" fold purely for being a `.zip` — and a label that differs from
+ * its filename was mis-filed ("Haçienda" under `h`, "Apex Twin" after "Tosti").
  */
 export function demoNames(): string[] {
   return [
     ...JSON_DEMOS.map((d) => d.name),
     ...Object.keys(DEMO_SONGS),
     ...ZIP_DEMOS.map((d) => d.name),
-  ];
+  ].sort(compareSongNames);
 }
 
 /**
