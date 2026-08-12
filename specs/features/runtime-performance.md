@@ -3,7 +3,10 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 2   # v2: visibility gating is for pixels, not for sound (REQ-9);
+version: 3   # v3: REQ-1 — the onboarding layer and the Help & About modal load
+             #     on demand; the eager button factory and the late-bound Debug
+             #     setters split out so nothing drags the bodies back in
+             # v2: visibility gating is for pixels, not for sound (REQ-9);
              #     REQ-4 scoped explicitly to repaints
 owner: core
 related:
@@ -32,6 +35,12 @@ source:
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/app.ts
+  - src/main.ts                             # REQ-1 — the idle warms (lamejs, onboarding)
+  - src/ui/onboarding/index.ts              # REQ-1 — the synchronous facade
+  - src/ui/onboarding/onboarding-impl.ts    # REQ-1 — the lazy body behind it
+  - src/ui/components/about-button.ts       # REQ-1 — eager factory, lazy modal body
+  - src/state/debug-sources.ts              # REQ-1 — late-bound rows, so main.ts
+                                            #         never imports the modal
   - scripts/clean-demos.ts
   - public/worklets/ladder-filter.js
 ```
@@ -69,16 +78,34 @@ so a reviewer has something concrete to hold a new feature against.
   statically, and the instrument is playable without any of them. So the on-demand
   surfaces are behind `import()` at their trigger: the sample recorder/editor, the
   preset manager, the audio-export dialog, the WiFi pair modal (which also defers
-  `jsqr`), the MP3 encoder (`lamejs`), and the authoring-guide prompt text behind the
-  AI Prompt button. The onboarding layer — the tour, the info badges and the ~54 kB of
-  help copy they read — loads on the first `startTour()` or badge toggle, behind the
-  synchronous `Onboarding` facade so no caller learns that it is lazy.
+  `jsqr`), the MP3 encoder (`lamejs`), the authoring-guide prompt text behind the
+  AI Prompt button, and the Help & About modal. The onboarding layer — the tour, the
+  info badges and the ~54 kB of help copy they read — loads on the first `startTour()`
+  or badge toggle, behind the synchronous `Onboarding` facade so no caller learns that
+  it is lazy.
+
+  A **synchronous facade over a lazy body** is the pattern wherever callers already
+  hold the surface at boot. `Onboarding`'s five methods keep their exact signatures:
+  the two commands (`startTour`, `toggleInfoBadges`) return `void` and start the load
+  internally, and the two readers answer from facade-held state — `shouldAutoLaunch()`
+  reads only `localStorage`, and `isInfoBadgesActive()` is `false` until the body
+  exists, which is not an approximation because the badges cannot be showing before
+  they are loaded. Unlike the on-demand modals, the facade **memoizes its import
+  promise**: those modals re-`import()` freely because opening one twice is
+  idempotent, whereas resolving this one *constructs state*, and two triggers (the ⓘ
+  button and the `?` key) must not build two `InfoBadges`.
 
   The rule is about *reachability, not size*: a small module on a click path is fine to
   defer, and a large one on the boot path (the engine, the panels) is not deferrable at
   all. Where a heavy module also exports the **button** that opens it, the button
   factory moves to its own module so the body stays behind the click — importing a
-  factory eagerly to get a lazy body defeats the split.
+  factory eagerly to get a lazy body defeats the split. About is the worked example:
+  `about-button.ts` keeps the factory and the open/close lifecycle and `import()`s
+  `about-modal.ts` on the click, while the three late-bound Debug row setters that
+  `main.ts` calls at boot move to `state/debug-sources.ts`. **Both** edges had to go —
+  cutting only the button would have left `main.ts` holding the modal in the entry
+  chunk. A deferred surface the user can reach *offline* is warmed on idle
+  ([`pwa-install.md`](pwa-install.md) REQ-6).
 
   **The gate is `npm run build`:** the entry chunk stays under Vite's 500 kB warning
   threshold, and the warning firing is the signal that something joined the boot path
@@ -183,7 +210,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 
 | Rule | Enforced at |
 |---|---|
-| REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts` |
+| REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms) |
 | REQ-2 | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves) |
 | REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
@@ -244,6 +271,26 @@ Scenario: an audio-affecting loop survives a hidden document (REQ-9, regression)
   Then the timer stops and rAF drives the loop again
 # pinned by: tests/audio/transport/motion-machine.test.ts, e2e/motion.spec.ts
 
+Scenario: the onboarding facade answers before its body is loaded
+  Given a fresh page where nothing has started the tour or the badges
+  When the header reads isInfoBadgesActive() and shouldAutoLaunch()
+  Then both answer synchronously
+  And no onboarding-impl module has been imported
+# pinned by: tests/ui/onboarding-facade.test.ts
+
+Scenario: two badge triggers share one lazily-loaded body
+  Given the onboarding body has not loaded yet
+  When the ⓘ button and the ? key both toggle the badges before it resolves
+  Then exactly one InfoBadges instance is constructed
+  And every onInfoBadgesChange subscriber sees each resulting state
+# pinned by: tests/ui/onboarding-facade.test.ts
+
+Scenario: opening About twice while the body loads builds one modal
+  Given the About modal body has not loaded yet
+  When the button is clicked twice before the import resolves
+  Then one backdrop is created and appended
+# pinned by: tests/ui/about.test.ts
+
 Scenario: a worklet speed rewrite changes no samples
   Given a block of noisy input and a swept cutoff
   When it is processed by the optimised recurrence
@@ -255,15 +302,25 @@ Scenario: a worklet speed rewrite changes no samples
 
 - Unit: `tests/state/session-autosave.test.ts`, `tests/audio/ladder-filter-worklet.test.ts`,
   `tests/audio/effects/reverb.test.ts`, `tests/ui/step-settings.test.ts`,
-  `tests/audio/transport/motion-machine.test.ts` (REQ-9's driver swap) — `npm test`
+  `tests/audio/transport/motion-machine.test.ts` (REQ-9's driver swap),
+  `tests/ui/onboarding-facade.test.ts` + `tests/ui/about.test.ts` (REQ-1's lazy
+  surfaces) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-1 metric.
+  Nothing in CI runs it, so REQ-1 regressions are caught only by a human reading the
+  500 kB warning; that is how the onboarding layer stayed eager for a release after
+  this spec said it was lazy. A `dist/assets/index-*.js` that grows without a
+  deliberate reason is the signal to re-check what joined the boot path.
 - Profiling: a DevTools Performance trace of boot (REQ-1/REQ-2) and a 10 s trace of a
   motion-heavy demo playing (REQ-5/REQ-6/REQ-7 — watch the GC sawtooth).
 
 ## Open questions / future
 
+- REQ-1 has no automated gate either — CI never runs `npm run build`, so the entry
+  chunk can grow silently between releases. A `scripts/check-bundle.mjs` asserting a
+  ceiling on `dist/assets/index-*.js`, plus a CI `build` job, would make the 500 kB
+  rule self-enforcing instead of a thing a reviewer has to remember.
 - REQ-3 has no automated repo-wide gate; a lint rule banning constructor-scope
   `window.addEventListener('pointermove', …)` would make it self-enforcing.
 - The oscillators of a fully idle voice still run (only the ladder filter is

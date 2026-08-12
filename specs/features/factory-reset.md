@@ -15,7 +15,7 @@ related:
   - sample-persistence   # the one non-localStorage store this must also wipe
 source:
   - src/state/factory-reset.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-modal.ts   # buildFactoryResetButton + the card order
 ```
 
 ## Background / Why

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createAboutButton, setClipStatsSource } from '../../src/ui/components/about';
+import { createAboutButton } from '../../src/ui/components/about-button';
+import { setClipStatsSource } from '../../src/state/debug-sources';
 import { restoreFactorySettings } from '../../src/state/factory-reset';
 import { installLocalStorageMock } from '../storage-mock';
 import modalStyles from '../../src/ui/styles/modal.module.css';
@@ -84,6 +85,39 @@ const bgRow = () => document.querySelector('[data-testid="debug-background"]') a
 const clipsRow = () => document.querySelector('[data-testid="debug-sampler-clips"]') as HTMLElement | null;
 const clipsClearBtn = () => document.querySelector('[data-testid="debug-clips-clear"]') as HTMLButtonElement | null;
 
+/**
+ * Open the modal and wait for the card.
+ *
+ * The body loads behind a dynamic `import()` (runtime-performance.md REQ-1), so
+ * the click no longer builds the card synchronously and a bare `click()` would
+ * assert against an empty document. One `await Promise.resolve()` is not enough
+ * either — the import settles later than a single microtask. The tour button is
+ * the wait target because it is present in every card, whatever the engine stub.
+ */
+async function openModal(btn: HTMLButtonElement): Promise<void> {
+  btn.click();
+  await waitForCard();
+}
+
+/**
+ * `vi.waitFor`'s 1 s default is not enough here. In a full-suite run the first
+ * open in this file is what makes Vite transform the whole About graph
+ * (about-modal → about-shortcuts + about-debug → patterns.ts, dropdown.ts), and
+ * on a loaded machine that overruns a second. It fails destructively rather
+ * than flakily: the timed-out `open()` is still pending, so it appends its card
+ * *after* the next test's `beforeEach` has cleared the DOM, and that test then
+ * sees two cards. Generous here costs nothing — the wait ends when the card
+ * lands, not when the timeout does.
+ */
+const CARD_TIMEOUT = 15_000;
+
+function waitForCard(): Promise<void> {
+  return vi.waitFor(
+    () => { expect(document.querySelector('[data-testid="start-tour"]')).toBeTruthy(); },
+    { timeout: CARD_TIMEOUT },
+  );
+}
+
 /** Close any open modal so its refresh interval / capturing keydown listener don't leak. */
 function closeOpenModal(): void {
   const closeBtn = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Close');
@@ -107,11 +141,11 @@ describe('About modal — Debug section', () => {
   });
   afterEach(() => closeOpenModal());
 
-  it('opens with a default-collapsed Debug section showing the context state', () => {
+  it('opens with a default-collapsed Debug section showing the context state', async () => {
     const { engine } = stubEngine('running');
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
-    btn.click();
+    await openModal(btn);
 
     const section = debugSection();
     expect(section).not.toBeNull();
@@ -119,11 +153,27 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  it('keeps the readout live via the ctx statechange listener while open', () => {
+  // runtime-performance.md REQ-1 — the card is behind a dynamic import, so both
+  // clicks of a double-click get past the `if (!backdrop)` guard if that guard
+  // is read before the await. Checking it afterwards is what makes this pass.
+  it('builds one card when two clicks race the lazy import', async () => {
+    const { engine } = stubEngine('running');
+    const btn = createAboutButton(engine, TOUR);
+    document.body.appendChild(btn);
+
+    btn.click();
+    btn.click();
+    await waitForCard();
+
+    expect(document.querySelectorAll('[data-testid="start-tour"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="debug-section"]')).toHaveLength(1);
+  });
+
+  it('keeps the readout live via the ctx statechange listener while open', async () => {
     const { engine, ctx } = stubEngine('suspended');
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
-    btn.click();
+    await openModal(btn);
     expandDebug(); // REQ-3 — a folded section reads nothing.
 
     expect(ctxStateRow()?.textContent).toBe('suspended');
@@ -135,57 +185,57 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  it('renders the iOS audio-unlock diagnostics row', () => {
+  it('renders the iOS audio-unlock diagnostics row', async () => {
     const ios: IosAudioDiagnostics = { active: true, status: 'playing', routed: true, paused: false, currentTime: 1.2 };
     const { engine } = stubEngine('running', ios);
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
-    btn.click();
+    await openModal(btn);
 
     expect(unlockRow()?.textContent).toBe('playing · routed');
   });
 
   // media-session.md REQ-8 — on the phone where the crackle reproduces, this row
   // is the only way to tell "the session never formed" from "it formed anyway".
-  it('renders the Android keep-alive row, and n/a off Android', () => {
+  it('renders the Android keep-alive row, and n/a off Android', async () => {
     const media: MediaSessionDiagnostics = {
       active: true, status: 'playing', playbackState: 'playing', handlers: 3,
       paused: false, currentTime: 12.34,
     };
     const { engine } = stubEngine('running', INERT_IOS, media);
-    document.body.appendChild(createAboutButton(engine, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(mediaRow()?.textContent).toBe('playing · playing · 3 actions · t=12.3');
 
     document.body.innerHTML = '';
     const { engine: off } = stubEngine('running');
-    document.body.appendChild(createAboutButton(off, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(off, TOUR)));
     expect(mediaRow()?.textContent).toBe('n/a');
   });
 
   // audio-lifecycle.md REQ-12 — the reading that says whether a background
   // crackle is even ours: zero underruns means it happened downstream of us.
-  it('renders the background-watchdog readings', () => {
+  it('renders the background-watchdog readings', async () => {
     const bg: WatchdogDiagnostics = {
       supported: true, watching: true, underrunRatio: 0.0312, worstUnderrunRatio: 0.081,
       driftRatio: 0.994, suspensions: 2,
     };
     const { engine } = stubEngine('running', INERT_IOS, INERT_MEDIA, bg);
-    document.body.appendChild(createAboutButton(engine, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(bgRow()?.textContent)
       .toBe('watching · underrun 3.1% (worst 8.1%) · clock 99.4% · 2 suspends');
 
     // Without renderCapacity the drift fallback is all there is; say so.
     document.body.innerHTML = '';
     const { engine: noCap } = stubEngine('running', INERT_IOS, INERT_MEDIA, { ...bg, supported: false });
-    document.body.appendChild(createAboutButton(noCap, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(noCap, TOUR)));
     expect(bgRow()?.textContent).toContain('underrun n/a');
   });
 
   // debug-panel.md REQ-4/REQ-5 — the late-bound row idiom, used by
   // sample-persistence.md for the IndexedDB clip store.
-  it('reads the sampler-clip row from its late-bound source, or n/a when unbound', () => {
+  it('reads the sampler-clip row from its late-bound source, or n/a when unbound', async () => {
     const { engine } = stubEngine('running');
-    document.body.appendChild(createAboutButton(engine, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(clipsRow()?.textContent).toBe('n/a');
     // REQ-8 — the action-side mirror: an unbound source disables its action
     // rather than offering a button that cannot work. (This runs before any
@@ -195,15 +245,15 @@ describe('About modal — Debug section', () => {
     closeOpenModal();
     document.body.innerHTML = '';
     setClipStatsSource(() => ({ count: 2, bytes: 4_200_000 }));
-    document.body.appendChild(createAboutButton(engine, TOUR)).click();
+    await openModal(document.body.appendChild(createAboutButton(engine, TOUR)));
     expect(clipsRow()?.textContent).toBe('2 · 4.2 MB');
     expect(clipsClearBtn()?.disabled).toBe(false);
   });
 
-  it('places the factory-reset button between the shortcuts grid and Debug', () => {
+  it('places the factory-reset button between the shortcuts grid and Debug', async () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
 
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     expect(reset).not.toBeNull();
@@ -216,7 +266,7 @@ describe('About modal — Debug section', () => {
   it('confirming the factory-reset dialog restores factory settings', async () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
 
     (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
     // The styled confirm carries the Nintendo exit line, italic via .detail.
@@ -231,7 +281,7 @@ describe('About modal — Debug section', () => {
   it('Escape closes the confirm, not the About modal beneath it', async () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
 
     (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -251,7 +301,7 @@ describe('About modal — Debug section', () => {
   it('cancelling the factory-reset dialog changes nothing', async () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
 
     (document.querySelector('[data-testid="factory-reset"]') as HTMLButtonElement).click();
     (document.querySelector('[data-testid="dialog-cancel"]') as HTMLButtonElement).click();
@@ -261,17 +311,17 @@ describe('About modal — Debug section', () => {
 
   // ---- v3: interactive actions (debug-panel.md REQ-6..REQ-9) ----
 
-  const openAbout = (engine: StudioApi): void => {
+  const openAbout = async (engine: StudioApi): Promise<void> => {
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
-    btn.click();
+    await openModal(btn);
   };
   const byId = <T extends HTMLElement>(id: string): T =>
     document.querySelector(`[data-testid="${id}"]`) as T;
 
-  it('offers the panel actions and follows the context state', () => {
+  it('offers the panel actions and follows the context state', async () => {
     const { engine, ctx, api } = stubEngine('suspended');
-    openAbout(engine);
+    await openAbout(engine);
     expandDebug(); // REQ-3 — the label only follows the ctx while expanded.
 
     const toggle = byId<HTMLButtonElement>('debug-ctx-toggle');
@@ -290,9 +340,9 @@ describe('About modal — Debug section', () => {
     expect(ctx.suspend).toHaveBeenCalledTimes(1);
   });
 
-  it('panics and plays a test tone straight to the destination', () => {
+  it('panics and plays a test tone straight to the destination', async () => {
     const { engine, ctx, osc, api } = stubEngine('running');
-    openAbout(engine);
+    await openAbout(engine);
 
     byId<HTMLButtonElement>('debug-panic').click();
     expect(api.panic).toHaveBeenCalledTimes(1);
@@ -315,7 +365,7 @@ describe('About modal — Debug section', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const { engine } = stubEngine('running');
-    openAbout(engine);
+    await openAbout(engine);
 
     byId<HTMLButtonElement>('debug-copy').click();
     await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
@@ -330,7 +380,7 @@ describe('About modal — Debug section', () => {
   it('confirms before clearing the autosaved session', async () => {
     const { engine } = stubEngine('running');
     localStorage.setItem('websynth.session', JSON.stringify({ v: 1, savedAt: Date.now(), file: {} }));
-    openAbout(engine);
+    await openAbout(engine);
 
     byId<HTMLButtonElement>('debug-session-clear').click();
     byId<HTMLButtonElement>('dialog-cancel').click();
@@ -341,7 +391,7 @@ describe('About modal — Debug section', () => {
   it('clears the sampler slots when the clip clear is confirmed', async () => {
     const { engine, api } = stubEngine('running');
     setClipStatsSource(() => ({ count: 2, bytes: 1000 }));
-    openAbout(engine);
+    await openAbout(engine);
 
     byId<HTMLButtonElement>('debug-clips-clear').click();
     byId<HTMLButtonElement>('dialog-confirm').click();
@@ -350,10 +400,10 @@ describe('About modal — Debug section', () => {
     expect(api.sampler.setBuffer).toHaveBeenCalledWith(0, null);
   });
 
-  it('reports storage, session and platform rows', () => {
+  it('reports storage, session and platform rows', async () => {
     const { engine } = stubEngine('running');
     localStorage.setItem('websynth.preset.mine', '{"a":1}');
-    openAbout(engine);
+    await openAbout(engine);
 
     expect(byId('debug-storage').textContent).toMatch(/\d+ keys · [\d.]+ MB/);
     expect(byId('debug-latency').textContent).toBe('base 5.0 ms · output 12.0 ms');
@@ -364,11 +414,11 @@ describe('About modal — Debug section', () => {
     expect(byId('debug-sw').textContent).toBe('unsupported');
   });
 
-  it('expands the Debug section when its header is clicked', () => {
+  it('expands the Debug section when its header is clicked', async () => {
     const { engine } = stubEngine();
     const btn = createAboutButton(engine, TOUR);
     document.body.appendChild(btn);
-    btn.click();
+    await openModal(btn);
 
     const section = debugSection()!;
     expect(section.classList.contains('collapsed')).toBe(true);
@@ -380,11 +430,11 @@ describe('About modal — Debug section', () => {
 
   // ---- v4: the panel costs nothing it doesn't have to (REQ-3/REQ-11) ----
 
-  it('reads nothing at all while the Debug section is collapsed (REQ-3)', () => {
+  it('reads nothing at all while the Debug section is collapsed (REQ-3)', async () => {
     vi.useFakeTimers();
     try {
       const { engine, ctx } = stubEngine('suspended');
-      openAbout(engine);
+      await openAbout(engine);
       expect(debugSection()!.classList.contains('collapsed')).toBe(true);
       expect(ctxStateRow()?.textContent).toBe('suspended');
 
@@ -398,9 +448,9 @@ describe('About modal — Debug section', () => {
     }
   });
 
-  it('repaints immediately when the section is expanded, before any tick (REQ-3)', () => {
+  it('repaints immediately when the section is expanded, before any tick (REQ-3)', async () => {
     const { engine, ctx } = stubEngine('suspended');
-    openAbout(engine);
+    await openAbout(engine);
 
     ctx.state = 'running';
     expect(ctxStateRow()?.textContent).toBe('suspended');
@@ -409,11 +459,11 @@ describe('About modal — Debug section', () => {
     expect(ctxStateRow()?.textContent).toBe('running');
   });
 
-  it('re-reads the localStorage-backed rows on the slow tier only (REQ-11)', () => {
+  it('re-reads the localStorage-backed rows on the slow tier only (REQ-11)', async () => {
     vi.useFakeTimers();
     try {
       const { engine } = stubEngine('running');
-      openAbout(engine);
+      await openAbout(engine);
       expandDebug();
 
       const storageRow = byId('debug-storage');
@@ -444,10 +494,10 @@ describe('About modal — keyboard shortcut list', () => {
   });
   afterEach(() => closeOpenModal());
 
-  function openAbout() {
+  async function openAbout() {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
     // The key/value grid is the element preceding the factory-reset button.
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     return reset.previousElementSibling as HTMLElement;
@@ -462,8 +512,8 @@ describe('About modal — keyboard shortcut list', () => {
   const visibleKeyCells = (keys: HTMLElement): Element[] =>
     [...keys.children].filter((c) => !c.classList.contains(modalStyles.keyOverflow!));
 
-  it('names every global shortcut, including the transport ones', () => {
-    const text = openAbout().textContent ?? '';
+  it('names every global shortcut, including the transport ones', async () => {
+    const text = (await openAbout()).textContent ?? '';
     for (const s of [
       'Play / stop transport',
       'Move the playhead to bar 1',
@@ -478,8 +528,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect(text).toContain('Ctrl/Cmd + Z');
   });
 
-  it('names the ? route to the info badges, and no longer a Help gesture', () => {
-    const keys = openAbout();
+  it('names the ? route to the info badges, and no longer a Help gesture', async () => {
+    const keys = await openAbout();
     const text = keys.textContent ?? '';
     expect(text).toContain('Show / hide the info badges');
     // The key itself must be listed, not just described.
@@ -492,8 +542,8 @@ describe('About modal — keyboard shortcut list', () => {
 
   // onboarding.md REQ-17b — folded is the resting state; the full list is one
   // click away, which is what keeps REQ-17's "names every global key" true.
-  it('shows rows through Space by default, and no further', () => {
-    const keys = openAbout();
+  it('shows rows through Space by default, and no further', async () => {
+    const keys = await openAbout();
     expect(keys.classList.contains('collapsed')).toBe(true);
 
     const shown = visibleKeyCells(keys);
@@ -503,8 +553,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect(keys.children.length).toBeGreaterThan(shown.length);
   });
 
-  it('the header row expands the full list and flips the hint to "Show less"', () => {
-    const keys = openAbout();
+  it('the header row expands the full list and flips the hint to "Show less"', async () => {
+    const keys = await openAbout();
     const header = headerOf(keys);
     expect(header.textContent).toContain('Keyboard Shortcuts');
     // The verb, not a bare "all" — the hint says what the click does.
@@ -519,8 +569,8 @@ describe('About modal — keyboard shortcut list', () => {
   });
 
   // input-control.md REQ-12 — the list mirrors the keys: up above down.
-  it('stacks the two pitch-bend keys, and drops the old . binding', () => {
-    const keys = openAbout();
+  it('stacks the two pitch-bend keys, and drops the old . binding', async () => {
+    const keys = await openAbout();
     const cells = [...keys.children].map((c) => c.textContent);
     const up = cells.indexOf('Pitch bend up');
     const down = cells.indexOf('Pitch bend down');
@@ -533,8 +583,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect(cells).not.toContain('.');
   });
 
-  it('remembers the expanded choice separately from the Debug fold', () => {
-    const keys = openAbout();
+  it('remembers the expanded choice separately from the Debug fold', async () => {
+    const keys = await openAbout();
     headerOf(keys).click();
     expect(localStorage.getItem('websynth.shortcuts.about')).toBe('0');
     // Opening Debug must not be what un-folds the shortcuts, or vice versa.
@@ -542,8 +592,8 @@ describe('About modal — keyboard shortcut list', () => {
   });
 
   // onboarding.md REQ-20 — the modal is the only tour-replay route.
-  it('carries the guided-tour button above the shortcuts header', () => {
-    const keys = openAbout();
+  it('carries the guided-tour button above the shortcuts header', async () => {
+    const keys = await openAbout();
     const tourBtn = document.querySelector('[data-testid="start-tour"]') as HTMLButtonElement;
     expect(tourBtn).not.toBeNull();
     expect(tourBtn.textContent).toContain('Take the guided tour');
@@ -559,8 +609,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect(document.querySelector('[data-testid="start-tour"]')?.closest('.hidden')).not.toBeNull();
   });
 
-  it('draws every arrow on its own cap in the glyph face (REQ-17)', () => {
-    const keys = openAbout();
+  it('draws every arrow on its own cap in the glyph face (REQ-17)', async () => {
+    const keys = await openAbout();
     const caps = [...keys.querySelectorAll(`.${modalStyles.cap!}`)];
     // Every arrow is a cap of its own carrying the glyph class — the monospace
     // face has no glyph for them, so a bare one renders as an illegible dash.
@@ -580,8 +630,8 @@ describe('About modal — keyboard shortcut list', () => {
   });
 
   // onboarding.md REQ-17c — the row must not read as a keyboard shortcut.
-  it('caps only the real key in "Shift + drag"', () => {
-    const keys = openAbout();
+  it('caps only the real key in "Shift + drag"', async () => {
+    const keys = await openAbout();
     const cell = [...keys.children].find((k) => k.textContent === 'Shift + drag');
     expect(cell).toBeTruthy();
     const caps = cell!.querySelectorAll(`.${modalStyles.cap!}`);
@@ -591,8 +641,8 @@ describe('About modal — keyboard shortcut list', () => {
     expect([...cell!.childNodes].some((n) => n.nodeType === Node.TEXT_NODE)).toBe(true);
   });
 
-  it('caps only "F" in "F (hold)"', () => {
-    const keys = openAbout();
+  it('caps only "F" in "F (hold)"', async () => {
+    const keys = await openAbout();
     const cell = [...keys.children].find((k) => k.textContent === 'F (hold)');
     expect(cell).toBeTruthy();
     expect(cell!.querySelectorAll(`.${modalStyles.cap!}`)).toHaveLength(1);
@@ -611,10 +661,10 @@ describe('About modal — the note-row keyboard diagram', () => {
   afterEach(() => closeOpenModal());
 
   /** The first key cell in the grid is the lower-octave diagram. */
-  function lowerDiagram(): HTMLElement {
+  async function lowerDiagram(): Promise<HTMLElement> {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     const keys = reset.previousElementSibling as HTMLElement;
     return keys.firstElementChild as HTMLElement;
@@ -623,8 +673,8 @@ describe('About modal — the note-row keyboard diagram', () => {
   const rankCaps = (rank: Element): Element[] =>
     [...rank.querySelectorAll(`.${modalStyles.cap!}`)];
 
-  it('lays the naturals and sharps out as two ranks', () => {
-    const cell = lowerDiagram();
+  it('lays the naturals and sharps out as two ranks', async () => {
+    const cell = await lowerDiagram();
     expect(cell.children).toHaveLength(2);
     const [sharpRank, naturalRank] = [...cell.children];
 
@@ -639,8 +689,8 @@ describe('About modal — the note-row keyboard diagram', () => {
     ).toEqual(['S', 'D', 'G', 'H', 'J']);
   });
 
-  it('leaves cap-sized holes where E-F and B-C have no sharp', () => {
-    const cell = lowerDiagram();
+  it('leaves cap-sized holes where E-F and B-C have no sharp', async () => {
+    const cell = await lowerDiagram();
     const sharpRank = cell.firstElementChild!;
     const slots = rankCaps(sharpRank);
     // One slot per gap between the 8 naturals; two of them are blank.
@@ -651,8 +701,8 @@ describe('About modal — the note-row keyboard diagram', () => {
     expect(blanks).toEqual([2, 6]); // E-F and B-C
   });
 
-  it('tints the two ranks apart (REQ-17c)', () => {
-    const cell = lowerDiagram();
+  it('tints the two ranks apart (REQ-17c)', async () => {
+    const cell = await lowerDiagram();
     const [sharpRank, naturalRank] = [...cell.children];
     for (const c of rankCaps(naturalRank!)) {
       expect(c.classList.contains(modalStyles.capNatural!)).toBe(true);
@@ -664,16 +714,16 @@ describe('About modal — the note-row keyboard diagram', () => {
     }
   });
 
-  it('is derived from the note rows — every physical key appears exactly once', () => {
-    const cell = lowerDiagram();
+  it('is derived from the note rows — every physical key appears exactly once', async () => {
+    const cell = await lowerDiagram();
     const drawn = rankCaps(cell)
       .filter((c) => !c.classList.contains(modalStyles.capBlank!))
       .map((c) => c.dataset.code);
     expect([...drawn].sort()).toEqual(Object.keys(NOTE_ROWS.lower).sort());
   });
 
-  it('draws the upper octave from its own row, with the same shape', () => {
-    const cell = lowerDiagram().nextElementSibling!.nextElementSibling as HTMLElement;
+  it('draws the upper octave from its own row, with the same shape', async () => {
+    const cell = (await lowerDiagram()).nextElementSibling!.nextElementSibling as HTMLElement;
     const drawn = rankCaps(cell)
       .filter((c) => !c.classList.contains(modalStyles.capBlank!))
       .map((c) => c.dataset.code);
@@ -683,8 +733,8 @@ describe('About modal — the note-row keyboard diagram', () => {
   });
 
   // keyboard-layout.md REQ-4 / onboarding.md REQ-17c.
-  it('relabels in place when the layout changes, keeping its shape', () => {
-    const cell = lowerDiagram();
+  it('relabels in place when the layout changes, keeping its shape', async () => {
+    const cell = await lowerDiagram();
     const naturals = () =>
       rankCaps(cell.lastElementChild!).map((c) => c.textContent);
     expect(naturals()).toEqual(['Z', 'X', 'C', 'V', 'B', 'N', 'M', ',']);
@@ -706,10 +756,10 @@ describe('About modal — the keyboard-layout picker', () => {
   });
   afterEach(() => closeOpenModal());
 
-  function openAbout(): { keys: HTMLElement; gear: HTMLButtonElement; row: HTMLElement } {
+  async function openAbout(): Promise<{ keys: HTMLElement; gear: HTMLButtonElement; row: HTMLElement }> {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
-    (document.body.firstElementChild as HTMLButtonElement).click();
+    await openModal(document.body.firstElementChild as HTMLButtonElement);
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     const keys = reset.previousElementSibling as HTMLElement;
     return {
@@ -719,8 +769,8 @@ describe('About modal — the keyboard-layout picker', () => {
     };
   }
 
-  it('reveals the select without folding the list', () => {
-    const { keys, gear, row } = openAbout();
+  it('reveals the select without folding the list', async () => {
+    const { keys, gear, row } = await openAbout();
     (keys.previousElementSibling!.previousElementSibling as HTMLElement).click(); // expand the list
     expect(keys.classList.contains('collapsed')).toBe(false);
 
@@ -743,8 +793,8 @@ describe('About modal — the keyboard-layout picker', () => {
   // and `stroke: currentColor` from rules scoped to the *header* button classes.
   // The fix was to use the app's existing in-panel gear instead — the same `⚙`
   // the XY Pad's axis-assignment button draws.
-  it('draws the same gear glyph as the XY Pad, beside the section title', () => {
-    const { gear } = openAbout();
+  it('draws the same gear glyph as the XY Pad, beside the section title', async () => {
+    const { gear } = await openAbout();
     expect(gear.textContent).toBe('⚙');
 
     const title = gear.parentElement!;
@@ -755,8 +805,8 @@ describe('About modal — the keyboard-layout picker', () => {
     expect(title.children[1]).toBe(gear);
   });
 
-  it('offers auto plus every tabulated layout', () => {
-    const { gear } = openAbout();
+  it('offers auto plus every tabulated layout', async () => {
+    const { gear } = await openAbout();
     gear.click();
     const select = document.querySelector('[data-testid="shortcuts-layout-select"]')!;
     const text = select.textContent ?? '';

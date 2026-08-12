@@ -1,8 +1,17 @@
-// Onboarding facade: owns the tour + the info badges and the first-visit flag.
-// Created once in app.ts and handed the runtime hooks the steps need.
-import { Tour, type TourCtx } from './tour';
-import { TOUR_STEPS } from './help-content';
-import { InfoBadges } from './info-badges';
+// Onboarding facade: owns the first-visit flag and the badge listeners, and
+// fronts a body that loads on demand. Created once in app.ts and handed the
+// runtime hooks the steps need.
+//
+// The interface below is deliberately unchanged by the lazy split
+// (runtime-performance.md REQ-1): app.ts wires `toggleInfoBadges`, `isActive`
+// and `onChange` into the ⓘ button and `UiBridge.toggleInfoBadges` while it
+// builds the header — before any gesture — so every method has to answer
+// synchronously whether or not the body exists yet. The two commands return
+// `void` and start the load themselves; the two readers are answerable from
+// here alone (see below). Both imports are type-only, so this module carries no
+// runtime edge into the ~93 kB cluster.
+import type { TourCtx } from './tour';
+import type { OnboardingImpl } from './onboarding-impl';
 
 const DONE_KEY = 'websynth.onboarding.done';
 
@@ -20,9 +29,17 @@ export interface Onboarding {
 }
 
 export function createOnboarding(ctx: TourCtx): Onboarding {
-  const badges = new InfoBadges(ctx.bus);
-  let tour: Tour | null = null;
+  let pending: Promise<OnboardingImpl> | null = null;
+  // Mirrors the body's badge state so `isInfoBadgesActive` stays synchronous.
+  // `false` before the body loads is exact, not a guess: the badges cannot be
+  // showing while the code that shows them has not been fetched.
+  let badgesActive = false;
   const badgeListeners: Array<(active: boolean) => void> = [];
+
+  const emit = (active: boolean): void => {
+    badgesActive = active;
+    for (const l of badgeListeners) l(active);
+  };
 
   const markDone = (): void => {
     try {
@@ -32,21 +49,22 @@ export function createOnboarding(ctx: TourCtx): Onboarding {
     }
   };
 
+  // Memoized, unlike the on-demand modals, which re-`import()` freely because
+  // opening one twice is idempotent. Resolving this one *constructs state*, so
+  // the ⓘ button and the `?` key racing each other must not end up with two
+  // InfoBadges instances fighting over the same anchors.
+  const load = (): Promise<OnboardingImpl> => (pending ??= import('./onboarding-impl')
+    .then((m) => m.createOnboardingImpl(ctx, emit, markDone)));
+
   return {
     startTour(): void {
-      if (tour) return; // already running
-      tour = new Tour(TOUR_STEPS, ctx, () => {
-        markDone();
-        tour = null;
-      });
-      tour.start();
+      void load().then((impl) => impl.startTour());
     },
     toggleInfoBadges(): void {
-      badges.toggle();
-      for (const l of badgeListeners) l(badges.isActive);
+      void load().then((impl) => impl.toggleInfoBadges());
     },
     isInfoBadgesActive(): boolean {
-      return badges.isActive;
+      return badgesActive;
     },
     onInfoBadgesChange(cb: (active: boolean) => void): void {
       badgeListeners.push(cb);

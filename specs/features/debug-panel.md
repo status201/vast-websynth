@@ -3,7 +3,10 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 8   # v8: createAboutButton takes the tour hook too, and the section
+version: 9   # v9: about.ts split five ways — the panel is now about-debug.ts,
+             #     the late-bound row sources are state/debug-sources.ts, and
+             #     createAboutButton is about-button.ts (runtime-performance REQ-1)
+             # v8: createAboutButton takes the tour hook too, and the section
              #     header class is now the shared `.secFold` (onboarding.md v15)
              # v7: + the Background audio row (audio-lifecycle.md REQ-12)
              # v6: + the Media session row (media-session.md REQ-8); v5 put
@@ -20,8 +23,12 @@ related:
   - session-autosave
   - pwa-install
   - dialog
+  - runtime-performance             # REQ-1 — why the panel is behind a lazy import
 source:
-  - src/ui/components/about.ts
+  - src/ui/components/about-debug.ts # the panel itself
+  - src/ui/components/about-button.ts # createAboutButton + the open/close lifecycle
+  - src/ui/components/about-modal.ts # builds the card the panel sits in
+  - src/state/debug-sources.ts       # the late-bound row sources (REQ-4)
   - src/state/session-autosave.ts    # SessionAutosave.stats
   - src/state/slot-store.ts          # storageUsage
   - src/utils/wake-lock.ts           # WakeLockManager.held
@@ -91,7 +98,10 @@ instead of transcribing it from a phone screen.
   calling `addRow` and reading either the `StudioApi` passed to
   `createAboutButton(engine, deps)` or, for state that lives outside the Engine, a
   **late-bound module hook** the owner binds at boot (the same idiom as app.ts's
-  live scope knobs). No contract change is needed to add a row. Current
+  live scope knobs). Those hooks live in `state/debug-sources.ts`, not in the panel:
+  a binder that runs at boot must not have to import the lazily-loaded modal to reach
+  its setter ([`runtime-performance.md`](runtime-performance.md) REQ-1). No contract
+  change is needed to add a row. Current
   contributors: [`ios-audio`](ios-audio.md) (Audio unlock / Silent loop, from
   `engine.iosAudio`), [`performance-mode`](performance-mode.md) (tier / cores /
   memory / mobile / audio profile), and
@@ -170,13 +180,28 @@ instead of transcribing it from a phone screen.
 ### Contract / public interface
 
 ```yaml
-# src/ui/components/about.ts
+# src/ui/components/about-button.ts   — EAGER. The only part of About on the boot path.
 createAboutButton(engine: StudioApi, deps: { startTour(): void }): HTMLButtonElement
   # deps is the tour hook the modal's "Take the guided tour" button calls
-  # (onboarding.md REQ-20) — injected, so about.ts never imports onboarding.
+  # (onboarding.md REQ-20) — injected, so About never imports onboarding.
+  # Owns the open/close lifecycle (backdrop cache, Escape, the 500 ms refresh
+  # tick) and `import()`s about-modal.ts on the click that opens it
+  # (runtime-performance.md REQ-1). `open` is async; the click handler voids it.
+AboutDeps { startTour(): void }        # declared here; about-modal imports it type-only
+
+# src/state/debug-sources.ts  — EAGER leaf. Lives outside the modal precisely so
+# main.ts can bind the rows at boot without pulling the modal into the entry chunk.
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
+clipStats(): { count: number; bytes: number } | undefined   # undefined = unbound -> "n/a"
+midiStats(): { inputs: number; outputs: number } | undefined
+wakeState(): { supported: boolean; held: boolean } | undefined
+
+# src/ui/components/about-modal.ts     — LAZY. buildModal + buildFactoryResetButton.
+buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }
+
+# src/ui/components/about-debug.ts     — LAZY.
 # internal: buildDebugSection(engine) -> { header, body, refresh, dispose }
 #   refresh is the *gated* tick (a no-op while collapsed, REQ-3); the ungated
 #   refresh(force?) it wraps runs all polling tiers when force is true (REQ-11)

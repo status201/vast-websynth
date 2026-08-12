@@ -97,6 +97,14 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   idle at boot** from `main.ts` so offline MP3 export keeps working — see
   [audio-export](audio-export.md) REQ-7. Any future eagerly-needed lazy chunk
   must either be warmed the same way or accept an offline gap.
+  **The onboarding chunk is warmed on idle for the same reason**: the tour, the
+  info badges and all the help copy live behind one `import()`
+  ([runtime-performance](runtime-performance.md) REQ-1), and help is exactly
+  what a user reaches for when something is confusing — which an offline
+  returning visitor is no less likely to be. The warm also removes any chance
+  the first-visit tour is still fetching when its 350 ms auto-launch fires.
+  Both warms share one `requestIdleCallback`-with-timeout-fallback in `main.ts`
+  and swallow their errors: the real `import()` at the trigger retries.
 - **REQ-7 (single import parse path)** — Sniffing + parsing import bytes
   (`bytes → { file, clips } | errors`) is one pure function
   (`parseSongOrProject`), shared by the song panel's file input, the

@@ -30,7 +30,7 @@ import { createButton, setButtonLabel } from './components/button';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
 import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
-import { createAboutButton } from './components/about';
+import { createAboutButton } from './components/about-button';
 import { createBrand } from './components/brand';
 import { createInfoBadgesButton } from './components/info-badges-button';
 import { createPerfSettingsButton } from './components/perf-settings';
