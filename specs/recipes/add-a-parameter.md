@@ -97,6 +97,16 @@ npm test            # add a registration/behaviour case (see tests/state/params.
 
 ## Gotchas
 
+- **Forgetting edit 2 or 3 is caught by a test.** `tests/state/param-wiring.test.ts`
+  fails, naming the id, if a param is registered but referenced nowhere else in
+  `src/`. That is the failure this recipe exists to prevent: registration alone
+  typechecks, publishes the param to `public/params.json`, and writes it into every
+  preset and song from then on (ADR-006/ADR-011) while driving nothing. The guard
+  understands the two ways an id legitimately never appears as a literal — an index
+  family built from a template (`drum.t${i}.vol`) and ADR-008 self-wiring, where a
+  component gets a prefix and subscribes ``  `${prefix}.on`  `` itself. It proves
+  reachability, not correctness: wiring a param to the *wrong* setter still passes,
+  and only listening catches that (ADR-010).
 - **No-op default** is mandatory for backward compatibility — a non-zero default
   silently changes every existing preset and song.
 - Discrete params that index a real-value table (ratios, release times) are mapped
