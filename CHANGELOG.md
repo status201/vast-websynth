@@ -27,7 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   reached further than nine fingers, too: unison spends a voice per copy, and a
   dense sequenced or chord-expanded passage runs the pool dry on its own.
 
+- **`npm install` no longer fails with `EPERM` on a Vite binding.** Two
+  developer-side processes could pin `node_modules` on Windows, which locks a
+  loaded native module for as long as the process lives. `npm run bench:audio`
+  started Vite through `npx` in a shell, so its cleanup killed the wrapper and
+  left the real server running; the MCP server ran its song-core self-build
+  in-process, holding the binding for the whole editor session. Both now build
+  in a child process that dies with the run, and the bench also cleans up on
+  Ctrl-C and on failure instead of only on success.
+
 ### Changed
+
+- **The Node version the toolchain needs is written down.** A new `.nvmrc`
+  (22.22.2, the floor jsdom asks for) and an `engines` field pin it, and CI reads
+  the same file instead of its own hard-coded major — so a stale local Node shows
+  up as one warning at install time rather than a puzzle.
 
 - **Less to download before the first note.** The Help & About sample recorder,
   the preset manager, the audio-export dialog and the AI Prompt's guide text are

@@ -7,8 +7,9 @@
  *
  * PROTOCOL PURITY: stdout carries JSON-RPC frames ONLY. Every log goes to
  * stderr, and console.log/info/warn are redirected to stderr for the whole
- * process lifetime as a belt-and-braces guard (the Vite self-build would
- * otherwise corrupt the stream).
+ * process lifetime as a belt-and-braces guard. The self-build is stronger than
+ * that: it runs in a child process whose stdout is piped to our stderr, so it
+ * cannot reach the protocol stream even in principle.
  *
  * Register in an MCP client as: `node scripts/mcp/websynth-mcp.mjs` with this
  * repo as cwd (see .mcp.json). First start self-builds
@@ -16,6 +17,7 @@
  * src/utils, or the entry changed.
  */
 import { createInterface } from 'node:readline';
+import { spawn } from 'node:child_process';
 import { existsSync, statSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -57,10 +59,27 @@ async function ensureCore() {
   const stale = !existsSync(distFile) || statSync(distFile).mtimeMs < newestSourceMtime();
   if (!stale) return;
   log('building song-core bundle (vite lib mode)…');
-  const { build } = await import('vite');
-  await build({
-    configFile: path.join(here, 'vite.lib.config.ts'),
-    logLevel: 'silent',
+  const viteBin = path.join(repoRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+  if (!existsSync(viteBin)) throw new Error(`${viteBin} is missing — run \`npm install\` first`);
+  // The build runs in a CHILD process, never here. Vite bundles with rolldown,
+  // whose native binding Windows locks for the lifetime of whatever loaded it —
+  // in a server that outlives the client's session that pins node_modules, and
+  // the next `npm ci` dies with EPERM on a file nobody can see is in use. It
+  // also makes REQ-1 structural: the child has no handle on our stdout, so
+  // nothing it prints can corrupt the protocol stream.
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [viteBin, 'build', '--config', path.join(here, 'vite.lib.config.ts'), '--logLevel', 'silent'],
+      { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    const relay = (chunk) => process.stderr.write(chunk);
+    child.stdout.on('data', relay);
+    child.stderr.on('data', relay);
+    child.on('error', reject);
+    child.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`song-core build exited with code ${code}`)),
+    );
   });
   if (!existsSync(distFile)) throw new Error('song-core build produced no bundle');
   log('song-core bundle ready');

@@ -119,13 +119,37 @@ async function waitForServer(url, timeoutMs = 60_000) {
 
 let server = null;
 let url = opts.url;
+
+// Kill once, from wherever we leave: the `finally` below, Ctrl-C, or a crash.
+// An orphaned vite holds node_modules' native rolldown binding open, and the
+// next `npm ci` fails with EPERM on a file nobody can see is in use.
+const stopServer = () => {
+  const s = server;
+  server = null;
+  if (s) s.kill();
+};
+process.on('exit', stopServer);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => {
+    stopServer();
+    process.exit(130);
+  });
+}
+
 if (!url) {
   url = `http://localhost:${PORT}/`;
-  server = spawn(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['vite', '--port', String(PORT), '--strictPort'],
-    { cwd: root, stdio: 'ignore', shell: process.platform === 'win32' },
-  );
+  // Vite's own binary under the running Node — no `npx`, no shell. On Windows
+  // `kill()` reaches only the cmd wrapper, so anything spawned through one
+  // survives as an orphan holding the port and the binding.
+  const viteBin = `${root}node_modules/vite/bin/vite.js`;
+  if (!existsSync(viteBin)) {
+    console.error(`audio-bench: ${viteBin} is missing — run \`npm install\` first.`);
+    process.exit(1);
+  }
+  server = spawn(process.execPath, [viteBin, '--port', String(PORT), '--strictPort'], {
+    cwd: root,
+    stdio: 'ignore',
+  });
   console.log(`audio-bench: starting vite on ${url}`);
   await waitForServer(url);
 }
@@ -235,7 +259,7 @@ try {
   failure = err;
 } finally {
   await browser.close();
-  if (server) server.kill();
+  stopServer();
 }
 
 if (failure) {

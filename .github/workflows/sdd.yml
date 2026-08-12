@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       # The spec-before-code diff needs a PR base branch; on direct pushes to
       # main only the (self-contained) structure lint below runs.
       - name: Fetch base branch

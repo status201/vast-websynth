@@ -3,7 +3,8 @@
 ```yaml
 id: mcp-server
 status: implemented
-version: 6   # v6: REQ-13 — validate_song/save_song report REQ-12 warnings
+version: 7   # v7: REQ-3 — the self-build runs in a child process (no native module pinned)
+             # v6: REQ-13 — validate_song/save_song report REQ-12 warnings
              # v5: REQ-5d — get_params; baseUrl defaults to the published site
              # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
              # v3: expand_song's description names no song version (it drifted to "v3")
@@ -45,17 +46,25 @@ first run and imports that.
 - **REQ-1** — Transport is **stdio** with newline-delimited JSON-RPC 2.0
   messages (one JSON object per line), per the MCP spec. `stdout` carries
   **protocol frames only**; every log/diagnostic goes to `stderr` — including
-  anything Vite would print during the self-build (console redirected +
-  `logLevel: 'silent'`).
+  anything Vite would print during the self-build, which cannot reach the
+  protocol stream at all: the build child's `stdout` *and* `stderr` are both
+  piped into the server's `stderr` (`logLevel: 'silent'` and the process-wide
+  `console` redirect remain as belt-and-braces).
 - **REQ-2** — `initialize` echoes the client's `protocolVersion` when the
   server knows it, else answers `"2025-06-18"`; capabilities are `{tools: {}}`.
   `notifications/initialized` (and all notifications) get no response; `ping`
   returns `{}`; unknown methods get `-32601`; a malformed line gets `-32700`.
-- **REQ-3** — The entry **self-builds** `scripts/mcp/dist/song-core.mjs` (via
-  the Vite JS API, `build({configFile})`) when the bundle is missing or older
-  than any file under `scripts/mcp/song-core-entry.ts`, `src/state/**` or
-  `src/utils/**`. A clean checkout therefore needs only `npm install` before
-  registering the server.
+- **REQ-3** — The entry **self-builds** `scripts/mcp/dist/song-core.mjs` when
+  the bundle is missing or older than any file under
+  `scripts/mcp/song-core-entry.ts`, `src/state/**` or `src/utils/**`. A clean
+  checkout therefore needs only `npm install` before registering the server.
+  The build runs in a **child process** (`node node_modules/vite/bin/vite.js
+  build --config …`), never in the server itself: Vite bundles with rolldown,
+  whose native binding the OS locks for the lifetime of the process that loaded
+  it. In a server that outlives the client's session, an in-process build pins
+  `node_modules` for hours and the user's next `npm ci` fails with `EPERM` on a
+  file no tool names. Nothing long-lived here may load a native module. A
+  missing `vite` binary fails fast, naming `npm install`.
 - **REQ-4** — `song-core-entry.ts` re-exports only the **pure** core:
   `validateSongFile`, `isAuthorSong`/`expandAuthorSong`,
   `compactSongForExport`, `buildAuthoringGuide`, `ParamBus`/`registerDefaults`,
@@ -153,7 +162,8 @@ websynth-mcp.mjs: 'stdio loop: readline → JSON.parse → dispatch → stdout l
 
 ### Layer touchpoints & ordering
 
-`websynth-mcp.mjs` → `ensureCore()` (staleness check + Vite build) → dynamic
+`websynth-mcp.mjs` → `ensureCore()` (staleness check + Vite build in a child
+process, REQ-3) → dynamic
 `import(dist/song-core.mjs)` → `makeTools(core)` → `createDispatcher` →
 readline loop. `rpc.mjs`/`tools.mjs` never touch stdio themselves, so they
 stay pure for unit tests.
@@ -215,6 +225,13 @@ Scenario: Self-build keeps stdout protocol-pure
   Given a checkout with no scripts/mcp/dist bundle
   When the server starts and a client completes the handshake
   Then every stdout line parses as a JSON-RPC message
+
+Scenario: A rebuild leaves node_modules replaceable (v7, REQ-3, regression)
+  Given a stale scripts/mcp/dist bundle
+  When the server starts and rebuilds it
+  Then the build ran in a child process that has since exited
+  And the long-running server holds no native module under node_modules open
+  And `npm ci` can replace node_modules while that server is still connected
 # pinned by: tests/mcp/rpc.test.ts, tests/mcp/tools.test.ts, tests/mcp/integration.test.ts
 ```
 
