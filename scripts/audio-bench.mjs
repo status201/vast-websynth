@@ -24,6 +24,13 @@
 //   --tail-bar         hold the capture open a whole bar after the last step,
 //                      so reverb/delay tails decay instead of being cut at
 //                      350 ms. Off by default: a plain take stays bar-exact.
+//   --stagger <s>      release the held notes one at a time, oldest first,
+//                      `s` seconds apart, instead of dropping the chord at
+//                      once. What voice stealing needs to be audible: hold
+//                      more notes than there are voices and the early keys
+//                      have already lost their voice to the late ones, so
+//                      which note stops on each release is the whole test
+//                      (voicing.md REQ-9). Default 0 = release together.
 //   --set id=value     ParamBus write applied before the take (repeatable)
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
@@ -71,6 +78,9 @@ const opts = {
   // every take rendered before they existed.
   runs: Number(flag('runs', 1)),
   tailBar: argv.includes('--tail-bar'),
+  // Seconds between note-offs in --note mode. 0 (the default) releases the
+  // whole chord at once, which is what every take before this flag did.
+  stagger: Math.max(0, Number(flag('stagger', 0))),
 };
 
 if (!opts.name) {
@@ -193,10 +203,22 @@ try {
     }, { notes, velocity: opts.velocity });
     // Release a little early so the take includes the envelope + FX tail rather
     // than being cut mid-sustain.
-    await page.waitForTimeout(Math.max(0, opts.seconds - 1) * 1000);
-    await page.evaluate((a) => {
-      for (const n of a.notes) window.__synth.bus.noteOff(n);
-    }, { notes });
+    const holdMs = Math.max(0, opts.seconds - 1) * 1000;
+    if (opts.stagger > 0) {
+      // Oldest key first: with more notes than voices, that is the one whose
+      // voice was stolen, so this is the ordering the bug lives in.
+      const gapMs = opts.stagger * 1000;
+      await page.waitForTimeout(Math.max(0, holdMs - gapMs * (notes.length - 1)));
+      for (const n of notes) {
+        await page.evaluate((note) => window.__synth.bus.noteOff(note), n);
+        await page.waitForTimeout(gapMs);
+      }
+    } else {
+      await page.waitForTimeout(holdMs);
+      await page.evaluate((a) => {
+        for (const n of a.notes) window.__synth.bus.noteOff(n);
+      }, { notes });
+    }
     await page.waitForTimeout(1000);
     // Stop parks the take in `review` and writes nothing — saving is the
     // separate, explicit step now (audio-export.md REQ-4).

@@ -90,6 +90,11 @@ export class Polyphony {
     const used: Voice[] = [];
     for (let i = 0; i < count; i++) {
       const v = this.pickVoice();
+      // Taking a voice hands it to this note, so whatever note held it before must
+      // stop claiming it (REQ-9). Without this the old note's entry still names the
+      // voice, and releasing that key sends noteOff to a voice now sounding
+      // something else — audible as "let go of one key, a different note stops".
+      this.evictVoice(v);
       v.noteOn(note, velocity, t, { detuneCents: this.unisonOffset(i, count), glide });
       used.push(v);
     }
@@ -126,6 +131,26 @@ export class Polyphony {
     const target = range <= 0 ? 0 : (Math.random() * 2 - 1) * range;
     this.drift.offset.setTargetAtTime(target, this.ctx.currentTime, 0.12);
   };
+
+  /**
+   * Drop `v` from whatever note currently claims it, and forget a note left with
+   * no voices at all (REQ-9). Upholds the invariant `releaseNote` depends on: a
+   * voice appears in at most one `heldNotes` entry, so the note a voice is filed
+   * under is always the note it is actually sounding.
+   *
+   * Scans every entry rather than stopping at the first hit — `heldNotes` holds at
+   * most one entry per sounding note, so this is a handful of comparisons on the
+   * note path, and it stays correct even if the invariant is ever broken elsewhere.
+   * Deleting the current key while iterating a Map is well defined.
+   */
+  private evictVoice(v: Voice): void {
+    for (const [n, vs] of this.heldNotes) {
+      const i = vs.indexOf(v);
+      if (i < 0) continue;
+      vs.splice(i, 1);
+      if (vs.length === 0) this.heldNotes.delete(n);
+    }
+  }
 
   private pickVoice(): Voice {
     // Prefer idle voices, then oldest releasing, then oldest playing
