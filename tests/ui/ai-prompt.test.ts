@@ -82,10 +82,13 @@ describe('AI Prompt modal', () => {
     onPresets: vi.fn(),
   });
 
-  it('opens a card that is both base .card (capped/scrollable) and .cardWide', () => {
+  it('opens a card that is both base .card (capped/scrollable) and .cardWide', async () => {
     const btn = createAiPromptButton(bus(), routes());
     document.body.appendChild(btn);
     btn.click();
+    // The click `import()`s the authoring guide before building the modal
+    // (runtime-performance.md REQ-1), so the card lands a microtask later.
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     const card = document.querySelector('[role="dialog"]');
     expect(card).not.toBeNull();
     // Base .card carries max-height/overflow so the title + Close stay reachable
@@ -97,10 +100,11 @@ describe('AI Prompt modal', () => {
 
   // paste-import.md REQ-5 — the round trip closes inside this modal: the same
   // paste fragment the Song row's Paste button opens is embedded as step 3.
-  it('embeds the paste fragment as step 3, above the Close button', () => {
+  it('embeds the paste fragment as step 3, above the Close button', async () => {
     const btn = createAiPromptButton(bus(), routes());
     document.body.appendChild(btn);
     btn.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
 
     const input = document.querySelector('[data-testid="paste-input"]');
     expect(input).not.toBeNull();

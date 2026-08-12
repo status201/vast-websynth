@@ -40,7 +40,17 @@ import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
 import { Presets } from '../state/preset';
-import { openPresetManagerModal } from './components/preset-manager-modal';
+import type { PresetManagerOptions } from './components/preset-manager-modal';
+
+/**
+ * The preset manager loads on the click that opens it (runtime-performance.md
+ * REQ-1) — both the header button and the `openPresetImport` bridge hook, so a
+ * dropped preset file pulls it in exactly like the button does.
+ */
+async function openPresetManagerModal(opts: PresetManagerOptions): Promise<void> {
+  const m = await import('./components/preset-manager-modal');
+  m.openPresetManagerModal(opts);
+}
 import { Song, DEMO_SONGS, demoNames } from '../state/song';
 import { buildArpPanel } from './panels/arp-panel';
 import { buildKeyPanel } from './panels/key-panel';
@@ -190,7 +200,7 @@ function buildHeader(
     icon: HEADER_ICONS.save,
     title: 'Presets — save, export, import',
     testId: 'preset-save',
-    onClick: () => openPresetManagerModal({
+    onClick: () => void openPresetManagerModal({
       bus,
       session,
       onPresetsChanged: () => dropdown.setOptions(Presets.list()),
@@ -200,7 +210,7 @@ function buildHeader(
   // The paste door lives in the Song panel but preset imports belong to this
   // manager (and must refresh the dropdown above) — so they meet on the bridge
   // (paste-import.md REQ-7).
-  bridge.openPresetImport = (parse) => openPresetManagerModal({
+  bridge.openPresetImport = (parse) => void openPresetManagerModal({
     bus,
     session,
     onPresetsChanged: () => dropdown.setOptions(Presets.list()),

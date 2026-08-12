@@ -7,7 +7,7 @@
 // state/authoring-guide.ts (shared with the MCP server); this module keeps
 // only the modal.
 import type { ParamBus } from '../../state/params';
-import { buildSongPrompt } from '../../state/authoring-guide';
+
 import { Song, DEMO_SONGS } from '../../state/song';
 import switchStyles from '../styles/switch.module.css';
 import { createButton } from './button';
@@ -37,7 +37,7 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
   const btn = createButton({
     label: '✨ AI Prompt',
     className: songStyles.demo,
-    onClick: open,
+    onClick: () => void open(),
   });
 
   let backdrop: HTMLElement | null = null;
@@ -60,9 +60,15 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
     closeTimer = window.setTimeout(() => el.remove(), 200);
   }
 
-  function open(): void {
+  /**
+   * The authoring guide is ~22 kB of prompt copy that only this modal reads, so
+   * it loads with the click rather than at boot (runtime-performance.md REQ-1).
+   * Awaited before the modal is built so the textarea is never briefly empty.
+   */
+  async function open(): Promise<void> {
     window.clearTimeout(closeTimer);
-    backdrop ??= buildModal(bus, close, routes);
+    const { buildSongPrompt } = await import('../../state/authoring-guide');
+    backdrop ??= buildModal(bus, close, routes, buildSongPrompt);
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
@@ -73,7 +79,12 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
   return btn;
 }
 
-function buildModal(bus: ParamBus, close: () => void, routes: AiPromptRoutes): HTMLElement {
+function buildModal(
+  bus: ParamBus,
+  close: () => void,
+  routes: AiPromptRoutes,
+  buildSongPrompt: (bus: ParamBus, brief: string) => string,
+): HTMLElement {
   const backdrop = document.createElement('div');
   backdrop.className = `${Modal.backdropClass} hidden`;
   backdrop.addEventListener('pointerdown', (e) => {

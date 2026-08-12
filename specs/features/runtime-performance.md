@@ -64,6 +64,26 @@ so a reviewer has something concrete to hold a new feature against.
   ([`song-mode.md`](song-mode.md)); reverb IRs are generated on first use of a size
   ([`effects.md`](effects.md)). Applies to bundle payload and to synchronous CPU alike.
 
+  **A surface reached only by a deliberate click is loaded by that click.** A modal the
+  player may never open still costs every visitor its parse time when it is imported
+  statically, and the instrument is playable without any of them. So the on-demand
+  surfaces are behind `import()` at their trigger: the sample recorder/editor, the
+  preset manager, the audio-export dialog, the WiFi pair modal (which also defers
+  `jsqr`), the MP3 encoder (`lamejs`), and the authoring-guide prompt text behind the
+  AI Prompt button. The onboarding layer — the tour, the info badges and the ~54 kB of
+  help copy they read — loads on the first `startTour()` or badge toggle, behind the
+  synchronous `Onboarding` facade so no caller learns that it is lazy.
+
+  The rule is about *reachability, not size*: a small module on a click path is fine to
+  defer, and a large one on the boot path (the engine, the panels) is not deferrable at
+  all. Where a heavy module also exports the **button** that opens it, the button
+  factory moves to its own module so the body stays behind the click — importing a
+  factory eagerly to get a lazy body defeats the split.
+
+  **The gate is `npm run build`:** the entry chunk stays under Vite's 500 kB warning
+  threshold, and the warning firing is the signal that something joined the boot path
+  that should not have.
+
 - **REQ-2 — Expensive immutable artefacts are shared, not rebuilt per instance.** An
   artefact that is a pure function of its inputs and immutable in use (an
   `AudioBuffer` handed to a `ConvolverNode`, a `WaveShaperNode` curve) is cached by
