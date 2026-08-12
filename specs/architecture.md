@@ -356,8 +356,15 @@ voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb
   chain.
 - `synthPan` is the synth channel's auto-panner, swept by the LFO's `pan`
   destination and centred (a no-op) otherwise. It is deliberately the **last**
-  synth stage so the insert chain upstream stays 1-channel — the voice path is
-  mono end to end and stereo materialises downstream by up-mix (ADR-010; see
+  synth stage so that nothing upstream of it pays for two channels it does not
+  need: the voice path is mono end to end (mono oscillators/noise → gains →
+  1-channel filter worklet → gains), and the insert chain stays 1-channel through
+  `dist → wah → phaser → delay`. The **reverb**, last in the chain, is where the
+  synth channel actually becomes stereo — its impulse response is a 2-channel
+  buffer whose channels are independently randomised and phase-offset, so a
+  1-channel input convolves to two decorrelated ones. That is generated stereo,
+  not a speaker up-mix; a speaker up-mix (L = R) is what the drum panners and the
+  2-channel compressors do to a mono input (ADR-010; see
   [`features/lfo.md`](features/lfo.md) REQ-4). The bank-render tap
   ([`features/render-to-sampler.md`](features/render-to-sampler.md)) sits after
   it, so a rendered bank captures the pan movement.
@@ -452,10 +459,13 @@ into the committed demos and share links.)
   plain JS in `public/worklets/` and must be `loadModule()`-ed (awaited) before the
   nodes that use them are created. `Engine.init()` is async for this reason.
 - **DSP worklets favour _musical, stable, cheap_ over physical accuracy** —
-  perceived behaviour first, bounded/no-NaN output always, minimal per-sample cost
-  (it runs across 8-voice polyphony × 2 channels). This governs the ladder filter
-  and the compressors; "academically correct" DSP (ZDF, oversampling, thermal
-  models) is declined unless it is *also* cheap and stable. See
+  perceived behaviour first, bounded/no-NaN output always, minimal per-sample
+  cost. The multiplier differs per worklet and it is worth being exact about
+  which: the **ladder filter** runs once per voice on **one** channel
+  (`channelCount: 1`, [`features/ladder-filter.md`](features/ladder-filter.md)
+  REQ-9), so 8-voice polyphony is its whole budget; the **compressors** are two
+  bus instances running 2 channels each. "Academically correct" DSP (ZDF,
+  oversampling, thermal models) is declined unless it is *also* cheap and stable. See
   [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md).
 - **No-op defaults for new params.** New analogue/song params default to a value
   that changes nothing (sub level 0, unison 1 voice, drift 0, djfilter 0,

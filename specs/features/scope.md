@@ -3,7 +3,7 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 9   # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono
+version: 10  # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5
 owner: status201
 related:
   - architecture
@@ -23,15 +23,22 @@ The bottom panel hosts a live oscilloscope/analyser (`Scope`) tapped **pre-maste
 so the display is independent of the master-volume knob. It already toggles between
 a **Wave** (time-domain) and a **Spectrum** (frequency) view via a single button.
 
-The synth's signal is **stereo** (reverb, phaser, the LFO auto-pan, the drum
-tracks' per-track pans and the DJ FX all produce L≠R content), but the scope
-down-mixes to mono — so stereo motion is invisible. (This paragraph used to list a
-"ping-pong delay"; there has never been one — `effects/delay.ts` is a single mono
-`DelayNode` with a damped feedback loop. Corrected in v9.)
+The synth's signal is **stereo** — three things produce L≠R content: the
+**reverb** (a 2-channel decorrelated IR, so it is mono-in/stereo-out), the **LFO
+auto-pan** (`synthPan`), and the **drum tracks' per-track pans**. Everything else
+in the chain is channel-transparent: it can carry an existing stereo image but
+cannot create one. The scope down-mixes to mono, so that motion is invisible.
+(This list has now shed three wrong entries. A "ping-pong delay" went in v9 —
+there has never been one; `effects/delay.ts` is a single mono `DelayNode` with a
+damped feedback loop. The **phaser** and the **DJ FX** went in v10: the phaser is
+one shared allpass chain driven by one shared LFO, and the DJ FX is one
+`BiquadFilterNode` plus stutter/fill/tape-stop, which are timeline and tempo
+operations. None of them touches channels.)
 This feature adds an orthogonal **Mono/Stereo** toggle: Mono keeps the
 existing single full-panel trace (the down-mix, the default); Stereo splits the
-panel into two stacked halves — the **LEFT** channel on top, the **RIGHT** channel
-below — each drawn with the same Wave/Spectrum renderer.
+panel into two equal regions — **LEFT** then **RIGHT**, side by side on a wide
+panel and stacked on a narrow one (REQ-5) — each drawn with the same
+Wave/Spectrum renderer.
 
 The two toggles are independent: Wave/Spectrum picks *what* is drawn, Mono/Stereo
 picks *how many channels* are drawn. All four combinations are valid.

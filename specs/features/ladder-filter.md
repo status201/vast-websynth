@@ -110,7 +110,7 @@ frequencies. The on-screen value is still shown in Hz for the user.
   biggest per-sample saving for the common held-cutoff case, with no audible
   change.
 - **REQ-12** — **Per-sample `sat()` carry** (v6): the naive recurrence calls
-  `sat()` **ten times per sample per channel**, but five of those recompute a
+  `sat()` **ten times per sample**, but five of those recompute a
   value the previous statement — or the previous *sample* — already produced.
   Each of stages 0–2 saturates its own state twice (once as the feedback term
   inside its update, once again as the next stage's input `v`), and the
@@ -123,8 +123,8 @@ frequencies. The on-screen value is still shown in Hz for the user.
   plus an `abs`. The `s4` slot is gone; the carry replaces it exactly.
   Output is **bit-identical** (same operands, same order), which is the
   requirement, not a nicety: this is the only always-on per-sample cost that
-  scales with polyphony (8 voices × 2 channels), so it is tempting to keep
-  shaving — and the spec's promise that low-level/low-resonance response matches
+  scales with polyphony (8 voices, one channel each — REQ-9), so it is tempting
+  to keep shaving — and the spec's promise that low-level/low-resonance response matches
   the linear ladder, hence that existing presets are preserved, depends on the
   recurrence not drifting. `sat(0) === 0`, so REQ-10's zero-the-state on
   deactivate leaves the carries self-consistent with no extra handling. Pinned

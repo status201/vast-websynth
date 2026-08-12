@@ -264,3 +264,29 @@ Scenario: Drive 0 stays an exact no-op after bucketing (REQ-7, edge)
 - A new effect adds an `Effect` impl + a `BypassWrapper`, its params, and its own
   `bind(bus, prefix)` — then add it to the relevant chain factory in
   `effects/fx-chain.ts` (its `fx` object **and** its order array).
+
+- **A stereo phaser and a ping-pong delay are the obvious width upgrade, and
+  neither is built.** Recorded here so the absence reads as a decision rather
+  than an oversight, since the specs have twice described these as stereo when
+  they are not ([scope](scope.md) v9 and v10 both removed such a claim). As
+  shipped: the **phaser** is four allpass biquads driven by *one* LFO through
+  *one* feedback delay, and the **delay** is a single `DelayNode` with a damped
+  feedback loop and no cross-feed. Both are channel-transparent — they carry a
+  stereo image, they never make one. Only the **reverb** (2-channel decorrelated
+  IR) does that. The upgrade would be a second allpass chain at an LFO phase
+  offset, and a delay whose two taps cross-feed. What it costs:
+  - **Twice the DSP per effect, in three chains each** (synth / drum / sampler),
+    always-on for whichever instances are un-bypassed. [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s
+    *cheap* is the standing objection; [ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
+    softens it (a bypassed effect is disconnected, so idle cost stays nil) but
+    an enabled one doubles.
+  - **It changes how every shipped preset and demo sounds.** A width change is
+    not a no-op default ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)),
+    so it either needs a `width`/`spread` param defaulting to today's mono
+    behaviour, or it is a deliberate break. The param is the honest route.
+  - **It cannot be signed off by a green suite.** This is a *sound* change, so
+    [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) and
+    [verify-audio-by-ear](../recipes/verify-audio-by-ear.md) apply: render
+    through the real graph, A/B a bypassed baseline, mute the lanes not under
+    test, and have a human listen. That, not the DSP, is the reason this is a
+    feature rather than a patch.

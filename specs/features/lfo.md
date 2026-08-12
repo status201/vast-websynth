@@ -62,9 +62,14 @@ destinations, genuinely cannot be shared (REQ-14).
   full amount the sweep is hard L↔R; `StereoPannerNode.pan` clamps to `±1` by
   construction, so the destination is bounded for any amount. Because the LFO is
   global (one oscillator shared by all voices), a bus panner and a per-voice
-  panner are audibly identical here — the bus node is chosen so the insert chain
-  stays 1-channel (ADR-010, *cheap*; same reasoning as [ladder-filter](ladder-filter.md)
-  REQ-9).
+  panner are audibly identical here — the bus node is chosen so that only one
+  node pans, instead of one per voice, and so that the insert chain upstream of
+  the reverb stays 1-channel (ADR-010, *cheap*; same reasoning as
+  [ladder-filter](ladder-filter.md) REQ-9). The reverb itself is mono-in /
+  stereo-out — a 2-channel decorrelated IR — so it, not the panner, is where the
+  synth channel first becomes stereo; the panner then pans that stereo signal
+  rather than up-mixing a mono one. Either way the CPU argument holds for the
+  four inserts ahead of it and for the eight voices behind them.
 - **REQ-5** — (v2) The **amplitude-domain** destinations (`amp`, `pan`) — and, from
   v4, the coefficient-domain `shape` (REQ-7) — are fed through a shared
   one-pole-ish lowpass (`lowpass`, 200 Hz, `Q = 0.5` — critically damped, no
