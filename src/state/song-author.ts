@@ -29,11 +29,11 @@ import {
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
 import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE } from './limits';
+import {
+  MAX_ERRORS, isObject, describeValue as describe, type AddError,
+} from './validate-utils';
 
 export const AUTHOR_FORMAT = 'websynth-song-author';
-
-/** Cap reported errors so a wildly-malformed file can't produce thousands of lines. */
-const MAX_ERRORS = 50;
 
 /** Defaults for an authored seq step that is ON (off steps get the same + note 60). */
 const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false };
@@ -66,21 +66,6 @@ const DRUM_KEY_HELP =
   'kick, snare, chat/hat/hihat/closedhat, ohat/openhat, ltom/lowtom, mtom/midtom, htom/hightom, clap, or "0".."7"';
 const SAMPLER_KEY_HELP = 's1..s8 or "0".."7"';
 
-type AddError = (msg: string) => void;
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-/** A short, human-readable description of an unexpected value for error messages. */
-function describe(v: unknown): string {
-  if (v === null) return 'null';
-  if (Array.isArray(v)) return 'an array';
-  const t = typeof v;
-  if (t === 'string') return `"${v as string}"`;
-  if (t === 'number' || t === 'boolean') return String(v);
-  return t;
-}
 
 /** `format === 'websynth-song-author'` on a JSON object — the routing test used by `Song.parse`. */
 export function isAuthorSong(value: unknown): boolean {
@@ -129,6 +114,12 @@ function parseNote(path: string, v: unknown, add: AddError): number | null {
 
 /* ---------------- per-step settings ---------------- */
 
+/**
+ * The dialect's unit check: reports *and returns* the accepted value, because an
+ * authored field is coerced into a cell rather than refused. `song-validate.ts`
+ * has the same name returning `void` — it rejects instead. Same name, different
+ * contract, deliberately not shared (untrusted-input.md REQ-3, ADR-013).
+ */
 function checkUnit(path: string, v: unknown, add: AddError): number | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {

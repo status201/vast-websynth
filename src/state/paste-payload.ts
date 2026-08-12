@@ -1,5 +1,6 @@
 import { AUTHOR_FORMAT } from './song-author';
 import { PRESET_FORMAT, BANK_FORMAT } from './preset-file';
+import { isObject } from './validate-utils';
 
 /**
  * Pasted-payload extraction + classification — `specs/features/paste-import.md`
@@ -55,10 +56,6 @@ export function extractJson(text: string): string | null {
   const end = body.lastIndexOf('}');
   if (start === -1 || end <= start) return null;
   return body.slice(start, end + 1).trim();
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 /** A payload's `name`, when it carries a usable one. */

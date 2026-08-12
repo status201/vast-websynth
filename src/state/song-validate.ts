@@ -24,6 +24,9 @@ import { KNOWN_SONG_VERSIONS } from './song-version';
 import { BANK_COUNT, REST, SEQ_LENGTH, SEQ_TRACK_COUNT, DRUM_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 import { paramIds } from './params';
 import {
+  MAX_ERRORS, isObject, describeValue as describe, type AddError,
+} from './validate-utils';
+import {
   MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
   MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
 } from './limits';
@@ -31,11 +34,6 @@ import {
 export type SongValidation =
   | { ok: true; file: SongFile; warnings?: string[] }
   | { ok: false; errors: string[] };
-
-/** Cap reported errors so a wildly-malformed file can't produce thousands of lines. */
-const MAX_ERRORS = 50;
-
-type AddError = (msg: string) => void;
 
 /**
  * Every automation target in a song that does not name a live parameter
@@ -82,21 +80,16 @@ export function unresolvedTargets(file: Pick<SongFile, 'xy' | 'motionAssigns' | 
 }
 type CellValidator = (path: string, value: unknown, add: AddError) => void;
 
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
-/** A short, human-readable description of an unexpected value for error messages. */
-function describe(v: unknown): string {
-  if (v === null) return 'null';
-  if (Array.isArray(v)) return 'an array';
-  const t = typeof v;
-  if (t === 'string') return `"${v as string}"`;
-  if (t === 'number' || t === 'boolean') return String(v);
-  return t; // 'object', 'undefined', 'function', …
-}
-
-/** Optional number in [0,1] — absent is fine (loader defaults it), present is checked. */
+/**
+ * Optional number in [0,1] — absent is fine (loader defaults it), present is checked.
+ *
+ * `song-author.ts` has a `checkUnit`/`checkRatchet` pair under the same names and a
+ * *different* signature (`number | undefined`), and that is deliberate: this
+ * validator **refuses** a canonical file, while the dialect **coerces and reports**
+ * (ADR-013). They are not two copies of one helper — do not merge them into
+ * `validate-utils.ts` (untrusted-input.md REQ-3).
+ */
 function checkUnit(path: string, v: unknown, add: AddError): void {
   if (v === undefined) return;
   if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) {

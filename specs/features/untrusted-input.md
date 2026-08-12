@@ -90,6 +90,21 @@ decision and the alternatives. This spec is the contract.
 - **REQ-3 — The limits are one module.** `src/state/limits.ts` exports the table
   below and nothing else. Every consumer imports from it; no literal duplicates.
 
+  The validators' shared *machinery* lives in `src/state/validate-utils.ts` for the
+  same reason: `isObject`, `describeValue`, the `AddError` type and `MAX_ERRORS`
+  had a copy each in `song-validate.ts`, `song-author.ts`, `preset-validate.ts`
+  and (for `isObject`) `paste-payload.ts`. `isObject` in particular is a security
+  predicate — it is what REQ-5's reserved-key check and every shape check are built
+  on — and four copies is four chances for them to drift apart silently.
+
+  What is **not** shared: `checkUnit` and `checkRatchet` exist in both
+  `song-validate.ts` and `song-author.ts` under the same names with **different
+  signatures** (`void` versus `number | undefined`), because the canonical
+  validator rejects while the dialect coerces-and-reports. That difference is the
+  point of having two parsers, so they stay separate and each carries a comment
+  saying so. Unifying them would be a behaviour change to a trust boundary, not a
+  deduplication.
+
 - **REQ-4 — Bounded values.** `SeqStep.note` is an integer `0..127` in **both**
   the canonical validator and the dialect (the dialect already enforced this; the
   canonical format was the looser of the two). Chain `steps` is `1..MAX_CHAIN_STEPS`.

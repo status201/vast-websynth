@@ -1,6 +1,7 @@
 import type { ParamBus } from './params';
 import type { Snapshot } from './preset';
 import { isPatchParam } from './preset-session';
+import { MAX_ERRORS, isObject, describeValue, type AddError } from './validate-utils';
 
 /**
  * The preset/bank **file format** and its validator —
@@ -50,25 +51,6 @@ export type PresetParse =
       warnings?: string[];
     }
   | { ok: false; errors: string[] };
-
-/** Cap reported errors so a wildly-malformed file can't produce thousands of lines. */
-const MAX_ERRORS = 50;
-
-type AddError = (msg: string) => void;
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-/** A short, human-readable description of an unexpected value (song-validate idiom). */
-function describeValue(v: unknown): string {
-  if (v === null) return 'null';
-  if (Array.isArray(v)) return 'an array';
-  const t = typeof v;
-  if (t === 'string') return `"${v as string}"`;
-  if (t === 'number' || t === 'boolean') return String(v);
-  return t;
-}
 
 /**
  * One `{id: number}` map. Returns the snapshot, or null when the value is not
