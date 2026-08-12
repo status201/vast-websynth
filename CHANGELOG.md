@@ -16,7 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The loaded song's sound stays in the preset list.** Load a demo and its name
+  now sits at the top of the Preset dropdown, above a dividing line, as something
+  you can pick — not just a label. So you can try the whole factory bank against
+  a demo and get its own sound back with one click, instead of reloading the demo
+  and losing everything else you had changed. It restores the *sound* only: the
+  tempo, the drum kit and the patterns you have been editing stay exactly as you
+  left them. The entry follows whichever song is loaded, and nothing is written
+  into your saved presets — auditioning nineteen demos leaves nineteen fewer
+  things to tidy up afterwards.
+
 ### Fixed
+
+- **The Preset box no longer renames itself after a preset import.** Importing a
+  preset or a bank changes no sound at all, but the header quietly stopped
+  showing the loaded song's name and started showing the first preset in the
+  list instead — so the label and what you were hearing disagreed, with nothing
+  to hint at it.
+
+- **The demo row is in alphabetical order.** The two project-bundle demos — the
+  ones carrying their own sampler audio, and the most complete songs in the
+  library — were pinned to the end of the row purely for being a different kind
+  of file, which pushed them behind the "All Demos" fold. Demos whose title
+  differs from their filename were mis-filed too. The shelf is now one list,
+  sorted by the name on the button, with the numbered ones counting properly
+  (1973, 1979, 1983 rather than lexically).
 
 - **Letting go of one key no longer stops a different note.** With more notes
   held than there are voices, the newest note takes the oldest note's voice —
