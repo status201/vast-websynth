@@ -120,6 +120,18 @@ concern.**
   validators already accepted both `dest` params independently, so a file with both LFOs on one
   destination already loaded and already summed — only the *UI block* disappears.
 
+- **REQ-10b (a source nothing selects costs nothing)** — the `random` sample-&-hold is
+  driven from the main thread: the clock schedules one new value on its
+  `ConstantSourceNode` per 16th, at the tick's own time so it lands with the beat. That
+  write is **gated on whether any live row actually reads `random`** — with no such row
+  the node feeds nothing, and scheduling automation on it forever is pure cost for
+  silence. Liveness is the same predicate that decides a route's gain (`src` set, `dst`
+  set, and not a per-voice source into a bus-wide destination, REQ-7), read straight
+  from the rows at tick time rather than cached, so re-patching a row needs no
+  invalidation. This is [runtime-performance](runtime-performance.md) REQ-1's rule —
+  cost is proportional to what the player asked for — applied to a modulation source,
+  and it is the same reasoning ADR-012 used to disconnect a bypassed effect.
+
 - **REQ-11 (a modulated knob shows its reach)** — a faceplate knob whose param any
   route points at draws a **range band**: an inner arc spanning `value ± Σ|depth|`,
   the reach of every route aimed there. It is computed from the route params alone —
@@ -286,6 +298,24 @@ the audio graph), and the window's open state.
 Scenario: A route with zero depth changes nothing (REQ-3, back-compat)
   Given every mod.* param is at its default
   Then the rendered audio is identical to before the matrix existed
+# pinned by: tests/audio/mod-matrix.test.ts
+
+Scenario: The sample-&-hold is silent while nothing reads it (REQ-10b)
+  Given no row selects random as its source
+  When the transport runs
+  Then no value is scheduled on the random source at all
+# pinned by: tests/audio/mod-matrix.test.ts (usesSource)
+
+Scenario: Routing random anywhere starts the sample-&-hold (REQ-10b)
+  Given a row routes random to a destination with a non-zero depth
+  When the transport runs
+  Then one new value is scheduled per 16th, at that tick's own time
+# pinned by: tests/audio/mod-matrix.test.ts (usesSource)
+
+Scenario: A route the matrix refuses does not wake the source (REQ-10b, edge)
+  Given a row routes a per-voice source to a bus-wide destination
+  Then the route is held at zero gain (REQ-7)
+  And the source counts as unused, because nothing can hear it
 # pinned by: tests/audio/mod-matrix.test.ts
 
 Scenario: Two rows on one destination sum (REQ-10)

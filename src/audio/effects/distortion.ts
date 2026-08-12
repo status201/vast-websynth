@@ -1,5 +1,6 @@
 import { BypassWrapper, bindBypassMix, type Effect } from './effect';
 import { memoizeDriveCurve } from '../drive-curve';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 function buildTanhCurve(amount: number, samples = 2048): Float32Array<ArrayBuffer> {
@@ -59,13 +60,13 @@ export class Distortion implements Effect {
     // The gains track `amount` continuously (that is what makes a drag sound
     // smooth); only the table is bucketed, and re-assigning the same one is
     // skipped outright.
-    this.preGain.gain.setTargetAtTime(1 + amount * 8, this.ctx.currentTime, 0.02);
+    this.preGain.gain.setTargetAtTime(1 + amount * 8, this.ctx.currentTime, RAMP_SMOOTH);
     const curve = tanhCurve(amount);
     if (this.shaper.curve !== curve) this.shaper.curve = curve;
-    this.postGain.gain.setTargetAtTime(1 / (1 + amount * 1.5), this.ctx.currentTime, 0.02);
+    this.postGain.gain.setTargetAtTime(1 / (1 + amount * 1.5), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setTone(hz: number): void {
-    this.tone.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
+    this.tone.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {

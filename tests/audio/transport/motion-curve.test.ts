@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  anchorIndices, createAnchorCache, valueAt, valueAt1D,
+  anchorIndices, createAnchorCache, valueAt, valueAtInto, valueAt1D,
 } from '../../../src/audio/transport/motion-curve';
 import { makeMotionBank, SEQ_LENGTH, type MotionStep } from '../../../src/state/patterns';
 
@@ -25,6 +25,39 @@ describe('motion-curve', () => {
   it('an empty bank evaluates to null (no automation)', () => {
     expect(valueAt(bank({}), 0, 'slide')).toBeNull();
     expect(valueAt(bank({}), 0.5, 'step')).toBeNull();
+  });
+
+  /**
+   * The allocation-free companion the motion machine's frame loop calls
+   * (runtime-performance.md REQ-6). It has to mean exactly what `valueAt` means,
+   * or the frame loop and every other caller would disagree about the curve.
+   */
+  describe('valueAtInto', () => {
+    it('leaves the holder untouched and reports false where valueAt is null', () => {
+      const out = { x: -1, y: -1 };
+      expect(valueAtInto(bank({}), 0.5, 'slide', {}, undefined, out)).toBe(false);
+      expect(out).toEqual({ x: -1, y: -1 });
+    });
+
+    it('agrees with valueAt across positions and both modes (the contract)', () => {
+      const banks = [
+        bank({ 4: [0.25, 0.75] }),
+        bank({ 0: [0.1, 0.2], 8: [0.9, 1] }),
+        bank({ 0: [0, 0], 5: [0.5, 0.25], 11: [1, 0.8], 15: [0.3, 0.6] }),
+      ];
+      const out = { x: 0, y: 0 };
+      for (const b of banks) {
+        for (const mode of ['slide', 'step'] as const) {
+          for (let s = 0; s < SEQ_LENGTH * 4; s++) {
+            const pos = s / (SEQ_LENGTH * 4);
+            const want = valueAt(b, pos, mode);
+            const got = valueAtInto(b, pos, mode, {}, undefined, out);
+            expect(got).toBe(want !== null);
+            if (want) expect({ x: out.x, y: out.y }).toEqual(want);
+          }
+        }
+      }
+    });
   });
 
   it('a single anchor holds its value everywhere, both modes', () => {

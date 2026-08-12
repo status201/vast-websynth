@@ -60,6 +60,14 @@ subsets, so a song can colour each bus independently.
   `setMix` while bypassed must not reconnect. Only the wrapper's own edges are
   touched — internal splices like `Compressor.attachWorklet()` survive, even
   when attach happens while bypassed-and-disconnected.
+- **REQ-2b** — An effect's own controls (delay time, feedback, drive, tone, LFO
+  rate/depth, filter Q, the compressor's setters) are smoothed with the shared
+  `RAMP_SMOOTH` constant from `audio/param-utils.ts`, not a literal. The value is
+  20 ms — deliberately slower than `RAMP_MEDIUM`, because these are swept by hand
+  and zipper audibly at a shorter constant. It had been written out as a bare
+  `0.02` at twelve call sites across five effects, which is a tuning constant with
+  no name and no single place to change it (ADR-010 calls these dialled by ear, so
+  they need to be findable).
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
   reverb.
 - **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor

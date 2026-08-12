@@ -19,7 +19,7 @@ import { MotionMachine } from './transport/motion-machine';
 import { Arrangement } from './transport/arrangement';
 import { ScaleQuantizer } from './transport/scale-quantizer';
 import { ModMatrix } from './mod-matrix';
-import { MOD_ROWS } from '../state/mod-routing';
+import { MOD_ROWS, MOD_SRC } from '../state/mod-routing';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
 import { WebRtcSyncTransport } from './webrtc-sync-transport';
@@ -451,8 +451,10 @@ export class Engine {
 
     // Sample & hold: one new value per 16th, scheduled at the tick's own time so it
     // lands with the beat rather than whenever the main thread got round to it
-    // (mod-matrix.md). One write per tick, not per frame.
+    // (mod-matrix.md). One write per tick, not per frame — and none at all while no
+    // route reads `random`, which is the default (mod-matrix.md REQ-10b).
     this.clock.onTick((_step, when) => {
+      if (!this.modMatrix.usesSource(MOD_SRC.random)) return;
       this.randomSource.offset.setValueAtTime(Math.random() * 2 - 1, when);
     });
 

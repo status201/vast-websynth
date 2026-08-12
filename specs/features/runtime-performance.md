@@ -95,6 +95,22 @@ so a reviewer has something concrete to hold a new feature against.
   iteration: hoist derived values out, cache pure derivations keyed by the state that
   produces them, and invalidate from the store's existing change streams.
 
+  Where a helper's natural signature is to *return* a small record, the frame path gets
+  a **fill-a-caller's-holder twin** beside it rather than a rewrite of the shared one:
+  `motionAxesFor` → `motionAxesInto`, `valueAt` → `valueAtInto`, `XyPadStore.get` →
+  `readAssignInto`. The returning form stays the default for every non-hot caller,
+  because a shared mutable holder is a real aliasing hazard and worth paying an
+  allocation to avoid **everywhere it is not measured to matter**. This is the same
+  pattern `motionAxesMatch` already established as the non-allocating twin of
+  `motionAxesFor`.
+
+  The bar is the *loop*, not the object count. Frame and sample loops are held to zero
+  because they are unbounded in time — the cost is per-iteration forever. A per-tick
+  path (a 16th note, ~8 Hz) is **not** covered: `stepHits` allocates its sub-hit records
+  per active lane per tick and is deliberately left alone, because the API change would
+  push a shared mutable buffer through the one piece of hit math the sequencer, drum
+  machine and sampler are required to agree on.
+
 - **REQ-7 — DOM writes are guarded on the rendered representation.** A repaint driven
   by a continuous value compares what it is about to *write* (a rounded angle, a
   formatted string) against the last written value and skips the unchanged ones —
@@ -152,7 +168,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
 | REQ-5 | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
-| REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` |
+| REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
 | REQ-7 | `ui/components/knob.ts` |
 | REQ-8 | `public/worklets/*.js` |
 | REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden) |

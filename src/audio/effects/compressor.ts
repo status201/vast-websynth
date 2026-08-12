@@ -1,5 +1,6 @@
 import { BypassWrapper, type Effect } from './effect';
 import { CompressorNode, type CompressorMode } from '../compressor/node';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 /**
@@ -111,6 +112,6 @@ export class Compressor implements Effect {
   }
 
   private apply(param: AudioParam | undefined, v: number): void {
-    param?.setTargetAtTime(v, this.ctx.currentTime, 0.02);
+    param?.setTargetAtTime(v, this.ctx.currentTime, RAMP_SMOOTH);
   }
 }

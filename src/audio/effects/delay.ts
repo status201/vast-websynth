@@ -1,4 +1,5 @@
 import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 export class Delay implements Effect {
@@ -37,10 +38,10 @@ export class Delay implements Effect {
   setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setTime(s: number): void {
-    this.delay.delayTime.setTargetAtTime(Math.max(0.001, Math.min(2, s)), this.ctx.currentTime, 0.02);
+    this.delay.delayTime.setTargetAtTime(Math.max(0.001, Math.min(2, s)), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setFeedback(f: number): void {
-    this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, 0.02);
+    this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {

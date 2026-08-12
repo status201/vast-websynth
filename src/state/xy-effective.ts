@@ -41,6 +41,23 @@ export function motionAxesFor(
 }
 
 /**
+ * `motionAxesFor` into a caller-owned holder, for the frame loop
+ * (runtime-performance.md REQ-6). Same resolution rule, no allocation; the
+ * returning form above stays the default everywhere a shared mutable holder
+ * would be a hazard rather than a saving.
+ */
+export function motionAxesInto(
+  patterns: PatternStore,
+  bank: number,
+  base: XyAssign,
+  out: XyAssign,
+): void {
+  const ov = patterns.motionAssign(bank);
+  out.x = ov?.x ?? base.x;
+  out.y = ov?.y ?? base.y;
+}
+
+/**
  * Does `bank` drive exactly `axes`? Equivalent to comparing
  * `motionAxesFor(patterns, bank, base)` field-by-field against `axes`, without
  * building the intermediate object — the machine asks this twice per frame (once
