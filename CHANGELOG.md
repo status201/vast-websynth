@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
 - **The loaded song's sound stays in the preset list.** Load a demo and its name
   now sits at the top of the Preset dropdown, above a dividing line, as something
@@ -27,9 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   left them. The entry follows whichever song is loaded, and nothing is written
   into your saved presets — auditioning nineteen demos leaves nineteen fewer
   things to tidy up afterwards.
-
-### Fixed
-
+  
 - **The Preset box no longer renames itself after a preset import.** Importing a
   preset or a bank changes no sound at all, but the header quietly stopped
   showing the loaded song's name and started showing the first preset in the
