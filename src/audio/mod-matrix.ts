@@ -189,12 +189,34 @@ export class ModMatrix {
     }
   }
 
+  /**
+   * Does this row carry signal? A row is live when it names both a source and a
+   * destination, and is not the one combination REQ-7 forbids (a per-voice source
+   * into a bus-wide destination — eight envelopes summing into one panner).
+   */
+  private isLive(r: Row): boolean {
+    return r.src !== MOD_SRC.off && r.dst !== MOD_DST.none
+      && !(isPerVoiceSource(r.src) && isBusWideDest(r.dst));
+  }
+
+  /**
+   * Does any live row read this source (REQ-10b)? Lets the Engine skip feeding a
+   * source nothing is listening to — the sample-&-hold otherwise schedules a new
+   * random value on every 16th forever, whether or not a route selects it.
+   * Read from the rows on demand rather than cached, so re-patching needs no
+   * invalidation; it is eight comparisons against a per-tick cost.
+   */
+  usesSource(src: number): boolean {
+    for (const r of this.rows) {
+      if (r.src === src && this.isLive(r)) return true;
+    }
+    return false;
+  }
+
   /** Depth in the destination's own unit, applied to every chain the row owns. */
   private applyGain(row: number): void {
     const r = this.rows[row]!;
-    const live = r.src !== MOD_SRC.off && r.dst !== MOD_DST.none
-      && !(isPerVoiceSource(r.src) && isBusWideDest(r.dst));
-    const g = live ? r.amt * (MOD_DEST_SCALE[r.dst] ?? 0) : 0;
+    const g = this.isLive(r) ? r.amt * (MOD_DEST_SCALE[r.dst] ?? 0) : 0;
     for (const c of this.chainsOf(row)) rampTo(c.gain.gain, g, this.ctx, RAMP_MEDIUM);
   }
 }

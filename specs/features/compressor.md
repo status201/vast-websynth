@@ -3,10 +3,11 @@
 ```yaml
 id: compressor
 status: implemented
-version: 1
+version: 2      # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
 owner: core
 related:
   - architecture
+  - runtime-performance
   - ../decisions/adr-002-audioworklet-compressor
   - ../decisions/adr-010-musical-stable-cheap-dsp
 source:
@@ -62,6 +63,21 @@ boundedness) and runs cheaply on the audio thread.
 - **REQ-5** — The graph is wired **synchronously** in `Engine`'s constructor;
   the worklet node is **spliced in after** `loadModule` via `attachWorklet()`,
   replaying cached setter values.
+- **REQ-6** — **Coefficients are derived when their inputs move, not per block.**
+  The envelope and makeup coefficients are functions of the six k-rate params
+  alone, and `mkA`/`dcR` of the sample rate alone. A processor computes the
+  rate-only pair **once at construction**, and the param-derived set **only when
+  one of those params changes** — a knob turn, not a block boundary. Recomputing
+  them per block cost seven `Math.exp`/`Math.pow` per block per instance (~5,000
+  per second across the drum and master processors) to arrive at the same numbers.
+  This is ADR-010's *cheap*, and it must not cost *musical*: see REQ-7.
+- **REQ-7** — **The memo is bit-exact.** Caching a coefficient MUST produce the
+  identical value the per-block computation produced — same expression, same
+  operand order — and the cache MUST be invalidated by every param it reads.
+  A stale coefficient after a knob turn is an audible bug, and a re-derived one
+  that differs in the last bit is a sound change under
+  `runtime-performance.md` REQ-8. Pinned by frozen-reference vectors that include
+  a mid-stream k-rate param change.
 
 ## Technical design
 
@@ -180,12 +196,33 @@ Scenario: DSP curve under signal (failure guard)
   Given a signal above threshold into the fet processor
   Then gain reduction is produced and posted on the port
 # pinned by: tests/audio/compressor-worklet.test.ts (worklet DSP imported directly)
+
+Scenario: The coefficient memo survives a block boundary (REQ-6)
+  Given a processor has rendered a block with a given set of k-rate params
+  When the next block arrives with those params unchanged
+  Then the envelope coefficients are reused rather than recomputed
+  And the output samples are identical to recomputing them
+# pinned by: tests/audio/compressor-worklet.test.ts (bit-exact digests)
+
+Scenario: A knob turn invalidates the memo mid-stream (REQ-7, regression)
+  Given a processor is compressing with one set of k-rate params
+  When threshold, ratio, attack, release, autoRelease and makeup all change
+       between two blocks
+  Then the new coefficients take effect on the very next block
+  And the output matches the un-memoized implementation sample for sample
+# pinned by: tests/audio/compressor-worklet.test.ts
+#            ('vca/fet, k-rate params change mid-stream')
 ```
 
 ## Tests & verification
 
 - Worklet DSP, directly: `tests/audio/compressor-worklet.test.ts` (stubs worklet
-  globals, imports `public/worklets/compressor.js`).
+  globals, imports `public/worklets/compressor.js`). Two layers: physics
+  assertions with loose tolerances, and the REQ-7 **frozen-reference digests**
+  covering both modes, `all` buttons, both `blend` release paths, the mono
+  input/output fallbacks and a mid-stream k-rate param change. The digests
+  observe the float32 output — what is heard — so they catch any rewrite that
+  moves a sample.
 - Effect wrapper + index mapping: `tests/audio/effects/compressor.test.ts`.
 - E2E: `e2e/compressor.spec.ts` (switch, knobs, `grmeter-<prefix>` presence, help
   badges).
@@ -195,3 +232,19 @@ Scenario: DSP curve under signal (failure guard)
 
 - The mode is fixed per instance by design; a user-switchable mode would need a new
   param + worklet re-instantiation. Out of scope.
+- **Splitting the sample loop on `fet` was measured and declined.** `fet` is fixed
+  per instance, so the three `if (fet)` tests inside the loop are loop-invariant
+  and an obvious hoisting target. Constant-folding the flag — the *upper bound* on
+  what a split could recover, since it lets the engine delete the branches
+  outright — is worth **~5% in fet mode and nothing measurable in vca**. That buys
+  one of the two live instances a few percent in exchange for duplicating ~35
+  lines of envelope and gain-computer maths, i.e. two copies of hand-tuned DSP to
+  keep in step. ADR-010 orders *musical* and *stable* above *cheap*; this trade
+  runs the wrong way. Revisit only with a profile showing the compressor loop is
+  the render budget's bottleneck.
+- **The per-sample `Math.log10` and `Math.pow` are the real cost** (~192,000 calls
+  per second across the two instances) and are deliberately untouched here.
+  Replacing them with a dB↔linear lookup table is **not bit-exact**, so under
+  `runtime-performance.md` REQ-8 it is a *sound change*, not an optimisation —
+  it needs its own spec and an ADR-010 justification, in the spirit of `sat()`
+  in `ladder-filter.js` replacing `tanh`.

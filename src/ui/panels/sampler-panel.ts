@@ -12,7 +12,7 @@ import {
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
-import { openRecordSoundModal } from '../components/record-sound-modal';
+import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
@@ -21,6 +21,16 @@ import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
+
+/**
+ * The recorder/editor is ~19 kB of modal that a player reaching for the sampler
+ * may never open, so it loads on the click that opens it
+ * (runtime-performance.md REQ-1). Both call sites go through here.
+ */
+async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions): Promise<void> {
+  const m = await import('../components/record-sound-modal');
+  m.openRecordSoundModal(engine, opts);
+}
 
 export function buildSamplerPanel(
   bus: ParamBus,
@@ -53,7 +63,7 @@ export function buildSamplerPanel(
   recBtn.dataset.testid = 'sampler-record';
   recBtn.textContent = 'Record a sound';
   recBtn.title = 'Record a sound from your microphone';
-  recBtn.addEventListener('click', () => openRecordSoundModal(engine));
+  recBtn.addEventListener('click', () => void openRecordSoundModal(engine));
   header.appendChild(recBtn);
 
   // One cluster so the header breaks between machine controls and FX rather
@@ -185,7 +195,7 @@ export function buildSamplerPanel(
     editBtn.addEventListener('click', () => {
       const buf = engine.sampler.buffers[slot];
       if (!buf) return;
-      openRecordSoundModal(engine, { slot, source: audioBufferToCaptured(buf) });
+      void openRecordSoundModal(engine, { slot, source: audioBufferToCaptured(buf) });
     });
     editBtns[slot] = editBtn;
     ctrls.appendChild(editBtn);

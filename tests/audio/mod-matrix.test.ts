@@ -149,6 +149,49 @@ describe('ModMatrix routing (REQ-1)', () => {
   });
 });
 
+describe('ModMatrix source liveness (REQ-10b)', () => {
+  it('reports no source in use while every row is off', () => {
+    const { m } = build();
+    expect(m.usesSource(MOD_SRC.random)).toBe(false);
+    expect(m.usesSource(MOD_SRC.lfo1)).toBe(false);
+  });
+
+  it('reports random in use once a row routes it somewhere', () => {
+    const { m } = build();
+    route(m, 2, MOD_SRC.random, MOD_DST.cutoff, 0.5);
+    expect(m.usesSource(MOD_SRC.random)).toBe(true);
+    // and does not confuse it with a source no row names
+    expect(m.usesSource(MOD_SRC.modWheel)).toBe(false);
+  });
+
+  it('stops reporting it when the row is routed away again', () => {
+    const { m } = build();
+    route(m, 2, MOD_SRC.random, MOD_DST.cutoff, 0.5);
+    route(m, 2, MOD_SRC.off, MOD_DST.cutoff, 0.5);
+    expect(m.usesSource(MOD_SRC.random)).toBe(false);
+  });
+
+  it('ignores a row pointed at no destination — it carries nothing', () => {
+    const { m } = build();
+    route(m, 2, MOD_SRC.random, MOD_DST.none, 0.8);
+    expect(m.usesSource(MOD_SRC.random)).toBe(false);
+  });
+
+  it('ignores a route REQ-7 forbids, since it is held at zero gain anyway', () => {
+    const { m } = build();
+    // velocity is per-voice, pan is bus-wide: refused, so nothing reads velocity.
+    route(m, 3, MOD_SRC.velocity, MOD_DST.pan, 1);
+    expect(m.usesSource(MOD_SRC.velocity)).toBe(false);
+  });
+
+  it('still reports it when only one of several rows uses it', () => {
+    const { m } = build();
+    route(m, 0, MOD_SRC.lfo1, MOD_DST.cutoff, 0.4);
+    route(m, 4, MOD_SRC.random, MOD_DST.pitch, 0.2);
+    expect(m.usesSource(MOD_SRC.random)).toBe(true);
+  });
+});
+
 describe('ModMatrix per-voice sources (REQ-7)', () => {
   it('takes a per-voice source from each voice, not from a shared node', () => {
     const { m, voices } = build(2);

@@ -24,6 +24,16 @@ export class XyPadStore {
     return { ...this.assign };
   }
 
+  /**
+   * `get()` into a caller-owned holder, for the frame loop
+   * (runtime-performance.md REQ-6). Copies the fields out for the same reason
+   * `get` does — the store's own object is never handed to a caller.
+   */
+  readAssignInto(out: XyAssign): void {
+    out.x = this.assign.x;
+    out.y = this.assign.y;
+  }
+
   /** Merge a partial assignment; notifies subscribers only when x or y changes. */
   set(partial: Partial<XyAssign>): void {
     const next: XyAssign = { ...this.assign, ...partial };

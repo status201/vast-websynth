@@ -50,6 +50,34 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
 export const DISCONNECT_DELAY_MS = 150;
 
 /**
+ * The shared body of an insert effect: it owns a `BypassWrapper`, publishes the
+ * wrapper's `input`/`output` as the `Effect` surface, and delegates `setBypass`.
+ * A subclass is then nothing but its own DSP — build the span from
+ * `wrap.processedIn` to `wrap.processedOut`, and `bind` the params.
+ *
+ * `setMix` is intentionally absent. `bindBypassMix` keys off whether an effect
+ * defines it, which is how Wah and the compressors — which have no `.mix` param
+ * registered — opt out of a dry/wet. Declaring it here would make all six claim a
+ * mix and subscribe a param that does not exist. Effects with a crossfade declare
+ * the one-liner themselves; its presence is the declaration (effects.md REQ-1).
+ */
+export abstract class WrappedEffect implements Effect {
+  readonly input: AudioNode;
+  readonly output: AudioNode;
+  protected readonly wrap: BypassWrapper;
+
+  protected constructor(protected readonly ctx: AudioContext, initialMix = 1) {
+    this.wrap = new BypassWrapper(ctx, initialMix);
+    this.input = this.wrap.input;
+    this.output = this.wrap.output;
+  }
+
+  setBypass(b: boolean): void {
+    this.wrap.setBypass(b);
+  }
+}
+
+/**
  * Helper for bypass-able effects with a dry/wet crossfade.
  * Connect inputs to `inputGate`. The host wires `processedOut` into the
  * effect-specific DSP chain, which writes back into `wet`. `dry` is summed

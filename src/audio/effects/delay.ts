@@ -1,18 +1,14 @@
-import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
-export class Delay implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Delay extends WrappedEffect {
   private readonly delay: DelayNode;
   private readonly feedback: GainNode;
   private readonly damp: BiquadFilterNode;
 
-  constructor(private readonly ctx: AudioContext) {
-    this.wrap = new BypassWrapper(ctx, 0.3);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext) {
+    super(ctx, 0.3);
 
     this.delay = ctx.createDelay(2);
     this.delay.delayTime.value = 0.35;
@@ -34,13 +30,12 @@ export class Delay implements Effect {
     this.damp.connect(this.wrap.processedOut);
   }
 
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   setTime(s: number): void {
-    this.delay.delayTime.setTargetAtTime(Math.max(0.001, Math.min(2, s)), this.ctx.currentTime, 0.02);
+    this.delay.delayTime.setTargetAtTime(Math.max(0.001, Math.min(2, s)), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setFeedback(f: number): void {
-    this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, 0.02);
+    this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {

@@ -1,11 +1,9 @@
-import { BypassWrapper, bindBypassMix, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01, midiToHz } from '../../utils/math';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
-export class Wah implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Wah extends WrappedEffect {
   private readonly bp: BiquadFilterNode;
   private readonly lfo: OscillatorNode;
   private readonly lfoDepth: GainNode;
@@ -13,10 +11,8 @@ export class Wah implements Effect {
   private centerNote = 75; // ~E5 ≈ 783 Hz
   private depth = 0.6;
 
-  constructor(private readonly ctx: AudioContext) {
-    this.wrap = new BypassWrapper(ctx, 1);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext) {
+    super(ctx, 1);
 
     this.bp = ctx.createBiquadFilter();
     this.bp.type = 'bandpass';
@@ -35,16 +31,15 @@ export class Wah implements Effect {
     this.wrap.processedIn.connect(this.bp).connect(this.wrap.processedOut);
   }
 
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setRate(hz: number): void {
-    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.02);
+    this.lfo.frequency.setTargetAtTime(hz, this.ctx.currentTime, RAMP_SMOOTH);
   }
   setDepth(d: number): void {
     this.depth = clamp01(d);
-    this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, 0.02);
+    this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setQ(q: number): void {
-    this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, 0.02);
+    this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, RAMP_SMOOTH);
   }
 
   bind(bus: ParamBus, prefix: string): void {

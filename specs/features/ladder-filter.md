@@ -333,3 +333,21 @@ Scenario: Resonance knob has a power taper (non-linear mapping)
 - This spec doubles as the reference instance for the
   [add-a-parameter recipe](../recipes/add-a-parameter.md): `filter.cutoff` is the
   textbook scalar param.
+- **Splitting the sample loop into constant and modulated paths was measured and
+  declined.** Four flags are loop-invariant for a block — `resStatic`,
+  `cutoffConst`, `shapeConst` and the `inCh` null-check — and are nonetheless
+  tested on every one of the 128 samples, in both model branches, per voice. That
+  reads like an obvious hoist. It is not: constant-folding all four (the *upper
+  bound*, since it lets the engine delete the tests outright rather than merely
+  hoist them) produced a difference **below the run-to-run noise floor** — repeated
+  best-of-5 timings of the *unmodified* build spanned 735–821 ms for the same work,
+  wider than any gap between the two builds, and one branchless run came out
+  slower. The branches are perfectly predicted, so they cost approximately nothing.
+  Paying for them with a second copy of the recurrence — which ADR-016 keeps
+  byte-for-byte identical to the frozen reference precisely so there is one
+  canonical copy — would trade a real maintenance hazard for an unmeasurable win.
+  Re-open only with a profile from a real device showing this loop dominating.
+- The two per-block constancy scans (`cutoffArr`, `shapeArr`) are already near
+  optimal and were left alone: proving a block *is* constant requires reading every
+  element, and a genuinely modulated block already exits on the first differing
+  sample. Comparing first-against-last before scanning would help neither case.

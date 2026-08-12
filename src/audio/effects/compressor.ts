@@ -1,5 +1,6 @@
-import { BypassWrapper, type Effect } from './effect';
+import { WrappedEffect, bindBypassMix } from './effect';
 import { CompressorNode, type CompressorMode } from '../compressor/node';
+import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 /**
@@ -12,10 +13,7 @@ import type { ParamBus } from '../../state/params';
  * param defaults to off. Setters cache their values and are replayed onto the
  * live AudioParams at attach time.
  */
-export class Compressor implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
+export class Compressor extends WrappedEffect {
   private node: CompressorNode | null = null;
   private grCb: ((db: number) => void) | null = null;
 
@@ -26,10 +24,8 @@ export class Compressor implements Effect {
   private autoRelease = false;
   private makeup = 0;
 
-  constructor(private readonly ctx: AudioContext, private readonly mode: CompressorMode) {
-    this.wrap = new BypassWrapper(ctx, 1);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+  constructor(ctx: AudioContext, private readonly mode: CompressorMode) {
+    super(ctx, 1);
   }
 
   /** Create the worklet node and splice it into the wet path. */
@@ -53,9 +49,10 @@ export class Compressor implements Effect {
     this.grCb = cb;
   }
 
-  setBypass(b: boolean): void {
-    this.wrap.setBypass(b);
-    if (b) this.grCb?.(0); // don't leave the meter frozen on a stale value
+  /** Also clears the meter, so bypassing never leaves it frozen on a stale value. */
+  override setBypass(b: boolean): void {
+    super.setBypass(b);
+    if (b) this.grCb?.(0);
   }
 
   setThreshold(db: number): void {
@@ -95,7 +92,9 @@ export class Compressor implements Effect {
    * index past the end of the table means auto-release (SSL).
    */
   bind(bus: ParamBus, prefix: string, ratios: number[], releases?: number[]): void {
-    bus.subscribe(`${prefix}.on`, (x) => this.setBypass(x < 0.5));
+    // Defines no setMix, so this subscribes `.on` alone — a compressor has no
+    // dry/wet and no `.mix` param to subscribe (effects.md REQ-1).
+    bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.threshold`, (x) => this.setThreshold(x));
     bus.subscribe(`${prefix}.ratio`, (x) => this.setRatio(ratios[Math.round(x)] ?? ratios[0]!));
     bus.subscribe(`${prefix}.attack`, (x) => this.setAttack(x));
@@ -111,6 +110,6 @@ export class Compressor implements Effect {
   }
 
   private apply(param: AudioParam | undefined, v: number): void {
-    param?.setTargetAtTime(v, this.ctx.currentTime, 0.02);
+    param?.setTargetAtTime(v, this.ctx.currentTime, RAMP_SMOOTH);
   }
 }

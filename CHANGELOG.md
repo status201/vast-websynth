@@ -16,6 +16,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Letting go of one key no longer stops a different note.** With more notes
+  held than there are voices, the newest note takes the oldest note's voice —
+  that part is normal, and every polyphonic instrument does it. What was wrong is
+  what happened next: the robbed key still thought it owned that voice, so
+  releasing it silenced the note that had taken it over. Hold a nine-note chord
+  on the eight voices, lift the first finger, and the *last* note stopped. It
+  reached further than nine fingers, too: unison spends a voice per copy, and a
+  dense sequenced or chord-expanded passage runs the pool dry on its own.
+
+### Changed
+
+- **Less to download before the first note.** The Help & About sample recorder,
+  the preset manager, the audio-export dialog and the AI Prompt's guide text are
+  no longer part of the initial download — each arrives with the click that opens
+  it, the way the WiFi pairing screen and the MP3 encoder already did. That is
+  35 kB less JavaScript (13 kB compressed) to fetch and parse before the
+  instrument is playable, and nothing about the panels themselves has changed.
+
+- **The compressors think less often.** Both compressors were re-deriving their
+  envelope coefficients on every audio block — thousands of times a second — to
+  arrive at the same numbers, when those numbers can only change when you turn a
+  knob. They now do exactly that. The sound is unchanged, and pinned that way by
+  a test that compares the output sample for sample.
+
+- **A modulation source nothing is using costs nothing.** The random
+  sample-and-hold was picking a fresh value on every sixteenth whether or not any
+  matrix row was listening to it. It stays quiet until a route asks for it.
+
 ## [2.8.0] - 2026-08-11
 
 ### Added

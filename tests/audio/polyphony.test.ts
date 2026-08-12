@@ -59,6 +59,83 @@ describe('Polyphony', () => {
     expect(voices[0]!.noteOn).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * voicing.md REQ-9. `heldNotes` maps a note to the voices playing it, and
+   * `releaseNote` sends noteOff to whatever that entry names — so a stolen voice
+   * left in its old note's entry means releasing the old key stops the new note.
+   * Reachable by holding VOICE_COUNT notes and playing one more.
+   */
+  describe('voice stealing keeps heldNotes honest (REQ-9, regression)', () => {
+    it('releasing the robbed note does not stop the voice that stole it', () => {
+      const { voices, poly } = build(2);
+      poly.playNote(60, 0.8, 0); // → voice0
+      poly.playNote(62, 0.8, 1); // → voice1
+      voices[0]!.noteOnAt = 0;
+      voices[1]!.noteOnAt = 1;
+      poly.playNote(64, 0.8, 2); // pool full → steals voice0, which now plays 64
+      voices[0]!.noteOff.mockClear();
+
+      poly.releaseNote(60, 3);   // 60 is not sounding any more — nothing to stop
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+      expect(voices[0]!.state).toBe('playing');
+    });
+
+    it('still releases the note the stolen voice actually plays', () => {
+      const { voices, poly } = build(2);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(62, 0.8, 1);
+      voices[0]!.noteOnAt = 0;
+      voices[1]!.noteOnAt = 1;
+      poly.playNote(64, 0.8, 2); // voice0 now plays 64
+      voices[0]!.noteOff.mockClear();
+
+      poly.releaseNote(64, 3);
+      expect(voices[0]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves untouched notes owning their own voices', () => {
+      const { voices, poly } = build(2);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(62, 0.8, 1);
+      voices[0]!.noteOnAt = 0;
+      voices[1]!.noteOnAt = 1;
+      poly.playNote(64, 0.8, 2); // steals voice0 only
+      voices[1]!.noteOff.mockClear();
+
+      poly.releaseNote(62, 3);   // 62 still owns voice1
+      expect(voices[1]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not disturb allocation while the pool has idle voices', () => {
+      const { voices, poly } = build(4);
+      poly.playNote(60, 0.8, 0);
+      poly.playNote(62, 0.8, 1);
+      poly.releaseNote(60, 2);
+      poly.releaseNote(62, 2);
+      expect(voices[0]!.noteOff).toHaveBeenCalledTimes(1);
+      expect(voices[1]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops only the unison copies a new note actually took', () => {
+      const { voices, poly } = build(4);
+      poly.setUnisonCount(2);
+      poly.playNote(60, 0.8, 0);  // takes voice0 + voice1
+      poly.playNote(62, 0.8, 1);  // takes voice2 + voice3
+      for (const [i, v] of voices.entries()) v.noteOnAt = i < 2 ? 0 : 1;
+      // Pool full. The stub never advances noteOnAt, so both picks land on the
+      // same oldest voice — 60 loses voice0 and keeps voice1.
+      poly.playNote(64, 0.8, 2);
+      voices[0]!.noteOff.mockClear();
+      voices[1]!.noteOff.mockClear();
+
+      poly.releaseNote(60, 3);
+      // The stolen copy belongs to 64 now and must not be stopped...
+      expect(voices[0]!.noteOff).not.toHaveBeenCalled();
+      // ...while the copy 60 still owns is released normally.
+      expect(voices[1]!.noteOff).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('unison stacks N voices per note', () => {
     const { voices, poly } = build(4);
     poly.setUnisonCount(3);

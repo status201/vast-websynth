@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEffectiveXy, motionAxesFor, motionAxesMatch } from '../../src/state/xy-effective';
+import { createEffectiveXy, motionAxesFor, motionAxesInto, motionAxesMatch } from '../../src/state/xy-effective';
 import { XyPadStore, XY_DEFAULT_ASSIGN, type XyAssign } from '../../src/state/xy-pad';
 import { PatternStore } from '../../src/state/patterns';
 import { ParamBus, registerDefaults } from '../../src/state/params';
@@ -94,6 +94,32 @@ describe('createEffectiveXy (motion-sequencer.md REQ-11)', () => {
  * what comparing `motionAxesFor(...)` field-by-field would — that is the whole
  * reason the two live in one file.
  */
+describe('motionAxesInto', () => {
+  const base: XyAssign = { x: 'filter.cutoff', y: 'filter.resonance' };
+
+  it('agrees with motionAxesFor for every bank, override and axis (the contract)', () => {
+    const p = new PatternStore();
+    p.setMotionEditBank(1);
+    p.setMotionAssign({ x: 'fx.delay.time' });          // partial override
+    p.setMotionEditBank(2);
+    p.setMotionAssign({ x: 'fx.delay.time', y: 'fx.reverb.mix' }); // both axes
+    const out: XyAssign = { x: '', y: '' };
+    for (const bank of [0, 1, 2, 3]) {
+      motionAxesInto(p, bank, base, out);
+      expect({ x: out.x, y: out.y }).toEqual(motionAxesFor(p, bank, base));
+    }
+  });
+
+  it('overwrites both fields, so a reused holder never leaks the last bank', () => {
+    const p = new PatternStore();
+    p.setMotionEditBank(1);
+    p.setMotionAssign({ x: 'fx.delay.time', y: 'fx.reverb.mix' });
+    const out: XyAssign = { x: 'stale.x', y: 'stale.y' };
+    motionAxesInto(p, 0, base, out);           // bank 0 has no override
+    expect(out).toEqual(base);
+  });
+});
+
 describe('motionAxesMatch', () => {
   const base: XyAssign = { x: 'filter.cutoff', y: 'filter.resonance' };
 

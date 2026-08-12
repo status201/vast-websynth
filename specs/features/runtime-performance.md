@@ -64,6 +64,26 @@ so a reviewer has something concrete to hold a new feature against.
   ([`song-mode.md`](song-mode.md)); reverb IRs are generated on first use of a size
   ([`effects.md`](effects.md)). Applies to bundle payload and to synchronous CPU alike.
 
+  **A surface reached only by a deliberate click is loaded by that click.** A modal the
+  player may never open still costs every visitor its parse time when it is imported
+  statically, and the instrument is playable without any of them. So the on-demand
+  surfaces are behind `import()` at their trigger: the sample recorder/editor, the
+  preset manager, the audio-export dialog, the WiFi pair modal (which also defers
+  `jsqr`), the MP3 encoder (`lamejs`), and the authoring-guide prompt text behind the
+  AI Prompt button. The onboarding layer — the tour, the info badges and the ~54 kB of
+  help copy they read — loads on the first `startTour()` or badge toggle, behind the
+  synchronous `Onboarding` facade so no caller learns that it is lazy.
+
+  The rule is about *reachability, not size*: a small module on a click path is fine to
+  defer, and a large one on the boot path (the engine, the panels) is not deferrable at
+  all. Where a heavy module also exports the **button** that opens it, the button
+  factory moves to its own module so the body stays behind the click — importing a
+  factory eagerly to get a lazy body defeats the split.
+
+  **The gate is `npm run build`:** the entry chunk stays under Vite's 500 kB warning
+  threshold, and the warning firing is the signal that something joined the boot path
+  that should not have.
+
 - **REQ-2 — Expensive immutable artefacts are shared, not rebuilt per instance.** An
   artefact that is a pure function of its inputs and immutable in use (an
   `AudioBuffer` handed to a `ConvolverNode`, a `WaveShaperNode` curve) is cached by
@@ -94,6 +114,22 @@ so a reviewer has something concrete to hold a new feature against.
   rate (`MotionMachine.frame`) or sample rate (worklet `process`) allocate nothing per
   iteration: hoist derived values out, cache pure derivations keyed by the state that
   produces them, and invalidate from the store's existing change streams.
+
+  Where a helper's natural signature is to *return* a small record, the frame path gets
+  a **fill-a-caller's-holder twin** beside it rather than a rewrite of the shared one:
+  `motionAxesFor` → `motionAxesInto`, `valueAt` → `valueAtInto`, `XyPadStore.get` →
+  `readAssignInto`. The returning form stays the default for every non-hot caller,
+  because a shared mutable holder is a real aliasing hazard and worth paying an
+  allocation to avoid **everywhere it is not measured to matter**. This is the same
+  pattern `motionAxesMatch` already established as the non-allocating twin of
+  `motionAxesFor`.
+
+  The bar is the *loop*, not the object count. Frame and sample loops are held to zero
+  because they are unbounded in time — the cost is per-iteration forever. A per-tick
+  path (a 16th note, ~8 Hz) is **not** covered: `stepHits` allocates its sub-hit records
+  per active lane per tick and is deliberately left alone, because the API change would
+  push a shared mutable buffer through the one piece of hit math the sequencer, drum
+  machine and sampler are required to agree on.
 
 - **REQ-7 — DOM writes are guarded on the rendered representation.** A repaint driven
   by a continuous value compares what it is about to *write* (a rounded angle, a
@@ -152,7 +188,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
 | REQ-5 | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
-| REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` |
+| REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
 | REQ-7 | `ui/components/knob.ts` |
 | REQ-8 | `public/worklets/*.js` |
 | REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden) |

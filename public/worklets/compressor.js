@@ -26,6 +26,12 @@ const METER_INTERVAL_BLOCKS = 12; // 12 × 128 frames ≈ 31 Hz at 48 kHz
 const KNEE_DB = 6; // vca soft-knee width
 const DB_EPS = 1e-30; // kills log10(0) and detector denormals
 
+// Read in place of a disconnected input, so the sample loop indexes a buffer
+// unconditionally instead of testing for null 128 times a block. Sized to the
+// render quantum on first use and reused thereafter; the quantum is 128 and
+// fixed, so the grow branch never runs twice.
+let SILENCE = new Float32Array(128);
+
 class HardwareCompressorProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -47,11 +53,82 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     this.grSlow = 0; // slow companion envelope of gr, dB
     this.gPrev = 1; // previous sample's linear comp gain (fet feedback tap)
     this.mk = 1; // smoothed linear makeup gain
-    this.dcX = [0, 0]; // DC blocker state (fet saturation is asymmetric)
-    this.dcY = [0, 0];
+    // DC blocker state, one pair per channel (fet saturation is asymmetric).
+    // Scalars rather than arrays: the loop reads and writes them twice per
+    // sample per channel, where a property-plus-index lookup is pure overhead.
+    this.dcX0 = 0;
+    this.dcY0 = 0;
+    this.dcX1 = 0;
+    this.dcY1 = 0;
     this.grMax = 0; // meter: max gr in the current window
     this.blockCount = 0;
     this.lastPosted = 0;
+
+    // Functions of the sample rate alone. The rate cannot change under a live
+    // processor, so these are built once instead of per block (REQ-6).
+    const sr = sampleRate;
+    this.mkA = Math.exp(-1 / (0.01 * sr)); // ~10 ms makeup smoothing
+    this.dcR = 1 - (2 * Math.PI * 10) / sr; // 10 Hz DC blocker pole
+
+    // Coefficient memo (REQ-6/7). Everything below is a function of the k-rate
+    // params alone, so it survives until one of them moves — a knob turn, not a
+    // block boundary. Keys seeded NaN so the first block always computes (NaN
+    // compares unequal to everything, including itself).
+    this.kThreshold = NaN;
+    this.kRatio = NaN;
+    this.kAttack = NaN;
+    this.kRelease = NaN;
+    this.kAuto = NaN;
+    this.kMakeup = NaN;
+    this.aA = 0;
+    this.aR = 0;
+    this.aSlow = 0;
+    this.aRLong = 0;
+    this.aRFast = 0;
+    this.slope = 0;
+    this.all = false;
+    this.blend = false;
+    this.mkT = 1;
+  }
+
+  /**
+   * Recompute the k-rate-derived coefficients, but only when one of the six
+   * params actually moved. The expressions are byte-for-byte the ones that used
+   * to run per block: a coefficient that came out different in the last bit
+   * would be a sound change, not an optimisation (REQ-7).
+   */
+  updateCoefficients(threshold, ratio, attack, release, autoRaw, makeupDb) {
+    if (
+      threshold === this.kThreshold && ratio === this.kRatio &&
+      attack === this.kAttack && release === this.kRelease &&
+      autoRaw === this.kAuto && makeupDb === this.kMakeup
+    ) {
+      return;
+    }
+    this.kThreshold = threshold;
+    this.kRatio = ratio;
+    this.kAttack = attack;
+    this.kRelease = release;
+    this.kAuto = autoRaw;
+    this.kMakeup = makeupDb;
+
+    const sr = sampleRate;
+    const fet = this.fet;
+    const auto = autoRaw >= 0.5;
+
+    // Attack clamped to at least one sample (20 µs is sub-sample at 48 kHz).
+    this.aA = attack * sr <= 1 ? 0 : Math.exp(-1 / (attack * sr));
+    const aR = Math.exp(-1 / (release * sr));
+    this.aR = aR;
+    this.all = fet && ratio >= 100;
+    this.slope = this.all ? 1 - 1 / 1000 : 1 - 1 / ratio;
+    // Program-dependent release: fet blends knob ↔ 5× knob on a ~600 ms
+    // companion envelope; vca auto blends 80 ms ↔ 1.5 s on a ~1.5 s one.
+    this.aSlow = Math.exp(-1 / ((fet ? 0.6 : 1.5) * sr));
+    this.aRLong = fet ? Math.exp(-1 / (release * 5 * sr)) : Math.exp(-1 / (1.5 * sr));
+    this.aRFast = fet ? aR : auto ? Math.exp(-1 / (0.08 * sr)) : aR;
+    this.blend = fet || auto;
+    this.mkT = Math.pow(10, makeupDb / 20);
   }
 
   process(inputs, outputs, params) {
@@ -59,46 +136,52 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     if (!output || output.length === 0) return true;
 
-    const sr = sampleRate;
     const threshold = params.threshold[0];
-    const ratio = params.ratio[0];
-    const attack = params.attack[0];
-    const release = params.release[0];
-    const auto = params.autoRelease[0] >= 0.5;
-    const makeupDb = params.makeup[0];
+    this.updateCoefficients(
+      threshold,
+      params.ratio[0],
+      params.attack[0],
+      params.release[0],
+      params.autoRelease[0],
+      params.makeup[0],
+    );
 
-    // Attack clamped to at least one sample (20 µs is sub-sample at 48 kHz).
-    const aA = attack * sr <= 1 ? 0 : Math.exp(-1 / (attack * sr));
-    const aR = Math.exp(-1 / (release * sr));
     const fet = this.fet;
-    const all = fet && ratio >= 100;
-    const slope = all ? 1 - 1 / 1000 : 1 - 1 / ratio;
-    // Program-dependent release: fet blends knob ↔ 5× knob on a ~600 ms
-    // companion envelope; vca auto blends 80 ms ↔ 1.5 s on a ~1.5 s one.
-    const aSlow = Math.exp(-1 / ((fet ? 0.6 : 1.5) * sr));
-    const aRLong = fet ? Math.exp(-1 / (release * 5 * sr)) : Math.exp(-1 / (1.5 * sr));
-    const aRFast = fet ? aR : auto ? Math.exp(-1 / (0.08 * sr)) : aR;
-    const blend = fet || auto;
-
-    const mkT = Math.pow(10, makeupDb / 20);
-    const mkA = Math.exp(-1 / (0.01 * sr));
-    const dcR = 1 - (2 * Math.PI * 10) / sr;
+    const all = this.all;
+    const slope = this.slope;
+    const aA = this.aA;
+    const aSlow = this.aSlow;
+    const aRLong = this.aRLong;
+    const aRFast = this.aRFast;
+    const blend = this.blend;
+    const mkT = this.mkT;
+    const mkA = this.mkA;
+    const dcR = this.dcR;
 
     const inL = input && input[0] ? input[0] : null;
     const inR = input && input[1] ? input[1] : inL;
     const outL = output[0];
     const outR = output.length > 1 ? output[1] : null;
     const n = outL.length;
+    // Whether there is signal to read is fixed for the block, so the loop reads
+    // a zero-filled stand-in rather than testing for null on every sample.
+    if (SILENCE.length < n) SILENCE = new Float32Array(n);
+    const srcL = inL || SILENCE;
+    const srcR = inR || SILENCE;
 
     let gr = this.gr;
     let grSlow = this.grSlow;
     let gPrev = this.gPrev;
     let mk = this.mk;
     let grMax = this.grMax;
+    let dcX0 = this.dcX0;
+    let dcY0 = this.dcY0;
+    let dcX1 = this.dcX1;
+    let dcY1 = this.dcY1;
 
     for (let i = 0; i < n; i++) {
-      const xL = inL ? inL[i] : 0;
-      const xR = inR ? inR[i] : 0;
+      const xL = srcL[i];
+      const xR = srcR[i];
 
       // Stereo-linked sidechain. fet = feedback (post-gain), vca = feed-forward.
       let sc = Math.max(Math.abs(xL), Math.abs(xR));
@@ -145,13 +228,13 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
         const d = (1 + gr * 0.05) * (all ? 2 : 1);
         yL = Math.tanh(d * (yL + 0.02)) / d;
         yR = Math.tanh(d * (yR + 0.02)) / d;
-        const bL = yL - this.dcX[0] + dcR * this.dcY[0];
-        this.dcX[0] = yL;
-        this.dcY[0] = bL;
+        const bL = yL - dcX0 + dcR * dcY0;
+        dcX0 = yL;
+        dcY0 = bL;
         yL = bL;
-        const bR = yR - this.dcX[1] + dcR * this.dcY[1];
-        this.dcX[1] = yR;
-        this.dcY[1] = bR;
+        const bR = yR - dcX1 + dcR * dcY1;
+        dcX1 = yR;
+        dcY1 = bR;
         yR = bR;
       }
 
@@ -167,6 +250,10 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     this.grSlow = grSlow;
     this.gPrev = gPrev;
     this.mk = mk;
+    this.dcX0 = dcX0;
+    this.dcY0 = dcY0;
+    this.dcX1 = dcX1;
+    this.dcY1 = dcY1;
 
     if (++this.blockCount >= METER_INTERVAL_BLOCKS) {
       if (grMax > 0.01 || this.lastPosted > 0.01) {

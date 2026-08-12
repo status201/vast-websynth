@@ -45,7 +45,14 @@ import {
   type ProjectClipOut, type ProjectClipIn,
 } from '../../state/project';
 import { openExportSongModal } from '../components/export-song-modal';
-import { openExportAudioModal } from '../components/export-audio-modal';
+/**
+ * The export dialog loads on the click that opens it — a player who never
+ * exports never pays for it (runtime-performance.md REQ-1).
+ */
+async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promise<void> {
+  const m = await import('../components/export-audio-modal');
+  m.openExportAudioModal(engine, fmt);
+}
 import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
@@ -756,7 +763,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const expSongBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`) as HTMLButtonElement;
   expSongBtn.dataset.testid = 'song-export-audio';
   expSongBtn.title = 'Render the arrangement to audio — choose runs and format';
-  expSongBtn.addEventListener('click', () => openExportAudioModal(engine, fmt));
+  expSongBtn.addEventListener('click', () => void openExportAudioModal(engine, fmt));
 
   const recLauncher = createRecordWindowLauncher(engine, () => fmt);
   // Reach was the original complaint: a floating window only solves it once

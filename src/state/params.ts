@@ -321,54 +321,32 @@ export function registerDefaults(bus: ParamBus): void {
     ...lfoParams('lfo2'),
 
     // ----- FX: Distortion -----
-    { id: 'fx.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.dist.drive', min: 0, max: 1, default: 0.3, format: fmtPct },
-    { id: 'fx.dist.tone', min: 200, max: 8000, default: 3000, format: fmtHz },
-    { id: 'fx.dist.mix', min: 0, max: 1, default: 1, format: fmtPct },
+    ...distParams('fx.dist'),
 
     // ----- FX: Wah -----
+    // Longhand: the wah is synth-only, so there is nothing for it to share with.
     { id: 'fx.wah.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
     { id: 'fx.wah.rate', min: 0.05, max: 10, default: 2.0, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'fx.wah.depth', min: 0, max: 1, default: 0.4, format: fmtPct },
     { id: 'fx.wah.q', min: 0.5, max: 20, default: 4, format: (v) => v.toFixed(1) },
 
     // ----- FX: Phaser -----
-    { id: 'fx.phaser.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'fx.phaser.depth', min: 0, max: 1, default: 0.5, format: fmtPct },
-    { id: 'fx.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
-    { id: 'fx.phaser.mix', min: 0, max: 1, default: 0.5, format: fmtPct },
+    ...phaserParams('fx.phaser', { depth: 0.5, mix: 0.5 }),
 
     // ----- FX: Delay -----
-    { id: 'fx.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.delay.time', min: 0.01, max: 1.5, default: 0.35, format: fmtMs },
-    { id: 'fx.delay.feedback', min: 0, max: 0.95, default: 0.4, format: fmtPct },
-    { id: 'fx.delay.mix', min: 0, max: 1, default: 0.3, format: fmtPct },
+    ...delayParams('fx.delay'),
 
     // ----- FX: Reverb -----
-    { id: 'fx.reverb.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.reverb.size', min: 0, max: 1, default: 0.6, format: fmtPct },
-    { id: 'fx.reverb.damp', min: 0, max: 1, default: 0.4, format: fmtPct },
-    { id: 'fx.reverb.mix', min: 0, max: 1, default: 0.25, format: fmtPct },
+    ...reverbParams('fx.reverb'),
 
     // ----- Drum FX: Phaser -----
-    { id: 'fx.drum.phaser.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.drum.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'fx.drum.phaser.depth', min: 0, max: 1, default: 0.7, format: fmtPct },
-    { id: 'fx.drum.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
-    { id: 'fx.drum.phaser.mix', min: 0, max: 1, default: 0.6, format: fmtPct },
+    ...phaserParams('fx.drum.phaser', { depth: 0.7, mix: 0.6 }),
 
     // ----- Drum FX: Delay -----
-    { id: 'fx.drum.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.drum.delay.time', min: 0.01, max: 1.5, default: 0.35, format: fmtMs },
-    { id: 'fx.drum.delay.feedback', min: 0, max: 0.95, default: 0.4, format: fmtPct },
-    { id: 'fx.drum.delay.mix', min: 0, max: 1, default: 0.3, format: fmtPct },
+    ...delayParams('fx.drum.delay'),
 
     // ----- Drum FX: Reverb -----
-    { id: 'fx.drum.reverb.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.drum.reverb.size', min: 0, max: 1, default: 0.6, format: fmtPct },
-    { id: 'fx.drum.reverb.damp', min: 0, max: 1, default: 0.4, format: fmtPct },
-    { id: 'fx.drum.reverb.mix', min: 0, max: 1, default: 0.25, format: fmtPct },
+    ...reverbParams('fx.drum.reverb'),
 
     // ----- Drum FX: Compressor (1176 FET style; ratio is an index) -----
     { id: 'fx.drum.comp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -379,29 +357,16 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.drum.comp.makeup', min: 0, max: 24, default: 0, format: fmtDbRaw },
 
     // ----- Sampler FX: Distortion -----
-    { id: 'fx.sampler.dist.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.sampler.dist.drive', min: 0, max: 1, default: 0.3, format: fmtPct },
-    { id: 'fx.sampler.dist.tone', min: 200, max: 8000, default: 3000, format: fmtHz },
-    { id: 'fx.sampler.dist.mix', min: 0, max: 1, default: 1, format: fmtPct },
+    ...distParams('fx.sampler.dist'),
 
     // ----- Sampler FX: Phaser -----
-    { id: 'fx.sampler.phaser.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.sampler.phaser.rate', min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
-    { id: 'fx.sampler.phaser.depth', min: 0, max: 1, default: 0.7, format: fmtPct },
-    { id: 'fx.sampler.phaser.feedback', min: 0, max: 0.9, default: 0.4, format: fmtPct },
-    { id: 'fx.sampler.phaser.mix', min: 0, max: 1, default: 0.5, format: fmtPct },
+    ...phaserParams('fx.sampler.phaser', { depth: 0.7, mix: 0.5 }),
 
     // ----- Sampler FX: Delay -----
-    { id: 'fx.sampler.delay.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.sampler.delay.time', min: 0.01, max: 1.5, default: 0.35, format: fmtMs },
-    { id: 'fx.sampler.delay.feedback', min: 0, max: 0.95, default: 0.4, format: fmtPct },
-    { id: 'fx.sampler.delay.mix', min: 0, max: 1, default: 0.3, format: fmtPct },
+    ...delayParams('fx.sampler.delay'),
 
     // ----- Sampler FX: Reverb -----
-    { id: 'fx.sampler.reverb.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
-    { id: 'fx.sampler.reverb.size', min: 0, max: 1, default: 0.6, format: fmtPct },
-    { id: 'fx.sampler.reverb.damp', min: 0, max: 1, default: 0.4, format: fmtPct },
-    { id: 'fx.sampler.reverb.mix', min: 0, max: 1, default: 0.25, format: fmtPct },
+    ...reverbParams('fx.sampler.reverb'),
 
     // ----- DJ filter (live performance sweep) -----
     { id: 'fx.djfilter', min: -1, max: 1, default: 0, format: (v) =>
@@ -549,6 +514,65 @@ function modMatrixParams(): ParamDef[] {
     );
   }
   return out;
+}
+
+/**
+ * The on/off switch every insert effect carries. Its own helper because the
+ * `step: 1, taper: 'discrete', labels: ['off', 'on']` triple was written out
+ * once per effect per chain — fifteen identical copies.
+ */
+function fxOnParam(prefix: string): ParamDef {
+  return { id: `${prefix}.on`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] };
+}
+
+/**
+ * The four insert effects that appear on more than one chain (effects.md REQ-3/4/5).
+ * Written once each and instantiated per prefix, so `fx.delay.*`, `fx.drum.delay.*`
+ * and `fx.sampler.delay.*` cannot drift into three different delays — the same
+ * reasoning `lfoParams` applies to LFO 1 and 2.
+ *
+ * Defaults that genuinely differ per chain are parameters of the factory, not
+ * copies of it: the drum and sampler phasers ship deeper than the synth's, and
+ * the drum phaser wetter still. Everything else is identical across chains and
+ * is now identical by construction. **These values are the compatibility
+ * surface** — a default is what every preset and song that predates a param
+ * receives (ADR-006), so changing one here silently re-voices the entire corpus.
+ */
+function distParams(prefix: string): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.drive`, min: 0, max: 1, default: 0.3, format: fmtPct },
+    { id: `${prefix}.tone`, min: 200, max: 8000, default: 3000, format: fmtHz },
+    { id: `${prefix}.mix`, min: 0, max: 1, default: 1, format: fmtPct },
+  ];
+}
+
+function phaserParams(prefix: string, d: { depth: number; mix: number }): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.rate`, min: 0.05, max: 5, default: 0.5, format: (v) => v.toFixed(2) + 'Hz' },
+    { id: `${prefix}.depth`, min: 0, max: 1, default: d.depth, format: fmtPct },
+    { id: `${prefix}.feedback`, min: 0, max: 0.9, default: 0.4, format: fmtPct },
+    { id: `${prefix}.mix`, min: 0, max: 1, default: d.mix, format: fmtPct },
+  ];
+}
+
+function delayParams(prefix: string): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.time`, min: 0.01, max: 1.5, default: 0.35, format: fmtMs },
+    { id: `${prefix}.feedback`, min: 0, max: 0.95, default: 0.4, format: fmtPct },
+    { id: `${prefix}.mix`, min: 0, max: 1, default: 0.3, format: fmtPct },
+  ];
+}
+
+function reverbParams(prefix: string): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.size`, min: 0, max: 1, default: 0.6, format: fmtPct },
+    { id: `${prefix}.damp`, min: 0, max: 1, default: 0.4, format: fmtPct },
+    { id: `${prefix}.mix`, min: 0, max: 1, default: 0.25, format: fmtPct },
+  ];
 }
 
 function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {

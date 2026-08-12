@@ -3,9 +3,9 @@ import type { MotionStep, MotionTrackStep, PatternStore } from '../../state/patt
 import { MOTION_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
 import type { ParamBus } from '../../state/params';
 import type { XyAssign, XyPadStore } from '../../state/xy-pad';
-import { motionAxesFor, motionAxesMatch } from '../../state/xy-effective';
+import { motionAxesInto, motionAxesMatch } from '../../state/xy-effective';
 import { fromNorm } from '../../utils/taper';
-import { createAnchorCache, valueAt, valueAt1D, type MotionMode } from './motion-curve';
+import { createAnchorCache, valueAtInto, valueAt1D, type MotionMode, type MotionXY } from './motion-curve';
 import { defaultTickTimer, type TickTimer } from './tick-timer';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
@@ -240,8 +240,13 @@ export class MotionMachine {
     if (tick.resting) return;
 
     const bank = this.patterns.motionBank(tick.playBank);
-    const base = this.xy.get();
-    const axes = motionAxesFor(this.patterns, tick.playBank, base);
+    // Read into the frame's reusable holders rather than taking three fresh
+    // objects per frame (runtime-performance.md REQ-6) — the same reason
+    // `neighbours` below is refilled instead of rebuilt.
+    const base = this.base;
+    const axes = this.axes;
+    this.xy.readAssignInto(base);
+    motionAxesInto(this.patterns, tick.playBank, base, axes);
     // True playhead position in step units: the governing tick's index plus
     // the fraction of a step elapsed since (negative while that tick is still
     // ahead of now — valueAt wraps, matching the loop seam).
@@ -250,14 +255,22 @@ export class MotionMachine {
     // (runtime-performance.md REQ-6), and valueAt only reads it.
     this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);
     this.neighbours.next = this.carryBank(tick.nextBank, tick.nextResting, axes, base);
-    const v = valueAt(bank, pos / SEQ_LENGTH, this.mode, this.neighbours, this.anchors);
-    if (v) {
-      this.write(axes.x, v.x);
-      this.write(axes.y, v.y);
+    if (valueAtInto(bank, pos / SEQ_LENGTH, this.mode, this.neighbours, this.anchors, this.xyOut)) {
+      this.write(axes.x, this.xyOut.x);
+      this.write(axes.y, this.xyOut.y);
     }
 
     this.frameTracks(tick, pos);
   };
+
+  /**
+   * Frame scratch, refilled each frame rather than rebuilt (REQ-6): the XY Pad's
+   * base assignment, the axes this bank actually drives, and the value read off
+   * the curve. Private and never handed out, so the sharing is invisible.
+   */
+  private readonly base: XyAssign = { x: '', y: '' };
+  private readonly axes: XyAssign = { x: '', y: '' };
+  private readonly xyOut: MotionXY = { x: 0, y: 0 };
 
   /** Scratch carry pair, refilled each frame (see the comment in runFrame). */
   private readonly neighbours: { prev: readonly MotionStep[] | null; next: readonly MotionStep[] | null } =

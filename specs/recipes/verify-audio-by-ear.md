@@ -73,10 +73,26 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--demo <name>` | load a demo song and render one full pass instead |
 | `--runs <n>` | passes to render in `--demo` mode, 1..10 (default 1) |
 | `--tail-bar` | hold the capture open a whole bar after the last step so tails decay (default off — a plain take stays bar-exact) |
+| `--stagger <s>` | release the held notes one at a time, oldest first, `s` apart (default 0 = the whole chord drops at once) |
 | `--set id=value` | a `ParamBus` write applied before the take — repeatable |
 | `--url <url>` | drive an already-running server instead of spawning vite |
 | `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |
 | `--headed` | show the browser, for debugging |
+
+**Anything about voice allocation needs `--stagger`.** A chord released all at once
+sounds identical whether or not stealing is book-kept correctly — the difference only
+appears when one key is let go while the others are still down. Hold more notes than
+the eight voices and release them oldest-first:
+
+```
+npm run bench:audio -- --name steal --note 60,62,64,65,67,69,71,72,74 \
+  --seconds 10 --stagger 0.7 --set amp.release=0.9
+```
+
+The early keys have already lost their voices to the late ones, so each release is a
+test of which note stops (`voicing.md` REQ-9). Render the same command against the
+commit before the change and compare: the regression sounds like letting go of one
+key and hearing a *different* note cut out.
 
 Output lands in `bench/` (gitignored), and the metrics summary prints straight
 away so a take is never just an opaque file.

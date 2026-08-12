@@ -218,6 +218,27 @@ export function valueAt(
   return { x, y: scalarAt(bank, barPos, mode, getY, neighbours, cache)! };
 }
 
+/**
+ * `valueAt` into a caller-owned holder, for the frame loop
+ * (runtime-performance.md REQ-6). Returns whether the bank produced a value —
+ * `out` is left untouched when it did not, exactly as the `null` return means
+ * "this bank has no anchors, write nothing".
+ */
+export function valueAtInto(
+  bank: readonly MotionStep[],
+  barPos: number,
+  mode: MotionMode,
+  neighbours: MotionNeighbours,
+  cache: AnchorCache | undefined,
+  out: MotionXY,
+): boolean {
+  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache);
+  if (x === null) return false;
+  out.x = x;
+  out.y = scalarAt(bank, barPos, mode, getY, neighbours, cache)!;
+  return true;
+}
+
 /** One extra single-param track (motion-sequencer.md REQ-13/REQ-14). */
 export function valueAt1D(
   steps: readonly MotionTrackStep[],

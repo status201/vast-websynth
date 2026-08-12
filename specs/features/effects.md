@@ -49,7 +49,19 @@ subsets, so a song can colour each bus independently.
 
 ## Requirements
 
-- **REQ-1** — Every effect implements `Effect { input, output, setBypass }`.
+- **REQ-1** — Every effect implements `Effect { input, output, setBypass }`. The six
+  insert effects get that surface by extending **`WrappedEffect`**, which owns the
+  `BypassWrapper` and exposes `input`, `output` and the default `setBypass`. A
+  subclass then contains only its own DSP: build the span from `wrap.processedIn`
+  to `wrap.processedOut`, and `bind` its params. `Compressor` overrides `setBypass`
+  because it also has to clear its gain-reduction meter.
+
+  **`setMix` is deliberately NOT on the base.** `bindBypassMix` subscribes
+  `${prefix}.mix` only when the effect defines `setMix`, and that is the mechanism
+  by which Wah and the compressors — which have no `.mix` param registered at all —
+  opt out. Hoisting `setMix` onto the base would make every effect claim a mix and
+  subscribe a param that does not exist. Effects with a dry/wet declare the
+  one-line `setMix` themselves; its presence *is* the declaration.
 - **REQ-2** — (v3, ADR-012) Bypass + mix are a click-free crossfade
   (`BypassWrapper`): wet = `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`,
   ramped. **In addition**, `DISCONNECT_DELAY_MS` (150 ms ≫ the ramp) after
@@ -60,6 +72,14 @@ subsets, so a song can colour each bus independently.
   `setMix` while bypassed must not reconnect. Only the wrapper's own edges are
   touched — internal splices like `Compressor.attachWorklet()` survive, even
   when attach happens while bypassed-and-disconnected.
+- **REQ-2b** — An effect's own controls (delay time, feedback, drive, tone, LFO
+  rate/depth, filter Q, the compressor's setters) are smoothed with the shared
+  `RAMP_SMOOTH` constant from `audio/param-utils.ts`, not a literal. The value is
+  20 ms — deliberately slower than `RAMP_MEDIUM`, because these are swept by hand
+  and zipper audibly at a shorter constant. It had been written out as a bare
+  `0.02` at twelve call sites across five effects, which is a tuning constant with
+  no name and no single place to change it (ADR-010 calls these dialled by ear, so
+  they need to be findable).
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
   reverb.
 - **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
