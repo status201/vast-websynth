@@ -50,6 +50,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   35 kB less JavaScript (13 kB compressed) to fetch and parse before the
   instrument is playable, and nothing about the panels themselves has changed.
 
+- **The guided tour, the info badges and Help & About now arrive when you ask
+  for them.** The help copy behind the ⓘ badges and the tour is the largest
+  single piece of text in the app, and the About card — shortcuts, keyboard
+  diagram, factory reset, Debug panel — is the largest single screen; between
+  them they were a fifth of the initial download for two things many players
+  never open. Both now load on the click that opens them. The startup download
+  drops from 480 kB to 389 kB of JavaScript, and nothing about how any of it
+  behaves has changed: the tour still launches itself on a first visit, the ⓘ
+  button still lights up the moment you press it, and both are fetched quietly
+  once the app has settled, so help still works offline on a later visit.
+
 - **The compressors think less often.** Both compressors were re-deriving their
   envelope coefficients on every audio block — thousands of times a second — to
   arrive at the same numbers, when those numbers can only change when you turn a

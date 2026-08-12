@@ -20,7 +20,7 @@ import { createBrand } from './ui/components/brand';
 import { alertDialog, confirmDialog } from './ui/components/dialog';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast } from './ui/components/toast';
-import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './ui/components/about';
+import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
 import type { Onboarding } from './ui/onboarding';
 
 // Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
@@ -238,11 +238,21 @@ async function boot() {
   // online would be missing offline. Failures are ignored — the real import
   // inside encodeMp3 retries. See audio-export.md REQ-7.
   const warmMp3 = () => void import('./vendor/lamejs').catch(() => {});
+  // The onboarding body (tour + info badges + ~54 kB of help copy) is behind the
+  // same kind of split, and help is exactly what a user reaches for when they
+  // are stuck — including offline, on a revisit. Warming it also means the
+  // first-visit tour is never still fetching when its 350 ms auto-launch fires.
+  // pwa-install.md REQ-6, runtime-performance.md REQ-1.
+  const warmOnboarding = () => void import('./ui/onboarding/onboarding-impl').catch(() => {});
+  const warm = () => {
+    warmMp3();
+    warmOnboarding();
+  };
   // requestIdleCallback only reached Safari in 17.4, and we target installed
   // iOS PWAs — fall back to a plain timeout. (A `'x' in window` guard would
   // narrow `window` itself to `never` in the else branch; probe the function.)
-  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warmMp3);
-  else window.setTimeout(warmMp3, 2000);
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warm);
+  else window.setTimeout(warm, 2000);
 }
 
 /**

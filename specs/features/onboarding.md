@@ -3,7 +3,10 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 21  # v21: a `mod` badge on the Song row's MOD launcher (REQ-21)
+version: 22  # v22: the facade's five signatures are unchanged, but its body now
+             #      loads on the first startTour()/badge toggle
+             #      (runtime-performance.md REQ-1)
+             # v21: a `mod` badge on the Song row's MOD launcher (REQ-21)
              # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-20)
              # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
              #      shell joins the reflow observer list (REQ-5a, lfo.md REQ-15)
@@ -53,11 +56,13 @@ source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/info-badges.ts
   - src/ui/onboarding/help-content.ts
-  - src/ui/onboarding/index.ts
+  - src/ui/onboarding/help-widgets.ts
+  - src/ui/onboarding/index.ts            # the synchronous facade (contract below)
+  - src/ui/onboarding/onboarding-impl.ts  # the lazily-imported body it fronts
   - src/ui/components/info-badges-button.ts
   - src/ui/components/header-icons.ts   # the ⓘ glyph's part hooks (REQ-8b)
   - src/ui/styles/tour.module.css       # .toggleActive + the badge/glyph colours
-  - src/ui/components/about.ts
+  - src/ui/components/about-button.ts   # the tour-replay route (REQ-20)
 ```
 
 First-run guidance: an interactive spotlight tour and persistent **info badges**
@@ -451,15 +456,32 @@ tour.ts:
     resumeAudio(): Promise   # idempotent AudioContext resume (before note step)
     expandFx()               # open the collapsible FX section
 info-badges.ts / help-content.ts: per-control info badges + copy
-Onboarding (index.ts facade):
+Onboarding (index.ts facade):     # fully SYNCHRONOUS — see the note below
   startTour()
   toggleInfoBadges() / isInfoBadgesActive() / onInfoBadgesChange(cb)
   shouldAutoLaunch()
+onboarding-impl.ts:               # the lazy body; nothing outside index.ts imports it
+  createOnboardingImpl(ctx, onBadgeChange, markDone): { startTour, toggleInfoBadges }
 components/info-badges-button.ts:
   createInfoBadgesButton({ toggle, isActive, onChange }): HTMLButtonElement
-components/about.ts:
+components/about-button.ts:
   createAboutButton(engine, { startTour }): HTMLButtonElement   # REQ-20
 ```
+
+**The facade is synchronous; its body is not.** `tour.ts`, `info-badges.ts`,
+`help-content.ts` and `help-widgets.ts` are ~93 kB reached only from
+`onboarding-impl.ts`, which `index.ts` `import()`s on the first `startTour()` or
+`toggleInfoBadges()` ([`runtime-performance.md`](runtime-performance.md) REQ-1).
+No caller changes, and none may be made to await: `app.ts` wires
+`toggleInfoBadges`/`isActive`/`onChange` into the ⓘ button and
+`UiBridge.toggleInfoBadges` at header-build time — *before* any gesture — so the
+facade must already exist and answer then. The two readers keep working because
+`shouldAutoLaunch()` needs only `localStorage` and `isInfoBadgesActive()` is
+`false` until the body loads, which is exact rather than approximate: the badges
+cannot be showing before the code that shows them exists. The load is memoized,
+so the ⓘ button and the `?` key racing each other still yield one `InfoBadges`.
+Because a returning visitor can reach help **offline**, the chunk is also warmed
+on idle from `main.ts` ([`pwa-install.md`](pwa-install.md) REQ-6).
 
 ### Layer touchpoints
 
