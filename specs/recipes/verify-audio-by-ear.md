@@ -140,6 +140,12 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   judgement is the listener's, which is why step 2 is not optional.
 - Takes are **real time** — a 16-bar song is ~16 s. That is the cost of
   measuring the real graph, and it is worth it.
+- **A later `npm ci` failing with `EPERM … unlink … rolldown-binding…node` means
+  a Vite process is still holding `node_modules`.** The bench's server is killed
+  on every exit path now, but a dev server or a hung Playwright run does the same
+  thing — Windows locks a loaded native module for the lifetime of the process
+  that loaded it, and the error names no culprit. Find it and kill it:
+  `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Select ProcessId, CommandLine`.
 
 ## Scenarios (BDD)
 
