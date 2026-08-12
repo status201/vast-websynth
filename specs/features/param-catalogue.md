@@ -65,6 +65,19 @@ exist, at what version, and what did each version add".
   depend only on `params.ts`, `preset-session.ts` and `song-version.ts` — **never**
   `song.ts`, whose `import.meta.glob` demo registration poisons that bundle
   ([mcp-server](mcp-server.md) REQ-4).
+- **REQ-1b** — The registration order in `registerDefaults()` **is** the catalogue's
+  order, so how a param is registered is a published-artefact concern. The four
+  insert effects that appear on more than one chain are registered from shared
+  factories (`distParams`, `phaserParams`, `delayParams`, `reverbParams`, over
+  `fxOnParam`) rather than written out once per prefix; the wah and the compressors
+  stay longhand because each appears once. Chain-specific defaults are arguments to
+  the factory, never a second copy of it.
+
+  The bar for that change is `npm run check:params`: regenerating `public/params.json`
+  and `public/params.md` must produce **byte-identical** files. Ids, order, bounds,
+  defaults, tapers and labels are all a compatibility surface — the defaults doubly
+  so, since ADR-006 makes a default what every older preset and song silently
+  inherits.
 - **REQ-2** — An entry carries every `ParamDef` field that is **data**: `id`, `min`,
   `max`, `default`, and the optional `step`, `taper`, `curve`, `unit`, `labels`.
   Optional fields are **omitted when unset**, never emitted as `null`. `format` is
