@@ -170,7 +170,15 @@ Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
 ## Tests & verification
 
 - `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
+- REQ-9 stealing/eviction: `tests/audio/polyphony.test.ts`.
 - `npm test` / `npm run e2e`.
+- **REQ-9 was verified by ear**, which is the part the tests cannot do
+  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a nine-note
+  chord held across the eight voices and released oldest-first, A/B against the
+  build before the fix, rendered with
+  `npm run bench:audio -- --stagger 0.7` (see
+  [verify-audio-by-ear](../recipes/verify-audio-by-ear.md) — a chord released all
+  at once cannot expose a voice-allocation bug at all).
 
 ## Open questions / future
 
