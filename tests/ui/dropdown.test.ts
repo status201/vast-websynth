@@ -517,4 +517,62 @@ describe('Dropdown', () => {
       expect(document.activeElement).toBe(optionOf(dd, 'C'));
     });
   });
+
+  // dropdown.md REQ-11 — a group rule, so the preset selector can separate the
+  // loaded song's pinned sound from the preset list (presets.md REQ-13).
+  describe('dividerAfter', () => {
+    const optionsOf = (d: Dropdown) =>
+      [...d.el.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
+
+    it('marks the last option of the first group and no other', () => {
+      dd = new Dropdown([]);
+      document.body.appendChild(dd.el);
+      dd.setOptions(['A Test Song', 'acid', 'bass'], { dividerAfter: 1 });
+
+      const marked = optionsOf(dd).filter((o) => o.classList.contains(styles.divider!));
+      expect(marked.map((o) => o.textContent)).toEqual(['A Test Song']);
+    });
+
+    it('draws nothing when omitted or zero — every existing call site is untouched', () => {
+      dd = new Dropdown([]);
+      document.body.appendChild(dd.el);
+
+      dd.setOptions(['acid', 'bass']);
+      expect(optionsOf(dd).some((o) => o.classList.contains(styles.divider!))).toBe(false);
+
+      dd.setOptions(['acid', 'bass'], { dividerAfter: 0 });
+      expect(optionsOf(dd).some((o) => o.classList.contains(styles.divider!))).toBe(false);
+    });
+
+    it('adds no extra element, so the arrow-key walk is unchanged (REQ-8)', () => {
+      dd = new Dropdown([]);
+      document.body.appendChild(dd.el);
+      dd.setOptions(['A Test Song', 'acid'], { dividerAfter: 1 });
+
+      expect(optionsOf(dd)).toHaveLength(2);
+      expect(dd.el.querySelectorAll(`.${styles.list!} > *`)).toHaveLength(2);
+    });
+  });
+
+  // dropdown.md REQ-12 — the regression behind presets.md REQ-14: a rebuild used
+  // to repaint the header from a song's name to the first preset, silently.
+  describe('setOptions and a value the list never held', () => {
+    it('falls back to the first option, so the caller must re-assert setValue', () => {
+      dd = new Dropdown([]);
+      document.body.appendChild(dd.el);
+      dd.setOptions(['A Test Song', 'acid'], { dividerAfter: 1 });
+      dd.setValue('A Test Song *'); // dirty marker — not an option
+
+      // The documented hazard, stated as a fact so a future change to the
+      // fallback has to come past this test.
+      dd.setOptions(['acid', 'bass']);
+      expect(dd.value).toBe('acid');
+
+      // …and the documented fix: re-assert afterwards, never before.
+      dd.setValue('A Test Song *');
+      expect(dd.value).toBe('A Test Song *');
+      expect(dd.el.querySelector(`.${styles.label!}`)?.textContent).toBe('A Test Song *');
+      expect(dd.el.querySelector(`.${styles.option!}.active`)).toBeNull();
+    });
+  });
 });

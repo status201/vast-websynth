@@ -3,12 +3,16 @@
 ```yaml
 id: presets
 status: implemented
-version: 6   # v6: REQ-2b spells out WHY only presets leak, and is now pinned
+version: 7   # v7: the loaded song's sound is a pinned dropdown entry (REQ-13),
+             #     and an options rebuild never relabels the selector (REQ-14)
+             # v6: REQ-2b spells out WHY only presets leak, and is now pinned
              # v5: the import wizard is reachable with an already-parsed payload
 owner: core
 related:
   - architecture
   - song-mode
+  - dropdown               # REQ-13's pinned entry + its divider
+  - demo-library           # the shelf REQ-13 exists to make auditionable
   - param-reset-baseline
   - paste-import
   - preset-authoring
@@ -19,9 +23,10 @@ source:
   - src/state/preset-file.ts             # v4: pure file build/parse/merge
   - src/state/preset-validate.ts         # the file format + its validator (preset-authoring.md)
   - src/state/serialize.ts               # roundParams (export precision)
-  - src/state/preset-session.ts
+  - src/state/preset-session.ts          # v7: isPatchParam/patchSnapshot + the song-sound slot
   - src/audio/engine.ts                  # main.ts seeds on boot
   - src/ui/app.ts                        # preset-select dropdown + the manager button
+  - src/ui/panels/song-panel.ts          # v7: applySong pins the song's sound
   - src/ui/components/preset-manager-modal.ts   # v4: save / export / import
 ```
 
@@ -52,13 +57,16 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
 ## Requirements
 
 - **REQ-1** — A preset is a `Snapshot` (`Record<string, number>`) = `bus.snapshot()`.
-- **REQ-2** — The 16 factory presets (`acid`, `b3`, `basic`, `bass`, `bells`,
-  `brass`, `lead`, `pad`, `pbass`, `piano`, `pluck`, `reese`, `rhodes`, `solina`,
-  `upright`, `wobble`) are seeded by `ensureFactoryPresets()` on boot (only if
-  absent). Together they cover the core instrument families: basses (`bass`,
-  `upright`, `pbass`, `reese`, `acid`), keys (`piano`, `rhodes`, `b3`, `bells`),
-  ensemble/poly (`pad`, `solina`, `brass`), leads/plucks (`lead`, `pluck`) and
-  FX basses (`wobble`).
+- **REQ-2** — The 19 factory presets (`acid`, `b3`, `basic`, `bass`, `bells`,
+  `brass`, `ember`, `lead`, `pad`, `pbass`, `piano`, `pluck`, `prism`, `reese`,
+  `rhodes`, `solina`, `upright`, `vellum`, `wobble`) are seeded by
+  `ensureFactoryPresets()` on boot (only if absent). Sixteen cover the core
+  instrument families: basses (`bass`, `upright`, `pbass`, `reese`, `acid`), keys
+  (`piano`, `rhodes`, `b3`, `bells`), ensemble/poly (`pad`, `solina`, `brass`),
+  leads/plucks (`lead`, `pluck`) and FX basses (`wobble`). The remaining three —
+  `ember`, `vellum`, `prism` — are the POLY-model showcases that arrived with
+  [filter-models](filter-models.md); each leans on something LADDER cannot do, so
+  flipping the model switch on one is the A/B.
 - **REQ-2b** — Every factory preset sets the **full sound** (all osc/sub/unison/
   drift/mixer/glide/filter/env/LFO params — *both* LFOs, including their `.sync`
   — plus every synth-FX `.on` flag), so switching between factory presets is
@@ -125,6 +133,49 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   import cannot destroy unsaved work. Loading one afterwards is a normal REQ-4
   selection.
 
+### v7 — the loaded song's sound
+
+- **REQ-13** — **A loaded song's sound is a selectable entry, not just a label.**
+  Loading a song or demo sets the selector's *label* to the song name (REQ-5), but
+  until v7 that name was never an *option*: the menu listed only `Presets.list()`.
+  So auditioning any preset against a demo destroyed the demo's sound, and the
+  only way back was to reload the demo — discarding every other edit made since.
+  That is the opposite of what a preset selector is for.
+
+  The song's patch is therefore **pinned as the first option**, labelled with the
+  song's name and separated from the preset list by a divider
+  ([dropdown](dropdown.md) REQ-11). Selecting it re-applies that patch exactly as
+  REQ-4 applies a preset, baselines included.
+  - **Patch params only.** What is pinned is `patchSnapshot(bus.snapshot())` —
+    the ids `isPatchParam` accepts (synth voice + synth FX + master volume),
+    already the definition the dirty marker uses. So `transport.bpm`, the drum
+    kit, the sampler and the sequencer are *not* restored: comparing sounds
+    mid-demo must not silently undo a tempo tweak or a drum edit. Returning to
+    the song's **arrangement** is what a song load is for; this is its sound.
+  - **Captured after the apply, not from `file.params`.** `Song.apply` runs
+    `bus.resetDefaults()` then `bus.restore(file.params)`, so the post-apply
+    snapshot is the *effective* patch. Reading `file.params` instead would pin a
+    sparse map and re-open exactly the leak REQ-2b closes for factory presets.
+  - **Transient and single-slot.** It lives in `PresetSession`, is replaced by the
+    next song load, and is never written to `localStorage` — the preset library is
+    the user's, and auditioning nineteen demos must not leave nineteen presets in
+    it. It survives a reload only because [session-autosave](session-autosave.md)
+    restores the song itself, which re-pins it.
+  - **A name collision resolves to the song.** If a stored preset shares the
+    song's name, the preset is filtered out of the list while the song is loaded:
+    one row per label, and the pinned sound wins.
+
+- **REQ-14 (regression)** — **Rebuilding the options never relabels the
+  selector.** [dropdown](dropdown.md) REQ-2 has `setOptions` fall back to the
+  first option when the current value is absent from the new list — and the
+  displayed value is *often* absent here, because a song name (REQ-13) or a dirty
+  marker (`"Ember *"`) is not a preset name. So `onPresetsChanged` — which fires
+  on **import**, an action REQ-12 guarantees changes no sound — silently repainted
+  the header from the song's name to `"acid"` while `PresetSession.label` still
+  said the song. The label and the audible patch desynchronized with nothing to
+  notice it by. Every rebuild therefore re-asserts `setValue(session.display)`
+  afterwards, and the session stays the single source of what the selector reads.
+
 ## Technical design
 
 ### Contract / public interface
@@ -149,11 +200,25 @@ preset-file.ts:  # v4 — PURE: no localStorage, no DOM, no ParamBus
   planImport(incoming, existing, policy): ImportPlan   # REQ-10, pure
   sameSnapshot(a, b): boolean                 # rounded-value equality (REQ-8)
 
+preset-session.ts:  # PURE: no localStorage, no DOM
+  isPatchParam(id): boolean                   # synth voice + synth FX + master volume
+  patchSnapshot(snap): Snapshot               # v7 — the isPatchParam half of a snapshot
+  PresetSession:
+    label / dirty / display                   # display = label + ' *' once dirty
+    setActive(name)                           # a preset became active; songSound untouched
+    setActiveSong(name, patch)                # v7, REQ-13 — pin + setActive(name)
+    songSound: { name, patch } | null         # v7 — the one transient slot
+    markDirty() / subscribe(fn)
+
 openPresetManagerModal(opts)  # src/ui/components/preset-manager-modal.ts
   # opts: { bus, session, onPresetsChanged(): void, initialImport?: PresetParse }
   # initialImport opens on the review step (or on home showing the parse errors) —
   # the paste door's entry point (paste-import.md REQ-7)
 ```
+
+`setActive` deliberately does **not** clear `songSound`: picking a preset is the
+act REQ-13 exists to make survivable, so it must not unpin the thing you are
+comparing against. Only another `setActiveSong` replaces it.
 
 `preset-file.ts` holds **no** browser state on purpose: the whole import
 decision (`planImport`) is a pure function of *incoming × existing × policy*, so
@@ -192,8 +257,18 @@ step and the writer handle one shape (REQ-10) rather than branching per kind.
 ### Layer touchpoints & ordering
 
 ```yaml
-app.ts:        preset-save button -> openPresetManagerModal({ bus, session,
-                 onPresetsChanged: () => dropdown.setOptions(Presets.list()) })
+app.ts:        presetOptions()  = songSound ? [song.name, ...list() minus that name]
+                                            : Presets.list()          # REQ-13
+               refreshPresetOptions() = setOptions(presetOptions(), {dividerAfter})
+                                        THEN setValue(session.display) # REQ-14
+               session.subscribe(refreshPresetOptions)   # label, dirty and pin in one
+               preset-save button -> openPresetManagerModal({ bus, session,
+                 onPresetsChanged: refreshPresetOptions })
+dropdown pick: songSound?.name match -> Presets.apply(bus, songSound.patch)  # REQ-13
+               else Presets.load(name) -> Presets.apply;  then session.setActive(name)
+song-panel:    applySong -> Song.apply(...) -> session.setActiveSong(
+                 file.name, patchSnapshot(bus.snapshot()))             # REQ-13
+main.ts:       autosave restore -> Song.apply -> session.setActiveSong(...)  # same
 modal save:    promptDialog (dialog.md) -> Presets.save -> bus.setBaselines(snap)
                  -> session.setActive(name)      # identical to the pre-v4 path
 modal export:  buildPresetFile / buildBankFile -> Blob -> <a download>
@@ -204,7 +279,12 @@ song-panel:    showImportErrors gains the preset/bank sniff (REQ-11)
 
 Ordering that matters: `bus.setBaselines(snap)` runs on **save**, not on import —
 an import never touches the live patch (REQ-12), so the double-tap reset target
-must not move.
+must not move. And `setValue` runs **after** `setOptions`, never before: the
+rebuild is what strands the label (REQ-14).
+
+`applySong` is the one choke point every song apply already routes through
+(`applyDemo`, `loadStoredSlot`, `applyProjectBundle`, the share-link and file
+importers), so REQ-13's pin cannot be reintroduced-around by a new load surface.
 
 ### Persistence
 
@@ -217,6 +297,8 @@ files (v4):
   <name>.bank.websynth.json   : PresetBankFile
 NOT in a preset: patterns / banks / chains (those belong to a SongFile)
 NOT persisted:   the "modified" set (REQ-8 — derived on demand, never stored)
+NOT persisted:   PresetSession.songSound (REQ-13 — transient; the autosaved song
+                 re-pins it on restore, so it needs no storage of its own)
 ```
 
 ## Scenarios (BDD)
@@ -243,7 +325,7 @@ Scenario: Save names the preset via the custom prompt dialog
 Scenario: Factory presets seed once (edge)
   Given a fresh localStorage
   When the app boots
-  Then the 16 factory presets exist; a second boot does not overwrite edited copies
+  Then the 19 factory presets exist; a second boot does not overwrite edited copies
 # pinned by: tests/state/preset.test.ts
 
 Scenario: A bank exports only what the user actually made (REQ-8)
@@ -295,13 +377,47 @@ Scenario: Importing leaves the live sound alone (REQ-12)
   When a bank is imported
   Then no bus value changes and the session's dirty marker is unaffected
 # pinned by: e2e/presets.spec.ts
+
+Scenario: A demo's sound stays reachable while presets are auditioned (REQ-13)
+  Given a demo has been loaded
+  Then its name is the first option in the preset selector
+  When the user selects a factory preset and then selects the demo's name again
+  Then the synth patch is the demo's again and the dirty marker is gone
+# pinned by: e2e/presets.spec.ts, tests/state/preset-session.test.ts
+
+Scenario: Returning to the song's sound leaves the song alone (REQ-13)
+  Given a demo has been loaded and the user has since changed transport.bpm
+  When they select a preset and then the demo's pinned sound
+  Then filter.cutoff is the demo's value again
+  And transport.bpm still holds the user's change
+# pinned by: tests/state/preset-session.test.ts
+
+Scenario: The pinned sound is the effective patch, not the file's sparse map (REQ-13)
+  Given a song whose params omit an id the previous song had set
+  When the song is applied
+  Then the pinned patch carries that id at its registered default
+  So re-selecting it cannot leak the previous song's value
+# pinned by: tests/state/preset-session.test.ts
+
+Scenario: Loading another song replaces the pinned sound (REQ-13, edge)
+  Given one demo is loaded and pinned
+  When a second demo is loaded
+  Then only the second demo's name is pinned — the list never grows a history
+# pinned by: tests/state/preset-session.test.ts
+
+Scenario: An import does not relabel the selector (REQ-14, regression)
+  Given a demo is loaded, so the selector reads its name
+  When a preset bank is imported and the options are rebuilt
+  Then the selector still reads the demo's name, not the first preset
+# pinned by: e2e/presets.spec.ts, tests/ui/dropdown.test.ts
 ```
 
 ## Tests & verification
 
 - Unit: `tests/state/preset-file.test.ts` (build/parse/`planImport`/filenames —
   pure, no Storage mock), `tests/state/preset.test.ts` (`modified`, `entries`,
-  seeding), `tests/state/preset-session.test.ts` — `npm test`
+  seeding), `tests/state/preset-session.test.ts` (`patchSnapshot`, the REQ-13
+  pin/replace rules), `tests/ui/dropdown.test.ts` (REQ-14's re-assert) — `npm test`
 - E2E: `e2e/presets.spec.ts` (manager save, export download, import wizard
   round-trip, the song-importer pointer) — `npm run e2e`
 - Typecheck: `npm run typecheck`
@@ -310,6 +426,10 @@ Scenario: Importing leaves the live sound alone (REQ-12)
 
 - New params join presets automatically via `snapshot()`; their **no-op defaults**
   keep old presets sounding the same (see [add-a-parameter](../recipes/add-a-parameter.md)).
+- **Promoting the pinned song sound** to a stored preset (REQ-13) has no button.
+  It needs none — Save already stores the live patch, and while the pinned sound
+  is selected the live patch *is* it. A dedicated "keep this" action would be a
+  second door to the same result ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
 - **Deleting** a stored preset has no UI yet (`SlotStore.remove` is ready). The
   natural shape: delete a user preset outright, and let deleting an *edited
   factory* preset fall back to the factory sound, since `load()` already does

@@ -1,5 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import type { PresetSession } from '../../state/preset-session';
+import { patchSnapshot } from '../../state/preset-session';
 import type { XyPadStore } from '../../state/xy-pad';
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
@@ -101,7 +102,11 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // `engine.sampler` lets apply evict audio the incoming song renames, so a
     // slot's label can never outlive the sound under it (song-mode.md REQ-3b).
     Song.apply(file, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-    session.setActive(file.name);
+    // Pin the song's sound so the selector can offer it back (presets.md
+    // REQ-13). Snapshotted from the bus AFTER the apply, never from
+    // `file.params`: `Song.apply` resets to defaults first, so this is the
+    // *effective* patch — a sparse map would re-open the leak REQ-2b closes.
+    session.setActiveSong(file.name, patchSnapshot(bus.snapshot()));
     toTop();
   };
 
