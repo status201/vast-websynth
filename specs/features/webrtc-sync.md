@@ -69,8 +69,10 @@ follows whichever delivers.
   `ping`/`pong` where a *late-retransmitted* pulse is worse than a dropped one
   (a 24-interval estimator window + 1 s stall tolerance absorb loss) and
   head-of-line blocking of 96 msg/s pulses must be avoided. Both channels are
-  created by the **offerer** with `negotiated: true` + explicit ids so both
-  peers construct symmetric channels without an `ondatachannel` handshake.
+  `negotiated: true` with explicit ids, and **each peer creates its own** —
+  `createChannels(pc)` runs from `createLink()` on the offerer and from
+  `acceptOffer()` on the answerer. That is what `negotiated` means: matching ids
+  on both sides, so no `ondatachannel` handshake is needed.
   Messages are JSON, one object per message, and **every inbound message is
   type-guarded, never cast** (v6): `t` must be one of the known variants and each
   numeric field must be `Number.isFinite`, or the message is **dropped
@@ -80,6 +82,7 @@ follows whichever delivers.
   `NaN` for `NaN` and stalls the scheduler ([transport](transport.md) REQ-3,
   [untrusted-input](untrusted-input.md) REQ-8). A paired peer is semi-trusted,
   not trusted: pairing proves someone scanned a code, not that they are friendly.
+
 - **REQ-2** — All timestamps on the wire are the **sender's**
   `performance.now()`. The receiver converts a message's `at` to its own domain
   via `ClockOffsetEstimator.toLocal(at)` **before** invoking the `onMessage`
@@ -87,6 +90,7 @@ follows whichever delivers.
   math is byte-for-byte identical to the MIDI path. Before the offset is warm
   (or a message carries no `at`), the transport falls back to local receipt
   time (`performance.now()`).
+
 - **REQ-3** — Offset estimation is a pure `ClockOffsetEstimator` (no clocks, no
   `performance`, no RTC). NTP-style: for a `{a, b, now}` sample (`a` = local
   send time of the ping, `b` = remote receive/reply time echoed in the pong,
@@ -98,6 +102,7 @@ follows whichever delivers.
   (a `TickTimer`); both peers ping, and a `ping` is answered with a `pong`
   unconditionally. 1 Hz keeps the EMA tracking cross-device `performance.now()`
   drift over long sessions.
+
 - **REQ-4** — The controller is **multi-transport**:
   `SyncController.addTransport(id: TransportId, t)` manages a `Map`
   (`TransportId = 'midi' | 'wifi'`); adding the same id replaces + unsubscribes
@@ -108,6 +113,7 @@ follows whichever delivers.
   while master**, the controller calls `master.announceTo` targeting **only that
   transport's `send`** (a broadcast would audibly restart already-locked MIDI
   slaves — see midi-clock-sync REQ-10).
+
 - **REQ-5** — Pairing is **non-trickle** and serverless. The transport gathers
   ICE to completion (`icegatheringstate === 'complete'`, 3 s timeout fallback)
   then encodes the full SDP into a `WS2.` blob (`webrtc-signaling.ts`). The
@@ -156,6 +162,7 @@ follows whichever delivers.
   display size, so the modules stay crisp with ≥ 3 px each. Drawing a big bitmap
   and CSS-clamping it *down* to a fixed 180 px (the v1 bug) left ~2 px/module and
   nearest-neighbour-dropped modules — undecodable by **any** reader.
+
 - **REQ-6** — Lifecycle. A DataChannel close or a `connectionstatechange ∈
   {failed, closed}` tears the link down **immediately**. `disconnected` is
   **transient/recoverable** per the WebRTC spec, so it is **not** an immediate
@@ -171,6 +178,19 @@ follows whichever delivers.
   zeroed `ports()` also **releases the sync role** (`activeMode` returns to
   `off`, midi-clock-sync REQ-19/20): the mode stays selected but inert, so the
   BPM knob comes back instead of staying frozen at the vanished peer's tempo.
+
+- **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
+  `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
+  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The QR **decoder**
+  is vendored the same way under `src/vendor/jsqr/` (jsQR, **Apache-2.0**;
+  jsqr@1.4.0 `dist/jsQR.js` with its webpack-UMD wrapper mechanically replaced by
+  an ESM `export default`). Apache-2.0 is permissive and license-compatible with
+  the MIT-vendored libs; its `NOTICE`/`LICENSE` are kept alongside. The
+  `RTCPeerConnection` is created with **empty `iceServers`** — LAN-only, no STUN
+  — an accepted trade-off: it is offline-capable and needs no third party, but
+  fails where the network blocks mDNS/host candidates or enables AP client
+  isolation. A configurable STUN server is a documented future option.
+
 - **REQ-8** — **Secure-context notice.** WebRTC pairing, `navigator.clipboard`,
   and the QR camera all require a secure origin. When `window.isSecureContext`
   is false the modal shows a **non-blocking** banner (`sync-pair-insecure`)
@@ -178,6 +198,7 @@ follows whichever delivers.
   copy-paste flows still render (best-effort) rather than the modal failing in
   silence. (Cross-device pairing over plain `http://<lan-ip>` is the common
   first-time trap — same constraint the mic modal already guards.)
+
 - **REQ-9** — **Connection feedback.** After a peer completes its half — host
   accepts the guest's answer, or guest generates its answer — the modal enters a
   **"Connecting…"** state instead of sitting silently at "Not linked". If the
@@ -192,6 +213,14 @@ follows whichever delivers.
   Private), a **VPN or virtual network adapter (WSL / Docker / Hyper-V /
   VirtualBox)**, and both devices on the same Wi-Fi with client/AP isolation off.
   Switching step or closing the modal cancels the wait.
+
+- **REQ-10** — **No accidental dismissal.** The pair modal is a multi-step flow, so
+  it opts out of `Modal`'s backdrop-click close (`dismissOnBackdrop: false`) — an
+  outside click while fiddling to scan a QR must not discard the in-progress
+  handshake. It provides an explicit **Close** button (`sync-pair-close`); **Escape
+  still closes** (owned by `Modal`). The opt-out is a general `ModalOptions` flag
+  (default `true`, so every other dialog keeps backdrop-close).
+
 - **REQ-11** — **Diagnostics panel.** Every connection attempt is recorded and
   surfaced in a collapsible **debug panel** (`sync-pair-debug`) under the error,
   so a failing pair can be self-diagnosed. The transport exposes a
@@ -208,23 +237,6 @@ follows whichever delivers.
   reply wasn't received — re-do the code exchange"). Pure parse/summarize logic
   lives in `src/audio/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
   directly.
-- **REQ-10** — **No accidental dismissal.** The pair modal is a multi-step flow, so
-  it opts out of `Modal`'s backdrop-click close (`dismissOnBackdrop: false`) — an
-  outside click while fiddling to scan a QR must not discard the in-progress
-  handshake. It provides an explicit **Close** button (`sync-pair-close`); **Escape
-  still closes** (owned by `Modal`). The opt-out is a general `ModalOptions` flag
-  (default `true`, so every other dialog keeps backdrop-close).
-- **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
-  `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
-  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The QR **decoder**
-  is vendored the same way under `src/vendor/jsqr/` (jsQR, **Apache-2.0**;
-  jsqr@1.4.0 `dist/jsQR.js` with its webpack-UMD wrapper mechanically replaced by
-  an ESM `export default`). Apache-2.0 is permissive and license-compatible with
-  the MIT-vendored libs; its `NOTICE`/`LICENSE` are kept alongside. The
-  `RTCPeerConnection` is created with **empty `iceServers`** — LAN-only, no STUN
-  — an accepted trade-off: it is offline-capable and needs no third party, but
-  fails where the network blocks mDNS/host candidates or enables AP client
-  isolation. A configurable STUN server is a documented future option.
 
 ## Technical design
 

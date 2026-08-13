@@ -12,7 +12,7 @@ related:
 source:
   - src/state/keyboard-layout.ts
   - src/ui/shortcuts.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-shortcuts.ts  # the key list + the layout gear picker
 ```
 
 Which characters the physical keys produce, so the computer-keyboard note
@@ -51,8 +51,9 @@ than a parallel code path.
 - **REQ-3** — **Detection is a hint; the picker is the escape hatch.**
   `detectLayout()` feature-detects `navigator.keyboard?.getLayoutMap` (async,
   Chromium-only) and discriminates on a few codes — `KeyQ → 'a'` ⇒ azerty,
-  `KeyZ → 'y'` ⇒ qwertz, `KeyZ → ';'` ⇒ dvorak, else qwerty. Absent API or a
-  rejected promise yields `null`, and `'auto'` then falls back to `qwerty`. The
+  `KeyZ → 'y'` ⇒ qwertz, `KeyZ → ';'` ⇒ dvorak, `KeyZ → 'z'` ⇒ qwerty. An
+  **unrecognised** map yields `null` — it does not fall through to qwerty — as do
+  an absent API and a rejected promise; `'auto'` then falls back to `qwerty`. The
   same framing as [performance-mode](performance-mode.md)'s tier detection: a
   wrong guess must always be overridable, never sticky.
 - **REQ-4** — Changing the layout takes effect **immediately**, with no reload:
@@ -105,7 +106,7 @@ state: keyboard-layout.ts owns the pref + the tables; no ParamBus involvement �
 ui/shortcuts.ts: composes NOTE_ROWS (code -> semitone) with the active
   table into LOWER/UPPER (character -> semitone); rebuilds on onLayoutChange and
   releases every held note first, or a remap strands whatever is down
-ui/components/about.ts: the gear picker writes the pref; caps carrying data-code
+ui/components/about-shortcuts.ts: the gear picker writes the pref; caps carrying data-code
   relabel in place (structure is layout-independent, only labels move)
 ```
 
@@ -126,7 +127,8 @@ Scenario: AZERTY puts the bottom C under the key that prints W
   Given the layout is azerty
   When the user presses the key producing "w"
   Then bus.noteOn fires for the lower octave's C
-  And pressing the key producing "z" plays nothing
+  And the key producing "z" is KeyW, which the UPPER row maps — it plays note 74
+     (the upper octave's D), not nothing and not a C
 # pinned by: tests/ui/shortcuts.test.ts
 
 Scenario: Switching layout mid-hold cannot strand a note (edge)

@@ -82,7 +82,8 @@ PatternStore:  # src/state/patterns.ts
   get seqEditBank / drumEditBank / samplerEditBank / motionEditBank: number
   seqBank(i) / drumBank(i) / samplerBank(i) / motionBank(i)   # any bank, for the transport
   setSeqEditBank(i) / setDrumEditBank(i) / setSamplerEditBank(i) / setMotionEditBank(i)  # re-emit steps
-  setSeqStep(index, patch) / setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch) / setMotionStep(index, patch)
+  setSeqStep(track, index, patch)   # track-indexed since v6's multi-track seq (sequencer.md REQ-13)
+  setDrumCell(t, s, patch) / setSamplerCell(slot, s, patch) / setMotionStep(index, patch)
   copySeqBank(from, to) / copyDrumBank(...) / copySamplerBank(...) / copyMotionBank(...)  # motion also copies its assign override
   onEditBankChange(fn) -> unsubscribe
 constant: BANK_COUNT = 4

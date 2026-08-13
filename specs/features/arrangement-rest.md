@@ -48,14 +48,17 @@ banks stay fully usable and existing songs are unaffected.
   bank index) and `clampChainStep(i)` which returns `REST` when `i === REST` and
   otherwise clamps to `0..BANK_COUNT-1`. `clampBank` (edit/play-bank access) is
   unchanged — an *edit* bank can never be a rest.
+
 - **REQ-2** — `Arrangement` chain steps may hold `REST`; `setSeqChain` /
   `setDrumChain` / `setSamplerChain` / `setMotionChain` map incoming steps through
   `clampChainStep` (preserving `REST`), so `Song.apply` round-trips a rest.
+
 - **REQ-3** — `Arrangement` exposes `seqResting` / `drumResting` / `samplerResting`
   / `motionResting` booleans recomputed each bar in `recompute()`. A lane is resting **iff** it is
   enabled and its current chain step is `REST`. A disabled lane is never resting;
   when resting the lane's `*PlayBank` is a safe real index (0) that is never read
   for triggering.
+
 - **REQ-4** — When a lane is resting, its machine (`StepSequencer` / `DrumMachine`
   / `SamplerMachine` / `MotionMachine`) triggers/writes nothing for that bar; the
   sequencer additionally releases any note tied into the rest. The transport clock
@@ -67,9 +70,11 @@ banks stay fully usable and existing songs are unaffected.
   ([step-grid-editing](step-grid-editing.md) REQ-12); the overlay's own
   `arrangement.onChange` subscription is **not** gated, so a hidden lane's rest
   state still tracks the bar — the gate only drops the redundant per-tick nudge.
+
 - **REQ-5** — The Song-tab chain builder has a rest add-button that appends `REST`
   and renders a `REST` chip with a rest glyph (`.rest` style, not a letter).
   Move / delete / clear operate on rest chips like any other slot.
+
 - **REQ-6** — While a lane is resting, its machine tab (Seq / Drum / Sampler /
   Motion) overlays the step grid with a dimming backdrop + a large centered rest
   glyph; the overlay hides when the lane stops resting, its chain is disabled, or
@@ -80,15 +85,17 @@ banks stay fully usable and existing songs are unaffected.
   wrapped in its own overlay, so all three dim together off the shared
   `motionResting`. The `ctrls`/header rows stay outside the dim (as the XY lane's
   axis header does), keeping the param pickers usable.
+
+- **REQ-7** — A `REST` in a chain persists through save / load and passes import
+  validation. Legacy songs (no `REST`) load unchanged; an older build that predates
+  this feature clamps `REST` → bank A (graceful degradation, ADR-007).
+
 - **REQ-8** — While a lane is resting, the panel's Bank bar draws the current
   play bank's dot **amber** (the resting colour, matching the overlay) instead of
   the red "now-playing" colour — during a rest no bank is actually playing, so a
   red dot misreads. The edit bank stays selected (with Follow on it is synced to
   the play bank, so bank A remains highlighted and shown). The recolour is applied
   whenever the lane rests, independent of the Follow toggle.
-- **REQ-7** — A `REST` in a chain persists through save / load and passes import
-  validation. Legacy songs (no `REST`) load unchanged; an older build that predates
-  this feature clamps `REST` → bank A (graceful degradation, ADR-007).
 
 ## Technical design
 

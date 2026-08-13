@@ -165,7 +165,7 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
     song's name, the preset is filtered out of the list while the song is loaded:
     one row per label, and the pinned sound wins.
 
-- **REQ-14 (regression)** — **Rebuilding the options never relabels the
+- **REQ-14** (regression) — **Rebuilding the options never relabels the
   selector.** [dropdown](dropdown.md) REQ-2 has `setOptions` fall back to the
   first option when the current value is absent from the new list — and the
   displayed value is *often* absent here, because a song name (REQ-13) or a dirty
@@ -241,12 +241,15 @@ PresetBankFile:
   presets: { <presetName>: { <paramId>: number } }
 
 PresetParse:                            # discriminated on ok/kind
-  ok: true,  kind: "preset" | "bank",  name: string,  presets: {name: Snapshot}
+  ok: true,  kind: "preset" | "bank",  name: string,  presets: {name: Snapshot},
+             warnings?: string[]        # ride the ok:true branch (preset-authoring REQ-3)
   ok: false, errors: string[]
 
 ImportPolicy: rename | overwrite | skip
 ImportPlan:
-  writes: [ { source: string, target: string, status } ]   # what confirm applies
+  rows:   [ { source: string, target: string, status } ]   # EVERY incoming preset,
+                                                           # in file order — REQ-10's review list
+  writes: [ ... ]                                          # the subset confirm applies
   counts: { new: n, identical: n, conflict: n, writes: n }
 # status: new | identical | conflict
 ```
@@ -291,7 +294,9 @@ importers), so REQ-13's pin cannot be reintroduced-around by a new load surface.
 ```yaml
 localStorage:
   websynth.preset.<name> : a Snapshot (JSON), values rounded to 4 sig-figs on save()
-  websynth.preset.index  : user preset name index
+  websynth.preset.index  : preset name index — factory AND user. ensureFactoryPresets()
+                           seeds every factory name on first boot, so list() unions it
+                           with Object.keys(FACTORY) rather than trusting either alone
 files (v4):
   <name>.preset.websynth.json : PresetFile
   <name>.bank.websynth.json   : PresetBankFile
@@ -397,7 +402,12 @@ Scenario: The pinned sound is the effective patch, not the file's sparse map (RE
   When the song is applied
   Then the pinned patch carries that id at its registered default
   So re-selecting it cannot leak the previous song's value
-# pinned by: tests/state/preset-session.test.ts
+# The mechanism is the CALL SITE: every caller pins
+# `patchSnapshot(bus.snapshot())` — the settled bus, read after `Song.apply` has
+# run `resetDefaults()` — never `file.params`. app.ts, song-panel.ts and main.ts
+# all do this, and `apply`'s resetDefaults is what makes the omitted id revert.
+# pinned by: tests/state/preset-session.test.ts (patchSnapshot's filter only —
+#   see Open questions: no test exercises the apply-then-pin path end to end)
 
 Scenario: Loading another song replaces the pinned sound (REQ-13, edge)
   Given one demo is loaded and pinned
@@ -423,6 +433,13 @@ Scenario: An import does not relabel the selector (REQ-14, regression)
 - Typecheck: `npm run typecheck`
 
 ## Open questions / future
+
+- **No test covers apply-then-pin end to end.** `patchSnapshot`'s filter is unit
+  tested and `PresetSession`'s bookkeeping is unit tested, but nothing applies a
+  song and then asserts the pinned snapshot — the one place REQ-13's "effective
+  patch, not the sparse map" actually lives is the three call sites. An e2e that
+  loads a demo, loads a second demo whose `params` omits an id the first set, and
+  re-selects the first would close it.
 
 - New params join presets automatically via `snapshot()`; their **no-op defaults**
   keep old presets sounding the same (see [add-a-parameter](../recipes/add-a-parameter.md)).

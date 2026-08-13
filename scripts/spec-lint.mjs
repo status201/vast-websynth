@@ -16,6 +16,8 @@
 //   • `id` present and equal to the filename (without .md)
 //   • a valid `status` — ADR lifecycle under decisions/, else feature lifecycle
 //   • every root-anchored `# pinned by:` path resolves (literal exists; glob ≥1)
+//   • every gherkin `Scenario:` carries a trailing `#` note — a pin, or an
+//     explicit reason there is none (warning)
 // Plus repo-structure checks (drift prevention):
 //   • every spec / ADR / template file is listed in the specs/README.md folder map
 //   • every ADR is listed in the specs/decisions/README.md index
@@ -121,6 +123,110 @@ function pinnedPaths(text) {
   return tokens;
 }
 
+/**
+ * Path/glob tokens listed under the metadata block's `source:` key — the files a
+ * spec claims implement it. Same literal/glob treatment as `pinnedPaths`, but a
+ * far tighter grammar (one path per `- ` item), so we parse rather than scrape.
+ * Prose paths elsewhere in a spec stay unchecked on purpose: an "Open questions"
+ * section legitimately names a file that does not exist yet.
+ *
+ * Walks the lines rather than matching the whole run with one repeated group:
+ * `.` does not match `\r`, so a `.*`-per-item regex silently stops after the
+ * FIRST entry on a CRLF checkout — which quietly disabled most of this check on
+ * Windows while CI (LF) saw everything. Splitting on `/\r?\n/` is the same
+ * treatment `declaredReqs` already uses.
+ */
+function sourcePaths(block) {
+  const lines = block.split(/\r?\n/);
+  const start = lines.findIndex((l) => /^source:\s*(#.*)?$/.test(l));
+  if (start < 0) return [];
+  const out = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    if (!/^[ \t]+-[ \t]/.test(lines[i])) break; // end of the list
+    const v = lines[i].replace(/^[ \t]*-[ \t]*/, '').split('#')[0].trim();
+    if (!v || v.includes('<') || v.includes('...')) continue; // placeholders
+    out.push(v);
+  }
+  return out;
+}
+
+/** Headings that end the requirements region — everything after is not a REQ list. */
+const AFTER_REQS = /^## (Technical design|Visual aids|Scenarios|Tests & verification|Open questions)/;
+
+/**
+ * `REQ-<n><suffix>` ids declared between `## Requirements` and the first
+ * design/scenario/test heading, in document order. The window deliberately spans
+ * intermediate `##` sections: a spec that grew in versioned rounds
+ * (`midi-clock-sync.md`'s "## v2 additions", "## v3 fix — …") keeps declaring
+ * REQs under them, and those are declarations like any other.
+ *
+ * Only a top-level `- **REQ-n**` bullet declares one — a prose bullet that merely
+ * *starts* with a REQ reference does not, which is why the bold must close right
+ * after the id.
+ */
+function declaredReqs(text) {
+  const lines = text.split(/\r?\n/);
+  let start = -1;
+  let end = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    if (start < 0) { if (/^## Requirements/.test(lines[i])) start = i; }
+    else if (AFTER_REQS.test(lines[i])) { end = i; break; }
+  }
+  if (start < 0) return [];
+  const out = [];
+  for (let i = start + 1; i < end; i++) {
+    const m = lines[i].match(/^- \*\*REQ-(\d+[a-z]*)\*\*/);
+    if (m) out.push({ tag: m[1], line: i + 1 });
+  }
+  return out;
+}
+
+/** Sort key for a REQ tag: `5` < `5a` < `5b` < `6`. */
+function reqKey(tag) {
+  const m = tag.match(/^(\d+)([a-z]*)$/);
+  return [Number(m[1]), m[2]];
+}
+
+/**
+ * Scenarios inside a ```gherkin block that carry no trailing `#` comment at all.
+ *
+ * A scenario is a claim, and the convention is that it says how the claim is
+ * held: `# pinned by: tests/…` normally, or an explicit note (`# by design:`,
+ * `# NOT AUTOMATED`, `# verified manually on device`) when nothing automated
+ * can. Silence is the third state, and the one worth reporting — it reads as a
+ * gap whether or not it is one, so a later sweep has to re-derive the answer.
+ *
+ * A comment may cover the run of scenarios above it (specs/README.md), so the
+ * search runs to the next `Scenario:` or the block's closing fence — and a
+ * comment on the line *after* the fence still counts, which is where a pin for
+ * the whole block conventionally sits.
+ *
+ * Warning, not error: a spec being drafted has scenarios before it has tests,
+ * and blocking that would push authors toward writing the pin first and the
+ * test never.
+ */
+function unpinnedScenarios(text) {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let inGherkin = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*```\s*gherkin\s*$/i.test(lines[i])) { inGherkin = true; continue; }
+    if (!inGherkin) continue;
+    if (/^\s*```\s*$/.test(lines[i])) { inGherkin = false; continue; }
+
+    const m = lines[i].match(/^\s*Scenario(?: Outline)?:\s*(.+)$/);
+    if (!m) continue;
+    let annotated = false;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (/^\s*Scenario(?: Outline)?:/.test(lines[j])) break;
+      if (/^\s*#/.test(lines[j])) { annotated = true; break; }
+      if (/^\s*```\s*$/.test(lines[j])) { annotated = /^\s*#/.test(lines[j + 1] ?? ''); break; }
+    }
+    if (!annotated) out.push({ name: m[1].trim(), line: i + 1 });
+  }
+  return out;
+}
+
 function lint(failExit) {
   const errors = [];
   const warnings = [];
@@ -129,6 +235,14 @@ function lint(failExit) {
     const base = path.basename(f);
     return base !== 'README.md' && !base.startsWith('_');
   });
+
+  // Cross-spec `REQ-n` references are checked against this, so it must be built
+  // before the per-spec pass.
+  const reqsById = new Map();
+  for (const file of specs) {
+    reqsById.set(path.basename(file, '.md'),
+      new Set(declaredReqs(readFileSync(file, 'utf8')).map((r) => r.tag)));
+  }
 
   for (const file of specs) {
     const r = rel(file);
@@ -170,6 +284,59 @@ function lint(failExit) {
         err(`\`# pinned by:\` path does not exist: ${tok}`);
       }
     }
+
+    // A stale `source:` entry is how a spec starts lying about where its code
+    // lives — the same check `# pinned by:` already gets, applied to the claim
+    // that matters most.
+    for (const tok of sourcePaths(block)) {
+      if (/[*?[]/.test(tok)) {
+        const re = globToRegExp(tok);
+        if (!repoFiles().some((f) => re.test(f))) err(`\`source:\` glob matches no file: ${tok}`);
+      } else if (!existsSync(path.join(ROOT, tok))) {
+        err(`\`source:\` path does not exist: ${tok}`);
+      }
+    }
+
+    // REQ ids: unique, and in ascending order so the list reads 1,2,3. They are
+    // stable cross-spec identifiers, so a REQ inserted later is APPENDED and the
+    // bullet moved into place — never renumbered.
+    const reqs = declaredReqs(text);
+    const seen = new Map();
+    for (const { tag, line } of reqs) {
+      if (seen.has(tag)) err(`duplicate \`REQ-${tag}\` (line ${line}; first at line ${seen.get(tag)})`);
+      else seen.set(tag, line);
+    }
+    for (let i = 1; i < reqs.length; i++) {
+      const [pn, ps] = reqKey(reqs[i - 1].tag);
+      const [cn, cs] = reqKey(reqs[i].tag);
+      if (cn < pn || (cn === pn && cs < ps)) {
+        err(`\`REQ-${reqs[i].tag}\` (line ${reqs[i].line}) is out of order — it follows \`REQ-${reqs[i - 1].tag}\``);
+        break; // one report per spec; the whole list needs re-sorting anyway
+      }
+    }
+    // A gap is only a warning: a reserved range is plausible, a scrambled list is not.
+    const nums = [...new Set(reqs.map((r) => reqKey(r.tag)[0]))];
+    if (nums.length) {
+      const missing = [];
+      for (let n = 1; n <= Math.max(...nums); n++) if (!nums.includes(n)) missing.push(n);
+      if (missing.length) warn(`gap in the REQ sequence: no REQ-${missing.join(', REQ-')}`);
+    }
+
+    // Every scenario says how it is held — a test, or an explicit reason there
+    // is none. See `unpinnedScenarios` for why this is a warning.
+    for (const { name, line } of unpinnedScenarios(text)) {
+      warn(`line ${line}: scenario "${name}" names no \`# pinned by:\` test and gives no reason`);
+    }
+
+    // A cross-spec `[x](x.md) … REQ-n` must actually find REQ-n in x.md — this is
+    // what rots when a REQ is renumbered and its referrers are not.
+    text.split(/\r?\n/).forEach((line, i) => {
+      for (const m of line.matchAll(/\]\(([a-z0-9-]+)\.md(?:#[^)]*)?\)[^.]{0,60}?REQ-(\d+[a-z]*)/g)) {
+        const target = reqsById.get(m[1]);
+        if (!target) err(`line ${i + 1}: reference to unknown spec \`${m[1]}.md\``);
+        else if (!target.has(m[2])) err(`line ${i + 1}: \`${m[1]}.md\` declares no \`REQ-${m[2]}\``);
+      }
+    });
   }
 
   // Structure: the hand-maintained enumerations must stay complete — this catches

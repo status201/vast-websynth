@@ -29,7 +29,9 @@ bus would distort both.
 Non-scalar pattern state lives in its own **`PatternStore`**
 (`src/state/patterns.ts`) with its own listener mechanism, alongside but separate
 from `ParamBus`. It holds the 4 sequencer + 4 drum + 4 sampler banks and the
-edit-bank/play-bank distinction the transport reads. `Song.capture`/`restore`
+edit-bank/play-bank distinction the transport reads. (It has since grown the 4
+motion banks plus `motionAssigns` / `motionTracks` on the same terms — the
+decision generalised exactly as intended; see `features/motion-sequencer.md`.) `Song.capture`/`restore`
 snapshots **both** stores together, so a saved song still round-trips as one unit.
 
 ## Alternatives considered

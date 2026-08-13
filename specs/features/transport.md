@@ -50,14 +50,51 @@ untouched.
 
 - **REQ-1** — Subscribers get `(stepIndex, audioTime)` per 16th-note tick,
   scheduled `scheduleAheadS` ahead (default `SCHEDULE_AHEAD_S`).
+
 - **REQ-2** — `onStart` fires before the first tick; `onStop` on stop. Order
   matters: the [arrangement](arrangement.md) subscribes first.
+
 - **REQ-3** — BPM and swing are live-settable; swing delays off-beat 16ths.
   `setBpm` clamps to `20..400` and `setSwing` to `0..1` — and both **reject
   non-finite input first** (v5). `Math.max(20, Math.min(400, NaN))` is `NaN`, so
   the clamp idiom used app-wide does not survive a `NaN`, and a `NaN` tempo makes
   `sixteenth` `NaN` and stalls the scheduler. The reachable source is a peer:
   the WiFi sync wire carries `{t:'tempo', bpm}` ([webrtc-sync](webrtc-sync.md)).
+
+- **REQ-4** — The wakeup timer runs off the main thread (Worker `setInterval`)
+  wherever `Worker` is available, so the transport survives main-thread jank
+  and background-tab timer throttling. A main-thread `setTimeout` loop is the
+  fallback (and the injectable test double). A wakeup that arrives after
+  `stop()` must not emit ticks.
+
+- **REQ-5** (v3) — `start(fromStep = 0)` seeds `_step = fromStep & 0xffff`
+  **before** firing `onStart`, so a subscriber (the [arrangement](arrangement.md))
+  can read `clock.step` in `onStart` and seek to the implied bar. Plain
+  `start()` / `start(0)` is bit-identical to v2 (step 0). Used by MIDI/WiFi
+  clock-sync's Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md)
+  REQ-10). `TickSubscriber.start(): void` keeps its no-arg signature (the
+  concrete `Clock` accepts the optional param).
+
+- **REQ-6** (v4) — **`seek(step)` moves a *running* clock.** It sets `_step` (and
+  the cue, REQ-7) but **never** `nextStepTime`, so the tempo grid is preserved and
+  a live jump neither retriggers nor shifts phase — the deliberate contrast with
+  `start()`, which re-origins `nextStepTime` to `ctx.currentTime + 0.05`. Valid
+  while playing *and* while stopped. It fires a **new** listener channel
+  `onSeek(fn)` **synchronously**, mirroring `onStart`'s ordering guarantee, so the
+  [arrangement](arrangement.md) (constructed first) re-seeks its lanes before any
+  machine reacts. `TickSubscriber` grows `onSeek` alongside `onStart`/`onStop`.
+  Every consumer that counts position *relatively* must react — see
+  [transport-position.md](transport-position.md) REQ-4.
+
+- **REQ-7** (v4) — **The cue is the position a plain `start()` begins from.**
+  `seek(step)` sets it, `get cue` reads it, and `start(fromStep = this.cue)`
+  honours it; `stop()` leaves it alone, so Stop → Play resumes from the last
+  seeked position. It defaults to `0`, so with no seek ever performed every REQ-5
+  guarantee above holds unchanged. **Callers that require step 0 must now say so**:
+  `RecorderController.exportSong` and `BankRenderController` both derive their
+  capture bounds from absolute step numbers and call `start(0)` explicitly — a
+  cued clock would otherwise truncate the capture silently.
+
 - **REQ-8** (v5) — **A subscriber may not wedge the transport.** `tick()` calls
   each listener inside its own `try`, and advances `nextStepTime` / `_step`
   **whether or not one throws**. Previously a throwing listener escaped the
@@ -72,6 +109,7 @@ untouched.
   per tick: at 40 Hz the latter is a console flood that hides the first, most
   useful stack. See [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md)
   for why isolation lives here rather than around each `AudioParam` write.
+
 - **REQ-9** (v6) — **The catch-up is bounded: a stalled wakeup source recovers as
   silence, not as a burst.** The drain loop is a `while` over `nextStepTime <
   now + scheduleAheadS`, so if the grid falls far behind `now` it used to emit
@@ -111,36 +149,6 @@ untouched.
   ([debug-panel](debug-panel.md)) — on the phone where this reproduces there is no
   console. See [audio-lifecycle](audio-lifecycle.md) for the surrounding policy
   (context re-arm, click-free start).
-- **REQ-4** — The wakeup timer runs off the main thread (Worker `setInterval`)
-  wherever `Worker` is available, so the transport survives main-thread jank
-  and background-tab timer throttling. A main-thread `setTimeout` loop is the
-  fallback (and the injectable test double). A wakeup that arrives after
-  `stop()` must not emit ticks.
-- **REQ-5** (v3) — `start(fromStep = 0)` seeds `_step = fromStep & 0xffff`
-  **before** firing `onStart`, so a subscriber (the [arrangement](arrangement.md))
-  can read `clock.step` in `onStart` and seek to the implied bar. Plain
-  `start()` / `start(0)` is bit-identical to v2 (step 0). Used by MIDI/WiFi
-  clock-sync's Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md)
-  REQ-10). `TickSubscriber.start(): void` keeps its no-arg signature (the
-  concrete `Clock` accepts the optional param).
-- **REQ-6** (v4) — **`seek(step)` moves a *running* clock.** It sets `_step` (and
-  the cue, REQ-7) but **never** `nextStepTime`, so the tempo grid is preserved and
-  a live jump neither retriggers nor shifts phase — the deliberate contrast with
-  `start()`, which re-origins `nextStepTime` to `ctx.currentTime + 0.05`. Valid
-  while playing *and* while stopped. It fires a **new** listener channel
-  `onSeek(fn)` **synchronously**, mirroring `onStart`'s ordering guarantee, so the
-  [arrangement](arrangement.md) (constructed first) re-seeks its lanes before any
-  machine reacts. `TickSubscriber` grows `onSeek` alongside `onStart`/`onStop`.
-  Every consumer that counts position *relatively* must react — see
-  [transport-position.md](transport-position.md) REQ-4.
-- **REQ-7** (v4) — **The cue is the position a plain `start()` begins from.**
-  `seek(step)` sets it, `get cue` reads it, and `start(fromStep = this.cue)`
-  honours it; `stop()` leaves it alone, so Stop → Play resumes from the last
-  seeked position. It defaults to `0`, so with no seek ever performed every REQ-5
-  guarantee above holds unchanged. **Callers that require step 0 must now say so**:
-  `RecorderController.exportSong` and `BankRenderController` both derive their
-  capture bounds from absolute step numbers and call `start(0)` explicitly — a
-  cued clock would otherwise truncate the capture silently.
 
 ## Technical design
 

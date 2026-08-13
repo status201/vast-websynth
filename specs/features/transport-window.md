@@ -64,16 +64,19 @@ keep in step.
   `transport`, the window `transportw`), the same mechanism
   [live-fx-window](live-fx-window.md) REQ-1 uses. `opts.compact` omits the one
   control the Song-panel row does not carry: Play/Stop.
+
 - **REQ-2** — **TRANSPORT floating window.** A launcher (`transport-open`)
   toggles a `FloatingWindow` titled **TRANSPORT** (`testId: transport-window`),
   built lazily on first open and kept alive across closes. Contents in order:
   Play/Stop, ⏮ return-to-start, the `bar.step` readout, the bar scrubber. It
   takes no `ParamBus` — **neither surface mints a second `transport.bpm` or
   `transport.swing` knob** (see *Background*); the header's are the only ones.
+
 - **REQ-3** — **The launcher doubles as the section title**, leading the Song
   panel's transport row and carrying the same ❐ "opens a new window" glyph as
   the LIVE FX launcher (aria-hidden; the button's `aria-label` carries the
   meaning). No separate text label — that is the space this feature gives back.
+
 - **REQ-4** — **Compact Song-panel row**:
   `[TRANSPORT ❐] [⏮] [bar.step] [bar scrubber]`, placed **directly under the four
   machine lanes and above Live FX**. The scrubber is one cell per chain slot, so
@@ -81,12 +84,14 @@ keep in step.
   scrubber and a chip in a lane mean the same bar. Sitting it down by Sync (its
   first home) put the position readout at the bottom of the tallest panel in the
   app, several sections away from the only thing that gives it meaning.
+
 - **REQ-5** — **Play/Stop is not a second source of truth.** It routes through
   `UiBridge.toggleTransport`, which clicks the *real* header button — so it
   inherits the [empty-play hint](empty-play-hint.md) intercept and the
   [Play-button blink](play-button-blink.md) state machine for free, and the two
   buttons can never disagree. It mirrors its own label/`.on` off
   `clock.onStart`/`onStop`, exactly as the header button does.
+
 - **REQ-6** — **Position readout.** `bar.step`, 1-based (bar 1 step 1 at the
   top). Playing, it shows the live step; stopped, the **cue** — where Play will
   begin — matching the machine-tab rulers
@@ -108,25 +113,30 @@ keep in step.
   never step to step. `--serif` (Georgia) ships proportional old-style figures
   and carries no `tnum` feature, so `font-variant-numeric: tabular-nums` bought
   nothing there and the readout wiggled on every 16th.
+
 - **REQ-7** — **Bar scrubber.** One cell per bar of the song, current bar lit,
   click to seek to the top of that bar. Song length is
   `Arrangement.songBars()` — the longest **enabled** chain lane across all four
   lanes — falling back to a single bar when no lane is enabled. The DOM is
   rebuilt only when that length changes; the lit class moves in place otherwise,
   the same split-rendering rule the chain chips already follow.
+
 - **REQ-8** — **Seeking respects the one guard.** Both the ⏮ and the scrubber go
   through `StudioApi.seekTo`, and both surfaces mark themselves inert when
   `canSeek()` is false ([transport-position](transport-position.md) REQ-6/REQ-8).
-- **REQ-10** — **The row carries a help badge** on its launcher — which is also
-  its section title, so the badge sits on the row's leading control. Topic
-  `transport.song` ([onboarding](onboarding.md) REQ-16): the `bar.step` readout,
-  the scrubber's one-cell-per-chain-slot correspondence, what the floating
-  window adds, and the states where seeking is refused (REQ-8).
+
 - **REQ-9** — **The chain chips are left alone.** A chip click already toggles
   the edit selection that ◀ ▶ ✕ act on ([song-mode](song-mode.md)); adding a
   seek to it would give one gesture two outcomes, which
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids. The
   scrubber is a separate target sitting above them.
+
+- **REQ-10** — **The row carries a help badge** on its launcher — which is also
+  its section title, so the badge sits on the row's leading control. Topic
+  `transport.song` ([onboarding](onboarding.md) REQ-16): the `bar.step` readout,
+  the scrubber's one-cell-per-chain-slot correspondence, what the floating
+  window adds, and the states where seeking is refused (REQ-8).
+
 - **REQ-11** — **The scrubber presents as a timeline, not a row of links.**
   Square cells (no border radius) the height of the buttons beside them, sitting
   on a near-black bed whose gaps read as the segment dividers between bars — the

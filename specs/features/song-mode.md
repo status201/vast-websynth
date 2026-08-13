@@ -146,7 +146,7 @@ demos, the load path **must stay backward compatible** as the format grows.
   **default-sparse**, producing the *canonical compact* form. The output must still
   `apply()` to identical-sounding state (rounding is inaudible; sparse cells re-expand
   via `restore`). See [ADR-011](../decisions/adr-011-export-precision-and-default-sparse-serialization.md).
-- **REQ-10 (demo row overflow, v6; limit raised in v12)** — The Song panel's demo
+- **REQ-10** (demo row overflow, v6; limit raised in v12) — The Song panel's demo
   row shows at most `DEMO_ROW_LIMIT` (**10**) demo buttons inline; any further
   demos (JSON drop-ins, built-ins and zip demos alike, in their usual order) hide
   behind an **"All Demos"** toggle button (testid `song-demo-more`) that
@@ -163,13 +163,13 @@ demos, the load path **must stay backward compatible** as the format grows.
   filename order — i.e. of data. A test may therefore assert the *rule* (at most
   10 inline, the rest behind the toggle, both directions) but never that a named
   demo is hidden; see [write-a-test](../recipes/write-a-test.md).
-- **REQ-11 (lane titles navigate, v8)** — Each lane card's title is a button
+- **REQ-11** (lane titles navigate, v8) — Each lane card's title is a button
   (testid `song-lane-title-<seq|drum|sampler|motion>`) that opens that machine's
   tab, and the tab bar carries a per-machine status LED. Both are governed by
   [machine-status](machine-status.md); note the lane prefix `drum` maps to the tab
   id `drums`. The card's existing silenced-dimming (REQ-6) is unchanged — it still
   keys off audibility only, never off `<machine>.on`.
-- **REQ-12 (drop-in demos are fetched on click, v11)** — There are **three** demo
+- **REQ-12** (drop-in demos are fetched on click, v11) — There are **three** demo
   sources and `SongPanel.loadDemo(name)` dispatches across all of them:
   - `DEMO_SONGS` — the two hand-authored built-ins. Bundled, **synchronous**,
     because callers depend on that: the guided tour applies one mid-step and
@@ -243,7 +243,7 @@ demos, the load path **must stay backward compatible** as the format grows.
   `demos-index.json` and `readdirSync`s `src/state/demos/` instead, mirroring the
   registration rules, and derives the built-ins as (rendered buttons − drop-ins −
   zips). A stale index therefore fails E2E loudly, naming `npm run clean:demos`.
-- **REQ-13 (Sync and Audio pair up, v13)** — The panel's last two rows are
+- **REQ-13** (Sync and Audio pair up, v13) — The panel's last two rows are
   **Sync** then **Audio**, in that order: Audio export is the tab's terminal
   action (render the finished thing), so it reads last, while Sync is setup that
   belongs with the transport rows above it.
@@ -262,7 +262,7 @@ demos, the load path **must stay backward compatible** as the format grows.
   and its two buttons open those surfaces rather than writing files — but its
   shape, position and pairing behaviour are untouched, and `song-export-audio`
   remains the probe this REQ's layout scenario measures.
-- **REQ-14 (a load lands on bar 1, v14)** — **Every path that replaces the song
+- **REQ-14** (a load lands on bar 1, v14) — **Every path that replaces the song
   returns the playhead to the top**: the demo buttons, Load, Import / Paste /
   share link / PWA file-launch, the Undo toast's restore, and **New**. A song
   carries no playhead — the cue is transient by design
@@ -288,7 +288,7 @@ demos, the load path **must stay backward compatible** as the format grows.
       which deliberately does not route through it (it restores the blank
       snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
       no clock, and pushing one in would move the refusal guard out of `Engine`.
-- **REQ-15 (one name, two songs — ask, v17)** — A demo's name is not reserved:
+- **REQ-15** (one name, two songs — ask, v17) — A demo's name is not reserved:
   saving your own song as `1979` leaves the **demo button** and the **slot list**
   offering two different songs under one label, and each door silently picked its
   own (`loadSlot` prefers the stored slot, a demo button always fetched the demo).
@@ -312,7 +312,7 @@ demos, the load path **must stay backward compatible** as the format grows.
       rule below is intact. A demo whose name nothing shadows loads on one click,
       exactly as before, and the [Undo toast](session-autosave.md) REQ-7 still
       covers the session either way.
-- **REQ-16 (SongFile v7 — per-slot transpose, v19)** — v7 adds one optional
+- **REQ-16** (SongFile v7 — per-slot transpose, v19) — v7 adds one optional
   top-level field, `seqTranspose: number[]`, the semitone offset of each
   `seqChain` slot ([arrangement](arrangement.md) REQ-8).
 
@@ -320,7 +320,8 @@ demos, the load path **must stay backward compatible** as the format grows.
   design: `ChainData` keeps its exact `{enabled, steps}` shape, so `cloneChain`,
   `checkChain`, `expandChain` and every existing reader are untouched, and a v1–v6
   file round-trips through `compactSongForExport` **byte-identically** — which
-  `npm run check:demos` enforces across all 15 shipped demos.
+  `npm run check:demos` enforces across every shipped demo in `src/state/demos/`
+  (16 `.json` + 2 `.websynth.zip` at the time of writing).
 
   Serialization follows the `seqTracks` precedent (REQ-2): the field is **omitted
   entirely when every offset is 0**, so a song that does not transpose serializes
@@ -337,9 +338,11 @@ demos, the load path **must stay backward compatible** as the format grows.
 Song:   # src/state/song.ts (a plain object of functions, not a class)
   SONG_VERSION: 7                                   # the version capture() writes (exported, not a literal)
   capture(bus, patterns, arr, name, xy?): SongFile   # writes SONG_VERSION; xy included only when passed
-  apply(file, bus, patterns, arr, xyStore?): void    # ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
+  apply(file, bus, patterns, arr, xyStore?, sampler?): void  # xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN);
+                                                    # `sampler` is the SamplerSlots the stale-audio eviction
+                                                    # in REQ-3b needs — omit it and no eviction happens
   toJSON(file, pretty?): string                    # canonical compact: round 4 sig-figs + default-sparse cells
-  fromJSON(text): SongFile | null                  # validate, return file|null (the sparse object; apply re-expands)
+  fromJSON(text): SongFile | null                  # delegates to parse() — full field-level validation, then file|null
   parse(text): SongValidation                      # rich: { ok, file } | { ok:false, errors }
   download(file) / readFile(File): Promise<SongFile | null>
   parseFile(File): Promise<SongValidation>         # rich variant for the import UI
@@ -354,9 +357,11 @@ Song:   # src/state/song.ts (a plain object of functions, not a class)
 
 song-validate:  # src/state/song-validate.ts (pure, dependency-free)
   validateSongFile(value: unknown): SongValidation
-  type SongValidation = { ok: true; file: SongFile } | { ok: false; errors: string[] }
+  type SongValidation = { ok: true; file: SongFile; warnings?: string[] }
+                      | { ok: false; errors: string[] }   # warnings ride the ok:true branch —
+                                                          # see untrusted-input.md REQ-12
 
-Arrangement:  # setSeqChain / setDrumChain / setSamplerChain / setMotionChain(steps, enabled)
+Arrangement:  # setSeqChain(steps, enabled, transpose?) / setDrumChain / setSamplerChain / setMotionChain
 Performance:  # setFill / setStutter / setDrop / setTapeStop  (live DJ FX)
 lane-mix:     # audibleLanes(mute, solo): LaneFlags   (pure)
 ```
@@ -368,7 +373,7 @@ Nested beyond ~3 levels, so as flat YAML:
 ```yaml
 SongFile:
   format: 'websynth-song'            # required discriminator
-  version: 1 | 2 | 3 | 4 | 5 | 6
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7
   name: string
   params: Record<string, number>     # = ParamBus.snapshot()
   seqBanks:  SeqStep[][]             # 4 banks × 16 steps — since v6 this is TRACK 1 only
@@ -393,6 +398,11 @@ SongFile:
                                       # empty track is null. Omitted entirely when no extra track
                                       # holds a step, so a one-track song stays byte-identical to
                                       # its pre-v6 form — see sequencer.md REQ-13.
+  # ---- v7 addition (optional, so v1-v6 files still parse) ----
+  seqTranspose?: number[]             # per-seq-chain-slot semitone offset, parallel to seqChain.steps.
+                                      # A sidecar array rather than a field on ChainData, so ChainData
+                                      # keeps its shape and every v1-v6 file round-trips byte-identically.
+                                      # Omitted when every offset is 0 — see arrangement.md REQ-16.
 
 ChainData:
   enabled: boolean
@@ -406,20 +416,27 @@ ChainData:
 
 ```yaml
 capture: always writes SONG_VERSION (7)
-fromJSON: version-agnostic — only checks format === 'websynth-song'
-          AND presence of params + seqBanks + drumBanks  -> v1..v6 all parse
+fromJSON: delegates to parse() -> expandAuthorSong + validateSongFile, so it is
+          the FULL field-level check (dims, ranges, KNOWN_SONG_VERSIONS = 1..7),
+          not a presence test. Every v1..v7 file still parses because each
+          addition is optional — see "Import validation" below.
 apply (migration point):
   1. bus.resetDefaults()                 # omitted params revert to default
   2. bus.restore(file.params)
+  2b. sampler?.setBuffer(i, null) for every slot this file RENAMES   # REQ-3b.
+     # Before patterns.restore, so the store's sample-meta emit repaints each
+     # slot against settled buffers. A file omitting sampleNames renames nothing.
   3. patterns.restore({ seqBanks, drumBanks, samplerBanks, sampleNames,
         motionBanks/motionAssigns/motionTracks ?? emptyPatternSnapshot().<section> })
      # absent MOTION section -> blanked, never inherited; sampler banks/names inherit
      # (buffers live in SamplerMachine; full sampler clear is New Song's job)
      # seqBanks is rebuilt to [bank][track][step] first: track 1 from seqBanks,
      # 2-4 from seqTracks when present (absent pre-v6 -> a one-track song)
-  4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false)
+  4. arr.setSeqChain(file.seqChain?.steps ?? [0], file.seqChain?.enabled ?? false,
+                     file.seqTranspose ?? [])         # v7; older files -> no transpose
      arr.setDrumChain(... ?? [0], ... ?? false)
      arr.setSamplerChain(... ?? [0], ... ?? false)   # v1 files lack these -> defaults
+     arr.setMotionChain(... ?? [0], ... ?? false)    # v4; older files -> defaults
   5. xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)       # v3; older files -> default axes
 patterns.restore: Object.assign(dst, TRIGGER_CELL_DEFAULTS, cell)
   # spreads defaults UNDER incoming cells, so legacy {on, velocity} cells
@@ -436,7 +453,7 @@ not the strict current shape:
 
 ```yaml
 strict (reject + name the path):
-  root:        object; format === 'websynth-song'; version ∈ {1..6}; name: string
+  root:        object; format === 'websynth-song'; version ∈ KNOWN_SONG_VERSIONS (= 1..SONG_VERSION); name: string
   params:      object of string -> finite number   # keys NOT restricted (forward-compat)
   xy?:         { x: non-empty string, y: non-empty string }   # v3; param-id existence NOT checked
   seqBanks:    SeqStep[4][16]                       # exact dims
@@ -449,7 +466,10 @@ strict (reject + name the path):
   cell fields when present, by type/range:
     velocity/gate/prob: number 0..1 ; ratchet: int 1..4 ; tie: boolean
     SeqStep.note: int 0..127                        # MIDI range (untrusted-input REQ-4)
-  refused everywhere: __proto__ / constructor / prototype keys   # untrusted-input REQ-5
+  seqTranspose?: number[]                           # v7; each int, |offset| <= MAX_CHAIN_TRANSPOSE
+  refused at the three validators that build objects from payload keys —
+    validateSeqStep, validateTriggerCell, checkParams — via checkKeys():
+    __proto__ / constructor / prototype             # untrusted-input REQ-5 scopes this exactly
 lenient (additive — do NOT require):
   per-step velocity/gate/prob/ratchet/tie      # v1 cells omit them; restore defaults them
   required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}
@@ -814,14 +834,17 @@ Scenario: With no overflow there is no toggle (REQ-10, boundary)
 
 - Every version so far has held the additive contract: `version: 3` shipped the
   optional `xy` field (see [xy-pad](xy-pad.md)), `4` the motion fields, `5`
-  `motionTracks` (both [motion-sequencer](motion-sequencer.md)) and `6`
-  `seqTracks` ([sequencer](sequencer.md)). A future `version: 7` must keep new
-  fields **optional** and extend the `apply()` defaults-fallback pattern the same
-  way, so older files keep loading.
-- Bumping the version is **four** edits, not one: `SONG_VERSION`, the
-  `SongFile['version']` union, `KNOWN_VERSIONS` in the validator, and the
-  published `websynth-song.schema.json` — plus `llms.txt`, which advertises the
-  canonical version to crawling agents. See
+  `motionTracks` (both [motion-sequencer](motion-sequencer.md)), `6` `seqTracks`
+  ([sequencer](sequencer.md)) and `7` `seqTranspose`
+  ([arrangement](arrangement.md)). A future `version: 8` must keep new fields
+  **optional** and extend the `apply()` defaults-fallback pattern the same way,
+  so older files keep loading.
+- Bumping the version is **three** edits, not one: `SONG_VERSION`, the
+  `SongFile['version']` union, and the published `websynth-song.schema.json` —
+  plus `llms.txt`, which advertises the
+  canonical version to crawling agents. The validator's accepted set is *not* a
+  fourth edit: `KNOWN_SONG_VERSIONS` is derived as `1..SONG_VERSION`
+  (`src/state/song-version.ts`), deliberately so it cannot be forgotten. See
   [evolve-the-song-format](../recipes/evolve-the-song-format.md); the drift pins
   in `tests/state/authoring-docs.test.ts` fail loudly if the published pair is
   forgotten (v5 and v6 both shipped without them before this was pinned).

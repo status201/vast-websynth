@@ -29,13 +29,18 @@ the UI, and nothing stopped a panel from reaching into a *new* internal.
 
 The UI depends on a curated **`StudioApi`** interface (`src/ui/studio-api.ts`),
 not the concrete `Engine`. It exposes only the collaborators the UI actually
-uses — `patterns`, `arrangement`, `clock`, `perf`, `seq`, `drums`, `sampler`,
-`recorder`, `analyser`, `ctx`, `drumComp`/`masterComp`, plus `panic()`/`resume()`
-— and nothing else (`voices`, `lfo`, `polyphony`, `laneMixer`, the bus nodes,
-`subscribeParams`, `init` stay invisible).
+uses — the transport modules (`patterns`, `arrangement`, `clock`, `perf`, `seq`,
+`drums`, `sampler`, `motion`), the capture controllers (`recorder`,
+`bankRender`), sync (`sync`, `rtcSync`), the analysers (`analyser`,
+`analyserL`/`analyserR`), `ctx`, `drumComp`/`masterComp`, the read-only
+diagnostics (`iosAudio`, `mediaSession`, `backgroundAudio`) and the few verbs
+(`panic()`, `resume()`, `seekTo()`, `canSeek()`) — and nothing beyond that
+(`voices`, `lfo`, `polyphony`, `laneMixer`, the bus nodes, `subscribeParams`,
+`init` stay invisible). The list grows as the UI needs a collaborator; what the
+ADR forbids is exposing `Engine` itself.
 
 Every UI signature site (`mountApp`, `installShortcuts`, the four panel builders,
-`openRecordSoundModal`, the `TourContext.engine` field) takes `engine: StudioApi`.
+`openRecordSoundModal`, the `TourCtx.engine` field) takes `engine: StudioApi`.
 The **UI owns the interface** (dependency inversion); `Engine` satisfies it
 **structurally** — there is no `class Engine implements StudioApi`, so `src/audio`
 never imports `src/ui`. The structural check fires at the seam in `main.ts`, where

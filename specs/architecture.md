@@ -40,8 +40,11 @@ means a UI control and its audio effect can be reasoned about independently.
   reads them via `bus.subscribe(...)`. No direct UI↔audio calls.
 - **REQ-2** — Every scalar parameter is registered exactly once in
   `registerDefaults()` with `min/max/default` (and optional `taper`/`format`).
-- **REQ-3** — Audio cannot start without a user gesture; the whole graph is wired
-  inside the "Tap to start" handler in `main.ts`.
+- **REQ-3** — Audio cannot start without a user gesture. The graph *is* built at
+  boot — `boot()` runs `new Engine(bus, …)` + `await engine.init()` before any
+  input — but on an `AudioContext` created **suspended**, so nothing sounds. Only
+  `await engine.resume()` runs inside the "Tap to start" handler in `main.ts`;
+  that call is what the gesture unlocks (see `features/audio-lifecycle.md`).
 - **REQ-4** — New parameters default to a **no-op** value, so existing
   presets/songs are unaffected (see Conventions).
 - **REQ-5** — Non-scalar state (step grids) lives in `PatternStore`, not the bus.
@@ -417,6 +420,7 @@ PatternStore step types: # src/state/patterns.ts
 ```yaml
 localStorage:
   websynth.preset.*   : factory + user presets   # state/preset.ts
+  websynth.preset.index : preset name index — factory ∪ user (ensureFactoryPresets seeds it)
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
   websynth.session    : debounced autosave of the live session (silent boot restore)  # state/session-autosave.ts
@@ -424,10 +428,12 @@ localStorage:
   websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
   websynth.hint.emptyplay  : "pressed Play on an empty song" hint dismissed  # ui/components/empty-play-modal.ts
-  websynth.debug.about     : About-modal Debug section open    # ui/components/about.ts
-  websynth.shortcuts.about : About-modal full key list shown   # ui/components/about.ts
+  websynth.debug.about     : About-modal Debug section open    # ui/components/about-debug.ts
+  websynth.shortcuts.about : About-modal full key list shown   # ui/components/about-shortcuts.ts
   websynth.keyboard.layout : qwerty|azerty|qwertz|dvorak|auto  # state/keyboard-layout.ts — device-scoped, NOT a patch param
-  websynth.ui.collapsed.*  : panel collapse state (pattern/fx) # ui/app.ts
+  websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
+  websynth.ui.collapsed.fx      : FX-section collapse state    # ui/app.ts
+  websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded —
                          # or carried in a project-zip download (features/project-export.md)

@@ -29,7 +29,9 @@ source:                      # the code that implements this spec
 
 ## Requirements
 
-<!-- The design broken into discrete, testable pieces. -->
+<!-- The design broken into discrete, testable pieces. Ids are PERMANENT and
+     ascending: append the next free number, never renumber to insert. Other
+     specs cite them. `npm run spec:lint` enforces both. -->
 
 - **REQ-1** — …
 - **REQ-2** — …

@@ -58,7 +58,8 @@ feature is one addition in semitone space.
 - **REQ-5** — The result is clamped to the worklet's `cutoffNote` range, so an
   extreme note × full tracking cannot push the coefficient past Nyquist. (The
   worklet clamps internally too; this keeps the reported value honest.)
-- **REQ-6** — Changing `filter.keytrack` updates all 8 voices live, and a voice
+- **REQ-6** — Changing `filter.keytrack` updates every voice in the pool live
+  (8, or 5 on the `weak` tier — [performance-mode](performance-mode.md)), and a voice
   holding a note recomputes immediately rather than waiting for the next note.
 
 ## Technical design
@@ -137,7 +138,8 @@ Scenario: Turning the knob under a held note recomputes immediately
 Scenario: An extreme note cannot exceed the cutoff range (edge)
   Given filter.cutoff is 130 and filter.keytrack is 1
   When the highest playable note is triggered
-  Then the applied cutoffNote is clamped to the param's maximum
+  Then the applied cutoffNote is clamped to the WORKLET's range (CUTOFF_MIN 0 ..
+       CUTOFF_MAX 135), not to filter.cutoff's registered max of 130 — REQ-5
 # pinned by: tests/audio/voice.test.ts
 ```
 
@@ -153,5 +155,6 @@ Scenario: An extreme note cannot exceed the cutoff range (edge)
 - **Negative tracking.** A bipolar `[-1, 1]` range (cutoff *falls* as you play
   up) is a real, if rare, sound-design tool. Left out to keep the knob legible;
   widening the range later is backward-compatible because 0 stays the default.
-- **Velocity → cutoff** is the other unbuilt modulator ADR-005 anticipated;
-  `filEnv.trigger` is currently always full-scale.
+- **Velocity → cutoff** was the other modulator ADR-005 anticipated, and it has
+  since been built: `filter.velAmount` scales `filEnv.trigger`'s peak
+  (`Voice.noteOn`) — see [envelopes](envelopes.md) REQ-5.

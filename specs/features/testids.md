@@ -85,7 +85,7 @@ through the shared factories gets a correct, predictable testid for free.
 - **REQ-7** — Engine/state assertions go through the DEV-only `window.__synth`
   bridge, never through the DOM (see [architecture](../architecture.md) → Global
   conventions).
-- **REQ-8 (ids interpolated from data)** — Most ids are minted from a fixed
+- **REQ-8** (ids interpolated from data) — Most ids are minted from a fixed
   vocabulary, so the catalogue below is the whole set and REQ-6 protects it. A few
   interpolate **runtime data** instead: `song-demo-<name>` takes the demo's own
   song name (via `demos-index.json`). That set changes whenever the data does —
@@ -139,7 +139,7 @@ shell (app.ts):
                                             # (features/responsive-header.md REQ-6)
 
 synth faceplate panels:
-  # The eight panel() panels carry no id of their own — their controls mint from
+  # The seven panel() panels carry no id of their own — their controls mint from
   # param ids (REQ-1). Only the LFO panel's pages and hints are named:
   ptab-lfo-<1|2> · ppage-lfo-<1|2>   # features/panel-tabs.md REQ-3
   pulse-hint-<lfo|lfo2>              # features/oscillators.md REQ-9 — per page, so
@@ -158,6 +158,7 @@ step grids, rulers & overlays:
   sampler-step-<slot>-<step>
   motion-step-<s>                    # the mini XY pads
   ruler-<lane> · ruler-<lane>-<0..15> · ruler-<lane>-bar   # lane = seq|drum|sampler|motion
+  ruler-<lane>-bar-<prev|next>                             # the ‹ › bar steppers
   rest-overlay-<lane>                # features/arrangement-rest.md
   # the lit ruler tick carries the GLOBAL `playing` class, so e2e can find it
   # despite CSS-Module hashing — see features/transport-position.md
@@ -169,7 +170,8 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy
   clear-<lane> · clear-<lane>-bank · clear-<lane>-row-<i> · clear-toast-<lane>
   undo-<lane>                                       # features/pattern-undo.md
-  machine-<lane>-chain                              # features/machine-status.md
+  machine-<lane>-chain · machine-<lane>-mute · machine-<lane>-solo
+                                                    # features/machine-status.md
 
 key tab:                     # features/scale-quantization.md, features/chord-tools.md
   # scale.root / scale.type / chord.voicing are ParamDropdowns, which mint no id of
@@ -212,10 +214,14 @@ song panel — lanes, chains & live FX:
                                                     #   unpitched, so the control is
                                                     #   absent, not disabled (REQ-8)
   perf-fill · perf-stutter · perf-stutter-size-<n> · perf-drop · perf-tapestop
-  livefx-open · livefx-window + the same five under the `livefx` prefix
-                                                    # features/live-fx-window.md
+  perf-xypad                         # the Song-panel XY launcher; livefx-xypad and
+                                     #   motion-xypad open the SAME window (REQ-3 there)
+  livefx-open · livefx-window · livefx-xypad + the same five under the `livefx`
+    prefix                                          # features/live-fx-window.md
   sync-mode-<off|master|slave> · sync-status · sync-wifi-link   # features/midi-clock-sync.md
-  sync-pair-<generate|scan|next|back|apply|close|qr|status|error|insecure|debug>
+  sync-pair-<create|join|generate|scan|next|back|apply|close|qr|status|error|insecure|debug>
+  sync-pair-<offer|answer> · sync-pair-<offer|answer>-copy   # the blob textareas +
+                                                    #   their copy buttons
                                                     # features/webrtc-sync.md
 
 song panel — files:
@@ -257,8 +263,16 @@ shared UI:
   dialog-detail · dialog-input · dialog-confirm ·
     dialog-cancel · dialog-choice-<id>              # features/dialog.md
   dropdown-filter                                   # features/dropdown.md
-  toast-host · toast-action · toast-dismiss         # features/toast.md
+  toast · toast-host · toast-action · toast-dismiss # `toast` is showToast's DEFAULT
+                                                    #   root id (features/toast.md REQ-8)
+  value-bubble                                      # the drag readout's default id;
+                                                    #   motion-value-bubble overrides it
   fxgroup-<prefix> · fx-patch-decoration            # features/fx-group.md
+  grmeter-<fxPrefix>                                # grmeter-fx.drum.comp,
+                                                    #   grmeter-fx.master.comp
+                                                    # features/compressor.md
+  clips-restored-toast                              # boot-time sampler restore
+                                                    # features/sample-persistence.md
   empty-play-modal · empty-play-demo · empty-play-dismiss · empty-play-close
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·

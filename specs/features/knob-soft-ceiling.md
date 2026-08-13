@@ -15,7 +15,7 @@ related:
 source:
   - src/ui/components/knob.ts   # uiMax option + setUiMax + the render clamp
   - src/ui/styles/knob.module.css  # .dead — the marked region (v2)
-  - src/ui/app.ts               # LFO panel: the lfo.rate ceiling on the PWM path
+  - src/ui/panels/lfo-panel.ts  # pulseRateDisclosure: the lfo.rate ceiling on the PWM path
 ```
 
 A per-instance **soft ceiling** on a `Knob`: above it the orange value arc stops
@@ -174,7 +174,8 @@ a luxury a param registry that must stay backwards-compatible does not have.
 ui: src/ui/components/knob.ts
       constructor(opts.uiMax) -> uiMaxNorm ; setUiMax(v|null) -> uiMaxNorm + data-uimax
       render() -> arc dash uses min(norm, uiMaxNorm)
-ui: src/ui/app.ts -> pulseRateDisclosure(bus, rateKnob)
+ui: src/ui/panels/lfo-panel.ts -> pulseRateDisclosure(bus, prefix, rateKnob)
+      # `prefix` is the LfoPrefix ('lfo' | 'lfo2') — the panel is shared by both
       ONE bus.subscribe('lfo.dest') drives BOTH cues:
         hint <p> visibility  AND  rateKnob.setUiMax(PWM_RATE_MAX | null)
 audio: untouched. No engine, worklet or param-registry change.
@@ -252,8 +253,10 @@ Scenario: Dragging past the ceiling still sets the real value (REQ-2)
   `data-uimax` on `knob-lfo.rate`).
 - Typecheck: `npm run typecheck`.
 - **By eye** — the point of the feature is perceptual, so a green suite does not
-  settle it. LFO panel → DEST `pulse` → drag RATE up: the arc should freeze just
-  short of halfway while the pointer and the Hz readout keep climbing. Switch DEST
+  settle it. LFO panel → DEST `pulse` → drag RATE up: the arc should freeze at
+  about **88%** of the sweep while the pointer and the Hz readout keep climbing.
+  (88%, not halfway: `lfo.rate` is 0.05..20 on an exponential taper, so the
+  PWM_RATE_MAX of 10 sits at ln(200)/ln(400) of the travel.) Switch DEST
   away and the arc must snap back to tracking the full range.
 - **Not** an ADR-010 by-ear change: nothing under `src/audio/**` or
   `public/worklets/**` is touched, and the engine's behaviour at any rate is

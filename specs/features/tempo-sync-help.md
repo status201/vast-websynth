@@ -65,14 +65,17 @@ the badge just recommends/sets a plain value (delay maps its `time` param 1:1 to
 ### Contract / public interface
 
 ```ts
-// tempo-sync.ts (pure)
+// src/utils/tempo.ts (pure) — moved out of ui/ so the audio layer may import it
 interface Division { label: string; beats: number }          // beats = quarter notes
 interface SweetSpot { label: string; beats: number; seconds: number; hz: number }
 type TempoQuantity = 'time' | 'freq'
 const DIVISIONS: Division[]
 function sweetSpots(bpm: number): SweetSpot[]                 // beat = 60/bpm
 function sweetSpotsInRange(bpm, min, max, q: TempoQuantity): SweetSpot[]
+function spotValue(s: SweetSpot, quantity: TempoQuantity): number
 function noteToHz(note: number): number                      // 440·2^((n-69)/12)
+const SYNC_LABELS: string[]                                  // ['free', ...DIVISIONS labels]
+function syncedRateHz(syncIndex: number, bpm: number): number | null   // the LFO tempo lock
 
 // help-content.ts
 interface HelpContext { bus: ParamBus; close: () => void }

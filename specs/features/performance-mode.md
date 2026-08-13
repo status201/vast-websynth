@@ -15,7 +15,7 @@ source:
   - src/main.ts
   - src/ui/components/scope.ts
   - src/ui/components/perf-settings.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-debug.ts   # buildDebugSection: the perf-tier row
   - src/ui/app.ts
 ```
 
@@ -27,7 +27,7 @@ feature.
 
 ## Background / Why
 
-The synth is fixed-cost: 8 voices each run a per-sample ladder-filter worklet, the FX
+The synth is fixed-cost: up to 8 voices each run a per-sample ladder-filter worklet, the FX
 chains process even when "off" (the `BypassWrapper` gains down rather than
 disconnects), and the `AudioContext` defaults to `latencyHint: 'interactive'` (the
 smallest, most glitch-prone buffer). On weak hardware this overruns the audio thread
@@ -67,6 +67,7 @@ differ only by live-applied scope fps + fftSize).
   `localStorage['websynth.perf']` (default `auto`). It is **not** a `ParamBus` param
   and is never captured by presets/songs. Legacy values migrate on read: `on → weak`,
   `off → strong`, anything unrecognised → `auto`.
+
 - **REQ-2** — `PERF_PROFILES: Record<PerfTier, PerfProfile>` is the single source of
   truth for every tier-dependent knob (v3 added three FX-cost fields; v4 added
   `analyserFftSize`):
@@ -75,6 +76,7 @@ differ only by live-applied scope fps + fftSize).
   `strong = { 'interactive', 8, 60, 0.1, 4, true, 1024 }`.
   Strong and medium share the same **audio** profile; they differ only by the
   live-applied scope fps + analyser fftSize.
+
 - **REQ-3** — `detectTier()` errs toward **medium** (the safe, normal-latency default).
   Weak only on a genuinely low signal: `hardwareConcurrency <= 2`, **or**
   `deviceMemory <= 2`, **or** a phone UA (`/Mobi|Android|iPhone|iPod/`, **not** `iPad`)
@@ -82,16 +84,57 @@ differ only by live-applied scope fps + fftSize).
   `!mobile && cores >= 8 && (mem === undefined || mem >= 8)`. Everything else is medium.
   Detection is a hint (`deviceMemory` is Chrome-only, cores can be capped) — the user
   override is the real escape hatch.
+
 - **REQ-4** — `resolveTier(pref)` returns the effective tier: a concrete tier passes
   through; `auto` → `detectTier()`. `sameAudioProfile(a, b)` is true iff two tiers share
   **every boot-time field**: `latencyHint`, `voiceCount`, `scheduleAheadS`,
   `reverbIrMaxS`, `fxOversample` (v3). `fps` and `analyserFftSize` are **excluded** —
   they are applied live, not at boot, so they never force a reload.
+
 - **REQ-5** — The **audio** profile (buffer, voice count, and the v3 FX-cost fields)
   is tuned **at boot** only (chosen when the `AudioContext`/graph are built): boot
   reads `PERF_PROFILES[resolveTier()]` and passes all boot-time fields to the Engine.
   Changing the tier across an audio boundary therefore takes full effect only after a
   reload.
+
+- **REQ-6** — Scope **fps** and **analyserFftSize** are applied **live**: `Scope`
+  takes `{ fps }` and exposes `setFps(fps)` + `setFftSize(n)`. Changing tiers updates
+  the scope frame rate and FFT size immediately (no reload). fps throttling is
+  timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw every
+  frame), correct on high-refresh displays. The scope always pauses its redraw loop
+  while the tab is hidden (`visibilitychange`). Note: the
+  [motion sequencer](motion-sequencer.md)'s write loop also throttles to the
+  profile `fps`, but it reads it **once at boot** (`EngineOptions.motionFps`) —
+  a tier change updates it on reload only (accepted: it is a cost cap, not a
+  visual). Being a cost cap and not a visual is also why that loop does **not**
+  pause while the tab is hidden the way the scope does: the same `fps` governs its
+  worker-backed hidden-document driver, so automation runs at one rate either way
+  (motion-sequencer REQ-20).
+
+- **REQ-7** — The canvas **drop-shadow is removed for all tiers** (it was the v1
+  perf-only "lightening"; now a baseline cost cut everywhere). Wave and Spectrum draw
+  with no `shadowBlur`/`shadowColor`.
+
+- **REQ-8** — A header "Perf" button opens a modal with an **Auto / Weak / Medium /
+  Strong** control; changing it persists immediately, applies fps live, and shows a
+  "reload to apply" hint + button only when the new choice crosses an **audio**
+  boundary (`!sameAudioProfile(resolveTier(pref), bootTier)`) — so Medium↔Strong never
+  asks for a reload. A status line states the resolved tier on this device. The button
+  itself carries an at-a-glance **tier colour** (`data-perf-tier`): **weak = red**,
+  **medium = amber**, **strong = green** (shown even under Auto, reflecting the resolved
+  tier), and **pulses** (`data-perf-pending`, respecting `prefers-reduced-motion`) while
+  a chosen tier is pending a reload.
+
+- **REQ-9** — The About → Debug panel surfaces device diagnostics from a single
+  `perfDiagnostics()` helper (so it never re-reads `navigator` itself): the resolved
+  Perf tier (with `(auto)`/`(forced)` suffix; testid `debug-perf-tier`), CPU cores,
+  device memory (`unknown` when unavailable), mobile-UA flag, and the active audio
+  profile — since v3 including the FX-cost fields:
+  `latencyHint · voices · fps · lookahead <ms>ms · IR ≤<s>s · oversample on|off`.
+
+- **REQ-10** — No-op for capable devices on default `auto`: a strong/medium device
+  builds the engine with `latencyHint: 'interactive'` and 8 voices, exactly as before.
+
 - **REQ-11** — (v3) Weak-tier FX-cost reductions, threaded via `EngineOptions`:
   - `scheduleAheadS` widens the transport look-ahead horizon
     ([transport](transport.md)): weak 0.2 s absorbs slow wakeups on throttled
@@ -108,6 +151,7 @@ differ only by live-applied scope fps + fftSize).
     `'2x'` when drive > 0 — oversampling an identity curve is pure waste.
   Presets/songs are untouched by construction: none of these are `ParamBus`
   params, and every param's range/default is unchanged.
+
 - **REQ-12** — (v4/v5, halved in v6) `analyserFftSize` sets the `fftSize` of all
   three scope analysers (mono `analyser` + `analyserL`/`analyserR`). Tiers run
   **256 / 512 / 1024** (weak / medium / strong; 1024 is the `EngineOptions`
@@ -117,39 +161,6 @@ differ only by live-applied scope fps + fftSize).
   each channel's time-domain + frequency read buffers to match ([scope](scope.md)
   REQ-2). Because it applies live, it is **not** a boot-time field and is
   **excluded** from `sameAudioProfile` (so Medium↔Strong needs no reload).
-- **REQ-6** — Scope **fps** and **analyserFftSize** are applied **live**: `Scope`
-  takes `{ fps }` and exposes `setFps(fps)` + `setFftSize(n)`. Changing tiers updates
-  the scope frame rate and FFT size immediately (no reload). fps throttling is
-  timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw every
-  frame), correct on high-refresh displays. The scope always pauses its redraw loop
-  while the tab is hidden (`visibilitychange`). Note: the
-  [motion sequencer](motion-sequencer.md)'s write loop also throttles to the
-  profile `fps`, but it reads it **once at boot** (`EngineOptions.motionFps`) —
-  a tier change updates it on reload only (accepted: it is a cost cap, not a
-  visual). Being a cost cap and not a visual is also why that loop does **not**
-  pause while the tab is hidden the way the scope does: the same `fps` governs its
-  worker-backed hidden-document driver, so automation runs at one rate either way
-  (motion-sequencer REQ-20).
-- **REQ-7** — The canvas **drop-shadow is removed for all tiers** (it was the v1
-  perf-only "lightening"; now a baseline cost cut everywhere). Wave and Spectrum draw
-  with no `shadowBlur`/`shadowColor`.
-- **REQ-8** — A header "Perf" button opens a modal with an **Auto / Weak / Medium /
-  Strong** control; changing it persists immediately, applies fps live, and shows a
-  "reload to apply" hint + button only when the new choice crosses an **audio**
-  boundary (`!sameAudioProfile(resolveTier(pref), bootTier)`) — so Medium↔Strong never
-  asks for a reload. A status line states the resolved tier on this device. The button
-  itself carries an at-a-glance **tier colour** (`data-perf-tier`): **weak = red**,
-  **medium = amber**, **strong = green** (shown even under Auto, reflecting the resolved
-  tier), and **pulses** (`data-perf-pending`, respecting `prefers-reduced-motion`) while
-  a chosen tier is pending a reload.
-- **REQ-9** — The About → Debug panel surfaces device diagnostics from a single
-  `perfDiagnostics()` helper (so it never re-reads `navigator` itself): the resolved
-  Perf tier (with `(auto)`/`(forced)` suffix; testid `debug-perf-tier`), CPU cores,
-  device memory (`unknown` when unavailable), mobile-UA flag, and the active audio
-  profile — since v3 including the FX-cost fields:
-  `latencyHint · voices · fps · lookahead <ms>ms · IR ≤<s>s · oversample on|off`.
-- **REQ-10** — No-op for capable devices on default `auto`: a strong/medium device
-  builds the engine with `latencyHint: 'interactive'` and 8 voices, exactly as before.
 
 ## Technical design
 
@@ -188,7 +199,7 @@ createPerfSettingsButton(opts?: { onTierPreview?: (t: PerfTier) => void }): HTML
   # modal testids: perf-mode[-auto|weak|medium|strong], perf-status,
   # perf-reload-hint, perf-reload; button: data-perf-tier, data-perf-pref, data-perf-pending
 
-# src/ui/components/about.ts
+# src/ui/components/about-debug.ts
 buildDebugSection(...)                           # adds debug-perf-tier + cores/mem/mobile/profile rows
 ```
 
@@ -270,6 +281,7 @@ Scenario: The pref is not a sound parameter
   Given the pref is changed
   Then no ParamBus param changes and no preset/song captures it
   And it persists under websynth.perf (legacy on/off migrate to weak/strong)
+# pinned by: tests/state/perf-mode.test.ts (the pref is not a sound parameter)
 
 Scenario: Debug panel reports the detected tier and raw signals
   Given the About modal is open

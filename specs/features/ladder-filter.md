@@ -59,7 +59,8 @@ frequencies. The on-screen value is still shown in Hz for the user.
   `envAmount` (bipolar semitone depth).
 - **REQ-2** — `cutoff` range `[30, 130]` note, default `90`; displayed in Hz but
   stored as a note number.
-- **REQ-3** — Changing any filter param updates **all 8 voices** live.
+- **REQ-3** — Changing any filter param updates **every voice in the pool** live
+  — `VOICE_COUNT` (8), or 5 on the `weak` performance tier.
 - **REQ-4** — Modulation (filter envelope, LFO) is **additive in semitone space**;
   cutoff must not be re-expressed in Hz anywhere in the audio path.
 - **REQ-5** — `LadderFilterNode.loadModule()` is awaited (in `Engine.init()`)
@@ -123,7 +124,7 @@ frequencies. The on-screen value is still shown in Hz for the user.
   plus an `abs`. The `s4` slot is gone; the carry replaces it exactly.
   Output is **bit-identical** (same operands, same order), which is the
   requirement, not a nicety: this is the only always-on per-sample cost that
-  scales with polyphony (8 voices, one channel each — REQ-9), so it is tempting
+  scales with polyphony (up to 8 voices, one channel each — REQ-9), so it is tempting
   to keep shaving — and the spec's promise that low-level/low-resonance response matches
   the linear ladder, hence that existing presets are preserved, depends on the
   recurrence not drifting. `sat(0) === 0`, so REQ-10's zero-the-state on
@@ -188,7 +189,7 @@ that works at `min = 0` (`exp` requires `min > 0`).
 ```yaml
 1_registry:  src/state/params.ts  -> registerDefaults()   # the filter.* ParamDefs
 2_engine:    src/audio/engine.ts  -> subscribeParams()
-   filter.cutoff    -> all((v, x) => v.setFilterCutoff(x))      # all() fans to 8 voices
+   filter.cutoff    -> all((v, x) => v.setFilterCutoff(x))      # all() fans to the whole pool
    filter.resonance -> all((v, x) => v.setFilterResonance(x))
    filter.drive     -> all((v, x) => v.setFilterDrive(x))
    filter.envAmount -> all((v, x) => v.setFilterEnvAmount(x))   # semitone depth

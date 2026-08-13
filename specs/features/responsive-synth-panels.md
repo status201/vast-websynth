@@ -46,10 +46,13 @@ before. `space-evenly` on the flex row (rather than a rigid grid) keeps the
 
 ## Requirements
 
-- **REQ-1** — The 4-knob synth panels — **SUB / UNI**, **AMP ENV**,
-  **FILTER ENV** — lay their knobs out via a shared `.quad` grid, not stacked
-  `row()`s and not flex-wrap. (**FILTER** was one of them until it grew to six
-  knobs; it now uses `.hex` — REQ-6.)
+- **REQ-1** — The 4-knob synth panels — **SUB / UNI** and **AMP ENV** — lay their
+  knobs out via a shared `.quad` grid, not stacked `row()`s and not flex-wrap.
+  Two panels have since outgrown it and kept the same idea under their own class:
+  **FILTER** at six knobs uses `.hex` (REQ-6), and **FILTER ENV** at five —
+  A/D/S/R plus `filter.velAmount` (VEL) — uses `.quint`, whose last child spans
+  the row above 1280px (A D / S R / VEL, deliberately centred rather than ragged)
+  and stops spanning on the reflow, where five fit one row.
 - **REQ-2** — **Above 1280px** (the 8-column `.main` grid, narrow panels) `.quad`
   is a **2-column** grid → the knobs render as a **2×2** block. Row-major fill
   preserves each panel's pairing (SUB/UNI: S.OCT/S.LVL over UNISON/SPREAD;
@@ -109,12 +112,13 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
 ```
 
 - **SUB / UNI** and **FILTER** each collapse their two `row()` calls into one
-  `row([...four knobs], styles.quad!)` (SUB/UNI keeps its `sub.wave` Segmented
-  above the row unchanged).
-- **AMP ENV** and **FILTER ENV** pass `styles.quad!` to their existing single
-  `row(...)`.
+  `row([...], styles.quad!)` / `row([...], styles.hex!)` (SUB/UNI keeps its
+  `sub.wave` Segmented above the row unchanged).
+- **AMP ENV** passes `styles.quad!` and **FILTER ENV** `styles.quint!` to their
+  existing single `row(...)`.
 - **OSC 1**, **OSC 2**, **MIXER** (3 knobs) and **LFO** (2 knobs) pass
-  `styles.spread!` to their existing `row(...)` (REQ-5).
+  `styles.spread!` to their existing `row(...)` (REQ-5). The LFO's is in
+  `src/ui/panels/lfo-panel.ts`, not `app.ts`.
 
 ### Layer touchpoints & ordering
 
@@ -146,15 +150,26 @@ function row(children: HTMLElement[], extraClass?: string): HTMLElement {
 
   `.hex` (REQ-6) is the same shape with three columns as its base, plus the one
   `min-width` rule in the file — the wide end is otherwise unbroken, since
-  `.main` stays 8 columns above 1280px and panels just grow:
+  `.main` stays 8 columns above 1280px and panels just grow. `.quint` (REQ-1) is
+  `.quad`'s two columns with the odd fifth child spanning, undone on the reflow:
 
   ```css
   .hex { grid-template-columns: repeat(2, minmax(0, 1fr)); }          /* 1281–1629 */
   @media (min-width: 1630px) { .hex { repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 1280px) { .hex { repeat(3, minmax(0, 1fr)); } }
+
+  .quint { grid-template-columns: repeat(2, minmax(0, 1fr)); }        /* A D / S R / VEL */
+  .quint > *:last-child { grid-column: 1 / -1; }
+  @media (max-width: 1280px) {
+    .quint { repeat(5, minmax(0, 1fr)); }
+    .quint > *:last-child { grid-column: auto; }
+  }
   ```
-- `src/ui/app.ts` — the `row()` helper + the eight panel call sites (three
-  `.quad`, one `.hex`, four `.spread`). No other construction changes.
+- `src/ui/app.ts` — the `row()` helper + seven `panel()` call sites: two `.quad`
+  (SUB/UNI, AMP ENV), one `.hex` (FILTER), one `.quint` (FILTER ENV) and three
+  `.spread` (OSC 1, OSC 2, MIXER). The eighth faceplate panel, **LFO**, is built
+  by `buildLfoPanel` through `createTabbedPanel` and carries the fourth
+  `.spread`. No other construction changes.
 
 ### Persistence
 
@@ -162,25 +177,44 @@ None. Pure layout; no state, params, or audio touched.
 
 ## Scenarios (BDD)
 
+> Every claim here is about *rendered geometry at a given viewport width*, which
+> jsdom cannot measure and which a screenshot test would pin to a font stack
+> rather than to the rule. `e2e/responsive-panels.spec.ts` measures it instead:
+> it recovers each panel's rows from the knob testids grouped by `offsetTop`
+> (panels carry no testid of their own), so the assertion is the row *shape*,
+> never a class name or a pixel image. REQ-7 is a measurement there too, not an
+> eyeball — label ink as `centre ± scrollWidth/2`, swept 360-2560px.
+
 ```gherkin
 Scenario: 4-knob panels are a single row on a tablet
   Given the app is open at an 820px-wide viewport
   Then the SUB / UNI knobs (S.OCT, S.LVL, UNISON, SPREAD) share one row
-  And the FILTER knobs (CUTOFF, RESO, DRIVE, ENV) share one row
+  And the FILTER ENV knobs (A, D, S, R, VEL) share one row — .quint's span is undone
+  And the six FILTER knobs (CUTOFF, RESO, SHAPE, DRIVE, ENV, KEYTRK) render 3x2
+# pinned by: e2e/responsive-panels.spec.ts (the wide panels each collapse to a
+#            single row on a tablet)
 
 Scenario: 4-knob panels are a 2x2 block on a wide desktop
   Given the app is open at a 1440px-wide viewport
   Then the SUB / UNI knobs render as a 2x2 block
   And the layout stays 2x2 (never 3+1) at 1920px
+# pinned by: e2e/responsive-panels.spec.ts (4-knob panels are a 2x2 block on the
+#            desktop, never 3+1 — swept 1281/1440/1920/2560px)
 
 Scenario: 3-knob panels spread across the widened panel on a tablet
   Given the app is open at an 820px-wide viewport
   Then the MIXER knobs (NOISE, GLIDE, DRIFT) are distributed evenly across the panel
   And they are not clustered in the centre with a tight gap
+# pinned by: e2e/responsive-panels.spec.ts (3-knob rows spread on a tablet …)
 
 Scenario: 3-knob panels stay centred on a narrow desktop panel
   Given the app is open at a 1440px-wide viewport
   Then the OSC 1 knobs stay a centred cluster (the .spread modifier is inert)
+  And the claim is about the modifier, not the row count: an 8-column panel is
+    ~141px wide there, so the flex row wraps 2+1 and each row is centred at the
+    row's own 4px gap (one row of three from ~1630px, where the panel fits it)
+# pinned by: e2e/responsive-panels.spec.ts (… and stay a centred cluster on the
+#            desktop — asserted per rendered row at 1440px and 1920px)
 
 Scenario: The 6-knob FILTER panel takes each of its three shapes (REQ-6)
   Given the app is open at a 1920px-wide viewport
@@ -190,39 +224,58 @@ Scenario: The 6-knob FILTER panel takes each of its three shapes (REQ-6)
   When the viewport narrows to 820px
   Then they render 3 across in 2 rows again
   And no row is ever a 4+2 or 5+1 split
+# pinned by: e2e/responsive-panels.spec.ts (the 6-knob FILTER panel takes each of
+#            its three shapes — including the 1629/1630 and 1280 thresholds)
 
 Scenario: No knob's label ever reaches its neighbour (REQ-7)
   Given the app is open at any width from 360px to 2560px
   Then for every pair of knobs sharing a row in a panel
   And measuring each label's ink as its centre plus/minus scrollWidth/2
   Then the two extents do not overlap
+  Except in SUB / UNI below 768px, where the 4-up cell is narrower than its
+    six-character labels — the pre-existing collision in "Open questions"
+    below, carried in the test as a bounded exception scoped to that one panel
+    so it is stated rather than skipped
+# pinned by: e2e/responsive-panels.spec.ts (no knob label ever reaches its
+#            neighbour)
 ```
 
 ## Tests & verification
 
-- Typecheck: `npm run typecheck` (confirms `styles.quad` / `styles.hex` compile).
+- E2E: `e2e/responsive-panels.spec.ts` — `npm run e2e`. Row shapes at
+  820/1281/1400/1440/1629/1630/1920/2560px (viewports changed *within* a test:
+  each boot is a full AudioContext), plus REQ-7's label-ink sweep.
+- Typecheck: `npm run typecheck` (confirms `styles.quad` / `.hex` / `.quint` compile).
 - Manual (`npm run dev`), device-emulate / resize:
-  - **820px** (iPad Air): SUB/UNI, AMP ENV, FILTER ENV each show 4 knobs on one
-    row; FILTER shows 3×2.
-  - **~1280px**: still one row (4-column `.main`); FILTER still 3×2.
-  - **1440px**: clean 2×2 (no 3+1); FILTER 2×3.
+  - **820px** (iPad Air): SUB/UNI and AMP ENV show 4 knobs on one row, FILTER ENV
+    shows 5 on one row; FILTER shows 3×2.
+  - **~1280px**: still one row each (4-column `.main`); FILTER still 3×2.
+  - **1440px**: `.quad` is a clean 2×2 (no 3+1); FILTER ENV is A D / S R / VEL
+    with VEL centred across the row; FILTER 2×3.
   - **1630px and up**: FILTER flips to 3×2 (REQ-6).
 - REQ-7 is a **measurement**, not an eyeball: at each width, read every knob's
   label extent as `centre ± scrollWidth/2` and assert no two in a row overlap.
   Comparing bounding boxes instead gives false positives — the dial's glow ring
-  has a negative inset and deliberately bleeds past the box.
-- Optional e2e (`e2e/`): at an 820px viewport assert `knob-sub.octave` and
-  `knob-unison.detune` share the same `offsetTop`.
+  has a negative inset and deliberately bleeds past the box. (This is what the
+  e2e does; the manual pass is for judging whether the result *looks* right.)
 
 ## Open questions / future
 
-- **`UNISON` / `SPREAD` labels touch at 360px** (SUB / UNI, `.quad` 4-up). The
-  knob box is a fixed `--knob-size + 8px` — 44px at that breakpoint — while a
-  six-character label at 9px/0.12em inks about 61px, so the label bleeds past
-  its box and, in a 4-up cell that narrow, meets its neighbour by ~4.5px.
-  Measured, pre-existing, and the only such collision in the app. The fix is a
-  label-width rule (ellipsis, tighter tracking, or shorter words), not a column
-  count — but it belongs to whoever owns knob typography, not to a filter change.
+- **SUB / UNI labels touch at phone widths** (`.quad` 4-up). The knob box is a
+  fixed `--knob-size + 8px` — 44px at that breakpoint — while a six-character
+  label (`S.LVL`, `UNISON`, `SPREAD`) at 9px/0.12em inks past it, so in a 4-up
+  cell that narrow it meets its neighbour. It is the only such collision in the
+  app: every other panel is clear at every width from 360px to 2560px.
+
+  **How much** depends on the font stack, which is why the test bounds it rather
+  than pinning a figure. `UNISON`/`SPREAD` overlap ~5px at 360px on Windows and
+  ~11.5px on the Linux CI runner, where `S.LVL`/`UNISON` also meets (~3.5px) and
+  on Windows does not. `e2e/responsive-panels.spec.ts` therefore excuses only
+  this panel, only below 768px, and only up to 20px — so a real regression still
+  fails while a font difference does not. Closing this question means deleting
+  that block. The fix is a label-width rule (ellipsis, tighter tracking, or
+  shorter words), not a column count — but it belongs to whoever owns knob
+  typography, not to a filter change.
 
 - A future panel needing a knob count other than 4 or 6 makes a third hand-rolled
   grid class; at that point generalise to a count-parameterised one rather than

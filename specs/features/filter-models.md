@@ -58,7 +58,9 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
 - **REQ-1** — `filter.model` is a discrete param, `labels: FILTER_MODEL_LABELS =
   ['ladder', 'poly']`, range `[0, 1]`, **default `0`**. The list is
   **append-only** — an index here is a stored value in every preset, song and
-  share link. Changing it updates all 8 voices live.
+  share link. Changing it updates **every voice in the pool** live (`all(...)`).
+  The pool is `VOICE_COUNT` (8) on the medium/strong tiers and 5 on `weak` —
+  see [performance-mode](performance-mode.md).
 - **REQ-2** — Both models live in **one worklet**
   (`public/worklets/ladder-filter.js`), selected by a **k-rate `model`
   AudioParam**, not by swapping nodes

@@ -30,7 +30,7 @@ storage and reloads the app into a pristine, factory-seeded state.
 
 ## Requirements
 
-- **REQ-1** — The About modal (`ui/components/about.ts`) shows a full-width
+- **REQ-1** — The About modal (`ui/components/about-modal.ts`) shows a full-width
   **"Restore to Factory Settings"** button placed **below the Keyboard
   Shortcuts grid and above the Debug section header** — both neighbours
   unchanged by the v15 About rework, which folds the shortcuts grid
@@ -38,23 +38,21 @@ storage and reloads the app into a pristine, factory-seeded state.
   `data-testid="factory-reset"` and is styled as a destructive action (the
   dialog module's `danger` recolour composed onto the shared switch button
   style).
+
 - **REQ-2** — Clicking the button opens the shared styled `confirmDialog`
   ([dialog](dialog.md)) with `danger: true` — never the native `confirm()`.
   The message asks **"Are you sure?"** and states what is erased *and that the
   app will reload*; below it, rendered in *italics*, the detail line with curly
   quotes: **“Everything not saved will be lost.”** (the classic Nintendo exit
   dialog). This uses `ConfirmOptions.detail` (dialog spec v2).
+
 - **REQ-3** — On confirm, `restoreFactorySettings()` (`state/factory-reset.ts`)
   clears **both** `localStorage` and `sessionStorage` for the whole origin
   (each `.clear()` in its own try/catch, per the `websynth.*` storage
   convention) **and** the IndexedDB sampler-clip store
   ([sample-persistence](sample-persistence.md) REQ-9), and then reloads the
   page. Cancel / Escape / backdrop-click leaves all storage untouched.
-- **REQ-7** — The clip wipe is asynchronous (IndexedDB has no synchronous
-  clear), so `restoreFactorySettings` returns a promise and the About caller
-  is `void`-ed. It is awaited but **capped at 500 ms**: a wedged or absent
-  IndexedDB delays the reload briefly at worst, never blocks it. The store's
-  own `clear()` never rejects, so the race guards only a hang.
+
 - **REQ-4** — The reload is **mandatory**, not cosmetic: clearing storage does
   not reset live in-memory state (`ParamBus` values, pattern banks, the preset
   index already read at boot), and several settings are boot-time-only
@@ -62,15 +60,23 @@ storage and reloads the app into a pristine, factory-seeded state.
   `ensureFactoryPresets()` re-seeds the factory presets and every `websynth.*`
   consumer falls back to its default — the actual factory state. The user is
   informed via the confirm message (REQ-2) *before* the reload happens.
+
 - **REQ-5** — The reload call is **injectable** (`reload: () => void = () =>
   location.reload()`) so the helper is unit-testable under jsdom, where
   `location.reload` is unimplemented. No production caller passes an override.
+
 - **REQ-6** — **Stacked-modal Escape**: with the confirm open on top of the
   About modal, Escape closes only the confirm; the About modal stays open.
   About's own capture-phase Escape handler (registered first, and calling
   `stopImmediatePropagation`) would otherwise starve the dialog's handler and
   close the wrong layer — it must **yield** while any other (non-hidden)
   `Modal` backdrop is visible.
+
+- **REQ-7** — The clip wipe is asynchronous (IndexedDB has no synchronous
+  clear), so `restoreFactorySettings` returns a promise and the About caller
+  is `void`-ed. It is awaited but **capped at 500 ms**: a wedged or absent
+  IndexedDB delays the reload briefly at worst, never blocks it. The store's
+  own `clear()` never rejects, so the race guards only a hang.
 
 ## Technical design
 
@@ -87,7 +93,7 @@ restoreFactorySettings(reload?: () => void): Promise<void>
 ### Layer touchpoints & ordering
 
 ```yaml
-src/ui/components/about.ts:
+src/ui/components/about-modal.ts:
   buildModal: card children order ->            # v3: tourBtn + the folded key list
     [brand, meta, tourBtn, shortcuts sec, layout row, keys,
      FACTORY-RESET BUTTON, debug.header, debug.body, closeBtn]

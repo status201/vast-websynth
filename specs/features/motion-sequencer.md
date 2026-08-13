@@ -233,8 +233,11 @@ The tab sits between Sampler and Song.
   and unlike REQ-4's axes there is no global fallback to inherit from (there is no
   pad behind these tracks). `copyMotionBank` copies the tracks *and* their param
   choices, so building one bank and copying it does not mean re-picking params.
-- **REQ-14** — **Tracks share the XY lane's curve semantics exactly**: slide/step
-  from `motion.slide`, set steps are anchors, a track with **zero anchors writes
+- **REQ-14** — **Tracks share the XY lane's curve semantics**, but each track
+  reads its **own** slide: `motion.t<i>.slide` via `setTrackSlide`, not the XY
+  lane's `motion.slide` (REQ-2 owns that split, added in v5 —
+  `frameTracks` passes `trackModes[t]`, never `this.mode`). Otherwise identical:
+  set steps are anchors, a track with **zero anchors writes
   nothing** (REQ-3), and the bar-line **cross-bank carry** of REQ-2b applies with
   the same usability gate — a neighbour bar that rests, whose same-index track has
   no anchors, or whose same-index track drives a **different param**, is unusable,

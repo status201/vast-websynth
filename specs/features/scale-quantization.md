@@ -45,7 +45,7 @@ no allocation on the tick path).
 
 ## Requirements
 
-- **REQ-1 (the key is two params, inert by default)** — `scale.root` (0..11) and
+- **REQ-1** (the key is two params, inert by default) — `scale.root` (0..11) and
   `scale.type` (index into `SCALE_LABELS`) are ordinary discrete `ParamBus` params.
   `scale.type` index **0 is `chromatic`**, which is a true no-op, so every preset,
   song and demo predating this feature loads without the keys and sounds
@@ -53,7 +53,7 @@ no allocation on the tick path).
   in `file.params` like any scalar, so **no `SONG_VERSION` bump is required** and
   `serialize.ts`, the JSON schema and `llms.txt` are untouched.
 
-- **REQ-2 (nearest tone, ties break downward)** — a note not in the scale snaps to the
+- **REQ-2** (nearest tone, ties break downward) — a note not in the scale snaps to the
   nearest scale tone by absolute semitone distance. When two tones are equidistant
   (C♯ in C major is 1 from C and 1 from D) the **lower** wins. This is a musical
   judgement, not an accident of implementation — it matches the convention on hardware
@@ -67,7 +67,7 @@ no allocation on the tick path).
   scales (pentatonic, blues), which is where the "nearest" half of this rule earns
   its keep.
 
-- **REQ-3 (idempotent, and bounded)** — `q(q(n)) === q(n)`: a note already in the scale
+- **REQ-3** (idempotent, and bounded) — `q(q(n)) === q(n)`: a note already in the scale
   maps to itself. This is what lets [chord-tools](chord-tools.md) emit diatonic notes
   that pass through the live filter untouched, so the two features cannot fight. The
   result is always within `MIDI_NOTE_MIN..MIDI_NOTE_MAX`; near the extremes, where the
@@ -75,7 +75,7 @@ no allocation on the tick path).
   clamped, never dropped, for the same reason `transposeNote` clamps
   ([sequencer](sequencer.md) REQ-16, [untrusted-input](untrusted-input.md) REQ-4).
 
-- **REQ-4 (exactly three trigger sites; the port stays dumb)** — quantization is applied
+- **REQ-4** (exactly three trigger sites; the port stays dumb) — quantization is applied
   where each note source resolves its pitch, **not** inside `Engine.playNote`. The three
   are the [sequencer](sequencer.md)'s `tickTrack`, the [arpeggiator](arpeggiator.md)'s
   pool, and the keyboard/MIDI passthrough in `Engine`. `SynthOutput`
@@ -84,12 +84,12 @@ no allocation on the tick path).
   The drum machine and sampler have their own unpitched trigger paths and are
   **unaffected** — quantizing a kick is meaningless.
 
-- **REQ-5 (transpose first, then quantize)** — in the sequencer the arrangement slot's
+- **REQ-5** (transpose first, then quantize) — in the sequencer the arrangement slot's
   transpose is applied *before* quantization, so a `+5` bar lands back in key instead of
   leaving it. This ordering is the whole musical point of the feature (see Background);
   reversing it would preserve the chromatic drift it exists to remove.
 
-- **REQ-6 (resolve once, release through the stored note)** — `Polyphony.releaseNote`
+- **REQ-6** (resolve once, release through the stored note) — `Polyphony.releaseNote`
   looks up `heldNotes` **keyed by the note number passed in**, so a note-on that was
   quantized and a note-off that re-derives the mapping after the key changed would miss
   the lookup and **strand the voice forever**. The sequencer and arp already obey this
@@ -100,7 +100,9 @@ no allocation on the tick path).
   holding a chord** without stranding a voice. The map is bounded at 128 keys × ≤4
   notes and is cleared by panic / `killAll`.
 
-- **REQ-7 (cheap enough for the tick path)** — the mapping is a 128-entry `Int8Array`
+- **REQ-7** (cheap enough for the tick path) — the mapping is a 128-entry `Uint8Array`
+  (**not** `Int8Array`: 127 is exactly `Int8Array`'s ceiling, so it would work today
+  and silently wrap the day `MIDI_NOTE_MAX` moved)
   rebuilt only when `scale.root` or `scale.type` changes, so a note costs one array
   index and allocates nothing. While `scale.type` is `chromatic` the table is `null` and
   `get()` early-returns the input, mirroring `transposeNote`'s
@@ -108,7 +110,7 @@ no allocation on the tick path).
   [runtime-performance](runtime-performance.md) REQ-6 — cache the derivation, invalidate
   it from the store's existing change stream, never recompute per iteration.
 
-- **REQ-8 (snap to scale is the destructive opt-in)** — the live filter never rewrites
+- **REQ-8** (snap to scale is the destructive opt-in) — the live filter never rewrites
   stored notes, so turning the scale off restores the original pattern exactly. A
   separate explicit **SNAP** action in the [sequencer](sequencer.md) panel bakes the
   current scale into the edit bank's stored notes across all four tracks, as **one**
@@ -117,7 +119,7 @@ no allocation on the tick path).
   while `scale.type` is `chromatic`, and the control says so rather than silently doing
   nothing.
 
-- **REQ-9 (the key is drawn, not just named, v2)** — the KEY tab carries a **two-octave
+- **REQ-9** (the key is drawn, not just named, v2) — the KEY tab carries a **two-octave
   keyboard map** showing which notes the current settings actually admit. Three
   dropdowns describe a key; a keyboard *shows* it, and where the semitones fall is the
   part that teaches — so the map keeps real **piano topology** (seven white slots per
@@ -164,9 +166,9 @@ no allocation on the tick path).
 src/utils/music.ts:            # pure — imports nothing from audio/, state/ or ui/
   NOTE_LABELS: string[12]                          # 'C' .. 'B'
   SCALE_LABELS: string[]                           # APPEND-ONLY; index 0 === 'chromatic'
-  buildQuantizeTable(root, scale): Int8Array|null  # 128 entries; null when chromatic
+  buildQuantizeTable(root, scale): Uint8Array|null # 128 entries; null when chromatic
   scaleTones(root, scale): number[]                # pitch classes, ascending from root
-  diatonicChord(rootNote, root, scale, size): number[]   # see chord-tools.md
+  diatonicChord(anchor, root, scale, degrees, base=0): number[]  # see chord-tools.md
 
 src/audio/transport/scale-quantizer.ts:
   ScaleQuantizer:

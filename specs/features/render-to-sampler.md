@@ -35,12 +35,12 @@ the loop drifts against the grid and is unusable.
 
 ## Requirements
 
-- **REQ-1 (exact length)** — The rendered buffer is exactly
+- **REQ-1** (exact length) — The rendered buffer is exactly
   `round(16 × sixteenthDuration × sampleRate)` samples, where `sixteenthDuration`
   is read from the `Clock` when the render pass starts. Swing does not change
   this: the clock's grid accumulator is never offset by swing (swing only
   displaces the *emitted* time of odd 16ths within the bar).
-- **REQ-2 (exact start)** — The buffer's first sample corresponds exactly to a
+- **REQ-2** (exact start) — The buffer's first sample corresponds exactly to a
   bar boundary of the transport grid. Achieved by frame-tagging capture: the
   recorder worklet posts `currentFrame` with each chunk;
   `startSample = round(step0Time × sampleRate) − firstCapturedFrame` maps the
@@ -49,22 +49,26 @@ the loop drifts against the grid and is unusable.
   `firstCapturedFrame ≤ startSample`. The `0` is **explicit**: since
   [transport](transport.md) REQ-7 a plain `start()` resumes from the user's cue,
   and this capture's origin is the absolute `step === 0`.
-- **REQ-3 (two-pass loop bake)** — The bank plays **twice**; the kept bar is the
+- **REQ-3** (two-pass loop bake) — The bank plays **twice**; the kept bar is the
   **second** (`[step0 + barSamples, step0 + 2·barSamples)`), so bar 1's
   delay/reverb/release tail is baked into the loop's start and the sample wraps
   seamlessly.
-- **REQ-4 (synth-only, post-FX tap)** — Capture taps the synth FX chain output
-  (`reverb.output`, before `preMaster`) via a dedicated second zero-output
-  `RecorderNode`. Drums/sampler live on other buses and are never captured; they
+- **REQ-4** (synth-only, post-FX tap) — Capture taps the synth channel output at
+  `synthPan` — post-reverb, post-pan, pre-`preMaster` — via a dedicated second
+  zero-output `RecorderNode`. The chain is `reverb → synthPan → preMaster`, so
+  the tap sits downstream of the whole insert chain *and* of the one shared
+  stereo panner ([architecture](../architecture.md), [lfo](lfo.md) REQ-13):
+  a rendered bank carries the same width the live synth has.
+  Drums/sampler live on other buses and are never captured; they
   keep playing audibly during the render (monitoring).
-- **REQ-5 (forced preconditions, restored after)** — For the duration of the
+- **REQ-5** (forced preconditions, restored after) — For the duration of the
   render the engine forces: sequencer enabled, seq lane audible (mute/solo
   overridden at the `LaneMixer`), and the **seq chain lane disabled** — an
   enabled chain advances banks per bar, which would make pass 2 a different
   bank; a disabled lane's play bank follows the edit bank, which is exactly the
   bank being rendered. All three are restored from live state (`ParamBus`
   values / saved chain) when the render ends, success or failure.
-- **REQ-6 (guards)** — A render is refused while another render or a
+- **REQ-6** (guards) — A render is refused while another render or a
   `RecorderController` capture is in flight. The UI additionally disables the
   action when the edit bank has no active steps and when MIDI sync mode is
   `slave` (a slave does not own the clock, and estimator BPM writes would break
@@ -72,20 +76,20 @@ the loop drifts against the grid and is unusable.
   ([transport-position](transport-position.md) REQ-6) — the crop is pure frame
   arithmetic off `step === 0` and `stopAtStep`, so a jump would truncate or
   unbound it.
-- **REQ-7 (slot load contract)** — On success the buffer lands in the chosen
+- **REQ-7** (slot load contract) — On success the buffer lands in the chosen
   slot via the settled pair `SamplerMachine.setBuffer(slot, buf)` +
   `PatternStore.setSampleName(slot, name)`, name `seq-<bank letter>-<bpm>bpm`.
   Like every sampler buffer, the audio is **not** persisted — re-render (the
   seq bank *is* persisted in the song) or save a file from the slot's ✎ editor.
-- **REQ-8 (anti-click fades)** — A short fade (`RENDER_FADE_MS = 3`, ~128
+- **REQ-8** (anti-click fades) — A short fade (`RENDER_FADE_MS = 3`, ~128
   samples at 44.1 kHz) is applied at both crop boundaries via `buffer-dsp`'s
   `fadeIn`/`fadeOut`; it never changes the buffer length.
-- **REQ-9 (UI)** — The Sequencer tab gains an "Import into sampler" section: a
+- **REQ-9** (UI) — The Sequencer tab gains an "Import into sampler" section: a
   slot dropdown (`S1…S8 — <name | empty>`, refreshed on sample-meta changes,
   testid `seq-import-slot`) and a Render button (testid `seq-import-render`)
   that shows a busy state while rendering. The transport is left stopped when
   the render completes (same convention as Export Song).
-- **REQ-10 (help badge, v2)** — The Render button carries an info badge
+- **REQ-10** (help badge, v2) — The Render button carries an info badge
   ([onboarding](onboarding.md) REQ-3/REQ-15): topic `seq.render`, anchored to
   `seq-import-render`. Nothing on screen explains the section, and the button's
   most surprising behaviour — the **two-pass** bake of REQ-3 — makes it look
@@ -121,8 +125,9 @@ constants: RENDER_BARS = 2, RENDER_TAIL_MS = 350, RENDER_FADE_MS = 3
 ### Layer touchpoints & ordering
 
 ```yaml
-graph: reverb.output -> bankRender RecorderNode (zero-output sink; fan-out
-  alongside the existing reverb.output -> preMaster edge)
+graph: synthPan -> bankRender RecorderNode (zero-output sink; fan-out alongside
+  the existing synthPan -> preMaster edge). Chain: voiceBus -> synthFx -> reverb
+  -> synthPan -> preMaster, so the tap is post-FX AND post-pan.
 engine: Engine.init() creates the node + controller after the transport modules;
   the prepare() closure lives in Engine so LaneMixer / private state never leaks
   into the controller (ADR-008/009)

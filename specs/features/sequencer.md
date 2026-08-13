@@ -193,7 +193,7 @@ StepSequencer:  # src/audio/transport/sequencer.ts
   setMuted(muted)        # DJ mute: stop triggering, keep advancing
   setTrackMuted(track, muted)   # v3, REQ-10
   setPolyphonic(poly)           # v3, REQ-9 — gates tracks 2..4
-  onStep(fn) / onSeqNote(fn) -> unsubscribe   # playhead + note viz
+  onStep(fn) / onNote(fn) -> unsubscribe      # playhead + note viz
   # onNote's releaseAt is the LAST sub-hit's gate end (v5) — same value
   # lastReleaseAt carries, so a ratcheted step's key viz outlives its first sub-hit
   # reads patterns.seqBank(arrangement.seqPlayBank) each tick via clock.onTick

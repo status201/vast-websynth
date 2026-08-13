@@ -41,12 +41,14 @@ the Import button, so canonical files, authoring-dialect files, and (via
   `http` was accepted by the original `https?` test, which made
   `#songUrl=http://192.168.1.1/…` a zero-click LAN probe from the victim's
   browser ([untrusted-input](untrusted-input.md) REQ-7).
+
 - **REQ-2** — `encodeSongPayload(json)` deflate-raws the UTF-8 bytes and
   base64url-encodes them. When the platform lacks Compression Streams
   (`hasCompression()` false, e.g. jsdom), it falls back to `'j:'` +
   base64url(utf8) — unambiguous because base64url never contains `:`.
   `decodeSongPayload` inverts both forms. Byte→binary-string conversion is
   chunked (no spread on large arrays).
+
 - **REQ-3** — At boot (`main.ts`, beside the launchQueue consumer) a present
   song link is decoded/fetched and driven through `UiBridge.importSongBytes` —
   the same one-import-path as the Import button and OS file launches
@@ -55,6 +57,26 @@ the Import button, so canonical files, authoring-dialect files, and (via
   the shared `alertDialog`, **never the native `alert()`** (v3 — it was `alert()`,
   which contradicted this requirement and put payload-derived text in browser
   chrome).
+
+- **REQ-4** — On a **successful** import the hash is consumed via
+  `history.replaceState(null, '', pathname + search)`; on failure the hash
+  stays in the address bar so the user can copy/inspect/retry it.
+  `SongPanel.importBytes` (and the `UiBridge` hook) therefore resolve to a
+  boolean success flag.
+
+- **REQ-5** — The export modal gains a **Copy Link** action (testid
+  `song-share-link`): `Song.capture` → `toJSON` → `encodeSongPayload` →
+  `buildShareUrl(origin, payload)` → clipboard via the shared
+  `copyText`/`flashCopied`. The action does not close the modal. It is
+  **disabled while the Project (.zip) kind is selected** (v2): a share URL
+  embeds only the song JSON and can never carry the project's sampler audio,
+  so offering it there would mislead — the disabled button's `title` explains
+  why and points back to Song (.json). Selecting Song (.json) re-enables it
+  and restores its normal tooltip.
+
+- **REQ-6** — `buildShareUrl` produces `<origin>/#song=<payload>`. Payloads are
+  base64url so they never need percent-encoding.
+
 - **REQ-7** — **A fetch needs consent (v3).** `#song=` carries its own payload —
   no network, no third party — so it keeps applying at boot, unprompted.
   `#songUrl=` first shows a `confirmDialog` naming the **target origin**;
@@ -67,27 +89,12 @@ the Import button, so canonical files, authoring-dialect files, and (via
   a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before the body is
   buffered. Without this, one link made any visitor's browser issue an
   attacker-chosen GET at page load.
+
 - **REQ-8** — **The payload is capped (v3).** `decodeSongPayload` inflates
   through `inflateRaw(bytes, MAX_SONG_JSON_BYTES)`, which throws **during** the
   read rather than after — deflate's ~1032:1 ratio otherwise lets an
   address-bar-sized hash expand to gigabytes ([untrusted-input](untrusted-input.md)
   REQ-2).
-- **REQ-4** — On a **successful** import the hash is consumed via
-  `history.replaceState(null, '', pathname + search)`; on failure the hash
-  stays in the address bar so the user can copy/inspect/retry it.
-  `SongPanel.importBytes` (and the `UiBridge` hook) therefore resolve to a
-  boolean success flag.
-- **REQ-5** — The export modal gains a **Copy Link** action (testid
-  `song-share-link`): `Song.capture` → `toJSON` → `encodeSongPayload` →
-  `buildShareUrl(origin, payload)` → clipboard via the shared
-  `copyText`/`flashCopied`. The action does not close the modal. It is
-  **disabled while the Project (.zip) kind is selected** (v2): a share URL
-  embeds only the song JSON and can never carry the project's sampler audio,
-  so offering it there would mislead — the disabled button's `title` explains
-  why and points back to Song (.json). Selecting Song (.json) re-enables it
-  and restores its normal tooltip.
-- **REQ-6** — `buildShareUrl` produces `<origin>/#song=<payload>`. Payloads are
-  base64url so they never need percent-encoding.
 
 ## Technical design
 
@@ -125,23 +132,30 @@ Scenario: A #song= link loads at boot
   When the app boots
   Then the song is applied (bus params reflect it)
   And the hash is cleared from the address bar
+# pinned by: e2e/song-link.spec.ts (a #song= canonical payload loads too)
 
 Scenario: An authoring-dialect payload works end-to-end
   Given a #song= payload encoding a websynth-song-author file
   When the app boots
   Then the expanded song is applied
+# pinned by: e2e/song-link.spec.ts (a #song= author-dialect payload loads at
+#            boot and clears the hash)
 
 Scenario: A bad payload leaves the hash intact
   Given a #song= payload that decodes to invalid JSON
   When the app boots
   Then the import-error dialog appears
   And the hash is NOT cleared
+# pinned by: e2e/song-link.spec.ts (a bad payload shows the import dialog and
+#            leaves the hash intact)
 
 Scenario: Copy Link puts a share URL on the clipboard
   Given the export modal is open
   When the user clicks Copy Link (song-share-link)
   Then the clipboard holds "<origin>/#song=<payload>"
   And decoding that payload round-trips the captured song JSON
+# pinned by: e2e/song-link.spec.ts (Copy Link puts a decodable share URL on the
+#            clipboard)
 
 Scenario: Copy Link is disabled for a Project (.zip) export (v2)
   Given the export modal is open with sampler audio loaded

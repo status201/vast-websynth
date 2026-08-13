@@ -63,7 +63,7 @@ instead of transcribing it from a phone screen.
 
 ## Requirements
 
-- **REQ-1** — A "Debug" section in the About modal (`ui/components/about.ts`,
+- **REQ-1** — A "Debug" section in the About modal (`ui/components/about-debug.ts`,
   `buildDebugSection`), **default-collapsed**, toggled via the shared
   `createCollapseToggle` and persisted under `localStorage['websynth.debug.about']`
   (same `websynth.*` + try/catch convention as `collapse-toggle.ts`). The whole header

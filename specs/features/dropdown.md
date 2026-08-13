@@ -308,8 +308,8 @@ Scenario: Selecting an option
 # pinned by: tests/ui/dropdown.test.ts
 
 Scenario: A long list carries a filter; a short one does not (v2, REQ-7)
-  Given a Dropdown with 20 options and another with 19
-  Then only the 20-option menu contains a `dropdown-filter` input
+  Given a Dropdown with 30 options and another with 29
+  Then only the 30-option menu contains a `dropdown-filter` input
   And the `{ filter }` option forces either answer regardless of count
 # pinned by: tests/ui/dropdown.test.ts
 
@@ -334,9 +334,9 @@ Scenario: Reopening starts from the whole list (v2, REQ-7)
 
 Scenario: setOptions across the threshold keeps the menu coherent (edge, v2)
   Given a filtered Dropdown
-  When setOptions is called with fewer than 20 options
+  When setOptions is called with fewer than FILTER_MIN_OPTIONS (30) options
   Then the filter row is removed and every new option renders
-  And calling it again with 20+ restores the row (the input is not a stale node)
+  And calling it again with 30+ restores the row (the input is not a stale node)
 # pinned by: tests/ui/dropdown.test.ts
 
 Scenario: Arrow keys walk the list, not just its first row (v3, REQ-8)

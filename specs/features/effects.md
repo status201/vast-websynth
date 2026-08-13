@@ -28,7 +28,8 @@ source:
   - src/audio/transport/drum-machine.ts # the per-track drive, same cache
   - src/state/params.ts
   - src/audio/engine.ts                 # holds synthFx/drumFx/samplerFx; wire + bind
-  - src/ui/app.ts / src/ui/panels/*
+  - src/ui/app.ts                       # the FX row + its panels
+  - src/ui/panels/*                     # per-machine FX groups
 ```
 
 The bypass-able insert effects on the three buses. The [compressor](compressor.md)

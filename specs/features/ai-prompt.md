@@ -13,7 +13,7 @@ related:
   - webrtc-sync
 source:
   - src/state/authoring-guide.ts          # buildAuthoringGuide + buildSongPrompt (pure, no song.ts)
-  - src/ui/components/ai-prompt.ts        # createAiPromptButton, buildModal (re-exports buildSongPrompt)
+  - src/ui/components/ai-prompt.ts        # createAiPromptButton (its ONLY export); buildModal is local
   - src/ui/clipboard.ts                   # copyText / flashCopied (shared clipboard util)
   - src/ui/styles/modal.module.css        # .aiText / .aiBrief / .aiActions
   - src/ui/panels/song-panel.ts           # mounts the ✨ AI Prompt button in the io row
@@ -56,9 +56,11 @@ is ~40 lines. The prompt-building logic moved to the pure
   seeded only as `placeholder` text (a Rockit-style example). Its value is injected
   into a `SONG REQUEST` section at the top of the copyable prompt, updating **live**
   as the user types.
+
 - **REQ-2** — When the brief is empty/whitespace, `SONG REQUEST` shows a bracketed
   placeholder line (e.g. `[Describe the song you want — …]`) — **not** the example
   text. Copying without typing must never inject the example.
+
 - **REQ-3** — The prompt cites **both** published JSON Schemas as **absolute**
   URLs: `<origin>/schema/websynth-song-author.schema.json` (author dialect) and
   `<origin>/schema/websynth-song.schema.json` (canonical), where `<origin>` is
@@ -66,25 +68,37 @@ is ~40 lines. The prompt-building logic moved to the pure
   and is guarded so the module stays safe to import outside a browser (falls
   back to the bare path); `buildAuthoringGuide` also accepts an explicit
   `origin` for non-browser callers (the MCP server).
+
 - **REQ-4** — The prompt teaches the **authoring dialect as the recommended
   output**: a complete QUICKSTART example (valid, importable) plus the compact
   format reference lead the prompt; the canonical full form (TOP-LEVEL SHAPE,
   cell types, and the `…`-elided **EXAMPLE SHAPE** skeleton) is demoted to an
   appendix. The prompt text must **not** reference the modal's example buttons.
+
 - **REQ-5** — The PARAMS table (one line per `ParamBus` id with range/default/value
   map) and the NOTES/tips section are generated live and kept as the format
   reference; the modal's **Copy Example JSON** / **Download Example** buttons still
   return the full built-in "I Feel Love" demo. The NOTES include a tip that
   `drum.t{i}.model` swaps a track's voice (models 8–12 = conga/bongo/cowbell/
   clave/shaker — a percussion section; drum-machine.md REQ-11).
+
+- **REQ-6** — The modal card composes the base `.card` (height-capped to `86vh`,
+  internally scrollable) **with** the `.cardWide` width variant — the same
+  composition the reusable `Modal` helper uses. So on small/short viewports the card
+  fits the screen and scrolls internally; the title and every action (incl. Close)
+  stay reachable. On phones the prompt/brief textareas are shortened so the actions
+  come into reach with little scrolling.
+
 - **REQ-7** — The OUTPUT RULES are anti-give-up guardrails for weaker agents:
   respond with exactly ONE JSON object and no prose; a compact song is under
   ~80 lines; NEVER truncate or emit placeholders; if length is a concern,
   author 1–2 banks and repeat them via a chain.
+
 - **REQ-8** — `public/llms.txt` gives crawling agents the app intro, both format
   names + schema URLs, the grid dimensions and drum track names, and points at
   the in-app AI Prompt for the live PARAMS table (which is bus-generated and
   would drift if duplicated).
+
 - **REQ-9** — (v4) The modal is a **numbered three-step round trip**: *1 · Describe
   your song* (the brief), *2 · Copy this prompt into any AI agent* (the prompt +
   its Copy/example actions), *3 · Paste the reply here* — the embedded
@@ -93,12 +107,6 @@ is ~40 lines. The prompt-building logic moved to the pure
   (`onDone`) so the user sees what landed; a rejected one leaves the modal and the
   pasted text alone ([paste-import](paste-import.md) REQ-8). The Close button
   moves below the fragment, staying the card's last child.
-- **REQ-6** — The modal card composes the base `.card` (height-capped to `86vh`,
-  internally scrollable) **with** the `.cardWide` width variant — the same
-  composition the reusable `Modal` helper uses. So on small/short viewports the card
-  fits the screen and scrolls internally; the title and every action (incl. Close)
-  stay reachable. On phones the prompt/brief textareas are shortened so the actions
-  come into reach with little scrolling.
 
 ## Technical design
 
@@ -110,7 +118,9 @@ is ~40 lines. The prompt-building logic moved to the pure
   `window.location.origin` when available, else `''`.
 - `buildSongPrompt(bus: ParamBus, brief?: string): string` — pure prompt builder:
   intro + `SONG REQUEST` (the brief, or a bracketed placeholder) + the guide.
-  Lives in `authoring-guide.ts`; re-exported from `ai-prompt.ts` for the UI/tests.
+  Lives in `authoring-guide.ts`, and that is the only place it is exported from —
+  `ai-prompt.ts` reaches it through a lazy `await import(...)` and injects it into
+  its local `buildModal`; tests import it from `authoring-guide` directly.
 - `createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement`
   — the `✨ AI Prompt` button + lazily-built modal (reuses the `Modal` lifecycle
   classes + Escape/backdrop close, like `record-sound-modal`). `AiPromptRoutes` is
@@ -149,8 +159,8 @@ prepends the intro + SONG REQUEST.
   `DRUM_TRACK_COUNT`/`SAMPLER_SLOT_COUNT` (state/patterns). It must **never**
   import `song.ts` (whose `import.meta.glob` demo registration would poison the
   MCP server's Node bundle — same constraint as `song-author.ts`).
-- `src/ui/components/ai-prompt.ts` — the modal. Imports `buildSongPrompt` from
-  the guide (and re-exports it), plus `Song`/`DEMO_SONGS` (state/song) for the
+- `src/ui/components/ai-prompt.ts` — the modal. Lazily imports `buildSongPrompt`
+  from the guide (and does **not** re-export it), plus `Song`/`DEMO_SONGS` (state/song) for the
   example buttons. The clipboard helpers `copyText` / `flashCopied` are imported
   from the shared `src/ui/clipboard.ts` (extracted verbatim so the WiFi pair
   modal can reuse them — see [webrtc-sync.md](webrtc-sync.md)).
@@ -173,6 +183,7 @@ Scenario: Absolute, host-resolved schema links (both formats)
   When buildSongPrompt(bus) is generated
   Then it cites "<origin>/schema/websynth-song-author.schema.json" as an absolute URL
   And it cites "<origin>/schema/websynth-song.schema.json" as an absolute URL
+# pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — both schemas absolute)
 
 Scenario: The dialect leads, with anti-give-up guardrails
   When buildSongPrompt(bus) is generated
@@ -180,21 +191,25 @@ Scenario: The dialect leads, with anti-give-up guardrails
   And the OUTPUT RULES say to respond with exactly ONE JSON object
   And they forbid truncation/placeholder output
   And the author-dialect sections appear before the canonical appendix
+# pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — dialect first, anti-give-up guardrails)
 
 Scenario: A creative brief is injected into SONG REQUEST
   Given a brief "in the style of Rockit, 12-bar loop with breaks"
   When buildSongPrompt(bus, brief) is generated
   Then the brief text appears under the SONG REQUEST heading
+# pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — a brief is injected)
 
 Scenario: An empty brief yields a placeholder, not the example
   When buildSongPrompt(bus, "") is generated
   Then SONG REQUEST shows a bracketed "[Describe …]" placeholder
   And it does not contain the Rockit example text
+# pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — bracketed placeholder, not the example)
 
 Scenario: The prompt no longer embeds a full song
   When buildSongPrompt(bus) is generated
   Then it contains the EXAMPLE SHAPE skeleton marker with "…"
   And it is far shorter than Song.toJSON(DEMO_SONGS['I Feel Love'])
+# pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — an illustrative skeleton, not a full song)
 
 Scenario: The reply pastes back in the same modal (REQ-9)
   When the AI Prompt modal is opened

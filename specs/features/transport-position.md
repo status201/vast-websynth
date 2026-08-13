@@ -79,6 +79,7 @@ counter silently desynchronises all four.
   phase discontinuity. (Contrast `start()`, which re-origins `nextStepTime` to
   `ctx.currentTime + 0.05`; reusing it for a live seek would restart the grid under
   the player's feet.) `seek` works both while playing and while stopped.
+
 - **REQ-2** — **One position number, not two.** `seek(step)` sets the step counter
   *and* a **cue** (`_cue`), and `start(fromStep = cue)` begins there. A start point
   held separately from the current position would be invisible state, which
@@ -88,12 +89,14 @@ counter silently desynchronises all four.
       **bit-identical** to v3 ([transport](transport.md) REQ-5's regression);
     - `stop()` leaves both alone, so Stop → Play resumes from the last seeked
       position rather than the position playback happened to reach.
+
 - **REQ-3** — **Seek has its own listener channel, fired before the next tick.**
   `Clock.onSeek(fn)` is emitted **synchronously** inside `seek()`, modelled on
   `startListeners`. The [arrangement](arrangement.md) is constructed before the
   machines ([arrangement](arrangement.md) REQ-5), so it subscribes first and its
   play banks are settled before anything else reacts — the same ordering guarantee
   `onTick` and `onStart` already carry.
+
 - **REQ-4** — **Every relative-position consumer reacts.** A seek is not complete
   until all four have re-based; see the table in *Technical design*. Specifically:
   the arrangement re-seeks its four lanes from `floor(step / SEQ_LENGTH)` and
@@ -101,12 +104,14 @@ counter silently desynchronises all four.
   per track; the motion machine drops its `prev`/`curr` latch pair **without**
   restoring baselines; and `Performance` re-anchors stutter. The drum and sampler
   machines hold no position state and need nothing.
+
 - **REQ-5** — **Motion baselines survive a seek.** `MotionMachine.baselines` is the
   whole-session record of each automated param's pre-automation value. A seek must
   clear the tick latch **only**; calling `restoreBaselines()` would snap every
   automated param and then re-capture baselines *from automated values*, so the
   original values would be lost for the rest of the session. This is the one
   place where copying `onStart`'s reset wholesale is wrong.
+
 - **REQ-6** — **Seeking is refused in three states**, through one guard so every
   surface can disable itself consistently:
     - **sync slave** (`sync.activeMode === 'slave'`) — the remote transport owns
@@ -127,15 +132,18 @@ counter silently desynchronises all four.
   `isCapturing()` — the sampler-choke suppression on `clock.onStop` still reads
   the wider `isCapturing()`, because that one really does mean "samples are being
   taken, do not cut them".
+
 - **REQ-7** — **A sync master announces its seek.** While `master`, a seek
   broadcasts `songposition` + `continue` (reusing `SyncMaster.announceTo`), or
   every slave drifts by the jump distance for the rest of the session. It must
   **not** send `start`, which realigns slaves to bar 0
   ([midi-clock-sync](midi-clock-sync.md) REQ-10).
+
 - **REQ-8** — **One entry point.** `Engine.seekTo(step): boolean` owns the guard
   (REQ-6) and the broadcast (REQ-7); `Engine.canSeek(): boolean` reports whether a
   seek would be accepted. Both are on `StudioApi`, so no UI surface reaches past
   them to `clock.seek` directly.
+
 - **REQ-9** — **A position ruler above every machine grid.** 16 columns aligned to
   the step columns, showing the transport position **unconditionally** — while
   stopped, on a disabled machine, and whatever the edit/play bank relationship —
@@ -144,6 +152,7 @@ counter silently desynchronises all four.
   `step-panel-scaffold.ts`) and inherited by all four machines, and it is driven by
   the **clock**, not by the machines' `onStep` (which is silent exactly when the
   ruler is most needed).
+
 - **REQ-10** — **The ruler costs nothing off screen.** It obeys the panel's
   `VisibilityGate` like `wirePlayhead` does
   ([runtime-performance](runtime-performance.md) REQ-4,
@@ -153,12 +162,21 @@ counter silently desynchronises all four.
   cross-fade would repaint two ticks ~9 times a second per visible ruler and make
   the playhead read as lagging. Same rule as the song scrubber
   ([transport-window](transport-window.md) REQ-11).
+
 - **REQ-11** — **Keyboard: `Home` and `Shift`+arrows.** `Home` returns to bar 1
   step 1; `Shift+ArrowLeft`/`Shift+ArrowRight` move ∓/± one bar. The shifted
   arrows must be handled **before** the existing bare-arrow octave shift, which
   currently also fires when Shift is held. A refused seek (REQ-6) does not
   `preventDefault`, so the key falls through — the `boolean`-returning idiom
   `UiBridge.undoActiveMachine` / `clearSelectedStep` already use.
+
+- **REQ-12** — **The look-ahead horizon is not cancelled.** Ticks are scheduled up
+  to `scheduleAheadS` ahead (0.1 s; 0.2 s on the weak perf tier) and the machines
+  commit hits to absolute AudioContext times with no retained handles, so roughly
+  100 ms of old-position audio always sounds after a jump — about a fifth of a
+  16th at 120 BPM. This is **accepted and documented**, not worked around:
+  retaining and cancelling every scheduled voice would cost more than the artefact.
+
 - **REQ-13** — **Discoverability.** Every tick carries a `title` naming the
   gesture, each machine tab's ruler carries a help badge
   (`transport.ruler.<lane>` — [onboarding](onboarding.md) REQ-16, four ids over
@@ -167,6 +185,7 @@ counter silently desynchronises all four.
   the README. That is the [recipe](../recipes/design-an-interaction.md)'s
   discoverability triple: a gesture with none of them does not exist for the
   user, and clicking a ruler is not self-evident the way tapping a step is.
+
 - **REQ-14** (v2) — **The cue and the live playhead are two marks, not one.** v1
   painted both with the global `playing` class, picked by
   `playing ? clock.step : clock.cue`, so a stopped ruler sitting on its cue was
@@ -187,6 +206,7 @@ counter silently desynchronises all four.
     reused, not invented.
   - One tick may carry **both** (stopped, then played from that exact step); the
     style must stay legible in that case.
+
 - **REQ-15** (v2) — **The readout names where you are, and never invents bars.**
   v1 printed `Bar floor(step/16)+1`, absolute and unwrapped. With **no chain lane
   enabled** — the default, and how pattern editing is done — a disabled lane plays
@@ -210,6 +230,7 @@ counter silently desynchronises all four.
     Georgia's proportional old-style figures made the trailing `/N` shuffle
     sideways on every bar. Same finding as
     [transport-window](transport-window.md) REQ-6's `bar.step`.
+
 - **REQ-16** (v2) — **A bar stepper, only where bars exist.** In `BAR` mode the
   readout becomes `‹ BAR n/N ›`; the arrows seek ∓/± one bar **preserving the
   16th** (`(bar ± 1) * SEQ_LENGTH + pos % SEQ_LENGTH`), clamped to
@@ -222,6 +243,7 @@ counter silently desynchronises all four.
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 inverted, and
   switching the *edit* bank is a pattern-editing act, not a transport one — the
   `BankBar` beside it already owns that, with its own play-bank dot and Follow.
+
 - **REQ-17** (v2) — **A refused seek says so.** REQ-6's refusal only dimmed the
   strip (`opacity: .4`) while every tick's `title` still promised "Move the
   playhead to step N". While `!canSeek()` the ticks and the stepper carry
@@ -229,12 +251,6 @@ counter silently desynchronises all four.
   (the silent-no-op path is unchanged), so nothing about the seek contract moves.
   Related honesty fix: ticks print beats `1 2 3 4` while the old title said
   "step N", two numbering systems on one control — the title now names the beat.
-- **REQ-12** — **The look-ahead horizon is not cancelled.** Ticks are scheduled up
-  to `scheduleAheadS` ahead (0.1 s; 0.2 s on the weak perf tier) and the machines
-  commit hits to absolute AudioContext times with no retained handles, so roughly
-  100 ms of old-position audio always sounds after a jump — about a fifth of a
-  16th at 120 BPM. This is **accepted and documented**, not worked around:
-  retaining and cancelling every scheduled voice would cost more than the artefact.
 
 ## Technical design
 

@@ -1,21 +1,40 @@
 // @vitest-environment node
 //
-// End-to-end over real stdio: build the core bundle, spawn the server, and
-// drive initialize → tools/list → tools/call. Pins REQ-1 (stdout stays
-// protocol-pure) because every reply must parse as a JSON-RPC frame.
+// End-to-end over real stdio: spawn the server on a checkout with NO bundle, so
+// it self-builds, then drive initialize → tools/list → tools/call.
+//
+// The bundle is deliberately NOT pre-built here. It used to be — one `vite
+// build` up front so the server start was fast — but that skipped `ensureCore`'s
+// spawn path entirely, leaving "self-build keeps stdout protocol-pure" (REQ-1)
+// unpinned: the interesting case is precisely a server that runs a Vite build
+// while a client is talking to it. It costs nothing, because the pre-build was
+// running that same single build unconditionally anyway; it has only moved
+// inside the server, where the child process's output can actually reach — and
+// must not corrupt — the protocol stream.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { spawn, execFileSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface, type Interface } from 'node:readline';
+import { rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const serverPath = path.join(repoRoot, 'scripts', 'mcp', 'websynth-mcp.mjs');
+const distDir = path.join(repoRoot, 'scripts', 'mcp', 'dist');
+const distFile = path.join(distDir, 'song-core.mjs');
 
 let child: ChildProcessWithoutNullStreams;
 let lines: Interface;
 const pending = new Map<number, (msg: Record<string, any>) => void>();
 let nextId = 1;
+
+/** Every line the server wrote to stdout, and any that was not a JSON-RPC
+ *  frame. Parsing defensively (rather than letting JSON.parse throw inside the
+ *  'line' handler) turns an impure stream into a readable assertion instead of
+ *  an unhandled error. */
+const stdoutLines: string[] = [];
+const impure: string[] = [];
+let stderrText = '';
 
 function request(method: string, params?: unknown): Promise<Record<string, any>> {
   const id = nextId++;
@@ -24,30 +43,62 @@ function request(method: string, params?: unknown): Promise<Record<string, any>>
   return p;
 }
 
-beforeAll(() => {
-  // Build the bundle up front (vite's bin invoked directly — cross-platform,
-  // no npm/shell indirection) so the server start below is fast; the server's
-  // own self-build path stays covered by its staleness logic.
-  execFileSync(process.execPath, [
-    path.join(repoRoot, 'node_modules', 'vite', 'bin', 'vite.js'),
-    'build', '--config', path.join('scripts', 'mcp', 'vite.lib.config.ts'),
-  ], { cwd: repoRoot, stdio: 'ignore' });
+beforeAll(async () => {
+  // A checkout that has never run the server (or whose bundle is stale).
+  rmSync(distDir, { recursive: true, force: true });
 
   child = spawn(process.execPath, [serverPath], { cwd: repoRoot, stdio: ['pipe', 'pipe', 'pipe'] });
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => { stderrText += chunk; });
+
   lines = createInterface({ input: child.stdout, terminal: false });
   lines.on('line', (line) => {
-    // REQ-1: EVERY stdout line must be a JSON-RPC frame.
-    const msg = JSON.parse(line) as Record<string, any>;
+    stdoutLines.push(line);
+    let msg: Record<string, any>;
+    try {
+      msg = JSON.parse(line) as Record<string, any>;
+    } catch {
+      impure.push(line); // REQ-1 violation — asserted below
+      return;
+    }
     const resolve = pending.get(msg.id);
     if (resolve) {
       pending.delete(msg.id);
       resolve(msg);
     }
   });
-}, 120_000);
+
+  // Absorb the self-build here rather than in the first test's budget: nothing
+  // is answered until `ensureCore()` finishes, so this round-trip *is* the wait.
+  await request('ping');
+}, 180_000);
 
 afterAll(() => {
   child?.kill();
+});
+
+// mcp-server.md REQ-1 / REQ-3. The build runs in a child process whose stdout is
+// relayed to our stderr, so a chatty toolchain cannot reach the protocol stream.
+describe('the self-build', () => {
+  it('produces the bundle on a checkout that had none', () => {
+    expect(existsSync(distFile)).toBe(true);
+  });
+
+  it('keeps stdout protocol-pure while it builds', () => {
+    expect(impure).toEqual([]);
+    expect(stdoutLines.length).toBeGreaterThan(0);
+    for (const line of stdoutLines) {
+      expect(JSON.parse(line), line).toMatchObject({ jsonrpc: '2.0' });
+    }
+  });
+
+  // `ensureCore` logs nothing at all when the bundle is fresh, so these two
+  // lines are the proof that the self-build path is what just ran — and that
+  // its output went to stderr rather than into the frames above.
+  it('reports the build on stderr, where a client ignores it', () => {
+    expect(stderrText).toMatch(/building song-core bundle/);
+    expect(stderrText).toMatch(/song-core bundle ready/);
+  });
 });
 
 describe('websynth MCP server over stdio', () => {

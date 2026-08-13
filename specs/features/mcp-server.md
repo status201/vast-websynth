@@ -4,7 +4,7 @@
 id: mcp-server
 status: implemented
 version: 7   # v7: REQ-3 — the self-build runs in a child process (no native module pinned)
-             # v6: REQ-13 — validate_song/save_song report REQ-12 warnings
+             # v6: REQ-8 — validate_song/save_song report untrusted-input REQ-12's warnings
              # v5: REQ-5d — get_params; baseUrl defaults to the published site
              # v4: REQ-5c — save_song/save_preset contain `dir` inside cwd
              # v3: expand_song's description names no song version (it drifted to "v3")
@@ -50,10 +50,12 @@ first run and imports that.
   protocol stream at all: the build child's `stdout` *and* `stderr` are both
   piped into the server's `stderr` (`logLevel: 'silent'` and the process-wide
   `console` redirect remain as belt-and-braces).
+
 - **REQ-2** — `initialize` echoes the client's `protocolVersion` when the
   server knows it, else answers `"2025-06-18"`; capabilities are `{tools: {}}`.
   `notifications/initialized` (and all notifications) get no response; `ping`
   returns `{}`; unknown methods get `-32601`; a malformed line gets `-32700`.
+
 - **REQ-3** — The entry **self-builds** `scripts/mcp/dist/song-core.mjs` when
   the bundle is missing or older than any file under
   `scripts/mcp/song-core-entry.ts`, `src/state/**` or `src/utils/**`. A clean
@@ -65,6 +67,7 @@ first run and imports that.
   `node_modules` for hours and the user's next `npm ci` fails with `EPERM` on a
   file no tool names. Nothing long-lived here may load a native module. A
   missing `vite` binary fails fast, naming `npm install`.
+
 - **REQ-4** — `song-core-entry.ts` re-exports only the **pure** core:
   `validateSongFile`, `isAuthorSong`/`expandAuthorSong`,
   `compactSongForExport`, `buildAuthoringGuide`, `ParamBus`/`registerDefaults`,
@@ -74,6 +77,7 @@ first run and imports that.
   `src/state/song.ts` — its `import.meta.glob` demo registration doesn't bundle
   for Node. `src/state/preset.ts` is likewise never pulled in (it opens
   `localStorage`); only its `Snapshot` **type** is used, which erases.
+
 - **REQ-5** — Five song tools, all built by `makeTools(core)` with the core
   **injected** (unit-testable without the bundle):
   - `get_song_format` — the live authoring guide
@@ -90,6 +94,7 @@ first run and imports that.
   - `make_share_link` — canonical compact JSON → `node:zlib.deflateRawSync` →
     base64url → `<base>/#song=…` (the wire format of song-share-link.md);
     base URL from `$WEBSYNTH_BASE_URL`, default the published site (REQ-5e).
+
 - **REQ-5b** — (v2) Four **preset** tools, same shape and same "a failed
   validation is a successful call" rule (see
   [preset-authoring](preset-authoring.md)), listed after the song five:
@@ -103,18 +108,7 @@ first run and imports that.
     `save_song`.
   All preset tools and `get_song_format` share **one** `ParamBus` +
   `registerDefaults` per process — the registry is read-only here.
-- **REQ-5d** — (v5) One **shared** tool ahead of both halves: `get_params`
-  returns `buildParamCatalog(bus)` as JSON ([param-catalogue](param-catalogue.md)
-  REQ-8). The two `get_*_format` tools serve *prose* — an agent that wants a
-  range to compute against had to parse a comment out of the PARAMS table, and
-  `taper`, `curve` and `unit` were not in that text at all. It shares the same
-  per-process bus as the rest.
-- **REQ-5e** — (v5) `baseUrl` defaults to the **published site**, not
-  `http://localhost:5173`. Every schema URL the guides cite is built from it, so
-  the old default handed the model dead links unless a dev server happened to be
-  running — the one thing a *published* schema must not do.
-  `$WEBSYNTH_BASE_URL` still overrides, which is how a local dev server or a
-  fork's host is pointed at.
+
 - **REQ-5c** — (v4) **A write stays inside the working directory.** Both
   `save_song` and `save_preset` sanitize the *filename* (`safeName`) **and**
   contain the `dir` argument: `resolve(cwd, dir)` must remain under `cwd` or the
@@ -126,15 +120,31 @@ first run and imports that.
   The caller is a model, and a model summarising a hostile song file is a
   prompt-injection route to an arbitrary file write
   ([untrusted-input](untrusted-input.md) REQ-11).
+
+- **REQ-5d** — (v5) One **shared** tool ahead of both halves: `get_params`
+  returns `buildParamCatalog(bus)` as JSON ([param-catalogue](param-catalogue.md)
+  REQ-8). The two `get_*_format` tools serve *prose* — an agent that wants a
+  range to compute against had to parse a comment out of the PARAMS table, and
+  `taper`, `curve` and `unit` were not in that text at all. It shares the same
+  per-process bus as the rest.
+
+- **REQ-5e** — (v5) `baseUrl` defaults to the **published site**, not
+  `http://localhost:5173`. Every schema URL the guides cite is built from it, so
+  the old default handed the model dead links unless a dev server happened to be
+  running — the one thing a *published* schema must not do.
+  `$WEBSYNTH_BASE_URL` still overrides, which is how a local dev server or a
+  fork's host is pointed at.
+
 - **REQ-6** — Tool *input* errors (unknown tool, missing argument) are JSON-RPC
   errors; tool *runtime* failures return `isError: true` with the message in
   `content` (per MCP). Unparseable `song` JSON strings count as validation
   results (`{ok:false, errors:[…]}`), not crashes.
+
 - **REQ-7** — `.mcp.json` at the repo root registers the server for Claude
   Code (`node scripts/mcp/websynth-mcp.mjs`); the README documents wiring for
   other MCP clients. `scripts/mcp/dist/` is gitignored.
 
-- **REQ-13** — (v6) **A song that validates can still be wrong, and the agent is
+- **REQ-8** — (v6) **A song that validates can still be wrong, and the agent is
   told.** `validate_song` returns `{ok, errors[], warnings[]}` and `save_song`
   adds `warnings[]` to its success payload, carrying
   [untrusted-input](untrusted-input.md) REQ-12's unresolvable automation targets.
@@ -144,7 +154,8 @@ first run and imports that.
   no way to discover — it cannot hear the result. `expand_song` keeps returning
   the song **text alone** (its output is parsed, so a wrapper object would be a
   breaking change); its description points at `validate_song` for warnings.
-  Warnings never set `ok:false` — REQ-12 owns why.
+  Warnings never set `ok:false` — [untrusted-input](untrusted-input.md) REQ-12
+  owns why.
 
 ## Technical design
 
@@ -180,11 +191,13 @@ Scenario: Initialize handshake
   Given the server is running over stdio
   When the client sends initialize with protocolVersion "2025-06-18"
   Then the response echoes "2025-06-18", capabilities {tools:{}}, and serverInfo
+# pinned by: tests/mcp/integration.test.ts (over real stdio), tests/mcp/rpc.test.ts
 
 Scenario: Validation failure is a successful tools/call
   When tools/call validate_song receives a song with a bad note
   Then the response has isError absent/false
   And its text payload is {"ok":false,"errors":[…]} naming the bad field
+# pinned by: tests/mcp/tools.test.ts, tests/mcp/integration.test.ts
 
 Scenario: expand_song returns canonical compact JSON
   When tools/call expand_song receives a valid author-dialect song
@@ -192,6 +205,7 @@ Scenario: expand_song returns canonical compact JSON
        (that song uses no post-v3 field — see song-authoring-dialect.md REQ-12;
         this is the expansion's floor, not the canonical version)
   And it passes validate_song
+# pinned by: tests/mcp/tools.test.ts (expand_song)
 
 Scenario: A preset with an invented parameter id fails validation (v2)
   When tools/call validate_preset receives params naming "osc1.shape"
@@ -203,6 +217,7 @@ Scenario: save_preset picks the extension from the payload (v2)
   When tools/call save_preset receives a websynth-preset-bank payload
   Then the written path ends in .bank.websynth.json
   And its params are expanded to the complete patch
+# pinned by: tests/mcp/tools.test.ts (save_preset)
 
 Scenario: A save cannot escape the working directory (v4)
   Given save_song (or save_preset) called with dir '../..' or an absolute path
@@ -210,7 +225,7 @@ Scenario: A save cannot escape the working directory (v4)
   And dir 'sub/dir' still writes normally
 # pinned by: tests/mcp/tools.test.ts
 
-Scenario: A dead automation target comes back as a warning (v6, REQ-13)
+Scenario: A dead automation target comes back as a warning (v6, REQ-8)
   Given a song whose xy.x is "filter.cuttoff" and whose motionTracks names "not.a.param"
   When validate_song runs
   Then ok is true and errors is empty
@@ -220,11 +235,14 @@ Scenario: A dead automation target comes back as a warning (v6, REQ-13)
 Scenario: Unknown method
   When the client sends method "resources/list"
   Then the response error code is -32601
+# pinned by: tests/mcp/rpc.test.ts, tests/mcp/integration.test.ts
 
 Scenario: Self-build keeps stdout protocol-pure
   Given a checkout with no scripts/mcp/dist bundle
   When the server starts and a client completes the handshake
   Then every stdout line parses as a JSON-RPC message
+# pinned by: tests/mcp/integration.test.ts (the self-build) — its beforeAll
+#            deletes scripts/mcp/dist, so every run takes this path
 
 Scenario: A rebuild leaves node_modules replaceable (v7, REQ-3, regression)
   Given a stale scripts/mcp/dist bundle
@@ -232,7 +250,12 @@ Scenario: A rebuild leaves node_modules replaceable (v7, REQ-3, regression)
   Then the build ran in a child process that has since exited
   And the long-running server holds no native module under node_modules open
   And `npm ci` can replace node_modules while that server is still connected
-# pinned by: tests/mcp/rpc.test.ts, tests/mcp/tools.test.ts, tests/mcp/integration.test.ts
+# NOT AUTOMATED. tests/mcp/integration.test.ts does now exercise the self-build
+# (it deletes the bundle first), but it cannot pin THIS claim: asserting that
+# node_modules is replaceable means running `npm ci` against the live checkout
+# while the server holds it, which would tear the suite's own dependencies out
+# from under it. Verify by hand: delete scripts/mcp/dist, start the server, then
+# run `npm ci` while it stays connected. See Open questions.
 ```
 
 ## Tests & verification
@@ -240,14 +263,25 @@ Scenario: A rebuild leaves node_modules replaceable (v7, REQ-3, regression)
 - Unit: `tests/mcp/rpc.test.ts` (dispatch), `tests/mcp/tools.test.ts` (tools
   against the real src core, imported directly under Vitest — no bundle
   needed) — `npm test`
-- Integration: `tests/mcp/integration.test.ts` — builds the core bundle, spawns
-  the server, drives initialize → tools/list → validate_song over real stdio.
+- Integration: `tests/mcp/integration.test.ts` — deletes `scripts/mcp/dist`,
+  spawns the server so it self-builds (REQ-1/REQ-3), then drives initialize →
+  tools/list → validate_song over real stdio, asserting every stdout line is a
+  JSON-RPC frame. The bundle is deliberately NOT pre-built: that used to be how
+  the suite kept itself fast, but the build has to run either way, and running
+  it inside the server is what makes the protocol-purity claim testable.
 - Manual: in Claude Code (this repo's `.mcp.json`) run `get_song_format`, feed
   a broken author file to `validate_song`, then `save_song` and import the
   written file in the app. Same round for `get_preset_format` →
   `validate_preset` (try a bogus id) → `save_preset` → Preset ▸ Import.
 
 ## Open questions / future
+
+- **Half of REQ-3 stays unpinned.** `tests/mcp/integration.test.ts` now starts
+  the server against a deleted `dist/`, so the child-process build itself runs
+  and its protocol purity is asserted. What no test can reach is the consequence
+  it exists for: that `npm ci` may replace `node_modules` while a long-lived
+  server is connected. Asserting it means running `npm ci` against the checkout
+  the suite is itself running from. It stays a manual check.
 
 - npm-publishable standalone package (`npx websynth-mcp`).
 - A `render_song` tool once an offline render path exists outside the browser.

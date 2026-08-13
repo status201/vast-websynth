@@ -31,12 +31,12 @@ again (the flag survives sessions).
 
 ## Requirements
 
-- **REQ-1 (trigger)** — Clicking Play while the transport is **stopped** shows
+- **REQ-1** (trigger) — Clicking Play while the transport is **stopped** shows
   the modal *instead of starting* when nothing would sound
   (REQ-2) — unless the user opted out (REQ-5) or a sync mode is active
   (REQ-6). Stopping is never intercepted. All start surfaces that click the
   real button (Space bar, `UiBridge.toggleTransport`) inherit the check.
-- **REQ-2 (the pure rule)** — `anythingToPlay(get, patterns, lanes, buffers)`
+- **REQ-2** (the pure rule) — `anythingToPlay(get, patterns, lanes, buffers)`
   returns true when any of:
   - `arp.on` — an enabled arp sounds as soon as a key is held (never nag it);
   - `seq.on` and a bank the sequencer *would play* has an active step;
@@ -47,12 +47,12 @@ again (the flag survives sessions).
   the chain is enabled, else the machine's edit bank. Pure and dependency-
   injected (a `get(id)` fn, the `PatternStore`, `ChainLane`s, the buffer
   array), so it is unit-testable without an engine.
-- **REQ-3 (modal content)** — Explains that Play runs the pattern machines and
+- **REQ-3** (modal content) — Explains that Play runs the pattern machines and
   none has anything to play; lists what to do (switch a machine on + add
   steps, load/import a song from the Song tab); notes the keyboard always
   plays live. Actions: **▶ Play a demo** (primary, focused) and **Close**.
   Built on the shared [Modal](dialog.md) (Escape / backdrop-click close).
-- **REQ-4 (play a demo)** — The demo action closes the modal, loads a random demo
+- **REQ-4** (play a demo) — The demo action closes the modal, loads a random demo
   — any of the three sources, via `demoNames()` — through the Song panel's
   `loadDemo` (dropdown stays in sync), then re-clicks Play: the check now passes
   and the transport starts. The load is **awaited**: all but the two built-ins are
@@ -61,13 +61,14 @@ again (the flag survives sessions).
   and reopens this very modal. `onPlayDemo` is therefore typed
   `() => void | Promise<void>` and the modal fires it without awaiting — closing
   is not conditional on the load succeeding.
-- **REQ-5 (persistent opt-out)** — A "Don't show this again" checkbox persists
+- **REQ-5** (persistent opt-out) — A "Don't show this again" checkbox persists
   `localStorage['websynth.hint.emptyplay'] = '1'` the moment it is checked
   (unchecking removes it). Device-scoped like `websynth.perf` — **not** a bus
   param, never part of songs/presets. The flag is read at click time, not
   boot. localStorage failures (private mode) fail open: the hint just shows
   again.
-- **REQ-6 (sync exception)** — No modal while `engine.sync.mode !== 'off'`: a
+- **REQ-6** (sync exception) — No modal while `engine.sync.activeMode !== 'off'`
+  (the mode actually running, not the selected preference): a
   sync **master** legitimately runs an empty transport to drive external
   gear, and a **slave**'s transport belongs to its master.
 
@@ -91,7 +92,7 @@ testids: empty-play-modal, empty-play-demo, empty-play-close, empty-play-dismiss
 
 ```yaml
 buildHeader (app.ts): playBtn onClick gates start on
-  !dismissed && sync.mode === 'off' && !anythingToPlay(...)
+  !dismissed && sync.activeMode === 'off' && !anythingToPlay(...)
   onPlayDemo -> await loadDemo(random demoNames() entry) -> playBtn.click()
     (re-entry passes; the await is load-bearing — see REQ-4)
 mountApp: threads a lazy loadDemo closure into buildHeader (reads the

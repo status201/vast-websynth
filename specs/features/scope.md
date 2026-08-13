@@ -155,7 +155,7 @@ remains the honest readout, and it is unaffected.
   is written **only when the formatted value changes** (not every frame), so a
   steady scope performs no per-frame attribute write — the dataset still always
   reflects the latest displayed value. (Lets E2E assert without a 2D context.)
-- **REQ-16 (performance)** — The redraw loop must do **no per-frame layout read and
+- **REQ-16** (performance) — The redraw loop must do **no per-frame layout read and
   no per-frame DOM mutation**: the canvas bitmap is sized from a `ResizeObserver`
   (cached CSS box + dpr), not by reading `clientWidth`/`clientHeight` inside the
   rAF loop, and the `dataset` mirror only writes on change (REQ-15). So an animated
@@ -166,7 +166,7 @@ remains the honest readout, and it is unaffected.
   region's `y`/`h`, invalidated on resize) instead of `createLinearGradient`
   allocating every frame — no per-frame canvas-object allocation on the steady
   path.
-- **REQ-17 (v8)** — The **Wave** view applies an **auto-gain** so quiet material
+- **REQ-17** (v8) — The **Wave** view applies an **auto-gain** so quiet material
   still draws a readable trace. The gain is a **partial** normalization —
   `clamp((WAVE_TARGET_PEAK / peak) ** WAVE_NORM_STRENGTH, 1, WAVE_MAX_GAIN)`,
   computed by the pure `waveGainTarget(peak)`. `WAVE_NORM_STRENGTH < 1` is what
@@ -191,7 +191,7 @@ remains the honest readout, and it is unaffected.
   and destroy the stereo image the Stereo view exists to show. The gain is
   **frozen while in Spectrum** (it is neither updated nor decayed), the mirror
   image of how the peak-hold freezes in Wave (REQ-10).
-- **REQ-18 (v8)** — The Wave read is **float**: `getFloatTimeDomainData` into a
+- **REQ-18** (v8) — The Wave read is **float**: `getFloatTimeDomainData` into a
   per-channel `Float32Array` (reallocated by `setFftSize` exactly like the byte
   buffers were). `getByteTimeDomainData` quantises to 1/128, so a −25 dBFS signal
   occupies ~7 of 128 steps and any real boost would paint a visible staircase;
@@ -361,7 +361,8 @@ WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
   reset transitions (not per frame) and is a no-op when already clear. The observer is
   `disconnect()`ed in `destroy()`. No `ResizeObserver` (jsdom) → measure-on-draw
   fallback. The canvas CSS bezel (radial-gradient background + inset box-shadow) lives
-  on the static `.scopeWrap`, not the animated canvas, so it is not re-rastered each
+  on a dedicated static underlay, `.scopeScreen` — not on the animated canvas, and not
+  on `.scopeWrap`, which carries only the panel frame — so it is not re-rastered each
   frame.
 - **`Scope.drawSpectrum`** owns the peak-hold (v2): after the existing
   `getByteFrequencyData` read it takes the max byte over the same visible bins,
