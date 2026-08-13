@@ -79,15 +79,16 @@ so future demos can ship as zips with audio. The `.json` song format is untouche
   reappears (the buffers were session-only, as before).
 - **REQ-7** — Demo projects: any `src/state/demos/*.websynth.zip` is auto-registered
   at build time via an `import.meta.glob` `?url` (fetched lazily on click, which is a
-  user gesture). The demo's display name is the filename minus the extension with
-  underscores prettified to spaces (`Run_Away_2.websynth.zip` → "Run Away 2") — the
-  zip can't be opened at build time to read the song's own `name`, and export
-  filenames are underscore-sanitized (`projectFilename`), so this round-trips the
-  common case. An empty glob (no zip assets) costs nothing. (v2) The **JSON**
-  drop-in demos are fetched on click the same way now — see
-  [song-mode](song-mode.md) REQ-12 — so this is no longer the odd one out; the
-  difference that remains is only the naming, since a `.json` demo's own `name`
-  *can* be recovered at build time (into `demos-index.json`) and a zip's cannot.
+  user gesture). The display name comes from `demos-index.json`, which
+  `npm run clean:demos` fills by opening every zip through `parseProjectZip` in
+  Node and reading the song's own `name` — so a zip demo is named exactly like a
+  JSON one. The filename-minus-extension mangle (`Run_Away_2.websynth.zip` →
+  "Run Away 2") survives only as the fallback for a zip the index has not seen;
+  export filenames are underscore-sanitized (`projectFilename`), so that fallback
+  round-trips the common case. An empty glob (no zip assets) costs nothing.
+  (v2) The **JSON** drop-in demos are fetched on click the same way — see
+  [song-mode](song-mode.md) REQ-12 — so zips are no longer the odd one out in
+  either naming or loading.
 - **REQ-8** — Decode/encode is memory-aware: clips are encoded/decoded
   **sequentially** (8 × multi-MB WAVs), and `decodeAudioData` gets a **copy** of the
   clip bytes (`.slice()`) because entries are subarray views of the whole zip buffer
@@ -166,8 +167,10 @@ help copy (onboarding.md): the song.export / song.import topics in
   src/ui/onboarding/help-content.ts describe the chooser and the zip import
 demo zips (song.ts + song-panel):
   ZIP_DEMOS from import.meta.glob('./demos/*.websynth.zip', { query: '?url' })
-  name = basename minus .websynth.zip, underscores -> spaces (REQ-7)
-  one button per entry, last in demoNames() order (testid song-demo-<name>)
+  name = DEMO_INDEX[file] (clean:demos reads it out of the zip); the basename
+    mangle is only the fallback (REQ-7)
+  one button per entry, sorted with every other demo by display name
+    (compareSongNames) — NOT last (testid song-demo-<name>)
   click -> fetch(url) -> parseProjectZip -> applyProjectBundle
   Song.list()/loadSlot() stay sync + JSON-only, and list() omits zip demos entirely
     (a project bundle is not a song file)
@@ -256,6 +259,5 @@ Scenario: MP3 clip encoding falls back to WAV at unsupported rates (edge)
 
 ## Open questions / future
 
-- Committing an actual demo `.websynth.zip` (REQ-7 loader is ready; assets are not).
 - Embedding slot trim/edit metadata alongside clips would need a manifest entry —
   keep it additive if it ever lands.

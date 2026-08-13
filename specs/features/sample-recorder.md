@@ -89,16 +89,29 @@ Scenario: Pure DSP is deterministic and AudioContext-free
   Then the output samples match expectations with no AudioContext
 # pinned by: tests/audio/buffer-dsp.test.ts
 
+Scenario: A rendered effect changes the length it should, and only then (REQ-2)
+  Given a captured take
+  When renderEffect applies a filter
+  Then the output is the same length, through a biquad at Q 0.707
+  When it applies Octave Up (or Down) instead
+  Then the take is resampled: half the length (or double), no filter in the graph
+  And an empty take short-circuits rather than building a 0-frame context
+# pinned by: tests/audio/recorder/offline-render.test.ts
+
 Scenario: Insecure context is reported, not crashed (edge)
   Given the page is served over plain HTTP on the LAN
   When the user opens the record modal
   Then it shows an insecure-context message instead of throwing
-# pinned by: mic-capture MicError contract
+# pinned by: tests/audio/recorder/mic-capture.test.ts (openMicSession refusals)
 ```
 
 ## Tests & verification
 
-- `tests/audio/buffer-dsp.test.ts` (pure DSP), `e2e/mic.spec.ts`
+- `tests/audio/buffer-dsp.test.ts` (pure DSP),
+  `tests/audio/recorder/offline-render.test.ts` (the `OfflineAudioContext`
+  effects — length math and graph shape, against a stubbed context; the filter's
+  response itself is the browser's), `tests/audio/recorder/mic-capture.test.ts`
+  (the `MicError` contract and the session's teardown), `e2e/mic.spec.ts`
   (`--use-fake-device-for-media-stream` + `grantPermissions(['microphone'])`).
 - `npm test` / `npm run e2e`.
 

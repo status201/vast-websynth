@@ -45,7 +45,7 @@ LFO.
   The envelope is the **sole writer** of its gain param; `Voice.kill` cuts
   through `Envelope.cutFast`, never by scheduling on the param directly.
 
-- **REQ-5 — The filter envelope can follow velocity (v3).** `Voice.noteOn`
+- **REQ-5** — **The filter envelope can follow velocity (v3).** `Voice.noteOn`
   triggered the amp envelope at the note's velocity and the filter envelope at a
   hard-coded `1`, so **playing harder got louder and never brighter** — the single
   most-expected behaviour of a subtractive synth, and the one it did not have.

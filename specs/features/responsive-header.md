@@ -201,6 +201,7 @@ Scenario: Preset cluster collapsed by default on a phone
   Then the header menu toggle (☰) is visible
   And the preset selector is hidden
   And the Play transport button is visible
+# pinned by: e2e/responsive-header.spec.ts (collapses the preset cluster behind a hamburger on a phone)
 
 Scenario: Hamburger far right, transport on the row below
   Given the app is open at a 390px-wide viewport
@@ -230,6 +231,8 @@ Scenario: Hamburger expands the preset cluster inline
   Given the app is open at a 390px-wide viewport
   When I click the header menu toggle
   Then the preset selector becomes visible
+# pinned by: e2e/responsive-header.spec.ts (collapses the preset cluster behind a hamburger on a phone —
+#            the same test taps ☰ and asserts it expands, then collapses again)
 
 Scenario: Preset dropdown is width-capped on a phone
   Given the app is open at a 390px-wide viewport

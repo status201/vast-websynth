@@ -108,7 +108,7 @@ v2 ticks off v1's open questions and adds the WiFi transport
 clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
 `songposition`); MIDI drops both to the wire only where a byte exists.
 
-- **REQ-10 — Song Position Pointer (0xF2).** A slave joining mid-song jumps to
+- **REQ-10** — **Song Position Pointer (0xF2).** A slave joining mid-song jumps to
   the right bar instead of restarting at 0. `SyncMessage` grows
   `{type:'songposition', beat}` where `beat = clock.step & 0x3fff` (1 MIDI beat
   = 6 clocks = one 16th). MIDI both directions: `midi.ts` routes a leading
@@ -126,7 +126,7 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   firing start listeners (see transport.md). **Arrangement** seeks to the bar
   implied by `clock.step` on start (see arrangement.md). **Regression: plain
   `start()` / `Clock.start(0)` behaves exactly as v1** (bar 0, pos 0).
-- **REQ-11 — Idle clock.** While enabled and **stopped**, the master keeps
+- **REQ-11** — **Idle clock.** While enabled and **stopped**, the master keeps
   sending timestamped `pulse`s so slaves' tempo estimates stay warm before the
   first Start (supersedes REQ-2's "no pulses while stopped"). `SyncMaster`'s
   ctor gains `opts?: { timer?: TickTimer; nowMs?: () => number }` (defaults
@@ -139,7 +139,7 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   as *future-timestamped* scheduled sends, the tail still in the OS queue at
   Start is a reordering hazard — see the v3 fix (REQ-16..18). Idle `0xF8` also
   reaches MIDI hardware — standard behaviour.
-- **REQ-12 — Explicit tempo message.** `SyncMessage` grows `{type:'tempo',
+- **REQ-12** — **Explicit tempo message.** `SyncMessage` grows `{type:'tempo',
   bpm}`. The master emits it on `enable()`, on every `onStart`, on even ticks
   when `|bpm − lastSent| ≥ 0.1`, every 2 s while stopped (idle heartbeat), and
   in `announceTo`. `MidiSyncTransport.send` **early-returns for `'tempo'`** (no
@@ -148,21 +148,22 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   (`TEMPO_MSG_FRESH_MS = 2500`) the pulse estimator keeps running but its
   BPM-write path is suppressed — so an explicit-tempo (WiFi) master wins and a
   pulse-only (MIDI) master automatically falls back when tempo messages stop.
-- **REQ-13 — Tape-stop gate.** While slaved, Tape Stop skips its clock-BPM ramp
+- **REQ-13** — **Tape-stop gate.** While slaved, Tape Stop skips its clock-BPM ramp
   (the pitch-bend ramp still sounds). `Performance` gains a public settable
   predicate `clockRampAllowed: () => boolean` (default `() => true`); both the
   per-frame `clock.setBpm(...)` and the final restore `clock.setBpm(origBpm)`
   are wrapped in `if (this.clockRampAllowed())` (an ungated restore would stomp
   the followed tempo with the knob value). Engine wires
-  `perf.clockRampAllowed = () => this.sync.mode !== 'slave'` right after sync
-  construction (see performance.md).
-- **REQ-14 — BPM-knob slaved indicator.** `Knob.setDisabled(on)` toggles a
+  `perf.clockRampAllowed = () => this.sync.activeMode !== 'slave'` right after
+  sync construction — `activeMode`, so a selected-but-unlinked slave still ramps
+  (see performance.md).
+- **REQ-14** — **BPM-knob slaved indicator.** `Knob.setDisabled(on)` toggles a
   `disabled` style class + `aria-disabled` and early-returns in `onPointerDown`
   (blocks drag **and** double-tap reset). `app.ts` captures the BPM knob and
   subscribes `engine.sync.onStatus` → `setDisabled(activeMode === 'slave')`
   (v4 — the *running* role, not the selection; REQ-19) with a tooltip
   "Tempo follows the sync master while slaved".
-- **REQ-15 — Multi-transport + links status.** MIDI and WiFi coexist:
+- **REQ-15** — **Multi-transport + links status.** MIDI and WiFi coexist:
   `SyncController.addTransport(id, t)` replaces `attachTransport` (a `Map` keyed
   by `TransportId = 'midi' | 'wifi'`; same id replaces + unsubscribes). Sends
   broadcast to every transport; incoming from any is gated as before. When a
@@ -198,7 +199,7 @@ exists at Stop and at a mid-play `announceTo` (queued *run* pulses overtaken by
 that delays the slave's start by up to `idleHorizonMs`, a worse initial phase
 error than the one being fixed.
 
-- **REQ-16 — Post-start settle window.** After a slave (re)start
+- **REQ-16** — **Post-start settle window.** After a slave (re)start
   (`start`/`continue`), pulses are **ignored wholesale** for
   `startSettleBaseMs (300) + 12 pulse intervals` past the message's arrival —
   covering the possible in-flight scheduled span (`idleHorizonMs` after a
@@ -219,7 +220,7 @@ error than the one being fixed.
   settle (~0.5–0.8 s); with the idle clock (REQ-11) or a `tempo`-carrying
   transport (REQ-12) the tempo is already locked before the Start, so the
   settle costs nothing.
-- **REQ-17 — Phase re-anchor.** `SyncSlave.trackPhase` (extends REQ-5/REQ-10):
+- **REQ-17** — **Phase re-anchor.** `SyncSlave.trackPhase` (extends REQ-5/REQ-10):
   the pulse numbering is provably skewed (stale, lost, or reordered pulses)
   when either signal fires — (a) the smoothed phase error exceeds
   `max(reanchorRatio (0.75) × pulse interval, reanchorMinS (0.015))` (a healthy
@@ -237,7 +238,7 @@ error than the one being fixed.
   BPM-independent); the re-anchor is the bounded self-heal. Residual accuracy
   after a re-anchor is ± half a pulse interval — at Start the true error is
   milliseconds, so the anchor lands on the true grid.
-- **REQ-18 — Master flush (best-effort).** `SyncTransport` gains optional
+- **REQ-18** — **Master flush (best-effort).** `SyncTransport` gains optional
   `flush?(): void` — cancel scheduled-but-unsent messages. `MidiSyncTransport`
   implements it as `output.clear()` on every output inside `try/catch`
   (Chromium may not implement `clear()`; a disconnected port may throw — both
@@ -264,7 +265,7 @@ The wire state was already observable and already emitted (`ports()` +
 overloaded concept in two, so the role is a *preference* that only takes effect
 while there is a live link.
 
-- **REQ-19 — Selected mode vs. active role.** `SyncController.mode` stays the
+- **REQ-19** — **Selected mode vs. active role.** `SyncController.mode` stays the
   persisted **selection** (REQ-1 unchanged: `websynth.midisync`, restored at
   boot, painted as the selected segment). New derived
   `SyncController.activeMode: SyncMode` is the role **actually running** — never
@@ -286,7 +287,7 @@ while there is a live link.
   `SyncStatus` gains `activeMode`. **Selection painting is unchanged** — an
   armed-but-inactive mode is still the selected segment (so the setting visibly
   persists), just rendered greyed-out.
-- **REQ-20 — Link liveness.** Ports alone are too weak a signal: a virtual MIDI
+- **REQ-20** — **Link liveness.** Ports alone are too weak a signal: a virtual MIDI
   cable (loopMIDI) keeps its port after the peer app quits, so `ins > 0` would
   latch forever. A slave is therefore active only with an input port **and** a
   sync message within `linkIdleMs` (3000 ms — comfortably past the master's
@@ -302,7 +303,7 @@ while there is a live link.
   therefore stamps the timestamp and rebuilds the role *before* the triggering
   message is handled. A master needs an output port; gating it also stops its
   100 ms idle-clock timer from broadcasting into the void.
-- **REQ-21 — Tempo handoff.** An **automatic** release (link lost / clock
+- **REQ-21** — **Tempo handoff.** An **automatic** release (link lost / clock
   silence) while `clock.playing` adopts the followed tempo into the knob — a
   one-shot injected `setLocalBpm(bpm)` (`bus.set('transport.bpm', …)`) issued
   *before* `SyncSlave.disable()`, so `disable()`'s existing
@@ -312,7 +313,7 @@ while there is a live link.
   `transport.bpm`" to **never while following**. An **explicit** `setMode`
   change is a deliberate exit and keeps the REQ-4 snap-back to the knob's value
   unchanged.
-- **REQ-22 — Armed UI.** The Song panel's Sync section marks a selected-but-
+- **REQ-22** — **Armed UI.** The Song panel's Sync section marks a selected-but-
   inactive mode with an `armed` class alongside `active` (desaturated: selected,
   not lit) and spells out the reason in the status line — `Slave armed — no
   link` (no input port), `Slave armed — no clock` (port present, nothing
@@ -324,7 +325,7 @@ while there is a live link.
 [transport-position](transport-position.md) lets the user move the playhead. That
 is a transport event, so sync has to have an opinion about it in both roles.
 
-- **REQ-23 — A master announces its seek.** After a local
+- **REQ-23** — **A master announces its seek.** After a local
   `Clock.seek` while `activeMode === 'master'`, `SyncController` fans
   `SyncMaster.announceTo` out over every transport, which sends `songposition` +
   `continue` (REQ-10's existing join primitive — no new message types). Without it
@@ -332,7 +333,7 @@ is a transport event, so sync has to have an opinion about it in both roles.
   distance behind for the rest of the session. It deliberately does **not** send
   `start`: REQ-3 makes a slave restart at **bar 0** on `start`, which is the one
   thing a mid-song jump must not do.
-- **REQ-24 — A slave refuses to seek locally.** While `activeMode === 'slave'` the
+- **REQ-24** — **A slave refuses to seek locally.** While `activeMode === 'slave'` the
   remote transport owns the playhead: `Engine.seekTo` returns `false` and
   `canSeek()` is `false`, so every UI surface disables itself rather than fighting
   REQ-5's phase correction — a local `_step` jump invalidates the slave's

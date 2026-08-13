@@ -72,7 +72,7 @@ matrix) reuse it.
   Restoring from minimised also re-clamps (the body re-grows `offsetHeight`, which
   could otherwise overflow the bottom edge). All clamping shares one helper with
   the drag so the bounds are identical.
-- **REQ-9 (a window may veto its own close, v4)** — Optional
+- **REQ-9** (a window may veto its own close, v4) — Optional
   `opts.confirmClose?: () => Promise<boolean>`; when present, `close()` awaits it
   and **aborts the close entirely** on `false` — the window stays open, `onClose`
   does not fire, and `isOpen` never flips. Until v4 a close could not be
@@ -114,7 +114,9 @@ FloatingWindowOptions:
   testId?: string                     # data-testid on the root (default none)
   initial?: { left: number; top: number }   # start position (px); defaults centred-ish near the top
   windowClass?: string                # extra class on the root (width/layout variant)
-  leading?: HTMLElement               # caller control inserted as the title bar's first child (pointerdown stopped)
+  leading?: HTMLElement               # caller control, appended AFTER the built-in
+                                      # minimise button (so: second child) — REQ-6/REQ-7
+                                      # (pointerdown stopped)
   onClose?: () => void                # caller cleanup, once per close
   confirmClose?: () => Promise<boolean>   # REQ-9; false vetoes the close (guards EVERY door)
 ```
@@ -124,7 +126,7 @@ FloatingWindowOptions:
 ```yaml
 DOM: root (.root, position:fixed, z-index 950) > [ .titleBar (.minBtn + [leading?] + .title + .closeBtn), .body ]
 drag: pointerdown on .titleBar -> record start pointer + window pos; window-level
-      pointermove updates clamped left/top; pointerup/leave ends. setPointerCapture
+      pointermove updates clamped left/top; pointerup/pointercancel ends. setPointerCapture
       on the title bar retargets moves to it (optional-chained for jsdom).
       The clamp (against window.innerWidth/innerHeight minus the window size) is a
       single shared helper, also invoked on open(), on resize/orientationchange

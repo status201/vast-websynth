@@ -216,8 +216,14 @@ attachGridGestures(opts): () => void        # src/ui/components/grid-gestures.ts
   # returns a disposer that removes every listener
 
 createClearMenu(opts): HTMLElement           # src/ui/components/clear-menu.ts
-  # opts: { lane, rowLabel?(): string, onClearRow?(): void, onClearBank(): void }
-  # testids: clear-<lane>, clear-<lane>-row, clear-<lane>-bank
+  # opts: { lane: string, bankLabel(): string, onClearBank(): void,
+  #         rows?: () => ClearMenuRow[] }
+  #   bankLabel() is REQUIRED and read at open time (the bank changes under us).
+  #   rows() is resolved at open time too: a machine with a selection cursor
+  #   returns its one selected row, Motion returns every lane worth offering.
+  #   Omit it entirely on a single-row grid.
+  # testids: clear-<lane>, clear-<lane>-bank, clear-<lane>-row-<i>  (row items
+  #   are INDEXED — see testids.md)
 
 PatternStore:                                 # src/state/patterns.ts — REQ-6/REQ-7
   clearSeqBank(): boolean    / clearSeqTrack(track): boolean
@@ -238,8 +244,9 @@ from a concurrent repaint (a bank switch mid-drag), and `onSelect` fires before
 ```yaml
 step-panel-scaffold.ts:
   attachGridGestures  <- called by all four panels with their own cells/callbacks
-  clearMenuFor(engine, lane, cursor?)  <- builds the header control per lane,
-                                          reusing laneHooks for the bank label
+  clearMenuFor(engine, lane, undo, rows?)  <- builds the header control per lane,
+                                          reusing laneHooks for the bank label.
+                                          The 3rd arg is the PatternUndo stack.
 seq/drum/sampler panels:
   the per-cell `click` listener is REPLACED by attachGridGestures (not layered:
   two paths writing `on` would double-toggle)

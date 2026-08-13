@@ -51,7 +51,7 @@ concern.**
 
 ## Requirements
 
-- **REQ-1 (one gain per route, rewired only while silent)** — a route is **one `GainNode` per
+- **REQ-1** (one gain per route, rewired only while silent) — a route is **one `GainNode` per
   voice** whose gain is the route's depth. Changing a route's source or destination **ramps that
   gain to zero first, rewires while it is silent, then ramps back**. Nothing is ever connected or
   disconnected while audible, so a re-patch cannot click.
@@ -60,29 +60,30 @@ concern.**
   tap permanently connected and cross-fades five gains. That works for a fixed source and five
   destinations (10 nodes). Generalising it to a *selectable* source would mean a node per
   (row × source × destination × voice) — over 300 `GainNode`s, every one summed per block whether
-  it is in use or not, which is the opposite of cheap. One gain per route costs **54 nodes total**
-  (6 rows × 8 voices, plus one bus-wide gain per row) and moves the only graph edit onto a user
+  it is in use or not, which is the opposite of cheap. One gain per route costs **at most 54
+  nodes** (6 rows × up to 8 voices, plus one bus-wide gain per row — 36 + 6 on the `weak`
+  tier's 5-voice pool) and moves the only graph edit onto a user
   gesture, where a 20 ms mute is inaudible and arguably wanted — a re-patch *should* sound like
   one. Nothing rewires per frame, per tick, or per note.
 
-- **REQ-2 (eight rows: two grandfathered, six new)** — rows 0–1 are LFO 1 and LFO 2, and they keep
+- **REQ-2** (eight rows: two grandfathered, six new) — rows 0–1 are LFO 1 and LFO 2, and they keep
   their **existing params**: destination `lfo.dest` / `lfo2.dest`, depth `lfo.amount` /
   `lfo2.amount`. Rows 2–7 are six new routes, `mod.<n>.src` / `.dst` / `.amt` for `n = 0..5`.
   Grandfathering rather than migrating is the whole back-compat story: every saved preset, song
   and share link keeps its meaning **with no migration code**, because the params it names are
   untouched.
 
-- **REQ-3 (inert by default, and free to persist)** — every new param defaults to `0`
+- **REQ-3** (inert by default, and free to persist) — every new param defaults to `0`
   (`src` = `off`, `dst` = `none`, `amt` = 0), so a preset that predates the matrix loads silently
   ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). Because they are plain numeric
   params they ride into presets *and* songs through the existing `params` bag — **no
   `SONG_VERSION` bump, and `serialize.ts`, the JSON schemas and `llms.txt` are untouched.**
 
-- **REQ-4 (the label arrays are append-only)** — `MOD_SOURCE_LABELS` and `MOD_DEST_LABELS` are
+- **REQ-4** (the label arrays are append-only) — `MOD_SOURCE_LABELS` and `MOD_DEST_LABELS` are
   append-only, for the same reason as `SCALE_LABELS` and `LFO_DEST_LABELS`: the stored value is
   the **index**, so inserting or reordering silently re-targets every saved route.
 
-- **REQ-5 (destinations are summing `AudioParam`s, and `pulse` is not one)** — the destination
+- **REQ-5** (destinations are summing `AudioParam`s, and `pulse` is not one) — the destination
   list is curated, not the whole param registry, because a destination must be something
   modulation can *sum into*. `pulse` is deliberately absent: it has no node at all — it is a
   240 Hz main-thread `setPeriodicWave` write — so it cannot sum and stays **arbitrated** on rows
@@ -90,37 +91,41 @@ concern.**
   [motion sequencer](motion-sequencer.md) or the [XY Pad](xy-pad.md); ADR-017 is where that
   division is argued, and the UI says so rather than looking like a missing feature.
 
-- **REQ-6 (`resonance` becomes reachable)** — `filter.resonance` is an **a-rate `AudioParam` on
+- **REQ-6** (`resonance` becomes reachable) — `filter.resonance` is an **a-rate `AudioParam` on
   the filter worklet that nothing can currently address**. It joins the destination list, which
   makes it the first thing the matrix buys that was previously impossible rather than merely
   awkward.
 
-- **REQ-7 (per-voice sources may not drive bus-wide destinations)** — sources are **global**
+- **REQ-7** (per-voice sources may not drive bus-wide destinations) — sources are **global**
   (LFO 1/2, mod wheel, random) or **per-voice** (filter env, amp env, velocity, key). A per-voice
   source into a bus-wide destination is not well defined: eight voices' envelopes summing into one
   `StereoPannerNode` is mush, not modulation. Such a destination is therefore **greyed in the
   list with the reason shown, never removed** — the `Dropdown.setDisabledOptions` idiom lfo.md
   REQ-12 already used. `pan` is the only bus-wide destination today.
 
-- **REQ-8 (depth is in the destination's own unit)** — a route's amount is scaled by the
-  destination, not by the source: semitones for cutoff, cents for pitch, and the same fixed
-  depth scalars the LFO taps already use ([lfo](lfo.md) REQ-13 — pitch ±2400 ¢, cutoff ±48 st,
-  shape ±1, amp ±0.5, pan ±1 — plus the two the matrix adds, resonance ±4.2 and drive ±4). Summation stays bounded because the summands are, and because the
+- **REQ-8** (depth is in the destination's own unit) — a route's amount is scaled by the
+  destination, not by the source: semitones for cutoff, cents for pitch, from one fixed table,
+  `MOD_DEST_SCALE` (`src/state/mod-routing.ts`) — pitch ±2400 ¢, cutoff ±48 st, shape ±1,
+  amp ±0.5, pan ±1, plus the two the matrix adds, resonance ±4.2 and drive ±4.
+  These are the matrix's **own** scalars and are deliberately *deeper* than the LFO taps'
+  ([lfo](lfo.md) REQ-13 — pitch ±1200 ¢, cutoff ±24 st, shape ±0.5): the matrix is the
+  wide-range router, the LFO knob the fine one. REQ-12 is where that difference is drawn.
+  Summation stays bounded because the summands are, and because the
   `AudioParam`s clamp. [ADR-005](../decisions/adr-005-cutoff-as-midi-note.md)'s rule — cutoff
   modulators emit **semitones**, never Hz — is now enforced in one table rather than restated per
   contributor.
 
-- **REQ-9 (bipolar depth)** — amount is `-1..1`, so a route can be inverted without needing an
+- **REQ-9** (bipolar depth) — amount is `-1..1`, so a route can be inverted without needing an
   inverted copy of the source. `0` is the no-op (REQ-3).
 
-- **REQ-10 (the matrix supersedes REQ-12's exclusion)** — two rows may hold the same destination;
+- **REQ-10** (the matrix supersedes REQ-12's exclusion) — two rows may hold the same destination;
   they sum, which lfo.md REQ-13 already specified and the audio graph already did. `blockedDests`
   is deleted; `lfo-routing.ts` keeps the prefix vocabulary the two-page LFO panel still
   needs. **This can change no existing sound**: the
   validators already accepted both `dest` params independently, so a file with both LFOs on one
   destination already loaded and already summed — only the *UI block* disappears.
 
-- **REQ-10b (a source nothing selects costs nothing)** — the `random` sample-&-hold is
+- **REQ-10b** (a source nothing selects costs nothing) — the `random` sample-&-hold is
   driven from the main thread: the clock schedules one new value on its
   `ConstantSourceNode` per 16th, at the tick's own time so it lands with the beat. That
   write is **gated on whether any live row actually reads `random`** — with no such row
@@ -132,7 +137,7 @@ concern.**
   cost is proportional to what the player asked for — applied to a modulation source,
   and it is the same reasoning ADR-012 used to disconnect a bypassed effect.
 
-- **REQ-11 (a modulated knob shows its reach)** — a faceplate knob whose param any
+- **REQ-11** (a modulated knob shows its reach) — a faceplate knob whose param any
   route points at draws a **range band**: an inner arc spanning `value ± Σ|depth|`,
   the reach of every route aimed there. It is computed from the route params alone —
   **no audio-thread readback and nothing per frame** — so it costs a repaint only when
@@ -143,7 +148,7 @@ concern.**
   filter-envelope values — so drawing it would need a port message per frame *and* an
   answer to "which voice?".
 
-- **REQ-12 (a source the main thread already knows also shows its position, v2)** —
+- **REQ-12** (a source the main thread already knows also shows its position, v2) —
   the reach-only rule above was too coarse, and the case it got wrong is the one that
   matters most. Sources split by **where their current value lives**:
 
@@ -190,7 +195,7 @@ concern.**
   anything can modulate *it* and subscribes only if so, so the ~100 knobs on the
   faceplate overwhelmingly subscribe to nothing.
 
-- **REQ-13 (the band's direction has a colour, v3)** — the modulation band and its
+- **REQ-13** (the band's direction has a colour, v3) — the modulation band and its
   tick are coloured by which way the routes push: **green is up, yellow is down.**
   Both states are declared rather than leaving one to the default, so the pair reads
   as one scale instead of "coloured" versus "normal".
@@ -216,19 +221,20 @@ concern.**
 ### Contract / public interface
 
 ```yaml
-src/audio/mod-matrix.ts:
-  MOD_ROWS: 6                          # the free rows; LFO 1/2 are rows 0-1 (REQ-2)
+src/audio/mod-matrix.ts:               # imports MOD_ROWS from mod-routing; declares none of it
   ModMatrix:
     constructor(ctx, sources: ModSources)
     connectVoice(v: Voice): void       # fan-out, the connectLfoToVoice idiom (REQ-1)
     setSource(row, src): void          # cross-fade; never rewires
     setDest(row, dst): void
     setAmount(row, amt): void
-    destBlockedFor(src): number[]      # REQ-7 — bus-wide dests under a per-voice source
 
-src/state/params.ts:
+src/state/mod-routing.ts:              # pure, UI-and-audio-shared. NOT on ModMatrix.
+  MOD_ROWS: 6                          # the free rows; LFO 1/2 are rows 0-1 (REQ-2)
   MOD_SOURCE_LABELS: string[]          # APPEND-ONLY; index 0 === 'off'
   MOD_DEST_LABELS: string[]            # APPEND-ONLY; index 0 === 'none'
+  MOD_DEST_SCALE: number[]             # REQ-8 — the depth table, per destination
+  blockedDests(src): number[]          # REQ-7 — bus-wide dests under a per-voice source
 ```
 
 ### Data shapes (registry)
@@ -274,9 +280,11 @@ The window is a table of rows, each `[source ▾] → [dest ▾] [amount] [range
 ### Layer touchpoints & ordering
 
 ```yaml
-construction (engine): ModMatrix is built with the LFOs and the pitch-bend source,
-  BEFORE the voice loop, so connectVoice() can run inside it — the same place
-  connectLfoToVoice(this.lfo, v) already runs.
+construction (engine): ModMatrix is built with ModSources
+  { lfo1: lfo.modTap, lfo2: lfo2.modTap, modWheel, random }, BEFORE the voice
+  loop, so connectVoice() can run inside it — the same place
+  connectLfoToVoice(this.lfo, v) already runs. Pitch bend is NOT a matrix
+  source: it wires straight to the osc detune params in the voice loop.
 engine (subscribeParams):
   mod.<n>.src -> matrix.setSource(n, round(x))
   mod.<n>.dst -> matrix.setDest(n, round(x))

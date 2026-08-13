@@ -18,7 +18,7 @@ source:
   - src/audio/ios-audio-session.ts
   - src/audio/silent-loop.ts          # shared element builder (media-session.md REQ-7)
   - src/audio/engine.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-debug.ts   # the Audio-unlock / Silent-loop debug rows
   - src/ui/studio-api.ts
   - src/ui/app.ts
 ```
@@ -105,7 +105,8 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
   [audio-lifecycle](audio-lifecycle.md). `main.ts` is unchanged — `await
   engine.resume()` keeps doing everything.
 - **REQ-7** — `IosAudioSession.diagnostics` (`{ active, status, routed, paused,
-  currentTime }`) is re-exported by `Engine.iosAudio` and is part of `StudioApi`. These
+  currentTime, audioSessionSet }` — the last set when
+  `navigator.audioSession.type = 'playback'` succeeds) is re-exported by `Engine.iosAudio` and is part of `StudioApi`. These
   values are **displayed** in the [`debug-panel`](debug-panel.md), which owns the panel
   mechanics; ios-audio only owns the data and contributes two rows — **Audio unlock**
   (`debug-ios-unlock`: status + `· routed`) and **Silent loop** (`debug-ios-loop`:
@@ -122,7 +123,7 @@ isIOS(): boolean
 
 # src/audio/ios-audio-session.ts
 shouldResumeContext(state: string): boolean        # state !== 'running' && state !== 'closed'
-IosAudioDiagnostics: { active: boolean; status: string; routed: boolean; paused: boolean | null; currentTime: number | null }
+IosAudioDiagnostics: { active: boolean; status: string; routed: boolean; paused: boolean | null; currentTime: number | null; audioSessionSet: boolean }
 class IosAudioSession:
   constructor(ctx: AudioContext)
   active: boolean                                   # = isIOS(), read once

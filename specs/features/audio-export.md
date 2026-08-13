@@ -71,7 +71,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
   ([transport-position](transport-position.md) REQ-6) — an *export*, not any
   capture: a manual take is bounded by nothing, so it does not take the guard
   (REQ-4). `isExporting()` is what that guard reads.
-- **REQ-3 (the tail)** — After the final step the transport stops and the capture
+- **REQ-3** (the tail) — After the final step the transport stops and the capture
   keeps running for a grace period before the buffer is read: `TAIL_MS` (350 ms)
   by default, or **one whole bar** when `opts.tailBar` is set, so a reverb or
   delay tail decays instead of being cut off mid-tail.
@@ -86,7 +86,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
   with no options and [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)
   depends on its takes being **bar-exact and repeatable**, which a variable-length
   tail would break. Humans want the tail; the bench wants the grid.
-- **REQ-4 (capture phases)** — The recorder is an explicit five-phase machine,
+- **REQ-4** (capture phases) — The recorder is an explicit five-phase machine,
   not a boolean:
   **`idle → recording ⇄ paused → review → encoding → idle`**
   (an export skips `review`: `idle → recording → encoding → idle`).
@@ -133,7 +133,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
   inherit the bitrate. A sample rate lamejs cannot handle still falls back to
   WAV with a console warning — on that path `encodeMp3` returns **without**
   loading lamejs at all.
-- **REQ-6 (frame tagging)** — Each chunk the worklet posts carries
+- **REQ-6** (frame tagging) — Each chunk the worklet posts carries
   `f = currentFrame` (the absolute sample index of the chunk's first frame in
   the context timeline). `RecorderNode` records the first chunk's tag as
   `firstFrame` (reset by `start()`), letting consumers map a scheduled
@@ -141,7 +141,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
   `offset = round(when × sampleRate) − firstFrame`. Consumers that ignore the
   tag (this spec's own controller) are unaffected. Consumed by
   [render-to-sampler](render-to-sampler.md).
-- **REQ-7 (lazy encoder, v4)** — `encodeMp3` loads lamejs via a dynamic
+- **REQ-7** (lazy encoder, v4) — `encodeMp3` loads lamejs via a dynamic
   `import()`, so the encoder ships as its **own chunk**, fetched on the first
   MP3 encode rather than at boot. `encodeMp3` is therefore `async`; `encodeWav`
   stays synchronous. `encode.ts` remains AudioContext-free and jsdom-testable —
@@ -153,7 +153,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
   assets ([pwa-install](pwa-install.md) REQ-6), so a chunk never fetched while
   online would be missing offline. A failed warm is swallowed — the real
   `import()` inside `encodeMp3` retries it.
-- **REQ-8 (format-echoing labels; v5, extended in v7)** — A control that leads to
+- **REQ-8** (format-echoing labels; v5, extended in v7) — A control that leads to
   a file says which format that file will be, re-labelled the moment the format
   changes. v7 adds two surfaces without dropping the original:
     - **`Export Song as <WAV|MP3>…`** — the Song tab button. It no longer writes
@@ -168,7 +168,7 @@ already-slow action, so the fetch is invisible next to the encode itself.
     - **`Record…`** names no format: it opens a window, and the take's format is
       not chosen until Save.
   The `testids` below stay the stable handles — these labels are not.
-- **REQ-9 (export options, v7)** — `song-export-audio` opens an **options modal**
+- **REQ-9** (export options, v7) — `song-export-audio` opens an **options modal**
   rather than exporting on the spot, carrying exactly three choices: **Format**,
   **Runs** (1..`MAX_RUNS`) and **Add an empty bar at the end** (checked). It shows
   a live computed length (`bars × runs [+ 1 tail bar] ≈ N s`) so the cost of the
@@ -180,14 +180,16 @@ already-slow action, so the fetch is invisible next to the encode itself.
   with an explanatory `title` while the recorder is busy, rather than being a
   button whose click silently does nothing (`exportSong` early-returns when a
   capture is already in flight).
-- **REQ-10 (the modal is the render's own surface, v7.1)** — **Confirming does
+- **REQ-10** (the modal is the render's own surface, v7.1) — **Confirming does
   not close the modal.** Export renders in *real time*: a 32-bar song at 10 runs
   is over ten minutes during which v7.0 showed nothing at all — the dialog
   vanished, the transport ran, and the only clue anything was happening was that
   the app had gone unresponsive-looking. So the modal stays and becomes the
   progress display:
   - **`rendering`** — a determinate progress bar plus `bar n of N`, driven off
-    `exportProgress()` (`clock.step / stopAtStep`) repainted on `clock.onTick`.
+    `exportProgress()` (`elapsedSteps / stopAtStep`) repainted on `clock.onTick`.
+    `elapsedSteps`, not `clock.step`: the clock's step wraps at `& 0xffff`
+    ([transport](transport.md) REQ-5), which made the old form unreachable (REQ-2).
     Determinate, not a spinner: the length is known exactly up front, and this is
     long enough that "how much longer" is the actual question.
   - **`encoding`** — *"Preparing your download…"* (REQ-4's phase). Indeterminate,
@@ -254,8 +256,9 @@ already downloads from a `setTimeout` with no user activation.
 
 ```yaml
 graph: master -> recorder worklet (zero-output sink; does not alter playback)
-song export: RecorderController drives clock from step 0, watches the absolute
-  step count, finishes after bars × runs (or FALLBACK_BARS) + the tail (REQ-3)
+song export: RecorderController drives clock from step 0 and counts TICKS SEEN
+  in its own `elapsedSteps` (the wrap-free counterpart to the clock's step),
+  finishing after bars × runs (or FALLBACK_BARS) + the tail (REQ-2, REQ-3)
 guards keyed off the recorder — two predicates, never one:
   engine.canSeek()              -> !isExporting()   # absolute-step bounds only
   engine.clock.onStop choke     -> !isCapturing()   # don't cut a take's samples

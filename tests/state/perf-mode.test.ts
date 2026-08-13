@@ -9,6 +9,7 @@ import {
   perfDiagnostics,
   PERF_PROFILES,
 } from '../../src/state/perf-mode';
+import { ParamBus, registerDefaults } from '../../src/state/params';
 
 /** Replace `navigator` with a minimal stub for the detection branches. */
 function stubNavigator(fields: { hardwareConcurrency?: number; deviceMemory?: number; userAgent?: string }): void {
@@ -46,6 +47,56 @@ describe('perf-mode preference storage', () => {
   it('falls back to auto for an unrecognised stored value', () => {
     localStorage.setItem('websynth.perf', 'garbage');
     expect(readPerfPref()).toBe('auto');
+  });
+});
+
+/**
+ * performance-mode.md — "the pref is not a sound parameter". It is a *device*
+ * setting: it must never reach the ParamBus (ADR-001), and so it can never be
+ * captured into a preset or a song and follow a patch onto someone else's
+ * machine (ADR-006). The storage half of the claim is above; this is the rest.
+ */
+describe('the pref is not a sound parameter', () => {
+  beforeEach(() => installLocalStorageMock());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is unknown to the param catalogue', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const ids = Object.keys(bus.snapshot());
+    expect(ids.length).toBeGreaterThan(0); // the catalogue really loaded
+    expect(ids.filter((id) => /perf/i.test(id))).toEqual([]);
+  });
+
+  it('is captured by neither a preset nor a song', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    writePerfPref('weak');
+    // Both surfaces serialize exactly `bus.snapshot()` — a preset Snapshot *is*
+    // one, and `Song.capture` writes it as the file's `params` — so a key the
+    // snapshot cannot hold is a key neither format can carry.
+    expect(bus.snapshot()).not.toHaveProperty('websynth.perf');
+    expect(Object.keys(bus.snapshot()).some((id) => id.includes('perf'))).toBe(false);
+  });
+
+  it('writing it changes no param and fires no change signal', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const before = bus.snapshot();
+    const onChange = vi.fn();
+    bus.onChange(onChange);
+
+    writePerfPref('strong');
+
+    expect(bus.snapshot()).toEqual(before);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('persists under websynth.perf and touches no other storage key', () => {
+    const store = installLocalStorageMock();
+    writePerfPref('medium');
+    expect([...store.keys()]).toEqual(['websynth.perf']);
+    expect(store.get('websynth.perf')).toBe('medium');
   });
 });
 

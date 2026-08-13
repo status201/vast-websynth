@@ -22,7 +22,7 @@ source:
   - src/audio/ios-audio-session.ts
   - src/types/pwa.d.ts                # AudioRenderCapacity ambient types
   - src/ui/studio-api.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-debug.ts   # the Debug rows that surface context state
 ```
 
 What happens to the audio around the edges of a session: the moment the context
@@ -72,16 +72,19 @@ the session alive, and what the Debug panel shows.
   `RESUME_FADE_S = 0.15` — long enough to swallow a stream-start transient and the
   first-block settling of the worklets, short enough to be inaudible as a fade after
   a deliberate tap.
+
 - **REQ-2** — **The fade only ever happens on a real resume.** It is gated on the
   same `shouldResumeContext(ctx.state)` check as `ctx.resume()` itself, so calling
   `resume()` on an already-running context (the About panel's toggle, the iOS
   re-arm path, `app.ts`'s `resumeAudio`) neither dips nor re-ramps live audio.
   `iosSession.unlock()` still runs unconditionally first (it is the in-gesture
   session-category call — [`ios-audio`](ios-audio.md) REQ-4).
+
 - **REQ-3** — **The ramp is scheduled before the resume is awaited.** `currentTime`
   is frozen while a context is suspended, so scheduling at `t = ctx.currentTime`
   before `await ctx.resume()` guarantees the ramp covers the *first* rendered
   blocks rather than starting somewhere inside them.
+
 - **REQ-4** — **Returning to the foreground re-arms the context on every platform.**
   `Engine.init()` installs a `document` `visibilitychange` listener unconditionally:
   on becoming visible it calls `resume()` when `shouldResumeContext(ctx.state)` —
@@ -89,11 +92,13 @@ the session alive, and what the Debug panel shows.
   the call is unconditional (the silent loop must be replayed to hold the media-backed
   session category even when the context survived), and the `ctx` `statechange`
   listener stays iOS-only. See [`ios-audio`](ios-audio.md) REQ-5.
+
 - **REQ-5** — **`statechange` must not fight a deliberate suspend.** The Debug
   panel's Suspend action suspends a *visible* context; auto-resuming from
   `statechange` off iOS would undo it instantly, so that listener is not installed
   there (REQ-4). The iOS case is the deliberate exception: `'interrupted'` arrives
   while visible and there is nothing else to recover from it.
+
 - **REQ-6** — **A frozen renderer produces silence, never a burst.** While the
   wakeup source is stalled the transport emits nothing at all, and it resumes from
   the step it was on once wakeups return — see [`transport`](transport.md) REQ-9 for
@@ -102,10 +107,21 @@ the session alive, and what the Debug panel shows.
   screen-off playback that works (the Samsung tablet, desktop, iOS with the silent
   loop) is unaffected, and a device that cannot deliver wakeups goes quiet instead
   of going haywire.
+
 - **REQ-7** — **The recovery is observable.** `Clock.dropouts` counts recoveries
   for the session and is appended to the Debug panel's Transport row
   ([`debug-panel`](debug-panel.md)), so the failure this spec exists for can be
   confirmed from a phone with no console — which is the only place it reproduces.
+
+- **REQ-8** (v2) — **The OS is told there is a player here.** `resume()` also
+  unlocks the [`media-session`](media-session.md) keep-alive, and the foreground
+  re-arm (REQ-4) re-arms it, both alongside their iOS counterparts and both
+  no-ops off their platform. REQ-6 above is the *safe* outcome for a page the OS
+  has throttled; the keep-alive is the attempt to stop it being throttled at all.
+  It was added after REQ-6 shipped and fixed the runaway clock on a Pixel 8a
+  without fixing the crackle — which is what ruled out the missed-step burst as
+  the crackle's cause.
+
 - **REQ-9** (v3) — **Backgrounded audio that is measurably breaking up is
   suspended, not left to crackle.** While the page is **hidden** and the context
   is **running**, a watchdog samples how the audio thread is actually doing every
@@ -114,6 +130,7 @@ the session alive, and what the Debug panel shows.
   fades back in through the existing path (REQ-4/REQ-1), and because a suspended
   context freezes `currentTime`, the transport's grid is untouched — it picks up
   exactly where it was, the same "a dropout is a pause" contract as REQ-6.
+
 - **REQ-10** (v3) — **The trip is measured, never inferred from the device.** Two
   signals, in order of precision:
   - **`AudioContext.renderCapacity`** (Chrome 115+) reports `underrunRatio` — the
@@ -143,6 +160,7 @@ the session alive, and what the Debug panel shows.
   Samsung tablet on the same build played through a screen-off fine; gating on
   "is Android" would have stopped the tablet too. A device that does not underrun
   never trips.
+
 - **REQ-11** (v3) — **It never interrupts a real-time capture.** The trip is
   refused while `recorder.isCapturing()` or `bankRender.isRendering()`
   ([audio-export](audio-export.md), [render-to-sampler](render-to-sampler.md)):
@@ -150,6 +168,7 @@ the session alive, and what the Debug panel shows.
   truncate the file. A capture running in a backgrounded tab keeps whatever
   crackle the device gives it — a damaged take beats a truncated one, and the
   Debug row still shows what happened.
+
 - **REQ-12** (v3) — **The measurement is visible whether or not it trips.**
   `Engine.backgroundAudio` (`{ supported, watching, underrunRatio, worstUnderrunRatio,
   driftRatio, suspensions }`) is part of `StudioApi` and renders as the **Background
@@ -157,14 +176,6 @@ the session alive, and what the Debug panel shows.
   deliberate: if a device crackles while its `underrunRatio` reads **zero**, the
   glitching is happening downstream of the renderer and nothing in this app can
   reach it — which is a finding, not a dead end.
-- **REQ-8** (v2) — **The OS is told there is a player here.** `resume()` also
-  unlocks the [`media-session`](media-session.md) keep-alive, and the foreground
-  re-arm (REQ-4) re-arms it, both alongside their iOS counterparts and both
-  no-ops off their platform. REQ-6 above is the *safe* outcome for a page the OS
-  has throttled; the keep-alive is the attempt to stop it being throttled at all.
-  It was added after REQ-6 shipped and fixed the runaway clock on a Pixel 8a
-  without fixing the crackle — which is what ruled out the missed-step burst as
-  the crackle's cause.
 
 ## Technical design
 

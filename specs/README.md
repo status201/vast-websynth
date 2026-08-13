@@ -23,7 +23,17 @@ Every spec aims to cover, in roughly this order:
 - **Background / the "why"** — the context behind the "what", so a reader (or
   agent) can reason ahead about the steps you'll need.
 - **Requirements** — the technical design broken into discrete, numbered pieces
-  (`REQ-1`, `REQ-2`, …), not a vague one-liner.
+  (`REQ-1`, `REQ-2`, …), not a vague one-liner. Written as
+  `- **REQ-n** (vN, optional) — body`, one shape everywhere, so the id is
+  machine-readable.
+
+  **A REQ id is permanent.** Other specs cite it (`[x](x.md) REQ-7`) and its
+  `(vN)` marker records when it landed, so a new requirement is **appended** with
+  the next free number — never inserted by renumbering the ones after it. Sub-ids
+  (`REQ-5a`, `REQ-13b`) are for a rule that genuinely refines its parent, and sort
+  directly after it. Keep the bullets in ascending order: if a later REQ belongs
+  beside an earlier one thematically, say so in its text — do not move it up the
+  list. `npm run spec:lint` enforces uniqueness and order.
 - **Technical design** — the public **contract/interface**, the **data shapes**,
   the **layer touchpoints** (what collaborates and in what order), and
   **persistence** (storage keys, file format, and what is *deliberately not*
@@ -92,6 +102,16 @@ Scenario: Cutoff knob updates the live filter
   And every voice's ladder filter tracks the new cutoff
 # pinned by: tests/state/params.test.ts, e2e/controls.spec.ts
 ```
+
+A `# pinned by:` line may cover **the run of scenarios above it**, not only the one
+it follows — that is the normal shape for a group of scenarios sharing a describe
+block. So the rule is *every gherkin block carries at least one pin*, not every
+scenario carries its own. A scenario that genuinely has no test says so in place,
+in the same comment slot, and names the manual procedure instead of leaving the
+slot empty — see `features/responsive-synth-panels.md`, the one spec where
+**none** of the scenarios is automated (rendered geometry at a given viewport,
+which jsdom cannot measure) and which states that as a decision rather than
+letting a reader assume coverage.
 
 ## Spec lifecycle
 
@@ -174,8 +194,16 @@ and `src/state/demos/**` (demo songs are data drop-ins, not code — see
 > The guard checks that a spec *changed*, not that it is *good* — spec quality is
 > the human review gate. A companion check, `scripts/spec-lint.mjs`
 > (`npm run spec:lint`), validates spec *structure*: a metadata block, `id`
-> matching the filename, a valid `status`, that `# pinned by:` paths resolve, and
-> that every spec/ADR is listed in this folder map **and** the `decisions/` index.
+> matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
+> paths resolve, that `REQ-n` ids are unique and ascending, that a cross-spec
+> `[x](x.md) … REQ-n` finds that REQ in `x.md`, and that every spec/ADR is listed
+> in this folder map **and** the `decisions/` index. Two things are warnings
+> rather than errors: a *gap* in the REQ sequence (a reserved range is plausible,
+> a scrambled list is not), and a `Scenario:` that carries no trailing `#` note
+> at all — neither a `# pinned by:` nor an explicit reason there is none. A spec
+> being drafted has scenarios before it has tests, and blocking that would only
+> teach authors to write the pin first and the test never; but silence is what
+> makes a covered scenario read as a gap, so it is worth saying out loud.
 > It runs in CI (PRs **and** pushes to `main`) **and** unconditionally as a local
 > `Stop` hook (blocking the finish on a malformed spec — it lints even when the
 > turn ended with everything committed, since a clean tree says nothing about the

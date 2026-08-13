@@ -47,7 +47,8 @@ so the Song panel can drive momentary controls without reaching into the machine
   per-frame `clock.setBpm(...)` and the final `clock.setBpm(origBpm)` restore in
   Tape Stop's rAF tick — an ungated restore would stomp an externally-followed
   tempo with the local knob value. The pitch-bend ramp is unaffected. Engine
-  wires `perf.clockRampAllowed = () => sync.mode !== 'slave'`, so a slaved
+  wires `perf.clockRampAllowed = () => sync.activeMode !== 'slave'` — the mode
+  that is actually RUNNING, not the selected preference — so a slaved
   instance's Tape Stop bends pitch only and never fights the followed clock
   ([midi-clock-sync.md](midi-clock-sync.md) REQ-13).
 - **REQ-7** (v4) — **A transport seek re-anchors stutter.** `mapStep` returns

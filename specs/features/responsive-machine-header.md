@@ -66,15 +66,18 @@ somewhere predictable rather than mid-cluster.
   deliberately *not* gated behind a media query: with all four effects engaged
   the row exceeds even a 1280 px panel, so a breakpoint-only rule would still
   clip on a wide screen.
+
 - **REQ-2** — The effect groups of a machine are wrapped in a single
   **`.fxCluster`** container, so the row has two structural units: the machine
   controls (direct children, as before) and the FX cluster (one child). Panels
   with no effect groups (Sequencer, Motion, Arpeggiator) have no `.fxCluster`
   and are unchanged apart from REQ-1.
+
 - **REQ-3** — From **≤1140px** — the existing wrap step of the documented
   1280 → 1140 → 992 → 720 cascade — `.fxCluster` takes `flex-basis: 100%`, so
   it leads its **own** full-width row. The machine controls keep the row(s)
   above and never reflow around individual fx groups.
+
 - **REQ-4** — Above 1140px the layout is **visually identical to before**: the
   cluster is a plain content-sized run in the same DOM order (computed
   `flex-basis: auto`, never REQ-3's `100%`), with the same 12 px gap, and is
@@ -84,9 +87,25 @@ somewhere predictable rather than mid-cluster.
   content-sized, **not a guarantee at any particular width** — see the budget
   note above. The pin therefore reads the two properties directly at 1280 px and
   checks row membership only where there is headroom to spare.
+
 - **REQ-5** — `.fxCluster` itself wraps internally (`flex-wrap: wrap`,
   `min-width: 0`), so once it owns a row its groups tile onto as many lines as
   needed rather than overflowing that row.
+
+- **REQ-6** — Every `fxgroup-<prefix>` root stays rendered and non-zero-size at
+  all widths. Nothing is `display: none`d. This is load-bearing:
+  [fx-group](fx-group.md) REQ-5 anchors help badges to the group root precisely
+  so help stays reachable for a *bypassed* effect, and InfoBadges hides badges on
+  zero-size anchors.
+
+- **REQ-7** — Existing testids and DOM identities are preserved. The
+  `fxGroup(...)` calls, their arguments and their `fxgroup-<prefix>` testids are
+  untouched; only their parent element changes. `bank-<lane>-*`,
+  `sampler-record` and `seq-step-input` are unaffected. (`motion-view-x|y` has
+  since moved out of the machine header into the Motion tab's own XY-lane row —
+  see [motion-sequencer](motion-sequencer.md) REQ-8 — so this rule no longer
+  covers it.)
+
 - **REQ-8** (v3) — **`.laneControls` is the header's second cluster.** The
   Chain / Mute / Solo trio ([machine-status](machine-status.md) REQ-9) is wrapped
   the same way `.fxCluster` is and for the same reason: the row's wrap points
@@ -97,18 +116,6 @@ somewhere predictable rather than mid-cluster.
   budget note already warns is thin: ~57 px in the sampler header at 1280 px. The
   row wrapping (REQ-1) absorbs it — that is exactly what REQ-1 exists for — so a
   narrower fit is expected and correct, not a regression.
-- **REQ-6** — Every `fxgroup-<prefix>` root stays rendered and non-zero-size at
-  all widths. Nothing is `display: none`d. This is load-bearing:
-  [fx-group](fx-group.md) REQ-5 anchors help badges to the group root precisely
-  so help stays reachable for a *bypassed* effect, and InfoBadges hides badges on
-  zero-size anchors.
-- **REQ-7** — Existing testids and DOM identities are preserved. The
-  `fxGroup(...)` calls, their arguments and their `fxgroup-<prefix>` testids are
-  untouched; only their parent element changes. `bank-<lane>-*`,
-  `sampler-record` and `seq-step-input` are unaffected. (`motion-view-x|y` has
-  since moved out of the machine header into the Motion tab's own XY-lane row —
-  see [motion-sequencer](motion-sequencer.md) REQ-8 — so this rule no longer
-  covers it.)
 
 ## Technical design
 

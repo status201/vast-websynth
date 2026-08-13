@@ -56,10 +56,12 @@ notes played on another tab no longer overwrite its bank.
 
 - **REQ-1** — All input sources call `bus.noteOn(note, velocity)` /
   `bus.noteOff(note)`; the engine handles the rest.
+
 - **REQ-2** — A computer key emits **exactly one** `bus.noteOn`/`noteOff` (from
   `installShortcuts`). `UiBridge.pressKey/releaseKey` only repaints the on-screen
   keyboard in lock-step (`keyboard.highlight`, a visual toggle); it never calls the
   bus, so no source double-fires the note funnel.
+
 - **REQ-3** — Two key rows (lower from C, upper one octave higher); a base octave is
   shiftable; auto-repeat is ignored. (v11, re-based v13) The note mapping is
   **exported** and is the single source for the About modal's keyboard diagram
@@ -74,8 +76,16 @@ notes played on another tab no longer overwrite its bank.
   ([keyboard-layout](keyboard-layout.md) REQ-1), rebuilt whenever it changes.
   The piano shape lives in one place; which characters reach it is the layout's
   business, and the diagram draws the shape rather than either set of letters.
+
 - **REQ-4** — MIDI (Web MIDI) maps Note On (vel 0 = off) / Note Off to the bus;
   absence of Web MIDI is a no-op (logged), not an error.
+
+- **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
+  editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
+  reach the field and never play a note, toggle transport, bend pitch, shift
+  octave, or trigger a drum fill. (Same `closest(...)` rule the `contextmenu`
+  guard already uses.)
+
 - **REQ-6** — MIDI access is requested only after the "Tap to start" gesture,
   never at page load: Chrome ≥124 shows a permission prompt for *all* MIDI
   access (sysex or not), and an unprompted load-time permission dialog is
@@ -83,6 +93,7 @@ notes played on another tab no longer overwrite its bank.
   `{ sysex: false }`; a denied prompt degrades exactly like absence of Web
   MIDI (logged, no error). Note: Chrome's DevTools deprecation line ("Web MIDI
   will ask a permission…") is informational and cannot be silenced from code.
+
 - **REQ-7** — `midi.ts` is the **sole owner** of the shared `MIDIAccess`
   handler properties (`onmidimessage`/`onstatechange` are single-assignment —
   a second owner would silently clobber them). System Real-Time bytes
@@ -95,6 +106,7 @@ notes played on another tab no longer overwrite its bank.
   ts)` (v2; midi-clock-sync REQ-10). `midi.ts` registers the transport via
   `engine.sync.addTransport('midi', sync)` (v2; was `attachTransport`);
   `onstatechange` additionally refreshes the sync transport's port counts.
+
 - **REQ-8** — **Sustain pedal (CC64)**, MIDI-layer (v6): while the pedal is down
   (CC64 value ≥ 64) a MIDI note-off (0x80, or 0x90 vel 0) is **deferred** — it
   never reaches `bus.noteOff`; the note is remembered as *sustained*. Pedal
@@ -105,6 +117,7 @@ notes played on another tab no longer overwrite its bank.
   computer keys are unaffected) and every bus consumer sees the deferral — with
   the arpeggiator on, the pedal behaves as an arp latch (accepted behaviour).
   State lives in the pure `SustainPedal` helper (`src/audio/sustain-pedal.ts`).
+
 - **REQ-9** (v8) — **`?` toggles the info badges.** It is free by construction:
   `e.key` for Shift+`/` is `?`, so neither the `/` pitch-bend branch nor its
   `keyup` twin matches, and the blanket `ctrlKey || metaKey || altKey` bail-out
@@ -117,6 +130,7 @@ notes played on another tab no longer overwrite its bank.
   [onboarding](onboarding.md) REQ-19; since v15 it is the *second* route to the
   badges rather than a shortcut past a modal, the first being the header's ⓘ
   button (onboarding REQ-8).
+
 - **REQ-10** (v9) — **A lit key is remembered as an element, never re-derived.**
   `keyboard.transpose` (the OCT strip) shifts the note→element mapping: an element
   sounds `note + transpose * 12`, so the key *for* a sounding note is
@@ -136,6 +150,7 @@ notes played on another tab no longer overwrite its bank.
   transport stop, the only caller of `clearSeqHighlights`. Lit entries are
   **refcounted**, so two of the four sequencer tracks sounding the same note cannot
   have the first release dim a key the second is still holding.
+
 - **REQ-11** (v9) — **A note-off always names the note that was pressed.** Two
   sources re-computed it at release time against mutable state and stranded the
   note when that state moved mid-hold:
@@ -149,11 +164,7 @@ notes played on another tab no longer overwrite its bank.
       (a hung voice *and* a stuck-lit key until the window lost focus).
   This is the input-layer twin of [sequencer](sequencer.md) REQ-15: nothing may
   hold a note whose release depends on state that is free to change underneath it.
-- **REQ-5** — Computer-keyboard shortcuts are suppressed while focus is in an
-  editable field (`input` / `textarea` / `[contenteditable="true"]`): keystrokes
-  reach the field and never play a note, toggle transport, bend pitch, shift
-  octave, or trigger a drum fill. (Same `closest(...)` rule the `contextmenu`
-  guard already uses.)
+
 - **REQ-12** (v10) — **Pitch bend is `'` up and `/` down, chosen for where the
   keys sit.** Both write `master.pitchBend` (+1 / −1) on keydown and spring back
   to 0 on keyup, as before. What changed is which key means *up*: it was `.`,
@@ -189,6 +200,7 @@ notes played on another tab no longer overwrite its bank.
     toggles the info badges rather than bending (REQ-9). With modifiers
     otherwise ignored, `Shift`+`Quote` does bend — the physical key bends,
     which is the whole premise.
+
 - **REQ-13** (v13) — **The note keys follow a switchable keyboard layout.**
   `installShortcuts` rebuilds `LOWER`/`UPPER` whenever
   [keyboard-layout](keyboard-layout.md) reports a change (REQ-4 there), so a
@@ -317,27 +329,29 @@ Scenario: Shifting octave while a computer key is held releases it (v9, REQ-11, 
 Scenario: MIDI Note On with velocity 0 is a Note Off (edge)
   Given a MIDI device sends 0x90 note 60 velocity 0
   Then bus.noteOff(60) is called
-# pinned by: midi.ts handleMessage contract
+# pinned by: tests/audio/midi.test.ts (channel-voice messages)
 
 Scenario: A MIDI clock pulse never reaches note handling (edge)
   Given a MIDI device interleaves 0xF8 clock bytes with note messages
   When a single-byte 0xF8 message arrives
   Then it is routed to the sync transport before the 0xf0 status mask
   And no note or CC handler runs for it
-# pinned by: tests/audio/midi-sync-transport.test.ts; midi.ts handleMessage guard
+# pinned by: tests/audio/midi.test.ts (system messages route before the channel
+#            mask), tests/audio/midi-sync-transport.test.ts
 
 Scenario: A Song Position Pointer routes to the sync transport (edge)
   Given a MIDI master sends 0xF2 lsb msb (beat position)
   When the 3-byte message arrives
   Then it routes to handleSongPosition(((msb)<<7)|lsb, ts) before the 0xf0 mask
   And no note or CC handler runs for it
-# pinned by: tests/audio/midi-sync-transport.test.ts; midi.ts handleMessage guard
+# pinned by: tests/audio/midi.test.ts (system messages route before the channel
+#            mask), tests/audio/midi-sync-transport.test.ts
 
 Scenario: No Web MIDI is a silent no-op
   Given navigator.requestMIDIAccess is undefined
   When initMIDI runs
   Then it logs and returns without throwing
-# pinned by: midi.ts (guarded)
+# pinned by: tests/audio/midi.test.ts (initMIDI wiring)
 
 Scenario: MIDI permission is not requested before the start gesture
   Given the page has just loaded (start modal showing)
@@ -345,7 +359,8 @@ Scenario: MIDI permission is not requested before the start gesture
   When the user taps to start
   Then initMIDI runs (a browser permission prompt may appear)
   And a denied prompt is a logged no-op, like absence of Web MIDI
-# pinned by: main.ts showStartModal onStart -> initMIDI; midi.ts try/catch
+# pinned by: tests/audio/midi.test.ts (the denial no-op); the ordering itself is
+#            main.ts showStartModal onStart -> initMIDI
 
 Scenario: Sustain pedal defers note-offs until release
   Given a MIDI device sends CC64 value 127 (pedal down)
@@ -353,7 +368,7 @@ Scenario: Sustain pedal defers note-offs until release
   Then bus.noteOff(60) is NOT called (the voice keeps ringing)
   When CC64 value 0 arrives (pedal up)
   Then bus.noteOff(60) is called exactly once
-# pinned by: tests/audio/sustain-pedal.test.ts
+# pinned by: tests/audio/midi.test.ts (control change map), tests/audio/sustain-pedal.test.ts
 
 Scenario: A note retriggered while sustained does not get a stale note-off (edge)
   Given the pedal is down and note 60 was released (sustained)
@@ -366,14 +381,14 @@ Scenario: Velocity-0 note-on obeys the pedal (edge)
   Given the pedal is down and note 60 is playing
   When 0x90 note 60 velocity 0 arrives (a note-off in disguise, REQ-4)
   Then it is deferred exactly like an 0x80 note-off
-# pinned by: tests/audio/sustain-pedal.test.ts (helper contract; midi.ts routes both paths through it)
+# pinned by: tests/audio/midi.test.ts (both paths through midi.ts), tests/audio/sustain-pedal.test.ts
 
 Scenario: CC64 63/64 boundary (edge)
   Given CC64 value 64 arrives, then a note-off
   Then the note-off is deferred (64 is "down")
   Given CC64 value 63 arrives instead
   Then sustained notes flush and later note-offs pass through (63 is "up")
-# pinned by: tests/audio/sustain-pedal.test.ts
+# pinned by: tests/audio/midi.test.ts (the 63 case over the wire), tests/audio/sustain-pedal.test.ts
 
 Scenario: Pitch bend sits on the vertically stacked keys (v10, REQ-12)
   Given no editable field has focus
@@ -419,6 +434,10 @@ Scenario: Typing in a text field does not play notes
   `window.__synth.bus`).
 - `e2e/patterns.spec.ts` (one key = one Step-Input step, the no-double-trigger
   regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only).
+- `tests/audio/midi.test.ts` (the byte-level dispatch: the CC map, the vel-0
+  note-off, System Real-Time / Song Position routing ahead of the channel mask,
+  and REQ-7's sole ownership of `onmidimessage`, driven through `initMIDI`
+  against `tests/audio/fake-midi-access.ts`).
 - `tests/audio/sustain-pedal.test.ts` (the CC64 deferral state machine, REQ-8).
 - `npm run e2e` / `npm test` / `npm run typecheck`.
 

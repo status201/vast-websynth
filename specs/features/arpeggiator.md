@@ -44,7 +44,7 @@ releasing the last key stops it again (only if the arp was what started it).
   auto-stops it — but only if the arp started it (`startedTransport`).
 - **REQ-4** — If the transport stops by other means (Play, panic, export), the arp
   resets its auto-start ownership.
-- **REQ-5 (armed is visible from outside the tab, v2)** — The Arpeggiator tab
+- **REQ-5** (armed is visible from outside the tab, v2) — The Arpeggiator tab
   carries a status LED lit by `arp.on`. Because REQ-1 means an engaged arp takes
   the keyboard away from direct playing and REQ-3 means a held key can start the
   transport, "is the arp armed?" is a live-performance question that must be
@@ -52,7 +52,7 @@ releasing the last key stops it again (only if the arp was what started it).
   [machine-status](machine-status.md) REQ-10 — two states only (`on`/`off`), and
   the arp deliberately stays out of `MachineId`; that spec holds the detail.
 
-- **REQ-6 (every rate plays its own rate, v3)** — The clock ticks in **16ths**, so
+- **REQ-6** (every rate plays its own rate, v3) — The clock ticks in **16ths**, so
   a rate finer than 1/16 cannot be one-hit-per-tick. `1/32` used to fall into an
   `else` branch that fired once per tick with a comment conceding the
   approximation, which made it **audibly identical to 1/16** — the control was in
@@ -63,7 +63,7 @@ releasing the last key stops it again (only if the arp was what started it).
   lands exactly as precisely as a tick-aligned one. The rule is general, not a
   1/32 special case: a finer rate added to `RATES` needs no new branch.
 
-- **REQ-7 (`arp.on` in a song is armed, not broken, v3)** — A song may save
+- **REQ-7** (`arp.on` in a song is armed, not broken, v3) — A song may save
   `arp.on: 1` while carrying no arp notes of its own. The arp is driven by
   `bus.onNote` — the keyboard and MIDI — and the [sequencer](sequencer.md) does
   **not** route through it, so on autonomous playback an armed arp sounds nothing
@@ -76,7 +76,7 @@ releasing the last key stops it again (only if the arp was what started it).
   is to be "fixed" by making the sequencer feed the arp; what was missing was
   saying so, which is why this REQ exists and why the authoring guide states it.
 
-- **REQ-8 (the pool is chord-expanded, then key-quantized, v4)** — `fire()` builds its
+- **REQ-8** (the pool is chord-expanded, then key-quantized, v4) — `fire()` builds its
   pool from the held set. Two transforms now sit on that build: each held note is
   expanded through chord memory ([chord-tools](chord-tools.md) REQ-6), and every entry
   is quantized to the key **after** the `n + o * 12` octave stacking, so stacked octaves
@@ -103,8 +103,10 @@ Arpeggiator:  # src/audio/transport/arpeggiator.ts
   passthroughSuppressed: boolean      # engine reads this to gate note passthrough
   setEnabled(on) / setPattern(i) / setRate(i) / setOctaves(n) / setGate(g)
   # subscribes to bus.onNote (held set) and clock.onTick (schedule)
-PATTERNS: ['up','down','up-down','random','as-played']
-RATES:    ['1/4','1/8','1/16','1/32']  -> divisions [4,2,1,0.5] sixteenths/step
+RATE_DIVISIONS: [4, 2, 1, 0.5]      # sixteenths per step — the ONLY const here
+# The label arrays live in src/state/params.ts, not on Arpeggiator:
+#   ARP_PATTERN_LABELS: ['up','down','updn','rand','play']
+#   ARP_RATE_LABELS:    ['1/4','1/8','1/16','1/32']
 ```
 
 ### Data shapes (registry)

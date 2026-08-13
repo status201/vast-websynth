@@ -180,6 +180,7 @@ export class SessionAutosave {
   flush(): void;             // synchronous write if a save is pending
   static load(): SongFile | null;  // validated; clears the key on corrupt payloads
   static clear(): void;
+  static stats(): { bytes: number; savedAt: number | null } | null;  // REQ-13's debug row
 }
 ```
 
@@ -265,6 +266,7 @@ Scenario: stats reads the age without parsing the session (REQ-13)
   When stats() is called
   Then savedAt matches the time it was written
   And no JSON.parse of the payload occurs
+# pinned by: tests/state/session-autosave.test.ts (stats() — REQ-13)
 
 Scenario: stats survives a payload it cannot scan (REQ-13, edge)
   Given a stored payload that is not the shape write() produces

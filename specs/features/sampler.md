@@ -74,12 +74,14 @@ the song format.
   upstream of `samplerBus`, so the [FX](effects.md) tails ring out untouched: Stop
   silences the *source*, never the room.
   **`stopAll` is public and `Engine` subscribes `clock.onStop`, not the machine**
-  ([ADR-008](../decisions/adr-008-engine-coordinates.md)) — because the one
+  ([ADR-008](../decisions/adr-008-components-self-wire-params.md)) — because the one
   exception is Engine's to know. A stop that *ends a capture*
   ([audio-export](audio-export.md), [render-to-sampler](render-to-sampler.md)) is
   deliberately rendering the tail, so the cut is skipped while
-  `recorder.isRecording()` or `bankRender.isRendering()` — the same pair
-  `canSeek()` already guards on. Chopping the last bar's one-shots out of an
+  `recorder.isCapturing()` or `bankRender.isRendering()`. Note this is
+  **deliberately not** the pair `canSeek()` guards on: `canSeek()` tests
+  `recorder.isExporting()`, because an offline export may be seeked while a live
+  capture may not (`Engine`, with a code comment saying so). Chopping the last bar's one-shots out of an
   export would be a worse bug than the hang this fixes.
   **Drums need no equivalent**: every drum voice already schedules a finite
   `src.stop()` via `chokeRoute(...).stopAt(natural)`, so a tied drum cell decays
@@ -100,8 +102,9 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
   onBufferChange(fn) -> unsubscribe   # slot's buffer replaced/cleared
   stopAll()                        # v4, REQ-8: fade + stop every in-flight hit
 engine (init):                     # v4 — the POLICY, so the capture exception fits
-  clock.onStop(() => { if (recorder.isRecording() || bankRender.isRendering()) return;
+  clock.onStop(() => { if (recorder.isCapturing() || bankRender.isRendering()) return;
                        sampler.stopAll(); })
+  # canSeek() guards on isExporting(), NOT isCapturing() — different questions.
 ```
 
 ### Data shapes (registry + store)

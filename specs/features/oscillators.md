@@ -40,7 +40,8 @@ scalar params, so they snapshot into presets/songs for free.
 - **REQ-2** — A sub-oscillator with waveform / octave (only `-2..-1`) / level,
   defaulting to **level 0** (no-op for existing presets).
 - **REQ-3** — A noise level in the mixer, default 0.
-- **REQ-4** — Every change applies to **all 8 voices** live (via the `all(...)`
+- **REQ-4** — Every change applies to **every voice in the pool** live — 8, or 5
+  on the `weak` tier ([performance-mode](performance-mode.md)) — (via the `all(...)`
   fan-out).
 - **REQ-5** — (v2) `osc1`/`osc2` have a **pulse width**, `0.5..0.95`, default
   `0.5`. Duty `0.5` *is* a square wave, so the default is an exact no-op
@@ -158,7 +159,7 @@ ui:       src/ui/app.ts  (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
     hint's visibility AND knob-${prefix}.rate's soft ceiling (v3, per page in v4)
 ```
 
-Each `Voice` (`src/audio/voice.ts`) owns its own `Oscillator` instances
+Each `Voice` (`src/audio/voice.ts`) owns its own `Osc` instances
 (`src/audio/oscillator.ts`); detune is in **cents**, octave in whole octaves.
 
 PWM is the one modulation path that is **not** an audio-node connection: there is
@@ -278,7 +279,7 @@ Scenario: The rate cap is shown on the knob, not only in prose (REQ-9, v3)
 ## Open questions / future
 
 - `WAVE_LABELS` order is defined in `params.ts`; a 5th waveform would extend the
-  discrete range + labels and need no engine change beyond `Oscillator.setWave`.
+  discrete range + labels and need no engine change beyond `Osc.setWave`.
   Note the array is shared with `lfo.wave`, so a 5th *oscillator* wave means
   splitting it — and `param-dropdown.ts` exists because a 5-option segmented row
   does not fit a narrow panel column.

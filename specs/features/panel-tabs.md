@@ -77,8 +77,9 @@ whole of this component.
     selector declaring `font-family: var(--serif)` and its `DISPLAY_TYPE` list,
     so a serif here would fail the suite until someone added the
     whitespace-normalised selector string.
-  - All of this component's classes (`.panelTabs`, `.panelTab`, `.panelPage`,
-    `.panelTabLamp`) live in `layout.module.css` and set no `font-family`.
+  - All of this component's classes (`.panelTabs`, `.panelTab`, `.panelPages`,
+    `.panelPage`, `.panelTabLamp`) live in `layout.module.css` — the component
+    imports that stylesheet and no other — and set no `font-family`.
 
 - **REQ-5** — **Every page stays in the DOM**; switching toggles the global
   `visible` class on page shells, mirroring `TabContainer`'s
@@ -272,7 +273,7 @@ Scenario: Tabs share the header evenly (REQ-10)
 # pinned by: e2e/lfo2.spec.ts
 
 Scenario: The component declares no new serif rule (REQ-4)
-  Given the strip reuses segmented.module.css
+  Given the strip's classes all live in layout.module.css (its only import)
   When the typography drift pin runs
   Then the serif selector set still equals its allowlist, with no new entry
 # pinned by: tests/ui/typography.test.ts

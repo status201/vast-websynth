@@ -34,12 +34,24 @@ sub-ranges; reset writes each param back to its registered default.
 - **REQ-1** — A small set of factory kits (e.g. Default, 808, 909, LoFi,
   Acoustic, Techno, Percussion), each a sparse per-track table merged over the
   registered defaults.
+
 - **REQ-2** — `applyKit(bus, name)` writes every per-track param for all tracks:
   the kit's value where given, otherwise the param's registered default (so
   switching kits is deterministic and fully overwrites the previous kit).
+
 - **REQ-3** — `randomKitValues(rand?)` is **pure** (takes an injectable RNG) and
   returns param→value entries within musical sub-ranges (not the full param
   range). `randomizeKit(bus, rand?)` applies them via `bus.set`.
+
+- **REQ-4** — UI: a KIT dropdown + a Randomize button lead the **sound-design
+  row below the grid** (alongside the per-drum tuning strip), not the panel
+  header — the header is already full and widening it pushes the drum-compressor
+  help badge off-screen. Selecting a kit applies it, Randomize rolls a new one;
+  both repaint the tuning strip via the knobs' own bus subscriptions.
+
+- **REQ-5** — No-op safety: the Default kit and reset reproduce the registered
+  defaults exactly, so existing presets/songs are unaffected.
+
 - **REQ-6** (v2) — A kit may also choose each track's **voice model**
   (`KitDef.model`, writing `drum.t{i}.model` — drum-machine.md REQ-11). The
   **Percussion** kit uses this to turn the machine into a percussion section
@@ -47,13 +59,6 @@ sub-ranges; reset writes each param back to its registered default.
   deliberately does **not** touch models — it stays a timbre shuffle of the
   current voices; `applyKit` still resets the model row to defaults for kits
   that omit it (REQ-2 semantics).
-- **REQ-4** — UI: a KIT dropdown + a Randomize button lead the **sound-design
-  row below the grid** (alongside the per-drum tuning strip), not the panel
-  header — the header is already full and widening it pushes the drum-compressor
-  help badge off-screen. Selecting a kit applies it, Randomize rolls a new one;
-  both repaint the tuning strip via the knobs' own bus subscriptions.
-- **REQ-5** — No-op safety: the Default kit and reset reproduce the registered
-  defaults exactly, so existing presets/songs are unaffected.
 
 ## Technical design
 

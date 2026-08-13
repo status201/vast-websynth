@@ -67,7 +67,7 @@ so a reviewer has something concrete to hold a new feature against.
 
 ## Requirements
 
-- **REQ-1 — Boot cost is proportional to what the user asked for.** Nothing whose size
+- **REQ-1** — **Boot cost is proportional to what the user asked for.** Nothing whose size
   scales with *content* may be downloaded, parsed or generated eagerly at boot when the
   user will use at most one of it. Demo songs are fetched on click
   ([`song-mode.md`](song-mode.md)); reverb IRs are generated on first use of a size
@@ -111,33 +111,33 @@ so a reviewer has something concrete to hold a new feature against.
   threshold, and the warning firing is the signal that something joined the boot path
   that should not have.
 
-- **REQ-2 — Expensive immutable artefacts are shared, not rebuilt per instance.** An
+- **REQ-2** — **Expensive immutable artefacts are shared, not rebuilt per instance.** An
   artefact that is a pure function of its inputs and immutable in use (an
   `AudioBuffer` handed to a `ConvolverNode`, a `WaveShaperNode` curve) is cached by
   those inputs and shared across every consumer. The three FX chains share one IR bank.
 
-- **REQ-3 — Global input listeners exist only for the duration of a gesture.** A
+- **REQ-3** — **Global input listeners exist only for the duration of a gesture.** A
   component MUST NOT hold a `window`/`document` `pointermove` listener at rest. Attach
   on `pointerdown`, detach on `pointerup`/`pointercancel` and in `destroy()`.
   `Knob.onPointerDown`/`detachDragListeners` is the reference implementation; see
   [`add-a-ui-component.md`](../recipes/add-a-ui-component.md). Low-frequency global
   listeners (`keydown`, `click`, `visibilitychange`, `resize`) are exempt.
 
-- **REQ-4 — No work for DOM that is not on screen.** `TabContainer` hides inactive
+- **REQ-4** — **No work for DOM that is not on screen.** `TabContainer` hides inactive
   panels with a class, so they stay live and subscribed. Any per-tick or per-bar repaint
   MUST be gated on visibility (`TabContainer.isVisible` via the panel's
   `VisibilityGate`) and MUST re-sync once on reveal, so a revealed panel shows the
   current state immediately rather than a stale one. The rule governs **repaints
   only** — see REQ-9 for the loops it must never be applied to.
 
-- **REQ-5 — Automation is not an edit.** A param write made by the machine
+- **REQ-5** — **Automation is not an edit.** A param write made by the machine
   (motion-sequencer automation, a Tape Stop pitch ramp) MUST fire the per-param
   listeners — knobs and the XY pad still track it — but MUST NOT reach
   `ParamBus.onChange`. That signal means "the user changed the sound", and it drives
   the autosave debounce and the preset dirty marker. A user gesture that happens to
   animate (the XY pad's spring-back) is an edit and stays on the normal path.
 
-- **REQ-6 — No allocation in a per-frame or per-sample loop.** Loops that run at frame
+- **REQ-6** — **No allocation in a per-frame or per-sample loop.** Loops that run at frame
   rate (`MotionMachine.frame`) or sample rate (worklet `process`) allocate nothing per
   iteration: hoist derived values out, cache pure derivations keyed by the state that
   produces them, and invalidate from the store's existing change streams.
@@ -158,18 +158,18 @@ so a reviewer has something concrete to hold a new feature against.
   push a shared mutable buffer through the one piece of hit math the sequencer, drum
   machine and sampler are required to agree on.
 
-- **REQ-7 — DOM writes are guarded on the rendered representation.** A repaint driven
+- **REQ-7** — **DOM writes are guarded on the rendered representation.** A repaint driven
   by a continuous value compares what it is about to *write* (a rounded angle, a
   formatted string) against the last written value and skips the unchanged ones —
   guarding each write independently so the DOM never lags the latest value.
   `Scope.mirrorPeak` and `StepButton.setViz` are the reference implementations.
 
-- **REQ-8 — A worklet optimisation is bit-exact or it is a sound change.** Rewrites of
+- **REQ-8** — **A worklet optimisation is bit-exact or it is a sound change.** Rewrites of
   per-sample DSP for speed MUST produce identical output for identical input (same
   operands, same order) and be pinned by an equivalence test. Anything that alters the
   output is a sound change and needs its own spec + ADR-010 justification.
 
-- **REQ-9 — Visibility gating is for pixels, not for sound** (v2). A loop that only
+- **REQ-9** — **Visibility gating is for pixels, not for sound** (v2). A loop that only
   *draws* SHOULD stop while the document is hidden (`Scope` is the reference: it
   pauses its redraw on `visibilitychange`). A loop that changes **what is heard** MUST
   NOT — and therefore MUST NOT be driven by `requestAnimationFrame` alone, because

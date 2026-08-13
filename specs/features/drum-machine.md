@@ -45,21 +45,29 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
 
 - **REQ-1** — 8 fixed tracks: Kick, Snare, Closed Hat, Open Hat, Low/Mid/High Tom,
   Clap (order matches `DRUM_TRACKS`).
+
 - **REQ-2** — Per-track volume / tune (semitones) / decay / tone / drive / pan /
   mute.
+
 - **REQ-3** — One-shot hits honour velocity/prob/ratchet; gate < 1 chokes the hit
   early (downstream gain), gate 1 is natural decay, tie rings into the next step.
+
 - **REQ-4** — Reads `patterns.drumBank(arrangement.drumPlayBank)` each tick.
+
 - **REQ-5** — When `performance.fillActive`, play a roll instead of the pattern.
+
 - **REQ-6** — `tune` is audible on **every** voice (it shifts the noise/tone
   filters + oscillators by `2^(tune/12)`), not only Kick/Tom.
+
 - **REQ-7** — Tone/drive/pan are applied by a per-track channel inserted between
   the voice `output` and the drum bus, leaving the voice envelope + choke intact.
   All three default to a **no-op** (tone open, drive off, pan centre).
+
 - **REQ-8** — The drum panel exposes a **selected-drum tuning strip**
   (tune/decay/tone/drive/pan/vol knobs + a Reset) driven by the same selection
   cursor as the per-step editor; clicking a track label selects **and** auditions
   it. Reset returns that track's params to their registered defaults.
+
 - **REQ-9** — Each one-shot hit's per-hit nodes (oscillators, noise sources,
   filters, envelope gains, and the choke gain when present) are **disconnected
   once the hit's source(s) end** — the hit's source `onended` tears them down
@@ -67,6 +75,18 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   `output` gain, built in the constructor and wired into the track channel once,
   survives. This bounds the live graph: a long song must not accumulate
   stopped-but-connected nodes (which crackle/distort the audio over time).
+
+- **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
+  track changes**, not on every step click (its knobs bind per-track paramIds that
+  depend on the track alone; their displayed values already track the bus via
+  subscription). Each rebuilt `Knob` is `destroy()`ed, and a destroyed Knob leaves
+  **no window pointer listeners** behind — its drag listeners are attached on
+  `pointerdown` and removed on `pointerup`/`destroy()` (the drag-scoped-listener
+  rule in [add-a-ui-component](../recipes/add-a-ui-component.md)). This bounds the
+  main-thread cost of drum editing: repeated step/track clicks must not accumulate
+  dead window listeners or detached DOM, which otherwise starve the audio callback
+  and crackle the audio *over time*.
+
 - **REQ-11** (v5) — Each track's voice **algorithm is selectable** via a
   per-track discrete param `drum.t{i}.model`. The model list is the 8 classic
   voices (Kick, Snare, C.Hat, O.Hat, L/M/H Tom, Clap — indices 0–7, matching
@@ -88,6 +108,7 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   - UI: the sound-design row's tuning strip gains a per-track **model dropdown**
     (testid `drum-model`), and the grid's row label follows the selected model's
     name (the classic `DRUM_TRACK_LABELS` remain the slot names).
+
 - **REQ-12** (v6) — **A closed hat can cut an open hat.** On a real 808/909 the
   two hats share one voice, so a closed hat ends whatever the open hat was doing;
   here every track is independent, so an open hat rang straight through the
@@ -112,16 +133,6 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   - A closed hat does **not** choke itself, and nothing chokes a kick/snare/tom —
     this is the hat pair only. A general per-track choke-group matrix is
     deliberately out of scope; see Open questions.
-- **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
-  track changes**, not on every step click (its knobs bind per-track paramIds that
-  depend on the track alone; their displayed values already track the bus via
-  subscription). Each rebuilt `Knob` is `destroy()`ed, and a destroyed Knob leaves
-  **no window pointer listeners** behind — its drag listeners are attached on
-  `pointerdown` and removed on `pointerup`/`destroy()` (the drag-scoped-listener
-  rule in [add-a-ui-component](../recipes/add-a-ui-component.md)). This bounds the
-  main-thread cost of drum editing: repeated step/track clicks must not accumulate
-  dead window listeners or detached DOM, which otherwise starve the audio callback
-  and crackle the audio *over time*.
 
 ## Technical design
 
@@ -171,8 +182,9 @@ engine (subscribeParams):
   drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute/ Model
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)
-graph: voice.output -> drive(preGain->waveShaper->postGain) -> tone(lowpass biquad)
-         -> trackGain -> pan(StereoPanner) -> drumBus -> drumComp -> drumPhaser -> drumDelay -> drumReverb -> preMaster
+graph: voice.output -> choke(gain, REQ-12) -> drive(preGain->waveShaper->postGain)
+         -> tone(lowpass biquad) -> trackGain -> pan(StereoPanner)
+         -> drumBus -> drumComp -> drumPhaser -> drumDelay -> drumReverb -> preMaster
 ui: src/ui/panels/drum-panel.ts (drum-step-<t>-<s> grid + per-track mute +
     a sound-design row below the grid: KIT dropdown + randomize then a
     selected-drum tuning strip knob-drum.t<i>.{tune,decay,tone,drive,pan,vol} +
@@ -206,7 +218,7 @@ Scenario: Tune shifts a noise voice (REQ-6)
 
 Scenario: A track has its own tone/drive/pan channel (REQ-7)
   Given the drum machine is constructed
-  Then each track wires voice.output -> drive -> tone -> gain -> pan -> drumBus
+  Then each track wires voice.output -> choke -> drive -> tone -> gain -> pan -> drumBus
   And setTrackTone/Drive/Pan adjust that track's channel without touching other tracks
 # pinned by: tests/audio/transport/drum-machine.test.ts
 

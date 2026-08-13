@@ -32,13 +32,13 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
 
 ## Requirements
 
-- **REQ-1 (beat blink, pre-existing)** — While the transport plays, the LED is
+- **REQ-1** (beat blink, pre-existing) — While the transport plays, the LED is
   red (`.on`) and blinks with the beat: lit for steps 0–1 of each beat, dimmed
   (`.blink` class) for steps 2–3, driven by `clock.onTick`.
-- **REQ-2 (idle attract)** — While the transport is stopped, the LED pulses
+- **REQ-2** (idle attract) — While the transport is stopped, the LED pulses
   **orange, slowly** (~2 s cycle, CSS animation via the `attract` class) so the
   transport is discoverable. Active from boot.
-- **REQ-3 (silent-action cue, v2)** — Any action that stays *audibly inert
+- **REQ-3** (silent-action cue, v2) — Any action that stays *audibly inert
   until the transport runs* arms a **fast green blink** (~0.4 s cycle, `cue`
   class) — a "press play" call to action — when it happens while the transport
   is **stopped**. Cueing actions:
@@ -54,14 +54,14 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
   The same action while already playing does *not* arm the cue. The signal
   travels via `UiBridge.cuePlay` (callers → header), assigned in `buildHeader`
   before any UI can fire it.
-- **REQ-4 (exclusivity & lifecycle)** — At most one blink state at a time:
+- **REQ-4** (exclusivity & lifecycle) — At most one blink state at a time:
   `attract` and `cue` are only present while stopped (cue wins while armed);
   starting the transport clears both and consumes the cue; stopping returns to
   `attract`. The beat blink runs only while playing (unchanged).
-- **REQ-5 (reduced motion)** — Under `prefers-reduced-motion: reduce` the
+- **REQ-5** (reduced motion) — Under `prefers-reduced-motion: reduce` the
   animations are disabled; the LED holds its lit face instead (orange for
   attract, green for cue) — the signal stays, only the motion goes.
-- **REQ-6 (compositor-only)** — Both blinks pulse the **opacity** of a lit
+- **REQ-6** (compositor-only) — Both blinks pulse the **opacity** of a lit
   `::after` overlay on the LED; they must never animate `background` or
   `box-shadow` directly. These are the only infinite animations in the app and
   the attract pulse runs the entire time the transport is stopped, so a
@@ -76,7 +76,7 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
 ```yaml
 UiBridge:
   cuePlay(): void          # no-op default; buildHeader assigns the real handler
-buildSongPanel(bus, engine, session, xy, bridge)   # bridge threaded (new param)
+buildSongPanel(bus, engine, session, xy, bridge, xyWin, modWin)   # bridge threaded (new param)
 state classes on the play button (global, like `.on`/`.blink`):
   attract  # stopped, no cue armed  -> slow orange LED pulse
   cue      # stopped, cue armed     -> fast green LED blink

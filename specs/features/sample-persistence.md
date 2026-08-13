@@ -146,7 +146,7 @@ main.ts boot order:
   mountApp                          # sampler panel sees loaded slots
   new SampleAutosave(...).attach()  # after the restore, so it schedules no rewrite
   showStartModal(onStart: initMIDI + the restored-clips toast)
-src/ui/components/about.ts: Debug row 'Sampler clips' <- SampleAutosave.stats()
+src/ui/components/about-debug.ts: Debug row 'Sampler clips' <- SampleAutosave.stats()
 src/state/factory-reset.ts: await SampleAutosave.clear() (timeout-capped) -> reload
 ```
 

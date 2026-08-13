@@ -19,7 +19,7 @@ source:
   - src/audio/ios-audio-session.ts
   - src/audio/engine.ts
   - src/ui/studio-api.ts
-  - src/ui/components/about.ts
+  - src/ui/components/about-debug.ts   # the Media Session debug row
 ```
 
 Make Android see the synth as what it is — a media player that is currently

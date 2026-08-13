@@ -41,7 +41,8 @@ not a feature — it owns markup and styling only, and has no state.
   `.brandTagline` (`Vast Audio Synthesis Technology`). Every consumer renders
   **identical** markup and typography; there is no size or content variant.
 - **REQ-2** — Consumers: the header (`ui/app.ts` `buildHeader`), the About modal
-  (`ui/components/about.ts`), and the start modal (`main.ts` `showStartModal`).
+  (`ui/components/about-modal.ts`, whose `buildModal` calls `createBrand()`), and
+  the start modal (`main.ts` `showStartModal`).
   A new surface that shows the name calls this rather than restating it.
 - **REQ-3** — **The block carries no outer framing.** `.brand` styles only its
   own contents (column flow, gap, line-height). The header's divider rule —

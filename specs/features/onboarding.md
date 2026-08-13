@@ -7,7 +7,7 @@ version: 22  # v22: the facade's five signatures are unchanged, but its body now
              #      loads on the first startTour()/badge toggle
              #      (runtime-performance.md REQ-1)
              # v21: a `mod` badge on the Song row's MOD launcher (REQ-21)
-             # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-20)
+             # v20: `key` and `seq.chord` badges for the scale/chord tools (REQ-22)
              # v19: an `lfo2.rate` sweet-spot badge, and the LFO panel's page
              #      shell joins the reflow observer list (REQ-5a, lfo.md REQ-15)
              # v18: while the badges show, the ⓘ button's glyph inverts to the
@@ -93,8 +93,10 @@ thing.
 
 - **REQ-1** — The tour highlights one target at a time; only the callout (and its
   Back/Skip/Next) is clickable — the spotlighted control remains live.
+
 - **REQ-2** — Interactive steps (play a note, press Play, load a demo) work against
   the real app via injected hooks, not globals.
+
 - **REQ-3** — The info badges show per-control help content from
   `help-content.ts`. The badge *vocabulary* is "info" (the ⓘ glyph the user
   clicks): `InfoBadges`, `Onboarding.toggleInfoBadges`, `UiBridge.toggleInfoBadges`,
@@ -103,6 +105,10 @@ thing.
   `HelpTopic`, `HELP_TOPICS`, `TopicId` and the `data-help="<topic>"` anchors —
   because an info badge opens a help topic, and the anchors are spread across
   every panel file. The boundary is deliberate, not drift.
+
+- **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
+  on-screen.
+
 - **REQ-5** — The Song panel's file/audio buttons each carry their own badge —
   `song.load`, `song.save`, `song.import`, `song.export`, `song.new`,
   `song.exportAudio`, `song.record` — and their copy disambiguates the
@@ -110,6 +116,7 @@ thing.
   Song the WAV/MP3 audio). These pin to the buttons' existing testids, so they
   reposition/hide on tab switch via the same reflow path as other in-panel
   badges (e.g. `seq.prob`).
+
 - **REQ-5a** (v19) — **Every container that shows and hides a badge's anchor must
   be in the reflow observer's selector list.** `position()` hides a badge whose
   anchor measures zero, and `enable()` re-runs it from a `ResizeObserver` over
@@ -120,14 +127,22 @@ thing.
   back when the user returns from LFO 2's page. The second page needs no entry:
   its own anchor (`knob-lfo2.rate`) lives inside it, and revealing it is what
   triggers the observer on page 1 collapsing.
-- **REQ-4** — Placement of callouts adapts (`auto`/top/bottom/left/right) to stay
-  on-screen.
+
+- **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
+  `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
+  USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
+  `sync-mode-master`, and `sync.wifi` (WiFi pairing steps: same network + client
+  isolation off → Create on one device, Join on the other, swap codes via QR or
+  copy-paste) anchored to `sync-wifi-link`. See
+  [midi-clock-sync.md](midi-clock-sync.md) / [webrtc-sync.md](webrtc-sync.md).
+
 - **REQ-7** (v3) — A `motion` help topic anchors to the Motion machine's tab
   (`tab-motion`, like the other machine tabs). Its copy explains the mini-pad
   anchors and, above all, the **Y/X graph view**: the overlay line projects one
   axis at a time (the toggle picks which assigned param it traces; the dots
   never move) and its shape follows Step/Slide mode. See
   [motion-sequencer.md](motion-sequencer.md) REQ-8.
+
 - **REQ-8** (v4, rewritten v15) — **The header's ⓘ button (`info-badges`) is a
   pure toggle.** One click shows the badges, one click hides them, in every
   state; it opens no modal and has no second outcome. It carries the orange
@@ -138,6 +153,7 @@ thing.
   what [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 2 forbids; the
   active styling was cited as licensing it. v15 removes the ambiguity instead of
   licensing it.
+
 - **REQ-8b** (v18) — **While the badges show, the glyph inverts into a badge.**
   `toggleActive` alone is *generic* active chrome — the Fullscreen button wears
   the same border and glow — so it says "this button is on", not "this button is
@@ -160,6 +176,7 @@ thing.
   - The hooks are **per-part classes on the glyph** (`.disc` / `.stem` / `.dot`
     in `header-icons.ts`) targeted from `tour.module.css`. Only the ⓘ glyph
     carries them, so Fullscreen — which shares `toggleActive` — is untouched.
+
 - **REQ-9** (v5) — Help copy tells the truth about what a control does:
   - The `modWheel` topic explains the wheel's actual routing — it **adds to the
     LFO Amount** (engine clamps the sum to 1), so it deepens whatever the LFO
@@ -174,6 +191,7 @@ thing.
     tour and the shortcut list, plus version and credits) rather than only the
     modal's title. The v13 tooltip "Help & Demo Tour — Shift+click or hold for
     badges" named a door and two gestures that no longer exist.
+
 - **REQ-10** (v6) — The tour showcases the Song tab before its closing step: one
   step spotlights the arrangement **chain lanes** (`song-lane-seq` — banks chained
   one per bar, plus the per-lane mute/solo/level mixer) and the next the **live DJ
@@ -187,6 +205,7 @@ thing.
   lands on real content. Its copy names **both** header doors — ⓘ for the badges
   it is spotlighting, ? for replaying this tour — because the closing step is the
   last moment the tour can hand over the two things a stuck user needs.
+
 - **REQ-11** (v7) — **Help copy covers the gesture model.** The grid gestures
   ([step-grid-editing](step-grid-editing.md)) are invisible by construction —
   nothing on screen says a step can be dragged, held or bulk-cleared — so the
@@ -198,6 +217,7 @@ thing.
   states its own variant, because its grid has no tap-toggle (drag sets a value,
   double-click clears) and its `Clear ▾` lists lanes rather than a selected row
   (step-grid-editing REQ-6).
+
 - **REQ-12** (v7, re-anchored v18) — **A `presets` topic anchors to
   `preset-select`.** It covers the whole preset cluster: the selector, and the
   single Presets button beside it ([presets](presets.md) REQ-9) which opens
@@ -215,6 +235,7 @@ thing.
     exemption from the scrolled-under-the-header rule, and hiding on a zero-size
     anchor when the cluster collapses behind the hamburger below 720px
     ([responsive-header](responsive-header.md) REQ-1).
+
 - **REQ-13** (v7) — **The tour teaches the grid gestures.** A "Paint a pattern"
   step sits between the pattern-tabs step and the Song-tab steps. It targets
   **`panel-drums`** (`precondition: clickTestId('tab-drums')`), deliberately *not*
@@ -222,6 +243,7 @@ thing.
   consecutive steps sharing a target leave the spotlight rect unmoved, which reads
   as "nothing happened". The drum grid also carries the demo song's hits by this
   point (same rationale as REQ-10), so the gesture lands on real content.
+
 - **REQ-14** (v8) — **The Motion tab carries two short per-lane badges** beside the
   essay-length `motion` topic (REQ-7): `motion.xy` anchored to the **XY lane header**
   (`data-help="motion.xy"`) and `motion.tracks` anchored to the **A track's row**
@@ -229,6 +251,7 @@ thing.
   2–3 sentence quick explainer — the XY-pad automation and the single-param tracks
   respectively — for users who don't want the full Motion write-up. See
   [motion-sequencer.md](motion-sequencer.md) REQ-8.
+
 - **REQ-15** (v9) — **The Sequencer's Render button carries a `seq.render` badge**
   (anchored to `seq-import-render`). Same rationale as REQ-5's per-button Song
   badges: "Import into sampler" is unexplained on screen, and pressing Render
@@ -236,6 +259,7 @@ thing.
   reverb/delay tail into the loop — behaviour that reads as a hang unless the
   copy says so. The badge must also cover the two reasons the button greys out.
   See [render-to-sampler.md](render-to-sampler.md) REQ-10.
+
 - **REQ-16** (v11) — **The playhead ruler carries a badge on every machine tab**,
   and the Song panel's transport row carries one on its launcher
   ([transport-position.md](transport-position.md) REQ-9,
@@ -250,6 +274,7 @@ thing.
   the `Home` / `Shift`+arrow keys. `transport.song` (anchored to
   `transport-open`) covers the bar readout, the scrubber's one-cell-per-chain-slot
   correspondence, the floating window, and the states where seeking is refused.
+
 - **REQ-16b** (v14) — **The Song tab's two audio buttons keep their badges, and
   both topics are rewritten**, because neither button does what it used to:
   `song.record` now opens the [Record window](record-window.md) and
@@ -261,43 +286,7 @@ thing.
   discard-on-close confirm, and `Shift`+`R`; the export topic must cover runs and
   what the tail bar is for. The anchors (`song-record`, `song-export-audio`) are
   unchanged.
-- **REQ-20** (v20) — **The key and the chord writer each carry a badge.** `key` is
-  anchored to `tab-key`, the machine-tab convention the arp/seq/drums badges already
-  follow: an active scale silently re-pitches *every* note source
-  ([scale-quantization](scale-quantization.md)), so "why does my note not sound where
-  I put it?" has to be answerable from the tab itself. Its copy leads with the fact
-  the panel cannot show — that the filter is **non-destructive**, and `chromatic`
-  means nothing changes — and names the map's four colours, which is otherwise the
-  one thing on the tab with no on-screen legend beyond three words.
 
-  `seq.chord` is anchored to `seq-chord` on the Sequencer's step row
-  ([chord-tools](chord-tools.md)). It earns a per-control badge on two counts that
-  the badge policy already recognises: it is the only control in that row that writes
-  to **four tracks at once**, and it is the only one whose options are disabled by a
-  setting on **another tab** — a dead control with an off-screen cause is exactly the
-  case ADR-014 says must explain itself. The copy also decodes the Roman numerals,
-  which are the notation a non-musician will not have.
-- **REQ-21** (v21) — **The MOD launcher carries a badge**, `mod` anchored to
-  `perf-mod` ([mod-matrix](mod-matrix.md)). It sits in the Live FX row but is not a
-  Live FX control — it opens the patch's **modulation routing**, which is sound design
-  rather than a momentary performance gesture. A vertical divider says that visually;
-  the badge is what says *what it is*, since "MOD" alone names nothing a newcomer knows.
-
-  Its copy carries the three things the window cannot show on its own: that **amount is
-  bipolar** and past zero the route inverts; that a modulated knob on the synth panels
-  grows an inner arc, **green for up and yellow for down**, so the effect is visible
-  with the window shut; and **why the destination list is short** — ADR-017's boundary,
-  pointing at Motion and the XY Pad for everything else. Without that last part a
-  curated list reads as a missing feature.
-- **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
-  anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
-  written as `transport.song`'s **sibling** — the two rows sit against each other
-  on the Song tab, both led by a launcher that doubles as its section title, so
-  their copy follows the same order: what the row is, each control, what the
-  floating window adds, where it is reduced. It stays out of the two topics that
-  overlap its row: the master compressor (`fx.master.comp`) and the XY Pad's
-  axis assignment (`motion.xy`). Before it, Live FX was the only unbadged
-  section on the Song tab.
 - **REQ-17** (v11) — **Symbols in the About modal's key list are legible.** The
   key column is monospace at 11px, which has no glyph for `← → ↑ ↓`: the
   browser substitutes per character at its own much smaller size, and the arrow
@@ -311,6 +300,7 @@ thing.
   [Record window](record-window.md) (REQ-9 there). It already carries non-key gestures (`Shift`+drag for fine knob
   control), so a mouse row is in keeping. The v13 `Shift`+click-on-Help row is
   **gone** in v15 along with the gesture itself.
+
 - **REQ-17b** (v15) — **The key list is folded to its first six rows.** Fifteen
   rows of mostly-advanced keys made the modal long enough that the tour button,
   the version and the Debug section all fell below the fold on a phone, so only
@@ -337,6 +327,7 @@ thing.
     ⓘ button is (REQ-8). The count moved from five rows to six when pitch bend
     split into one row per key ([input-control](input-control.md) REQ-12); the
     rule is "through `Space`", not a magic number.
+
 - **REQ-17c** (v16) — **Keys are drawn as keys, and the note rows are drawn as a
   keyboard.** A combo is an ordered list of **tokens** — a keycap or a run of
   literal text — never one parsed string. Two things follow, and both are the
@@ -352,8 +343,10 @@ thing.
     which a flat `Z S X D C V G B H N J M ,` never was. Naturals and sharps also
     carry **different cap tints** — the offset alone reads as an arbitrary grid
     until the two ranks are told apart.
-  - **The diagram is derived from `LOWER` / `UPPER`**
-    ([input-control](input-control.md) REQ-3), not restated in `about.ts`. A
+  - **The diagram is derived from `NOTE_ROWS`**
+    (`notes(NOTE_ROWS.lower)` / `notes(NOTE_ROWS.upper)` in `about-shortcuts.ts`;
+    `LOWER`/`UPPER` themselves stay module-private in `src/ui/shortcuts.ts` —
+    [input-control](input-control.md) REQ-3), not restated in the About code. A
     diagram that disagrees with the actual bindings is worse than none, and this
     is the one place in the app that would silently drift. Naturals are the
     semitones `{0,2,4,5,7,9,11}` of each row's own base; a sharp occupies the gap
@@ -377,6 +370,17 @@ thing.
   - The cell class is **`.combo`, not `.key`** — `.key` is also the Debug
     section's left-column class ([debug-panel](debug-panel.md)), where the
     monospace label treatment is still correct.
+
+- **REQ-18** — **The Live FX row carries a badge on its launcher**, `song.fx`
+  anchored to `livefx-open` ([live-fx-window.md](live-fx-window.md) REQ-7). It is
+  written as `transport.song`'s **sibling** — the two rows sit against each other
+  on the Song tab, both led by a launcher that doubles as its section title, so
+  their copy follows the same order: what the row is, each control, what the
+  floating window adds, where it is reduced. It stays out of the two topics that
+  overlap its row: the master compressor (`fx.master.comp`) and the XY Pad's
+  axis assignment (`motion.xy`). Before it, Live FX was the only unbadged
+  section on the Song tab.
+
 - **REQ-19** (v13, re-authored v15) — **Gesture inventory for the ⓘ button.**
   Switching the badges on used to cost Help → modal → "Toggle help badges" →
   close, so v13 bolted a modifier-click and a long-press onto the Help button to
@@ -416,6 +420,7 @@ thing.
     takes the badge's colours too (REQ-8b) — its tooltip names the key (REQ-9),
     the About key list carries the `?` row (REQ-17), and the tour's closing step
     spotlights it (REQ-10).
+
 - **REQ-20** (v15) — **About is the single door for help.** With the chooser
   modal gone, the About modal carries a full-width **"Take the guided tour"**
   button (testid `start-tour`) placed **between the version/credits block and
@@ -426,13 +431,36 @@ thing.
   `Onboarding.startTour`. `createAboutButton` therefore takes that hook as an
   injected dep, the same way the tour takes its `TourCtx` (REQ-2) — the About
   modal must not reach into the onboarding layer itself.
-- **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
-  `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
-  USB-MIDI peripheral mode / loopMIDI on Windows) anchored to
-  `sync-mode-master`, and `sync.wifi` (WiFi pairing steps: same network + client
-  isolation off → Create on one device, Join on the other, swap codes via QR or
-  copy-paste) anchored to `sync-wifi-link`. See
-  [midi-clock-sync.md](midi-clock-sync.md) / [webrtc-sync.md](webrtc-sync.md).
+
+- **REQ-21** (v21) — **The MOD launcher carries a badge**, `mod` anchored to
+  `perf-mod` ([mod-matrix](mod-matrix.md)). It sits in the Live FX row but is not a
+  Live FX control — it opens the patch's **modulation routing**, which is sound design
+  rather than a momentary performance gesture. A vertical divider says that visually;
+  the badge is what says *what it is*, since "MOD" alone names nothing a newcomer knows.
+
+  Its copy carries the three things the window cannot show on its own: that **amount is
+  bipolar** and past zero the route inverts; that a modulated knob on the synth panels
+  grows an inner arc, **green for up and yellow for down**, so the effect is visible
+  with the window shut; and **why the destination list is short** — ADR-017's boundary,
+  pointing at Motion and the XY Pad for everything else. Without that last part a
+  curated list reads as a missing feature.
+
+- **REQ-22** (v20) — **The key and the chord writer each carry a badge.** `key` is
+  anchored to `tab-key`, the machine-tab convention the arp/seq/drums badges already
+  follow: an active scale silently re-pitches *every* note source
+  ([scale-quantization](scale-quantization.md)), so "why does my note not sound where
+  I put it?" has to be answerable from the tab itself. Its copy leads with the fact
+  the panel cannot show — that the filter is **non-destructive**, and `chromatic`
+  means nothing changes — and names the map's four colours, which is otherwise the
+  one thing on the tab with no on-screen legend beyond three words.
+
+  `seq.chord` is anchored to `seq-chord` on the Sequencer's step row
+  ([chord-tools](chord-tools.md)). It earns a per-control badge on two counts that
+  the badge policy already recognises: it is the only control in that row that writes
+  to **four tracks at once**, and it is the only one whose options are disabled by a
+  setting on **another tab** — a dead control with an off-screen cause is exactly the
+  case ADR-014 says must explain itself. The copy also decodes the Roman numerals,
+  which are the notation a non-musician will not have.
 
 ## Technical design
 
@@ -629,7 +657,7 @@ Scenario: The note rows read as a keyboard (v16, REQ-17c)
     above, each sharp offset into the gap between its two naturals
    And the gaps at E-F and B-C are cap-sized blanks, not missing cells
    And naturals and sharps carry different cap tints
-   And every letter comes from LOWER, so the diagram cannot disagree with the
+   And every letter comes from NOTE_ROWS, so the diagram cannot disagree with the
     keys it documents
 # pinned by: tests/ui/about.test.ts
 
@@ -666,14 +694,14 @@ Scenario: The MOD badge explains bipolar amount and the knob colours (v21, REQ-2
   And it points at Motion and the XY Pad for what the matrix cannot reach
 # pinned by: tests/ui/help-content.test.ts
 
-Scenario: The Key badge says the filter is non-destructive (v20, REQ-20)
+Scenario: The Key badge says the filter is non-destructive (v20, REQ-22)
   Given the info badges are on
   When the user clicks the badge on the Key tab
   Then the modal says stored notes are never rewritten and chromatic changes nothing
   And it names what the map's colours mean
 # pinned by: tests/ui/help-content.test.ts
 
-Scenario: The Chord badge decodes the Roman numerals (v20, REQ-20)
+Scenario: The Chord badge decodes the Roman numerals (v20, REQ-22)
   Given the info badges are on and the Sequencer tab is open
   When the user clicks the badge on the Chord control
   Then the modal explains the write across four tracks, the single Undo,

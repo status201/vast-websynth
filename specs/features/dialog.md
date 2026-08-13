@@ -34,7 +34,8 @@ backdrop-click-to-close) rather than reinventing it.
   `Modal`** (no re-implementation of backdrop / fade / Escape / backdrop-click):
   `confirmDialog → Promise<boolean>`, `promptDialog → Promise<string | null>`,
   `alertDialog → Promise<void>`. Each builds a fresh single-use `Modal`, appends
-  a message paragraph (reusing `Modal.metaClass`), an optional single-line input
+  a message paragraph (its own `.message`, from `dialog.module.css` — **not**
+  `Modal.metaClass`), an optional single-line input
   (prompt only), and an actions row of `createButton`s
   (`src/ui/components/button.ts`), then `open()`s it.
 - **REQ-2** — The returned promise **settles exactly once**. The affirmative
@@ -124,7 +125,7 @@ Choice:
 ### Layer touchpoints & ordering
 
 ```yaml
-DOM (inside Modal.body): [ <p .meta message>, (confirm/choose, optional) <p .detail dialog-detail>,
+DOM (inside Modal.body): [ <p .message>,        # dialog.module.css, not modal's .meta (confirm/choose, optional) <p .detail dialog-detail>,
                            (prompt only) <input .input dialog-input>,
                            <div .actions> [ dialog-cancel?, dialog-confirm ] ]
                          # choose: <div .actions> [ dialog-cancel?, dialog-choice-<id>... ]

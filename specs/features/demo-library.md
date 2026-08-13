@@ -14,7 +14,7 @@ related:
   - project-export         # the zip demos
   - onboarding             # the tour picks one demo by name
   - runtime-performance    # why demos are not bundled
-  - ../decisions/adr-011-canonical-song-serialization
+  - ../decisions/adr-011-export-precision-and-default-sparse-serialization
   - ../recipes/add-a-demo-song
 source:
   - src/state/demo-meta.ts          # the pure fact-extractor
@@ -27,14 +27,16 @@ source:
 
 ## Background / Why
 
-The library is the instrument's shop window — 19 songs, and for most visitors the
-only music they will ever hear it make. Until now **nothing described them**.
+The library is the instrument's shop window — every song in `src/state/demos/`
+plus the two built-ins, and for most visitors the only music they will ever hear
+it make. Until now **nothing described them**.
 `demos-index.json` carried exactly one field per demo, `filename → name`, minted
 purely so the buttons could be labelled after demos became fetch-on-click
 ([song-mode](song-mode.md) REQ-12). The row therefore reads
-`1979 · 1983 · 1985-1 · 1985-2 · Night Rider · … · Fat · Right` — nineteen
-unlabelled doors, ten of them visible and nine behind an "All Demos" fold, with
-no tempo, no length, no genre and no hint of what any of them demonstrates.
+`1979 · 1983 · 1985-1 · 1985-2 · Night Rider · … · Fat · Right` — a row of
+unlabelled doors, `DEMO_ROW_LIMIT` (10) of them visible and the rest behind an
+"All Demos" fold, with no tempo, no length, no genre and no hint of what any of
+them demonstrates.
 
 Worse, some demos have things **staged rather than sounding**: `arp.on` armed for
 a player to hold keys over ([arpeggiator](arpeggiator.md) REQ-7), an effect
@@ -48,14 +50,14 @@ what a demo owes the shelf.
 
 ## Requirements
 
-- **REQ-1 — Facts are generated, never hand-maintained.** `scripts/clean-demos.ts`
+- **REQ-1** — **Facts are generated, never hand-maintained.** `scripts/clean-demos.ts`
   already parses every demo to canonicalize it (ADR-011); it now also derives each
   demo's **tempo, length, machines used and what is armed** and writes them to
   `demos-index.json`. Nothing about a demo's *content* is typed by hand, so the
   index cannot drift from the songs — `npm run check:demos` fails on any
   difference, exactly as it already does for the names.
 
-- **REQ-2 — Prose is hand-written and lives apart.** A one-line "what to listen
+- **REQ-2** — **Prose is hand-written and lives apart.** A one-line "what to listen
   for" blurb per demo lives in `src/state/demo-notes.json`, keyed by filename, and
   is **merged into** the generated index. It is separate precisely so regeneration
   cannot clobber it, and **optional**: a demo with no entry still gets its facts.
@@ -69,14 +71,14 @@ what a demo owes the shelf.
   first — the guard blocked the very first blurb, which is how the omission was
   found.)
 
-- **REQ-3 — The zip demos are indexed too.** `1973` and `Run Away 2` are the only
+- **REQ-3** — **The zip demos are indexed too.** `1973` and `Run Away 2` are the only
   demos that use the sampler (a `.json` cannot embed audio), and they were absent
   from the index entirely — their labels came from mangling the filename
   (`Run_Away_2` → "Run Away 2"). The generator reads their `song.json` through
   `parseProjectZip` and indexes them like any other, so the two most
   feature-complete demos in the library stop being the two least described.
 
-- **REQ-4 — `uses` is what you will hear; `armed` is what you can play.** The two
+- **REQ-4** — **`uses` is what you will hear; `armed` is what you can play.** The two
   are separate lists because they answer different questions, and conflating them
   is what made an armed arp look like a bug:
   - `uses` — a machine with steps that will sound on playback: `seq`, `drums`,
@@ -88,9 +90,11 @@ what a demo owes the shelf.
   **A staged *effect* is deliberately not reported, and this is the record of
   why.** [effects](effects.md) REQ-8 says a bypassed or `mix: 0` effect may be
   dialled in and waiting, so it was specced as a third `armed` value and then
-  measured against the shipped corpus:
+  measured against the shipped corpus. The measurement below is **point-in-time**
+  (taken against the 15-demo corpus of the day) and is kept as the record of *why*
+  the value was dropped — not as a live count:
 
-  | candidate test | fires on |
+  | candidate test | fired on |
   | --- | --- |
   | any bypassed effect with a non-default parameter | **13 of 15** demos |
   | on, but `mix` pinned to 0 (enabled and deliberately closed) | **0 of 15** |
@@ -98,24 +102,28 @@ what a demo owes the shelf.
   The loose test is technically correct — `1979` really does carry a dialled-in
   wah and phaser, switched off — but a hint that appears on almost every button
   conveys nothing and adds noise to every tooltip; the strict test finds nothing
-  at all. Neither is a signal, so neither ships. `arp` (2 demos) and `motion`
-  (3 demos) are precise and rare, which is what makes them worth showing.
+  at all. Neither is a signal, so neither ships. `arp` and `motion` are precise
+  and rare — a handful of demos each — which is what makes them worth showing.
+  (Exact counts are deliberately not quoted here: `demoMeta` derives them from
+  each song file at runtime, so any number written down rots the next time a demo
+  lands. Read them from the shipped corpus.)
   Under-reporting is the right failure: a missing hint costs a discovery, a hint
   that cries wolf costs the listener's attention on every other demo too.
 
-- **REQ-5 — Length is the longest enabled chain lane**, matching
+- **REQ-5** — **Length is the longest enabled chain lane**, matching
   `Arrangement.songBars` — the same number the playhead ruler shows as
   `Bar 3/16`. A demo with no enabled lane reports `0` and the UI omits it rather
   than claiming "0 bars".
 
-- **REQ-6 — The row says what it knows.** Every demo button carries a `title`
-  built from its metadata — `124 BPM · 16 bars · seq + drums + motion · arp
-  armed — <blurb>` — so hovering (or a screen reader) answers "what is this?"
-  without a click. The visible label stays the song's name: the row is already
-  tight on mobile, and the fix for nineteen unlabelled buttons is not nineteen
-  wider ones.
+- **REQ-6** — **The row says what it knows.** Every demo button carries a `title`
+  built from its metadata — `124 BPM · 16 bars · seq + drums + motion · hold a
+  key: arp armed — <blurb>` (the armed phrasing is `ARMED_LABEL`'s, which spells
+  out the gesture rather than just naming the machine) — so hovering (or a screen
+  reader) answers "what is this?" without a click. The visible label stays the
+  song's name: the row is already tight on mobile, and the fix for a row of
+  unlabelled buttons is not a row of wider ones.
 
-- **REQ-7 — The index stays a build artifact with a stable shape.** Keys are
+- **REQ-7** — **The index stays a build artifact with a stable shape.** Keys are
   sorted filenames (so the emitted JSON is byte-stable), values are `DemoMeta`.
   `song.ts` reads `name` from it exactly as before; the extra fields are additive,
   and a demo missing from the index still falls back to its filename
@@ -202,8 +210,8 @@ Scenario: A motion bank behind motion.on 0 is armed, not missing (REQ-4)
 
 Scenario: A bypassed effect is never reported as armed (REQ-4)
   Given a demo whose wah is dialled in but switched off
-  Then `armed` reports only arp/motion — the corpus measurement says an FX
-    hint would fire on 13 of 15 demos and mean nothing
+  Then `armed` reports only arp/motion — the corpus measurement (REQ-4) found an
+    FX hint would fire on almost every demo and so mean nothing
 # pinned by: tests/state/demo-meta.test.ts
 
 Scenario: A hand-written blurb survives regeneration (REQ-2)
@@ -248,10 +256,11 @@ Scenario: A demo button says what it is without being clicked (REQ-6)
   additive per ADR-007), so a shared song carries its own description instead of
   only the demos having one. Deliberately not done here: it re-opens the format
   one bump after v7, and the shelf's problem is solvable without it.
-- **`DEMO_ROW_LIMIT` (10 of 19 visible)** is worth revisiting now that buttons
+- **`DEMO_ROW_LIMIT` (10 visible, the rest folded)** is worth revisiting now that buttons
   carry meaning — but a row that says more per button is the prerequisite, not
   the same change.
 - **Coverage is lopsided and the index now makes it measurable**: zero JSON demos
-  use the sampler, motion is live in 3 of 15, and the tour's demo is a v2 file
-  with no XY and no motion. A future check could fail when no demo exercises a
-  machine at all.
+  use the sampler, motion is live in a minority of the corpus, and the tour's demo
+  is a v2 file with no XY and no motion. A future check could fail when no demo
+  exercises a machine at all — and unlike a number in this spec, it would stay
+  true.

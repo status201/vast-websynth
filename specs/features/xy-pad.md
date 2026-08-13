@@ -164,14 +164,17 @@ spring-back and drag both go through `bus.set`, the dot tracks for free.
 ### Persistence (SongFile v3)
 
 ```yaml
-SongFile.version: 1 | 2 | 3 | 4
+SongFile.version: 1..SONG_VERSION            # `xy` arrived at v3; the union has grown since
 SongFile.xy?: { x: string; y: string }        # v3, optional -> v1/v2 files still load
-Song.capture(bus, patterns, arr, name, xy?): writes the current version (4); includes `xy` only when passed
-Song.apply(file, bus, patterns, arr, xyStore?): ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
+Song.capture(bus, patterns, arr, name, xy?): writes SONG_VERSION; includes `xy` only when passed
+Song.apply(file, bus, patterns, arr, xyStore?, sampler?): ends with xyStore?.set(file.xy ?? XY_DEFAULT_ASSIGN)
 compactSongForExport: copies `xy` through verbatim when present (else omitted)
-song-validate: version ∈ {1,2,3}; if `xy` present require { x: non-empty string, y: non-empty string }
+song-validate: version ∈ KNOWN_SONG_VERSIONS (derived 1..SONG_VERSION); if `xy` present
+               require { x: non-empty string, y: non-empty string }
                (param-id *existence* is NOT validated — a stale id just falls back to a default def at use)
-JSON schema (public/schema/websynth-song.schema.json): version.enum [1,2,3]; xy object (required x/y strings)
+JSON schema (public/schema/websynth-song.schema.json): version.enum tracks SONG_VERSION;
+               xy object (required x/y strings)
+# Version numbers are deliberately NOT restated here — song-mode.md owns the ladder.
 NOT persisted: the live dragged values (momentary); the window open/closed state.
 ```
 

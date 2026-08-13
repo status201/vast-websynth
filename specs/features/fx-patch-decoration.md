@@ -37,18 +37,18 @@ and to assistive tech.
 
 ## Requirements
 
-- **REQ-1 (where)** — The decoration occupies one `.fxRow` grid cell, appended
+- **REQ-1** (where) — The decoration occupies one `.fxRow` grid cell, appended
   after the last effect panel, and is visible **only** in the ≤992px 2-column
   layout — the only layout that leaves a gap. In the 5-column layout it is
   `display: none` (the row is full; a sixth child would wrap to a new row).
   The visibility breakpoint mirrors `.fxRow`'s in `layout.module.css`.
-- **REQ-2 (parity-keyed)** — `buildFx` appends it only when the panel count is
+- **REQ-2** (parity-keyed) — `buildFx` appends it only when the panel count is
   **odd** (`fx.childElementCount % 2 === 1`), so adding a sixth effect drops the
   decoration automatically instead of pushing it onto a row of its own.
-- **REQ-3 (inert)** — `aria-hidden="true"`, `pointer-events: none`, and no
+- **REQ-3** (inert) — `aria-hidden="true"`, `pointer-events: none`, and no
   focusable or interactive descendants. It carries no param, no state and no
   persistence; collapsing the FX section hides it with the row.
-- **REQ-4 (two layers, undistorted connector)** — The empty cell's aspect ratio
+- **REQ-4** (two layers, undistorted connector) — The empty cell's aspect ratio
   swings from ~1.7:1 (390px phone) to ~4.7:1 (992px), so a single SVG cannot
   both reach the cell edges and keep the connector round. Two stacked,
   absolutely-positioned full-bleed SVGs solve it:
@@ -66,7 +66,7 @@ and to assistive tech.
     the bay's bottom rim. Composition is therefore steered by where the content
     sits *inside* the viewBox — never by nudging the layer with a transform,
     which would push it out of the bay on a narrow cell.
-- **REQ-5 (a lead left hanging, nothing to plug into)** — The hero cable drops in
+- **REQ-5** (a lead left hanging, nothing to plug into) — The hero cable drops in
   through the **top** edge, takes a lazy S under its own weight and dangles a TS
   plug (boot, barrel, knurl, collar, sleeve, ring groove, tip) near-vertically at
   the end — an unused lead hanging from the rack above. It hangs rather than
@@ -75,16 +75,16 @@ and to assistive tech.
   deliberately **no** jack socket either: an empty bay plus a plug dangling in
   open air reads as "unpatched" on its own, and a drawn socket at this size read
   as a smudge.
-- **REQ-6 (recedes)** — Near-black sheaths; the brightest pixel stays at or
+- **REQ-6** (recedes) — Near-black sheaths; the brightest pixel stays at or
   below `--panel-border` so the decoration never out-contrasts a real panel.
   Colours live in the CSS module — the SVG markup carries no `stroke`/`fill`
   attributes (the `wave-icons.ts` / `header-icons.ts` / `rest-glyph.ts`
   convention).
-- **REQ-7 (static + cheap)** — No animation, so nothing needs gating behind
+- **REQ-7** (static + cheap) — No animation, so nothing needs gating behind
   `prefers-reduced-motion`. Lighting is doubled paths (a wide dark sheath plus a
   thin low-opacity sheen), **not** SVG filters or `drop-shadow`, keeping paint
   cost trivial.
-- **REQ-8 (the empty slot)** — The bay is **inset from its grid cell** by a 5%
+- **REQ-8** (the empty slot) — The bay is **inset from its grid cell** by a 5%
   margin and has **no border**. The inset is the whole trick: the reveal of
   background around it reads as the space a module's front plate would cover, so
   the cell becomes a visibly *empty slot* rather than a panel that happens to
@@ -96,7 +96,7 @@ and to assistive tech.
   resolve against the cell's width on all four sides, so the reveal stays square
   as the bay grows; `min-height` is kept well under the row height so the slot
   can never drive how tall the FX row is.
-- **REQ-9 (the loom)** — The background cables **drop from the top and leave
+- **REQ-9** (the loom) — The background cables **drop from the top and leave
   through the bottom**, plus a few draping in from the panel on the left. None
   runs to or ends at the **right** edge: this is the last bay in the row, so
   there is nothing over there to connect to and a cable stopping at that edge
@@ -117,7 +117,7 @@ and to assistive tech.
   modifier; some strands hang taut, some sway wide) so the loom never reads as a
   repeating pattern, and every gauge thins again below 560px — the strokes are
   non-scaling, so on a phone-sized bay full-gauge cable reads as spaghetti.
-- **REQ-10 (sheens are centred, not offset)** — A cable's sheen is drawn
+- **REQ-10** (sheens are centred, not offset) — A cable's sheen is drawn
   **on** its sheath, not offset from it. An offset "specular" is only correct
   for one cable orientation: with the loom running vertically a `translateY`
   highlight lies along each strand's whole length instead of beside it and

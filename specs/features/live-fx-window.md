@@ -44,31 +44,39 @@ shared controller so both launchers toggle one instance (never two).
   every testid so a second instance can coexist without id collisions. The Song
   panel keeps `perf-*`; the LIVE FX window uses `livefx-*`. The DJ Filter knob is
   NOT part of the builder (it needs `bus`); each caller adds its own one-liner.
+
 - **REQ-2** — **LIVE FX floating window**: a launcher button (`livefx-open`) toggles
   a `FloatingWindow` (`title: 'LIVE FX'`, `testId: 'livefx-window'`). Its body
   contains, in order: a DJ Filter `Knob` (`fx.djfilter`), the shared DJ controls
   (`testIdPrefix: 'livefx'`), and an XY Pad launcher button (`livefx-xypad`). The
   window is built lazily on first open and kept alive across closes.
+
+- **REQ-3** — **Single shared XY Pad window**: `createXyPadWindowController(bus, xy)`
+  owns exactly one XY Pad `FloatingWindow`. All **three** launchers call the same
+  controller's `toggle()` — the Song panel's (`perf-xypad`), the LIVE FX window's
+  (`livefx-xypad`) and the Motion panel's (`motion-xypad`) — so only one
+  `xypad-window` ever exists. Launcher buttons
+  reflect open state (`.on`) via the controller's `onChange`.
+
+- **REQ-4** — **Reachable off the Song tab**: because floating windows mount on
+  `document.body` (not inside a tab panel), an open LIVE FX (or XY Pad) window stays
+  visible and interactive after switching to another tab.
+
+- **REQ-5** — **Minimise**: the LIVE FX window inherits the built-in minimise button
+  from [FloatingWindow](floating-window.md) REQ-7 (no extra work here).
+
 - **REQ-6** — **Launcher doubles as the Song-panel section title**: in the Song
   panel's Live FX row the `livefx-open` button *replaces* the old "Live FX" text
   label (saving space) and leads the row. It carries a small "opens a new window"
   glyph (`❐`, aria-hidden; the button's `aria-label` is "Open LIVE FX window"). The
   Song-panel row order is: **LIVE FX launcher → DJ Filter knob → Fill → Stutter →
-  Drop → Tape Stop → XY Pad → master COMP**.
-- **REQ-3** — **Single shared XY Pad window**: `createXyPadWindowController(bus, xy)`
-  owns exactly one XY Pad `FloatingWindow`. Both the Song-panel XY launcher
-  (`perf-xypad`) and the LIVE FX window's XY launcher (`livefx-xypad`) call the same
-  controller's `toggle()`, so only one `xypad-window` ever exists. Launcher buttons
-  reflect open state (`.on`) via the controller's `onChange`.
-- **REQ-4** — **Reachable off the Song tab**: because floating windows mount on
-  `document.body` (not inside a tab panel), an open LIVE FX (or XY Pad) window stays
-  visible and interactive after switching to another tab.
-- **REQ-5** — **Minimise**: the LIVE FX window inherits the built-in minimise button
-  from [FloatingWindow](floating-window.md) REQ-7 (no extra work here).
+  Drop → Tape Stop → XY Pad → `rowDivider()` → MOD launcher (`perf-mod`) → GR meter
+  + master COMP**.
+
 - **REQ-7** — **The row carries a help badge** on its launcher — which is also its
   section title (REQ-6), so the badge sits on the row's leading control, exactly as
   the transport row's does ([transport-window](transport-window.md) REQ-10). Topic
-  `song.fx` ([onboarding](onboarding.md) REQ-16), written as that topic's sibling
+  `song.fx` ([onboarding](onboarding.md) REQ-18), written as that topic's sibling
   and covering the same ground in the same order: what the row is, each control
   (DJ&nbsp;Filter, Fill, Stutter + its size, Drop, Tape&nbsp;Stop, XY&nbsp;Pad),
   what the floating window adds, and the states where an effect is reduced. It
@@ -104,7 +112,9 @@ xyPadLaunchButton(win: XyPadWindowController, testId: string): HTMLButtonElement
 song-panel: builds one `xyWin = createXyPadWindowController(bus, xy)`. Live FX row =
   createLiveFxWindowLauncher(engine, bus, xyWin)  # `livefx-open`, doubles as the section title
   -> DJ FLT Knob(fx.djfilter) -> buildLiveFxControls(engine)  # Fill / Stutter / Drop / Tape Stop
-  -> xyPadLaunchButton(xyWin, 'perf-xypad') -> master COMP fxGroup.
+  -> xyPadLaunchButton(xyWin, 'perf-xypad') -> rowDivider()
+  -> modMatrixLaunchButton(modWin, 'perf-mod') -> GrMeter + master COMP fxGroup.
+motion-panel: a THIRD launcher onto the same window, xyPadLaunchButton(xyWin, 'motion-xypad').
   The separate "Live FX" text label is removed (the launcher names the section).
 live-fx window body: DJ FLT Knob(fx.djfilter) -> buildLiveFxControls(engine, {testIdPrefix:'livefx'})
   -> xyPadLaunchButton(xyWin, 'livefx-xypad').
@@ -121,8 +131,8 @@ auto-minted testid `knob-fx.djfilter`; e2e must scope the LIVE FX one within
 
 ```
 Song panel "Live FX" row (the LIVE FX button replaces the old section title):
-  [LIVE FX ❐] [DJ FLT] [Fill] [Stutter |1|1/8|1/4|] [Drop] [Tape Stop] [XY Pad] [COMP …]
-   livefx-open                                                          perf-xypad
+  [LIVE FX ❐] [DJ FLT] [Fill] [Stutter |1|1/8|1/4|] [Drop] [Tape Stop] [XY Pad] │ [MOD] [COMP …]
+   livefx-open                                                          perf-xypad   perf-mod
 
 FloatingWindow "LIVE FX"  (opened by livefx-open; floats over any tab)
  ┌───────────────────────────────────────┐
