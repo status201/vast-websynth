@@ -129,13 +129,21 @@ function pinnedPaths(text) {
  * far tighter grammar (one path per `- ` item), so we parse rather than scrape.
  * Prose paths elsewhere in a spec stay unchecked on purpose: an "Open questions"
  * section legitimately names a file that does not exist yet.
+ *
+ * Walks the lines rather than matching the whole run with one repeated group:
+ * `.` does not match `\r`, so a `.*`-per-item regex silently stops after the
+ * FIRST entry on a CRLF checkout — which quietly disabled most of this check on
+ * Windows while CI (LF) saw everything. Splitting on `/\r?\n/` is the same
+ * treatment `declaredReqs` already uses.
  */
 function sourcePaths(block) {
-  const m = block.match(/^source:\s*\n((?:[ \t]+-[ \t].*\n?)+)/m);
-  if (!m) return [];
+  const lines = block.split(/\r?\n/);
+  const start = lines.findIndex((l) => /^source:\s*(#.*)?$/.test(l));
+  if (start < 0) return [];
   const out = [];
-  for (const line of m[1].split('\n')) {
-    const v = line.replace(/^[ \t]*-[ \t]*/, '').split('#')[0].trim();
+  for (let i = start + 1; i < lines.length; i++) {
+    if (!/^[ \t]+-[ \t]/.test(lines[i])) break; // end of the list
+    const v = lines[i].replace(/^[ \t]*-[ \t]*/, '').split('#')[0].trim();
     if (!v || v.includes('<') || v.includes('...')) continue; // placeholders
     out.push(v);
   }
