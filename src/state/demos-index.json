@@ -53,6 +53,17 @@
       "drums"
     ]
   },
+  "Elegy.websynth.json": {
+    "name": "Elegy",
+    "bpm": 74,
+    "bars": 24,
+    "uses": [
+      "seq",
+      "drums",
+      "sampler",
+      "motion"
+    ]
+  },
   "First_Light.websynth.json": {
     "name": "First Light",
     "bpm": 112,
@@ -133,10 +144,11 @@
   "Tosti.websynth.json": {
     "name": "Tosti",
     "bpm": 118,
-    "bars": 12,
+    "bars": 16,
     "uses": [
       "seq",
-      "drums"
+      "drums",
+      "motion"
     ],
     "armed": [
       "arp"
