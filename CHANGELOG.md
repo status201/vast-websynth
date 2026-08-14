@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-08-14
+
 ### Fixed
 
 - **Opening a dialog no longer makes the instrument stutter.** Every dialog —
@@ -1756,7 +1758,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.8.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.8.2...HEAD
+[2.8.2]: https://github.com/status201/vast-websynth/compare/v2.8.1...v2.8.2
 [2.8.1]: https://github.com/status201/vast-websynth/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/status201/vast-websynth/compare/v2.7.1...v2.8.0
 [2.7.1]: https://github.com/status201/vast-websynth/compare/v2.7.0...v2.7.1
