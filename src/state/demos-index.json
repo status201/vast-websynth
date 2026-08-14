@@ -53,6 +53,16 @@
       "drums"
     ]
   },
+  "Bunk.websynth.json": {
+    "name": "Bunk",
+    "bpm": 96,
+    "bars": 14,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ]
+  },
   "Elegy.websynth.json": {
     "name": "Elegy",
     "bpm": 74,
