@@ -3,7 +3,8 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 2
+version: 3   # v3: the backdrop carries no backdrop-filter
+             #     (runtime-performance.md REQ-10)
 owner: core
 related:
   - architecture
@@ -77,6 +78,12 @@ npm test            # tests/ui/modal.test.ts
 - **Escape beats panic.** `Modal` captures Escape (`stopImmediatePropagation`)
   so it closes the dialog instead of triggering the global panic handler. A
   non-modal tool must *not* do this — use `FloatingWindow` for that.
+- **Never put a `backdrop-filter` on the backdrop.** It is full-viewport and
+  lives as long as the dialog, so a blur there makes the compositor re-render the
+  whole viewport every frame — measured at 60 → 34 fps with a demo playing, and
+  it applies to every dialog at once because they share `.backdrop`. The dim is
+  the whole effect. → [`runtime-performance.md`](../features/runtime-performance.md)
+  REQ-10, pinned by `tests/ui/overlay-cost.test.ts`.
 - Backdrop-click closes only when the click target *is* the backdrop (not a
   child) — handled by the component. Opt out with `dismissOnBackdrop: false` for
   multi-step flows where a stray click would discard progress; pair it with an

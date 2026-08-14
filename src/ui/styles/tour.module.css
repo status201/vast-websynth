@@ -27,11 +27,13 @@
   transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
 }
 
-/* Centered (no-target) steps: a plain full-screen dim, no ring. */
+/* Centered (no-target) steps: a plain full-screen dim, no ring — and no
+   `backdrop-filter`, for the reason spelled out on `.backdrop` in
+   modal.module.css (runtime-performance.md REQ-10). This overlay is the same
+   shape and lifetime, so it carried the same cost. */
 .centered {
   box-shadow: none;
   background: rgba(8, 6, 3, 0.82);
-  backdrop-filter: blur(2px);
   border-radius: 0;
 }
 

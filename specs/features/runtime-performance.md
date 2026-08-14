@@ -3,7 +3,10 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 3   # v3: REQ-1 — the onboarding layer and the Help & About modal load
+version: 4   # v4: REQ-10 — no viewport-scaled compositing effect on a persistent
+             #     overlay; the modal backdrop's blur cost a third of the frame
+             #     rate whenever any dialog was open
+             # v3: REQ-1 — the onboarding layer and the Help & About modal load
              #     on demand; the eager button factory and the late-bound Debug
              #     setters split out so nothing drags the bodies back in
              # v2: visibility gating is for pixels, not for sound (REQ-9);
@@ -41,6 +44,8 @@ source:
   - src/ui/components/about-button.ts       # REQ-1 — eager factory, lazy modal body
   - src/state/debug-sources.ts              # REQ-1 — late-bound rows, so main.ts
                                             #         never imports the modal
+  - src/ui/styles/modal.module.css          # REQ-10 — the shared .backdrop
+  - src/ui/styles/tour.module.css           # REQ-10 — the tour's centred steps
   - scripts/clean-demos.ts
   - public/worklets/ladder-filter.js
 ```
@@ -185,6 +190,30 @@ so a reviewer has something concrete to hold a new feature against.
   Gesture-scoped ramps (Tape Stop, the XY pad's spring-back) are exempt — they last
   well under a second with the user watching.
 
+- **REQ-10** — **No compositing effect whose cost scales with the viewport may sit on a
+  persistent overlay** (v4). A `backdrop-filter` on a full-screen, long-lived element
+  makes the compositor re-render the whole viewport every frame for as long as it is
+  mounted. Unlike every other rule here, that cost is **independent of what the overlay
+  contains and of whether anything beneath it changed** — so it cannot be gated away by
+  REQ-4's visibility rule or reduced by making the overlay's own contents cheaper.
+
+  Measured on the shared modal backdrop, with a demo playing: **60 → 34 fps** under GPU
+  compositing (103 of 138 frames over the 24 ms budget) and **60 → 4.5 fps** under
+  software rasterization. A bare `<div>` carrying only
+  `position: fixed; inset: 0; backdrop-filter: blur(2px)`, with no modal code loaded at
+  all, reproduces it exactly; disabling every CSS animation and stopping the transport
+  do not help. One declaration in `modal.module.css` was inherited by every `Modal`
+  (confirms, preset manager, export, record-sound, WiFi pair), the About and AI-prompt
+  modals and the start screen, with a second copy on the tour's centred steps — so the
+  whole instrument ran at a third of its frame rate whenever any dialog was open, which
+  is when the Debug panel's own cost gates (see [`debug-panel.md`](debug-panel.md)
+  REQ-3/REQ-11) were being carefully paid for elsewhere in the same modal.
+
+  The dim alone (`rgba(8, 6, 3, 0.82)`) is what separates the card from the faceplate;
+  a 2 px blur behind 82 % opacity was buying almost no visible difference for that
+  price. An overlay that genuinely needs one must be small, or transient and
+  gesture-scoped — not the full viewport for as long as a dialog is open.
+
 ## Technical design
 
 ### Contract / public interface
@@ -219,6 +248,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | REQ-7 | `ui/components/knob.ts` |
 | REQ-8 | `public/worklets/*.js` |
 | REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden) |
+| REQ-10 | `ui/styles/modal.module.css` (`.backdrop`), `ui/styles/tour.module.css` (`.centered`) — pinned repo-wide by `tests/ui/overlay-cost.test.ts` |
 
 The `VisibilityGate` is created by each panel builder and returned on its
 `MachinePanel`; `buildPatternRow` wires every gate from one `tabs.onViewChange`, which
@@ -291,6 +321,14 @@ Scenario: opening About twice while the body loads builds one modal
   Then one backdrop is created and appended
 # pinned by: tests/ui/about.test.ts
 
+Scenario: an open dialog does not cost the app its frame rate (REQ-10, regression)
+  Given the transport is playing
+  When the About modal — or any other Modal, the tour's centred step, or the
+    start screen — is open over the faceplate
+  Then no overlay in the app declares a backdrop-filter
+  And the app holds its frame rate for as long as the overlay is mounted
+# pinned by: tests/ui/overlay-cost.test.ts
+
 Scenario: a worklet speed rewrite changes no samples
   Given a block of noisy input and a swept cutoff
   When it is processed by the optimised recurrence
@@ -304,7 +342,7 @@ Scenario: a worklet speed rewrite changes no samples
   `tests/audio/effects/reverb.test.ts`, `tests/ui/step-settings.test.ts`,
   `tests/audio/transport/motion-machine.test.ts` (REQ-9's driver swap),
   `tests/ui/onboarding-facade.test.ts` + `tests/ui/about.test.ts` (REQ-1's lazy
-  surfaces) — `npm test`
+  surfaces), `tests/ui/overlay-cost.test.ts` (REQ-10's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-1 metric.
@@ -314,6 +352,12 @@ Scenario: a worklet speed rewrite changes no samples
   deliberate reason is the signal to re-check what joined the boot path.
 - Profiling: a DevTools Performance trace of boot (REQ-1/REQ-2) and a 10 s trace of a
   motion-heavy demo playing (REQ-5/REQ-6/REQ-7 — watch the GC sawtooth).
+- REQ-10 is a *frame-rate* rule that its unit test can only pin by proxy (the absence
+  of the declaration). To measure it for real, sample `requestAnimationFrame` deltas
+  over a few seconds with a demo playing, first with nothing open and then with a
+  dialog open, and compare the count of frames over 24 ms. Run it **headed** —
+  headless Chromium rasterizes on the CPU and overstates any compositing cost by
+  roughly an order of magnitude.
 
 ## Open questions / future
 

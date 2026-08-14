@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Opening a dialog no longer makes the instrument stutter.** Every dialog —
+  About, the preset manager, export, record-a-sound, the confirm boxes, the
+  guided tour's centred steps and the start screen — dimmed the faceplate behind
+  a blur, and that blur made the browser redraw the entire window on every
+  single frame for as long as the dialog stayed open. Opening About mid-song cost
+  roughly half the frame rate, so the playhead, the knobs and the scope all
+  visibly hitched while you read it. The dim stays; only the blur is gone, and
+  behind an already near-opaque dim it was buying almost nothing to look at.
+
 ## [2.8.1] - 2026-08-12
 
 ### Fixed
