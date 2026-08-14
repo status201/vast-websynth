@@ -19,6 +19,11 @@ import { createPanel } from './components/panel';
 import { createCollapseToggle } from './components/collapse-toggle';
 import { Strip } from './components/strip';
 import { Scope } from './components/scope';
+import { ResizeHandle } from './components/resize-handle';
+import {
+  SCOPE_H_MIN, SCOPE_H_MAX, SCOPE_H_DEFAULT, SCOPE_H_STEP,
+  readScopeHeight, writeScopeHeight,
+} from '../state/scope-height';
 import { Keyboard } from './components/keyboard';
 import { TabContainer } from './components/tabs';
 import {
@@ -739,9 +744,16 @@ function fxPanel(
   return el;
 }
 
-function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: HTMLElement; scope: Scope } {
+function buildBottom(
+  engine: StudioApi, bus: ParamBus, bridge: UiBridge,
+): { el: HTMLElement; scope: Scope; scopeResize: ResizeHandle } {
   const bottom = document.createElement('div');
   bottom.className = styles.bottom!;
+  // Read once here; the ResizeHandle below writes it onto `bottom` in its
+  // constructor — which happens before this subtree is mounted, so a taller
+  // scope is there from the first paint rather than jumping into place
+  // (scope REQ-20). The CSS default covers "nothing stored".
+  const scopeHeight = readScopeHeight();
 
   const top = document.createElement('div');
   top.className = styles.bottomTop!;
@@ -788,6 +800,25 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: 
     chanToggle.textContent = isStereo ? 'Stereo' : 'Mono';
   });
   scopeWrap.appendChild(chanToggle);
+  // Resize grip on the panel's top edge. A SIBLING of the canvas, like the two
+  // toggles above — that is what keeps a press on it from reaching the canvas
+  // click listener and resetting the peak-hold (scope REQ-13/REQ-19). It resizes
+  // the shared grid row, so the PITCH/OCT/MOD strips grow with the scope.
+  const scopeResize = new ResizeHandle({
+    target: bottom,
+    cssVar: '--scope-h',
+    min: SCOPE_H_MIN,
+    max: SCOPE_H_MAX,
+    initial: scopeHeight,
+    defaultValue: SCOPE_H_DEFAULT,
+    step: SCOPE_H_STEP,
+    onCommit: writeScopeHeight,
+    testId: 'scope-resize-handle',
+    label: 'Scope height',
+    title: 'Drag to resize the scope — double-click to reset',
+    className: styles.scopeResize!,
+  });
+  scopeWrap.appendChild(scopeResize.el);
   top.appendChild(scopeWrap);
 
   bottom.appendChild(top);
@@ -830,7 +861,7 @@ function buildBottom(engine: StudioApi, bus: ParamBus, bridge: UiBridge): { el: 
     keyboard.clearSeqHighlights();
   });
 
-  return { el: bottom, scope };
+  return { el: bottom, scope, scopeResize };
 }
 
 function row(children: HTMLElement[], extraClass?: string): HTMLElement {

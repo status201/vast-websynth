@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 7  # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
+version: 8  # v8: scope-resize-handle (scope.md REQ-19)
+            # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
             #     the LFO panel's per-page ids (lfo.md REQ-12, REQ-15)
             # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
             # v5: ids interpolated from DATA (song-demo-<name>) must be enumerated
@@ -134,6 +135,7 @@ shell (app.ts):
   transport-play                     # the HEADER play button (see REQ-5)
   preset-select · preset-save        # preset-save opens the manager
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
+  scope-resize-handle                # features/scope.md REQ-19 — drags the panel taller
   info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
                                             # ids follow function, not glyph order
                                             # (features/responsive-header.md REQ-6)

@@ -1,0 +1,48 @@
+/* Vertical resize handle — see specs/features/scope.md → Gesture inventory.
+   Appearance and interaction only: POSITION AND SIZE are the consumer's, passed
+   as a second class (the same split `.scopeToggle` makes against switch.module.css),
+   because only the consumer knows what the handle has to sit clear of. */
+
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  /* base.css sets a global pan-y; a drag control opts out or the page scrolls
+     out from under the gesture on touch. */
+  touch-action: none;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+
+.root:focus-visible {
+  outline: 1px solid var(--accent-secondary);
+  outline-offset: -2px;
+  border-radius: 3px;
+}
+
+.grip {
+  width: 100%;
+  max-width: 48px;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #6a553c 0%, #2a1c10 100%);
+  border: 1px solid #1a0e08;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(244, 205, 94, 0.18);
+  opacity: 0.55;
+}
+
+/* On-demand polish only: the grip is not a high-frequency surface, so a hover
+   transition here costs nothing at rest. */
+.root:hover .grip,
+.root:focus-visible .grip {
+  opacity: 1;
+}
+
+.root:global(.dragging) .grip {
+  opacity: 1;
+  background: linear-gradient(180deg, var(--accent-secondary) 0%, #6a553c 100%);
+}

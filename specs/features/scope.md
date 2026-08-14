@@ -3,17 +3,21 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 10  # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5
+version: 11  # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5; v11: a drag handle on the top edge resizes the scope (REQ-19), height persisted as a device-scoped workspace pref (REQ-20) — the first thing about this panel that survives a reload
 owner: status201
 related:
   - architecture
   - performance-mode
   - compressor
+  - runtime-performance
 source:
-  - src/ui/components/scope.ts
+  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19
+  - src/ui/components/resize-handle.ts
+  - src/state/scope-height.ts
   - src/audio/engine.ts
   - src/ui/studio-api.ts
   - src/ui/app.ts
+  - src/ui/styles/layout.module.css
   - src/ui/onboarding/help-content.ts
 ```
 
@@ -57,12 +61,40 @@ peak-hold is **Spectrum-only** — Wave view is unaffected.
 **Wave auto-gain (v8).** The Wave view drew at a fixed 1:1 scale, so it only
 looked like an oscilloscope for material running into clip. A song peaking at
 −25 dBFS drew a trace ~6 % of the panel height — a flat line, useless. A real
-scope has a volts/div knob for exactly this; here it **auto-ranges** instead. The
+scope has a volts/div knob for exactly this; here it **auto-ranges** instead.
+(Note the panel height itself is now the user's to set — REQ-19. The auto-gain
+scales to whatever height it is given; the two are independent.) The
 normalization is deliberately **partial**: a fractional exponent compresses the
 level scale rather than flattening it, so quiet songs become legible *and* a loud
 song still visibly reads louder than a soft one. The Wave view is therefore
 explicitly **not** a calibrated level meter — the Spectrum peak-hold (REQ-10/11)
 remains the honest readout, and it is unaffected.
+
+**Resizable panel (v11).** The scope has always been locked to a **130 px** grid
+track, which after the wrap's padding and border leaves the canvas ~112 CSS px. In
+*stacked* stereo (REQ-5, narrow panels) that is ~54 px per channel — legible, but
+not enjoyable, and the Wave view's whole point is that it is nice to watch. So the
+panel's top edge gets a **drag handle**: pull it up to make the scope taller, to a
+ceiling of exactly **twice** the original height (260 px), with the original height
+as the floor.
+
+The handle resizes the **grid row**, not the canvas. That is the entire trick, and
+it buys two things for free:
+
+- The scope and the **PITCH / OCT / MOD** wheel strips share the same row
+  (`.bottomTop` is `grid-template-columns: 120px 1fr`), and `Strip` already
+  re-renders its thumb from a `ResizeObserver`. So the wheels grow *with* the scope,
+  which is what makes the resize read as "the instrument's bottom half got taller"
+  rather than "one panel inflated".
+- `Scope` needs **no change at all**. Its buffers are sized by `fftSize`, not by
+  pixels, and its own `ResizeObserver` → `measure()` already re-allocates the bitmap
+  and invalidates the gradient cache (REQ-16). Height was never baked in.
+
+Where the extra space comes from is a question the layout had already answered
+before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
+`min-height`, and `.bottom` floors the keyboard at `minmax(160px, 1fr)`. So a
+growing scope consumes the keyboard's slack first, stops at the keyboard's floor,
+and only then does the page scroll. The keyboard is never squeezed out of reach.
 
 ## Requirements
 
@@ -205,8 +237,93 @@ remains the honest readout, and it is unaffected.
   and **no allocation on the steady path**. The applied gain is mirrored to
   `el.dataset.waveGain` under the same change-only-write rule as the peak mirror
   (REQ-15), so a steady scope still performs no per-frame attribute write.
+- **REQ-19** (v11) — A **resize handle** (`data-testid="scope-resize-handle"`) sits
+  on the scope panel's **top edge**. Dragging it vertically resizes the shared bottom
+  grid row between `SCOPE_H_MIN` (130 px, the pre-v11 fixed height) and `SCOPE_H_MAX`
+  (260 px, exactly twice it), by writing a single CSS custom property `--scope-h` as
+  an inline style on the `.bottom` element; `.bottom`'s first grid track is
+  `var(--scope-h, 130px)`, so the **default is still expressed in CSS** and the app
+  renders identically when nothing has been dragged and when storage is unavailable.
+  Because the wheel strips share that row, they resize with the scope — this is a
+  consequence of the row, not separate code. The handle is a **sibling of the canvas**
+  (appended to `.scopeWrap`, like the two corner toggle buttons), so a press on it can
+  never reach the canvas `click` listener and reset the peak-hold (REQ-13) — the same
+  structural dodge, with no `stopPropagation`. `Scope` itself is **not modified**: the
+  height change reaches it through its existing `ResizeObserver` (REQ-16).
+  The handle's **appearance and interaction** come from its own CSS module; its
+  **position and size** come from a consumer class in `layout.module.css`
+  (`.scopeResize`), the same split `.scopeToggle` already makes against
+  `switch.module.css` — only the consumer knows what the handle must sit clear of.
+  That width shrinks to fit and drops out below 350 px; see the Gesture inventory.
+- **REQ-20** (v11) — The height **persists**, device-scoped, under
+  `websynth.ui.scope.height` (see Persistence). It is read once at boot and applied
+  **before** first paint so there is no visible jump, clamped on read so a hand-edited
+  or stale value can never produce an unusable panel, and written **once on
+  pointer release** — never per pointer move.
+- **REQ-21** (v11, performance) — The resize must not violate the app-wide cost
+  contract ([runtime-performance](runtime-performance.md)). Three obligations: the
+  `pointermove`/`pointerup` listeners are **window-scoped and gesture-scoped** —
+  attached on `pointerdown`, removed on `pointerup`/`pointercancel` *and* in
+  `destroy()` (REQ-3 there); the layout is **measured once** on `pointerdown` and the
+  stroke reuses it; and the `--scope-h` write is **rAF-coalesced** — a move stores the
+  pending value and schedules at most one frame, so a fast drag costs one style write
+  and one bitmap re-allocation **per frame**, not per event. At rest the handle holds
+  no global listener and costs nothing.
 
 ## Technical design
+
+### Gesture inventory — the resize handle (v11)
+
+The [recipe](../recipes/design-an-interaction.md) step-1 artefact for the one new
+interactive control this feature adds. Everything else on this panel is a plain
+button. `—` is a decision, not an omission.
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| tap / click | — a press that doesn't move leaves the height alone | — |
+| drag ↕ | resize the row, clamped `[130, 260]`, live | OS window resize; DAW panel splitters (Ableton, Logic) |
+| double-tap | reset to the 130 px default | this app's knobs — double-tap resets to baseline |
+| `↑` / `↓` (focused) | ±`SCOPE_H_STEP` (8 px), clamped | ARIA window-splitter pattern |
+| `Home` (focused) | reset to the default | same |
+| long-press | — | — |
+| Shift + drag | — the whole range is 130 px; 1 px per pixel is already fine | — |
+| right-click | — | — |
+| wheel | — the page scrolls here; hijacking it would fight the scroll | — |
+| `Delete` / `⌫` | — nothing to delete | — |
+
+Every row has exactly one outcome and no hidden state, so ADR-014 law 2 holds.
+`dblclick` is unreliable on touch, so double-tap is hand-rolled from `pointerdown`
+timestamps on a `DOUBLE_TAP_MS` (350 ms) window — the recipe's documented gotcha,
+and the same window the grid gestures use.
+
+**Discoverability** (the recipe's step-4 triple): the handle carries a `title`
+naming the gesture ("Drag to resize the scope — double-click to reset"), and the
+`scope` help topic mentions it. No tour step — resizing is not on the primary path,
+and the grip is self-evident at the panel edge.
+
+**Accessibility.** The handle is the ARIA window-splitter: `role="separator"`,
+`aria-orientation="horizontal"`, `aria-label`, `tabindex="0"`, and
+`aria-valuenow`/`aria-valuemin`/`aria-valuemax` kept in sync with the height — which
+is also why the keyboard rows above exist rather than being a `—`.
+
+**One deliberate ADR-014 deviation.** Law 6 asks for ≥44 px hit targets. The grip is
+a ≤48×5 px pill inside a 64×16 px transparent hit box, not 44 px tall: a 44 px target
+would blanket the top third of the trace on a 112 px panel — the very thing this
+feature exists to protect. The shortfall is safe *vertically* because the handle sits
+at the panel's top edge with nothing else hittable within 16 px, so an imprecise touch
+lands on the handle or on inert canvas, never on the wrong control.
+
+**Horizontally it is not free**, and the measured numbers set the rule. The handle has
+to thread between the two corner toggles, which are ~58 px and ~53 px wide plus their
+8 px insets — about 127 px of the panel's width whatever the screen. So the hit box
+is `min(64px, calc(100% - 140px))`: full width where there is room, shrinking rather
+than overlapping where there is not. Measured left/right clearance, viewport width →
+gap: 1440 → 522/527, 768 → 204/209, 430 → 35/40, 390 → 15/20, 375 → 7/12, 360 → 4/9.
+Below **350 px** the remaining gap cannot hold a hittable grip at all, so the handle
+is **dropped** rather than shown unhittable — a stored height still applies, it just
+cannot be changed on that screen. (A fixed 96 px box was the first attempt and
+overlapped the Mono/Stereo button by 1 px at 390 px, which would have swallowed that
+button's last pixel column; the shrink-to-fit width is what replaced it.)
 
 ### Contract / public interface
 
@@ -259,6 +376,48 @@ function updateWaveGain(gain: number, peak: number, dtSec: number): number; // a
 
 `Engine` (`src/audio/engine.ts`) — new public fields `analyserL`, `analyserR`.
 `StudioApi` (`src/ui/studio-api.ts`) — new `readonly analyserL`/`analyserR`.
+
+The resize handle (v11) — a generic vertical resizer, deliberately **not** coupled to
+`Scope`. It writes a CSS custom property on a target element and reports commits; it
+knows nothing about canvases, analysers or grids:
+
+```ts
+// src/ui/components/resize-handle.ts
+interface ResizeHandleOptions {
+  target: HTMLElement;      // element the custom property is written on
+  cssVar: string;           // e.g. '--scope-h'
+  min: number;              // px, inclusive
+  max: number;              // px, inclusive
+  initial: number;          // starting height (already clamped by the caller)
+  defaultValue: number;     // what double-tap / Home resets to
+  onCommit(px: number): void;  // fired on release / key commit — NOT per move
+  testId: string;
+  label: string;            // aria-label + title
+}
+
+class ResizeHandle {
+  readonly el: HTMLElement;
+  constructor(opts: ResizeHandleOptions);
+  get value(): number;        // current height in px
+  set(px: number): void;      // clamped; writes the custom property + aria-valuenow
+  destroy(): void;            // detaches drag + key listeners, cancels a pending frame
+}
+```
+
+```ts
+// src/state/scope-height.ts — device-scoped workspace pref (same class as perf-mode)
+const SCOPE_H_MIN = 130;      // px — the pre-v11 fixed height, the floor
+const SCOPE_H_MAX = 260;      // px — exactly twice it, the ceiling
+const SCOPE_H_DEFAULT = 130;  // px — SCOPE_H_MIN; what a fresh boot and a reset give
+const SCOPE_H_STEP = 8;       // px — arrow-key increment
+function clampScopeHeight(px: number): number;   // NaN / non-finite -> SCOPE_H_DEFAULT
+function readScopeHeight(): number;              // clamped; default on miss/garbage/throw
+function writeScopeHeight(px: number): void;     // clamped; swallows quota/private-mode
+```
+
+It is written generically because a resizer has no business knowing about the scope —
+but it is specced **here**, not in its own facility spec, because the scope is its
+only consumer. A second consumer is what would earn it a spec of its own.
 
 ### Data shapes
 
@@ -331,6 +490,22 @@ WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
 #   reset each frame). Dataset mirror el.dataset.waveGain (1 dp), Wave-view only.
 ```
 
+Panel height (REQ-19/20) — one number, one CSS custom property:
+
+```yaml
+SCOPE_H_MIN: 130       # px, the pre-v11 fixed row height
+SCOPE_H_MAX: 260       # px, 2 * MIN
+SCOPE_H_DEFAULT: 130   # px, == MIN
+SCOPE_H_STEP: 8        # px, arrow-key increment
+DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
+
+# .bottom  grid-template-rows: var(--scope-h, 130px) minmax(160px, 1fr)
+#            row 1 = .bottomTop (wheels 120px | scope 1fr)  <- the resized row
+#            row 2 = keyboard, floored at 160px
+# drag: h = clamp(startH + (startY - clientY), MIN, MAX)    # up = taller
+# clampScopeHeight(px) = Number.isFinite(px) ? min(max(round(px), MIN), MAX) : DEFAULT
+```
+
 ### Layer touchpoints & ordering
 
 - **`Engine` constructor** builds the analyser tap. Replace the single
@@ -382,13 +557,37 @@ WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
   new button and no new `data-testid` (the gain rides the existing `scope-canvas`
   dataset). `clearPeakDataset` becomes `clearDatasetMirror` so the `waveGain` key is
   dropped on the same rare transitions.
+- **`ResizeHandle` + `buildBottom`** own the resize (v11), and **nothing else does**.
+  `layout.module.css` changes one declaration — `.bottom`'s first grid track becomes
+  `var(--scope-h, 130px)`. `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
+  on the `.bottom` element *before* it is mounted (REQ-20: no first-paint jump), and
+  appends a `ResizeHandle` to `.scopeWrap` after the two toggle buttons, with
+  `onCommit: writeScopeHeight`. The handle is returned alongside the `Scope` so its
+  `destroy()` sits wherever `scope.destroy()` does. **No change to `scope.ts`,
+  `engine.ts` or `studio-api.ts`** — if an implementation finds itself editing them,
+  the approach has drifted (the height reaches `Scope` through REQ-16's observer).
 
 ### Persistence
 
-**None.** Both scope toggles (Wave/Spectrum and Mono/Stereo) **and** the peak-hold
-state are transient, held in the component/closure — deliberately *not* in
-`ParamBus`, presets, or `SongFile` (a visualiser preference, or a held peak, is not
-part of a sound or a song). Every boot starts at **Wave + Mono** with no held peak.
+**The panel height, and nothing else.**
+
+| State | Where | Why |
+| --- | --- | --- |
+| Wave/Spectrum, Mono/Stereo, peak-hold, wave gain | in-memory only | *View* state — what you are looking at right now. Not part of a sound or a song, and cheap to re-pick. Every boot starts at **Wave + Mono** with no held peak. |
+| Panel height | `localStorage` `websynth.ui.scope.height` | *Workspace* state — how the instrument is arranged on **this** screen. |
+
+v11 does not soften the original rule, it draws the line the rule was always
+implying: a height is not a view mode, it is furniture. It joins the device-scoped
+family of `websynth.perf`, `websynth.keyboard.layout` and `websynth.ui.collapsed.*` —
+read at boot, written on change, and **equally excluded from `ParamBus`, presets and
+`SongFile`**. Loading someone else's song must never rearrange your panels, and a
+shared preset must never carry your screen's dimensions.
+
+Stored as an integer count of px (`'186'`). Every read is clamped through
+`clampScopeHeight`, so a missing key, a hand-edited value, garbage, or a value left
+by a future build with a different range all resolve to something usable instead of
+throwing or producing an unusable panel. Writes use the house `try/catch` — private
+mode or a full quota costs you the preference, not the app.
 
 ## Visual aids
 
@@ -409,6 +608,22 @@ Stereo panel layout — responsive on panel width:
 │   ∿∿∿∿∿∿  │     │   ∿∿∿∿∿∿  │          ├───────────────────────────┤
 └───────────┘     └───────────┘          │ R  ∿∿∿∿∿∿∿∿∿∿∿∿∿∿ (bottom) │
                                          └───────────────────────────┘
+```
+
+Panel resize (v11) — one grid track grows, and the wheels ride along because they
+share it:
+
+```
+       default (--scope-h: 130px)                dragged to the 260px ceiling
+  ┌──────┬──────────────────────────┐      ┌──────┬──────────────────────────┐
+  │      │        ═══ grip ═══      │      │      │        ═══ grip ═══      │
+  │wheels│  scope  ∿∿∿∿∿∿∿∿∿∿  130px│      │wheels│                          │
+  │P O M │                          │      │P O M │  scope  ∿∿∿∿∿∿∿∿∿∿  260px│
+  ├──────┴──────────────────────────┤      │      │                          │
+  │          keyboard  (1fr)        │      │ (taller too — same row)         │
+  │                                 │      ├──────┴──────────────────────────┤
+  │                                 │      │   keyboard (1fr, floors at 160) │
+  └─────────────────────────────────┘      └─────────────────────────────────┘
 ```
 
 Web Audio nodes (built-in): `AnalyserNode`, `ChannelSplitterNode`,
@@ -535,6 +750,77 @@ Scenario: The applied wave gain is observable and Wave-only
   Then the canvas exposes a numeric dataset.waveGain of at least 1
   And switching to Spectrum clears it
 # pinned by: e2e/scope.spec.ts
+
+Scenario: Dragging the handle upward makes the scope taller
+  Given the app has booted with the scope at its default height
+  When the user drags the scope resize handle 60px upward
+  Then the --scope-h custom property reads 190px
+  And the scope canvas is taller than it was
+# pinned by: tests/ui/resize-handle.test.ts, e2e/scope.spec.ts
+
+Scenario: The height is clamped to between one and two times the default
+  Given the scope resize handle
+  When the user drags far past either end of the range
+  Then the height stops at SCOPE_H_MIN (130) going down
+  And it stops at SCOPE_H_MAX (260) going up, exactly twice the minimum
+# pinned by: tests/ui/resize-handle.test.ts
+
+Scenario: The wheel strips grow with the scope (they share the grid row)
+  Given the app has booted
+  When the scope is dragged to its full height
+  Then the PITCH/OCT/MOD strips are taller by the same amount
+  And each strip's thumb still tracks its parameter value at the new height
+# pinned by: e2e/scope.spec.ts
+
+Scenario: A press that does not move leaves the height alone
+  Given the scope is at some height
+  When the user presses the handle and releases without moving
+  Then the height is unchanged
+  And nothing is written to storage
+# pinned by: tests/ui/resize-handle.test.ts
+
+Scenario: Double-tapping the handle resets the height
+  Given the scope has been dragged away from its default height
+  When the user taps the handle twice within DOUBLE_TAP_MS
+  Then the height returns to SCOPE_H_DEFAULT
+  And the reset is persisted
+# pinned by: tests/ui/resize-handle.test.ts
+
+Scenario: The focused handle resizes from the keyboard
+  Given the scope resize handle has focus
+  When the user presses ArrowUp
+  Then the height increases by SCOPE_H_STEP and aria-valuenow follows it
+  When the user presses Home
+  Then the height returns to SCOPE_H_DEFAULT
+# pinned by: tests/ui/resize-handle.test.ts
+
+Scenario: The height survives a reload
+  Given the user has dragged the scope taller
+  When the app is reloaded
+  Then the scope is still at the dragged height
+# pinned by: tests/state/scope-height.test.ts, e2e/scope.spec.ts
+
+Scenario: A corrupt or out-of-range stored height falls back to something usable
+  Given the stored height is missing, garbage, or outside [130, 260]
+  When the app boots
+  Then the height resolves to a value within the range
+  And no error escapes to the caller
+# pinned by: tests/state/scope-height.test.ts
+
+Scenario: Pressing the handle never resets the spectrum peak-hold (regression)
+  Given the scope is in Spectrum view with a held peak
+  When the user presses the resize handle
+  Then the held peak is unchanged
+  And this holds because the handle is a sibling of the canvas, not a child (REQ-13)
+# pinned by: tests/ui/resize-handle.test.ts
+
+Scenario: The handle holds no global listener at rest (REQ-21)
+  Given a mounted resize handle that is not being dragged
+  Then it has registered no window pointermove listener
+  When a drag starts and then ends
+  Then the listeners are attached for the stroke and detached on release
+  And destroy() detaches them and cancels any pending frame
+# pinned by: tests/ui/resize-handle.test.ts
 ```
 
 ## Tests & verification
@@ -546,11 +832,24 @@ Scenario: The applied wave gain is observable and Wave-only
   gate, the `WAVE_MAX_GAIN` ceiling, monotonic drawn height, asymmetric fall/rise,
   frame-rate independence); and `Scope.resetPeak()` clearing the dataset mirror —
   `npm test`.
+- Unit: `tests/state/scope-height.test.ts` (v11) — `clampScopeHeight` at and past both
+  ends, rounding, and non-finite input; `readScopeHeight`/`writeScopeHeight` round-trip
+  over `tests/storage-mock.ts`, with a missing key, garbage, an out-of-range value and
+  a throwing storage all resolving to a usable height without escaping an error.
+- Unit: `tests/ui/resize-handle.test.ts` (v11) — **one case per gesture-inventory
+  row**: drag writes the custom property and clamps at both ends; a press with no
+  movement changes nothing and commits nothing; double-tap inside `DOUBLE_TAP_MS`
+  resets (and outside it does not); `ArrowUp`/`ArrowDown` step by `SCOPE_H_STEP`,
+  `Home` resets, `aria-valuenow` follows; `onCommit` fires on release, not per move;
+  no `window` `pointermove` listener at rest and none left after release or
+  `destroy()` (spied `add/removeEventListener`, as `tests/ui/knob.test.ts` does).
 - E2E: `e2e/scope.spec.ts` — default "Mono", toggle to "Stereo" and back,
   orthogonality with Wave/Spectrum, the `analyserL`/`analyserR` data path via
   `window.__synth.engine`, the Spectrum peak readout rising with sound +
   click-to-reset (`canvas.dataset.peak`), and the Wave `canvas.dataset.waveGain`
-  mirror appearing in Wave and clearing in Spectrum — `npm run e2e`.
+  mirror appearing in Wave and clearing in Spectrum. (v11) Dragging
+  `scope-resize-handle` upward grows the canvas, grows a wheel strip by the same
+  delta, and survives a `reload()` — `npm run e2e`.
 - Typecheck: `npm run typecheck`.
 - **By eye (ADR-010)** — the auto-gain is a *look*, so a green suite does not verify
   it. Load a quiet demo (**Nocturne**) and a loud one (**Zombie Nation**) in Wave
@@ -559,6 +858,15 @@ Scenario: The applied wave gain is observable and Wave-only
   transient from silence does not paint outside its region, and Stereo keeps the L/R
   height difference on hard-panned material. `WAVE_NORM_STRENGTH` and
   `WAVE_MAX_GAIN` are the two knobs to retune.
+- **By eye (v11)** — the resize is likewise a *look* and a *feel*. Drag the handle to
+  the ceiling and check: the trace and the spectrum bars scale cleanly with no
+  stretching artefact; the L/R labels still sit clear at each region's bottom-left in
+  **both** stereo layouts; the CRT bezel (`.scopeScreen`) still frames the canvas
+  exactly; the wheel strips grow with it and their thumbs stay on value; and the
+  keyboard gives up its slack down to its 160 px floor and then hands over to a page
+  scroll rather than collapsing. Repeat at phone width — the grip must still clear
+  both corner buttons. The drag itself must track the pointer without lag or rubber
+  banding.
 - Dev-bridge assertions: `window.__synth.engine.analyserL` (DEV only); peak readout
   via the canvas `dataset.peak`/`peakL`/`peakR`; applied wave gain via
   `dataset.waveGain`.
@@ -573,9 +881,22 @@ Scenario: The applied wave gain is observable and Wave-only
 - A future **goniometer / Lissajous** (X-Y L-vs-R) view could reuse `analyserL/R`;
   out of scope here.
 - The Wave auto-gain (v8) is deliberately **not exposed** — no third overlay button
-  on an already three-cornered panel, and no persisted preference. If a "1×"
-  (calibrated) escape hatch is ever wanted, `WAVE_NORM_STRENGTH = 0` is already the
-  whole implementation of it; the open question is only where the toggle would live.
+  on an already three-cornered panel, and no persisted preference *of its own*. If a
+  "1×" (calibrated) escape hatch is ever wanted, `WAVE_NORM_STRENGTH = 0` is already
+  the whole implementation of it; the open question is only where the toggle would
+  live. (v11 note: the panel now does persist one thing — its height — but that is
+  workspace state, not a view mode. The argument against persisting *view* state is
+  unchanged; see Persistence.)
+- `ResizeHandle` (v11) is written generically — it writes a CSS custom property on a
+  target and knows nothing about scopes — but it is specced here rather than in its
+  own facility spec because the scope is its only consumer. A **second** consumer
+  (resizable floating windows are the obvious candidate) is what would earn it a spec
+  of its own, and the lift would be a move, not a rewrite.
+- The 2× ceiling is a **fixed** 260 px, not a fraction of the viewport. On a very tall
+  display there is headroom left unused; on a very short one the ceiling is reachable
+  only by pushing the page into a scroll. A viewport-relative ceiling was rejected as
+  a rule you cannot see: the handle would stop at a different place on every screen,
+  and "twice as tall" is a promise the user can check.
 - There is still **no trigger / zero-crossing sync**, so the trace free-runs and
   drifts horizontally. Unrelated to the gain, but the next thing that would make the
   Wave view read like a scope.

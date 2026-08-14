@@ -133,3 +133,79 @@ test.describe('scope mono/stereo', () => {
     expect(await waveGain()).toBeNull();
   });
 });
+
+/**
+ * The resize handle (scope.md REQ-19/20). It drags the shared bottom grid row,
+ * so the PITCH/OCT/MOD wheel strips grow with the scope — that shared row is the
+ * whole mechanism, and the strip assertion is what pins it.
+ */
+test.describe('scope resize', () => {
+  const SCOPE_H_DEFAULT = 130;
+  const SCOPE_H_MAX = 260;
+
+  /** Drag the grip `dy` px upward (positive = taller). */
+  async function dragHandle(page: import('@playwright/test').Page, dy: number): Promise<void> {
+    const handle = page.getByTestId('scope-resize-handle');
+    const box = (await handle.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    // Two steps: the first move starts the stroke, the second lands it — a
+    // single jump can outrun the rAF-coalesced write.
+    await page.mouse.move(x, y - dy / 2);
+    await page.mouse.move(x, y - dy);
+    await page.mouse.up();
+  }
+
+  /** `--scope-h` is written inline on `.bottom` — the one element that carries it. */
+  const rowHeight = (page: import('@playwright/test').Page): Promise<number> =>
+    page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('[style*="--scope-h"]');
+      return el ? parseInt(el.style.getPropertyValue('--scope-h'), 10) : Number.NaN;
+    });
+
+  test('dragging the handle grows the scope and the wheel strips with it', async ({ page }) => {
+    await gotoAndStart(page);
+    const canvas = page.getByTestId('scope-canvas');
+    const strip = page.getByTestId('strip-master.modWheel');
+
+    expect(await rowHeight(page)).toBe(SCOPE_H_DEFAULT);
+    const canvasBefore = (await canvas.boundingBox())!.height;
+    const stripBefore = (await strip.boundingBox())!.height;
+
+    await dragHandle(page, 60);
+
+    expect(await rowHeight(page)).toBe(SCOPE_H_DEFAULT + 60);
+    const canvasAfter = (await canvas.boundingBox())!.height;
+    const stripAfter = (await strip.boundingBox())!.height;
+    // Both live in the resized row, so both gain the full 60px.
+    expect(canvasAfter - canvasBefore).toBeCloseTo(60, 0);
+    expect(stripAfter - stripBefore).toBeCloseTo(60, 0);
+  });
+
+  test('the height stops at twice the default, and survives a reload', async ({ page }) => {
+    await gotoAndStart(page);
+    // Drag well past the ceiling — it clamps rather than running away.
+    await dragHandle(page, 400);
+    expect(await rowHeight(page)).toBe(SCOPE_H_MAX);
+
+    await page.reload();
+    const startBtn = page.getByRole('button', { name: 'Tap to start' });
+    await startBtn.click();
+    await expect(startBtn).toBeHidden();
+
+    expect(await rowHeight(page)).toBe(SCOPE_H_MAX);
+    await expect(page.getByTestId('scope-resize-handle'))
+      .toHaveAttribute('aria-valuenow', String(SCOPE_H_MAX));
+  });
+
+  test('double-clicking the grip resets the height', async ({ page }) => {
+    await gotoAndStart(page);
+    await dragHandle(page, 80);
+    expect(await rowHeight(page)).toBe(SCOPE_H_DEFAULT + 80);
+
+    await page.getByTestId('scope-resize-handle').dblclick();
+    expect(await rowHeight(page)).toBe(SCOPE_H_DEFAULT);
+  });
+});

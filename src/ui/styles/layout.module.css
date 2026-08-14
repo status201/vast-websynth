@@ -480,9 +480,15 @@
 
 /* ===== Bottom section ===== */
 
+/* Row 1 (wheels | scope) is user-resizable between 130px and 260px via the drag
+   handle on the scope's top edge — app.ts writes --scope-h inline. The default
+   stays here in CSS, so no stored value (or no storage at all) renders exactly
+   as it always did. Row 2 floors the keyboard at 160px: a growing scope eats the
+   keyboard's slack, stops there, and only then does the page scroll.
+   See specs/features/scope.md REQ-19. */
 .bottom {
   display: grid;
-  grid-template-rows: 130px minmax(160px, 1fr);
+  grid-template-rows: var(--scope-h, 130px) minmax(160px, 1fr);
   gap: 10px;
   margin: 0 var(--side-margin);
   min-height: 0;
@@ -550,6 +556,29 @@
   min-height: 28px !important;
   padding: 4px 10px !important;
   font-size: 10px !important;
+}
+
+/* Resize grip, top-centre — the only edge of this panel free of chrome, since
+   the two toggles above take the corners. It has to thread between them, so the
+   width shrinks with the panel instead of overlapping a button: 140px is the two
+   buttons plus their 8px insets plus clearance. Below ~350px viewport there is no
+   room left to thread, and the grip is dropped rather than shown unhittable —
+   the stored height still applies. See specs/features/scope.md REQ-19. */
+.scopeResize {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(64px, calc(100% - 140px));
+  height: 16px;
+  z-index: 2;
+}
+
+@media (max-width: 350px) {
+  /* !important for the same reason .scopeToggle needs it above: this class and
+     resize-handle.module.css's .root are both single-class selectors on the same
+     element, so bundle order — not intent — would otherwise decide. */
+  .scopeResize { display: none !important; }
 }
 
 .keyboardWrap {

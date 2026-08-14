@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Wave/Spectrum scope can be made taller.** A small grip on the
+  visualizer's top edge drags the panel from its old fixed height up to twice
+  that — and the PITCH, OCT and MOD wheels beside it grow with it, because they
+  share the row, so the whole bottom half of the instrument gets taller together
+  rather than one panel inflating on its own. Stacked stereo in particular stops
+  being two cramped strips. Double-click the grip to put it back where it was, or
+  nudge it with the arrow keys once it has focus. The keyboard gives up its spare
+  room first and never shrinks past a playable size. Your height is remembered on
+  this device between sessions — and *only* here: it never travels into a preset
+  or a song, so loading someone else's work never rearranges your screen.
+
 ## [2.8.2] - 2026-08-14
 
 ### Fixed

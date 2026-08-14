@@ -3,7 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 4   # v4: UiBridge in the layer contracts; testids/write-a-test delegation
+version: 5   # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-20)
+             # v4: UiBridge in the layer contracts; testids/write-a-test delegation
 owner: core
 related: []
 source:
@@ -434,6 +435,7 @@ localStorage:
   websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
   websynth.ui.collapsed.fx      : FX-section collapse state    # ui/app.ts
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
+  websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
 not_persisted:
   decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded —
                          # or carried in a project-zip download (features/project-export.md)
