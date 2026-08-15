@@ -57,28 +57,38 @@
     "fx.wah.rate": 2,
     "fx.wah.depth": 0.4,
     "fx.wah.q": 4,
+    "fx.wah.sync": 0,
     "fx.phaser.on": 0,
     "fx.phaser.rate": 0.5,
     "fx.phaser.depth": 0.5,
     "fx.phaser.feedback": 0.4,
     "fx.phaser.mix": 0.5,
+    "fx.phaser.sync": 0,
     "fx.delay.on": 1,
     "fx.delay.time": 0.375,
     "fx.delay.feedback": 0.35,
     "fx.delay.mix": 0.22,
+    "fx.delay.sync": 0,
     "fx.reverb.on": 1,
     "fx.reverb.size": 0.535,
     "fx.reverb.damp": 0.25,
     "fx.reverb.mix": 0.5488,
+    "fx.duck.on": 0,
+    "fx.duck.amount": 0.7,
+    "fx.duck.attack": 0.005,
+    "fx.duck.release": 0.18,
+    "fx.duck.src": 0,
     "fx.drum.phaser.on": 0,
     "fx.drum.phaser.rate": 0.5,
     "fx.drum.phaser.depth": 0.7,
     "fx.drum.phaser.feedback": 0.4,
     "fx.drum.phaser.mix": 0.6,
+    "fx.drum.phaser.sync": 0,
     "fx.drum.delay.on": 0,
     "fx.drum.delay.time": 0.35,
     "fx.drum.delay.feedback": 0.4,
     "fx.drum.delay.mix": 0.3,
+    "fx.drum.delay.sync": 0,
     "fx.drum.reverb.on": 1,
     "fx.drum.reverb.size": 0.2,
     "fx.drum.reverb.damp": 0.4,
@@ -98,14 +108,21 @@
     "fx.sampler.phaser.depth": 0.7,
     "fx.sampler.phaser.feedback": 0.4,
     "fx.sampler.phaser.mix": 0.5,
+    "fx.sampler.phaser.sync": 0,
     "fx.sampler.delay.on": 0,
     "fx.sampler.delay.time": 0.35,
     "fx.sampler.delay.feedback": 0.4,
     "fx.sampler.delay.mix": 0.3,
+    "fx.sampler.delay.sync": 0,
     "fx.sampler.reverb.on": 0,
     "fx.sampler.reverb.size": 0.6,
     "fx.sampler.reverb.damp": 0.4,
     "fx.sampler.reverb.mix": 0.25,
+    "fx.sampler.duck.on": 0,
+    "fx.sampler.duck.amount": 0.7,
+    "fx.sampler.duck.attack": 0.005,
+    "fx.sampler.duck.release": 0.18,
+    "fx.sampler.duck.src": 0,
     "fx.djfilter": 0,
     "fx.master.comp.on": 1,
     "fx.master.comp.threshold": -16.8,
@@ -3481,7 +3498,7 @@
     [
       [
         {
-          "on": true
+          "on": false
         },
         {
           "on": false
@@ -3933,7 +3950,7 @@
       ],
       [
         {
-          "on": true
+          "on": false
         },
         {
           "on": false
@@ -5094,8 +5111,8 @@
     ]
   },
   "sampleNames": [
-    "recording-2026-07-20T13-13-27-805Z.wav",
-    "recording-2026-07-20T13-13-44-304Z.wav",
+    null,
+    null,
     null,
     null,
     null,

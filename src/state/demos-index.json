@@ -70,7 +70,6 @@
     "uses": [
       "seq",
       "drums",
-      "sampler",
       "motion"
     ]
   },
@@ -87,6 +86,19 @@
       "arp"
     ],
     "blurb": "One riff, four chords: the whole progression is bar transposes on two banks. POLY filter, hat choke, tempo-locked LFO — and the arp is armed, so hold a key."
+  },
+  "Maison.websynth.json": {
+    "name": "Maison",
+    "bpm": 124,
+    "bars": 26,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "armed": [
+      "arp"
+    ]
   },
   "Night_Rider.websynth.json": {
     "name": "Night Rider",
@@ -202,20 +214,6 @@
       "drums"
     ],
     "blurb": "A nod to the Haçienda."
-  },
-  "maison-bleue.json": {
-    "name": "Maison Bleue",
-    "bpm": 124,
-    "bars": 24,
-    "uses": [
-      "seq",
-      "drums",
-      "motion"
-    ],
-    "armed": [
-      "arp"
-    ],
-    "blurb": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
   },
   "spazio_moroder.json": {
     "name": "Spazio",
