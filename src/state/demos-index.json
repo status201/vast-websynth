@@ -203,6 +203,20 @@
     ],
     "blurb": "A nod to the Haçienda."
   },
+  "maison-bleue.json": {
+    "name": "Maison Bleue",
+    "bpm": 124,
+    "bars": 24,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "armed": [
+      "arp"
+    ],
+    "blurb": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
+  },
   "spazio_moroder.json": {
     "name": "Spazio",
     "bpm": 126,
