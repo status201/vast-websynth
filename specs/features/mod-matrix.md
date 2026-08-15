@@ -474,6 +474,12 @@ Shipped in stages, each independently useful:
   needs an `AnalyserNode` read or a worklet, so it carries main-thread cost that has to be argued
   on its own terms rather than smuggled in here. Would give sidechain-flavoured movement with no
   compressor.
+  - **Partly answered elsewhere.** [sidechain-ducking](sidechain-ducking.md) reaches the same
+    musical goal without paying that cost: it keys off the drum machine's *scheduled hits*
+    rather than detecting the drum bus, so there is no follower and no worklet. It is an insert
+    effect, not a matrix source, so this entry stands for anything wanting drum-driven movement
+    on an arbitrary **destination** — but the cheap trigger there is the shape to copy if it is
+    ever built, and a detector should be argued against it rather than from scratch.
 - **Live modulation position on the knobs.** REQ-8's range arc is computed from params alone and
   is free; showing where modulation *currently* is would need a port message per frame, and is
   per-voice, so "which voice?" needs an answer first.

@@ -91,6 +91,13 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.reverb.damp', label: 'DAMP' },
     { id: 'fx.sampler.reverb.mix', label: 'MIX' },
   ]));
+  // Last, mirroring the sampler chain order (sidechain-ducking.md REQ-8).
+  fx.appendChild(fxGroup(bus, 'DUCK', 'fx.sampler.duck', [
+    { id: 'fx.sampler.duck.amount', label: 'AMT' },
+    { id: 'fx.sampler.duck.attack', label: 'ATK' },
+    { id: 'fx.sampler.duck.release', label: 'REL' },
+    { id: 'fx.sampler.duck.src', label: 'SRC' },
+  ]));
   header.appendChild(fx);
 
   root.appendChild(header);

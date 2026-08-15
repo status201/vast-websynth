@@ -425,7 +425,7 @@
 
 .fxRow {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -665,9 +665,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
-  /* Five effects in two columns leave the last cell empty; the patch-cable
-     decoration fills it. fx-patch-decoration.module.css mirrors this
-     breakpoint (it is display:none above it) — keep the two in sync. */
+  /* An odd effect count in two columns leaves the last cell empty; the
+     patch-cable decoration fills it. Six effects divide evenly, so it is
+     currently absent. fx-patch-decoration.module.css mirrors this breakpoint
+     (it is display:none above it) — keep the two in sync. */
   .fxRow { grid-template-columns: repeat(2, 1fr); }
   .keyboardWrap { min-height: 160px; }
 }

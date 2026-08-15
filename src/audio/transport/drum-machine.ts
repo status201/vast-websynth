@@ -10,6 +10,12 @@ import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 
 export type DrumStepListener = (step: number) => void;
+/**
+ * A hit that actually sounded, at the absolute time it will sound
+ * (sidechain-ducking.md REQ-9). Distinct from `DrumStepListener`, which reports
+ * a performance-mapped step index with no time and drives the UI playhead.
+ */
+export type DrumHitListener = (track: number, when: number, velocity: number) => void;
 
 /**
  * Selectable voice algorithms per track (drum-machine.md REQ-11). Indices 0-7
@@ -63,9 +69,12 @@ export class DrumMachine {
   private readonly noise: AudioBuffer;
 
   private enabled = false;
+  /** The lane mixer's audibility verdict (mute/solo). See `setLaneAudible`. */
+  private laneAudible = true;
   /** REQ-12. Off by default — switching it on changes how a song sounds. */
   private chokeEnabled = false;
   private readonly stepListeners = new ListenerSet<[number]>();
+  private readonly hitListeners = new ListenerSet<[number, number, number]>();
 
   constructor(
     private readonly ctx: AudioContext,
@@ -131,6 +140,35 @@ export class DrumMachine {
 
   onStep(fn: DrumStepListener): () => void {
     return this.stepListeners.add(fn);
+  }
+
+  /** Every hit that sounds, as it is scheduled (sidechain-ducking.md REQ-9). */
+  onHit(fn: DrumHitListener): () => void {
+    return this.hitListeners.add(fn);
+  }
+
+  /**
+   * Whether the drum bus is audible, per the lane mixer's mute/solo verdict
+   * (REQ-13 v8). The machine keeps *playing* while inaudible — that is what
+   * makes un-mute instant — but stops reporting, because a hit into a silenced
+   * bus is not a hit anyone hears.
+   */
+  setLaneAudible(on: boolean): void {
+    this.laneAudible = on;
+  }
+
+  /**
+   * The one place a drum voice is triggered. Fires the voice and reports the
+   * hit, so no trigger path — pattern sweep, fill or manual audition — can
+   * report a hit that did not sound or forget one that did.
+   */
+  private fire(track: number, when: number, velocity: number, choke?: number): void {
+    const voice = this.tracks[track];
+    if (!voice) return;
+    voice.trigger(when, velocity, choke);
+    // Play but stay quiet about it: the bus is silenced, so nothing sounds.
+    if (!this.laneAudible) return;
+    this.hitListeners.emit(track, when, velocity);
   }
 
   setTrackVolume(track: number, v: number): void {
@@ -199,7 +237,7 @@ export class DrumMachine {
 
   /** Manual trigger (for UI auditioning). */
   triggerTrack(track: number, velocity = 0.9): void {
-    this.tracks[track]?.trigger(this.ctx.currentTime, velocity);
+    this.fire(track, this.ctx.currentTime, velocity);
   }
 
   private onTick(step: number, when: number): void {
@@ -218,7 +256,7 @@ export class DrumMachine {
     const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
     const stepDur = this.clock.sixteenthDuration();
     forEachActiveHit(bank, idx, when, stepDur, this.muted, (t, h, cell) => {
-      this.tracks[t]?.trigger(h.t, cell.velocity, chokeAt(cell, h));
+      this.fire(t, h.t, cell.velocity, chokeAt(cell, h));
       // A closed hat ends whatever the open hat was doing (REQ-12). Fired from
       // the hit's own `h.t`, not `when`, so a ratcheted closed hat chokes on
       // every sub-hit exactly as a real one would.
@@ -259,14 +297,14 @@ export class DrumMachine {
 
   /** Momentary drum fill — snare ramp + tom cascade on the last beat. */
   private playFill(s: number, when: number): void {
-    if (s % 8 === 0) this.tracks[0]?.trigger(when, 0.85); // kick anchor
+    if (s % 8 === 0) this.fire(0, when, 0.85); // kick anchor
     if (s >= 12) {
       const tom = s === 12 ? 4 : s === 13 ? 5 : 6; // L→M→H tom roll
-      this.tracks[tom]?.trigger(when, 0.95);
-      if (s === 15) this.tracks[7]?.trigger(when, 0.9); // clap accent
+      this.fire(tom, when, 0.95);
+      if (s === 15) this.fire(7, when, 0.9); // clap accent
     } else {
-      this.tracks[1]?.trigger(when, 0.5 + 0.45 * (s / 11)); // snare ramp
-      if (s % 2 === 0) this.tracks[2]?.trigger(when, 0.35); // hats
+      this.fire(1, when, 0.5 + 0.45 * (s / 11)); // snare ramp
+      if (s % 2 === 0) this.fire(2, when, 0.35); // hats
     }
   }
 }

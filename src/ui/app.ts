@@ -705,9 +705,20 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
     { id: 'fx.reverb.mix', label: 'MIX' },
   ], 'fx.reverb'));
 
-  // Five effects in the ≤992px 2-column grid leave one cell empty; fill it with
-  // the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed, so a
-  // sixth effect drops it again instead of pushing it onto a row of its own.
+  // Last in the rack because it is last in the chain (sidechain-ducking.md
+  // REQ-8/REQ-10): SRC is a discrete knob over the drum lanes + Any, the same
+  // shape as the drum compressor's RATIO.
+  fx.appendChild(fxPanel('Duck', bus, 'fx.duck.on', [
+    { id: 'fx.duck.amount', label: 'AMT' },
+    { id: 'fx.duck.attack', label: 'ATK' },
+    { id: 'fx.duck.release', label: 'REL' },
+    { id: 'fx.duck.src', label: 'SRC' },
+  ], 'fx.duck'));
+
+  // An odd effect count in the ≤992px 2-column grid leaves one cell empty; fill
+  // it with the unpatched-cable scenery (fx-patch-decoration.md). Parity-keyed,
+  // so the six effects shipping today drop it rather than push it onto a row of
+  // its own — a seventh would bring it back with no change here.
   if (fx.childElementCount % 2 === 1) fx.appendChild(fxPatchDecoration());
 
   section.appendChild(fx);

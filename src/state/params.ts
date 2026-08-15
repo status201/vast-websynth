@@ -1,4 +1,4 @@
-import { DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
+import { DRUM_TRACK_COUNT, DRUM_TRACKS, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
 import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
@@ -342,6 +342,9 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- FX: Reverb -----
     ...reverbParams('fx.reverb'),
 
+    // ----- FX: Duck (last in the chain, so the reverb tail ducks too) -----
+    ...duckParams('fx.duck'),
+
     // ----- Drum FX: Phaser -----
     ...phaserParams('fx.drum.phaser', { depth: 0.7, mix: 0.6 }),
 
@@ -370,6 +373,9 @@ export function registerDefaults(bus: ParamBus): void {
 
     // ----- Sampler FX: Reverb -----
     ...reverbParams('fx.sampler.reverb'),
+
+    // ----- Sampler FX: Duck -----
+    ...duckParams('fx.sampler.duck'),
 
     // ----- DJ filter (live performance sweep) -----
     { id: 'fx.djfilter', min: -1, max: 1, default: 0, format: (v) =>
@@ -581,6 +587,26 @@ function delayParams(prefix: string): ParamDef[] {
     { id: `${prefix}.feedback`, min: 0, max: 0.95, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: 0.3, format: fmtPct },
     syncParam(prefix),
+  ];
+}
+
+/**
+ * The trigger-keyed ducker (sidechain-ducking.md). `.on` off is the no-op that
+ * leaves every existing patch alone (ADR-006), which is what frees the rest to
+ * carry musical defaults. `.src` labels are the drum lanes plus `Any` **appended
+ * last** — a discrete index is a stored value, so the list is append-only, and
+ * index 0 is the lane that boots on the Kick model.
+ */
+function duckParams(prefix: string): ParamDef[] {
+  return [
+    fxOnParam(prefix),
+    { id: `${prefix}.amount`, min: 0, max: 1, default: 0.7, format: fmtPct },
+    { id: `${prefix}.attack`, min: 0.001, max: 0.1, default: 0.005, format: fmtMs },
+    { id: `${prefix}.release`, min: 0.02, max: 1, default: 0.18, format: fmtMs },
+    {
+      id: `${prefix}.src`, min: 0, max: DRUM_TRACKS.length, default: 0, step: 1,
+      taper: 'discrete', labels: [...DRUM_TRACKS, 'Any'],
+    },
   ];
 }
 

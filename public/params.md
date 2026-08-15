@@ -89,6 +89,11 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.reverb.size": number  // range 0..1, default 0.6
 - "fx.reverb.damp": number  // range 0..1, default 0.4
 - "fx.reverb.mix": number  // range 0..1, default 0.25
+- "fx.duck.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.duck.amount": number  // range 0..1, default 0.7
+- "fx.duck.attack": number  // range 0.001..0.1, default 0.005
+- "fx.duck.release": number  // range 0.02..1, default 0.18
+- "fx.duck.src": number  // range 0..8, default 0, step 1, values 0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap 8=Any
 - "fx.master.comp.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.master.comp.threshold": number  // range -40..0, default -12
 - "fx.master.comp.ratio": number  // range 0..2, default 1, step 1, values 0=2:1 1=4:1 2=10:1
@@ -165,6 +170,11 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.reverb.size": number  // range 0..1, default 0.6
 - "fx.sampler.reverb.damp": number  // range 0..1, default 0.4
 - "fx.sampler.reverb.mix": number  // range 0..1, default 0.25
+- "fx.sampler.duck.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.sampler.duck.amount": number  // range 0..1, default 0.7
+- "fx.sampler.duck.attack": number  // range 0.001..0.1, default 0.005
+- "fx.sampler.duck.release": number  // range 0.02..1, default 0.18
+- "fx.sampler.duck.src": number  // range 0..8, default 0, step 1, values 0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom 5=M.Tom 6=H.Tom 7=Clap 8=Any
 - "fx.djfilter": number  // range -1..1, default 0
 - "master.pitchBend": number  // range -1..1, default 0
 - "master.modWheel": number  // range 0..1, default 0

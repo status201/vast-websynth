@@ -29,6 +29,7 @@ const FACTORY: FactoryBank = {
     'lfo.rate': 4, 'lfo.amount': 0, 'lfo.wave': 0, 'lfo.dest': 0, 'lfo.sync': 0,
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 1,
   },
   bass: {
@@ -45,6 +46,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 1, 'fx.dist.drive': 0.45, 'fx.dist.tone': 2500, 'fx.dist.mix': 0.5,
     'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 0,
   },
   lead: {
@@ -62,6 +64,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.28, 'fx.delay.feedback': 0.35, 'fx.delay.mix': 0.25, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.5, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.2,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 1,
   },
   pad: {
@@ -80,6 +83,7 @@ const FACTORY: FactoryBank = {
     'fx.phaser.on': 1, 'fx.phaser.rate': 0.2, 'fx.phaser.depth': 0.6, 'fx.phaser.feedback': 0.3, 'fx.phaser.sync': 0,
     'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.9, 'fx.reverb.damp': 0.3, 'fx.reverb.mix': 0.5,
+    'fx.duck.on': 0,
     'master.volume': 0.7, 'voicing.mode': 1,
   },
   pluck: {
@@ -97,6 +101,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.22, 'fx.delay.feedback': 0.45, 'fx.delay.mix': 0.3, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.4, 'fx.reverb.mix': 0.25,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 1,
   },
   wobble: {
@@ -113,6 +118,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 1, 'fx.dist.drive': 0.5, 'fx.dist.tone': 2200, 'fx.dist.mix': 0.6,
     'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 0,
   },
   // Basses — acoustic, electric, DnB reese, 303 acid.
@@ -129,6 +135,7 @@ const FACTORY: FactoryBank = {
     'lfo.rate': 4, 'lfo.amount': 0, 'lfo.wave': 0, 'lfo.dest': 0, 'lfo.sync': 0,
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 0,
   },
   pbass: {
@@ -144,6 +151,7 @@ const FACTORY: FactoryBank = {
     'lfo.rate': 4, 'lfo.amount': 0, 'lfo.wave': 0, 'lfo.dest': 0, 'lfo.sync': 0,
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 0,
   },
   reese: {
@@ -160,6 +168,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 1, 'fx.dist.drive': 0.4, 'fx.dist.tone': 1800, 'fx.dist.mix': 0.45,
     'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0, 'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 0,
   },
   acid: {
@@ -178,6 +187,7 @@ const FACTORY: FactoryBank = {
     'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.375, 'fx.delay.feedback': 0.4, 'fx.delay.mix': 0.2, 'fx.delay.sync': 0,
     'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.7, 'voicing.mode': 0,
   },
   // Keys — acoustic piano, electric piano, tonewheel organ, bells.
@@ -195,6 +205,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.35, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.12,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 1,
   },
   rhodes: {
@@ -211,6 +222,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.15,
+    'fx.duck.on': 0,
     'master.volume': 0.8, 'voicing.mode': 1,
   },
   b3: {
@@ -228,6 +240,7 @@ const FACTORY: FactoryBank = {
     'fx.wah.on': 1, 'fx.wah.rate':6.8, 'fx.wah.depth': 0.01, 'fx.wah.q': 4, 'fx.wah.sync': 0,  
     'fx.phaser.on': 0, 'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.3, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.12,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 1,
   },
   bells: {
@@ -245,6 +258,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.42, 'fx.delay.feedback': 0.45, 'fx.delay.mix': 0.28, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.8, 'fx.reverb.damp': 0.25, 'fx.reverb.mix': 0.4,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 1,
   },
   // Ensemble/poly — string machine, synth brass.
@@ -264,6 +278,7 @@ const FACTORY: FactoryBank = {
     'fx.phaser.on': 1, 'fx.phaser.rate': 0.3, 'fx.phaser.depth': 0.5, 'fx.phaser.feedback': 0.3, 'fx.phaser.mix': 0.35, 'fx.phaser.sync': 0,
     'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.7, 'fx.reverb.damp': 0.4, 'fx.reverb.mix': 0.3,
+    'fx.duck.on': 0,
     'master.volume': 0.7, 'voicing.mode': 1,
   },
   brass: {
@@ -280,6 +295,7 @@ const FACTORY: FactoryBank = {
     'lfo2.rate': 4, 'lfo2.amount': 0, 'lfo2.wave': 0, 'lfo2.dest': 0, 'lfo2.sync': 0,
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0, 'fx.delay.on': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.5, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.15,
+    'fx.duck.on': 0,
     'master.volume': 0.75, 'voicing.mode': 1,
   },
 
@@ -304,6 +320,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.375, 'fx.delay.feedback': 0.35, 'fx.delay.mix': 0.18, 'fx.delay.sync': 0,
     'fx.reverb.on': 0,
+    'fx.duck.on': 0,
     'master.volume': 0.7, 'voicing.mode': 0,
   },
 
@@ -324,6 +341,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.5, 'fx.delay.feedback': 0.3, 'fx.delay.mix': 0.2, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.9, 'fx.reverb.damp': 0.35, 'fx.reverb.mix': 0.45,
+    'fx.duck.on': 0,
     'master.volume': 0.7, 'voicing.mode': 1,
   },
 
@@ -344,6 +362,7 @@ const FACTORY: FactoryBank = {
     'fx.dist.on': 0, 'fx.wah.on': 0, 'fx.phaser.on': 0,
     'fx.delay.on': 1, 'fx.delay.time': 0.28, 'fx.delay.feedback': 0.32, 'fx.delay.mix': 0.28, 'fx.delay.sync': 0,
     'fx.reverb.on': 1, 'fx.reverb.size': 0.6, 'fx.reverb.damp': 0.4, 'fx.reverb.mix': 0.3,
+    'fx.duck.on': 0,
     'master.volume': 0.72, 'voicing.mode': 1,
   },
 };

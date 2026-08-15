@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 5   # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-20)
+version: 6   # v6: the audio graph gains a duck stage on the synth and sampler
+             #     chains, keyed by drum hits (sidechain-ducking.md)
+             # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-20)
              # v4: UiBridge in the layer contracts; testids/write-a-test delegation
 owner: core
 related: []
@@ -349,10 +351,10 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb → synthPan ─┐
-            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ───────┤
-            samplerBus  (+ sampler dist/phaser/delay/reverb) ────────────────┤
-                                                                             ▼
+voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
+            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─────────────┤
+            samplerBus  (+ sampler dist/phaser/delay/reverb/duck) ────────────────┤
+                                                                                   ▼
         preMaster ─→ djFilter ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
@@ -378,6 +380,13 @@ voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb
   [`features/scope.md`](features/scope.md)).
 - `drumComp` is a **FET**-mode compressor; `masterComp` is a **VCA**-mode
   compressor (see [`features/compressor.md`](features/compressor.md)).
+- The **duck** is the one chain member driven from outside its own chain: its
+  gain envelope is scheduled from `DrumMachine.onHit`, at the absolute time each
+  drum hit will sound, so the synth and sampler buses move out of the drums' way
+  with no audio detector anywhere. `Engine.init()` wires that trigger — the
+  chains are built in the constructor, the machines are not. The drum bus has no
+  ducker: its own hits are the key. See
+  [`features/sidechain-ducking.md`](features/sidechain-ducking.md).
 
 The three insert chains are built as units by `audio/effects/fx-chain.ts` —
 `createSynthChain` / `createDrumChain` / `createSamplerChain`, held on Engine as

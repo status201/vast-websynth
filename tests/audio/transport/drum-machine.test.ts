@@ -304,3 +304,122 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     expect(ramps(dm, 3)).toEqual([0, 0, 0]);
   });
 });
+
+/**
+ * The sidechain trigger (sidechain-ducking.md REQ-9). It reports hits that
+ * *sounded*, at the absolute time they sound — which is what lets a ducker
+ * schedule against the pattern without re-deriving mute, probability or
+ * ratchets, and makes it impossible to pump on a step that stayed silent.
+ */
+describe('DrumMachine.onHit', () => {
+  function hits() {
+    const rig = build();
+    const seen: Array<[number, number, number]> = [];
+    rig.dm.onHit((track, when, velocity) => seen.push([track, when, velocity]));
+    return { ...rig, seen };
+  }
+
+  it('reports the track, absolute time and velocity of a hit', () => {
+    const { clock, patterns, dm, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7 });
+    clock.fireTick(0);
+    expect(seen).toEqual([[0, 0, 0.7]]);
+  });
+
+  it('fires once per ratchet sub-hit, at distinct ascending times', () => {
+    const { clock, patterns, dm, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, ratchet: 4 });
+    clock.fireTick(0);
+    expect(seen).toHaveLength(4);
+    const times = seen.map(([, when]) => when);
+    expect(times).toStrictEqual([...times].sort((a, b) => a - b));
+    expect(new Set(times).size).toBe(4);
+  });
+
+  it('does not fire for a muted track', () => {
+    const { clock, patterns, dm, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true, velocity: 0.9 });
+    dm.setTrackMute(2, true);
+    clock.fireTick(0);
+    expect(seen).toEqual([]);
+  });
+
+  it('does not fire for a step whose probability roll fails', () => {
+    const { clock, patterns, dm, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.9, prob: 0 });
+    clock.fireTick(0);
+    expect(seen).toEqual([]);
+  });
+
+  it('does not fire while the machine is disabled', () => {
+    const { clock, patterns, seen } = hits();
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.9 });
+    clock.fireTick(0);
+    expect(seen).toEqual([]);
+  });
+
+  it('fires on a manual audition, so an auditioned pad pumps too', () => {
+    const { dm, seen } = hits();
+    dm.triggerTrack(3, 0.8);
+    expect(seen).toEqual([[3, 0, 0.8]]);
+  });
+
+  it('does not fire for a track that has no voice', () => {
+    const { dm, seen } = hits();
+    dm.triggerTrack(99);
+    expect(seen).toEqual([]);
+  });
+
+  /**
+   * REQ-13 v8. The lane mute cuts the bus gain but leaves the pattern running,
+   * so the machine has to stay quiet about hits it is still playing — otherwise
+   * a ducker pumps to a kick nobody can hear.
+   */
+  // One tick per case: Arrangement advances the song position on every tick, so
+  // firing step 0 twice can move the play bank out from under the assertion.
+  it('stops reporting while the lane is inaudible, but keeps playing', () => {
+    const { clock, patterns, dm, spies, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7 });
+    dm.setLaneAudible(false);
+
+    clock.fireTick(0);
+    expect(seen).toEqual([]);
+    // Still playing — that is what makes un-mute instant.
+    expect(spies[0]).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports again once the lane is audible', () => {
+    const { clock, patterns, dm, seen } = hits();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7 });
+    dm.setLaneAudible(false);
+    dm.setLaneAudible(true);
+
+    clock.fireTick(0);
+    expect(seen).toEqual([[0, 0, 0.7]]);
+  });
+
+  it('stops reporting auditions while the lane is inaudible', () => {
+    const { dm, seen } = hits();
+    dm.setLaneAudible(false);
+    dm.triggerTrack(0, 0.9);
+    expect(seen).toEqual([]);
+  });
+
+  it('stops reporting once the listener is disposed', () => {
+    const { clock, patterns, dm } = build();
+    dm.setEnabled(true);
+    const seen: number[] = [];
+    const off = dm.onHit((track) => seen.push(track));
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7 });
+    clock.fireTick(0);
+    off();
+    clock.fireTick(0);
+    expect(seen).toEqual([0]);
+  });
+});

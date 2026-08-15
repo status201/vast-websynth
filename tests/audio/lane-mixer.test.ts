@@ -5,10 +5,11 @@ import { makeMockAudioContext } from './mock-audio-context';
 function build() {
   const ctx = makeMockAudioContext();
   const seq = { setMuted: vi.fn() };
+  const drums = { setLaneAudible: vi.fn() };
   const drumBus = ctx.createGain() as unknown as GainNode;
   const samplerBus = ctx.createGain() as unknown as GainNode;
-  const mix = new LaneMixer(ctx as unknown as AudioContext, seq, drumBus, samplerBus);
-  return { ctx, seq, drumBus, samplerBus, mix };
+  const mix = new LaneMixer(ctx as unknown as AudioContext, seq, drumBus, samplerBus, drums);
+  return { ctx, seq, drums, drumBus, samplerBus, mix };
 }
 
 const gainOf = (bus: GainNode) => bus.gain as unknown as { setTargetAtTime: ReturnType<typeof vi.fn> };
@@ -46,5 +47,41 @@ describe('LaneMixer', () => {
     const { drumBus, mix } = build();
     mix.setDrumVol(0.5);
     expect(gainOf(drumBus).setTargetAtTime).toHaveBeenLastCalledWith(0.5, 0, expect.any(Number));
+  });
+
+  /**
+   * drum-machine.md REQ-13 v8. Cutting the bus gain is not enough on its own:
+   * the machine keeps playing so un-mute is instant, so anything keyed off its
+   * hits kept firing against drums nobody could hear — a ducker pumping to a
+   * silent kick. The rule is reported ⇔ audible, which is why this reads the
+   * same `audibleLanes` verdict the bus gain does.
+   */
+  describe('hit reporting follows audibility (REQ-13 v8, regression)', () => {
+    it('silences the reports when the drum lane is muted, and restores them', () => {
+      const { drums, mix } = build();
+      mix.setMute('drum', true);
+      expect(drums.setLaneAudible).toHaveBeenLastCalledWith(false);
+      mix.setMute('drum', false);
+      expect(drums.setLaneAudible).toHaveBeenLastCalledWith(true);
+    });
+
+    it('silences them when another lane is soloed', () => {
+      const { drums, mix } = build();
+      mix.setSolo('seq', true);
+      expect(drums.setLaneAudible).toHaveBeenLastCalledWith(false);
+    });
+
+    it('keeps them when the drum lane itself is soloed, even if also muted', () => {
+      const { drums, mix } = build();
+      mix.setMute('drum', true);
+      mix.setSolo('drum', true);
+      expect(drums.setLaneAudible).toHaveBeenLastCalledWith(true);
+    });
+
+    it('leaves them alone for a volume change', () => {
+      const { drums, mix } = build();
+      mix.setDrumVol(0.5);
+      expect(drums.setLaneAudible).toHaveBeenLastCalledWith(true);
+    });
   });
 });
