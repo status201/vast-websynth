@@ -1,5 +1,5 @@
 import type { ParamBus } from '../../state/params';
-import { LFO_DEST_LABELS, LFO_SYNC_LABELS, WAVE_LABELS } from '../../state/params';
+import { LFO_DEST_LABELS, WAVE_LABELS } from '../../state/params';
 import { LFO_PREFIXES, otherLfo, type LfoPrefix } from '../../state/lfo-routing';
 import { PWM_RATE_MAX } from '../../audio/pwm';
 import { Knob } from '../components/knob';
@@ -77,16 +77,16 @@ function buildLfoPage(bus: ParamBus, prefix: LfoPrefix, b: HTMLElement): LfoPage
   ]));
 
   const dest = new ParamDropdown(bus, `${prefix}.dest`, LFO_DEST_LABELS);
+  // `Dropdown` mints no testid of its own, so the call site does (testids.md
+  // REQ-3). It used to be findable as "the first dropdown on the page"; the RATE
+  // knob's tempo lock now puts one ahead of it, and position was never a contract.
+  dest.el.dataset.testid = `dropdown-${prefix}.dest`;
   b.appendChild(dest.el);
 
-  b.appendChild(new ParamDropdown(bus, `${prefix}.sync`, LFO_SYNC_LABELS).el);
-
-  // While the rate is tempo-locked the knob is not what sets it (lfo.md
-  // REQ-9), so dim it — the same treatment the BPM knob gets while
-  // clock-slaved and SHAPE gets on the LADDER model. Dim, never hide: the
-  // control keeps its place and its value, which is what it returns to on
-  // 'free' (ADR-014).
-  bus.subscribe(`${prefix}.sync`, (s) => rate.setDisabled(Math.round(s) > 0));
+  // `${prefix}.sync` has no control of its own here any more: the RATE knob owns
+  // its tempo lock (tempo-lock.md REQ-1/REQ-3), which is a whole row cheaper than
+  // the full-width picker that used to sit here and puts the division on the knob
+  // it governs instead of two rows below it.
   b.appendChild(pulseRateDisclosure(bus, prefix, rate));
 
   return {};

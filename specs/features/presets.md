@@ -3,7 +3,9 @@
 ```yaml
 id: presets
 status: implemented
-version: 7   # v7: the loaded song's sound is a pinned dropdown entry (REQ-13),
+version: 8   # v8: REQ-2b covers the FX tempo locks — a bank that ENGAGES an
+             #     effect must pin its .sync (tempo-lock.md REQ-8)
+             # v7: the loaded song's sound is a pinned dropdown entry (REQ-13),
              #     and an options rebuild never relabels the selector (REQ-14)
              # v6: REQ-2b spells out WHY only presets leak, and is now pinned
              # v5: the import wizard is reachable with an already-parsed payload
@@ -81,6 +83,13 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
     to remember on every new param — which is exactly why it is now pinned by a
     test rather than by the recipe's prose. Two params had already slipped
     through (`lfo.sync` from [lfo](lfo.md) v6, `lfo2.*` from v7).
+  - **(v8) The FX tempo locks are covered too, but only where the effect is
+    engaged.** A bank that sets `fx.delay.on: 1` must also set `fx.delay.sync`,
+    or the delay inherits whatever division the previously loaded patch was locked
+    to ([tempo-lock](tempo-lock.md) REQ-8). Scoped to engaged effects because that
+    is the existing convention for every other FX sub-param — a bypassed effect's
+    settings are inert, so only the `.on` flags are pinned unconditionally. The
+    pinning test follows the same scope, so it cannot drift from the rule.
 - **REQ-3** — `list()` merges factory names with stored user names, sorted.
 - **REQ-4** — Loading a preset restores params via the bus (a bulk apply, not seen
   as an edit). The bulk apply also refreshes the per-param **reset baseline**, so a
@@ -319,6 +328,12 @@ Scenario: No factory preset can leak an LFO param (regression, v6, REQ-2b)
   Given every factory bank
   Then each one sets all five params of both LFOs, sync included
   So switching from a patch with an armed LFO cannot carry it into the next
+# pinned by: tests/state/preset.test.ts
+
+Scenario: No factory preset can leak an FX tempo lock (regression, v8, REQ-2b)
+  Given every factory bank that engages the wah, phaser or delay
+  Then that bank also sets the effect's .sync
+  So switching from a tempo-locked patch cannot carry the division into the next
 # pinned by: tests/state/preset.test.ts
 
 Scenario: Save names the preset via the custom prompt dialog

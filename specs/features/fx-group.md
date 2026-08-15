@@ -3,10 +3,12 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 1
+version: 2   # v2: REQ-4 — a rate/time knob in a group also mints the tempo-lock
+             #     ids; the builder itself is unchanged (tempo-lock.md REQ-1)
 owner: core
 related:
   - effects
+  - tempo-lock  # v2: the PHASER/DELAY knobs carry a lock the group never sees
   - compressor
   - drum-machine
   - sampler
@@ -54,6 +56,14 @@ behaviour like this lives in one place.
   from the param's current value at build time.
 - **REQ-4** — Testids: the group root carries `fxgroup-<onPrefix>`; the switch
   `switch-<onPrefix>.on`; each knob `knob-<paramId>` (minted by the factories).
+  - (v2) A group's rate/time knob mints `tempolock-<paramId>` and
+    `tempodiv-<paramId>` as well ([tempo-lock](tempo-lock.md) REQ-1/REQ-2). The
+    builder here is **unchanged** and knows nothing about it: the `Knob` looks its
+    own param up in `TEMPO_LOCKS`, which is exactly why the drum and sampler
+    PHASER/DELAY groups got the lock without this signature growing a field.
+    The lock sits inside `.knobs`, so REQ-2 hides it with everything else while
+    the effect is bypassed — correct, since a bypassed effect's division is as
+    inert as its rate.
 - **REQ-5** — Help badges that relate to an effect group anchor to the group
   **root** (`fxgroup-<prefix>`), never to a knob or trailing meter — those hide
   while bypassed and InfoBadges hides badges on zero-size anchors, but help must

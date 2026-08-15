@@ -1,5 +1,6 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { RAMP_SMOOTH } from '../param-utils';
+import { bindTempoLocked } from '../tempo-bind';
 import type { ParamBus } from '../../state/params';
 
 export class Delay extends WrappedEffect {
@@ -40,7 +41,7 @@ export class Delay extends WrappedEffect {
 
   bind(bus: ParamBus, prefix: string): void {
     bindBypassMix(bus, prefix, this);
-    bus.subscribe(`${prefix}.time`, (x) => this.setTime(x));
+    bindTempoLocked(bus, `${prefix}.time`, `${prefix}.sync`, 'time', (x) => this.setTime(x));
     bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
   }
 }

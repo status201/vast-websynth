@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 8  # v8: scope-resize-handle (scope.md REQ-19)
+version: 9  # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
+            #     (tempo-lock.md, lfo.md v9)
+            # v8: scope-resize-handle (scope.md REQ-19)
             # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
             #     the LFO panel's per-page ids (lfo.md REQ-12, REQ-15)
             # v6: chain-transpose-<up|down>-seq (arrangement.md REQ-8)
@@ -58,6 +60,13 @@ through the shared factories gets a correct, predictable testid for free.
   `knob-<paramId>`, `switch-<paramId>`, `seg-<paramId>` (+ `seg-<paramId>-<idx>`
   per button), `strip-<paramId>`. Renaming a param renames its testid; no call site
   restates it. `Switch` accepts an explicit override for its non-param uses.
+  - (v9) A `Knob` on a lockable param mints two more from the **same** param id:
+    `tempolock-<paramId>` (the note glyph) and `tempodiv-<paramId>` (the division
+    chip) — [tempo-lock](tempo-lock.md) REQ-2/REQ-3. Keyed off the *rate/time*
+    param the lock governs, not off the `.sync` param it writes, so the three ids
+    on one knob share one stem and a selector reads as one control.
+    `tempodiv-` wraps a whole `Dropdown`, so its own text includes the closed
+    menu — assert against the toggle's label span, not the chip.
 - **REQ-2** — Structural containers mint from their own id — `tab-<id>` /
   `panel-<id>` (`tabs.ts`) — and reusable multi-instance components namespace
   through a **prefix option** so one component can appear many times without
@@ -265,6 +274,8 @@ shared UI:
   dialog-detail · dialog-input · dialog-confirm ·
     dialog-cancel · dialog-choice-<id>              # features/dialog.md
   dropdown-filter                                   # features/dropdown.md
+  tempolock-<paramId> · tempodiv-<paramId>          # features/tempo-lock.md
+  dropdown-lfo.dest · dropdown-lfo2.dest            # features/lfo.md (v9)
   toast · toast-host · toast-action · toast-dismiss # `toast` is showToast's DEFAULT
                                                     #   root id (features/toast.md REQ-8)
   value-bubble                                      # the drag readout's default id;

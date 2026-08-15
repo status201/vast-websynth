@@ -73,15 +73,18 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.wah.rate": number  // range 0.05..10, default 2
 - "fx.wah.depth": number  // range 0..1, default 0.4
 - "fx.wah.q": number  // range 0.5..20, default 4
+- "fx.wah.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.phaser.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.phaser.rate": number  // range 0.05..5, default 0.5
 - "fx.phaser.depth": number  // range 0..1, default 0.5
 - "fx.phaser.feedback": number  // range 0..0.9, default 0.4
 - "fx.phaser.mix": number  // range 0..1, default 0.5
+- "fx.phaser.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.delay.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.delay.time": number  // range 0.01..1.5, default 0.35
 - "fx.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.delay.mix": number  // range 0..1, default 0.3
+- "fx.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.reverb.size": number  // range 0..1, default 0.6
 - "fx.reverb.damp": number  // range 0..1, default 0.4
@@ -127,10 +130,12 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.drum.phaser.depth": number  // range 0..1, default 0.7
 - "fx.drum.phaser.feedback": number  // range 0..0.9, default 0.4
 - "fx.drum.phaser.mix": number  // range 0..1, default 0.6
+- "fx.drum.phaser.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.drum.delay.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.drum.delay.time": number  // range 0.01..1.5, default 0.35
 - "fx.drum.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.drum.delay.mix": number  // range 0..1, default 0.3
+- "fx.drum.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.drum.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.drum.reverb.size": number  // range 0..1, default 0.6
 - "fx.drum.reverb.damp": number  // range 0..1, default 0.4
@@ -150,10 +155,12 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.sampler.phaser.depth": number  // range 0..1, default 0.7
 - "fx.sampler.phaser.feedback": number  // range 0..0.9, default 0.4
 - "fx.sampler.phaser.mix": number  // range 0..1, default 0.5
+- "fx.sampler.phaser.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.sampler.delay.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.delay.time": number  // range 0.01..1.5, default 0.35
 - "fx.sampler.delay.feedback": number  // range 0..0.95, default 0.4
 - "fx.sampler.delay.mix": number  // range 0..1, default 0.3
+- "fx.sampler.delay.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
 - "fx.sampler.reverb.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.reverb.size": number  // range 0..1, default 0.6
 - "fx.sampler.reverb.damp": number  // range 0..1, default 0.4

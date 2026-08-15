@@ -51,18 +51,46 @@ test.describe('LFO tempo sync', () => {
     expect(await page.evaluate(() => (window as any).__synth.bus.get('lfo.rate'))).toBeCloseTo(7, 5);
   });
 
-  test('the rate knob dims while synced, and comes back on free', async ({ page }) => {
+  // v9: the picker no longer sits two rows below the knob, so the knob is no
+  // longer dimmed in place beside it — it becomes the picker (tempo-lock.md
+  // REQ-3). The knob keeps its testid, its footprint and its stored value.
+  test('the rate knob shows the division while synced, and the dial comes back on free', async ({ page }) => {
     await gotoAndStart(page);
     const knob = page.getByTestId('knob-lfo.rate');
-    await expect(knob).toHaveAttribute('aria-disabled', 'false');
+    const chip = page.getByTestId('tempodiv-lfo.rate');
+    await expect(chip).toBeHidden();
 
+    await busSet(page, 'transport.bpm', 120);
     await busSet(page, 'lfo.sync', QUARTER);
-    // Dimmed, not hidden: the control keeps its place and its value (ADR-014).
-    await expect(knob).toHaveAttribute('aria-disabled', 'true');
+
+    await expect(chip).toBeVisible();
+    // Scoped to the toggle's label span: the chip also holds the closed menu, and
+    // the toggle also holds the caret (hidden, but still in `textContent`).
+    await expect(chip.locator('button > span').first()).toHaveText('1/4');
     await expect(knob).toBeVisible();
+    // The readout shows what is actually heard: 1/4 at 120 BPM is 2 Hz.
+    await expect(knob).toContainText('2.00Hz');
 
     await busSet(page, 'lfo.sync', 0);
-    await expect(knob).toHaveAttribute('aria-disabled', 'false');
+    await expect(chip).toBeHidden();
+  });
+
+  test('the note glyph locks and unlocks without moving the stored rate', async ({ page }) => {
+    await gotoAndStart(page);
+    await busSet(page, 'transport.bpm', 120);
+    await busSet(page, 'lfo.rate', 7);
+    const lock = page.getByTestId('tempolock-lfo.rate');
+    await expect(lock).toHaveAttribute('aria-pressed', 'false');
+
+    await lock.click();
+    await expect(lock).toHaveAttribute('aria-pressed', 'true');
+    // Engaging picks the division nearest 7 Hz, so the wobble does not jump.
+    await expect.poll(() => lfoHz(page), { timeout: 4000 }).toBeCloseTo(8, 0);
+
+    await lock.click();
+    await expect(lock).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => lfoHz(page), { timeout: 4000 }).toBeCloseTo(7, 1);
+    expect(await page.evaluate(() => (window as any).__synth.bus.get('lfo.rate'))).toBeCloseTo(7, 5);
   });
 
   test('free-running is the default, so nothing changes until you ask', async ({ page }) => {

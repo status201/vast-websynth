@@ -221,8 +221,10 @@ export const WAVE_LABELS = ['sine', 'triangle', 'saw', 'square'];
 /** Append-only: an index here is a stored value in every preset, song and share
  *  link, so reordering silently rewrites saved patches (lfo.md REQ-3). */
 export const LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape'];
-/** `lfo.sync` — index 0 is free-running (lfo.md REQ-9). Append-only, same reason. */
-export const LFO_SYNC_LABELS = SYNC_LABELS;
+// `lfo.sync`'s labels are `SYNC_LABELS` from `utils/tempo`, used directly — the
+// LFO no longer has a division list of its own now that the effects share one
+// (tempo-lock.md REQ-8). Index 0 is free-running, and the array is append-only:
+// an index here is a stored value in every preset, song and share link.
 export const VOICING_LABELS = ['mono', 'poly'];
 export const GLIDE_MODE_LABELS = ['off', 'always', 'legato'];
 export const UNISON_LABELS = ['off', '2', '3', '4'];
@@ -329,6 +331,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.wah.rate', min: 0.05, max: 10, default: 2.0, format: (v) => v.toFixed(2) + 'Hz' },
     { id: 'fx.wah.depth', min: 0, max: 1, default: 0.4, format: fmtPct },
     { id: 'fx.wah.q', min: 0.5, max: 20, default: 4, format: (v) => v.toFixed(1) },
+    syncParam('fx.wah'),
 
     // ----- FX: Phaser -----
     ...phaserParams('fx.phaser', { depth: 0.5, mix: 0.5 }),
@@ -526,6 +529,19 @@ function fxOnParam(prefix: string): ParamDef {
 }
 
 /**
+ * The tempo lock every rate/time knob carries (tempo-lock.md REQ-8), for the
+ * same reason `fxOnParam` exists: nine identical copies otherwise.
+ *
+ * Index 0 is `free` — what every existing patch has, and an exact no-op: the
+ * rate keeps its stored value and is merely overridden while synced (ADR-006).
+ * `SYNC_LABELS` is append-only; an index here is a stored value in every preset,
+ * song and share link, so reordering silently rewrites saved patches.
+ */
+function syncParam(prefix: string): ParamDef {
+  return { id: `${prefix}.sync`, min: 0, max: SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: SYNC_LABELS };
+}
+
+/**
  * The four insert effects that appear on more than one chain (effects.md REQ-3/4/5).
  * Written once each and instantiated per prefix, so `fx.delay.*`, `fx.drum.delay.*`
  * and `fx.sampler.delay.*` cannot drift into three different delays — the same
@@ -554,6 +570,7 @@ function phaserParams(prefix: string, d: { depth: number; mix: number }): ParamD
     { id: `${prefix}.depth`, min: 0, max: 1, default: d.depth, format: fmtPct },
     { id: `${prefix}.feedback`, min: 0, max: 0.9, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: d.mix, format: fmtPct },
+    syncParam(prefix),
   ];
 }
 
@@ -563,6 +580,7 @@ function delayParams(prefix: string): ParamDef[] {
     { id: `${prefix}.time`, min: 0.01, max: 1.5, default: 0.35, format: fmtMs },
     { id: `${prefix}.feedback`, min: 0, max: 0.95, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: 0.3, format: fmtPct },
+    syncParam(prefix),
   ];
 }
 
@@ -585,10 +603,9 @@ function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
     { id: `${prefix}.amount`, min: 0, max: 1, default: 0, format: fmtPct },
     { id: `${prefix}.wave`, min: 0, max: 3, default: 0, step: 1, taper: 'discrete', labels: WAVE_LABELS },
     { id: `${prefix}.dest`, min: 0, max: LFO_DEST_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_DEST_LABELS },
-    // Tempo lock (lfo.md REQ-9). 0 = free-running, which is what every existing
-    // patch has and an exact no-op — the rate keeps its stored value and is
-    // simply overridden while synced (ADR-006).
-    { id: `${prefix}.sync`, min: 0, max: LFO_SYNC_LABELS.length - 1, default: 0, step: 1, taper: 'discrete', labels: LFO_SYNC_LABELS },
+    // Tempo lock (lfo.md REQ-9) — now the same def the effects get, so the LFO's
+    // lock and theirs cannot drift apart (tempo-lock.md REQ-8).
+    syncParam(prefix),
   ];
 }
 
