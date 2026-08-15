@@ -50,8 +50,8 @@ and to assistive tech.
 
 - **REQ-1** (where) — The decoration occupies one `.fxRow` grid cell, appended
   after the last effect panel, and is visible **only** in the ≤992px 2-column
-  layout — the only layout that leaves a gap. In the 5-column layout it is
-  `display: none` (the row is full; a sixth child would wrap to a new row).
+  layout — the only layout that leaves a gap. In the single-row desktop layout it
+  is `display: none` (the row is full; one more child would wrap to a new row).
   The visibility breakpoint mirrors `.fxRow`'s in `layout.module.css`.
 - **REQ-2** (parity-keyed) — `buildFx` appends it only when the panel count is
   **odd** (`fx.childElementCount % 2 === 1`), so adding a sixth effect drops the

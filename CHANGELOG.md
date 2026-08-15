@@ -77,6 +77,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The FX rack no longer breaks a knob onto a second row.** Adding the sixth
+  effect squeezed every panel to the same narrower width, and the two that carry
+  four knobs — Phaser and Duck — could no longer fit them side by side, so each
+  dropped its last knob onto a row of its own and the whole rack stood taller.
+  On a 1440px laptop that pushed the sequencer's step-settings row off the bottom
+  of the screen, taking the ⓘ badge for the chord tool with it. Panels are now as
+  wide as their own knobs need them to be, so the rack is back to a single row
+  and gives the space back to the panel below it.
+- **The ♪ tempo-lock button no longer knocks its knob off centre.** Every knob
+  that can be locked to the tempo reserved room to its left for the little note
+  glyph, which nudged it out of line with its neighbours — most visibly on the
+  LFO, where RATE sat right of AMT. The glyph hangs outside the knob now, and
+  only the compact effect rows on the Drums and Sampler tabs still keep clearance
+  for it, where it would otherwise sit over the on/off switch.
 - **Opening a dialog no longer makes the instrument stutter.** Every dialog —
   About, the preset manager, export, record-a-sound, the confirm boxes, the
   guided tour's centred steps and the start screen — dimmed the faceplate behind

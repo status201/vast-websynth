@@ -142,9 +142,16 @@ program-dependent. The detector variant is kept as an open question below.
   gesture inventory is owed because no interaction is invented —
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 6, precedent before
   invention.
-  - **Consequence: the FX patch decoration goes dormant.** `.fxRow` widens from
-    `repeat(5, …)` to `repeat(6, …)`, and six panels divide the ≤992 px 2-column
-    grid evenly, so `buildFx`'s parity guard appends no scenery. This is
+  - **Consequence: the sixth column made equal columns untenable.** `.fxRow`
+    widened from `repeat(5, …)` to `repeat(6, …)`, which at 1440 px left each
+    panel 220 px against the 242 px a four-knob panel needs — so PHASER and DUCK
+    each wrapped a knob onto a second row, and the rack grew 78 px that a
+    non-scrolling faceplate does not have. Sizing panels to their knob runs is
+    now [responsive-synth-panels](responsive-synth-panels.md) REQ-8; a rack panel
+    with four knobs is a shape that spec owns, not this one.
+  - **Consequence: the FX patch decoration goes dormant.** Six panels divide the
+    ≤992 px 2-column grid evenly, so `buildFx`'s parity guard appends no
+    scenery. This is
     [fx-patch-decoration](fx-patch-decoration.md) REQ-2 firing exactly as its own
     open question predicted, not a regression; the component and its unit tests
     are untouched and a seventh effect restores it. The trade was taken
@@ -222,7 +229,8 @@ audio:
 ui:
   src/ui/app.ts                  # sixth fxPanel, last
   src/ui/panels/sampler-panel.ts # fifth fxGroup, last
-  src/ui/styles/layout.module.css  # .fxRow repeat(5) -> repeat(6)
+  src/ui/styles/layout.module.css  # .fxRow repeat(5) -> repeat(6); the panel
+                                   # sizing that needed is responsive-synth-panels REQ-8
   src/ui/onboarding/{help-content,info-badges}.ts  # the fx.duck topic
 ```
 
@@ -354,6 +362,13 @@ Scenario: An existing patch is unaffected (REQ-6)
 - **By eye** — the six-across FX rack at desktop width, and the 2-column fallback
   below 992 px (three even rows, and the patch-cable filler correctly absent now
   that the panel count is even).
+  - **This check was made on a monitor wide enough to hide the defect.** Six
+    equal columns need 1546 px before a four-knob panel clears 242 px; below
+    that — 1440 px included, which is what CI drives — PHASER and DUCK wrapped a
+    knob and the rack stood 78 px taller. "Desktop width" is not one width, and
+    an eyeball at one of them is not a sweep. Now measured across widths by
+    `e2e/responsive-panels.spec.ts`
+    ([responsive-synth-panels](responsive-synth-panels.md) REQ-8).
 
 ## Open questions / future
 

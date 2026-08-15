@@ -90,18 +90,26 @@
 }
 
 /*
- * A knob carrying a tempo lock (tempo-lock.md REQ-10). The glyph hangs in a
- * gutter to the LEFT of the cell rather than flowing inline before the label,
+ * A knob carrying a tempo lock (tempo-lock.md REQ-10). The glyph hangs to the
+ * LEFT of the cell, out of flow, rather than flowing inline before the label,
  * because the machine tabs run 22 px knobs — a 30 px cell, where glyph + "RATE"
  * does not fit on one line. Inline, it wrapped: the label took two lines, the
  * knob grew taller than its neighbours and its dial dropped below theirs.
  *
- * The gutter is what the glyph hangs into, so it never overlaps the control to
- * its left. `.label` is the positioning context (see tempo-lock.module.css), and
- * `nowrap` makes the no-wrap guarantee explicit rather than incidental.
+ * Hanging out of flow costs no layout, so **no gutter is reserved by default**:
+ * on every surface but one the lockable knob leads its row, and the glyph hangs
+ * into padding the container already has. Reserving 20 px there instead pushed
+ * the knob off the centre its neighbours are centred on — visible on the LFO's
+ * RATE/AMT pair, where RATE sat a fifth of a cell right of true.
+ *
+ * The one surface that does need a gutter opts in with `--lock-gutter`: the
+ * machine tabs pack their groups switch-then-knobs with 4 px between, so there
+ * the glyph would hang over the on/off switch (fx-group.module.css).
+ * `.label` is the positioning context (see tempo-lock.module.css), and `nowrap`
+ * makes the no-wrap guarantee explicit rather than incidental.
  */
 .hasLock {
-  margin-left: var(--lock-gutter, 20px);
+  margin-left: var(--lock-gutter, 0px);
 }
 
 .hasLock .label {

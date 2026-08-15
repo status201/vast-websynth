@@ -13,12 +13,20 @@ const DESKTOP = { width: 1280, height: 900 };
 const TABLET = { width: 1024, height: 768 };
 // Comfortably above the wrap step. 1280 is the *top of the breakpoint cascade*,
 // not a width where the wide row is guaranteed to fit: the sampler's machine
-// controls plus four collapsed fx groups leave only ~57px of slack there under
+// controls plus its collapsed fx groups leave only a sliver of slack there under
 // Windows font metrics, and none under the wider fonts on CI Linux — where the
 // row then legitimately wraps under REQ-1. Row membership is therefore asserted
 // with real headroom, and the breakpoint rule itself is asserted from computed
 // style, so neither depends on how wide a font renders.
-const WIDE = { width: 1600, height: 900 };
+//
+// The headroom is sized from measurement, and the *fifth* group (DUCK,
+// sidechain-ducking.md REQ-10) moved it: five collapsed groups need 1580px
+// before the row fits under Windows metrics, ~110px more than four did. CI's
+// fonts need more still — 1600px, which used to clear four groups by 20px,
+// wrapped there on all three attempts. This is deliberately far past both, since
+// nothing but a headless viewport is being spent: the assertion is "given room
+// to spare", so the width should not be a number the next group can creep up on.
+const WIDE = { width: 1900, height: 900 };
 
 const SAMPLER_FX = ['dist', 'phaser', 'delay', 'reverb'] as const;
 const fxId = (name: string) => `fxgroup-fx.sampler.${name}`;

@@ -11,7 +11,16 @@
   margin: 0 4px;
 }
 
+/*
+ * The one surface that reserves a gutter for the tempo-lock glyph
+ * (knob.module.css `.hasLock`, tempo-lock.md REQ-10). Everywhere else the
+ * lockable knob leads its row and the glyph hangs into container padding; here
+ * the row is packed switch-then-knobs at 4 px, so an unreserved glyph would
+ * hang over the on/off switch. Set on the row, not the knob, because it is a
+ * fact about this layout rather than about the knob.
+ */
 .knobs {
+  --lock-gutter: 20px;
   display: flex;
   align-items: center;
   gap: 4px;
