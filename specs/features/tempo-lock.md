@@ -3,9 +3,13 @@
 ```yaml
 id: tempo-lock
 status: implemented
-version: 2   # v2: REQ-10 — the glyph hangs in a left gutter, out of flow. Inline
+version: 3   # v2: REQ-10 — the glyph hangs in a left gutter, out of flow. Inline
              #     it wrapped the label at the machine tabs' 22px knobs and
              #     dropped that knob's dial below its neighbours'.
+             # v3: REQ-10 — that gutter is now opt-in (machine tabs only). Being
+             #     out of flow, the glyph never needed one on the surfaces where
+             #     the lockable knob leads its row; reserving it there pushed the
+             #     knob off the centre its neighbours share.
 owner: core
 related:
   - architecture
@@ -23,6 +27,8 @@ source:
   - src/ui/components/tempo-lock.ts     # the glyph, the chip, the menu
   - src/ui/components/knob.ts           # self-wires the lock, like modDepthDeps
   - src/ui/styles/tempo-lock.module.css
+  - src/ui/styles/knob.module.css       # .hasLock — the gutter, off by default
+  - src/ui/styles/fx-group.module.css   # the one surface that opts in (REQ-10)
 ```
 
 A **tempo lock** is a per-knob toggle that takes a rate or a time off the knob
@@ -49,8 +55,10 @@ there and already audio-importable, deliberately.
 What blocked it was **space**, not audio. The LFO's answer was a full-width
 `ParamDropdown` stacked two rows below the knob it governs, plus a dim on the
 knob to say "not you". Replicated per effect that costs a row each, and the synth
-FX rack has none to give: it is a 5-column grid at ~246 px of content per effect,
-and the Phaser's four knobs already spend 220 px of it. A control that only
+FX rack has none to give: it is a six-column grid whose panels bottom out at
+~220 px of content per effect, and the Phaser's four knobs already spend all of
+it ([responsive-synth-panels](responsive-synth-panels.md) REQ-8, which exists
+because that margin went to zero). A control that only
 appears when it is in use, inside a footprint that already exists, is the only
 shape that fits — and it happens to be the shape 40 years of hardware and
 plug-ins already use (see REQ-2's precedent).
@@ -158,16 +166,18 @@ thing, one of them inert.
   once already.
 - **REQ-9** — **Locking must not move anything on the faceplate.** The chip
   occupies the dial's box and no more; the cell's width is unchanged, locked or
-  free. This is load-bearing rather than cosmetic: `.fxKnobs` is a **wrapping**
-  flex row, and the Phaser group spends 220 px of its ~246 px on four knobs, so a
-  chip a few pixels wider than its knob box would drop a knob onto a second line —
-  turning a space-saving feature into a space-costing one at the exact moment it
-  is used.
+  free. This is load-bearing rather than cosmetic: the Phaser group's four knobs
+  spend 220 px, and [responsive-synth-panels](responsive-synth-panels.md) REQ-8
+  sizes its rack panel to exactly that and no more — so a chip a few pixels wider
+  than its knob box would overflow the panel, or drop a knob onto a second line
+  on the narrow fallback where `.fxKnobs` still wraps. A space-saving feature
+  would cost space at the exact moment it is used.
 
-- **REQ-10** — (v2) **The glyph is out of flow, hanging in a gutter to the left
-  of the cell** — `position: absolute; right: 100%` against the label, which owns
-  the positioning context, plus a `--lock-gutter` (20 px) left margin on the knob
-  root for it to hang into.
+- **REQ-10** — (v3) **The glyph is out of flow, hanging to the left of the
+  cell** — `position: absolute; right: 100%` against the label, which owns the
+  positioning context. It costs no layout, so the knob keeps the exact box it
+  would have without a lock, and **no gutter is reserved by default**. A surface
+  that needs one opts in with `--lock-gutter` on the row.
   - **Why not inline.** It shipped inline, and it wrapped. A knob cell is
     `--knob-size + 8px`, so the machine tabs' 22 px knobs give a **30 px** cell —
     less than the ~39 px the glyph and `RATE` need side by side. The label took a
@@ -178,9 +188,20 @@ thing, one of them inert.
     no-wrap guarantee holds at every knob size from one rule rather than from a
     size threshold that would need re-tuning per breakpoint. `white-space: nowrap`
     on the label states the guarantee rather than leaving it incidental.
-  - The gutter is **permanent, not lock-dependent** — it is reserved whether or
-    not the lock is engaged — so REQ-9 still holds: engaging a lock moves nothing.
-    It is what keeps the glyph from overlapping the control to its left.
+  - **Who opts in.** Only the machine tabs' header groups
+    (`fx-group.module.css .knobs`, `--lock-gutter: 20px`). They pack
+    switch-then-knobs at 4 px, so there the glyph would hang over the on/off
+    switch. Everywhere else — the LFO panel, the synth FX rack — the lockable
+    knob **leads its row**, so the glyph hangs into padding the container
+    already has and overlaps nothing.
+  - **Why not reserve it everywhere.** A margin is layout even when the glyph
+    is not: 20 px on the knob root shifts the dial off the centre its
+    neighbours are centred on. On the LFO's RATE/AMT pair that read as a
+    misalignment of the panel, not as room for a glyph. A gutter is a fact
+    about a *row's* packing, so the row declares it.
+  - Where it is reserved, it is **permanent, not lock-dependent** — held whether
+    or not the lock is engaged. REQ-9 holds either way, since the glyph is out
+    of flow: engaging a lock moves nothing on any surface.
 
 ## Technical design
 

@@ -18,6 +18,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Sidechain ducking — the pump that dance music is built on.** A new **Duck**
+  effect closes the synth FX chain, pulling the channel down out of the way each
+  time a drum hits and letting it swell back. Four controls: **AMT** how far it
+  pulls, **ATK** how fast it gets out of the way, **REL** how long it takes to
+  return — that one sets the groove — and **SRC**, which drum keys it (Kick is
+  the classic, or Any). The sampler channel gets its own, so a loop can breathe
+  around the kick the same way.
+  - It follows the drum **pattern**, not a fixed rate, so ratchets, ghost notes,
+    probability and fills all come along, and it lands exactly with the hit
+    rather than chasing it. Mute the drums — the lane, a solo elsewhere, or the
+    track itself — and the pumping stops with them.
+  - It sits **last** in the chain, so the reverb tail ducks too, which is the
+    sound it exists to make. The drum bus deliberately has none: its own hits are
+    what key the effect.
+  - Off by default, so every existing preset, song and share link is untouched.
+- **A French house demo, "Maison Bleue".** 124 BPM, 24 bars, built around the
+  ducker: four-on-the-floor kick keying the pump, offbeat open hats choking
+  against the closed ones, a filter sweeping under the whole thing, two bars of
+  silence, a riser, and a drop. Mute the drum lane while it plays and you can
+  hear the ducking stop.
+
 - **The Wah, Phaser and Delay can be locked to the tempo — and the LFO's lock got
   its own row back.** Every rate and delay-time knob now carries a small note
   glyph next to its label. Tap it and the knob becomes the note division it is
@@ -56,6 +77,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The FX rack no longer breaks a knob onto a second row.** Adding the sixth
+  effect squeezed every panel to the same narrower width, and the two that carry
+  four knobs — Phaser and Duck — could no longer fit them side by side, so each
+  dropped its last knob onto a row of its own and the whole rack stood taller.
+  On a 1440px laptop that pushed the sequencer's step-settings row off the bottom
+  of the screen, taking the ⓘ badge for the chord tool with it. Panels are now as
+  wide as their own knobs need them to be, so the rack is back to a single row
+  and gives the space back to the panel below it.
+- **The ♪ tempo-lock button no longer knocks its knob off centre.** Every knob
+  that can be locked to the tempo reserved room to its left for the little note
+  glyph, which nudged it out of line with its neighbours — most visibly on the
+  LFO, where RATE sat right of AMT. The glyph hangs outside the knob now, and
+  only the compact effect rows on the Drums and Sampler tabs still keep clearance
+  for it, where it would otherwise sit over the on/off switch.
 - **Opening a dialog no longer makes the instrument stutter.** Every dialog —
   About, the preset manager, export, record-a-sound, the confirm boxes, the
   guided tour's centred steps and the start screen — dimmed the faceplate behind

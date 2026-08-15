@@ -390,9 +390,18 @@ export class Engine {
       ...(this.motionFps !== undefined ? { fps: this.motionFps } : {}),
     });
 
+    // Sidechain ducking (sidechain-ducking.md REQ-1): the duckers are chain
+    // members built in the constructor, the drum machine only exists here, so
+    // the trigger is wired at this seam rather than injected. Each ducker
+    // filters on its own `.src` and early-outs while bypassed.
+    this.drums.onHit((track, when) => {
+      this.synthFx.fx.duck.onDrumHit(track, when);
+      this.samplerFx.fx.duck.onDrumHit(track, when);
+    });
+
     // Lane mixer — needs the sequencer (mute = stop triggering) + the drum/
     // sampler buses (mute = cut bus gain), so it is built after the machines.
-    this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus);
+    this.laneMixer = new LaneMixer(this.ctx, this.seq, this.drumBus, this.samplerBus, this.drums);
 
     // Audio capture: tap master (post master-volume). The recorder node has
     // zero outputs so it is a pure sink and never doubles into destination.

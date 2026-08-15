@@ -65,6 +65,7 @@ const ANCHORS: Anchor[] = [
   { topic: 'fx.phaser', find: () => byHelp('fx.phaser'), place: 'after' },
   { topic: 'fx.delay', find: () => byHelp('fx.delay'), place: 'after' },
   { topic: 'fx.reverb', find: () => byHelp('fx.reverb'), place: 'after' },
+  { topic: 'fx.duck', find: () => byHelp('fx.duck'), place: 'after' },
   // Pin to the group root, not the GR meter — the meter hides while the
   // compressor is bypassed (fx-group collapse) and help must stay reachable.
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },

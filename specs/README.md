@@ -228,8 +228,9 @@ specs/
     mod-matrix.md      ·  many sources -> many destinations, summed in the audio graph
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
-    effects.md         ·  distortion/wah/phaser/delay/reverb insert chain
+    effects.md         ·  distortion/wah/phaser/delay/reverb/duck insert chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
+    sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —

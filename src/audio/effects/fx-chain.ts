@@ -3,6 +3,7 @@ import { chain, type Effect } from './effect';
 import { Compressor } from './compressor';
 import { Delay } from './delay';
 import { Distortion } from './distortion';
+import { Ducker } from './ducker';
 import { Phaser } from './phaser';
 import { Reverb } from './reverb';
 import { Wah } from './wah';
@@ -52,24 +53,31 @@ function makeChain<E extends Record<string, Effect>>(
   };
 }
 
-/** Synth voice bus: distortion → wah → phaser → delay → reverb. */
+/**
+ * Synth voice bus: distortion → wah → phaser → delay → reverb → duck.
+ *
+ * The ducker sits **last** so the reverb tail ducks with everything else —
+ * that is the sound (sidechain-ducking.md REQ-8).
+ */
 export function createSynthChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb }> {
+): FxChain<{ dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker }> {
   const fx = {
     dist: new Distortion(ctx, opts.dist),
     wah: new Wah(ctx),
     phaser: new Phaser(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
+    duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['dist', 'wah', 'phaser', 'delay', 'reverb'], (bus) => {
+  return makeChain(fx, ['dist', 'wah', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
     fx.dist.bind(bus, 'fx.dist');
     fx.wah.bind(bus, 'fx.wah');
     fx.phaser.bind(bus, 'fx.phaser');
     fx.delay.bind(bus, 'fx.delay');
     fx.reverb.bind(bus, 'fx.reverb');
+    fx.duck.bind(bus, 'fx.duck');
   });
 }
 
@@ -96,21 +104,23 @@ export function createDrumChain(
   });
 }
 
-/** Sampler bus: distortion → phaser → delay → reverb (no wah). */
+/** Sampler bus: distortion → phaser → delay → reverb → duck (no wah). */
 export function createSamplerChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ dist: Distortion; phaser: Phaser; delay: Delay; reverb: Reverb }> {
+): FxChain<{ dist: Distortion; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker }> {
   const fx = {
     dist: new Distortion(ctx, opts.dist),
     phaser: new Phaser(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
+    duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['dist', 'phaser', 'delay', 'reverb'], (bus) => {
+  return makeChain(fx, ['dist', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
     fx.dist.bind(bus, 'fx.sampler.dist');
     fx.phaser.bind(bus, 'fx.sampler.phaser');
     fx.delay.bind(bus, 'fx.sampler.delay');
     fx.reverb.bind(bus, 'fx.sampler.reverb');
+    fx.duck.bind(bus, 'fx.sampler.duck');
   });
 }

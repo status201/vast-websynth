@@ -3,10 +3,13 @@
 ```yaml
 id: fx-patch-decoration
 status: implemented
-version: 1
+version: 2   # v2: DORMANT. sidechain-ducking made the effect count six, so REQ-2's
+             #     parity guard appends nothing. Anticipated by v1's open question,
+             #     not a regression — a seventh effect restores it with no change.
 owner: core
 related:
-  - effects          # the five insert effects whose grid leaves the gap
+  - effects          # the insert effects whose grid leaves the gap
+  - sidechain-ducking # v2: the sixth panel that closed the gap
   - fx-group         # the other, compact FX header layout
   - responsive-header # the sibling breakpoint-driven UI rule
 source:
@@ -23,7 +26,15 @@ rack above, and one unused lead dangling its 1/4" plug in mid-air.
 
 ## Background / Why
 
-The FX section holds **five** effect panels (distortion · wah · phaser · delay ·
+> **(v2) Dormant as shipped.** The FX section now holds **six** panels — a
+> ducker joined the chain ([sidechain-ducking](sidechain-ducking.md) REQ-10) — so
+> the grid divides evenly at both widths and REQ-2's parity guard appends
+> nothing. The component and its unit tests are untouched and still cover
+> REQ-3..REQ-10; only the mounting stopped. The section below describes the
+> five-panel arrangement it was built for, kept because it is the condition the
+> decoration returns under.
+
+The FX section held **five** effect panels (distortion · wah · phaser · delay ·
 reverb) in `.fxRow`, a grid of `repeat(5, …)` columns that drops to
 `repeat(2, 1fr)` below 992px. Five items in two columns leave the last row
 half-empty — a conspicuous hole next to Reverb in an otherwise dense rack.
@@ -39,8 +50,8 @@ and to assistive tech.
 
 - **REQ-1** (where) — The decoration occupies one `.fxRow` grid cell, appended
   after the last effect panel, and is visible **only** in the ≤992px 2-column
-  layout — the only layout that leaves a gap. In the 5-column layout it is
-  `display: none` (the row is full; a sixth child would wrap to a new row).
+  layout — the only layout that leaves a gap. In the single-row desktop layout it
+  is `display: none` (the row is full; one more child would wrap to a new row).
   The visibility breakpoint mirrors `.fxRow`'s in `layout.module.css`.
 - **REQ-2** (parity-keyed) — `buildFx` appends it only when the panel count is
   **odd** (`fx.childElementCount % 2 === 1`), so adding a sixth effect drops the
@@ -176,14 +187,17 @@ purely presentational.
 ```gherkin
 Scenario: The empty cell is filled on a narrow screen
   Given a 900px-wide viewport with the FX section expanded
+   And an ODD number of effect panels
   Then the FX row is 2 columns and the patch decoration is visible
-   And it sits on the same row as, and to the right of, the Reverb panel
+   And it sits on the same row as, and to the right of, the last effect panel
    And it is inset from its cell on every side, with no border of its own
-# pinned by: e2e/fx-patch.spec.ts
+# unpinned (v2): dormant at six panels, so no live surface renders it. The
+# geometry assertions moved to tests/ui/fx-patch-decoration.test.ts; restore the
+# e2e pin if a seventh effect lands.
 
-Scenario: The full 5-column row shows no decoration
+Scenario: A full row shows no decoration
   Given a 1400px-wide viewport with the FX section expanded
-  Then the FX row is 5 columns and the patch decoration is hidden
+  Then the FX row is one cell per effect and no decoration is rendered
 # pinned by: e2e/fx-patch.spec.ts
 
 Scenario: The decoration is inert (edge)
@@ -212,7 +226,7 @@ Scenario: The far rank sits behind the near loom (REQ-9)
 Scenario: A sixth effect drops the decoration (edge, REQ-2)
   Given the FX row is built with an even number of effect panels
   Then no decoration is appended (the 2-column grid has no gap to fill)
-# by design: the parity guard in buildFx
+# pinned by: e2e/fx-patch.spec.ts  (v2: this is now the shipped state, not an edge)
 ```
 
 ## Tests & verification
@@ -224,6 +238,9 @@ Scenario: A sixth effect drops the decoration (edge, REQ-2)
 
 ## Open questions / future
 
-- If the effect count ever becomes even, REQ-2 silently drops the decoration —
-  intended. A *seventh* effect would bring it back in the new gap, no change
-  needed.
+- **(v2) This happened.** [sidechain-ducking](sidechain-ducking.md) made the count
+  six and REQ-2 dropped the decoration, exactly as v1 predicted. A *seventh*
+  effect brings it back in the new gap with no change here. The trade was
+  accepted deliberately: a working effect earns a rack cell ahead of scenery
+  whose whole job was to admit "there is room for one more effect here" — which
+  is now filled rather than admitted.

@@ -69,6 +69,19 @@ describe('Presets', () => {
       }
     });
 
+    // The rule the two tests above are instances of, stated once. Every synth
+    // FX `.on` is pinned unconditionally — the comment below has claimed this
+    // was the convention since the tempo-lock work, but nothing enforced it, so
+    // `fx.duck.on` was absent from all nineteen banks the day it shipped
+    // (sidechain-ducking.md REQ-6, presets.md REQ-2b).
+    it('sets every synth-FX on flag in every bank', () => {
+      for (const [name, snap] of Object.entries(Presets.factory())) {
+        for (const fx of ['dist', 'wah', 'phaser', 'delay', 'reverb', 'duck']) {
+          expect(snap[`fx.${fx}.on`], `${name}: 'fx.${fx}.on' missing`).toBeTypeOf('number');
+        }
+      }
+    });
+
     // The same rule for the FX tempo locks (tempo-lock.md REQ-8). Scoped to the
     // banks that ENGAGE the effect, which is the existing convention here: a
     // bypassed effect's sub-params are inert, so only `fx.<name>.on` is pinned

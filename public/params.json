@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 7,
-  "count": 243,
+  "count": 253,
   "params": [
     {
       "id": "voicing.mode",
@@ -742,6 +742,60 @@
       "patch": true
     },
     {
+      "id": "fx.duck.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.duck.amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "patch": true
+    },
+    {
+      "id": "fx.duck.attack",
+      "min": 0.001,
+      "max": 0.1,
+      "default": 0.005,
+      "patch": true
+    },
+    {
+      "id": "fx.duck.release",
+      "min": 0.02,
+      "max": 1,
+      "default": 0.18,
+      "patch": true
+    },
+    {
+      "id": "fx.duck.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Any"
+      ]
+    },
+    {
       "id": "fx.drum.phaser.on",
       "min": 0,
       "max": 1,
@@ -1171,6 +1225,60 @@
       "max": 1,
       "default": 0.25,
       "patch": false
+    },
+    {
+      "id": "fx.sampler.duck.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.duck.amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.duck.attack",
+      "min": 0.001,
+      "max": 0.1,
+      "default": 0.005,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.duck.release",
+      "min": 0.02,
+      "max": 1,
+      "default": 0.18,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.duck.src",
+      "min": 0,
+      "max": 8,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "Kick",
+        "Snare",
+        "C.Hat",
+        "O.Hat",
+        "L.Tom",
+        "M.Tom",
+        "H.Tom",
+        "Clap",
+        "Any"
+      ]
     },
     {
       "id": "fx.djfilter",

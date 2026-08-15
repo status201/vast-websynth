@@ -220,6 +220,7 @@ export type TopicId =
   | 'fx.delay'
   | 'fx.delay.time'
   | 'fx.reverb'
+  | 'fx.duck'
   | 'fx.drum.comp'
   | 'fx.drum.comp.threshold'
   | 'fx.drum.phaser.rate'
@@ -471,10 +472,10 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
   fx: {
     title: 'Effects chain',
     body:
-      '<p>A chain of five effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
-      'Delay → Reverb</strong>. Each has an on/off switch and three knobs. Switch one on and ' +
-      'tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on each ' +
-      'effect for details.</p>',
+      '<p>A chain of six effects the synth runs through: <strong>Distortion → Wah → Phaser → ' +
+      'Delay → Reverb → Duck</strong>. Each has an on/off switch and a few knobs. Switch one on ' +
+      'and tweak — they turn a plain tone into something spacious or gnarly. Click the (i) on ' +
+      'each effect for details.</p>',
   },
   'fx.dist': {
     title: 'Distortion',
@@ -516,6 +517,17 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<ul><li><strong>SIZE</strong> — how big the space feels.</li>' +
       '<li><strong>DAMP</strong> — how quickly the tail darkens (soft furnishings vs tile).</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend.</li></ul>',
+  },
+  'fx.duck': {
+    title: 'Duck (sidechain)',
+    body:
+      '<p>Pulls the synth down out of the way each time a drum hits, then lets it swell back — ' +
+      'the “pumping” of most dance music. It follows the drum pattern itself, so it only pumps ' +
+      'while that drum is actually playing.</p>' +
+      '<ul><li><strong>AMT</strong> — how far down it pulls.</li>' +
+      '<li><strong>ATK</strong> — how fast it gets out of the way.</li>' +
+      '<li><strong>REL</strong> — how long it takes to swell back; this one sets the groove.</li>' +
+      '<li><strong>SRC</strong> — which drum triggers it (Kick is the classic), or Any.</li></ul>',
   },
   'fx.drum.comp': {
     title: 'Drum Compressor (1176 style)',

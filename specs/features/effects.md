@@ -1,9 +1,11 @@
-# Insert effects (distortion · wah · phaser · delay · reverb)
+# Insert effects (distortion · wah · phaser · delay · reverb · duck)
 
 ```yaml
 id: effects
 status: implemented
-version: 6   # v6: REQ-9 — the wah/phaser rates and the delay times can be locked
+version: 7   # v7: REQ-3/REQ-4 — a ducker joins the synth and sampler chains, last
+             #     in both, so the reverb tail ducks too (sidechain-ducking.md)
+             # v6: REQ-9 — the wah/phaser rates and the delay times can be locked
              #     to the tempo (tempo-lock.md); each bind now also watches
              #     transport.bpm
              # v5: REQ-8 — a bypassed / mix-0 effect in a song can be *staged* for
@@ -18,11 +20,13 @@ related:
   - performance-mode     # the maxIrS / oversample tier caps REQ-6 keys around
   - runtime-performance  # REQ-1/REQ-2 — the boot-cost + shared-artefact rules
   - fx-group   # shared header FX-group UI (hides knobs while <fx>.on is off)
-  - fx-patch-decoration  # scenery filling the gap 5 panels leave in the 2-col grid
+  - fx-patch-decoration  # v7: dormant now that six panels divide the grid evenly
   - tempo-lock  # v6: the rate/time knobs' grid lock, shared with the LFO
+  - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
+  - src/audio/effects/ducker.ts        # v7: the trigger-keyed ducker
   - src/audio/effects/distortion.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
@@ -86,10 +90,18 @@ subsets, so a song can colour each bus independently.
   no name and no single place to change it (ADR-010 calls these dialled by ear, so
   they need to be findable).
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
-  reverb.
+  reverb → duck.
+  - (v7) The **duck** is last so the reverb tail ducks with everything else,
+    which is the sound it exists to make. It is the one member that is not a
+    self-contained DSP span: its envelope is scheduled from drum-machine hits, so
+    its behaviour is specified in
+    [sidechain-ducking](sidechain-ducking.md) REQ-8 rather than here.
 - **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
   sits first so it smashes the dry hits, not the FX wash); sampler bus:
-  distortion → phaser → delay → reverb.
+  distortion → phaser → delay → reverb → duck.
+  - (v7) The drum bus deliberately has **no** ducker: its own hits are the key, so
+    one there could only duck itself
+    ([sidechain-ducking](sidechain-ducking.md) REQ-8).
 - **REQ-5** — `<fx>.on` < 0.5 means bypassed.
 - **REQ-6** — **The reverb IR bank is lazy and shared** (v4). An impulse response
   is a pure function of `(sampleRate, duration)` and a `ConvolverNode` only ever

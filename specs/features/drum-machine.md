@@ -3,7 +3,11 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 6   # v6: REQ-12 — an optional hat choke group (drum.choke, default off)
+version: 8   # v8: REQ-13 — a lane mute (or a solo elsewhere) suppresses the hit
+             #     report too, not just a per-track mute; "reported ⇔ audible"
+             # v7: REQ-13 — onHit reports every hit that sounds, at its scheduled
+             #     time; the sidechain ducker's trigger (sidechain-ducking.md)
+             # v6: REQ-12 — an optional hat choke group (drum.choke, default off)
              # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
 owner: core
 related:
@@ -13,6 +17,7 @@ related:
   - banks
   - sampler
   - drum-kits
+  - sidechain-ducking  # v7: the consumer REQ-13's onHit was added for
 source:
   - src/audio/transport/drum-machine.ts
   - src/audio/drums/drum-synths.ts
@@ -133,6 +138,40 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   - A closed hat does **not** choke itself, and nothing chokes a kick/snare/tom —
     this is the hat pair only. A general per-track choke-group matrix is
     deliberately out of scope; see Open questions.
+
+- **REQ-13** (v7) — **Every hit that sounds is reported, as it is scheduled.**
+  `onHit(track, when, velocity)` fires for each hit the machine plays, carrying
+  the absolute `AudioContext` time it will sound. Emitted from one private
+  `fire()` that every trigger path routes through — the pattern sweep, the
+  performance fill and the manual audition — so a hit can neither be reported
+  without sounding nor sound without being reported. Because it fires from inside
+  `forEachActiveHit`, muted lanes and failed probability rolls are already
+  excluded and each ratchet sub-hit is its own emission at its own time.
+  - This is **not** `onStep`, which carries a performance-mapped step index with
+    no time and drives the UI playhead. A consumer that needs to schedule audio
+    needs the time, and needs to know what actually sounded rather than what the
+    grid says.
+  - Added for [sidechain-ducking](sidechain-ducking.md) REQ-9, which is what
+    keeps that feature from re-deriving mute/probability/ratchet rules — and so
+    from drifting out of step with what is heard.
+  - **(v8) A silenced lane reports nothing.** *Both* kinds of mute suppress the
+    report, because both make the hit inaudible:
+    - a **per-track** mute (`drum.t{i}.mute`) reaches `forEachActiveHit`, so the
+      hit never happens at all;
+    - a **lane** mute or a solo elsewhere silences the whole drum bus. The voices
+      still fire — that is what makes un-mute instant (`LaneMixer`) — but nothing
+      is heard, so nothing is reported. `LaneMixer.apply` pushes the
+      `audibleLanes` verdict in via `setLaneAudible`, so **solo is honoured too**:
+      soloing the sequencer stops the drums reporting exactly as muting them does.
+
+    The rule is "reported ⇔ audible", not "reported ⇔ scheduled". Reporting a hit
+    into a muted bus made a trigger-keyed effect pump to drums nobody could hear.
+  - **(v8) A mute does not retract already-scheduled reports.** Hits are reported
+    up to the clock's look-ahead (~100 ms) before they sound, so a mute can land
+    after a report has gone out. A consumer therefore sees at most one look-ahead
+    of stale triggers. Deliberate: the alternative is reaching into whatever a
+    consumer already scheduled, and every consumer's envelope decays back to rest
+    on its own within a release ([sidechain-ducking](sidechain-ducking.md) REQ-5).
 
 ## Technical design
 
@@ -281,6 +320,44 @@ Scenario: The group follows the voice model, not the track (v6, REQ-12)
 Scenario: A ratcheted closed hat chokes on every sub-hit (v6, REQ-12, edge)
   Given a closed-hat step with ratchet 3 and choke on
   Then the open hat is cut three times, at each sub-hit's own time
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A hit is reported with its track, scheduled time and velocity (v7, REQ-13)
+  Given a listener registered through onHit
+  When an active cell plays
+  Then it receives the track index, the absolute time the hit sounds and the cell velocity
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A ratcheted step reports one hit per sub-hit (v7, REQ-13)
+  Given a step with ratchet 4
+  When it plays
+  Then onHit fires four times, at four distinct ascending times
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A hit that does not sound is not reported (v7, REQ-13, edge)
+  Given a step on a muted track, or one whose probability roll fails,
+        or a machine that is disabled
+  When the tick is swept
+  Then onHit does not fire
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A lane mute stops the reports too (v8, REQ-13, regression)
+  Given an active drum pattern being reported through onHit
+  When the drum LANE is muted, silencing the bus without stopping the pattern
+  Then onHit stops firing, so a trigger-keyed effect stops pumping
+   And it resumes on un-mute
+# pinned by: tests/audio/transport/drum-machine.test.ts, tests/audio/lane-mixer.test.ts
+
+Scenario: Soloing another lane stops them as well (v8, REQ-13, regression)
+  Given an active drum pattern being reported through onHit
+  When the sequencer lane is soloed, so the drum bus is silenced
+  Then onHit stops firing, because audibility — not the mute flag — is the rule
+# pinned by: tests/audio/lane-mixer.test.ts
+
+Scenario: A manual audition is reported too (v7, REQ-13)
+  Given a listener registered through onHit
+  When triggerTrack auditions a pad
+  Then onHit fires at the current time, so an auditioned drum drives a ducker
 # pinned by: tests/audio/transport/drum-machine.test.ts
 ```
 
