@@ -100,6 +100,59 @@ describe('renderTempoSync (delay time)', () => {
     expect(eighth.classList.contains('on')).toBe(true);
   });
 
+  // Once the knob is tempo-locked its own param is not what is heard, so a row
+  // that wrote to it would be a click with no outcome (tempo-lock.md REQ-5,
+  // ADR-014 law 2). Both halves of the badge follow the lock instead.
+  it('re-locks instead of writing a dead value while the knob is locked', () => {
+    const b = bus();
+    b.set('transport.bpm', 120);
+    b.set('fx.delay.time', 0.42);
+    b.set('fx.delay.sync', SYNC_LABELS.indexOf('1/4'));
+    const close = vi.fn();
+    const root = renderTempoSync({ bus: b, close }, 'fx.delay.time', 'time');
+
+    // The marked row is the locked division, not the stranded knob value.
+    const quarter = root.querySelector<HTMLButtonElement>('[data-testid="sweet-fx.delay.time-14"]')!;
+    expect(quarter.classList.contains('on')).toBe(true);
+
+    root.querySelector<HTMLButtonElement>('[data-testid="sweet-fx.delay.time-18"]')!.click();
+    expect(SYNC_LABELS[b.get('fx.delay.sync')]).toBe('1/8');
+    expect(b.get('fx.delay.time')).toBe(0.42); // never rewritten
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  // A 9x11 icon does not announce that it is a button, and this badge is where a
+  // user already comes to ask "how do I get this in time?" (tempo-sync-help REQ-10).
+  it('introduces the lock, and says the opposite thing once it is engaged', () => {
+    const b = bus();
+    const free = renderTempoSync({ bus: b, close: () => {} }, 'fx.delay.time', 'time');
+    expect(free.textContent).toContain('to lock it to the tempo');
+    expect(free.querySelector('svg')).not.toBeNull(); // the real glyph, inlined
+
+    b.set('fx.delay.sync', SYNC_LABELS.indexOf('1/4'));
+    const locked = renderTempoSync({ bus: b, close: () => {} }, 'fx.delay.time', 'time');
+    expect(locked.textContent).toContain('Tempo-locked');
+    expect(locked.textContent).toContain('Tap it again to unlock');
+  });
+
+  it('says nothing about a lock on a knob that has none', () => {
+    const b = bus();
+    // Every anchor in REQ-7 happens to be lockable, so this guards the branch
+    // rather than a shipped badge: no lock, no note about one.
+    const root = renderTempoSync({ bus: b, close: () => {} }, 'filter.cutoff', 'freq');
+    expect(root.textContent).not.toContain('tempo-lock');
+    expect(root.querySelector('svg')).toBeNull();
+  });
+
+  it('still snaps the knob itself while it is free', () => {
+    const b = bus();
+    b.set('transport.bpm', 120);
+    const root = renderTempoSync({ bus: b, close: () => {} }, 'fx.delay.time', 'time');
+    root.querySelector<HTMLButtonElement>('[data-testid="sweet-fx.delay.time-18"]')!.click();
+    expect(b.get('fx.delay.time')).toBeCloseTo(0.25, 6);
+    expect(b.get('fx.delay.sync')).toBe(0);
+  });
+
   it('rate knobs show Hz (lfo.rate) and snap on click', () => {
     const b = bus();
     b.set('transport.bpm', 120);

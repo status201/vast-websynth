@@ -69,6 +69,20 @@ describe('Presets', () => {
       }
     });
 
+    // The same rule for the FX tempo locks (tempo-lock.md REQ-8). Scoped to the
+    // banks that ENGAGE the effect, which is the existing convention here: a
+    // bypassed effect's sub-params are inert, so only `fx.<name>.on` is pinned
+    // unconditionally. An engaged one with no `.sync` would inherit whatever
+    // division the previously loaded patch was locked to.
+    it('sets the tempo lock of every effect it engages, in every bank', () => {
+      for (const [name, snap] of Object.entries(Presets.factory())) {
+        for (const fx of ['wah', 'phaser', 'delay']) {
+          if (snap[`fx.${fx}.on`] !== 1) continue;
+          expect(snap[`fx.${fx}.sync`], `${name}: 'fx.${fx}.sync' missing`).toBeTypeOf('number');
+        }
+      }
+    });
+
     it('names at least one bank per filter model', () => {
       const models = new Set(Object.values(Presets.factory()).map((s) => s['filter.model']));
       expect(models).toContain(0); // LADDER

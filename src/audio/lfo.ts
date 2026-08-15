@@ -1,6 +1,6 @@
-import { syncedRateHz } from '../utils/tempo';
 import type { ParamBus } from '../state/params';
 import { rampTo, RAMP_MEDIUM } from './param-utils';
+import { bindTempoLocked } from './tempo-bind';
 
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
@@ -136,15 +136,6 @@ export class LFO {
       this.setDest(x);
       pulse?.setDest(src, x);
     };
-    const applyRate = (): void => {
-      // Tempo-locked while `sync` names a division, else the knob's own rate.
-      // The knob value is never rewritten (lfo.md REQ-9).
-      const hz =
-        syncedRateHz(bus.get(`${prefix}.sync`), bus.get('transport.bpm')) ??
-        bus.get(`${prefix}.rate`);
-      this.setRate(hz);
-      pulse?.setRate(src, hz);
-    };
     const applyAmount = (): void => {
       const base = bus.get(`${prefix}.amount`);
       const a = modWheelId === undefined ? base : Math.min(1, base + bus.get(modWheelId));
@@ -157,14 +148,17 @@ export class LFO {
     };
 
     bus.subscribe(`${prefix}.dest`, applyDest);
-    bus.subscribe(`${prefix}.rate`, applyRate);
-    bus.subscribe(`${prefix}.sync`, applyRate);
+    // Rate, tempo lock and BPM, in one place shared with the FX (tempo-lock.md
+    // REQ-7). PWM rides the same effective rate (REQ-6/REQ-14), so it is driven
+    // from the same callback rather than from a second subscription that could
+    // disagree with this one.
+    bindTempoLocked(bus, `${prefix}.rate`, `${prefix}.sync`, 'freq', (hz) => {
+      this.setRate(hz);
+      pulse?.setRate(src, hz);
+    });
     bus.subscribe(`${prefix}.wave`, applyWave);
     bus.subscribe(`${prefix}.amount`, applyAmount);
     if (modWheelId !== undefined) bus.subscribe(modWheelId, applyAmount);
-    // A tempo-locked LFO tracks the tempo, including a slave's incoming clock.
-    // A no-op while `sync` is free.
-    bus.subscribe('transport.bpm', applyRate);
   }
 
   setRate(hz: number): void {

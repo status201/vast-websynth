@@ -18,6 +18,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The Wah, Phaser and Delay can be locked to the tempo — and the LFO's lock got
+  its own row back.** Every rate and delay-time knob now carries a small note
+  glyph next to its label. Tap it and the knob becomes the note division it is
+  running at — 1/8, 1/8 D, 1/4 T — with the real Hz or milliseconds still shown
+  underneath, so you can see the musical value and the actual one at once. Change
+  the song's tempo and a locked effect follows it, including when the tempo is
+  coming in over MIDI clock; a locked delay stays on the beat instead of drifting
+  the moment you speed the track up. It works on all nine rate knobs: the synth's
+  Wah, Phaser and Delay, both LFOs, and the Phaser and Delay on the drum and
+  sampler channels.
+  - Engaging the lock picks the division closest to where the knob already is, so
+    switching it on never jumps the sound, and turning it off puts the knob back
+    exactly where it was — the value underneath is never overwritten.
+  - Nothing takes up more space than before: the division sits in the dial's own
+    footprint, so no panel grows and no row rearranges. The glyph sits just left
+    of the knob's label, on the same line, so the knob stays lined up with its
+    neighbours even on the small controls in the Drum and Sampler headers. The
+    LFO's old full-width sync dropdown is gone entirely, which gives both LFO
+    pages a spare row.
+  - Divisions the current tempo puts out of a knob's reach are greyed out rather
+    than hidden, so you can see the choice exists and why it is not available.
+  - Existing presets and songs are unaffected — every lock starts off.
+
 - **The Wave/Spectrum scope can be made taller.** A small grip on the
   visualizer's top edge drags the panel from its old fixed height up to twice
   that — and the PITCH, OCT and MOD wheels beside it grow with it, because they

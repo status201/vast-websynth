@@ -296,6 +296,7 @@ specs/
     play-button-blink.md ·  Play LED states: beat blink, idle attract pulse, demo cue
     empty-play-hint.md ·  "nothing to play" modal on empty Play + persisted opt-out
     tempo-sync-help.md ·  BPM "sweet spots" + relationship help badges (click-to-snap)
+    tempo-lock.md      ·  lock a rate/time knob to the grid, inside the knob's own footprint
     performance-mode.md ·  device-scoped audio-quality setting (buffer/voices/scope)
     runtime-performance.md ·  app-wide cost contract (boot budget, gesture-scoped listeners, automation≠edit)
     ios-audio.md       ·  iOS silent-switch unlock (media-backed context) + interruption re-arm

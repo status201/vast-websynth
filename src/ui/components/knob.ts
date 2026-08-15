@@ -4,6 +4,8 @@ import { toNorm, fromNorm } from '../../utils/taper';
 import { clamp01 } from '../../utils/math';
 import { formatParam } from '../format-param';
 import { modDepthDeps, modDepthFor, modOffsetFor, modSignFor } from '../../state/mod-depth';
+import { tempoLockFor } from '../../state/tempo-lock';
+import { createTempoLock, type TempoLock } from './tempo-lock';
 
 export interface KnobOptions {
   bus: ParamBus;
@@ -58,6 +60,12 @@ export class Knob {
   /** The dead-travel marker, built on demand — see `paintDead`. */
   private dead: SVGCircleElement | null = null;
   /**
+   * The tempo lock, on the handful of params that have one (tempo-lock.md REQ-1).
+   * `undefined` for every other knob, which therefore grows no extra node and
+   * takes no extra subscription.
+   */
+  private lock: TempoLock | undefined;
+  /**
    * The modulation range arc, built on demand — most knobs never have one, and a
    * knob nothing modulates must cost nothing (mod-matrix.md REQ-8).
    */
@@ -92,7 +100,8 @@ export class Knob {
 
     const label = document.createElement('div');
     label.className = styles.label!;
-    label.textContent = opts.label ?? this.deriveLabel(opts.paramId);
+    const labelText = opts.label ?? this.deriveLabel(opts.paramId);
+    label.textContent = labelText;
     this.el.appendChild(label);
 
     const dial = document.createElement('div');
@@ -145,6 +154,36 @@ export class Knob {
     // Before the subscribe: `subscribe` fires immediately, so the very first
     // paint already honours the ceiling and no separate repaint is needed.
     if (opts.uiMax !== undefined) this.applyUiMax(opts.uiMax);
+
+    // Self-wiring, ADR-008 — the same shape as the `modDepthDeps` block below:
+    // the knob asks whether its *own* param can be locked to the tempo and grows
+    // the control only if so (tempo-lock.md REQ-1). Almost none can, so almost
+    // every knob builds nothing here. Before the value subscription, so the very
+    // first paint already shows the derived readout.
+    const quantity = tempoLockFor(opts.paramId);
+    if (quantity !== undefined) {
+      const lock = createTempoLock({
+        bus,
+        paramId: opts.paramId,
+        quantity,
+        label: labelText,
+        host: {
+          setSynced: (on) => this.el.classList.toggle('synced', on),
+          repaint: () => this.render(bus.get(opts.paramId)),
+        },
+      });
+      this.lock = lock;
+      // The glyph hangs in the gutter to the left of the label; the chip is a
+      // **sibling** of the dial, never a child — the drag listener lives on the
+      // dial, so a chip inside it would start a drag (tempo-lock.md REQ-3).
+      this.el.classList.add(styles.hasLock!);
+      label.insertBefore(lock.lock, label.firstChild);
+      this.el.insertBefore(lock.chip, this.valueLabel);
+      // `createTempoLock` paints once from its own immediate subscription fire,
+      // which lands before `this.lock` exists — so the readout it produced is the
+      // raw param value. Repaint now that the lock can be consulted.
+      this.render(bus.get(opts.paramId));
+    }
 
     this.unsubscribe = bus.subscribe(opts.paramId, (v) => this.render(v));
 
@@ -204,7 +243,11 @@ export class Knob {
       this.arc.setAttribute('stroke-dasharray', dash);
     }
 
-    const label = this.formatValue(value);
+    // While tempo-locked the knob is not what sets the value, so the readout
+    // shows the one that is — `2.67Hz`, `375ms` — formatted through the param's
+    // own `format` (tempo-lock.md REQ-3). The dial is off screen in that state,
+    // so the arc and pointer above keep tracking the stored value undisturbed.
+    const label = this.formatValue(this.lock?.effectiveValue() ?? value);
     if (label !== this.lastLabel) {
       this.lastLabel = label;
       this.valueLabel.textContent = label;
@@ -487,5 +530,6 @@ export class Knob {
   destroy(): void {
     this.unsubscribe();
     this.detachDragListeners();
+    this.lock?.destroy();
   }
 }

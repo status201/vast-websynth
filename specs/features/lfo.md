@@ -3,7 +3,12 @@
 ```yaml
 id: lfo
 status: implemented
-version: 8                  # v8: REQ-12's mutual exclusion is SUPERSEDED by the mod
+version: 9                  # v9: REQ-9's UI half is SUPERSEDED by tempo-lock.md — the
+                            #     rate knob carries the lock itself, so the standalone
+                            #     sync picker and the dim-in-place are both gone. The
+                            #     param, its encoding and the audio behaviour are
+                            #     unchanged.
+                            # v8: REQ-12's mutual exclusion is SUPERSEDED by the mod
                             #     matrix; the two LFOs become its rows 0-1, keeping
                             #     lfo.dest / lfo.amount unchanged (mod-matrix.md)
                             # v7: REQ-10..15 — a second LFO (lfo2.*), mutually
@@ -23,6 +28,7 @@ related:
   - panel-tabs           # v7: hosts the LFO 1 / LFO 2 pages
   - dropdown             # v8: greying now serves mod-matrix REQ-7, not REQ-12
   - mod-matrix           # v8: the LFOs are its rows 0-1; supersedes REQ-12
+  - tempo-lock           # v9: owns REQ-9's control; the effects share it now
 source:
   - src/audio/lfo.ts
   - src/audio/pwm.ts       # the `pulse` destination's control loop (v3)
@@ -130,12 +136,19 @@ destinations, genuinely cannot be shared (REQ-14).
   - `lfo.rate` itself is **not rewritten**. The stored patch value is what the
     knob returns to when sync goes back to `free`, and a synced patch that loads
     on a build without this param still sounds as it always did (ADR-006).
-  - The rate knob **dims** while synced — the same treatment `filter.shape` gets
-    on the LADDER model (filter-models.md REQ-7) and the BPM knob gets while
-    clock-slaved: the control keeps its place and stops pretending to be live.
+  - ~~The rate knob **dims** while synced~~ — **superseded in v9.** The knob now
+    carries the lock itself: the note glyph in its label row toggles `sync`, and
+    the chosen division replaces the dial ([tempo-lock](tempo-lock.md) REQ-2/REQ-3).
+    The standalone full-width sync picker is gone with it, freeing a row on both
+    LFO pages. The dim was right while the picker sat two rows below — the knob
+    had to keep its place so you could see what it would return to. It is wrong
+    once the picker *is* the knob: two controls would say the same thing, one of
+    them inert. Nothing about the param or the audio changed.
   - The division list is the **same table** the tempo-sync help badges recommend
     from (tempo-sync-help.md), so the advisory and the real thing cannot
-    disagree. That spec's "Open questions" proposed exactly this promotion.
+    disagree. That spec's "Open questions" proposed exactly this promotion — and
+    v9 completes it, since the wah, phaser and delay now share this lock
+    ([tempo-lock](tempo-lock.md)) rather than the LFO having a private one.
   - `pwm.setRate` follows the same effective rate, since PWM rides the LFO
     (REQ-6). With two LFOs, "the LFO" means the one that owns the driver
     (REQ-14).
@@ -145,8 +158,10 @@ destinations, genuinely cannot be shared (REQ-14).
   `lfoParams(prefix)` factory** in `registerDefaults`, so range, default, taper,
   format and label array cannot drift apart — "the same as the first one" is a
   structural guarantee, not a comment. Both reuse `WAVE_LABELS`,
-  `LFO_DEST_LABELS` and `LFO_SYNC_LABELS` verbatim (REQ-3's append-only rule
-  covers both). `lfo2.dest` defaults to `0` (`off`) **and** `lfo2.amount` to `0`
+  `LFO_DEST_LABELS` and `SYNC_LABELS` verbatim (REQ-3's append-only rule
+  covers both), and v9 shares `syncParam(prefix)` — the same `.sync` def the
+  effects get ([tempo-lock](tempo-lock.md) REQ-8) — so the guarantee now spans
+  the LFOs *and* the wah/phaser/delay rather than the pair alone. `lfo2.dest` defaults to `0` (`off`) **and** `lfo2.amount` to `0`
   — a double no-op, so every preset, song and share link that predates v7 sounds
   identical (ADR-006). Being additive scalar params, they need **no song-format
   version bump** (ADR-007); `SONG_VERSION` stays 7.
@@ -235,14 +250,17 @@ factory for `prefix` in `lfo`, `lfo2` (REQ-10):
 <prefix>.amount: { range: 0..1, default: 0 }            # no-op default
 <prefix>.wave:   { discrete, labels: WAVE_LABELS, range: 0..3, default: 0 }
 <prefix>.dest:   { discrete, labels: LFO_DEST_LABELS, range: 0..6, default: 0 }  # v4: +shape
-<prefix>.sync:   { discrete, labels: LFO_SYNC_LABELS, range: 0..18, default: 0 } # v6, REQ-9
+<prefix>.sync:   { discrete, labels: SYNC_LABELS, range: 0..18, default: 0 }     # v6, REQ-9
 master.modWheel: { range: 0..1, default: 0 }            # sums into LFO 1 only (REQ-11)
 ```
 
 `LFO_DEST_LABELS = ['off', 'cutoff', 'pitch', 'amp', 'pulse', 'pan', 'shape']`.
 Index `0` stays `off`, so the default remains a no-op (ADR-006), and appending
 keeps every value an existing patch can hold (`0..5`) at its original meaning.
-`LFO_SYNC_LABELS = SYNC_LABELS` (`free` + 18 divisions), index `0` = `free`.
+`SYNC_LABELS` (`free` + 18 divisions) comes from `utils/tempo.ts`, index `0` =
+`free`. It used to be re-exported as `LFO_SYNC_LABELS`; v9 dropped the alias when
+the effects started using the same list, since there is no longer an LFO-specific
+division set to name.
 
 ### Contract / public interface
 
@@ -266,7 +284,10 @@ LfoPulseSink:          # v7: the slice of PwmDriver an LFO may drive. Structural
 
 `bind` is the house param-wiring pattern (ADR-008, as `Effect.bind(bus, prefix)`):
 each LFO subscribes its own `${prefix}.{rate,sync,amount,wave,dest}` plus
-`transport.bpm`, and `modWheelId` only when given — which is LFO 1 only (REQ-11).
+`transport.bpm`, and `modWheelId` only when given. The rate/sync/BPM trio goes
+through the shared `bindTempoLocked` ([tempo-lock](tempo-lock.md) REQ-7) — PWM
+rides the same callback, so it cannot disagree with the oscillator about the
+effective rate (REQ-6/REQ-14) — which is LFO 1 only (REQ-11).
 Putting the mod-wheel sum here rather than in a closure inside the private
 `Engine.subscribeParams()` is what makes it unit-testable against a mock context.
 
@@ -388,10 +409,17 @@ Scenario: Leaving sync restores the knob's own rate (v6, REQ-9)
   Then the LFO returns to 7 Hz — the stored value was never rewritten
 # pinned by: e2e/lfo-sync.spec.ts
 
-Scenario: The rate knob dims while synced (v6, REQ-9)
+Scenario: The rate knob shows the division while synced (v9, REQ-9)
   When lfo.sync names a division
-  Then knob-lfo.rate is aria-disabled, still visible and still holding its value
-# pinned by: e2e/lfo-sync.spec.ts
+  Then knob-lfo.rate shows it on a chip in the dial's place, at 120 BPM reading
+    "1/4" over a live "2.00Hz", and keeps its own stored value
+# pinned by: tests/ui/lfo-panel.test.ts, e2e/lfo-sync.spec.ts
+
+Scenario: The standalone sync picker is gone (v9)
+  Given the LFO panel
+  Then neither page carries a sync dropdown of its own
+  And each RATE knob carries a tempolock-<prefix>.rate button instead
+# pinned by: tests/ui/lfo-panel.test.ts
 
 Scenario: LFO 2 changes nothing until it is armed (v7, REQ-10, ADR-006)
   Given a preset saved before v7, with no lfo2.* keys

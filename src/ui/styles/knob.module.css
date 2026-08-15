@@ -89,6 +89,36 @@
   text-shadow: 0 0 6px var(--accent-glow);
 }
 
+/*
+ * A knob carrying a tempo lock (tempo-lock.md REQ-10). The glyph hangs in a
+ * gutter to the LEFT of the cell rather than flowing inline before the label,
+ * because the machine tabs run 22 px knobs — a 30 px cell, where glyph + "RATE"
+ * does not fit on one line. Inline, it wrapped: the label took two lines, the
+ * knob grew taller than its neighbours and its dial dropped below theirs.
+ *
+ * The gutter is what the glyph hangs into, so it never overlaps the control to
+ * its left. `.label` is the positioning context (see tempo-lock.module.css), and
+ * `nowrap` makes the no-wrap guarantee explicit rather than incidental.
+ */
+.hasLock {
+  margin-left: var(--lock-gutter, 20px);
+}
+
+.hasLock .label {
+  position: relative;
+  white-space: nowrap;
+}
+
+/*
+ * Tempo-locked (tempo-lock.md REQ-3): the division chip takes the dial's place.
+ * Hidden, not dimmed — a dimmed dial still accepts the double-tap reset, and a
+ * reset you cannot hear is exactly the invisible-state defect ADR-014 law 2
+ * names. With the dial gone there is no gesture to have the wrong outcome.
+ */
+.root:global(.synced) .dial {
+  display: none;
+}
+
 /* Disabled (e.g. BPM knob while slaved) — dims + shows it's not draggable. */
 .disabled {
   opacity: 0.45;

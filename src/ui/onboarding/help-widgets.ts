@@ -4,7 +4,16 @@
 // copy deck; imported there by value, and only the HelpContext *type* comes back
 // the other way — no runtime import cycle.
 import type { HelpContext } from './help-content';
-import { sweetSpotsInRange, spotValue, noteToHz, type TempoQuantity } from '../../utils/tempo';
+import {
+  SYNC_LABELS,
+  noteToHz,
+  spotValue,
+  sweetSpotsInRange,
+  syncedValue,
+  type TempoQuantity,
+} from '../../utils/tempo';
+import { syncIdFor, tempoLockFor } from '../../state/tempo-lock';
+import { noteGlyph } from '../components/tempo-lock';
 import styles from '../styles/tour.module.css';
 
 const BPM_ID = 'transport.bpm';
@@ -52,21 +61,33 @@ export function renderTempoSync(
   const min = def?.min ?? 0;
   const max = def?.max ?? Number.POSITIVE_INFINITY;
 
+  // While the knob is tempo-locked its own param is not what is heard, so both
+  // halves of this badge move to the lock: the marked row is the locked division,
+  // and clicking a row re-locks rather than writing a value nothing reads. A row
+  // that did nothing would be a gesture with no outcome (ADR-014 law 2) — one this
+  // badge introduced the day the lock shipped (tempo-lock.md REQ-5). Read before
+  // the intro paragraph, which has to say which of the two a tap will do.
+  const syncId = tempoLockFor(paramId) === undefined ? null : syncIdFor(paramId);
+  const lockedIndex = syncId === null ? 0 : Math.round(bus.get(syncId));
+
   const wrap = el('div');
   wrap.appendChild(
     el(
       'p',
       undefined,
-      quantity === 'time'
-        ? `Sync the echo to the beat. At <strong>${Math.round(bpm)} BPM</strong> these note ` +
-            `lengths line up in time — tap one to set <strong>${def ? labelOf(paramId) : 'the delay'}</strong> exactly.`
-        : `Match the movement to the beat. At <strong>${Math.round(bpm)} BPM</strong> these note ` +
-            `values give an in-time rate — tap one to set it.`,
+      lockedIndex > 0
+        ? `At <strong>${Math.round(bpm)} BPM</strong> this knob's lock reads as the values ` +
+            `below — tap one to change the <strong>division</strong> it follows.`
+        : quantity === 'time'
+          ? `Sync the echo to the beat. At <strong>${Math.round(bpm)} BPM</strong> these note ` +
+              `lengths line up in time — tap one to set <strong>${def ? labelOf(paramId) : 'the delay'}</strong> exactly.`
+          : `Match the movement to the beat. At <strong>${Math.round(bpm)} BPM</strong> these note ` +
+              `values give an in-time rate — tap one to set it.`,
     ),
   );
 
   const spots = sweetSpotsInRange(bpm, min, max, quantity);
-  const current = bus.get(paramId);
+  const current = syncedValue(lockedIndex, bpm, quantity) ?? bus.get(paramId);
 
   // Mark the row nearest the current value, but only if it is genuinely on a
   // sweet spot (within 1%), so a free-dialled value doesn't light a random row.
@@ -91,7 +112,8 @@ export function renderTempoSync(
     btn.appendChild(el('span', styles.sweetName!, s.label));
     btn.appendChild(el('span', styles.sweetVal!, fmtSpot(s.seconds, s.hz, quantity)));
     btn.addEventListener('click', () => {
-      bus.set(paramId, value);
+      if (syncId !== null && lockedIndex > 0) bus.set(syncId, SYNC_LABELS.indexOf(s.label));
+      else bus.set(paramId, value);
       close();
     });
     grid.appendChild(btn);
@@ -106,7 +128,44 @@ export function renderTempoSync(
         'Values follow the tempo — change BPM and reopen to refresh.',
     ),
   );
+
+  // The note glyph is a button, and nothing about a 9x11 icon says so
+  // (tempo-sync-help.md REQ-10). This badge is already the place a user looks to
+  // ask "how do I get this in time?", so it is where the lock gets introduced —
+  // ADR-014 law 1 puts self-evident above explained, but an icon that opens a
+  // whole mode has to be explained *somewhere*, and it is one rung up from the
+  // help modal being the only mention.
+  if (syncId !== null) wrap.appendChild(lockNote(lockedIndex > 0));
+
   return wrap;
+}
+
+/**
+ * The footnote introducing the tempo lock, with the real glyph inlined so the
+ * thing described and the thing on the faceplate are the same drawing.
+ */
+function lockNote(locked: boolean): HTMLElement {
+  const p = el('p', styles.sweetFoot!);
+  const glyph = noteGlyph();
+  glyph.style.width = '9px';
+  glyph.style.height = '11px';
+  glyph.style.verticalAlign = '-1px';
+  glyph.style.margin = '0 2px';
+
+  // Explicit spaces around the glyph: it is an inline SVG between two text nodes,
+  // so nothing else puts any there and "the ♩beside" is what you get.
+  p.appendChild(document.createTextNode(locked ? 'Tempo-locked: the ' : 'Tap the '));
+  p.appendChild(glyph);
+  p.appendChild(
+    document.createTextNode(
+      locked
+        ? ' beside this knob’s label is lit, so it follows the tempo. Tap it again to ' +
+            'unlock and get the knob — and the value it was holding — back.'
+        : ' beside this knob’s label to lock it to the tempo instead: the knob becomes the ' +
+            'note division it is running at, and follows the song when the BPM changes.',
+    ),
+  );
+  return p;
 }
 
 /** Human label for the delay a badge sits on (synth / drum / sampler). */

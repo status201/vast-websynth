@@ -1,0 +1,114 @@
+/*
+ * The tempo lock a Knob grows on a lockable param (tempo-lock.md).
+ *
+ * The governing constraint is REQ-9: locking must not move anything. Both pieces
+ * live inside the knob's existing footprint — the glyph flows inline in the label
+ * row, the chip fills exactly the box the dial vacates — so a locked group lays
+ * out identically to a free one. `.fxKnobs` is a *wrapping* flex row with ~25 px
+ * of slack on the four-knob Phaser, so a few stray pixels here drop a knob onto a
+ * second line.
+ */
+
+/*
+ * Out of flow, hanging in the gutter `.hasLock` reserves to the left of the cell
+ * (knob.module.css). Absolute rather than inline is the whole fix for REQ-10:
+ * an inline glyph contributes to the label's line box, and at the machine tabs'
+ * 30 px cell that pushed the label onto a second line and dropped the dial below
+ * its neighbours'. Out of flow it cannot wrap the label at any knob size, so one
+ * rule covers the 44 px rack and the 22 px header groups alike.
+ */
+.lock {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The ink is 9x11; the padding is the touch target (ADR-014 law 6), and out of
+     flow it costs no layout at all. */
+  padding: 6px;
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.lock svg {
+  width: 9px;
+  height: 11px;
+  display: block;
+}
+
+.lock:hover {
+  opacity: 0.85;
+}
+
+/* Lit while locked — the law 5 affordance: the mode is visible, at the control. */
+.lock:global(.on) {
+  color: var(--accent);
+  opacity: 1;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+/*
+ * The chip stands in for the dial, so it takes the dial's exact box. Hidden
+ * until locked; `.dial` hides in its place (knob.module.css).
+ */
+.chip {
+  display: none;
+  width: var(--knob-size);
+  height: var(--knob-size);
+  align-items: center;
+  justify-content: center;
+}
+
+/* `synced` is a global state class, like `.on` / `.collapsed` (src/ui/CLAUDE.md);
+   the knob root carries it and `knob.module.css` hides `.dial` off the same one. */
+:global(.synced) .chip {
+  display: flex;
+}
+
+.chip :global(.dropdown) {
+  display: block;
+  width: 100%;
+}
+
+/*
+ * Override the standard toggle, which is sized for a panel row (min 120x32) and
+ * would be four times the width of the box available here. Compounded selectors
+ * out-specify `.toggle`'s single class, so no `!important` is needed.
+ */
+.chip :global(.dropdown) > button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+  padding: 2px;
+  /* Changing digits, so mono rather than the faceplate serif — typography.md. */
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 200;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  justify-content: center;
+}
+
+.chip :global(.dropdown) > button > span {
+  flex: 0 1 auto;
+  text-align: center;
+  overflow: visible;
+}
+
+/*
+ * No caret. At the 22 px knobs of the drum and sampler FX rows the chip's whole
+ * box is 30 px, and `1/16D` at 8 px mono already spends ~24 px of it — a caret
+ * would push the chip past the box and reflow the row (REQ-9). The chip's lit
+ * border and its `title` carry the affordance instead.
+ */
+.chip :global(.dropdown) > button > span:last-child {
+  display: none;
+}

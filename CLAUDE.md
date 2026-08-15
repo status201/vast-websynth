@@ -94,6 +94,7 @@ material keyed by feature name).
 | `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |
 | context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
+| a **rate / delay-time knob**, or any `*.sync` param | `features/tempo-lock.md` — one table (`src/state/tempo-lock.ts`) decides what is lockable; `Knob` self-wires from it |
 | `src/audio/compressor/` | `features/compressor.md`, ADR-002 |
 | `src/audio/transport/` | `features/transport.md`, `transport-position.md`, `arrangement.md`, `sequencer.md`, `drum-machine.md`, `sampler.md`, `motion-sequencer.md`, `performance.md`, `recipes/add-a-transport-module.md` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |

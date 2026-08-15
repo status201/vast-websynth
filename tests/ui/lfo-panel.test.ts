@@ -24,9 +24,10 @@ function build() {
 
 /** An option button inside a page's destination dropdown, by its label. */
 function destOption(el: HTMLElement, page: '1' | '2', label: string): HTMLButtonElement {
-  const shell = el.querySelector<HTMLElement>(`[data-testid="ppage-lfo-${page}"]`)!;
-  // The destination dropdown is the first of the two on the page (dest, sync).
-  const dd = shell.querySelectorAll<HTMLElement>('.dropdown')[0]!;
+  const prefix = page === '1' ? 'lfo' : 'lfo2';
+  // By testid, not by position: the RATE knob's tempo lock is a dropdown too, and
+  // it sits ahead of this one (tempo-lock.md REQ-3).
+  const dd = el.querySelector<HTMLElement>(`[data-testid="dropdown-${prefix}.dest"]`)!;
   const opts = [...dd.querySelectorAll<HTMLButtonElement>('button')];
   return opts.find((o) => o.textContent === label)!;
 }
@@ -92,11 +93,22 @@ describe('LFO panel', () => {
     expect(hint(el, 'pulse-hint-lfo').style.display).toBe('none');
   });
 
-  it('dims the rate knob of the LFO that is synced, not the other (REQ-9)', () => {
+  // v9: the synced rate knob is no longer dimmed in place next to a full-width
+  // picker two rows below — the picker IS the knob now (tempo-lock.md REQ-3), so
+  // what marks the synced page is the `synced` state class on its rate knob.
+  it('swaps the dial for the division on the LFO that is synced, not the other (REQ-9)', () => {
     const { bus, el } = build();
     bus.set('lfo2.sync', SYNC_LABELS.indexOf('1/4'));
-    expect(el.querySelector('[data-testid="knob-lfo2.rate"]')!.getAttribute('aria-disabled')).toBe('true');
-    expect(el.querySelector('[data-testid="knob-lfo.rate"]')!.getAttribute('aria-disabled')).not.toBe('true');
+    expect(el.querySelector('[data-testid="knob-lfo2.rate"]')!.classList.contains('synced')).toBe(true);
+    expect(el.querySelector('[data-testid="knob-lfo.rate"]')!.classList.contains('synced')).toBe(false);
+  });
+
+  it('no longer carries a standalone sync picker (v9)', () => {
+    const { el } = build();
+    expect(el.querySelector('[data-testid="dropdown-lfo.sync"]')).toBeNull();
+    // The lock lives on the knob it governs, on both pages.
+    expect(el.querySelector('[data-testid="tempolock-lfo.rate"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="tempolock-lfo2.rate"]')).not.toBeNull();
   });
 
   it('lights the tab of a modulating page and darkens it again (REQ-15)', () => {

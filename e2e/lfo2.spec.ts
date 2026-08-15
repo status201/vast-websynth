@@ -72,10 +72,10 @@ test.describe('LFO 2', () => {
     await gotoAndStart(page);
     await page.getByTestId('ptab-lfo-2').click();
 
-    // The destination picker is the first of the page's two dropdowns (dest,
-    // sync). Its options live in a popover, so open it — a closed menu is out
-    // of the accessibility tree entirely.
-    const destDd = page.getByTestId('ppage-lfo-2').locator('.dropdown').first();
+    // By testid, not by position: the page's other dropdown is the RATE knob's
+    // tempo-lock chip, and it comes first (tempo-lock.md REQ-3). Its options live
+    // in a popover, so open it — a closed menu is out of the a11y tree entirely.
+    const destDd = page.getByTestId('dropdown-lfo2.dest');
     await destDd.locator('button').first().click();
     const cutoff = destDd.locator('button').filter({ hasText: /^cutoff$/i });
 

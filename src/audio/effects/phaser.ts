@@ -1,6 +1,7 @@
 import { WrappedEffect, bindBypassMix } from './effect';
 import { clamp01 } from '../../utils/math';
 import { RAMP_SMOOTH } from '../param-utils';
+import { bindTempoLocked } from '../tempo-bind';
 import type { ParamBus } from '../../state/params';
 
 const STAGES = 4;
@@ -75,7 +76,7 @@ export class Phaser extends WrappedEffect {
 
   bind(bus: ParamBus, prefix: string): void {
     bindBypassMix(bus, prefix, this);
-    bus.subscribe(`${prefix}.rate`, (x) => this.setRate(x));
+    bindTempoLocked(bus, `${prefix}.rate`, `${prefix}.sync`, 'freq', (x) => this.setRate(x));
     bus.subscribe(`${prefix}.depth`, (x) => this.setDepth(x));
     bus.subscribe(`${prefix}.feedback`, (x) => this.setFeedback(x));
   }

@@ -95,17 +95,74 @@ export { midiToHz as noteToHz } from './math';
 export const SYNC_LABELS: string[] = ['free', ...DIVISIONS.map((d) => d.label)];
 
 /**
- * The rate a synced LFO should run at, in Hz, or `null` when `syncIndex` is 0
- * (free) or out of range — in which case the caller keeps the knob's own rate.
+ * The period a synced param should run at, in **seconds**, or `null` when
+ * `syncIndex` is 0 (free) or out of range — in which case the caller keeps the
+ * knob's own value.
  *
  * Guards a non-finite or non-positive BPM: `Clock.setBpm` already rejects those
  * (untrusted-input.md REQ-6), but this is reached from a param subscription that
  * a song payload can drive directly, and `1/0` would reach an `AudioParam`.
+ *
+ * This is the root of both quantities — `syncedRateHz` is its reciprocal — so a
+ * guard added here cannot be missed by one of them (tempo-lock.md REQ-7).
  */
-export function syncedRateHz(syncIndex: number, bpm: number): number | null {
+export function syncedTimeSec(syncIndex: number, bpm: number): number | null {
   const i = Math.round(syncIndex);
   if (i <= 0 || i > DIVISIONS.length) return null;
   if (!Number.isFinite(bpm) || bpm <= 0) return null;
   const seconds = DIVISIONS[i - 1]!.beats * (60 / bpm);
-  return seconds > 0 ? 1 / seconds : null;
+  return seconds > 0 ? seconds : null;
+}
+
+/**
+ * The rate a synced LFO should run at, in Hz, or `null` when `syncIndex` is 0
+ * (free) or out of range — in which case the caller keeps the knob's own rate.
+ */
+export function syncedRateHz(syncIndex: number, bpm: number): number | null {
+  const seconds = syncedTimeSec(syncIndex, bpm);
+  return seconds === null ? null : 1 / seconds;
+}
+
+/** The synced value in whichever unit the target knob is registered in. */
+export function syncedValue(
+  syncIndex: number,
+  bpm: number,
+  quantity: TempoQuantity,
+): number | null {
+  return quantity === 'time' ? syncedTimeSec(syncIndex, bpm) : syncedRateHz(syncIndex, bpm);
+}
+
+/**
+ * `SYNC_LABELS` index of `1/4` — the fallback when a value can't be compared.
+ * Floored at 1 so the "never returns 0" contract below holds by construction
+ * rather than by `DIVISIONS` happening to contain a straight quarter note.
+ */
+const QUARTER_SYNC_INDEX = Math.max(1, DIVISIONS.findIndex((d) => d.label === '1/4') + 1);
+
+/**
+ * The `SYNC_LABELS` index (1..18) of the division closest to `value` at `bpm` —
+ * what engaging a tempo lock picks, so that locking does not jump the sound
+ * (tempo-lock.md REQ-4).
+ *
+ * Compared in **log space**: both quantities are perceived multiplicatively (a
+ * rate is heard in octaves — lfo.md REQ-8), so 1/8 is nearer to 1/4 than 1/1 is
+ * even though the linear gaps say the opposite. Never returns 0: the caller is
+ * asking which division to lock to, and `free` is not one.
+ */
+export function nearestDivision(value: number, bpm: number, quantity: TempoQuantity): number {
+  if (!Number.isFinite(value) || value <= 0) return QUARTER_SYNC_INDEX;
+  const spots = sweetSpots(bpm);
+  const target = Math.log(value);
+  let best = QUARTER_SYNC_INDEX;
+  let bestDist = Infinity;
+  for (let i = 0; i < spots.length; i++) {
+    const v = spotValue(spots[i]!, quantity);
+    if (!Number.isFinite(v) || v <= 0) continue;
+    const dist = Math.abs(Math.log(v) - target);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i + 1; // SYNC_LABELS is `free` + DIVISIONS, so it runs one ahead
+    }
+  }
+  return best;
 }
