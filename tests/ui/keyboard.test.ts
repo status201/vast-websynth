@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Keyboard } from '../../src/ui/components/keyboard';
+import { readKeyState } from '../../src/ui/key-roles';
 import { ParamBus, registerDefaults } from '../../src/state/params';
+import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
 
 function mount(): { bus: ParamBus; kb: Keyboard; keyEl: (note: number) => HTMLElement } {
   const bus = new ParamBus();
@@ -151,5 +153,110 @@ describe('Keyboard pointer hold survives an OCT change', () => {
 
     expect(notes).toEqual([[true, 60], [false, 60]]); // not 48 — no hung voice
     expect(target.classList.contains('active')).toBe(false);
+  });
+});
+
+/**
+ * scale-quantization.md REQ-10 / input-control.md REQ-14 — the third highlight layer.
+ *
+ * Unlike `active` and `seq` this one is *static*: a standing property of a pitch class,
+ * written as an attribute and rewritten wholesale, never routed through the refcounted
+ * lit maps. The last two tests here are the ones that matter — they pin that the two
+ * channels cannot interfere.
+ */
+describe('Keyboard.setKeyRoles', () => {
+  const MAJOR = SCALE_LABELS.indexOf('major');
+  const TRIAD = CHORD_LABELS.indexOf('triad');
+
+  /** Every drawn key wearing `role`, as MIDI numbers. */
+  const withRole = (kb: Keyboard, role: string) =>
+    [...kb.el.querySelectorAll<HTMLElement>(`[data-role="${role}"]`)]
+      .map((el) => Number(el.dataset.note))
+      .sort((a, b) => a - b);
+
+  const roled = (kb: Keyboard) => kb.el.querySelectorAll('[data-role]').length;
+
+  it('marks every octave of a pitch class, and leaves out-of-scale keys bare', () => {
+    const { bus, kb } = mount();
+    bus.set('scale.type', MAJOR);
+    kb.setKeyRoles(readKeyState(bus));
+
+    // C3-B5 is drawn, so three C's and three D's.
+    expect(withRole(kb, 'root')).toEqual([48, 60, 72]);
+    expect(withRole(kb, 'scale')).toContain(50); // D3
+    expect(withRole(kb, 'scale')).toContain(74); // D5
+    // Out of scale carries no role at all: those keys still sound (quantized), so
+    // dimming them would claim otherwise (REQ-10).
+    expect(withRole(kb, 'out')).toEqual([]);
+    expect(kb.el.querySelector('[data-note="49"]')!.getAttribute('data-role')).toBeNull();
+  });
+
+  it('lets the root outrank its other roles', () => {
+    const { bus, kb } = mount();
+    bus.set('scale.type', MAJOR);
+    bus.set('chord.voicing', TRIAD);
+    kb.setKeyRoles(readKeyState(bus));
+
+    expect(withRole(kb, 'root')).toEqual([48, 60, 72]);        // C, not a chord tone
+    expect(withRole(kb, 'chord')).toEqual([52, 55, 64, 67, 76, 79]); // E and G
+    expect(withRole(kb, 'scale')).toContain(50);               // D
+  });
+
+  it('clears every role when handed null — what chromatic gets', () => {
+    const { bus, kb } = mount();
+    bus.set('scale.type', MAJOR);
+    kb.setKeyRoles(readKeyState(bus));
+    expect(roled(kb)).toBeGreaterThan(0);
+
+    kb.setKeyRoles(null);
+    expect(roled(kb)).toBe(0);
+  });
+
+  it('needs no repaint when OCT moves (REQ-10, cost)', () => {
+    // Roles are keyed by pitch class and `keyboard.transpose` moves in whole octaves,
+    // so an element's own pitch class IS its sounding pitch class. Nothing to redo.
+    const { bus, kb } = mount();
+    bus.set('scale.type', MAJOR);
+    kb.setKeyRoles(readKeyState(bus));
+    const before = withRole(kb, 'root');
+
+    bus.set('keyboard.transpose', 1);
+    expect(withRole(kb, 'root')).toEqual(before);
+  });
+
+  it('does not disturb a lit key (input-control.md REQ-14)', () => {
+    const { bus, kb, keyEl } = mount();
+    bus.set('scale.type', MAJOR);
+    kb.setKeyRoles(readKeyState(bus));
+
+    kb.seqHighlight(60, true);
+    expect(keyEl(60).classList.contains('seq')).toBe(true);
+    expect(keyEl(60).dataset.role).toBe('root');
+
+    // Re-role the whole board mid-flight, the way a scale change would.
+    bus.set('scale.root', 5);
+    kb.setKeyRoles(readKeyState(bus));
+
+    expect(keyEl(60).classList.contains('seq')).toBe(true);   // still lit
+    expect(keyEl(60).dataset.role).toBe('scale');             // C is in F major
+
+    kb.seqHighlight(60, false);
+    expect(kb.el.querySelectorAll('.seq')).toHaveLength(0);   // the off still lands
+    expect(keyEl(60).dataset.role).toBe('scale');             // and leaves the role
+  });
+
+  it('skips a write for a role already in place (runtime-performance.md REQ-7)', () => {
+    const { bus, kb } = mount();
+    const obs = new MutationObserver(() => {});
+    obs.observe(kb.el, { attributes: true, subtree: true, attributeFilter: ['data-role'] });
+
+    bus.set('scale.type', MAJOR);
+    const state = readKeyState(bus);
+    kb.setKeyRoles(state);
+    expect(obs.takeRecords().length).toBeGreaterThan(0);      // the observer works
+
+    kb.setKeyRoles(state);                                    // nothing has changed
+    expect(obs.takeRecords()).toHaveLength(0);
+    obs.disconnect();
   });
 });

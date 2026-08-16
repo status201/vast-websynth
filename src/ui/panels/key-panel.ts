@@ -1,7 +1,7 @@
 import type { ParamBus } from '../../state/params';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../../state/params';
 import { ParamDropdown } from '../components/param-dropdown';
-import { chordDegrees, diatonicChord, scaleTones } from '../../utils/music';
+import { type KeyState, keyRole, onKeyChange, readKeyState } from '../key-roles';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/arp.module.css';
 import map from '../styles/key.module.css';
@@ -14,8 +14,6 @@ const BLACK_OFFSETS = [                                    // semitone, white ke
 const OCTAVES = 2;
 const WHITE_PER_OCTAVE = WHITE_OFFSETS.length;
 const WHITE_TOTAL = WHITE_PER_OCTAVE * OCTAVES;
-/** Every pitch class — what `chromatic` admits, and the map's default state. */
-const ALL_PITCH_CLASSES = new Set(Array.from({ length: 12 }, (_, i) => i));
 
 /**
  * The KEY tab: the global key, and the chord memory that plays off it.
@@ -71,31 +69,22 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
   body.appendChild(hint);
 
   const refresh = (): void => {
-    const active = Math.round(bus.get('scale.type')) > 0;
+    // Chromatic admits every note, so every key lights — and choosing a scale then
+    // visibly *removes* notes, which is the teaching moment (REQ-9). `key-roles` owns
+    // that derivation; the playable keyboard reads the very same state (REQ-10).
+    const state = readKeyState(bus);
+    const { active } = state;
     const voicing = Math.round(bus.get('chord.voicing'));
     const mono = bus.get('voicing.mode') < 0.5;
-    const rootPc = Math.round(bus.get('scale.root'));
-    const scaleIdx = Math.round(bus.get('scale.type'));
 
-    // Chromatic admits every note, so every key lights — and choosing a scale then
-    // visibly *removes* notes, which is the teaching moment (REQ-9).
-    const tones = active ? new Set(scaleTones(rootPc, scaleIdx)) : ALL_PITCH_CLASSES;
-    // The TONIC chord for the current voicing: chord memory has no chord until a key
-    // is pressed, so this is what makes the voicing control show its effect early.
-    const chordPcs = new Set<number>();
-    if (active && voicing > 0) {
-      for (const n of diatonicChord(60, rootPc, scaleIdx, chordDegrees(voicing))) {
-        chordPcs.add(n % 12);
-      }
-    }
-    keyMap.paint({ root: rootPc, tones, chord: chordPcs });
+    keyMap.paint(state);
     // Chord memory has two ways of being inert, and a silent control is exactly what
     // the hint exists to prevent — name whichever one applies (chord-tools.md REQ-7/8).
     if (!active) {
       hint.textContent = 'Chromatic — notes play exactly as written. '
         + 'Choose a scale to quantize every note and unlock the chord tools.';
     } else if (voicing === 0) {
-      hint.textContent = `Every note snaps into ${NOTE_LABELS[Math.round(bus.get('scale.root'))]} `
+      hint.textContent = `Every note snaps into ${NOTE_LABELS[state.root]} `
         + `${SCALE_LABELS[Math.round(bus.get('scale.type'))]}. Stored notes are never rewritten.`;
     } else if (mono) {
       hint.textContent = `Chord memory is off while VOICE is mono — `
@@ -107,9 +96,10 @@ export function buildKeyPanel(bus: ParamBus): HTMLElement {
     // Chord memory needs degrees to stack, and chromatic has none.
     chord.setDisabledLabels(active ? [] : CHORD_LABELS.slice(1));
   };
-  for (const id of ['scale.root', 'scale.type', 'chord.voicing', 'voicing.mode']) {
-    bus.subscribe(id, refresh);
-  }
+  onKeyChange(bus, refresh);
+  // Not one of KEY_PARAMS: mono changes nothing about the picture, only what the hint
+  // has to say about why chord memory is silent.
+  bus.subscribe('voicing.mode', refresh);
 
   root.appendChild(body);
   return root;
@@ -134,7 +124,7 @@ const ROLE_TEXT: Record<string, string> = {
  * No listeners are attached anywhere: this is a readout, and the app's real keyboard
  * is always on screen (see the spec's gesture inventory).
  */
-function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: MapState) => void } {
+function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: KeyState) => void } {
   const el = document.createElement('div');
   el.className = map.map!;
   el.dataset.testid = 'key-map';
@@ -167,7 +157,9 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: MapSt
   const legend = document.createElement('div');
   legend.className = map.legend!;
   legend.dataset.testid = 'key-legend';
-  const legendItems = (['root', 'chord', 'scale'] as const).map((role) => {
+  // Dropdown order, not precedence order: the legend sits directly under Root / Scale /
+  // Chord memory and a reader pairs them positionally (REQ-9).
+  const legendItems = (['root', 'scale', 'chord'] as const).map((role) => {
     const item = document.createElement('span');
     item.className = map.legendItem!;
     const sw = document.createElement('i');
@@ -179,15 +171,12 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: MapSt
     return { role, item };
   });
 
-  function paint(s: MapState): void {
+  function paint(s: KeyState): void {
     for (const [semi, k] of keys) {
       const pc = semi % 12;
-      // Falling precedence, so the root still reads as the root even though it is
-      // also a chord tone and a scale tone.
-      const role = pc === s.root ? 'root'
-        : s.chord.has(pc) ? 'chord'
-        : s.tones.has(pc) ? 'scale'
-        : 'out';
+      // Falling precedence — resolved by `key-roles`, so this map and the playable
+      // keyboard cannot disagree about which note is the root.
+      const role = keyRole(pc, s);
       k.el.dataset.role = role;
       k.label.textContent = role === 'root' ? NOTE_LABELS[pc]! : '';
       k.el.title = `${NOTE_LABELS[pc]} — ${ROLE_TEXT[role]}`;
@@ -200,8 +189,6 @@ function buildKeyMap(): { el: HTMLElement; legend: HTMLElement; paint: (s: MapSt
 
   return { el, legend, paint };
 }
-
-interface MapState { root: number; tones: Set<number>; chord: Set<number> }
 
 function group(label: string, inner: HTMLElement): HTMLElement {
   const g = document.createElement('div');

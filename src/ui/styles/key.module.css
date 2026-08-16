@@ -67,8 +67,8 @@
 /* Out of scale: present and legible, but clearly inert. */
 .white,
 .black {
-  border: 1px solid #4a3d2e;
-  background: #2a241d;
+  border: 1px solid var(--key-role-out-edge);
+  background: var(--key-role-out);
   transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
@@ -92,7 +92,7 @@
      between. */
   width: calc(100% / 14 * 0.62);
   z-index: 1;
-  background: #16120e;
+  background: var(--key-role-out-black);
   border-radius: 0 0 3px 3px;
   transform: translateX(-50%);
 }
@@ -107,29 +107,35 @@
    module and style the whole app.
 
    Solid colours, not alpha washes: four states need four *predictable* steps, and a
-   translucent fill composites against whatever is behind it. `out` is the base above. */
+   translucent fill composites against whatever is behind it. `out` is the base above.
+   (The playable keyboard makes the opposite call for the same palette — it washes, so
+   the ivory shows through — because there the key face is load-bearing for playing it.
+   scale-quantization.md REQ-10.)
 
-.white[data-role='scale'] { background: #7a4a24; border-color: #96602f; }
-.black[data-role='scale'] { background: #4a2a13; border-color: #7a4a24; }
+   The colours themselves are `--key-role-*` in theme.css: this map and the playable
+   keyboard are two surfaces on ONE palette, and neither owns it. */
+
+.white[data-role='scale'] { background: var(--key-role-scale); border-color: var(--key-role-scale-edge); }
+.black[data-role='scale'] { background: var(--key-role-scale-black); border-color: var(--key-role-scale); }
 
 .white[data-role='chord'] {
-  background: var(--accent-secondary);
-  border-color: var(--accent-secondary);
+  background: var(--key-role-chord);
+  border-color: var(--key-role-chord);
   box-shadow: 0 0 6px var(--accent-secondary-glow);
 }
-.black[data-role='chord'] { background: #b8912f; border-color: var(--accent-secondary); }
+.black[data-role='chord'] { background: var(--key-role-chord-black); border-color: var(--key-role-chord); }
 
 .white[data-role='root'] {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--key-role-root);
+  border-color: var(--key-role-root);
   box-shadow: 0 0 8px var(--accent-glow);
 }
-.black[data-role='root'] { background: #b4501a; border-color: var(--accent); }
+.black[data-role='root'] { background: var(--key-role-root-black); border-color: var(--key-role-root); }
 
 /* Legend swatches wear the same four steps, at white-key weight. */
-.swatch[data-role='scale'] { background: #7a4a24; border-color: #96602f; }
-.swatch[data-role='chord'] { background: var(--accent-secondary); border-color: var(--accent-secondary); }
-.swatch[data-role='root'] { background: var(--accent); border-color: var(--accent); }
+.swatch[data-role='scale'] { background: var(--key-role-scale); border-color: var(--key-role-scale-edge); }
+.swatch[data-role='chord'] { background: var(--key-role-chord); border-color: var(--key-role-chord); }
+.swatch[data-role='root'] { background: var(--key-role-root); border-color: var(--key-role-root); }
 
 /* The root's letter, so the map is readable without hovering. Sans, not serif:
    it is a readout, not a faceplate legend (typography.md). */
@@ -166,6 +172,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* A legend entry for a colour nothing is currently wearing leaves the layout. There is
+   no global `.hidden { display: none }` in this app (see modal.module.css), so the
+   class the painter toggles needs a rule here or the hide is a no-op — which is exactly
+   what it was. scale-quantization.md REQ-9. */
+.legendItem:global(.hidden) {
+  display: none;
 }
 
 .swatch {

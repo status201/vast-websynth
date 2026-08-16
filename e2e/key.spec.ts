@@ -57,6 +57,34 @@ test.describe('key & chord tools', () => {
     expect(new Set([root, chord, scale, out]).size).toBe(4);
   });
 
+  test('the playable keyboard wears the key, and only while one is set', async ({ page }) => {
+    // scale-quantization.md REQ-10. The roles themselves are unit tested; what only an
+    // E2E can show is that the real app wires the KEY tab's dropdowns through to the
+    // keyboard at the bottom of the screen — two surfaces that never touch in a unit test.
+    await gotoAndStart(page);
+    const roles = (role: string) =>
+      page.getByTestId('keyboard').locator(`[data-role="${role}"]`);
+
+    await expect(roles('root')).toHaveCount(0); // chromatic: the keyboard is untouched
+    await expect(roles('scale')).toHaveCount(0);
+
+    await page.getByTestId('tab-key').click();
+    await choose(page, 'key-scale', 'major');
+
+    // C3-B5 is drawn on a desktop viewport: three C's, and D E F G A B in each octave.
+    await expect(roles('root')).toHaveCount(3);
+    await expect(roles('scale')).toHaveCount(18);
+    await expect(roles('chord')).toHaveCount(0);   // no voicing chosen yet
+
+    await choose(page, 'key-chord', 'triad');
+    await expect(roles('chord')).toHaveCount(6);   // E and G, three octaves each
+    await expect(roles('root')).toHaveCount(3);    // the root still outranks them
+    await expect(roles('scale')).toHaveCount(12);
+
+    await choose(page, 'key-scale', 'chromatic');
+    await expect(page.getByTestId('keyboard').locator('[data-role]')).toHaveCount(0);
+  });
+
   test('both info badges resolve their anchors and open (onboarding REQ-20)', async ({ page }) => {
     // The unit test pins the copy; only this pins that the anchors actually resolve —
     // a typo'd testid in ANCHORS silently drops the badge and nothing else notices.

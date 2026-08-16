@@ -643,6 +643,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>The keyboard picture is the map: <strong>orange</strong> is the root, ' +
       '<strong>yellow</strong> the notes of the chord, <strong>brown</strong> the rest of the ' +
       'scale, and dark keys are the notes now out of play.</p>' +
+      '<p>Once you pick a scale, the <strong>keyboard at the bottom of the screen</strong> ' +
+      'wears those same colours, faintly — so you can see the key under your fingers while ' +
+      'you play, without coming back to this tab.</p>' +
       '<ul><li><strong>Scale</strong> — <em>chromatic</em> means "leave everything alone", so ' +
       'nothing changes until you choose a real scale.</li>' +
       '<li><strong>Chord memory</strong> — one held key sounds a whole chord from the scale, ' +

@@ -25,6 +25,25 @@
   --key-white-active: linear-gradient(180deg, #f4b56a 0%, #d4602a 100%);
   --key-black: linear-gradient(180deg, #1a0e08 0%, #050302 100%);
   --key-black-active: linear-gradient(180deg, #d4502a 0%, #8a2810 100%);
+  /* Musical roles in the current key — read by BOTH key pictures: the KEY tab's map
+     (key.module.css, solid fills) and the playable keyboard (keyboard.module.css, a
+     bottom-weighted wash). One palette so the two cannot drift into two colour codes
+     for one idea. Falling precedence root > chord > scale > out.
+     The `-black` variants are each role darkened for a dark key BODY, which is the
+     map's black keys filling solid. The playable keyboard's black keys do not use them:
+     it washes rather than fills, and a darkened colour over a near-black key composites
+     to nothing — it takes the light end of each pair instead.
+     → specs/features/scale-quantization.md REQ-9 / REQ-10. */
+  --key-role-root: var(--accent);
+  --key-role-root-black: #b4501a;
+  --key-role-chord: var(--accent-secondary);
+  --key-role-chord-black: #b8912f;
+  --key-role-scale: #7a4a24;
+  --key-role-scale-edge: #96602f;
+  --key-role-scale-black: #4a2a13;
+  --key-role-out: #2a241d;
+  --key-role-out-edge: #4a3d2e;
+  --key-role-out-black: #16120e;
   --knob-bg: radial-gradient(circle at 35% 30%, #3a342c 0%, #1a1410 70%, #050302 100%);
   --knob-ring: rgba(244, 205, 94, 0.12);
   --wood: linear-gradient(180deg, #4a2d18 0%, #6b3e1f 30%, #3a2010 70%, #2a1808 100%);

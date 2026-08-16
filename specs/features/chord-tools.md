@@ -77,7 +77,10 @@ cheapest implementation and the most musical one.
   provably cannot fight. `chord.voicing` index **0 is `off`**, the no-op default
   ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)); the off-switch is folded
   into the param rather than carried as a separate `chord.on`, following the
-  `LFO_DEST_LABELS` idiom.
+  `LFO_DEST_LABELS` idiom. The current voicing's **tonic** chord is what both key
+  pictures preview in yellow — the KEY tab's map and, since v3 there, the playable
+  keyboard ([scale-quantization](scale-quantization.md) REQ-9 and REQ-10) — because
+  chord memory has no chord of its own until a key is held.
 
 - **REQ-6** (chord memory reaches the arp) — the arp is driven by `bus.onNote` and does
   **not** route through the engine's passthrough ([arpeggiator](arpeggiator.md) REQ-1),

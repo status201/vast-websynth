@@ -3,7 +3,10 @@
 ```yaml
 id: input-control
 status: implemented
-version: 13  # v13: the note maps are composed from a positional shape + the
+version: 14  # v14: the keyboard carries a third highlight layer — static musical
+             #      roles, written as an attribute, outranked by the lit classes
+             #      (REQ-14; the behaviour itself is scale-quantization.md REQ-10)
+             # v13: the note maps are composed from a positional shape + the
              #      active keyboard layout, switchable at runtime (REQ-3/REQ-13)
              # v12: pitch bend matches e.code (Quote/Slash), not e.key — fixes
              #      dead keys, non-US layouts and a stuck bend on Shift-mid-hold
@@ -22,7 +25,9 @@ related:
   - sequencer
   - onboarding
   - keyboard-layout
+  - scale-quantization
 source:
+  - src/ui/key-roles.ts
   - src/ui/components/keyboard.ts
   - src/ui/shortcuts.ts
   - src/ui/ui-bridge.ts
@@ -217,6 +222,27 @@ notes played on another tab no longer overwrite its bank.
     `e.code` could not be wrong — is recorded as
     [keyboard-layout](keyboard-layout.md) REQ-6, not re-argued here.
 
+- **REQ-14** (v14) — **A third highlight layer, and it is not a lit key.**
+  `Keyboard.setKeyRoles(state | null)` marks each key with the musical role its pitch
+  class plays in the current key ([scale-quantization](scale-quantization.md) REQ-10,
+  which owns *what* the roles mean). It is a different kind of state from the two that
+  came before, and the difference is what keeps it safe:
+  - **Static, not evented.** `active` and `seq` are transient and refcounted, so they
+    must remember the element they lit (REQ-10). A role is a *standing* property of a
+    pitch class that changes only when the user changes the key, so it is written to
+    every key at once and needs no bookkeeping to unwind.
+  - **An attribute, never `setLit`.** Roles go to `data-role`; the lit states stay the
+    global `active` / `seq` classes. Routing a third state through `setLit` would put
+    it in the same refcounted maps as the two whose element-remembering REQ-10 and
+    REQ-11 pin, where a full-keyboard sweep could strand a held note's light. Separate
+    channels cannot interfere; the same reason `litActive` and `litSeq` are two maps
+    and not one.
+  - **Pitch class, so OCT is free.** `keyFor` shifts by whole octaves and pitch class
+    survives that, so unlike everything else in REQ-10 a role needs no de-transposing
+    and no repaint when `keyboard.transpose` moves.
+  - **The lit classes win.** A key that is pressed or sequenced shows that, and its
+    role tint steps aside — enforced in CSS, so no JS ordering can get it wrong.
+
 ## Technical design
 
 ### Contract / public interface
@@ -273,7 +299,11 @@ on-screen keyboard: src/ui/components/keyboard.ts -> bus.noteOn/noteOff directly
   litActive / litSeq: Map<note, {el, count}>       # v9 — refcounted, cleared by
     clearSeqHighlights() (litSeq only; its sole caller is clock.onStop in app.ts)
   activeByPointer: Map<pointerId, {key, sounding}> # v9, REQ-11 — release `sounding`
+  setKeyRoles(state|null): el.dataset.role per key # v14, REQ-14 — no map, no refcount,
+    keyed by (midi % 12); null clears. Guarded: skips a write already in place.
 app.ts wiring: bridge.pressKey/releaseKey -> keyboard.highlight(note, true/false)
+  onKeyChange(bus, ...) -> keyboard.setKeyRoles(...)  # v14 — src/ui/key-roles.ts owns
+    the vocabulary; the component takes a state object and stays free of music theory
 arp/seq ownership: when passthroughSuppressed, the engine gates raw note passthrough
 ```
 
@@ -311,6 +341,13 @@ Scenario: Two tracks on the same note do not dim each other (v9, edge)
   Given two sequencer tracks sound the same note with different gates
   When the shorter one releases
   Then the key stays lit until the longer one releases too
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: A role does not disturb a lit key (v14, REQ-14)
+  Given a key is lit by the sequencer and carries an in-scale role
+  When the key is re-roled by a change of scale, and then the light-off falls due
+  Then the light-off still clears the element it lit
+  And the key keeps whichever role it now has
 # pinned by: tests/ui/keyboard.test.ts
 
 Scenario: Moving OCT while a key is held does not hang the voice (v9, REQ-11)
@@ -433,7 +470,8 @@ Scenario: Typing in a text field does not play notes
 - `e2e/controls.spec.ts`, `e2e/smoke.spec.ts` (input drives the engine; assert via
   `window.__synth.bus`).
 - `e2e/patterns.spec.ts` (one key = one Step-Input step, the no-double-trigger
-  regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only).
+  regression); `tests/ui/keyboard.test.ts` (`keyboard.highlight` is visual-only, and
+  v14: `setKeyRoles` writes roles without touching the lit maps).
 - `tests/audio/midi.test.ts` (the byte-level dispatch: the CC map, the vel-0
   note-off, System Real-Time / Song Position routing ahead of the channel mask,
   and REQ-7's sole ownership of `onmidimessage`, driven through `initMIDI`

@@ -84,3 +84,56 @@
     inset 0 2px 4px rgba(244, 205, 94, 0.45),
     0 0 12px rgba(244, 205, 94, 0.6);
 }
+
+/* ---- the current key, worn by the keys you actually play ----
+   scale-quantization.md REQ-10. Roles arrive as `data-role`, written by
+   `Keyboard.setKeyRoles` from the same resolver and the same `--key-role-*` palette the
+   KEY tab's map uses. Absent while chromatic, so the default keyboard is untouched.
+
+   A WASH, not a repaint: unlike the map's stylised panel tones, these are literal ivory
+   and black keys and the faces are load-bearing for playing them. So the colour
+   composites over the gradient from a layer rather than replacing `background` — which
+   also leaves the multi-layer `box-shadow` above intact, instead of six rules restating
+   it. No `[data-role='out']` rule: an out-of-scale key still sounds (quantized), so
+   dimming it would claim otherwise. */
+
+.key {
+  /* Contains the z-index:-1 layer below. `.black` already makes a stacking context via
+     z-index:2; without this a white key's wash would fall behind `.root`'s background. */
+  isolation: isolate;
+}
+
+/* Weighted to the BOTTOM of the key, not spread flat over it. Two reasons: in a key
+   like C major every white key is in-scale, and a flat wash there simply repaints the
+   whole ivory row — the marking stops distinguishing anything. And the bottom third is
+   both the part of a white key that is never behind a black one, and where the eye
+   already is while playing. */
+.key::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;          /* each key type keeps its own corner radius */
+  z-index: -1;                     /* over the key gradient, under the C label */
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 32%, var(--key-role-fill, transparent) 100%);
+  opacity: 0;
+}
+
+.white[data-role='root'] { --key-role-fill: var(--key-role-root); }
+.white[data-role='chord'] { --key-role-fill: var(--key-role-chord); }
+.white[data-role='scale'] { --key-role-fill: var(--key-role-scale); }
+.black[data-role='root'] { --key-role-fill: var(--key-role-root); }
+.black[data-role='chord'] { --key-role-fill: var(--key-role-chord); }
+.black[data-role='scale'] { --key-role-fill: var(--key-role-scale-edge); }
+
+.white[data-role]::before { opacity: 0.55; }
+/* Blacks are near-black already, so the same alpha reads as nothing on them — and they
+   take the lighter end of each pair above for the same reason. */
+.black[data-role]::before { opacity: 0.85; }
+
+/* What a key is DOING outranks what it IS: while pressed or sequenced the tint steps
+   aside, so the lit state is never in competition with it. */
+.key:global(.active)::before,
+.key:global(.seq)::before {
+  opacity: 0;
+}

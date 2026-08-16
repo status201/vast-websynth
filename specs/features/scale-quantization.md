@@ -3,7 +3,10 @@
 ```yaml
 id: scale-quantization
 status: implemented
-version: 2   # v2: the KEY tab draws a two-octave keyboard map of the current
+version: 3   # v3: the playable keyboard wears the key too — same roles, same
+             #     palette, one resolver shared with the map (REQ-10); and the
+             #     map's legend lists its states in dropdown order (REQ-9)
+             # v2: the KEY tab draws a two-octave keyboard map of the current
              #     root, scale and chord (REQ-9)
 owner: core
 related:
@@ -12,6 +15,7 @@ related:
   - arpeggiator
   - voicing
   - chord-tools
+  - input-control
   - runtime-performance
 source:
   - src/utils/music.ts                        # pure theory: scale tables, quantize table, chords
@@ -20,7 +24,9 @@ source:
   - src/audio/transport/arpeggiator.ts        # trigger site 2 (the pool)
   - src/audio/engine.ts                       # trigger site 3 (keyboard/MIDI passthrough)
   - src/state/params.ts
-  - src/ui/panels/key-panel.ts
+  - src/ui/key-roles.ts                       # the one role resolver, shared by both surfaces
+  - src/ui/panels/key-panel.ts                # surface 1 — the KEY tab map
+  - src/ui/components/keyboard.ts             # surface 2 — the playable keyboard
 ```
 
 A global key + scale that every pitched note passes through on its way to a voice,
@@ -148,6 +154,12 @@ no allocation on the tick path).
   inventory below). A legend names the three lit states, and each key carries its note
   name and role as a `title`, so the colour code needs no memorising.
 
+  The legend lists those states **in the order of the dropdowns that set them** —
+  *root · in scale · chord* against *Root · Scale · Chord memory* — because the legend
+  sits directly under the same controls and a reader pairs them positionally. And an
+  entry for a colour nothing is currently wearing is **removed from the layout**, not
+  merely marked: the hide has to change what is on screen, or it is not a hide.
+
   **Layout** — the tab reads left to right as *keyboard → root → scale → chord memory →
   hint*: the picture first, then the three controls that set it, then the sentence that
   says what they add up to. On a wide panel that is one vertically centred row. It
@@ -157,6 +169,44 @@ no allocation on the tick path).
   the DOM order is the one thing wrapping cannot preserve, and it desynchronises
   keyboard and screen-reader traversal from what is on screen. The three dropdowns
   share a wrapper so they travel as one unit rather than splitting across rows.
+
+- **REQ-10** (the key is shown where you play it, v3) — the **playable keyboard**
+  ([input-control](input-control.md)) carries the same roles as the map, so the key is
+  legible from where the fingers already are instead of only on a tab the user has to
+  leave the performance to open ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
+  law 5: state is visible, not remembered).
+
+  Same **roles**, same **precedence**, same **palette** as REQ-9 — resolved by one
+  shared module, `src/ui/key-roles.ts`, and coloured from one shared set of
+  `--key-role-*` tokens. Neither surface owns the vocabulary, so they cannot drift
+  apart into two colour codes for one idea.
+
+  Four things make it an *annotation* rather than a second map, and each is a decision:
+
+  - **It is a wash, not a repaint.** The playable keyboard is a literal piano — ivory
+    and black, unlike the map's muted panel tones (REQ-9) — and those key faces are
+    load-bearing for playing it. So the role colour composites *over* the key at low
+    alpha instead of replacing it.
+  - **Only while a scale is active.** While `chromatic` the keyboard is exactly what it
+    was before this feature, untinted. That is the opposite of the map, which lights
+    everything — and deliberately so: the map's job is to *teach* that chromatic admits
+    all twelve, while the keyboard's job is to mark a restriction, and "all twelve are
+    special" marks nothing. It also keeps the app's default appearance unchanged, the
+    UI reading of [ADR-006](../decisions/adr-006-no-op-param-defaults.md).
+  - **Out-of-scale keys are left alone**, where the map draws an explicit *out of scale*
+    state. On the keyboard they are not out of play: an out-of-scale key still sounds,
+    quantized onto the nearest tone (REQ-2). Dimming them would claim otherwise.
+  - **Pressed beats annotated.** The `.active` (finger / computer key) and `.seq`
+    (sequencer playback) states outrank the tint and suppress it, so what a key is
+    *doing* is never in competition with what it *is*.
+
+  **Cost** — it is keyed by pitch class, and `keyboard.transpose` moves in whole
+  octaves, so an element's own pitch class is always its sounding pitch class: an OCT
+  change triggers **no repaint at all**. A repaint is at most 36 attribute writes (24
+  on a phone), each guarded against writing the value already there
+  ([runtime-performance](runtime-performance.md) REQ-7), and only ever on a
+  `scale.root` / `scale.type` / `chord.voicing` change — a user-gesture path, never a
+  per-frame or per-tick one.
 
 ## Technical design
 
@@ -175,7 +225,24 @@ src/audio/transport/scale-quantizer.ts:
     setRoot(r) / setScale(i)   # rebuild the table (invalidation point)
     get(note): number          # the hot path — one index, or an early return
     active: boolean            # false while chromatic; UI reads it to gate chord tools
+
+src/ui/key-roles.ts:           # UI-only, pure; the one owner of the role vocabulary
+  KeyRole: 'root' | 'chord' | 'scale' | 'out'
+  KeyState: { root, tones, chord, active }   # all pitch classes; see below
+  KEY_PARAMS: readonly ParamId[]             # scale.root, scale.type, chord.voicing
+  readKeyState(bus): KeyState                # reads the three params, derives the sets
+  keyRole(pc, state): KeyRole                # falling precedence root > chord > scale
+  onKeyChange(bus, fn): void                 # subscribes KEY_PARAMS; fires immediately
+
+src/ui/components/keyboard.ts:
+  Keyboard.setKeyRoles(state | null): void   # null clears; see REQ-10 and
+                                             #   input-control.md REQ-14
 ```
+
+`KeyState` is derived, never stored: `tones` is every pitch class while chromatic (so
+the map lights everything, REQ-9) and `active` is the flag that tells the *keyboard*
+to show nothing in that same case (REQ-10). `chord` holds the **tonic** chord of the
+current `chord.voicing` ([chord-tools](chord-tools.md) REQ-1), empty when it is off.
 
 ### Data shapes (registry)
 
@@ -216,7 +283,16 @@ trigger sites:
   arpeggiator.fire:     quantizer.get(n + o * 12)     # after octave stacking
   engine bus.onNote:    quantizer.get(note) -> heldIn.set(raw, played)
 ui: src/ui/panels/key-panel.ts (the KEY tab); src/ui/panels/seq-panel.ts (SNAP)
+ui roles (REQ-10), both fed by src/ui/key-roles.ts and never by each other:
+  key-panel.ts:  onKeyChange -> readKeyState -> keyMap.paint(state)      # always paints
+  app.ts:        onKeyChange -> readKeyState -> keyboard.setKeyRoles(
+                   state.active ? state : null)                          # null = chromatic
 ```
+
+The keyboard is wired in `app.ts` rather than inside `Keyboard` so the component keeps
+taking only a `ParamBus` and stays ignorant of music theory — the same split as the
+Engine's trigger sites, and the reason `key-roles.ts` sits in `ui/` next to its two
+consumers instead of in `utils/music.ts`, which is pure theory with no `ParamBus`.
 
 ### Persistence
 
@@ -322,6 +398,47 @@ Scenario: The map cannot be played (v2, REQ-9, gesture inventory)
   Then no note sounds and nothing is selected
 # pinned by: tests/ui/key-panel.test.ts
 
+Scenario: The legend reads in the order of the dropdowns (v3, REQ-9, regression)
+  Given the KEY tab, whose dropdowns read Root, Scale, Chord memory
+  Then the legend under the map reads root, in scale, chord — in that order
+# pinned by: tests/ui/key-panel.test.ts
+
+Scenario: A legend entry nothing is wearing leaves the layout (v3, REQ-9, regression)
+  Given a scale is chosen and chord.voicing is off, so no key is a chord tone
+  Then the chord legend entry is not rendered, not merely marked hidden
+# pinned by: tests/ui/key-panel.test.ts
+
+Scenario: The playable keyboard wears the key (v3, REQ-10)
+  Given scale.root is C and scale.type is major
+  Then every C key on the playable keyboard reads as the root
+  And D E F G A B read as in scale in every drawn octave
+  And C# D# F# G# A# carry no role at all
+# pinned by: tests/ui/keyboard.test.ts, e2e/key.spec.ts
+
+Scenario: Chromatic leaves the playable keyboard untouched (v3, REQ-10)
+  Given a scale is chosen and the keyboard is showing it
+  When scale.type returns to chromatic
+  Then no key on the playable keyboard carries a role
+# pinned by: tests/ui/keyboard.test.ts, e2e/key.spec.ts
+
+Scenario: The root outranks its other roles on the keyboard too (v3, REQ-10)
+  Given scale.root is C, scale.type is major and chord.voicing is a triad
+  Then C reads as the root, E and G read as chord tones, and D F A B as in scale
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: An OCT change does not repaint the roles (v3, REQ-10, cost)
+  Given the keyboard is showing C major
+  When keyboard.transpose moves by an octave
+  Then every key carries exactly the role it carried before
+# pinned by: tests/ui/keyboard.test.ts
+
+Scenario: A pressed key is not in competition with its tint (v3, REQ-10)
+  Given a key that reads as in scale
+  When it is pressed, or the sequencer plays it
+  Then the lit state is what shows, and the tint gets out of its way
+# pinned by: tests/ui/keyboard.test.ts (the classes coexist); the suppression itself is
+#   CSS, checked by eye per "Tests & verification" below
+
 Scenario: An old song loads with no scale keys and is unchanged (REQ-1, back-compat)
   Given a committed demo saved before this feature
   When it is loaded
@@ -334,8 +451,18 @@ Scenario: An old song loads with no scale keys and is unchanged (REQ-1, back-com
 - Unit: `tests/utils/music.test.ts`, `tests/audio/transport/sequencer.test.ts`,
   `tests/audio/transport/arpeggiator.test.ts`, `tests/audio/engine-scale.test.ts`,
   `tests/state/patterns-scale.test.ts` — `npm test`
+- Unit (v3, the two role surfaces): `tests/ui/key-roles.test.ts` (the resolver),
+  `tests/ui/key-panel.test.ts` (the map + the legend), `tests/ui/keyboard.test.ts`
+  (`setKeyRoles`, and that it does not disturb the lit bookkeeping)
 - E2E: `e2e/key.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
+- **By eye** (v3, REQ-10) — the wash is a *look*, and no assertion can tell you whether
+  it is subtle enough to live under your hands all day. The same argument
+  [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) makes for sound applies to
+  pixels here: what a test can pin is the role on the element, not whether the colour
+  reads. Run `npm run dev` and check, at minimum, that in-scale **black** keys are
+  legible (they are the hard case, being dark already), and that a pressed key still
+  reads unmistakably as pressed against a tinted neighbour.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),
   [verify-audio-by-ear](../recipes/verify-audio-by-ear.md)) — this changes *pitch*, so a
   green suite proves nothing about whether it is musical. Render with `npm run

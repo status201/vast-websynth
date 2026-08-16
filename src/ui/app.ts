@@ -25,6 +25,7 @@ import {
   readScopeHeight, writeScopeHeight,
 } from '../state/scope-height';
 import { Keyboard } from './components/keyboard';
+import { onKeyChange, readKeyState } from './key-roles';
 import { TabContainer } from './components/tabs';
 import {
   ARP_TAB, KEY_TAB, MACHINE_IDS, MACHINE_TAB,
@@ -853,6 +854,15 @@ function buildBottom(
   // not also touch the bus or a single key double-fires. See input-control.md REQ-2.
   bridge.pressKey = (n) => keyboard.highlight(n, true);
   bridge.releaseKey = (n) => keyboard.highlight(n, false);
+
+  // Wear the current key, so which notes are in play is legible from where the fingers
+  // already are rather than only on the KEY tab (scale-quantization.md REQ-10). Wired
+  // here, not inside Keyboard, so the component stays free of music theory. Chromatic
+  // passes `null`: a restriction that restricts nothing is not worth drawing.
+  onKeyChange(bus, () => {
+    const state = readKeyState(bus);
+    keyboard.setKeyRoles(state.active ? state : null);
+  });
 
   // Light up the on-screen keys in time with the sequencer. The clock
   // schedules ~100 ms ahead, so defer each highlight to its audible moment.

@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { buildKeyPanel } from '../../src/ui/panels/key-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
@@ -209,6 +211,17 @@ describe('KEY panel — keyboard map', () => {
     for (const k of labelled) expect(k.textContent).toBe('A');
   });
 
+  it('lists the legend in the order of the dropdowns (REQ-9, regression)', () => {
+    // The legend sits directly under Root / Scale / Chord memory and a reader pairs
+    // them positionally, so it follows dropdown order — not the precedence order the
+    // painter resolves in. It used to read root, chord, in scale.
+    const { el } = build();
+    const roles = [...byId(el, 'key-legend').querySelectorAll<HTMLElement>('[data-role]')]
+      .map((sw) => sw.dataset.role!);
+    expect(roles).toEqual(['root', 'scale', 'chord']);
+    expect(byId(el, 'key-legend').textContent).toBe('rootin scalechord');
+  });
+
   it('hides the chord legend entry while no key wears that colour', () => {
     const { bus, el } = build();
     const chordSwatch = byId(el, 'key-legend').querySelector('[data-role="chord"]')!;
@@ -216,6 +229,23 @@ describe('KEY panel — keyboard map', () => {
     bus.set('scale.type', MAJOR);
     bus.set('chord.voicing', TRIAD);
     expect(chordSwatch.parentElement!.classList.contains('hidden')).toBe(false);
+  });
+
+  it('backs that hide with a rule, so it leaves the layout (REQ-9, regression)', () => {
+    // The painter toggles a `hidden` class, but this app has no global
+    // `.hidden { display: none }` (see modal.module.css) — so without a rule in the
+    // module the hide changed nothing on screen, and the test above passed anyway.
+    // Only the stylesheet can catch that, the same shape as `overlay-cost.test.ts`.
+    // Resolved from the vitest root, not `import.meta.url`: this file runs in jsdom,
+    // where the module URL is an http: one and `fileURLToPath` throws.
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/ui/styles/key.module.css'),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .find(([, sel]) => /\.legendItem\b/.test(sel!) && /\bhidden\b/.test(sel!));
+    expect(rule, 'key.module.css declares no rule for a hidden legend item').toBeTruthy();
+    expect(rule![2]!.replace(/\s/g, '')).toContain('display:none');
   });
 
   it('cannot be played — the map carries no handlers and no tab stop', () => {

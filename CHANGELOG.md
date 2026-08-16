@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The keyboard shows you the key you are in.** Pick a root and a scale on the
+  **Key** tab and the keyboard at the bottom of the screen picks up the same
+  colours the little map there uses — orange for the root, yellow for the notes
+  of the chord, brown for the rest of the scale — as a faint tint along the
+  bottom of each key. It is there while you play, so live arpeggios and hunting
+  for a riff no longer mean remembering which seven notes of twelve are in play
+  or leaving the performance to go and look. Out-of-scale keys are left plain
+  rather than dimmed: they still sound, snapped to the nearest note of the key.
+  A key you are actually pressing lights up as it always did, and the tint gets
+  out of its way. Nothing shows while the scale is **chromatic**, so the
+  keyboard looks exactly as it always has until you choose a key.
+
 - **Sidechain ducking — the pump that dance music is built on.** A new **Duck**
   effect closes the synth FX chain, pulling the channel down out of the way each
   time a drum hits and letting it swell back. Four controls: **AMT** how far it
@@ -74,6 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   or a song, so loading someone else's work never rearranges your screen.
 
 ### Fixed
+
+- **The Key tab's colour legend reads in the order of the controls above it.** It
+  listed root, chord, in scale while the dropdowns beside it read Root, Scale,
+  Chord memory, so the two had to be matched up by hand. And the legend's chord
+  entry, which is meant to disappear while no key is wearing that colour, never
+  actually went away.
 
 - **Clearing a sampler slot now actually empties it.** The Sampler tab's
   `Clear ▾` menu names the item after the file in the slot — "Clear kick.wav" —

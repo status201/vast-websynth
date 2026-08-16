@@ -1,4 +1,5 @@
 import styles from '../styles/keyboard.module.css';
+import { type KeyState, keyRole } from '../key-roles';
 import type { ParamBus } from '../../state/params';
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];          // C D E F G A B
@@ -215,6 +216,34 @@ export class Keyboard {
   clearSeqHighlights(): void {
     for (const { el } of this.litSeq.values()) el.classList.remove('seq');
     this.litSeq.clear();
+  }
+
+  /**
+   * Mark every key with the musical role its pitch class plays in the current key —
+   * the third highlight layer, and the only *static* one (input-control.md REQ-14,
+   * scale-quantization.md REQ-10). `null` clears, which is what chromatic gets.
+   *
+   * Deliberately **not** routed through `setLit`: the two lit states are transient and
+   * refcounted and must remember the element they lit (REQ-10/REQ-11), while a role is
+   * a standing property that is rewritten wholesale. Separate channels — an attribute
+   * here, classes there — so a sweep of the board can never strand a held note's light.
+   *
+   * Keyed by the element's own pitch class, and `_transpose` moves in whole octaves, so
+   * that IS its sounding pitch class: an OCT change needs no repaint at all.
+   */
+  setKeyRoles(state: KeyState | null): void {
+    for (const [midi, el] of this.keys) {
+      const role = state ? keyRole(midi % 12, state) : 'out';
+      // `out` is written as *no* attribute, where the KEY tab's map draws it as a
+      // fourth state. On a keyboard you can press, an out-of-scale key is not out of
+      // play — it still sounds, quantized onto the nearest tone — so marking it would
+      // claim otherwise (REQ-10).
+      const next = role === 'out' ? '' : role;
+      // Guard each write on what is already rendered (runtime-performance.md REQ-7).
+      if ((el.dataset.role ?? '') === next) continue;
+      if (next) el.dataset.role = next;
+      else delete el.dataset.role;
+    }
   }
 }
 
