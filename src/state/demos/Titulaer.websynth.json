@@ -130,10 +130,10 @@
     "fx.master.comp.attack": 0.01,
     "fx.master.comp.release": 4,
     "fx.master.comp.makeup": 0,
-    "master.volume": 0.79,
+    "master.volume": 0.98,
     "master.pitchBend": 0,
     "master.modWheel": 0,
-    "keyboard.transpose": 0,
+    "keyboard.transpose": -1,
     "transport.bpm": 122,
     "transport.swing": 0,
     "arp.on": 0,
@@ -4845,7 +4845,7 @@
     null
   ],
   "xy": {
-    "x": "osc2.wave",
+    "x": "seq.t3.mute",
     "y": "osc2.octave"
   },
   "motionBanks": [
