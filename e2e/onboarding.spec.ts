@@ -324,7 +324,7 @@ test('the tour showcases the Song tab and ends there, ready to play', async ({ p
   await expect(page.getByTestId('perf-stutter')).toBeVisible();
 });
 
-test('contextual badges hide when their control scrolls under the sticky header', async ({ page }) => {
+test('contextual badges hide when their control scrolls off either edge', async ({ page }) => {
   await page.addInitScript(() => {
     try {
       localStorage.setItem('websynth.onboarding.done', '1');
@@ -342,18 +342,38 @@ test('contextual badges hide when their control scrolls under the sticky header'
 
   const oscBadge = page.getByTestId('info-badge-oscillators'); // content (OSC 1 panel)
   const voicingBadge = page.getByTestId('info-badge-voicing'); // header control
+  const keysBadge = page.getByTestId('info-badge-keyboard');   // content, page bottom
   await expect(oscBadge).toBeVisible();
   await expect(voicingBadge).toBeVisible();
+  // The other half of the rule (onboarding.md REQ-5b): the keyboard is below the
+  // fold at this height, so its badge is hidden rather than pinned off-screen.
+  await expect(keysBadge).toBeHidden();
 
-  // Scroll the OSC 1 panel up under the sticky header. body is the scroll
-  // container here (html,body { height:100%; overflow-y:auto }), so scroll
-  // every candidate to be robust about which one actually scrolls.
-  await page.evaluate(() => {
+  // body is the scroll container here (html,body { height:100%; overflow-y:auto }),
+  // so scroll every candidate to be robust about which one actually scrolls.
+  const scrollTo = (y: number): Promise<void> => page.evaluate((top) => {
     for (const el of [document.scrollingElement, document.documentElement, document.body]) {
-      if (el) (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
+      if (el) (el as HTMLElement).scrollTop = top;
     }
-  });
+  }, y);
 
-  await expect(oscBadge).toBeHidden(); // content badge hides under the header
-  await expect(voicingBadge).toBeVisible(); // header-control badge stays
+  // Everything up: OSC 1 goes under the header, the keyboard comes into view.
+  await scrollTo(1e6);
+  await expect(oscBadge).toBeHidden();       // content badge hides under the header
+  await expect(voicingBadge).toBeVisible();  // header-control badge stays
+  await expect(keysBadge).toBeVisible();     // and the one below the fold returns
+
+  // The invariant behind it, swept over every badge at both extremes: a shown
+  // badge is a reachable one. Only the bottom edge is swept — every badge lives
+  // in the layer rather than beside its anchor, so the header-side exemption
+  // can't be evaluated from the DOM here; the two assertions above cover it.
+  for (const y of [0, 1e6]) {
+    await scrollTo(y);
+    const strays = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('[data-testid^="info-badge-"]')]
+        .filter((b) => b.dataset.testid !== 'info-badge-layer' && b.style.display !== 'none')
+        .filter((b) => b.getBoundingClientRect().bottom > window.innerHeight)
+        .map((b) => `${b.dataset.testid} @ ${Math.round(b.getBoundingClientRect().top)}`));
+    expect(strays, `badges past the fold at scrollTop ${y}`).toEqual([]);
+  }
 });

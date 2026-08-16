@@ -15,7 +15,7 @@ import { fromNorm } from '../../utils/taper';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor,
-  VisibilityGate, type GatedPanel,
+  VisibilityGate, type ClearRow, type GatedPanel,
 } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
@@ -172,16 +172,20 @@ export function buildMotionPanel(
   // Motion has no selection cursor, so there is no "selected row" to clear.
   // Instead the menu lists every lane that currently holds steps — offering an
   // already-empty lane would be a dead item (ADR-014 law 1).
+  // All three lanes, every time: dropping the empty ones is `clearMenuFor`'s job
+  // now, so the rule reads the same on all four machines (step-grid-editing.md
+  // REQ-6). Motion just answers `hasContent` per lane.
   header.appendChild(clearMenuFor(engine, 'motion', undo, () => {
-    const out = [];
-    if (patterns.motion.some((st) => st.on)) {
-      out.push({ label: 'XY', clear: () => patterns.clearMotionXy() });
-    }
+    const out: ClearRow[] = [{
+      label: 'XY',
+      hasContent: patterns.motion.some((st) => st.on),
+      clear: () => patterns.clearMotionXy(),
+    }];
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
       const track = t;
-      if (!patterns.motionTrack(track)?.steps.some((st) => st.on)) continue;
       out.push({
         label: MOTION_TRACK_LABELS[track] ?? String(track + 1),
+        hasContent: patterns.motionTrack(track)?.steps.some((st) => st.on) ?? false,
         clear: () => patterns.clearMotionTrack(track),
       });
     }

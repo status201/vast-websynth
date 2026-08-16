@@ -105,6 +105,7 @@ export function buildSeqPanel(
   bus.subscribe('scale.type', refreshSnap);
   header.appendChild(clearMenuFor(engine, 'seq', undo, () => [{
     label: `track ${SEQ_TRACK_LABELS[cursor.selRow] ?? cursor.selRow + 1}`,
+    hasContent: engine.patterns.seq[cursor.selRow]?.some((s) => s.on) ?? false,
     clear: () => engine.patterns.clearSeqTrack(cursor.selRow),
   }]));
 

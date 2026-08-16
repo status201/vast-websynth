@@ -44,6 +44,7 @@ export function buildDrumPanel(
   header.appendChild(createUndoButton(undo, 'drum'));
   header.appendChild(clearMenuFor(engine, 'drum', undo, () => [{
     label: modelName(cursor.selRow),
+    hasContent: engine.patterns.drum[cursor.selRow]?.some((c) => c.on) ?? false,
     clear: () => engine.patterns.clearDrumTrack(cursor.selRow),
   }]));
 

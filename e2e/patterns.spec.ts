@@ -432,4 +432,36 @@ test('the Sequencer can clear just the selected track', async ({ page }) => {
     page.evaluate((a) => (window as any).__synth.patterns.seq[a.t][a.i].on, { t, i });
   expect(await on(1, 4)).toBe(false);   // the selected track cleared
   expect(await on(0, 0)).toBe(true);    // track 1 untouched
+
+  // …and now that the track is empty the item is gone rather than inert
+  // (step-grid-editing.md REQ-6). The menu is rebuilt on every open, so this is
+  // the same click as before.
+  await page.getByTestId('clear-seq').click();
+  await expect(page.getByTestId('clear-seq-row-0')).toHaveCount(0);
+  await expect(page.getByTestId('clear-seq-bank')).toBeVisible();
+});
+
+/**
+ * step-grid-editing.md REQ-6 (v6) — the no-dead-item rule reaches the machines
+ * with a selection cursor too, not just Motion. The drum grid is the clearest
+ * case: bank A boots with a kick groove, so the item is there, and clearing the
+ * row is what makes it disappear.
+ */
+test('a cleared drum track stops being offered', async ({ page }) => {
+  await gotoAndStart(page);
+  await page.getByTestId('tab-drums').click();
+
+  await page.getByTestId('clear-drum').click();
+  await expect(page.getByTestId('clear-drum-row-0')).toBeVisible(); // kick has hits
+  await page.getByTestId('clear-drum-row-0').click();
+
+  await page.getByTestId('clear-drum').click();
+  await expect(page.getByTestId('clear-drum-row-0')).toHaveCount(0);
+  await page.keyboard.press('Escape'); // close it: the toggle is a toggle
+
+  // Selecting a track that still has hits brings an item back — the menu asks
+  // again each time it opens.
+  await page.getByTestId('drum-step-1-4').click({ button: 'right' }); // select, don't toggle
+  await page.getByTestId('clear-drum').click();
+  await expect(page.getByTestId('clear-drum-row-0')).toBeVisible();
 });

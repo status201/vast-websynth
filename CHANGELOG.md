@@ -75,6 +75,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Clearing a sampler slot now actually empties it.** The Sampler tab's
+  `Clear ▾` menu names the item after the file in the slot — "Clear kick.wav" —
+  but it only wiped that slot's steps, so the filename stayed put. A slot holding
+  just a name (the state every imported song starts in, before you re-pick the
+  audio) had nothing to clear at all: the menu item did nothing, and the name
+  went on riding along in every song you saved afterwards, with no way short of
+  **New** to get rid of it. It now removes what it says it removes — steps, name
+  and audio — and the toast's **Undo** brings all three back. **Clear bank** is
+  unchanged and deliberately leaves filenames alone: the eight slots are shared
+  by banks A–D, so emptying them from one bank would silence the other three.
+- **`Clear ▾` no longer offers to clear rows that are already empty.** The Motion
+  tab has always listed only the lanes holding something; the Sequencer, Drums
+  and Sampler always offered the selected row whether or not there was anything
+  in it, so the menu could hand you an item that did nothing when you picked it.
+  All four now follow the same rule — an empty row simply isn't listed, leaving
+  **Clear bank** on its own — and the sampler counts a loaded sample as
+  something, since that is what its item removes. **Clear bank** is always
+  offered; it names the bank you are editing.
+- **Info badges no longer linger off-screen.** A badge whose control had scrolled
+  up under the header already hid itself; one that scrolled *down* past the
+  bottom of the window did not, and sat there pinned where nothing could reach
+  it. Both edges behave the same way now.
 - **A song that moves the pulse width no longer costs the tab ~86 MB.** The
   instrument builds a bank of 128 ready-made pulse waveforms to sweep between,
   and it built the whole bank the moment any square-wave oscillator's width left

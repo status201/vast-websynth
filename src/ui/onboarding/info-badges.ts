@@ -243,9 +243,12 @@ export class InfoBadges {
   };
 
   private position(): void {
-    // Bottom edge of the sticky header — content badges that scroll up into
-    // this band must hide (they'd otherwise paint over the header).
+    // A badge is shown only where it can be reached (onboarding.md REQ-5b), so
+    // the viewport is bounded at BOTH ends: the sticky header's bottom edge,
+    // which content badges must not scroll up into (they'd paint over it), and
+    // the fold, past which a badge is pinned where nothing can click it.
     const headerBottom = this.headerEl?.getBoundingClientRect().bottom ?? 0;
+    const fold = window.innerHeight;
     for (const { el, anchor, place, inHeader } of this.badges) {
       const r = anchor.getBoundingClientRect();
       // Hidden (collapsed/zero-size) anchors → hide the badge rather than pin
@@ -266,7 +269,11 @@ export class InfoBadges {
       }
       // A content control scrolled under the sticky header → hide its badge.
       // Header-anchored controls (transport/voicing/panic) never scroll away.
-      if (!inHeader && top < headerBottom) {
+      // Below the fold is the mirror of that, and takes no such exemption: a
+      // header anchor is never down there. Both test *any* overlap with the
+      // band, so a half-clipped badge — as unreachable as a hidden one, and
+      // uglier — never survives at either edge.
+      if ((!inHeader && top < headerBottom) || top + BADGE_SIZE > fold) {
         el.style.display = 'none';
         continue;
       }

@@ -9,7 +9,7 @@ import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
   bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, GridCursor, clearMenuFor,
-  VisibilityGate, type MachinePanel,
+  samplerSlotClearRow, VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
@@ -52,11 +52,11 @@ export function buildSamplerPanel(
   const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'sampler'));
-  header.appendChild(clearMenuFor(engine, 'sampler', undo, () => [{
-    label: engine.patterns.sampleNames[cursor.selRow]
-      ?? SAMPLER_SLOT_LABELS[cursor.selRow] ?? `S${cursor.selRow + 1}`,
-    clear: () => engine.patterns.clearSamplerSlot(cursor.selRow),
-  }]));
+  // The row item is labelled with the slot's filename, so it removes the file
+  // too — steps, name and buffer (sampler.md REQ-9). `Clear bank` stays
+  // step-only: names are shared by all four banks.
+  header.appendChild(clearMenuFor(engine, 'sampler', undo,
+    () => [samplerSlotClearRow(engine, undo, cursor.selRow)]));
 
   const recBtn = document.createElement('button');
   recBtn.className = `${samplerStyles.rec!}`;

@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 22  # v22: the facade's five signatures are unchanged, but its body now
+version: 23  # v23: a badge hides when its anchor leaves the viewport in EITHER
+             #      direction — the below-the-fold half was missing (REQ-5b)
+             # v22: the facade's five signatures are unchanged, but its body now
              #      loads on the first startTour()/badge toggle
              #      (runtime-performance.md REQ-1)
              # v21: a `mod` badge on the Song row's MOD launcher (REQ-21)
@@ -127,6 +129,28 @@ thing.
   back when the user returns from LFO 2's page. The second page needs no entry:
   its own anchor (`knob-lfo2.rate`) lives inside it, and revealing it is what
   triggers the observer on page 1 collapsing.
+
+- **REQ-5b** (v23) — **A badge is shown only where it can be reached: hidden when
+  its anchor leaves the viewport in *either* direction.** The badges are
+  `position: fixed`, so they do not scroll with the page — `position()` re-pins
+  every one of them on each scroll frame, and a badge whose computed spot is
+  outside the viewport is not a badge the user can click. Three rules, one idea:
+    - **zero-size anchor** (a collapsed panel, a hidden tab) → hide (REQ-5a);
+    - **above** — the badge's top crosses into the sticky header's band
+      (`top < header.bottom`) → hide, or it paints over the header. Anchors
+      *inside* the header are exempt: they never scroll away, so measuring them
+      against their own container would hide them permanently (REQ-12);
+    - **below** (v23) — the badge's bottom crosses the viewport's
+      (`top + BADGE_SIZE > innerHeight`) → hide.
+  Only the last one is new. Without it the rule was half a rule: scrolling a
+  control up under the header dropped its badge, scrolling it down past the fold
+  left the badge pinned off-screen — present in the layer, styled `display: ''`,
+  reachable by nothing. The thresholds are deliberate mirrors: **any** overlap
+  with the band hides, so a half-clipped badge — as unreachable as a fully hidden
+  one, and uglier — never survives at either edge. No horizontal rule joins them:
+  the faceplate is laid out to fit its width at every breakpoint
+  ([responsive-header](responsive-header.md) REQ-1), so nothing scrolls sideways
+  to fall off.
 
 - **REQ-6** (v2) — The Song panel's Sync section carries two help topics:
   `sync` (what Master/Slave mean + the USB-MIDI connection steps — Android
@@ -534,6 +558,28 @@ Scenario: Callout placement stays on-screen (edge)
   Then it flips to a side that keeps it fully visible
 # pinned by: tests/ui/tour-place.test.ts
 
+Scenario: A badge below the fold is hidden, not left pinned off-screen (v23, REQ-5b, regression)
+  Given the info badges are on
+  When an anchor scrolls down past the bottom of the viewport
+  Then its badge is hidden — the same way one scrolling up under the sticky
+    header is, rather than staying in the layer where nothing can reach it
+  When the anchor scrolls back into view
+  Then its badge comes back on the next reflow frame
+# pinned by: tests/ui/info-badges.test.ts, e2e/onboarding.spec.ts (both edges,
+#            plus a sweep asserting no shown badge sits past the fold)
+
+Scenario: A badge only half past an edge still goes (v23, REQ-5b, edge)
+  Given an anchor whose badge would straddle the viewport's bottom edge
+  Then the badge is hidden, because the rule is any overlap — the mirror of the
+    sticky-header band above
+# pinned by: tests/ui/info-badges.test.ts
+
+Scenario: Header badges survive a scroll (v23, REQ-5b, edge)
+  Given the page is scrolled far down
+  Then the transport / voicing / panic badges are still shown — a header anchor
+    never scrolls away, and the header sits nowhere near the fold
+# pinned by: tests/ui/info-badges.test.ts
+
 Scenario: Song file buttons each explain themselves
   Given the info badges are on and the Song tab is open
   When the user clicks the Save badge, then the Export badge
@@ -723,6 +769,8 @@ Scenario: The Render button says why it takes two bars (v9)
 - `tests/ui/info-badges-button.test.ts` (the ⓘ button's gesture inventory,
   REQ-8/REQ-19), `tests/ui/shortcuts.test.ts` (the `?` key),
   `tests/ui/about.test.ts` (the tour button, the folded key list, REQ-17b/REQ-20).
+- `tests/ui/info-badges.test.ts` (REQ-5b: the three hide rules, in a jsdom
+  viewport with stubbed anchor rects).
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

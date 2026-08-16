@@ -3,7 +3,11 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 4   # v4: the motion grid's press is deferred, so its long-press now PEEKS
+version: 6   # v6: the no-dead-item rule covers ALL four machines, not just
+             #     Motion — an empty row is not offered anywhere (REQ-6)
+             # v5: a row may clear more than steps and own its own undo — the
+             #     sampler's ejects the slot's sample (sampler REQ-9) — REQ-6/REQ-7
+             # v4: the motion grid's press is deferred, so its long-press now PEEKS
              #     (motion-sequencer REQ-23) — REQ-9 + the inventory's Motion column
              # v3: a position ruler sits above every grid; its click is a seek (REQ-13)
              # v2: off-screen grids skip their per-tick repaints (REQ-12)
@@ -103,20 +107,45 @@ answer to "inspect this step without disturbing it".
   even hold steps:
     - machines with a selection cursor (seq / drum / sampler) offer the **one
       selected row** — `Clear <track|slot|track n>`;
-    - **Motion has no selection cursor**, so it instead lists **every lane that
-      currently holds steps** (`XY`, `A`, `B`). An empty lane is not offered:
-      a menu item that would do nothing is a dead item
-      ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1).
+    - **Motion has no selection cursor**, so it instead lists its three lanes
+      (`XY`, `A`, `B`).
+  (v6) **An empty row is not offered — on any machine.** A menu item that would
+  do nothing is a dead item ([ADR-014](../decisions/adr-014-dont-make-me-think.md)
+  law 1), and the rule is not Motion's alone: a cursor machine whose selected row
+  is empty offers no row item either, leaving `Clear bank` on its own. Through v5
+  only Motion filtered, and it did so by choosing what to `push` — so the rule
+  lived in one panel and the other three silently broke it. Each row now *declares*
+  `hasContent` and **`clearMenuFor` does the filtering**, one place, so a fifth
+  machine inherits the rule instead of having to remember it (REQ-10). What
+  "content" means is the machine's own answer, and it must match what the item
+  would destroy: steps for seq / drum / motion, and steps **or a loaded sample**
+  for the sampler, whose item removes the sample too ([sampler](sampler.md)
+  REQ-9). The **bank** item is deliberately not filtered this way: it names the
+  bank you are editing, and dropping it would leave an empty menu behind the
+  `Clear ▾` toggle — a worse outcome than one inert item.
   Each item is a single `PatternStore` call that emits **one** bulk mutation, so
   one `Undo` press restores everything (REQ-7). No confirmation dialog — the
   action is labelled and instantly reversible, which
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 3 prefers over
   interrupting every correct use.
+  (v5) **An item must destroy everything its label names.** A row is normally
+  exactly its steps, but the sampler's is labelled with the slot's *filename*, so
+  it clears the sample too ([sampler](sampler.md) REQ-9). A row that reaches past
+  the store's steps supplies its own `undo` — see REQ-7 — and "instantly
+  reversible" stays literally true, which is what keeps the no-dialog rule above
+  honest. Bank items never take this route: `Clear bank` is scoped to the bank on
+  screen, and sample names are shared by all four.
 - **REQ-7** — **One bulk action = one undo entry.** Bulk clears reuse the
   existing whole-bank mutation kinds (`seq-copy` / `drum-copy` / `sampler-copy` /
   `motion-copy`), whose `before` already carries a full clone of the bank. A
   clear must never emit N per-cell mutations — 128 undo presses to reverse one
   click is the failure this pins.
+  (v5) The stack carries **steps only**, so a row clearing anything else reverses
+  it itself: `ClearRow.undo` *replaces* the toast's default `undo.undo(lane)`
+  rather than running beside it, and the row decides whether to call the lane's
+  pattern undo at all. It must not when the store pushed nothing — an
+  unconditional call pops the user's *previous* edit off the lane's stack, which
+  is a silent data loss dressed up as an Undo. Still one press either way.
 - **REQ-8** — **A bulk clear reports itself.** Clearing shows a
   [toast](toast.md) naming what was cleared with an **Undo** action wired to the
   machine's `PatternUndo` stack, so the escape hatch is on screen rather than
@@ -225,6 +254,20 @@ createClearMenu(opts): HTMLElement           # src/ui/components/clear-menu.ts
   # testids: clear-<lane>, clear-<lane>-bank, clear-<lane>-row-<i>  (row items
   #   are INDEXED — see testids.md)
 
+ClearRow                                     # src/ui/panels/step-panel-scaffold.ts
+  label:      string                         # what the item says it destroys
+  hasContent: boolean                        # v6 — false ⇒ clearMenuFor drops the
+                                             # item entirely (REQ-6). REQUIRED, so
+                                             # a new machine must answer rather
+                                             # than inherit a wrong default
+  clear(): boolean                           # did anything actually go?
+  undo?(): void                              # v5 — set ONLY by a row that clears
+                                             # more than steps; then it is the
+                                             # toast's whole Undo (REQ-7)
+  # rows() still returns EVERY row the machine has; the filter is central. Row
+  # testids stay contiguous over what survives it (clear-<lane>-row-<i>).
+samplerSlotClearRow(engine, undo, slot): ClearRow   # v5, sampler.md REQ-9
+
 PatternStore:                                 # src/state/patterns.ts — REQ-6/REQ-7
   clearSeqBank(): boolean    / clearSeqTrack(track): boolean
   clearDrumBank(): boolean   / clearDrumTrack(track): boolean
@@ -318,6 +361,13 @@ Scenario: Clearing a bank costs one undo press (REQ-7, regression)
   Then all 40 cells return
 # pinned by: tests/state/patterns.test.ts, tests/state/pattern-undo.test.ts, e2e/patterns.spec.ts
 
+Scenario: A row item destroys everything its label names (v5, REQ-6, regression)
+  Given the Sampler tab's selected slot is named "kick.wav"
+  When the user picks Clear ▾ → "Clear kick.wav"
+  Then the filename is gone from the slot as well as its steps
+  And the toast's Undo brings both back in one press
+# pinned by: tests/ui/clear-menu-sampler.test.ts, e2e/sampler.spec.ts
+
 Scenario: Delete clears the selected step only while the tab is visible (edge)
   Given the Sequencer tab is open with step 7 selected and on
   When the user presses Delete
@@ -336,6 +386,23 @@ Scenario: Right-click selects without toggling and shows no browser menu (edge)
   When the user right-clicks it
   Then it is selected, still on, and the context menu is suppressed
 # pinned by: tests/ui/grid-gestures.test.ts
+
+Scenario: A cursor machine offers no row item for an empty row (v6, REQ-6, regression)
+  Given the Sequencer tab with the selected track empty
+  When the Clear menu is opened
+  Then it offers "Clear bank <x>" and nothing else — no dead "Clear track 2"
+  When a step on that track is switched on and the menu reopened
+  Then "Clear track 2" is back, because the menu is rebuilt on every open
+# pinned by: tests/ui/clear-menu-rows.test.ts, e2e/patterns.spec.ts (seq + drum,
+#            through the real panels)
+
+Scenario: The sampler counts a loaded sample as content (v6, REQ-6, edge)
+  Given a sampler slot that is named but has no steps in the edit bank
+  When the Clear menu is opened
+  Then its row item IS offered — the item removes the sample too (sampler.md
+    REQ-9), so it is not a dead item
+  And a slot with neither steps nor a sample offers nothing
+# pinned by: tests/ui/clear-menu-rows.test.ts, tests/ui/clear-menu-sampler.test.ts
 
 Scenario: Motion's Clear menu lists only the lanes that hold steps (REQ-6)
   Given the Motion tab with anchors on the XY lane and on track B, and A empty
@@ -377,8 +444,10 @@ Scenario: Revealing a tab shows the step playing NOW (REQ-12, the reveal contrac
 - Unit: `tests/ui/grid-gestures.test.ts` (the inventory, in jsdom with synthetic
   Pointer Events), `tests/state/patterns.test.ts` (bulk clears + one-mutation
   emission), `tests/state/pattern-undo.test.ts` (single-entry reversal),
-  `tests/ui/step-panel-scaffold.test.ts` (the visibility gate + reveal re-sync) —
-  `npm test`
+  `tests/ui/step-panel-scaffold.test.ts` (the visibility gate + reveal re-sync),
+  `tests/ui/clear-menu-sampler.test.ts` (v5 — a row that clears more than steps
+  and owns its undo), `tests/ui/clear-menu-rows.test.ts` (v6 — the no-dead-item
+  rule on all four machines) — `npm test`
 - E2E: `e2e/patterns.spec.ts` (hold-to-edit, paint-drag, Clear + toast Undo,
   tab-scoped Delete), `e2e/motion.spec.ts` (REQ-9) — `npm run e2e`
 - Typecheck: `npm run typecheck`

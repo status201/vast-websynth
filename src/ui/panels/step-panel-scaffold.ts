@@ -13,7 +13,7 @@ import { StepButton } from '../components/step-button';
 import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
-import { BANK_LABELS } from '../../state/patterns';
+import { BANK_LABELS, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { ListenerSet } from '../../utils/listeners';
 
 /**
@@ -335,10 +335,77 @@ export interface GatedPanel {
   readonly gate: VisibilityGate;
 }
 
-/** One row-scoped clear a panel offers; `clear` reports whether it did anything. */
+/**
+ * One row-scoped clear a panel offers; `clear` reports whether it did anything.
+ *
+ * A row is normally exactly its steps, and the toast's Undo is the lane's pattern
+ * undo. A row that clears **more** than steps sets `undo` and owns reversal
+ * outright — it *replaces* the default rather than running beside it, because the
+ * pattern stack carries steps only (step-grid-editing.md REQ-7). The sampler's is
+ * the one such row: its item is labelled with the slot's filename, so it ejects
+ * the sample too (sampler.md REQ-9).
+ */
 export interface ClearRow {
   label: string;
+  /**
+   * False when the row holds nothing this item would remove — `clearMenuFor`
+   * then drops it, because an item that would do nothing is a dead item
+   * (step-grid-editing.md REQ-6, ADR-014 law 1). Panels return every row they
+   * have and answer this per row; the filter is central so a fifth machine
+   * inherits the rule rather than having to remember it.
+   *
+   * "Content" must match what the item destroys — which is why the sampler
+   * counts a loaded sample, not just steps (sampler.md REQ-9).
+   */
+  hasContent: boolean;
   clear(): boolean;
+  undo?: () => void;
+}
+
+/**
+ * The sampler's row-scoped clear (sampler.md REQ-9). The menu item says a
+ * *filename*, so it has to remove the file: the slot's steps in the edit bank,
+ * plus the name and the buffer behind it. Ejecting via `setBuffer` is what lets
+ * sample-persistence drop the stored clip without this caller knowing.
+ *
+ * `Clear bank` deliberately does none of it — `sampleNames` is per-slot and shared
+ * by all four banks, so a bank-scoped eject would silently un-sound the same slots
+ * in the banks the user is not looking at.
+ *
+ * Lives here rather than inside the panel closure so a unit test can reach it, and
+ * because the rest of the Clear-menu wiring it feeds is already here. The name and
+ * buffer are read when the MENU OPENS — that read is also the label — so `undo`
+ * can hand them straight back; the `AudioBuffer` is still referenced by this
+ * closure, so nothing is re-decoded.
+ */
+export function samplerSlotClearRow(engine: StudioApi, undo: PatternUndo, slot: number): ClearRow {
+  const name = engine.patterns.sampleNames[slot] ?? null;
+  const buf = engine.sampler.buffers[slot] ?? null;
+  let steps = false;
+  return {
+    label: name ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`,
+    // A named slot is content even with an empty grid — the item removes the
+    // name, so offering it is the whole point (REQ-9). Filtering on steps alone
+    // is exactly the bug this row exists to fix.
+    hasContent: (engine.patterns.sampler[slot]?.some((c) => c.on) ?? false)
+      || name !== null || buf !== null,
+    clear: () => {
+      steps = engine.patterns.clearSamplerSlot(slot);
+      // Buffer first, then the name: the meta event is what repaints the row
+      // label, and it reads `buffers[slot]` for the .needs-reload hint.
+      if (buf) engine.sampler.setBuffer(slot, null);
+      if (name !== null) engine.patterns.setSampleName(slot, null);
+      return steps || name !== null || buf !== null;
+    },
+    undo: () => {
+      // Only when the store actually pushed one. An unconditional call would pop
+      // the user's PREVIOUS sampler edit off the lane's stack whenever the slot
+      // held no steps — silent data loss dressed up as an Undo.
+      if (steps) undo.undo('sampler');
+      if (buf) engine.sampler.setBuffer(slot, buf);
+      if (name !== null) engine.patterns.setSampleName(slot, name);
+    },
+  };
 }
 
 /**
@@ -361,13 +428,14 @@ export function clearMenuFor(
   const bankLabel = (): string => BANK_LABELS[h.getEdit()] ?? String(h.getEdit() + 1);
 
   // Nothing cleared ⇒ no toast and no undo entry: an "Undo" that does nothing
-  // is worse than no toast at all.
-  const report = (what: string, changed: boolean): void => {
+  // is worse than no toast at all. `onUndo` overrides the lane's pattern undo for
+  // a row that cleared more than steps and therefore reverses itself (REQ-7).
+  const report = (what: string, changed: boolean, onUndo?: () => void): void => {
     if (!changed) return;
     showToast({
       message: `Cleared ${what}`,
       actionLabel: 'Undo',
-      onAction: () => undo.undo(lane),
+      onAction: onUndo ?? (() => undo.undo(lane)),
       testId: `clear-toast-${lane}`,
     });
   };
@@ -378,9 +446,11 @@ export function clearMenuFor(
     onClearBank: () => report(`bank ${bankLabel()}`, h.clearBank()),
     ...(rows
       ? {
-        rows: () => rows().map((r) => ({
+        // The one place the no-dead-item rule lives (REQ-6): panels hand over
+        // every row they have, and an empty one never reaches the menu.
+        rows: () => rows().filter((r) => r.hasContent).map((r) => ({
           label: r.label,
-          run: () => report(r.label, r.clear()),
+          run: () => report(r.label, r.clear(), r.undo),
         })),
       }
       : {}),
