@@ -125,7 +125,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     let recording = false;
     recBtn.addEventListener('click', async () => {
       if (recording) {
-        finishRecording();
+        await finishRecording();
         return;
       }
       recBtn.disabled = true;
@@ -154,11 +154,15 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     body.appendChild(actions);
   }
 
-  function finishRecording(): void {
+  async function finishRecording(): Promise<void> {
     if (!session) return;
-    const captured = session.stop();
-    session.dispose();
-    session = null;
+    const live = session;
+    session = null;   // claim it first — a second tap must not stop it twice
+    // Await the take BEFORE disposing: `dispose()` releases the recorder, and
+    // the worklet's final batch is still in flight until `stop()` resolves
+    // (audio-export.md REQ-6b). Disposing first would truncate every take.
+    const captured = await live.stop();
+    live.dispose();
     if (captured.left.length === 0) {
       showIdle('Nothing was recorded — try again.');
       return;

@@ -15,32 +15,49 @@ export const PWM_MAX_WIDTH = 0.95;
 const PWM_HARMONICS = 512;
 
 /**
- * The shared duty bank, built once per AudioContext (a `PeriodicWave` is
- * context-bound). All voices index the same waves, so the cost is one build at
- * first use and nothing per voice.
+ * The shared duty bank, scoped to the AudioContext (a `PeriodicWave` is
+ * context-bound). All voices index the same waves, so nothing is built per voice.
+ *
+ * **Sparse: one entry is built the first time that width is used, never the whole
+ * bank** (oscillators.md REQ-6b, runtime-performance.md REQ-2). `PWM_BANK_SIZE` is
+ * the bank's *resolution*, not a wave count a patch pays for up front — Blink
+ * expands each `PeriodicWave` into band-limited wave tables costing ~670 KB of
+ * **native** memory, so building all 128 eagerly cost ~86 MB in one synchronous
+ * burst, taken the first time any square oscillator's width left 0.5. A patch that
+ * parks the width at one index needs exactly one of them.
+ *
+ * That memory never shows in a heap snapshot (the tables are native, not JS), which
+ * is why it went unnoticed; the only signal is the tab's total. Note that
+ * `PWM_HARMONICS` is not a lever on it — per-entry cost follows Blink's table size,
+ * which is set by the sample rate, not the partial count.
  *
  * A pulse of duty `d` has Fourier cosine amplitudes `(2/(nπ))·sin(nπd)`. Index 0
  * is the DC term, which Web Audio ignores — so the pulse stays centred at every
  * width instead of drifting a DC offset into the filter as it sweeps.
  */
-const bankCache = new WeakMap<BaseAudioContext, PeriodicWave[]>();
+const bankCache = new WeakMap<BaseAudioContext, (PeriodicWave | undefined)[]>();
 
-function dutyBank(ctx: BaseAudioContext): PeriodicWave[] {
-  const cached = bankCache.get(ctx);
+/** The `PeriodicWave` for bank entry `idx`, built on first use and memoized. */
+function dutyWave(ctx: BaseAudioContext, idx: number): PeriodicWave {
+  let bank = bankCache.get(ctx);
+  if (!bank) {
+    bank = new Array<PeriodicWave | undefined>(PWM_BANK_SIZE);
+    bankCache.set(ctx, bank);
+  }
+  const cached = bank[idx];
   if (cached) return cached;
 
-  const bank: PeriodicWave[] = [];
-  for (let i = 0; i < PWM_BANK_SIZE; i++) {
-    const d = PWM_MIN_WIDTH + (PWM_MAX_WIDTH - PWM_MIN_WIDTH) * (i / (PWM_BANK_SIZE - 1));
-    const real = new Float32Array(PWM_HARMONICS + 1);
-    const imag = new Float32Array(PWM_HARMONICS + 1);
-    for (let n = 1; n <= PWM_HARMONICS; n++) {
-      real[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
-    }
-    bank.push(ctx.createPeriodicWave(real, imag, { disableNormalization: false }));
+  const d = PWM_MIN_WIDTH + (PWM_MAX_WIDTH - PWM_MIN_WIDTH) * (idx / (PWM_BANK_SIZE - 1));
+  const real = new Float32Array(PWM_HARMONICS + 1);
+  const imag = new Float32Array(PWM_HARMONICS + 1);
+  for (let n = 1; n <= PWM_HARMONICS; n++) {
+    real[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * d);
   }
-  bankCache.set(ctx, bank);
-  return bank;
+  // Identical construction and arguments to the eager bank it replaces, so the
+  // wave reaching `setPeriodicWave` is the same one — only built later.
+  const wave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  bank[idx] = wave;
+  return wave;
 }
 
 /** Bank index for a width, clamped into range. `0` is an exact square. */
@@ -132,7 +149,7 @@ export class Osc {
     }
     // Swapping the wave on the *live* node preserves its phase, so a sweep is
     // continuous and never clicks (oscillators.md REQ-6).
-    this.osc.setPeriodicWave(dutyBank(this.ctx)[idx]!);
+    this.osc.setPeriodicWave(dutyWave(this.ctx, idx));
   }
 
   setOctave(o: number): void {

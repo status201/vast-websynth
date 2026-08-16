@@ -3,7 +3,10 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 4                     # v4: one PwmDriver, two LFOs — the source claim (REQ-8)
+version: 5                     # v5: REQ-6b — a duty-bank entry is built on first use,
+                               #     not the whole bank; 128 waves cost ~86 MB of native
+                               #     memory that a heap snapshot cannot see
+                               # v4: one PwmDriver, two LFOs — the source claim (REQ-8)
                                # v3: the REQ-9 rate cap is shown on the knob, not only in prose
                                # v2: pulse-width modulation on osc1/osc2
 owner: core
@@ -52,8 +55,44 @@ scalar params, so they snapshot into presets/songs for free.
   the pulse Fourier series (`a[n] = (2/(nπ))·sin(nπd)`), so every width is
   exactly band-limited — the same construction as the native waveforms, and
   alias-free where a PolyBLEP approximation would not be. `setPeriodicWave`
-  preserves the oscillator's phase, so sweeping never clicks. The bank is built
-  once per `AudioContext` and shared by all voices.
+  preserves the oscillator's phase, so sweeping never clicks. The bank is shared
+  by all voices and scoped to the `AudioContext`.
+
+- **REQ-6b** — (v5) **A bank entry is built the first time that width is used,
+  never as a bank.** `PWM_BANK_SIZE` is the bank's *resolution*, not the number
+  of waves a patch pays for: entry `i` is constructed on first use and memoized,
+  so a width that is never selected costs nothing.
+
+  This is a memory rule, and the numbers are why it is a requirement rather than
+  a preference. A `PeriodicWave` is not stored as the Fourier coefficients handed
+  to it — Blink expands each into a set of band-limited wave tables, measured at
+  **~670 KB of native memory per entry** at 48 kHz. Building all 128 up front
+  therefore cost **~86 MB in one synchronous burst**, taken the first time any
+  square-wave oscillator's width left `0.5`.
+
+  Three things made that the worst possible shape for the cost:
+  - It is **invisible to JS tooling**. Those tables are native, so a heap
+    snapshot shows nothing and the JS heap does not move; the only place it
+    surfaces is the tab's total memory.
+  - It is **wildly disproportionate to use**. A width parked at one index — a
+    knob set once, or a motion lane sitting near the bottom of its range — needs
+    exactly one wave and was charged for 128.
+  - It landed **synchronously on a gesture** (a knob drag, a song load), where
+    building 128 wave tables is also a stall.
+
+  Reducing `PWM_HARMONICS` is **not** an alternative and must not be tried as
+  one: per-entry cost is set by Blink's table size, which follows the sample
+  rate, not the partial count — 64 harmonics measured the same ~608 KB as 512.
+  The only other lever is `PWM_BANK_SIZE` itself, and that one is audible
+  (see the crossover below), so it is a sound change under
+  [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) and not a memory
+  fix. Laziness costs nothing musically: the wave handed to `setPeriodicWave` is
+  identical, only later.
+
+  A patch that genuinely sweeps the whole duty range still converges on the whole
+  bank. That is correct — it is cost proportional to what the player asked for
+  ([runtime-performance](runtime-performance.md) REQ-1/REQ-2) — and it is now
+  paid gradually instead of as one burst.
 - **REQ-7** — (v2) The LFO's `pulse` destination sweeps width **unipolar and
   upward** from the knob's base: `width = base + depth·(lfo+1)/2·(0.95−base)`.
   Bipolar modulation around `0.5` would sweep through `0.4`/`0.3`, and duty `d`
@@ -136,6 +175,12 @@ Both `PWM_CONTROL_HZ` and `PWM_RATE_MAX` are tuning constants: smoothness is
 `PWM_CONTROL_HZ ÷ (2·PWM_BANK_SIZE)` Hz the **bank**, not the timer, is the
 limit — a full LFO cycle sweeps the bank up and back.
 
+That crossover is also why `PWM_BANK_SIZE` is **not** a memory knob. It sits at
+0.94 Hz today; halving the bank to 64 would move it to 1.9 Hz and make slow
+sweeps — the classic PWM patch — step audibly. Shrinking it is a sound change
+owing an ADR-010 by-ear pass, which is why REQ-6b buys the memory back through
+*when* entries are built instead of *how many* exist.
+
 ### Layer touchpoints
 
 ```yaml
@@ -205,6 +250,25 @@ Scenario: Sweeping width never restarts the oscillator
   Given osc1.wave is square
   When the width moves across several bank entries
   Then setPeriodicWave is called on the same live node and phase is preserved
+# pinned by: tests/audio/oscillator-pwm.test.ts
+
+Scenario: One width builds one wave, not a bank (v5, REQ-6b)
+  Given osc1.wave is square and no width has been used yet
+  When the width is set to a single value off 0.5
+  Then exactly one PeriodicWave is created
+  And holding that width creates no further waves
+# pinned by: tests/audio/oscillator-pwm.test.ts
+
+Scenario: A revisited width reuses its entry (v5, REQ-6b)
+  Given the width has moved across a handful of bank entries
+  When it returns to one it already used
+  Then no new PeriodicWave is created for it
+# pinned by: tests/audio/oscillator-pwm.test.ts
+
+Scenario: A width never selected costs nothing (v5, REQ-6b)
+  Given a patch that only ever uses the lower half of the duty range
+  Then no PeriodicWave exists for any entry in the upper half
+  # 128 entries at ~670 KB of native memory each is ~86 MB if built as a bank
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
 Scenario: The control loop runs only for the pulse destination

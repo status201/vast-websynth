@@ -109,11 +109,13 @@ export function createRecordWindowLauncher(
 
   toggleBtn.addEventListener('click', () => {
     const p = engine.recorder.phase;
-    if (p === 'recording') engine.recorder.pauseManual();
+    // Pause/stop await the recorder's flush (audio-export.md REQ-6b); the window
+    // repaints off `onPhase`, so neither needs its promise here.
+    if (p === 'recording') void engine.recorder.pauseManual();
     else if (p === 'paused') engine.recorder.resumeManual();
     else engine.recorder.startManual();
   });
-  stopBtn.addEventListener('click', () => engine.recorder.stopManual());
+  stopBtn.addEventListener('click', () => { void engine.recorder.stopManual(); });
   saveBtn.addEventListener('click', () => { void engine.recorder.saveTake(fmt); });
   discardBtn.addEventListener('click', () => engine.recorder.discardTake());
 

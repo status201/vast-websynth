@@ -3,7 +3,9 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 13  # v13: an unresolvable automation target is reported as a warning
+version: 14  # v14: the A/B lanes' repaint is visibility-gated like the XY graph
+             #      beside them — it was rebuilding SVG every bar off-screen (REQ-16b)
+             # v13: an unresolvable automation target is reported as a warning
              #      instead of silently no-op'ing (REQ-17b; untrusted-input REQ-12)
              # v12: an inherited axis picker is dimmed on its TOGGLE, not its root —
              #      dimming the root buried its own menu under the pads (REQ-8)
@@ -280,6 +282,20 @@ The tab sits between Sampler and Song.
   [step-grid-editing](step-grid-editing.md) REQ-6. `Clear bank` empties all
   three lanes; the axis override and the tracks' param choices survive every
   clear, being configuration rather than step data.
+- **REQ-16b** — (v14) **The A/B lane repaint is gated on visibility, like the XY
+  lane's graph.** `arrangement.onChange` fires every bar while playing, and a
+  lane's repaint clears and rebuilds its SVG polyline plus up to 16 `<circle>`s
+  and re-levels 16 pads — per lane, per bar, whether or not the Motion tab is on
+  screen. That is [runtime-performance](runtime-performance.md) REQ-4's rule, and
+  the XY lane's graph in the same panel already obeyed it while the A/B lanes,
+  added later (REQ-16), were never wired into the same gate.
+
+  A repaint requested while hidden is **coalesced into one on reveal**, so the
+  lanes are never stale — the `graphDirty` idiom the XY graph already uses, not a
+  second mechanism. Edit-driven repaints go through the same gate as the per-bar
+  one: an off-screen panel has nothing to show either way, and routing both
+  through one path is what keeps the dirty flag honest.
+
 - **REQ-17** — **SongFile v5** adds optional `motionTracks` (4 banks × 2 tracks),
   additive per [ADR-007](../decisions/adr-007-songfile-additive-versioning.md):
   v1–v4 files load with both tracks empty and unassigned, writing nothing. Export
@@ -697,6 +713,20 @@ Scenario: The A/B tracks show the playhead while playing (v6)
   When the playhead advances
   Then the playing column lights on the A and B track cells, not only the XY pads
 # pinned by: e2e/motion.spec.ts
+
+Scenario: A hidden Motion tab repaints no lane per bar (v14, REQ-16b)
+  Given the Motion tab is not the active tab
+  And the transport is playing
+  When the arrangement advances a bar
+  Then neither A/B lane rebuilds its graph or re-levels its pads
+# pinned by: tests/ui/motion-panel.test.ts
+
+Scenario: A revealed Motion tab shows the current lanes at once (v14, REQ-16b)
+  Given the Motion tab was hidden while its lanes changed
+  When it is revealed
+  Then both lanes repaint once, showing the current steps rather than stale ones
+  And revealing it again with nothing changed repaints nothing
+# pinned by: tests/ui/motion-panel.test.ts
 
 Scenario: The XY lane and the tracks each carry a short help badge (v6)
   Given the info badges are on and the Motion tab is open

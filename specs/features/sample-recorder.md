@@ -3,7 +3,8 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 1
+version: 2   # v2: REQ-6 — a session's RecorderNode is disconnected and its port
+             #     handler cleared on dispose; every modal open leaked one
 owner: core
 related:
   - architecture
@@ -43,6 +44,23 @@ modal says so.
 - **REQ-4** — A loaded slot exposes a ✎ button that reopens its buffer in the same
   editor.
 - **REQ-5** — On an insecure context, surface a clear message instead of failing.
+- **REQ-6** — (v2) **A session's `RecorderNode` is released with the session.**
+  REQ-1's node is *fresh per session*, so unlike the engine's two permanently
+  tapped recorders it has an end — and `MicSession.dispose()` owns it. Disposing
+  disconnects the node **and** clears its `port.onmessage`, because the two leak
+  different things: the `AudioWorkletNode` keeps its processor alive on the render
+  thread, and the message handler keeps the closure holding the captured chunk
+  arrays alive on the main thread.
+
+  Until v2 `dispose()` released the `MediaStreamAudioSourceNode`, the muted gain
+  and the OS mic tracks but not the recorder, so **every open of the modal left one
+  behind** — the leak grows with how often the player records, which is exactly the
+  usage the feature invites. `RecorderNode.dispose()` is the node's own teardown so
+  the knowledge of what it holds stays with it rather than at the call site.
+
+  Disposal is **idempotent and terminal**: it is reachable from a cancel, a save
+  and a re-open, and a double dispose must not throw. A disposed node accepts no
+  further `start`/`stop`.
 
 ## Technical design
 
@@ -82,6 +100,22 @@ Scenario: Record from the mic and load into a slot
   When the user records, trims, and loads the result into slot 0
   Then slot 0 plays the captured audio
 # pinned by: e2e/mic.spec.ts (fake device + grantPermissions)
+
+Scenario: Closing a session releases its recorder (v2, REQ-6, regression)
+  Given a mic session is open
+  When it is disposed
+  Then its RecorderNode is disconnected and its port handler cleared
+  And the mic tracks are stopped
+  # otherwise each modal open strands a worklet node + its captured chunks
+# pinned by: tests/audio/recorder/mic-capture.test.ts (the session releases it),
+#            tests/audio/recorder/node.test.ts (what releasing it does)
+
+Scenario: Disposing twice is harmless (v2, REQ-6, edge)
+  Given a mic session that has already been disposed
+  When dispose runs again from a different exit path
+  Then nothing throws and nothing is torn down twice
+  And a disposed recorder posts nothing further to its port
+# pinned by: tests/audio/recorder/mic-capture.test.ts, tests/audio/recorder/node.test.ts
 
 Scenario: Pure DSP is deterministic and AudioContext-free
   Given a CapturedAudio buffer

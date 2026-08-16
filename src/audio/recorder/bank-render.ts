@@ -89,8 +89,9 @@ export class BankRenderController {
             if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
             this.clock.stop();
             window.setTimeout(() => {
-              try { resolve(this.finish(step0Time, sixteenthS)); }
-              catch (err) { reject(err); }
+              // `finish` awaits the recorder's flush (audio-export.md REQ-6b),
+              // so it settles the promise rather than returning into it.
+              this.finish(step0Time, sixteenthS).then(resolve, reject);
             }, RENDER_TAIL_MS);
           }
         });
@@ -106,8 +107,8 @@ export class BankRenderController {
     }
   }
 
-  private finish(step0Time: number, sixteenthS: number): CapturedAudio {
-    const captured = this.node.stop();
+  private async finish(step0Time: number, sixteenthS: number): Promise<CapturedAudio> {
+    const captured = await this.node.stop();
     const firstFrame = this.node.firstFrame;
     if (step0Time < 0 || firstFrame === null) throw new Error('bank render captured no audio');
     const { start, end } = bankCropRange(step0Time, sixteenthS, captured.sampleRate, firstFrame);

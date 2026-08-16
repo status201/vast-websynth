@@ -3,7 +3,10 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 4   # v4: REQ-10 — no viewport-scaled compositing effect on a persistent
+version: 5   # v5: REQ-2 — a bank of expensive artefacts is built per entry on
+             #     first use, not whole; the PWM duty bank charged every patch
+             #     ~86 MB of native memory for the one wave it actually used
+             # v4: REQ-10 — no viewport-scaled compositing effect on a persistent
              #     overlay; the modal backdrop's blur cost a third of the frame
              #     rate whenever any dialog was open
              # v3: REQ-1 — the onboarding layer and the Help & About modal load
@@ -29,6 +32,7 @@ source:
   - src/audio/effects/reverb.ts
   - src/audio/effects/distortion.ts
   - src/audio/drive-curve.ts
+  - src/audio/oscillator.ts                 # REQ-2 — the PWM duty bank, per-entry
   - src/audio/transport/drum-machine.ts
   - src/audio/transport/motion-machine.ts
   - src/audio/transport/motion-curve.ts
@@ -120,6 +124,28 @@ so a reviewer has something concrete to hold a new feature against.
   artefact that is a pure function of its inputs and immutable in use (an
   `AudioBuffer` handed to a `ConvolverNode`, a `WaveShaperNode` curve) is cached by
   those inputs and shared across every consumer. The three FX chains share one IR bank.
+
+  **Sharing is half the rule; the other half is *when*** (v5). Where such artefacts
+  form a **bank** — a set indexed by a discrete control — the entry is built **on
+  first use of that index**, never the bank on first use of any index. `reverb.ts`'s
+  `irFor` is the reference: five IR durations exist, and only the size actually
+  selected is ever generated.
+
+  A bank built eagerly charges every patch for the whole index space, and the bill
+  scales with the *resolution* of a control rather than with what the player
+  touched. The PWM duty bank ([`oscillators.md`](oscillators.md) REQ-6b) is the
+  worked example: 128 `PeriodicWave`s at ~670 KB of native memory each cost **~86 MB
+  in one synchronous burst** the first time any width left `0.5` — for a patch that
+  typically needs *one* of them.
+
+  Two properties make this class of cost worth its own sentence in the rule:
+  - It hides from the usual tools. Blink's wave tables, a `ConvolverNode`'s
+    internal FFT state and decoded `AudioBuffer`s are **native**, so they never
+    appear in a JS heap snapshot and the JS heap does not move. A tab's total
+    memory is the only place they show.
+  - It is not reachable by the other rules here. REQ-1 governs the boot path and
+    REQ-6 governs loops; a bank built lazily-but-wholly on a mid-session gesture
+    is outside both, and was the gap this rule now closes.
 
 - **REQ-3** — **Global input listeners exist only for the duration of a gesture.** A
   component MUST NOT hold a `window`/`document` `pointermove` listener at rest. Attach
@@ -240,7 +266,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | Rule | Enforced at |
 |---|---|
 | REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms) |
-| REQ-2 | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves) |
+| REQ-2 | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
 | REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
 | REQ-5 | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
@@ -290,6 +316,13 @@ Scenario: the reverb IR bank is shared and lazily built
   When a reverb size is selected for the first time
   Then that IR is generated once and reused by every reverb thereafter
 # pinned by: tests/audio/effects/reverb.test.ts
+
+Scenario: a bank of artefacts is built per entry, not whole (REQ-2, v5, regression)
+  Given no pulse width has been used yet
+  When one width is selected
+  Then exactly one PeriodicWave is built, not the whole duty bank
+  # 128 entries x ~670 KB of native memory is ~86 MB, invisible to a heap snapshot
+# pinned by: tests/audio/oscillator-pwm.test.ts
 
 Scenario: an audio-affecting loop survives a hidden document (REQ-9, regression)
   Given the motion sequencer is enabled with anchors and the transport is playing

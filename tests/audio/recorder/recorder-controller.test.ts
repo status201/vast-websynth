@@ -18,7 +18,9 @@ import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
 const SAMPLE_RATE = 8000; // 120 BPM bar = 2 s = 16000 frames
 
 /** Duck-typed RecorderNode that counts frames the way the real one does: it
- *  accumulates while "running", and pause/resume gate that without clearing. */
+ *  accumulates while "running", and pause/resume gate that without clearing.
+ *  `stop`/`pause` are async like the real node, which awaits the worklet's final
+ *  batch before the take is complete (audio-export.md REQ-6b). */
 function fakeNode() {
   const calls: string[] = [];
   let running = false;
@@ -28,16 +30,16 @@ function fakeNode() {
     /** Pretend `n` frames of audio arrived from the worklet. */
     feed(n: number): void { if (running) frames += n; },
     start(): void { calls.push('start'); running = true; frames = 0; },
-    pause(): void { calls.push('pause'); running = false; },
+    pause(): Promise<void> { calls.push('pause'); running = false; return Promise.resolve(); },
     resume(): void { calls.push('resume'); running = true; },
-    stop(): CapturedAudio {
+    stop(): Promise<CapturedAudio> {
       calls.push('stop');
       running = false;
-      return {
+      return Promise.resolve({
         left: new Float32Array(frames),
         right: new Float32Array(frames),
         sampleRate: SAMPLE_RATE,
-      };
+      });
     },
     get capturedFrames(): number { return frames; },
     get sampleRate(): number { return SAMPLE_RATE; },
@@ -197,7 +199,7 @@ describe('the export tail', () => {
 // ---------- Manual phases (REQ-4) ----------
 
 describe('the manual phase machine', () => {
-  it('walks idle → recording → paused → recording → review', () => {
+  it('walks idle → recording → paused → recording → review', async () => {
     const { ctrl, node } = harness();
     const seen: string[] = [];
     ctrl.onPhase((p) => seen.push(p));
@@ -209,19 +211,19 @@ describe('the manual phase machine', () => {
     expect(ctrl.phase).toBe('paused');
     ctrl.resumeManual();
     expect(ctrl.phase).toBe('recording');
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(ctrl.phase).toBe('review');
 
     expect(seen).toEqual(['recording', 'paused', 'recording', 'review']);
     expect(node.calls).toEqual(['start', 'pause', 'resume', 'stop']);
   });
 
-  it('starts the transport if it is stopped, and leaves it running on stop', () => {
+  it('starts the transport if it is stopped, and leaves it running on stop', async () => {
     const { ctrl, clock } = harness();
     expect(clock.playing).toBe(false);
     ctrl.startManual();
     expect(clock.playing).toBe(true);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(clock.playing).toBe(true); // audio-export.md REQ-4
   });
 
@@ -231,7 +233,7 @@ describe('the manual phase machine', () => {
     const { ctrl, node } = harness();
     ctrl.startManual();
     node.feed(4000);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     await Promise.resolve(); // flush microtasks; the transport is still running
     expect(downloads).toEqual([]);
 
@@ -245,7 +247,7 @@ describe('the manual phase machine', () => {
     const { ctrl, node } = harness();
     ctrl.startManual();
     node.feed(4000);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     ctrl.discardTake();
     expect(ctrl.phase).toBe('idle');
     await Promise.resolve();
@@ -260,7 +262,7 @@ describe('the manual phase machine', () => {
     const { ctrl, node } = harness();
     ctrl.startManual();
     node.feed(8 * SAMPLE_RATE);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(ctrl.capturedSeconds()).toBe(8);
     await ctrl.saveTake('wav');
     expect(ctrl.phase).toBe('idle');
@@ -277,7 +279,7 @@ describe('the manual phase machine', () => {
 
   // REQ-4: pause splices. The paused stretch never enters the buffer, so the
   // take is one continuous file and the timer never advances during it.
-  it('splices out the paused stretch rather than padding it', () => {
+  it('splices out the paused stretch rather than padding it', async () => {
     const { ctrl, node } = harness();
     ctrl.startManual();
     node.feed(2 * SAMPLE_RATE);          // 2 s
@@ -289,7 +291,7 @@ describe('the manual phase machine', () => {
 
     ctrl.resumeManual();
     node.feed(2 * SAMPLE_RATE);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     // 4 s of audio, not 9 — and it is ONE buffer, never two files.
     expect(ctrl.capturedSeconds()).toBe(4);
   });
@@ -357,7 +359,7 @@ describe('the in-flight export', () => {
 
     ctrl.startManual();
     node.feed(4000);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     const saving = ctrl.saveTake('wav');
     expect(ctrl.phase).toBe('encoding'); // before the await settles
     await saving;
@@ -379,7 +381,7 @@ describe('the in-flight export', () => {
 // ---------- The two predicates (REQ-2/REQ-4) ----------
 
 describe('the capture predicates', () => {
-  it('isCapturing covers recording and paused; isExporting only an export', () => {
+  it('isCapturing covers recording and paused; isExporting only an export', async () => {
     const { ctrl } = harness();
     expect(ctrl.isCapturing()).toBe(false);
     expect(ctrl.isExporting()).toBe(false);
@@ -389,7 +391,7 @@ describe('the capture predicates', () => {
     expect(ctrl.isExporting()).toBe(false); // a free take never locks the playhead
     ctrl.pauseManual();
     expect(ctrl.isCapturing()).toBe(true);
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(ctrl.isCapturing()).toBe(false); // review holds a buffer, not the node
   });
 
@@ -402,10 +404,10 @@ describe('the capture predicates', () => {
     expect(ctrl.isExporting()).toBe(false);
   });
 
-  it('refuses to export while anything is in flight, including an unsaved take', () => {
+  it('refuses to export while anything is in flight, including an unsaved take', async () => {
     const { ctrl, clock } = harness();
     ctrl.startManual();
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(ctrl.phase).toBe('review');
     clock.stop();
     ctrl.exportSong('wav');
@@ -413,11 +415,11 @@ describe('the capture predicates', () => {
     expect(clock.playing).toBe(false); // it never touched the transport
   });
 
-  it('ignores manual verbs out of phase', () => {
+  it('ignores manual verbs out of phase', async () => {
     const { ctrl, node } = harness();
     ctrl.pauseManual();   // nothing is recording
     ctrl.resumeManual();
-    ctrl.stopManual();
+    await ctrl.stopManual();
     expect(ctrl.phase).toBe('idle');
     expect(node.calls).toEqual([]);
   });
