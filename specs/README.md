@@ -346,6 +346,8 @@ specs/
     adr-015-untrusted-input-is-bounded.md      ·  bound every payload; no listener wedges the clock
     adr-016-one-filter-worklet-model-per-block.md ·  filter models branch per block, not per node
     adr-017-modulation-in-graph.md             ·  modulation in the graph, automation on the bus
+    adr-018-audio-graph-memory-is-committed-not-reclaimed.md
+                                               ·  bypass gives back CPU, not memory
 ```
 
 > Coverage note: the feature set above documents the current system. New features

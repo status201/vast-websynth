@@ -25,6 +25,7 @@ related:
   - step-settings
   - song-mode
   - transport            # REQ-9 — the worker-timer guarantee it generalises
+  - oscillators          # REQ-2 — the PWM duty bank, the worked example
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -146,6 +147,21 @@ so a reviewer has something concrete to hold a new feature against.
   - It is not reachable by the other rules here. REQ-1 governs the boot path and
     REQ-6 governs loops; a bank built lazily-but-wholly on a mid-session gesture
     is outside both, and was the gap this rule now closes.
+
+  **Building lazily is the whole of the rule — nothing is released again.** Once a
+  shared artefact exists it is kept for the session, because reacquiring it is
+  synchronous main-thread work: a `ConvolverNode` kernel costs 7.7–42 ms to
+  rebuild, which is an audible glitch if it lands on a user gesture mid-song.
+  [ADR-018](../decisions/adr-018-audio-graph-memory-is-committed-not-reclaimed.md)
+  records that trade — a bypassed effect gives back its CPU
+  ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)), not its memory —
+  and answers any future "free it while it is off" proposal, including the ~30 MB
+  of reverb kernels the three FX chains hold from boot.
+
+  It also records the **measurement** rule learned alongside it: renderer
+  working-set deltas during active audio are too noisy to attribute anything
+  (28–205 MB spread for identical work). Isolated micro-benchmarks — one node
+  type, one page — are the instrument; ablation on the running app is not.
 
 - **REQ-3** — **Global input listeners exist only for the duration of a gesture.** A
   component MUST NOT hold a `window`/`document` `pointermove` listener at rest. Attach
