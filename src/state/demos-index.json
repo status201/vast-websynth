@@ -163,6 +163,16 @@
     ],
     "blurb": "The Run Away idea rebuilt as a project bundle, sampled parts alongside the synth."
   },
+  "Titulaer.websynth.json": {
+    "name": "Titulaer",
+    "bpm": 122,
+    "bars": 24,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ]
+  },
   "Tosti.websynth.json": {
     "name": "Tosti",
     "bpm": 118,
