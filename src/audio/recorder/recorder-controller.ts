@@ -50,6 +50,8 @@ export class RecorderController {
    *  keys off this, NOT off "a capture is running"). */
   private exporting = false;
   private finishing = false;
+  /** True while `stopManual` awaits the worklet's flush (REQ-6b). */
+  private stopping = false;
   private unsubTick: (() => void) | null = null;
   /** Absolute step the in-flight export ends at; 0 when none. Drives progress. */
   private stopAtStep = 0;
@@ -137,11 +139,21 @@ export class RecorderController {
   }
 
   /** End the take and park it for review. Writes nothing; leaves the transport
-   *  running (audio-export.md REQ-4). */
-  stopManual(): void {
-    if (!this.isCapturing() || this.exporting) return;
-    this.take = this.node.stop();
-    this.setPhase('review');
+   *  running (audio-export.md REQ-4).
+   *
+   *  Async because the recorder waits for the worklet's final batch (REQ-6b).
+   *  The phase only becomes `review` once the take is actually in hand, or the
+   *  window would offer Save with nothing to save; `stopping` guards the gap,
+   *  since `isCapturing()` stays true across the await. */
+  async stopManual(): Promise<void> {
+    if (!this.isCapturing() || this.exporting || this.stopping) return;
+    this.stopping = true;
+    try {
+      this.take = await this.node.stop();
+      this.setPhase('review');
+    } finally {
+      this.stopping = false;
+    }
   }
 
   /**
@@ -166,7 +178,9 @@ export class RecorderController {
   /** Throw the take away. Must null the buffer — a minute of stereo 48 k float
    *  is ~23 MB, and nothing else references it. */
   discardTake(): void {
-    if (this.isCapturing()) this.node.stop(); // stop the worklet before dropping it
+    // Fire-and-forget: the flushed frames are being thrown away either way, so
+    // there is nothing to wait for — but the worklet must still stop capturing.
+    if (this.isCapturing()) void this.node.stop();
     this.take = null;
     this.setPhase('idle');
   }
@@ -271,14 +285,17 @@ export class RecorderController {
   private async finishExport(format: ExportFormat): Promise<void> {
     if (!this.isCapturing() || this.finishing) return;
     this.finishing = true;
-    const captured = this.node.stop();
     // `exporting` stays true across the encode: the operation is atomic from
     // the outside, so a second export cannot start mid-encode.
     if (this.unsubTick) { this.unsubTick(); this.unsubTick = null; }
     this.tailTimer = undefined;
     this.stopAtStep = 0;
     this.elapsedSteps = 0;
+    // Enter `encoding` before awaiting the recorder's flush (REQ-6b), so the tail
+    // firing still moves the phase synchronously. The alternative left a window
+    // where the transport had stopped but the modal still read `recording`.
     this.setPhase('encoding');
+    const captured = await this.node.stop();
     try {
       await download(captured, format);
     } finally {

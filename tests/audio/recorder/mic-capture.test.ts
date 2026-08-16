@@ -15,7 +15,12 @@ import { makeMockAudioContext } from '../mock-audio-context';
 const recorderStub = {
   input: { connect: vi.fn(), disconnect: vi.fn() },
   start: vi.fn(),
-  stop: vi.fn(() => ({ left: new Float32Array(4), right: new Float32Array(4), sampleRate: 44100 })),
+  // Async like the real node: it awaits the worklet's final batch before the
+  // take is complete (audio-export.md REQ-6b).
+  stop: vi.fn(async () => ({
+    left: new Float32Array(4), right: new Float32Array(4), sampleRate: 44100,
+  })),
+  dispose: vi.fn(),
 };
 
 vi.mock('../../../src/audio/recorder/node', () => ({
@@ -158,6 +163,9 @@ describe('a live mic session', () => {
 
     for (const t of tracks) expect(t.stop).toHaveBeenCalledTimes(1);
     expect(src.disconnect).toHaveBeenCalled();
+    // REQ-6: the session made this recorder, so the session releases it. Without
+    // this, every open of the modal strands a worklet node and its processor.
+    expect(recorderStub.dispose).toHaveBeenCalledTimes(1);
   });
 
   it('dispose() is idempotent and stops an armed capture first', async () => {
@@ -171,6 +179,8 @@ describe('a live mic session', () => {
 
     expect(recorderStub.stop).toHaveBeenCalledTimes(1);
     for (const t of tracks) expect(t.stop).toHaveBeenCalledTimes(1);
+    // Cancel, save and re-open all reach dispose; a second pass must be inert.
+    expect(recorderStub.dispose).toHaveBeenCalledTimes(1);
   });
 
   it('start() is idempotent while armed, so a double tap records one take', async () => {

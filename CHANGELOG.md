@@ -73,6 +73,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   this device between sessions — and *only* here: it never travels into a preset
   or a song, so loading someone else's work never rearranges your screen.
 
+### Fixed
+
+- **A song that moves the pulse width no longer costs the tab ~86 MB.** The
+  instrument builds a bank of 128 ready-made pulse waveforms to sweep between,
+  and it built the whole bank the moment any square-wave oscillator's width left
+  50% — even for a patch parked on a single width, which needs exactly one of
+  them. Each one costs the browser around 670 KB behind the scenes, so a single
+  knob nudge, or loading a song with PWM in it, put roughly 86 MB on the tab and
+  never gave it back. Waveforms are now made the first time a width actually
+  calls for one, so the shipped song that uses PWM builds six instead of 128.
+  Nothing about the sound changes — it is the same waveform, made later.
+- **The Motion tab no longer redraws its lanes while you are looking at another
+  tab.** Both A/B lanes rebuilt their graphs and re-levelled all 32 pads on every
+  bar of playback, whether or not the tab was on screen — work the XY lane
+  directly above them had already learned to skip. They now repaint on reveal
+  instead, so switching back still shows the current steps immediately.
+- **Recording a sound from the mic no longer leaves something behind.** Each time
+  the Record-a-sound window opened it created a recorder and never released it,
+  so the leftovers piled up across a session of sampling.
+- **A long recording is gentler on the browser.** The recorder used to hand the
+  page a fresh pair of buffers 375 times a second while capturing; it now sends
+  them in batches, roughly one message every 43 ms. If the page is busy — loading
+  a song, opening a dialog — those messages no longer pile up waiting to be
+  collected. Takes are unchanged to the sample, including the very end of one:
+  stopping now waits for the last batch instead of cutting it off.
+
 ## [2.8.2] - 2026-08-14
 
 ### Fixed

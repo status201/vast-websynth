@@ -102,40 +102,96 @@ describe('Osc pulse width', () => {
   });
 });
 
+/** The exact width bank entry `i` is built from — the inverse of `bankIndex`. */
+const widthAt = (i: number): number =>
+  PWM_MIN_WIDTH + (PWM_MAX_WIDTH - PWM_MIN_WIDTH) * (i / (PWM_BANK_SIZE - 1));
+
+/** Walk every entry from 1 up, in order. Index 0 is the native square (never a wave). */
+function sweepWholeRange(osc: Osc): void {
+  for (let i = 1; i < PWM_BANK_SIZE; i++) osc.setPulseWidth(widthAt(i));
+}
+
 describe('the duty bank', () => {
-  it('is built once per context and shared across oscillators', () => {
+  it('builds one wave for one width, not the bank (REQ-6b)', () => {
+    const { osc, waves } = build();
+    osc.setWave(SQUARE);
+    osc.setPulseWidth(0.7);
+    // The whole point: 128 entries at ~670 KB of native memory each is ~86 MB,
+    // and a patch parked at one width needs exactly one of them.
+    expect(waves.length).toBe(1);
+  });
+
+  it('costs nothing to hold a width (REQ-6b)', () => {
+    const { osc, waves } = build();
+    osc.setWave(SQUARE);
+    osc.setPulseWidth(0.7);
+    // The control loop calls this at PWM_CONTROL_HZ — none of it may allocate.
+    for (let i = 0; i < 50; i++) osc.setPulseWidth(0.7);
+    expect(waves.length).toBe(1);
+  });
+
+  it('reuses an entry when a width is revisited (REQ-6b)', () => {
+    const { osc, waves } = build();
+    osc.setWave(SQUARE);
+    for (const w of [0.6, 0.7, 0.8]) osc.setPulseWidth(w);
+    expect(waves.length).toBe(3);
+
+    for (const w of [0.7, 0.6, 0.8, 0.7]) osc.setPulseWidth(w);
+    expect(waves.length).toBe(3); // memoized, not rebuilt
+  });
+
+  it('never builds an entry no width selected (REQ-6b)', () => {
+    const { osc, waves } = build();
+    osc.setWave(SQUARE);
+    // A patch that only ever uses the lower half of the duty range.
+    const half = Math.floor(PWM_BANK_SIZE / 2);
+    for (let i = 1; i < half; i++) osc.setPulseWidth(widthAt(i));
+    expect(waves.length).toBe(half - 1);
+    expect(waves.length).toBeLessThan(PWM_BANK_SIZE);
+  });
+
+  it('is shared across oscillators on one context', () => {
     const { ctx, osc, waves } = build();
     osc.setWave(SQUARE);
     osc.setPulseWidth(0.7);
-    expect(waves.length).toBe(PWM_BANK_SIZE);
+    expect(waves.length).toBe(1);
 
     const second = new Osc(ctx as unknown as AudioContext);
     const node2 = ctx.createOscillator.mock.results[1]!.value as Record<string, unknown>;
     node2.setPeriodicWave = vi.fn();
     second.setWave(SQUARE);
     second.setPulseWidth(0.7);
-    expect(waves.length).toBe(PWM_BANK_SIZE); // no rebuild
+    expect(waves.length).toBe(1); // the same entry, not a per-voice rebuild
+  });
+
+  it('covers the whole bank across a full sweep, and index 0 costs nothing', () => {
+    const { osc, waves } = build();
+    osc.setWave(SQUARE);
+    sweepWholeRange(osc);
+    // Entry 0 is duty 0.5 — `applyWidth` short-circuits to the native square
+    // there, so it is the one entry that is never built at all.
+    expect(waves.length).toBe(PWM_BANK_SIZE - 1);
   });
 
   it('carries no DC term, so the pulse stays centred at every width', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
-    osc.setPulseWidth(0.7);
+    sweepWholeRange(osc);
     for (const w of waves) {
       expect(w.real[0]).toBe(0);
       expect(w.imag[0]).toBe(0);
     }
   });
 
-  it('is an exact square at index 0 and narrows from there', () => {
+  it('is widest near an exact square and narrows from there', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
-    osc.setPulseWidth(0.7);
+    sweepWholeRange(osc); // ascending, so build order is entry order
 
     // a[1] = (2/pi)*sin(pi*d): maximal at d=0.5, shrinking as the pulse narrows.
-    const first = waves[0]!.real[1]!;
-    const last = waves[PWM_BANK_SIZE - 1]!.real[1]!;
-    expect(first).toBeCloseTo(2 / Math.PI, 6);
+    const first = waves[0]!.real[1]!;                  // entry 1, just off square
+    const last = waves[waves.length - 1]!.real[1]!;    // entry PWM_BANK_SIZE - 1
+    expect(first).toBeCloseTo(2 / Math.PI, 3);
     expect(last).toBeLessThan(first);
     expect(last).toBeGreaterThan(0);
   });

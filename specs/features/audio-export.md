@@ -3,7 +3,9 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 9   # v9: the stop condition counts steps elapsed since the export began —
+version: 10  # v10: the worklet batches quanta into one message and stop() awaits
+             #      the flush, so a take stays frame-identical (REQ-6b)
+             # v9: the stop condition counts steps elapsed since the export began —
              #     the old absolute test was unreachable past the 16-bit step wrap
              # v8 (was 7.1): `encoding` is a real phase, and the export modal stays
              #     open as the render's progress surface with a working Cancel (REQ-10)
@@ -141,6 +143,36 @@ already-slow action, so the fetch is invisible next to the encode itself.
   `offset = round(when × sampleRate) − firstFrame`. Consumers that ignore the
   tag (this spec's own controller) are unaffected. Consumed by
   [render-to-sampler](render-to-sampler.md).
+- **REQ-6b** (batched chunks, and the flush that makes them safe; v10) — The
+  worklet **accumulates `RECORD_BATCH_QUANTA` render quanta into one message**
+  rather than posting every quantum. At 48 kHz that is ~375 messages/s reduced to
+  ~23: the per-quantum rate meant the main thread had to drain 375 transfers a
+  second, and any stall (a big repaint, a demo load, the export modal opening)
+  queued them with their backing `ArrayBuffer`s held alive.
+
+  **Batching is only correct with a flush, and the flush is what makes `stop()`
+  async.** The worklet holds a partial batch, so on `stop` it must post the
+  remainder — and `RecorderNode.stop()` used to read its chunk list *synchronously*
+  right after posting the command, which would silently drop up to
+  `RECORD_BATCH_QUANTA` quanta (~40 ms) off the end of every take. So `stop()`
+  posts `{cmd:'stop'}`, **awaits the worklet's flush**, and only then concatenates:
+  `stop(): Promise<CapturedAudio>`.
+
+  The take is therefore **frame-identical to the unbatched capture** — same
+  samples, same order, no gap at a batch boundary and none at the end. That is
+  [runtime-performance](runtime-performance.md) REQ-8's rule applied to a capture
+  path: the samples are the output here, so "bit-exact or it is a sound change"
+  governs what is *recorded*, not what is heard.
+
+  `f` still tags the **first frame of the message** (REQ-6), which is now the first
+  frame of the batch — the arithmetic `offset = round(when × sampleRate) −
+  firstFrame` is unchanged because `firstFrame` is still the first captured frame.
+  `pause()`/`resume()` flush the same way, so paused time stays absent from the
+  buffer with no partial batch straddling the gap.
+
+  A disposed or never-started node resolves immediately with an empty take rather
+  than waiting for a flush that will never come.
+
 - **REQ-7** (lazy encoder, v4) — `encodeMp3` loads lamejs via a dynamic
   `import()`, so the encoder ships as its **own chunk**, fetched on the first
   MP3 encode rather than at boot. `encodeMp3` is therefore `async`; `encodeWav`
@@ -229,11 +261,14 @@ RecorderController:  # src/audio/recorder/recorder-controller.ts
   capturedSeconds(): number      # true length of the take, paused time excluded
   onPhase(fn) -> unsubscribe
 RecorderNode:  # src/audio/recorder/node.ts (wraps recorder.js)
-  start() ; stop(): { left, right, sampleRate }
-  pause() ; resume()          # REQ-4: worklet stop/start WITHOUT clearing chunks
+  start() ; stop(): Promise<{ left, right, sampleRate }>   # REQ-6b: awaits the flush
+  pause(): Promise<void> ; resume()   # REQ-4: worklet stop/start WITHOUT clearing chunks
+  dispose()                   # sample-recorder REQ-6; terminal, idempotent
   firstFrame: number | null   # REQ-6; null until the first chunk arrives
   capturedFrames: number      # running frame count; reset by start(), survives pause
-worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = currentFrame
+worklet chunk message: { l: Float32Array, r: Float32Array, f: number }  # f = batch's first frame
+worklet flush reply:   { l, r, f, done: true }   # REQ-6b — the partial batch at stop/pause
+constants: RECORD_BATCH_QUANTA = 16   # ~43 ms at 48 kHz; message rate 375/s -> 23/s
 encode.ts (pure):
   encodeWav(left, right, sampleRate): Blob            # dependency-free, sync
   encodeMp3(left, right, sampleRate): Promise<Blob>   # REQ-7 lazy lamejs, MP3_KBPS CBR; unsupported rate -> WAV
@@ -353,6 +388,26 @@ Scenario: Pausing splices the take rather than padding it (v7, REQ-4)
   Then the take is one continuous 4 s buffer — the paused stretch is absent
   And capturedSeconds() never advanced while paused
 # pinned by: tests/audio/recorder/recorder-controller.test.ts
+
+Scenario: A batched capture is frame-identical to a per-quantum one (v10, REQ-6b)
+  Given a run of render quanta with known samples
+  When the worklet batches them and the node concatenates the result
+  Then every captured sample matches the unbatched capture, in the same order
+  And no gap appears at a batch boundary
+# pinned by: tests/audio/recorder/node.test.ts
+
+Scenario: Stopping mid-batch keeps the tail (v10, REQ-6b, regression)
+  Given a capture stopped part-way through a batch
+  When stop() resolves
+  Then the frames buffered in the worklet are in the take
+  # reading the chunk list synchronously dropped up to ~40 ms off every take
+# pinned by: tests/audio/recorder/node.test.ts
+
+Scenario: A node with nothing to flush still resolves (v10, REQ-6b, edge)
+  Given a recorder that was never started, or has been disposed
+  When stop() is called
+  Then it resolves with an empty take rather than waiting for a flush
+# pinned by: tests/audio/recorder/node.test.ts
 
 Scenario: A manual take does not lock the playhead (v7, REQ-2/REQ-4)
   Given a manual capture is running

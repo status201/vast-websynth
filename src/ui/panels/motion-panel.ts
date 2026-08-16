@@ -498,14 +498,36 @@ export function buildMotionPanel(
   };
 
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
+
+  // Repaint the A/B lanes only while they are on screen (REQ-16b). A repaint
+  // clears and rebuilds an SVG polyline plus up to 16 circles and re-levels 16
+  // pads, *per lane* — and `arrangement.onChange` below fires every bar during
+  // playback, so off-screen that is pure waste (runtime-performance.md REQ-4).
+  // A repaint asked for while hidden is coalesced into one on reveal, so the
+  // lanes are never stale. Same idiom as the XY graph's `graphDirty` further
+  // down; the two are deliberately separate flags because they redraw different
+  // DOM, but they share the one gate.
+  let tracksDirty = false;
   const repaintTracks = (): void => { for (const r of trackRows) r.repaint(); };
-  patterns.onMotionTrackChange(repaintTracks);
+  const repaintTracksIfShown = (): void => {
+    if (!gate.shown) { tracksDirty = true; return; }
+    repaintTracks();
+  };
+  gate.whenShown(() => {
+    if (!tracksDirty) return;
+    tracksDirty = false;
+    repaintTracks();
+  });
+
+  patterns.onMotionTrackChange(repaintTracksIfShown);
   // Per lane (REQ-2): a track's staircase-vs-ramp follows its own param, so the
-  // XY lane's STEP/SLIDE no longer redraws the tracks.
+  // XY lane's STEP/SLIDE no longer redraws the tracks. Off-screen this coalesces
+  // into the same reveal repaint as everything else — a per-lane redraw of a
+  // panel nobody is looking at is the same waste as a per-bar one.
   for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
-    bus.subscribe(`motion.t${t}.slide`, () => trackRows[t]?.repaint());
+    bus.subscribe(`motion.t${t}.slide`, repaintTracksIfShown);
   }
-  engine.arrangement.onChange(repaintTracks);
+  engine.arrangement.onChange(repaintTracksIfShown);
 
   // ---- Wiring ----
   const paintAll = (bank: readonly MotionStep[]): void => {
