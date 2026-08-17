@@ -21,6 +21,12 @@ export type SyncMessage =
   | { type: 'stop' }                     // 0xFC
   | { type: 'pulse' }                    // 0xF8, 24 PPQN
   | { type: 'tempo'; bpm: number }       // v2: explicit tempo (no MIDI byte)
+  // v5: the time signature (meter.md REQ-18). Like `tempo` it has no MIDI byte —
+  // the real-time message set carries no meter at all — so `MidiSyncTransport`
+  // drops it and only the WiFi wire delivers it. Song Position stays correct
+  // either way: it counts 16ths, which is meter-neutral; what diverges without
+  // this is which BAR two peers think a given 16th falls in.
+  | { type: 'meter'; beats: number; unit: number }
   | { type: 'songposition'; beat: number }; // 0xF2 — MIDI beat = 6 clocks = one 16th
 
 /**

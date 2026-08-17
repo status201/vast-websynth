@@ -14,7 +14,19 @@ import { createClearMenu } from '../components/clear-menu';
 import { showToast } from '../components/toast';
 import type { PatternUndo } from '../../state/pattern-undo';
 import { BANK_LABELS, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { GRID_CELLS, LANE_RATE_LABELS, meterLabel, ticksPerCell } from '../../state/meter';
+import { Dropdown } from '../components/dropdown';
+import { laneGrid, onLaneGridChange } from '../lane-grid';
+import dropdownStyles from '../styles/dropdown.module.css';
 import { ListenerSet } from '../../utils/listeners';
+
+/**
+ * `<m>.len` as labels: index 0 is the `LEN_FOLLOW` sentinel, and it reads as
+ * **BAR** rather than "0" or "follow" — the value is a bar's worth of steps,
+ * and a numeral there would look like a length of zero.
+ */
+const LEN_LABELS: string[] = ['BAR', ...Array.from({ length: GRID_CELLS }, (_, i) => String(i + 1))];
+
 
 /**
  * The chrome every machine tab (seq / drum / sampler / motion) wraps around its
@@ -300,8 +312,102 @@ export function laneControlsFor(
   };
 }
 
+/**
+ * The **LEN / RATE** pair for a machine header (meter.md REQ-10/REQ-14) — how
+ * many cells this lane loops over and how long each one lasts.
+ *
+ * Built here rather than per panel so all four machines get the identical
+ * control, and so "follow the bar" reads the same everywhere: LEN's `0` renders
+ * as **BAR**, which is what the default means and what makes the meter picker
+ * the only control most users ever touch.
+ *
+ * A hint line says what the pair currently amounts to, because two dropdowns
+ * that interact are exactly the case ADR-014 says not to make the user simulate
+ * in their head: `12 × 1/16 = 3/4` tells them the lane is in meter, and
+ * `12 × 1/16 vs 4/4` tells them it is deliberately not.
+ */
+export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControls {
+  const el = document.createElement('div');
+  el.className = layout.laneMeter!;
+  // The cluster carries its own id: its `title` is where the in-meter reading
+  // lives, and counting DOM levels up from a child is the kind of selector that
+  // breaks the moment a wrapper is added (testids.md REQ-3).
+  el.dataset.testid = `machine-${lane}-grid`;
+
+  const len = new Dropdown(LEN_LABELS);
+  len.el.classList.add(dropdownStyles.compact!, dropdownStyles.narrow!);
+  len.el.dataset.testid = `machine-${lane}-len`;
+  len.el.title = 'LEN — steps this machine loops over. BAR follows the time signature.';
+  len.onChange((v) => bus.set(`${lane}.len`, LEN_LABELS.indexOf(v)));
+
+  const rate = new Dropdown([...LANE_RATE_LABELS]);
+  rate.el.classList.add(dropdownStyles.compact!, dropdownStyles.narrow!);
+  rate.el.dataset.testid = `machine-${lane}-rate`;
+  rate.el.title = 'RATE — how long one step lasts.';
+  rate.onChange((v) => bus.set(`${lane}.rate`, LANE_RATE_LABELS.indexOf(v)));
+
+  const hint = document.createElement('span');
+  hint.className = layout.laneMeterHint!;
+  hint.dataset.testid = `machine-${lane}-meter-hint`;
+
+  // One caption for the pair: this is the machine's step GRID, and two captions
+  // cost width the header does not have (see layout.module.css).
+  el.append(
+    labelled('GRID', sized(len.el, layout.laneMeterLen!)),
+    sized(rate.el, layout.laneMeterRate!),
+    hint,
+  );
+
+  const off = onLaneGridChange(bus, lane, () => {
+    const grid = laneGrid(bus, lane);
+    len.setValue(LEN_LABELS[Math.round(bus.get(`${lane}.len`))] ?? LEN_LABELS[0]!);
+    rate.setValue(LANE_RATE_LABELS[grid.rate] ?? '1/16');
+    const laneTicks = grid.cells * ticksPerCell(grid.rate);
+    const meter = meterLabel(bus.get('transport.beats'), bus.get('transport.beatUnit'));
+    const inMeter = laneTicks === grid.bar;
+    // Shown only when the lane is OFF the bar. In meter the two dropdowns
+    // already say everything ("BAR" / "1/16"), and this is a machine header
+    // that has to survive `responsive-machine-header.md`'s one-row budget at
+    // 1440px — a permanent third element ate it. Off the bar the words earn
+    // their width: `12 steps vs 4/4 — polyrhythm` is the difference between a
+    // deliberate setting and something that looks broken.
+    hint.textContent = inMeter ? '' : `${grid.cells} steps vs ${meter} — polyrhythm`;
+    hint.hidden = inMeter;
+    // The in-meter reading moves to the cluster's tooltip, so it is still
+    // reachable without costing a pixel of the header.
+    el.title = inMeter
+      ? `${grid.cells} steps of ${LANE_RATE_LABELS[grid.rate]} = one ${meter} bar`
+      : `${grid.cells} steps of ${LANE_RATE_LABELS[grid.rate]} against a ${meter} bar`;
+  });
+
+  return {
+    el,
+    destroy(): void { off(); len.destroy(); rate.destroy(); },
+  };
+}
+
+/** A fixed-width box for a `.compact` Dropdown to fill (see layout.module.css). */
+function sized(control: HTMLElement, cls: string): HTMLElement {
+  const box = document.createElement('div');
+  box.className = cls;
+  box.appendChild(control);
+  return box;
+}
+
+/** A caption beside a compact control, matching the knob captions near it. */
+function labelled(text: string, control: HTMLElement): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = layout.laneMeterField!;
+  const cap = document.createElement('span');
+  cap.className = layout.laneMeterLabel!;
+  cap.textContent = text;
+  wrap.append(cap, control);
+  return wrap;
+}
+
 export function playheadRulerFor(
   engine: StudioApi,
+  bus: ParamBus,
   lane: StepLane,
   gate?: VisibilityGate,
 ): PlayheadRuler {
@@ -309,7 +415,7 @@ export function playheadRulerFor(
   // (transport-position.md REQ-15). Hand it the SAME accessors `bankBarFor` uses,
   // so the letter can never disagree with the bank bar sitting beside it.
   const h = laneHooks(engine, lane);
-  return buildPlayheadRuler(engine, lane, gate, {
+  return buildPlayheadRuler(engine, bus, lane, gate, {
     getBank: h.getEdit,
     onBankChange: h.onEditChange,
   });

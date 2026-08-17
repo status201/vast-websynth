@@ -1,7 +1,7 @@
 import type { Clock } from '../transport/clock';
 import type { Arrangement } from '../transport/arrangement';
 import type { CapturedAudio, RecorderNode } from './node';
-import { SEQ_LENGTH } from '../../state/patterns';
+import { DEFAULT_BAR_TICKS } from '../../state/meter';
 import { clamp } from '../../utils/math';
 import { encodeWav, encodeMp3, triggerDownload } from './encode';
 
@@ -57,6 +57,13 @@ export class RecorderController {
   private stopAtStep = 0;
   /** Ticks seen since this export began — the wrap-free counterpart to `stopAtStep`. */
   private elapsedSteps = 0;
+  /** Bar length in 16th ticks (meter.md REQ-7): an export of a 7/8 song has to
+   *  be 7/8 bars long, and its tail bar one of those. Pushed by the Engine. */
+  private barTicks = DEFAULT_BAR_TICKS;
+
+  setBarTicks(ticks: number): void {
+    this.barTicks = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+  }
   /** The tail-grace timeout, so a cancel can disarm it. */
   private tailTimer: number | undefined;
   /** The finished take awaiting Save/Discard; null in every other phase. */
@@ -204,13 +211,13 @@ export class RecorderController {
     const runs = Math.round(clamp(opts?.runs ?? 1, 1, MAX_RUNS));
     // Repeats need nothing from the arrangement: every lane already wraps its
     // slot index (`pos % steps.length`), so a longer capture just replays it.
-    const stopAtStep = bars * runs * SEQ_LENGTH;
+    const stopAtStep = bars * runs * this.barTicks;
     // A whole bar of silence beats TAIL_MS for a long reverb. It is a longer
     // WAIT, not an extra arrangement bar: bar N+1 would replay chain slot 0,
     // which is music. The transport is already stopped here, so nothing new
     // triggers and the tails ring into real silence.
     const tailMs = opts?.tailBar
-      ? SEQ_LENGTH * this.clock.sixteenthDuration() * 1000
+      ? this.barTicks * this.clock.sixteenthDuration() * 1000
       : TAIL_MS;
 
     this.clock.stop();
@@ -218,15 +225,16 @@ export class RecorderController {
     this.stopAtStep = stopAtStep;
     this.elapsedSteps = 0;
     this.begin();             // arm before audio so nothing is clipped
-    // Count steps ELAPSED rather than testing the clock's absolute step: `_step`
-    // wraps at `& 0xffff` (transport.md REQ-5), so `step >= stopAtStep` was
-    // unreachable once `bars × runs > 4096` and the export simply never stopped,
-    // recording into memory indefinitely. `bars` is the arrangement chain length,
-    // which an imported song controls — so counting removes the ceiling instead
-    // of capping the song (audio-export.md REQ-2).
+    // Count steps ELAPSED rather than testing the clock's absolute step. When
+    // `_step` still wrapped at `& 0xffff`, `step >= stopAtStep` was unreachable
+    // once `bars × runs > 4096` and the export simply never stopped, recording
+    // into memory indefinitely. The wrap is gone (transport.md REQ-10) and this
+    // is now merely the clearer of two correct forms: the capture starts at
+    // step 0 but a cued clock need not, so elapsed steps say what we mean
+    // (audio-export.md REQ-2).
     this.unsubTick = this.clock.onTick(() => {
       // Post-increment, so `step` is 0,1,2,… — exactly what `clock.step` read
-      // before, just without the 16-bit wrap. The rendered length is therefore
+      // before. The rendered length is therefore
       // byte-identical to v8's (it stops on the FIRST tick at or past the
       // bound, so that step is the last one rendered), which the audio bench
       // and verify-audio-by-ear.md depend on.

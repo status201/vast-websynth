@@ -193,6 +193,7 @@ const RULER_HELP: HelpTopic = {
 export type TopicId =
   | 'transport'
   | 'transport.swing'
+  | 'meter'
   | 'voicing'
   | 'panic'
   | 'presets'
@@ -287,6 +288,24 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'up for more shuffle.</p>' +
       '<p>It lives on the clock, so it shapes <em>everything</em> at once — the sequencer, drums, ' +
       'sampler and arpeggiator all stay locked together.</p>',
+  },
+  meter: {
+    title: 'Meter (time signature)',
+    body:
+      '<p><strong>METER</strong> sets the song\'s time signature. Every machine follows it at ' +
+      'once — pick <strong>7/8</strong> and the step grids redraw to fourteen columns, the ruler ' +
+      'numbers seven beats, and the red accent columns move with them. There is nothing else to ' +
+      'set up.</p>' +
+      '<p>Each machine also has its own <strong>GRID</strong> pair in its header. Leave ' +
+      '<strong>LEN</strong> on <em>BAR</em> and <strong>RATE</strong> on <em>1/16</em> and it ' +
+      'simply follows the meter. Change them and that lane goes its own way: 12 steps under a ' +
+      '16-step bar drift against each other and line back up every four bars, and a ' +
+      '<em>triplet</em> rate plays three notes against the bar\'s two. The line beside the ' +
+      'controls tells you which you have, so a lane that is off the bar never looks like a ' +
+      'mistake.</p>' +
+      '<p><strong>5/4</strong> and <strong>7/4</strong> are twenty and twenty-eight sixteenths — ' +
+      'more steps than a grid has — so those set RATE to <em>1/8</em> and use ten or fourteen ' +
+      'steps.</p>',
   },
   voicing: {
     title: 'Mono / Poly',

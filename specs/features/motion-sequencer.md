@@ -3,7 +3,8 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 14  # v14: the A/B lanes' repaint is visibility-gated like the XY graph
+version: 15  # v15: the lane follows the meter, curve included (REQ-24)
+             # v14: the A/B lanes' repaint is visibility-gated like the XY graph
              #      beside them — it was rebuilding SVG every bar off-screen (REQ-16b)
              # v13: an unresolvable automation target is reported as a warning
              #      instead of silently no-op'ing (REQ-17b; untrusted-input REQ-12)
@@ -493,6 +494,17 @@ The tab sits between Sampler and Song.
 
   Shift is desktop-only by nature. It is an enhancement, not the only route to a
   value: (b) is what gives touch exact, repeatable levels, so law 6 holds.
+
+- **REQ-24** (v15) — **The automation lane follows the meter too.** `motion.len`
+  / `motion.rate` size the XY lane *and* both A/B lanes together
+  ([meter](meter.md) REQ-10/REQ-14) — one binding, so the three rows and the
+  ruler above them cannot end up drawing different bars. The curve is evaluated
+  over the lane's own length: `scalarAt` takes a `cells` argument (defaulting to
+  the whole bank, so the panel, the graph and the tests are untouched) and
+  anchors beyond it are invisible. That matters most for **slide**, whose
+  bar-line segment must end at the lane's seam — otherwise a shortened lane
+  ramps toward a boundary it never reaches. The machine keeps reading the **raw**
+  step: automation must not follow a stutter remap ([meter](meter.md) REQ-17).
 
 ## Technical design
 

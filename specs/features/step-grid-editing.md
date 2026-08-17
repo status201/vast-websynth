@@ -3,7 +3,8 @@
 ```yaml
 id: step-grid-editing
 status: implemented
-version: 6   # v6: the no-dead-item rule covers ALL four machines, not just
+version: 7   # v7: cells past the lane's length are hidden, not dead (REQ-14)
+             # v6: the no-dead-item rule covers ALL four machines, not just
              #     Motion — an empty row is not offered anywhere (REQ-6)
              # v5: a row may clear more than steps and own its own undo — the
              #     sampler's ejects the slot's sample (sampler REQ-9) — REQ-6/REQ-7
@@ -201,6 +202,14 @@ answer to "inspect this step without disturbing it".
   painted, never selected, and neither `Delete` (REQ-5) nor `Clear ▾` (REQ-6)
   reaches it. It obeys the same `VisibilityGate` as REQ-12, with the same reveal
   contract.
+
+- **REQ-14** (v7) — **Cells past the lane's length are hidden, and hidden cells
+  take no gestures.** The grid's column count follows the meter
+  ([meter](meter.md) REQ-11), so a 3/4 song shows twelve columns rather than
+  sixteen with four dead ones — and a dead column would be exactly the kind of
+  control that does nothing that [ADR-014](../decisions/adr-014-dont-make-me-think.md)
+  rules out. `hidden`, not removed: the DOM, the selection cursor and the stored
+  steps are all untouched, so the gesture model below needs no new rule.
 
 ## Technical design
 

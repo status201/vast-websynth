@@ -3,7 +3,8 @@
 ```yaml
 id: audio-export
 status: implemented
-version: 10  # v10: the worklet batches quanta into one message and stop() awaits
+version: 11  # v11: a captured bar is the song's bar, not always 16 steps (REQ-11)
+             # v10: the worklet batches quanta into one message and stop() awaits
              #      the flush, so a take stays frame-identical (REQ-6b)
              # v9: the stop condition counts steps elapsed since the export began —
              #     the old absolute test was unreachable past the 16-bit step wrap
@@ -53,15 +54,18 @@ already-slow action, so the fetch is invisible next to the encode itself.
 - **REQ-2** — `exportSong(fmt, opts?)` restarts from the top, renders
   `runs` passes of the longest enabled [arrangement](arrangement.md) chain (or
   `FALLBACK_BARS` = 4 when none enabled), auto-stops, and downloads.
-  `stopAtStep = bars × runs × SEQ_LENGTH`; **`runs` is clamped to 1..`MAX_RUNS`
+  `stopAtStep = bars × runs × barTicks` (v11 — the song's own bar, see REQ-11);
+  **`runs` is clamped to 1..`MAX_RUNS`
   (10)** and defaults to 1, so an omitted `opts` renders exactly what v6 did.
   Repeats need no arrangement support: every lane already wraps its slot index
   (`pos % steps.length`), so a longer capture simply replays the chains.
   The end condition counts **steps elapsed since the export started** (v9), not
-  the clock's absolute step: `Clock._step` wraps at `& 0xffff`
-  ([transport](transport.md) REQ-5), so a `step >= stopAtStep` test against an
-  absolute number became **unreachable** once `bars × runs > 4096` — the export
-  then never auto-stopped and recorded into memory indefinitely. An imported song
+  the clock's absolute step: `Clock._step` wrapped at `& 0xffff` until
+  [transport](transport.md) REQ-10 removed it, so a `step >= stopAtStep` test
+  against an absolute number became **unreachable** once `bars × runs > 4096` —
+  the export then never auto-stopped and recorded into memory indefinitely.
+  Counting elapsed steps is kept now the wrap is gone: the capture always starts
+  at step 0 but a cued clock need not, so it still says what it means. An imported song
   can set `bars` (it is the arrangement chain length), so this was reachable from
   a shared file; counting elapsed steps removes the ceiling rather than merely
   capping it.
@@ -220,8 +224,8 @@ already-slow action, so the fetch is invisible next to the encode itself.
   progress display:
   - **`rendering`** — a determinate progress bar plus `bar n of N`, driven off
     `exportProgress()` (`elapsedSteps / stopAtStep`) repainted on `clock.onTick`.
-    `elapsedSteps`, not `clock.step`: the clock's step wraps at `& 0xffff`
-    ([transport](transport.md) REQ-5), which made the old form unreachable (REQ-2).
+    `elapsedSteps`, not `clock.step`: the clock's step wrapped at `& 0xffff`
+    until [transport](transport.md) REQ-10, which made the old form unreachable (REQ-2).
     Determinate, not a spinner: the length is known exactly up front, and this is
     long enough that "how much longer" is the actual question.
   - **`encoding`** — *"Preparing your download…"* (REQ-4's phase). Indeterminate,
@@ -238,6 +242,11 @@ already-slow action, so the fetch is invisible next to the encode itself.
     click must not abandon a long render — but Escape still works and, while
     rendering, aborts it. Whatever closes the modal mid-render cancels it: the
     modal *is* the render's surface, so it can never outlive it or be outlived.
+
+- **REQ-11** (v11) — **A bar is the song's bar.** The capture bound
+  (`bars × runs × barTicks`) and the optional tail bar both measure in
+  `barTicks` ([meter](meter.md) REQ-7), so a 7/8 song exports 7/8 bars and its
+  tail is one of them. At the default meter every number is identical to v10.
 
 ## Technical design
 

@@ -11,6 +11,10 @@ export interface TickSubscriber {
    *  REQ-4). Like `onStart`, subscribers read `step` themselves. */
   onSeek(fn: () => void): () => void;
   sixteenthDuration(): number;
+  /** The swing delay this tick's `when` already carries, in seconds. A lane
+   *  running coarser than a 16th subtracts it and applies swing on its own grid
+   *  (transport.md REQ-11, meter.md REQ-16). */
+  swingOffset(step: number): number;
   setBpm(bpm: number): void;
   start(): void;
   stop(): void;

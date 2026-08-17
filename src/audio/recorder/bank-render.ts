@@ -1,6 +1,6 @@
 import type { Clock } from '../transport/clock';
 import type { CapturedAudio, RecorderNode } from './node';
-import { SEQ_LENGTH } from '../../state/patterns';
+import { DEFAULT_BAR_TICKS } from '../../state/meter';
 import { crop, fadeIn, fadeOut } from './buffer-dsp';
 
 /** Passes played per render: bar 1 primes delay/reverb/release tails, bar 2 is
@@ -26,8 +26,9 @@ export function bankCropRange(
   sixteenthS: number,
   sampleRate: number,
   firstFrame: number,
+  barTicks: number = DEFAULT_BAR_TICKS,
 ): { start: number; end: number } {
-  const barSamples = Math.round(SEQ_LENGTH * sixteenthS * sampleRate);
+  const barSamples = Math.round(barTicks * sixteenthS * sampleRate);
   const start = Math.round(step0Time * sampleRate) - firstFrame + barSamples;
   return { start, end: start + barSamples };
 }
@@ -47,6 +48,13 @@ export class BankRenderController {
   private rendering = false;
   private unsubTick: (() => void) | null = null;
   private readonly stateListeners = new Set<(rendering: boolean) => void>();
+  /** Bar length in 16th ticks (meter.md REQ-7) — a rendered bar must be the
+   *  song's bar, not always 16 steps. The Engine pushes changes here. */
+  private barTicks = DEFAULT_BAR_TICKS;
+
+  setBarTicks(ticks: number): void {
+    this.barTicks = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+  }
 
   constructor(
     private readonly clock: Clock,
@@ -76,7 +84,7 @@ export class BankRenderController {
       return await new Promise<CapturedAudio>((resolve, reject) => {
         let step0Time = -1;
         let sixteenthS = 0;
-        const stopAtStep = RENDER_BARS * SEQ_LENGTH;
+        const stopAtStep = RENDER_BARS * this.barTicks;
         this.clock.stop();
         this.node.start(); // arm before audio so the pre-roll is captured
         this.unsubTick = this.clock.onTick((step, when) => {
@@ -111,7 +119,9 @@ export class BankRenderController {
     const captured = await this.node.stop();
     const firstFrame = this.node.firstFrame;
     if (step0Time < 0 || firstFrame === null) throw new Error('bank render captured no audio');
-    const { start, end } = bankCropRange(step0Time, sixteenthS, captured.sampleRate, firstFrame);
+    const { start, end } = bankCropRange(
+      step0Time, sixteenthS, captured.sampleRate, firstFrame, this.barTicks,
+    );
     const have = Math.min(captured.left.length, captured.right.length);
     if (start < 0 || end > have) throw new Error('bank render missed the bar window');
     return fadeOut(fadeIn(crop(captured, start, end), RENDER_FADE_MS), RENDER_FADE_MS);

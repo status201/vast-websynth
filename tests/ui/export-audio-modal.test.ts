@@ -24,6 +24,10 @@ function harness(over: { songBars?: number; phase?: RecorderPhase } = {}) {
 
   const engine = {
     arrangement: { songBars: () => over.songBars ?? 4 },
+    // 4/4 — what `registerDefaults` resolves the meter params to, so every
+    // assertion here still describes a 16-tick bar (meter.md REQ-6).
+    barTicks: 16,
+
     clock: {
       sixteenthDuration: () => 0.125,
       onTick: (fn: () => void) => { tickListeners.add(fn); return () => tickListeners.delete(fn); },

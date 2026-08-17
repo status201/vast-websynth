@@ -477,3 +477,66 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
     });
   });
 });
+
+describe('Arrangement — meter (meter.md REQ-6)', () => {
+  /** Fire the ticks of `bar`, then report the slot that bar played. */
+  const playMeterBar = (clock: TestClock, arr: Arrangement, bar: number, ticks: number): number => {
+    for (let i = bar * ticks; i < (bar + 1) * ticks; i++) clock.fireTick(i);
+    return arr.seqPlayBank;
+  };
+
+  it('advances the chain every barTicks, not every 16 (7/8)', () => {
+    const clock = new TestClock();
+    const arr = new Arrangement(new PatternStore(), clock);
+    arr.setBarTicks(14); // 7/8
+    arr.setSeqChain([0, 1, 2], true);
+    clock.fireStart(0);
+
+    // Each bar is 14 ticks long, so the chain steps at 14 and 28 — not 16 and 32.
+    expect(playMeterBar(clock, arr, 0, 14)).toBe(0);
+    expect(playMeterBar(clock, arr, 1, 14)).toBe(1);
+    expect(playMeterBar(clock, arr, 2, 14)).toBe(2);
+    expect(playMeterBar(clock, arr, 3, 14)).toBe(0); // wraps on the lane length
+  });
+
+  it('seeks to the bar the meter implies', () => {
+    const clock = new TestClock();
+    const arr = new Arrangement(new PatternStore(), clock);
+    arr.setBarTicks(12); // 3/4
+    arr.setSeqChain([0, 1, 2, 3], true);
+    // Tick 24 is bar 3 in 3/4 and bar 2 in 4/4 — the meter decides, not the tick.
+    clock.fireSeek(24);
+    expect(arr.seqPlayBank).toBe(2);
+    arr.setBarTicks(16);
+    clock.fireSeek(24);
+    expect(arr.seqPlayBank).toBe(1);
+  });
+
+  it('re-bases the lanes when the meter changes mid-play', () => {
+    const clock = new TestClock();
+    const arr = new Arrangement(new PatternStore(), clock);
+    arr.setSeqChain([0, 1, 2, 3], true);
+    clock.fireStart(0);
+    for (let s = 0; s <= 32; s++) clock.fireTick(s); // boundaries at 16 and 32
+    expect(arr.seqPlayBank).toBe(2);
+
+    // The bar line just moved. Slot 2 was counted against the 4/4 grid; on the
+    // 3/4 grid tick 33 is bar 2 (floor(33/12)), so the lane must follow the new
+    // grid rather than keeping the count the old one left behind.
+    arr.setBarTicks(12);
+    expect(arr.seqPlayBank).toBe(2);
+    clock.step = 48;
+    arr.setBarTicks(16);
+    expect(arr.seqPlayBank).toBe(3); // 48 / 16 = bar 4 -> slot 3
+  });
+
+  it('is unchanged at the default meter (regression)', () => {
+    const clock = new TestClock();
+    const arr = new Arrangement(new PatternStore(), clock);
+    arr.setBarTicks(SEQ_LENGTH); // idempotent no-op
+    arr.setSeqChain([0, 0, 1, 0], true);
+    clock.fireStart(0);
+    const seen = [0, 1, 2, 3].map((bar) => playMeterBar(clock, arr, bar, SEQ_LENGTH));
+    expect(seen).toEqual([0, 0, 1, 0]);
+  });
+});

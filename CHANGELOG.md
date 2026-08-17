@@ -18,6 +18,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Time signatures, and lanes that fight the bar.** A **METER** dropdown next to
+  BPM puts the whole instrument in 3/4, 5/4, 6/8, 7/8, 9/8, 12/8, 2/4 or 7/4 —
+  every machine follows it at once, so there is nothing else to set up. The step
+  grids redraw to the bar's own length (3/4 shows twelve columns, not sixteen
+  with four dead ones), the position ruler numbers the bar's real beats, the red
+  accent columns move with them, and the song readout counts the bar you are
+  actually in. Existing songs are untouched: 4/4 is the default and no saved file
+  changes format.
+
+  Each machine also gets its own **LEN** and **RATE**. Leave them on *BAR* and
+  *1/16* and nothing changes. Set the drums to 12 steps under a 16-step bar and
+  the two phase against each other, re-aligning every four bars; set a lane to
+  1/16 T and it plays three notes against the bar's two, inside the bar. A line
+  under the controls says which you have — `14 steps = 7/8`, or
+  `12 steps vs 4/4 — polyrhythm` — so two interacting dropdowns never have to be
+  simulated in your head. Swing follows each lane's own grid, so a slower lane
+  swings with the hats instead of sitting dead straight against them.
+
+  5/4 and 7/4 are reached at eighth-note resolution (10 or 14 steps at 1/8): the
+  grid is still sixteen cells, and a bar of 5/4 is twenty sixteenths. Rendering,
+  exporting and resampling all measure a bar the song's way, so a 7/8 export is
+  7/8 bars long. Two devices synced over WiFi share the meter; a MIDI cable
+  cannot carry one, so set the same signature on both.
+
 - **The keyboard shows you the key you are in.** Pick a root and a scale on the
   **Key** tab and the keyboard at the bottom of the screen picks up the same
   colours the little map there uses — orange for the root, yellow for the notes
@@ -86,6 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   or a song, so loading someone else's work never rearranges your screen.
 
 ### Fixed
+
+- **Loading a preset no longer switches your motion automation off.** The Motion
+  machine's on/mute/slide settings were being stored inside sounds and reapplied
+  when you loaded one, so auditioning a preset against a song silently killed the
+  automation that song was running. Motion is part of the song, like the
+  sequencer and the drums — it is no longer part of a sound.
 
 - **The Key tab's colour legend reads in the order of the controls above it.** It
   listed root, chord, in scale while the dropdowns beside it read Root, Scale,

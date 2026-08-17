@@ -6,6 +6,8 @@ import { SEQ_LENGTH } from '../../src/state/patterns';
 import { TestClock } from '../audio/transport/test-clock';
 import styles from '../../src/ui/styles/playhead-ruler.module.css';
 import type { StudioApi } from '../../src/ui/studio-api';
+import { ParamBus, registerDefaults } from '../../src/state/params';
+import { barTicks } from '../../src/state/meter';
 
 /**
  * The ruler reads the *clock* rather than a machine's `onStep` — that is the
@@ -15,6 +17,11 @@ import type { StudioApi } from '../../src/ui/studio-api';
  */
 function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {}) {
   const clock = new TestClock();
+  // A real bus: the ruler reads the meter params off it to size its strip
+  // (meter.md REQ-8/REQ-11), and the registered defaults are 4/4 — so every
+  // pre-meter assertion in this file still describes a 16-tick bar.
+  const bus = new ParamBus();
+  registerDefaults(bus);
   const seekTo = vi.fn((step: number) => {
     if (over.canSeek === false) return false;
     clock.fireSeek(step);
@@ -29,6 +36,9 @@ function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {})
     sync: { onStatus: () => () => {} },
     recorder: { onPhase: () => () => {} },
     bankRender: { onState: () => () => {} },
+    get barTicks() {
+      return barTicks(bus.get('transport.beats'), bus.get('transport.beatUnit'));
+    },
     arrangement: {
       songBars: () => state.bars,
       onChange: (fn: () => void) => {
@@ -49,7 +59,7 @@ function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {})
     Object.assign(state, patch);
     for (const l of [...arrangementListeners]) l();
   };
-  return { clock, api, seekTo, hooks, set };
+  return { clock, bus, api, seekTo, hooks, set };
 }
 
 const ticks = (el: HTMLElement): HTMLButtonElement[] =>
@@ -69,8 +79,8 @@ const navOf = (ruler: { barEl: HTMLElement }, dir: 'prev' | 'next', lane = 'drum
 
 describe('PlayheadRuler', () => {
   it('renders one tick per 16th, each with a stable testid', () => {
-    const { api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     expect(ticks(ruler.cellsEl)).toHaveLength(SEQ_LENGTH);
     expect(ruler.cellsEl.querySelector('[data-testid="ruler-drum-0"]')).toBeTruthy();
     expect(ruler.cellsEl.querySelector('[data-testid="ruler-drum-15"]')).toBeTruthy();
@@ -78,16 +88,16 @@ describe('PlayheadRuler', () => {
   });
 
   it('carries no grid of its own, so the panel’s class controls alignment', () => {
-    const { api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'seq', undefined, hooks);
+    const { api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'seq', undefined, hooks);
     // The panel adds `drum.cells` / `seq.stepRow` itself; if the component
     // shipped its own grid the two would fight and the ticks would drift.
     expect(ruler.cellsEl.className).toBe('');
   });
 
   it('follows the clock while playing', () => {
-    const { clock, api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireStart();
     clock.fireTick(0);          // step 0
     expect(litIndex(ruler.cellsEl)).toBe(0);
@@ -98,8 +108,8 @@ describe('PlayheadRuler', () => {
 
   // --- The two marks (v2, REQ-14) ---
   it('shows a cue and NO playhead while stopped', () => {
-    const { clock, api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     // Never run: the cue is 0 and nothing is playing.
     expect(litIndex(ruler.cellsEl)).toBe(-1);
     expect(cueIndex(ruler.cellsEl)).toBe(0);
@@ -118,8 +128,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('keeps the cue visible while playing, so Stop → Play is predictable', () => {
-    const { clock, api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireSeek(4);          // cue at 4
     clock.fireStart(4);
     clock.step = 11;
@@ -129,8 +139,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('lets one tick carry both marks when playback starts on the cue (edge)', () => {
-    const { clock, api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireSeek(6);
     clock.fireStart(6);
     clock.fireTick(0);
@@ -140,8 +150,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('seeks within the CURRENT bar when a tick is clicked', () => {
-    const { clock, api, seekTo, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, seekTo, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireSeek(SEQ_LENGTH * 3); // bar 4 (0-indexed 3)
     ticks(ruler.cellsEl)[7]!.click();
     expect(seekTo).toHaveBeenLastCalledWith(SEQ_LENGTH * 3 + 7);
@@ -149,8 +159,8 @@ describe('PlayheadRuler', () => {
 
   // --- Mode-aware readout (v2, REQ-15) ---
   it('names the bank while no chain is enabled, with no stepper', () => {
-    const { api, hooks, set } = harness({ bars: 0, bank: 1 });
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { api, bus, hooks, set } = harness({ bars: 0, bank: 1 });
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     // A bar number here would be fiction: the song is one bank looping.
     expect(labelOf(ruler).textContent).toBe('Bank B');
     expect(navOf(ruler, 'prev').hidden).toBe(true);
@@ -163,8 +173,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('wraps the bar at song length once a chain exists, and shows the stepper', () => {
-    const { clock, api, hooks, set } = harness({ bars: 4 });
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks, set } = harness({ bars: 4 });
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     expect(labelOf(ruler).textContent).toBe('Bar 1/4');
     expect(navOf(ruler, 'next').hidden).toBe(false);
 
@@ -180,8 +190,8 @@ describe('PlayheadRuler', () => {
 
   // --- Bar stepper (v2, REQ-16) ---
   it('steps a bar while preserving the 16th', () => {
-    const { clock, api, seekTo, hooks } = harness({ bars: 4 });
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, seekTo, hooks } = harness({ bars: 4 });
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireSeek(SEQ_LENGTH * 1 + 5); // bar 2, step 5
     navOf(ruler, 'next').click();
     // Shift+Arrow would zero the column here; this must not.
@@ -191,8 +201,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('clamps the stepper to the song, never below bar 1 or past the last bar', () => {
-    const { clock, api, seekTo, hooks } = harness({ bars: 4 });
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, seekTo, hooks } = harness({ bars: 4 });
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     clock.fireSeek(3); // bar 1, step 3
     navOf(ruler, 'prev').click();
     expect(seekTo).toHaveBeenLastCalledWith(3); // clamped at bar 0, step kept
@@ -203,8 +213,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('shows the position even while the transport has never run', () => {
-    const { api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'sampler', undefined, hooks);
+    const { api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'sampler', undefined, hooks);
     // The grid highlight is blank here (no machine emits onStep while stopped);
     // the ruler is the surface that answers "where are we?".
     expect(cueIndex(ruler.cellsEl)).toBe(0);
@@ -213,8 +223,8 @@ describe('PlayheadRuler', () => {
 
   // --- Refusal honesty (v2, REQ-17) ---
   it('marks itself inert when seeking is refused, and stops promising a move', () => {
-    const { api, hooks } = harness({ canSeek: false, bars: 4 });
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { api, bus, hooks } = harness({ canSeek: false, bars: 4 });
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     expect(ruler.cellsEl.classList.contains(styles.off!)).toBe(true);
     expect(ruler.barEl.classList.contains(styles.off!)).toBe(true);
     const first = ticks(ruler.cellsEl)[0]!;
@@ -224,8 +234,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('names the beat in a tick’s title, matching the numerals it prints', () => {
-    const { api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     // The strip labels beats 1-4, so the tooltip must not talk in steps 1-16.
     expect(ticks(ruler.cellsEl)[0]!.title).toContain('beat 1');
     expect(ticks(ruler.cellsEl)[4]!.title).toContain('beat 2');
@@ -234,9 +244,9 @@ describe('PlayheadRuler', () => {
 
   // transport-position.md REQ-10 — same contract as the grid playhead.
   it('does no work while hidden, and re-syncs to the live step on reveal', () => {
-    const { clock, api, hooks } = harness();
+    const { clock, api, bus, hooks } = harness();
     const gate = new VisibilityGate();
-    const ruler = buildPlayheadRuler(api, 'drum', gate, hooks);
+    const ruler = buildPlayheadRuler(api, bus, 'drum', gate, hooks);
     clock.fireStart();
     clock.fireTick(0);
     expect(litIndex(ruler.cellsEl)).toBe(0);
@@ -255,8 +265,8 @@ describe('PlayheadRuler', () => {
   });
 
   it('unsubscribes on destroy', () => {
-    const { clock, api, hooks } = harness();
-    const ruler = buildPlayheadRuler(api, 'drum', undefined, hooks);
+    const { clock, api, bus, hooks } = harness();
+    const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
     ruler.destroy();
     clock.fireSeek(SEQ_LENGTH + 4);
     expect(cueIndex(ruler.cellsEl)).toBe(0); // no repaint after teardown

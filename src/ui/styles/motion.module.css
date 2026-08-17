@@ -202,9 +202,13 @@
    extra gap, so the cells get narrower automatically. The full-width grid keeps
    step 0 / step 15 aligned with the XY lane above; only interior cells sit a few
    px off the decorative graph overlay (pointer-events:none), which is fine. */
+/* Column count follows the lane's played length (meter.md REQ-11): a 3/4 song
+   draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
+   (and by the ruler that shares this class), so the two can never disagree; the
+   fallback keeps every other consumer at 16. */
 .trackCells {
   display: grid;
-  grid-template-columns: repeat(16, 1fr);
+  grid-template-columns: repeat(var(--steps, 16), 1fr);
   gap: 10px;
   flex: 1;
   min-width: 0;

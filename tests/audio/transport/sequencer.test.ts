@@ -4,6 +4,7 @@ import type { SynthOutput } from '../../../src/audio/transport/note-output';
 import { makeTransportRig } from './rig';
 import { ScaleQuantizer } from '../../../src/audio/transport/scale-quantizer';
 import { SCALE_LABELS } from '../../../src/utils/music';
+import { DEFAULT_LANE_RATE, LANE_RATES } from '../../../src/state/meter';
 
 describe('StepSequencer', () => {
   it('plays notes from the pattern on each tick', () => {
@@ -586,5 +587,102 @@ describe('StepSequencer — four tracks (sequencer.md REQ-8/REQ-9/REQ-10)', () =
       expect(played).toEqual([]);
       expect(released.map((r) => r.note)).toEqual([60]); // NOT 67
     });
+  });
+});
+
+describe('StepSequencer — meter (meter.md)', () => {
+  function rig(len = 0, rate = DEFAULT_LANE_RATE, bar = 16) {
+    const r = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const seq = new StepSequencer({ playNote, releaseNote }, r.clock, r.patterns, r.arrangement, r.perf);
+    seq.setEnabled(true);
+    seq.lane.setBarTicks(bar);
+    seq.lane.setLen(len);
+    seq.lane.setRate(rate);
+    return { ...r, seq, playNote, releaseNote };
+  }
+
+  const rateOf = (label: string): number => LANE_RATES.findIndex((x) => x.label === label);
+
+  /** The grid index each tick lands on, read off the playhead listener. */
+  function playhead(r: ReturnType<typeof rig>, ticks: number): number[] {
+    const seen: number[] = [];
+    r.seq.onStep((i) => seen.push(i));
+    for (let s = 0; s < ticks; s++) r.clock.fireTick(s * 0.125);
+    return seen;
+  }
+
+  it('follows the bar, so one meter change moves the machine (REQ-10)', () => {
+    // 3/4 = 12 ticks: the lane wraps after 12 cells, not 16.
+    expect(playhead(rig(0, DEFAULT_LANE_RATE, 12), 14))
+      .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1]);
+    // 7/8 = 14 ticks.
+    expect(playhead(rig(0, DEFAULT_LANE_RATE, 14), 16))
+      .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1]);
+  });
+
+  it('is bit-identical to pre-meter at the defaults (regression)', () => {
+    expect(playhead(rig(), 18)).toEqual([...Array(16).keys(), 0, 1]);
+  });
+
+  it('phases a shorter lane against the bar and re-aligns at the LCM (REQ-10)', () => {
+    // A 12-cell lane under a 16-tick bar: they only start together every 4 bars.
+    const seen = playhead(rig(12), 48);
+    expect(seen[0]).toBe(0);
+    expect(seen[16]).toBe(4);  // bar 2 starts mid-lane
+    expect(seen[32]).toBe(8);  // bar 3 too
+    expect(seen[48 - 48]).toBe(0);
+    // 48 ticks = LCM(12, 16): the next tick starts both together again.
+    expect(seen.length).toBe(48);
+    expect(seen[47]).toBe(11);
+  });
+
+  it('keeps the cell index a pure function of the step, across a seek (REQ-3)', () => {
+    const played = rig(12);
+    const seen: number[] = [];
+    played.seq.onStep((i) => seen.push(i));
+    for (let s = 0; s <= 40; s++) played.clock.fireTick(s * 0.125);
+    const byPlaying = seen[40]!;
+
+    const seeked = rig(12);
+    const after: number[] = [];
+    seeked.seq.onStep((i) => after.push(i));
+    seeked.clock.fireSeek(40);
+    seeked.clock.fireTick(5);
+    expect(after[0]).toBe(byPlaying);
+    expect(byPlaying).toBe(40 % 12);
+  });
+
+  it('holds a cell twice as long at half rate, gate included (REQ-14)', () => {
+    const r = rig(0, rateOf('1/8'), 16);
+    r.patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    r.clock.fireTick(0);
+    expect(r.playNote).toHaveBeenCalledWith(60, 0.8, 0);
+    // One cell is two 16ths (0.25s); gate 0.5 of it is 0.125s — twice the
+    // default rate's 0.0625s, because the gate is a fraction of the cell.
+    expect(r.releaseNote).toHaveBeenCalledWith(60, 0.125);
+  });
+
+  it('skips the ticks a coarser lane does not land on (REQ-15)', () => {
+    expect(playhead(rig(0, rateOf('1/8'), 16), 8)).toEqual([0, 1, 2, 3]);
+    expect(playhead(rig(0, rateOf('1/4'), 16), 8)).toEqual([0, 1]);
+  });
+
+  it('fires three triplet cells against two ticks, each at its own time (REQ-15)', () => {
+    const r = rig(12, rateOf('1/16 T'), 16);
+    for (let t = 0; t < 12; t++) {
+      r.patterns.setSeqStep(0, t, { on: true, note: 60 + t, velocity: 0.8, gate: 0.5 });
+    }
+    for (let s = 0; s < 16; s++) r.clock.fireTick(s * 0.125);
+    // 24 triplet 16ths in a 16-tick bar.
+    expect(r.playNote).toHaveBeenCalledTimes(24);
+    const times = r.playNote.mock.calls.map((c) => c[2] as number);
+    expect(new Set(times).size).toBe(24); // no two hits share a `when`
+    expect([...times].sort((a, b) => a - b)).toEqual(times); // strictly in order
+    // Evenly spaced by 2/3 of a 16th.
+    for (let i = 1; i < times.length; i++) {
+      expect(times[i]! - times[i - 1]!).toBeCloseTo(0.125 * (2 / 3), 9);
+    }
   });
 });

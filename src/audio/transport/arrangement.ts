@@ -1,5 +1,6 @@
 import type { PatternStore } from '../../state/patterns';
-import { SEQ_LENGTH, REST, clampChainStep, clampTranspose } from '../../state/patterns';
+import { REST, clampChainStep, clampTranspose } from '../../state/patterns';
+import { DEFAULT_BAR_TICKS } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -77,6 +78,13 @@ export class Arrangement {
   private expectFirstBar = true;
   private readonly changeListeners = new Set<() => void>();
 
+  /**
+   * Bar length in 16th ticks (meter.md REQ-6). `DEFAULT_BAR_TICKS` is 4/4, so an
+   * Arrangement nobody has told about the meter behaves exactly as it always
+   * did. The Engine pushes changes here from `transport.beats`/`beatUnit`.
+   */
+  private barTicks = DEFAULT_BAR_TICKS;
+
   constructor(private readonly patterns: PatternStore, private readonly clock: TickSubscriber) {
     // Seek to the bar implied by the start step (0 for a plain start, nonzero
     // for a clock-sync Song-Position join — arrangement.md REQ-4). Reading
@@ -90,7 +98,7 @@ export class Arrangement {
     clock.onSeek(() => this.seekTo(this.clock.step));
 
     clock.onTick((step) => {
-      if (step % SEQ_LENGTH !== 0) return;
+      if (step % this.barTicks !== 0) return;
       if (this.expectFirstBar) {
         // Positions were set by onStart; just consume the flag (don't re-zero).
         this.expectFirstBar = false;
@@ -121,7 +129,7 @@ export class Arrangement {
    * absolute step number changes without a bar line having elapsed.
    */
   seekTo(step: number): void {
-    const bar = Math.floor(step / SEQ_LENGTH);
+    const bar = Math.floor(step / this.barTicks);
     this.seqPos = laneSeek(this.seq, bar);
     this.drumPos = laneSeek(this.drum, bar);
     this.samplerPos = laneSeek(this.sampler, bar);
@@ -129,7 +137,7 @@ export class Arrangement {
     // A bar-aligned position suppresses the first boundary's increment (that
     // boundary IS this bar); a mid-bar one lets the next boundary — the genuine
     // next bar — advance.
-    this.expectFirstBar = step % SEQ_LENGTH === 0;
+    this.expectFirstBar = step % this.barTicks === 0;
     this.recompute();
     this.notify();
   }
@@ -165,6 +173,23 @@ export class Arrangement {
    * the new chain. That is what lets `◀ ▶ ✕` and the bank-add buttons keep
    * calling this with two arguments and still do the right thing.
    */
+  /**
+   * Set the bar length in 16th ticks (meter.md REQ-6). Idempotent, so the
+   * Engine can push it on any param change.
+   *
+   * A meter change moves every bar line, which makes the lane positions counted
+   * against the old grid stale — so it re-bases through the same `seekTo` a
+   * playhead jump uses (arrangement.md REQ-7). Without that, switching to 7/8
+   * mid-play leaves each chain on whatever slot the 4/4 grid had reached and the
+   * next boundary double-advances.
+   */
+  setBarTicks(ticks: number): void {
+    const n = Number.isFinite(ticks) ? Math.max(1, Math.round(ticks)) : DEFAULT_BAR_TICKS;
+    if (n === this.barTicks) return;
+    this.barTicks = n;
+    this.seekTo(this.clock.step);
+  }
+
   setSeqChain(steps: number[], enabled: boolean, transpose?: number[]): void {
     this.seq.steps = steps.length ? steps.map(clampChainStep) : [0];
     this.seq.transpose = fitTranspose(transpose ?? this.seq.transpose, this.seq.steps.length);

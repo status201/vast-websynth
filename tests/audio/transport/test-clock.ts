@@ -1,4 +1,12 @@
 import type { TickSubscriber, TickListener } from '../../../src/audio/transport/tick-source';
+import { MAX_STEP } from '../../../src/state/limits';
+
+/** Mirrors the real `Clock`'s ingress bound (transport.md REQ-10): clamped, not
+ *  masked, so a lane length that does not divide a power of two keeps its phase. */
+function clampStep(step: number): number {
+  if (!Number.isFinite(step)) return 0;
+  return Math.max(0, Math.min(MAX_STEP, Math.floor(step)));
+}
 
 /**
  * A synchronous mock clock for testing transport modules.
@@ -43,6 +51,14 @@ export class TestClock implements TickSubscriber {
     this.bpm = Math.max(20, Math.min(400, bpm));
   }
 
+  /** Settable so a test can drive lane-relative swing (meter.md REQ-16) without
+   *  reimplementing the real Clock's grid. */
+  swing = 0;
+
+  swingOffset(step: number): number {
+    return (step & 1) === 1 ? this.swing * 0.5 * this.sixteenthDuration() : 0;
+  }
+
   /** Fire one tick at a given audio time (default 0). */
   fireTick(when = 0): void {
     for (const l of this.tickListeners) l(this.step, when);
@@ -56,7 +72,7 @@ export class TestClock implements TickSubscriber {
 
   fireStart(fromStep = 0): void {
     this.playing = true;
-    this.step = fromStep & 0xffff; // mirrors Clock.start(fromStep) (transport.md REQ-5)
+    this.step = clampStep(fromStep); // mirrors Clock.start(fromStep) (transport.md REQ-5/REQ-10)
     for (const l of this.startListeners) l();
   }
 
@@ -68,7 +84,7 @@ export class TestClock implements TickSubscriber {
   /** Mirrors Clock.seek: moves the step + cue, leaves the grid alone
    *  (transport.md REQ-6/REQ-7). */
   fireSeek(step: number): void {
-    this.cue = this.step = step & 0xffff;
+    this.cue = this.step = clampStep(step);
     for (const l of this.seekListeners) l();
   }
 

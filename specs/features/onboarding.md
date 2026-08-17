@@ -3,7 +3,8 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 23  # v23: a badge hides when its anchor leaves the viewport in EITHER
+version: 24  # v24: a meter topic + badge on the header picker (REQ-23)
+             # v23: a badge hides when its anchor leaves the viewport in EITHER
              #      direction — the below-the-fold half was missing (REQ-5b)
              # v22: the facade's five signatures are unchanged, but its body now
              #      loads on the first startTour()/badge toggle
@@ -485,6 +486,15 @@ thing.
   setting on **another tab** — a dead control with an off-screen cause is exactly the
   case ADR-014 says must explain itself. The copy also decodes the Roman numerals,
   which are the notation a non-musician will not have.
+
+- **REQ-23** (v24) — **The meter has a help topic and an info badge**, anchored
+  to the header's `meter-picker` beside SWING's. It is one topic, not three: the
+  time signature and the per-machine `LEN`/`RATE` overrides are one idea
+  ([meter](meter.md)), and pinning a second badge inside each machine header
+  would spend the row's one-line budget (`responsive-machine-header.md`) on
+  chrome. The copy carries the two things the controls cannot say themselves —
+  that a lane off the bar is deliberate, and that 5/4 and 7/4 need a coarser
+  rate because a bar of them is longer than the grid.
 
 ## Technical design
 

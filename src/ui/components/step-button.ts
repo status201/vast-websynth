@@ -22,6 +22,7 @@ export class StepButton {
   private readonly labelSpan: HTMLSpanElement;
   private _on = false;
   private _playing = false;
+  private _accent: 'orange' | 'red' | 'yellow';
   private viz: StepViz | null = null;
 
   private static ACCENT_CLASS: Record<string, string> = {
@@ -31,6 +32,7 @@ export class StepButton {
   };
 
   constructor(label: string, accent: 'orange' | 'red' | 'yellow' = 'orange') {
+    this._accent = accent;
     this.el = document.createElement('button');
     this.el.type = 'button';
     this.el.className = `${styles.root!} ${StepButton.ACCENT_CLASS[accent] ?? ''}`.trim();
@@ -44,6 +46,28 @@ export class StepButton {
     if (this._on === on) return;
     this._on = on;
     this.el.classList.toggle(styles.on!, on);
+  }
+
+  /**
+   * Move the beat accent (meter.md REQ-8). Which columns start a beat is no
+   * longer fixed at construction: in 7/8 the accents fall on every second cell,
+   * and a lane at 1/8 accents every fourth. Cheap and idempotent, so a panel can
+   * call it for every cell on any meter change.
+   */
+  setAccent(accent: 'orange' | 'red' | 'yellow'): void {
+    if (this._accent === accent) return;
+    this._accent = accent;
+    for (const c of Object.values(StepButton.ACCENT_CLASS)) {
+      if (c) this.el.classList.remove(c);
+    }
+    const cls = StepButton.ACCENT_CLASS[accent];
+    if (cls) this.el.classList.add(cls);
+  }
+
+  /** Hide a cell the lane does not reach (meter.md REQ-11). The DOM and the
+   *  stored step stay exactly as they were, so lengthening restores them. */
+  setLive(live: boolean): void {
+    this.el.hidden = !live;
   }
 
   /** Highlight the currently-playing step. */

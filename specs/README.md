@@ -235,6 +235,7 @@ specs/
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —
     transport.md       ·  the look-ahead clock
+    meter.md           ·  time signatures + per-lane length/rate (polymeter, polyrhythm)
     transport-position.md · moving the playhead (seek, position ruler, Home/Shift+arrows)
     transport-window.md · the Song-panel transport row + its floating window
     arpeggiator.md     ·  held-note arp + transport ownership
@@ -348,6 +349,7 @@ specs/
     adr-017-modulation-in-graph.md             ·  modulation in the graph, automation on the bus
     adr-018-audio-graph-memory-is-committed-not-reclaimed.md
                                                ·  bypass gives back CPU, not memory
+    adr-019-the-bar-is-a-tick-count.md         ·  meter is ticks, not a signature
 ```
 
 > Coverage note: the feature set above documents the current system. New features

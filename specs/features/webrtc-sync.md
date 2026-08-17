@@ -3,7 +3,8 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 6   # v6: REQ-1 type-guards the wire (a peer can't inject NaN into the
+version: 7   # v7: the wire carries the time signature (REQ-12) — meter.md
+             # v6: REQ-1 type-guards the wire (a peer can't inject NaN into the
              #     clock); the signal blob decodes under MAX_SIGNAL_BYTES
 owner: core
 related:
@@ -238,6 +239,14 @@ follows whichever delivers.
   lives in `src/audio/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
   directly.
 
+- **REQ-12** (v7) — **The wire carries the time signature.** A `meter` message
+  (`{t:'meter', beats, unit}`) joins the control channel, announced by a master on
+  link-up and whenever the local meter changes ([meter](meter.md) REQ-18). Without
+  it two peers resolve the same Song Position into different **bars**, because a
+  position counts 16ths and only the meter says how many make a bar. Guarded like
+  every other variant — both fields must be finite numbers, or the message is
+  dropped ([untrusted-input](untrusted-input.md) REQ-8) — and applied through the
+  `ParamBus`, so a followed meter shows in the picker and saves with the song.
 ## Technical design
 
 ### Contract / public interface

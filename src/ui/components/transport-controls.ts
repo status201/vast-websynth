@@ -1,7 +1,6 @@
 import type { StudioApi } from '../studio-api';
 import type { UiBridge } from '../ui-bridge';
 import { FloatingWindow } from './floating-window';
-import { SEQ_LENGTH } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/transport-controls.module.css';
@@ -111,7 +110,7 @@ export function buildTransportControls(
       c.dataset.testid = `${p}-scrub-${i}`;
       c.textContent = String(i + 1);
       c.title = `Jump to bar ${i + 1}`;
-      c.addEventListener('click', () => engine.seekTo(bar * SEQ_LENGTH));
+      c.addEventListener('click', () => engine.seekTo(bar * engine.barTicks));
       scrub.appendChild(c);
       cells.push(c);
     }
@@ -142,8 +141,11 @@ export function buildTransportControls(
     if (bars !== builtBars) renderStructure(bars);
 
     const pos = position();
-    const bar = Math.floor(pos / SEQ_LENGTH);
-    const step = pos % SEQ_LENGTH;
+    // The song's own bar, not a fixed 16 (meter.md REQ-6): in 7/8 bar 2 begins
+    // at tick 14, and a readout counting 16s would disagree with the transport.
+    const ticks = engine.barTicks;
+    const bar = Math.floor(pos / ticks);
+    const step = pos % ticks;
     // The SAME wrapped bar the scrubber lights (REQ-6): computed once, so the
     // number and the lit cell cannot disagree. Printing the absolute bar made a
     // one-bar song count 1.01, 2.01, 3.01 … beside a single lit cell — a bar the

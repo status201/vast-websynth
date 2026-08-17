@@ -8,7 +8,7 @@ import { Knob } from '../components/knob';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, GridCursor, clearMenuFor,
   samplerSlotClearRow, VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -16,7 +16,8 @@ import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
-import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS, SEQ_LENGTH } from '../../state/patterns';
+import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
@@ -48,6 +49,7 @@ export function buildSamplerPanel(
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-9).
   header.appendChild(laneControlsFor(bus, engine, 'sampler', bridge).el);
+  header.appendChild(laneMeterControlsFor(bus, 'sampler').el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
   const bankBar = bankBarFor(engine, 'sampler');
   header.appendChild(bankBar.el);
@@ -109,7 +111,7 @@ export function buildSamplerPanel(
   // ---- Transport-position ruler (transport-position.md REQ-9) ----
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable.
-  const ruler = playheadRulerFor(engine, 'sampler', gate);
+  const ruler = playheadRulerFor(engine, bus, 'sampler', gate);
   const rulerRow = document.createElement('div');
   rulerRow.className = drumStyles.row!;
   const rulerCtrls = document.createElement('div');
@@ -127,6 +129,7 @@ export function buildSamplerPanel(
   root.appendChild(gridWrap);
 
   const stepBtns: StepButton[][] = [];
+  const cellRows: HTMLElement[] = [];
   const labels: HTMLButtonElement[] = [];
   const editBtns: HTMLButtonElement[] = [];
 
@@ -216,10 +219,13 @@ export function buildSamplerPanel(
 
     const cells = document.createElement('div');
     cells.className = drumStyles.cells!;
+    cellRows.push(cells);
     const trackBtns: StepButton[] = [];
-    for (let s = 0; s < SEQ_LENGTH; s++) {
+    // Every cell is built; `bindLaneGrid` below decides which are live and where
+    // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+    for (let s = 0; s < ALL_CELLS; s++) {
       const cell = engine.patterns.sampler[slot]![s]!;
-      const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
+      const sb = new StepButton('');
       sb.el.dataset.testid = `sampler-step-${slot}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
       paintTriggerCell(sb, cell);
@@ -232,6 +238,11 @@ export function buildSamplerPanel(
 
     refreshLabel(slot);
   }
+
+  // Column count, live cells and beat accents, all from the meter. Bound after
+  // the rows exist, because it paints immediately. Not unsubscribed: the panel
+  // is built once and lives as long as the page does.
+  bindLaneGrid(bus, 'sampler', () => cellRows, () => stepBtns);
 
   // The shared gesture model (step-grid-editing.md): tap toggles, drag paints,
   // long-press / right-click selects only. Attached after the rows are built so
@@ -266,7 +277,7 @@ export function buildSamplerPanel(
   engine.patterns.onSamplerBankChange((bank) => {
     highlighter.clear();
     for (let s = 0; s < SAMPLER_SLOT_COUNT; s++) {
-      for (let i = 0; i < SEQ_LENGTH; i++) {
+      for (let i = 0; i < ALL_CELLS; i++) {
         const sb = stepBtns[s]?.[i];
         if (sb) paintTriggerCell(sb, bank[s]![i]!);
       }

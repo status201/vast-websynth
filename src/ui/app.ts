@@ -12,6 +12,7 @@ import {
 import { Knob } from './components/knob';
 import { Switch } from './components/switch';
 import { Segmented } from './components/segmented';
+import { MeterPicker } from './components/meter-picker';
 import { WAVE_ICONS } from './components/wave-icons';
 import { HEADER_ICONS } from './components/header-icons';
 import { fxPatchDecoration } from './components/fx-patch-decoration';
@@ -417,6 +418,9 @@ function buildHeader(
   engine.sync.onStatus(applySlaved);
   transport.appendChild(bpmKnob.el);
   transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
+  // Beside BPM and SWING, because a meter is the third thing that defines the
+  // grid everything else is written against (meter.md REQ-5).
+  transport.appendChild(new MeterPicker(bus).el);
 
   el.appendChild(transport);
 

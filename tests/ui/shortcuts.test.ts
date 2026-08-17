@@ -25,6 +25,9 @@ function setup(seekOpts: { refuse?: boolean } = {}) {
     panic: vi.fn(),
     perf: { setFill: vi.fn() },
     clock,
+    // 4/4 — what `registerDefaults` resolves the meter params to, so every
+    // assertion here still describes a 16-tick bar (meter.md REQ-6).
+    barTicks: 16,
     seekTo,
     canSeek: () => !seekOpts.refuse,
   } as unknown as StudioApi;

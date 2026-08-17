@@ -1,6 +1,9 @@
 import type { StudioApi } from '../studio-api';
+import type { ParamBus } from '../../state/params';
 import type { VisibilityGate } from '../panels/step-panel-scaffold';
-import { SEQ_LENGTH, BANK_LABELS } from '../../state/patterns';
+import { BANK_LABELS } from '../../state/patterns';
+import { GRID_CELLS } from '../../state/meter';
+import { beatOfCell, isBeatCell, laneCellAt, laneGrid, onLaneGridChange } from '../lane-grid';
 import styles from '../styles/playhead-ruler.module.css';
 
 export type RulerLane = 'seq' | 'drum' | 'sampler' | 'motion';
@@ -72,10 +75,15 @@ export interface PlayheadRuler {
  */
 export function buildPlayheadRuler(
   api: StudioApi,
+  bus: ParamBus,
   lane: RulerLane,
   gate?: VisibilityGate,
   hooks?: RulerLaneHooks,
 ): PlayheadRuler {
+  // The grid this lane is drawing right now (meter.md REQ-8/REQ-10). Re-read on
+  // any meter change rather than captured, so the ticks, the accents and the
+  // playhead all move together and cannot end up describing different bars.
+  let grid = laneGrid(bus, lane);
   const cellsEl = document.createElement('div');
   cellsEl.dataset.testid = `ruler-${lane}`;
   cellsEl.setAttribute('role', 'group');
@@ -96,9 +104,10 @@ export function buildPlayheadRuler(
       const bars = api.arrangement.songBars();
       // Preserve the 16th — the whole point of this control, since Shift+arrows
       // zero it (REQ-16). Clamp inside the song rather than wandering past it.
-      const bar = Math.floor(pos / SEQ_LENGTH) + delta;
+      const ticks = api.barTicks;
+      const bar = Math.floor(pos / ticks) + delta;
       const max = bars > 0 ? bars - 1 : bar;
-      api.seekTo(Math.min(Math.max(0, bar), max) * SEQ_LENGTH + (pos % SEQ_LENGTH));
+      api.seekTo(Math.min(Math.max(0, bar), max) * ticks + (pos % ticks));
     });
     return b;
   };
@@ -109,23 +118,47 @@ export function buildPlayheadRuler(
   label.dataset.testid = `ruler-${lane}-bar`;
   barEl.append(prevBtn, label, nextBtn);
 
+  // Every cell is built once; the ones past the lane's length are hidden rather
+  // than removed, so a meter change is a class flip and never a DOM rebuild
+  // (meter.md REQ-11 — the grid below does exactly the same).
   const ticks: HTMLButtonElement[] = [];
-  for (let i = 0; i < SEQ_LENGTH; i++) {
+  for (let i = 0; i < GRID_CELLS; i++) {
     const t = document.createElement('button');
     t.type = 'button';
-    t.className = i % 4 === 0 ? `${styles.tick!} ${styles.beat!}` : styles.tick!;
+    t.className = styles.tick!;
     t.dataset.testid = `ruler-${lane}-${i}`;
-    // Only the beat columns are labelled — sixteen numerals do not fit at tick
-    // width — so the title names the beat too, not a second numbering (REQ-17).
-    t.textContent = i % 4 === 0 ? String(i / 4 + 1) : '';
     t.addEventListener('click', () => {
       // Seek within the bar currently displayed, so the click lands where the
-      // user is looking even when the song is many bars in.
-      api.seekTo(Math.floor(position() / SEQ_LENGTH) * SEQ_LENGTH + i);
+      // user is looking even when the song is many bars in. A cell of THIS lane,
+      // which at a coarser rate is several 16ths wide.
+      const ticksPerBar = api.barTicks;
+      const perCell = grid.bar / Math.max(1, grid.cells);
+      api.seekTo(Math.floor(position() / ticksPerBar) * ticksPerBar + Math.round(i * perCell));
     });
     ticks.push(t);
     cellsEl.appendChild(t);
   }
+
+  /**
+   * Redraw the strip's structure: which cells exist, and which start a beat.
+   * Runs only on a meter change, never per tick.
+   */
+  const renderGrid = (): void => {
+    grid = laneGrid(bus, lane);
+    cellsEl.style.setProperty('--steps', String(grid.cells));
+    ticks.forEach((t, i) => {
+      const live = i < grid.cells;
+      t.hidden = !live;
+      // `classList.toggle`, never a `className` rewrite: the playhead and cue
+      // marks are classes on these same buttons, and a structural redraw that
+      // wiped them would leave the strip blank until the next tick moved them.
+      t.classList.toggle(styles.beat!, live && isBeatCell(i, grid));
+      // Only the beat columns are labelled — sixteen numerals do not fit at tick
+      // width — so the title names the beat too, not a second numbering (REQ-17).
+      const beat = beatOfCell(i, grid);
+      t.textContent = live && beat !== null && isBeatCell(i, grid) ? String(beat) : '';
+    });
+  };
 
   /** Playing: the live step. Stopped: the cue, i.e. where Play will begin. */
   const position = (): number => (api.clock.playing ? api.clock.step : api.clock.cue);
@@ -138,7 +171,7 @@ export function buildPlayheadRuler(
   const paint = (): void => {
     // The live playhead exists only while playing: a stopped strip must not look
     // like a running one (REQ-14).
-    const at = api.clock.playing ? api.clock.step % SEQ_LENGTH : -1;
+    const at = api.clock.playing ? laneCellAt(api.clock.step, grid) : -1;
     if (at !== paintedAt) {
       ticks[paintedAt]?.classList.remove(AT_CLASS);
       ticks[at]?.classList.add(AT_CLASS);
@@ -146,7 +179,7 @@ export function buildPlayheadRuler(
     }
     // The cue always shows where Play/resume begins — including while playing,
     // where it is the mark Stop → Play will return to.
-    const cue = api.clock.cue % SEQ_LENGTH;
+    const cue = laneCellAt(api.clock.cue, grid);
     if (cue !== paintedCue) {
       ticks[paintedCue]?.classList.remove(CUE_CLASS);
       ticks[cue]?.classList.add(CUE_CLASS);
@@ -161,7 +194,7 @@ export function buildPlayheadRuler(
       const bank = hooks ? BANK_LABELS[hooks.getBank()] ?? '?' : '?';
       text = `Bank <b>${bank}</b>`;
     } else {
-      const bar = Math.floor(position() / SEQ_LENGTH) % bars;
+      const bar = Math.floor(position() / api.barTicks) % bars;
       text = `Bar <b>${bar + 1}</b>/${bars}`;
     }
     if (text !== paintedLabel) {
@@ -207,7 +240,12 @@ export function buildPlayheadRuler(
     const why = 'Moving the playhead is unavailable right now';
     ticks.forEach((t, i) => {
       t.setAttribute('aria-disabled', String(!can));
-      t.title = can ? `Move the playhead to beat ${Math.floor(i / 4) + 1} of this bar` : why;
+      const beat = beatOfCell(i, grid);
+      t.title = can
+        ? (beat !== null
+          ? `Move the playhead to beat ${beat} of this bar`
+          : `Move the playhead to step ${i + 1} of this bar`)
+        : why;
     });
     for (const [b, dir] of [[prevBtn, 'previous'], [nextBtn, 'next']] as const) {
       b.setAttribute('aria-disabled', String(!can));
@@ -219,6 +257,14 @@ export function buildPlayheadRuler(
     api.recorder.onPhase(refreshEnabled),
     api.bankRender.onState(refreshEnabled),
   );
+  // A meter or lane-length change restructures the strip. Subscribed last, after
+  // both painters exist, and it fires immediately — so this call is also the
+  // first render, and the two below only repeat it.
+  unsubs.push(onLaneGridChange(bus, lane, () => {
+    renderGrid();
+    refreshEnabled();
+    paint();
+  }));
   refreshEnabled();
   paint();
 

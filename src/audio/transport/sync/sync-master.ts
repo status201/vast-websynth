@@ -44,6 +44,10 @@ export interface SyncMasterOptions {
    *  before the start/stop sends so a stale queued pulse tail cannot trail
    *  them on a scheduled-send transport (Web MIDI). */
   flush?: () => void;
+  /** The song's time signature, for the `meter` announce (meter.md REQ-18).
+   *  Omitted in tests that don't exercise it — the announce is then skipped
+   *  rather than sending a fabricated 4/4 over a peer's real 7/8. */
+  meter?: () => { beats: number; unit: number };
 }
 
 export class SyncMaster {
@@ -51,6 +55,8 @@ export class SyncMaster {
   private readonly timer: TickTimer;
   private readonly nowMs: () => number;
   private readonly flush: (() => void) | undefined;
+
+  private readonly readMeter: (() => { beats: number; unit: number }) | undefined;
 
   private lastSentBpm: number | null = null;
   private idleRunning = false;
@@ -66,6 +72,17 @@ export class SyncMaster {
     this.timer = opts?.timer ?? defaultTickTimer();
     this.nowMs = opts?.nowMs ?? (() => performance.now());
     this.flush = opts?.flush;
+    this.readMeter = opts?.meter;
+  }
+
+  /**
+   * Re-announce the time signature (meter.md REQ-18). Called when the local
+   * meter changes, so a peer that is already following does not keep numbering
+   * bars by the meter it joined with. A no-op while nothing can hear it.
+   */
+  announceMeter(): void {
+    const m = this.readMeter?.();
+    if (m) this.send({ type: 'meter', beats: m.beats, unit: m.unit });
   }
 
   enable(): void {
@@ -101,6 +118,11 @@ export class SyncMaster {
     const bpm = this.currentBpm();
     send({ type: 'tempo', bpm });
     this.lastSentBpm = bpm;
+    // Before the position: a peer resolves `songposition` into a BAR through its
+    // own bar length, so it has to know the meter first or it lands on the bar
+    // its OWN meter implies (meter.md REQ-18).
+    const m = this.readMeter?.();
+    if (m) send({ type: 'meter', beats: m.beats, unit: m.unit });
     if (this.clock.playing) {
       send({ type: 'songposition', beat: this.clock.step & SONG_POSITION_MASK });
       send({ type: 'continue' });

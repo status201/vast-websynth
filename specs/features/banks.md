@@ -3,7 +3,8 @@
 ```yaml
 id: banks
 status: implemented
-version: 4   # v4: the per-bank content dot is specified (REQ-6) — it must count
+version: 5   # v5: a bank stores 16 cells whatever the meter plays (REQ-7)
+             # v4: the per-bank content dot is specified (REQ-6) — it must count
              #     every lane the machine stores in that bank
 owner: core
 related:
@@ -72,6 +73,13 @@ without the editor and the playhead fighting over one buffer.
   until the next repaint. Both live in one place per machine — `laneHooks()` in
   `ui/panels/step-panel-scaffold.ts` — so adding a lane to a machine means
   extending its entry there.
+
+- **REQ-7** (v5) — **A bank always stores 16 cells; the meter decides how many
+  *play*.** Nothing about the bank shape moved when time signatures landed
+  ([meter](meter.md) REQ-12) — which is exactly what kept the validators, the
+  published JSON schemas, the authoring dialect and every shipped demo untouched.
+  Shortening a lane hides cells; it never clears them, so lengthening it again
+  returns the steps as they were, and a bank copied while short copies whole.
 
 ## Technical design
 

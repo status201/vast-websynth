@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Clock } from '../../../src/audio/transport/clock';
 import { TimeoutTimer } from '../../../src/audio/transport/tick-timer';
+import { MAX_STEP } from '../../../src/state/limits';
 
 /**
  * The Clock's look-ahead loop reads AudioContext.currentTime on each timer
@@ -94,10 +95,12 @@ describe('Clock start(fromStep) (Song-Position seek)', () => {
     clock.stop();
   });
 
-  it('masks fromStep to 16 bits', () => {
+  it('keeps fromStep past 16 bits instead of folding it (REQ-10)', () => {
     const { clock, ev } = startedClock();
-    clock.start(0x1_0002); // wraps to 2
-    expect(ev[0]!.step).toBe(2); // first drained tick fires at the masked seed
+    // Masked to 2 before v7. A fold is only phase-safe for bar lengths dividing
+    // 65536, so meter.md REQ-4 replaced it with an ingress clamp.
+    clock.start(0x1_0002);
+    expect(ev[0]!.step).toBe(0x1_0002);
     clock.stop();
   });
 
@@ -188,11 +191,11 @@ describe('Clock seek', () => {
     clock.stop();
   });
 
-  it('masks the target to 16 bits', () => {
+  it('keeps the target past 16 bits instead of folding it (REQ-10)', () => {
     const { clock } = startedClock();
-    clock.seek(0x1_0005);
-    expect(clock.step).toBe(5);
-    expect(clock.cue).toBe(5);
+    clock.seek(0x1_0005); // masked to 5 before v7
+    expect(clock.step).toBe(0x1_0005);
+    expect(clock.cue).toBe(0x1_0005);
   });
 });
 
@@ -369,5 +372,89 @@ describe('Clock dropout recovery (stalled wakeup source)', () => {
     expect(steps.length).toBeLessThanOrEqual(16);
     expect(steps.length).toBeGreaterThan(0);
     clock.stop();
+  });
+});
+
+describe('Clock step counter — no wrap, bounded at ingress (transport.md REQ-10)', () => {
+  function startedClock(bpm = 120) {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(bpm);
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    return { ctx, clock, ev };
+  }
+
+  it('passes 65536 without folding — the old mask jumped lane phase there', () => {
+    const { ctx, clock, ev } = startedClock();
+    clock.start(65534);
+    for (let i = 0; i < 4; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    expect(ev.map((e) => e.step).slice(0, 4)).toEqual([65534, 65535, 65536, 65537]);
+    expect(clock.step).toBeGreaterThan(65536);
+    clock.stop();
+  });
+
+  it('clamps a seek instead of masking it', () => {
+    const { clock } = startedClock();
+    clock.seek(1e12);
+    expect(clock.step).toBe(MAX_STEP);
+    clock.seek(-5);
+    expect(clock.step).toBe(0);
+    clock.seek(37.9);
+    expect(clock.step).toBe(37);
+  });
+
+  it('leaves the position at 0 for a non-finite seek', () => {
+    const { clock } = startedClock();
+    clock.seek(NaN);
+    expect(clock.step).toBe(0);
+    clock.seek(Infinity);
+    expect(clock.step).toBe(0);
+  });
+
+  it('clamps start(fromStep) the same way', () => {
+    const { clock } = startedClock();
+    clock.start(1e12);
+    expect(clock.step).toBeGreaterThanOrEqual(MAX_STEP);
+    clock.stop();
+  });
+});
+
+describe('Clock.swingOffset (transport.md REQ-11)', () => {
+  it('reports exactly the delay the emitted tick carried', () => {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as { currentTime: number };
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    clock.setBpm(120);
+    clock.setSwing(0.5);
+    const ev: Array<{ step: number; when: number }> = [];
+    clock.onTick((step, when) => ev.push({ step, when }));
+    clock.start();
+    for (let i = 0; i < 4; i++) {
+      ctx.currentTime += 0.125;
+      vi.advanceTimersByTime(25);
+    }
+    clock.stop();
+    // Unswung grid time for step n is 0.05 + n * 0.125; the difference from the
+    // emitted `when` must be what swingOffset says it is.
+    for (const e of ev.slice(0, 4)) {
+      expect(e.when - (0.05 + e.step * 0.125)).toBeCloseTo(clock.swingOffset(e.step), 9);
+    }
+  });
+
+  it('is 0 on even steps at any swing amount, and 0 everywhere when straight', () => {
+    const ctx = { currentTime: 0 } as unknown as AudioContext;
+    const clock = new Clock(ctx, { timer: new TimeoutTimer() });
+    clock.setBpm(120);
+    clock.setSwing(1);
+    expect(clock.swingOffset(0)).toBe(0);
+    expect(clock.swingOffset(2)).toBe(0);
+    expect(clock.swingOffset(1)).toBeCloseTo(0.0625, 9); // half a 16th at 120 BPM
+    clock.setSwing(0);
+    expect(clock.swingOffset(1)).toBe(0);
   });
 });

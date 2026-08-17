@@ -3,7 +3,8 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 3  # v3: the readout wraps at song length — it no longer counts bars the
+version: 4  # v4: `bar.step` counts the song's bar, not a fixed 16 (REQ-12)
+            # v3: the readout wraps at song length — it no longer counts bars the
             #     song does not have (REQ-6)
 owner: core
 related:
@@ -153,6 +154,11 @@ keep in step.
   nothing the instant swap does not — an animation that costs paints without
   serving the user is a defect, not polish.
 
+- **REQ-12** (v4) — **`bar.step` counts the song's bar.** Both halves of the
+  readout, the scrubber's per-bar seek and the bar-cell lighting measure with
+  `barTicks` rather than a fixed 16 ([meter](meter.md) REQ-6) — so in 3/4 the
+  step half runs 01..12 and bar 2 begins at tick 12. REQ-6's wrap-at-song-length
+  rule is unchanged and still applies on top.
 ## Technical design
 
 ### Contract / public interface

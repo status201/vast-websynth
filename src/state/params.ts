@@ -1,4 +1,8 @@
 import { DRUM_TRACK_COUNT, DRUM_TRACKS, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
+import {
+  GRID_CELLS, LEN_FOLLOW, LANE_RATE_LABELS, DEFAULT_LANE_RATE,
+  BEAT_UNIT_LABELS, MIN_BEATS, MAX_BEATS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT,
+} from './meter';
 import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
@@ -398,6 +402,11 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- Transport -----
     { id: 'transport.bpm', min: 40, max: 240, default: 120, step: 1, format: (v) => `${v.toFixed(0)} bpm` },
     { id: 'transport.swing', min: 0, max: 1, default: 0, format: fmtPct },
+    // Meter (specs/features/meter.md REQ-5, ADR-019). The pair resolves to a bar
+    // length in 16th ticks: 4 beats × a quarter = 16 = 4/4, i.e. exactly what
+    // every pre-meter song means, so the defaults are no-ops (ADR-006).
+    { id: 'transport.beats', min: MIN_BEATS, max: MAX_BEATS, default: DEFAULT_BEATS, step: 1 },
+    { id: 'transport.beatUnit', min: 0, max: BEAT_UNIT_LABELS.length - 1, default: DEFAULT_BEAT_UNIT, step: 1, taper: 'discrete', labels: [...BEAT_UNIT_LABELS] },
 
     // ----- Arpeggiator -----
     { id: 'arp.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -434,6 +443,7 @@ export function registerDefaults(bus: ParamBus): void {
       taper: 'discrete' as const, labels: ['on', 'mute'],
     })),
     { id: 'seq.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
+    ...laneMeterParams('seq'),
 
     // ----- Drum machine -----
     { id: 'drum.on', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'on'] },
@@ -444,6 +454,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'drum.master', min: 0, max: 1, default: 0.85, format: fmtPct },
     { id: 'drum.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     { id: 'drum.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
+    ...laneMeterParams('drum'),
 
     // Per-track drum params (8 tracks)
     ...drumTrackParams(),
@@ -453,6 +464,7 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'sampler.master', min: 0, max: 1, default: 0.85, format: fmtPct },
     { id: 'sampler.mute', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] },
     { id: 'sampler.solo', min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['off', 'solo'] },
+    ...laneMeterParams('sampler'),
 
     // Per-slot sampler params (8 slots)
     ...samplerTrackParams(),
@@ -470,6 +482,7 @@ export function registerDefaults(bus: ParamBus): void {
       id: `motion.t${t}.slide`, min: 0, max: 1, default: 1, step: 1,
       taper: 'discrete' as const, labels: ['step', 'slide'],
     })),
+    ...laneMeterParams('motion'),
   ]);
 }
 
@@ -632,6 +645,24 @@ function lfoParams(prefix: 'lfo' | 'lfo2'): ParamDef[] {
     // Tempo lock (lfo.md REQ-9) — now the same def the effects get, so the LFO's
     // lock and theirs cannot drift apart (tempo-lock.md REQ-8).
     syncParam(prefix),
+  ];
+}
+
+/**
+ * One machine's loop length + step rate (meter.md REQ-10/REQ-14).
+ *
+ * Both defaults are no-ops (ADR-006): `LEN_FOLLOW` means "as many cells of this
+ * rate as the bar holds", and the default rate is one cell per tick — together,
+ * exactly the pre-meter 16-step bar. `len` is deliberately *not* clamped to a
+ * minimum of 1: 0 is the follow sentinel, and a lane can never end up with zero
+ * cells because `laneCells` clamps the resolved count.
+ */
+function laneMeterParams(prefix: string): ParamDef[] {
+  return [
+    { id: `${prefix}.len`, min: LEN_FOLLOW, max: GRID_CELLS, default: LEN_FOLLOW, step: 1,
+      format: (v) => (v === LEN_FOLLOW ? 'bar' : `${v}`) },
+    { id: `${prefix}.rate`, min: 0, max: LANE_RATE_LABELS.length - 1, default: DEFAULT_LANE_RATE,
+      step: 1, taper: 'discrete', labels: [...LANE_RATE_LABELS] },
   ];
 }
 

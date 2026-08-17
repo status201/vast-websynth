@@ -1,5 +1,6 @@
 import { assertIndex } from '../utils/array';
 import { MAX_CHAIN_TRANSPOSE } from './limits';
+import { GRID_CELLS } from './meter';
 
 /**
  * Non-scalar state — step grids for the sequencer and drum machine.
@@ -104,7 +105,16 @@ export function makeMotionTracks(): MotionTrack[] {
   return Array.from({ length: MOTION_TRACK_COUNT }, makeMotionTrack);
 }
 
-export const SEQ_LENGTH = 16;
+/**
+ * Cells in one pattern grid.
+ *
+ * This used to mean three things at once — cells per pattern, ticks per bar, and
+ * columns of UI — and every bar line in the app was written `step % SEQ_LENGTH`.
+ * `meter.ts` now owns the other two (`barTicks`, `LANE_RATES`); this name is
+ * kept, aliasing `GRID_CELLS`, purely because 17 modules import it. New code
+ * should say which one it means (meter.md REQ-2, ADR-019).
+ */
+export const SEQ_LENGTH = GRID_CELLS;
 
 /** Sequencer tracks per bank (sequencer.md REQ-8). Track 0 is the pre-v3
  *  sequencer; 1..3 are the additions and only sound in poly voicing (REQ-9). */

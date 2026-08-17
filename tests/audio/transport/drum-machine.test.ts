@@ -3,6 +3,7 @@ import { DrumMachine } from '../../../src/audio/transport/drum-machine';
 import type { Performance } from '../../../src/audio/transport/performance';
 import { makeMockAudioContext } from '../mock-audio-context';
 import { createPerfStub, makeTransportRig } from './rig';
+import { LANE_RATES } from '../../../src/state/meter';
 
 function build(perf = createPerfStub(), fxOversample = true) {
   const ctx = makeMockAudioContext();
@@ -421,5 +422,80 @@ describe('DrumMachine.onHit', () => {
     off();
     clock.fireTick(0);
     expect(seen).toEqual([0]);
+  });
+});
+
+describe('DrumMachine — meter (meter.md)', () => {
+  const rateOf = (label: string): number => LANE_RATES.findIndex((x) => x.label === label);
+
+  it('swings a half-rate lane on its own grid (REQ-16, regression)', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    dm.lane.setRate(rateOf('1/8')); // 2 ticks per cell — only ever even ticks
+    clock.swing = 0.5;
+    for (let c = 0; c < 4; c++) patterns.setDrumCell(0, c, { on: true, velocity: 1 });
+
+    // The clock delays odd TICKS, which this lane never lands on. Left to the
+    // clock the lane would play dead straight; it must swing its own odd CELLS.
+    for (let s = 0; s < 8; s++) clock.fireTick(s * 0.125 + clock.swingOffset(s));
+    const times = spies[0]!.mock.calls.map((c) => c[0] as number);
+    expect(times).toHaveLength(4);
+    // Straight cell times are 0, 0.25, 0.5, 0.75; odd cells are laid back by
+    // swing × 0.5 × cellDur = 0.5 × 0.5 × 0.25 = 0.0625s.
+    expect(times[0]).toBeCloseTo(0, 9);
+    expect(times[1]).toBeCloseTo(0.25 + 0.0625, 9);
+    expect(times[2]).toBeCloseTo(0.5, 9);
+    expect(times[3]).toBeCloseTo(0.75 + 0.0625, 9);
+  });
+
+  it('leaves the default rate byte-identical under swing (REQ-16, regression)', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    clock.swing = 0.5;
+    for (let c = 0; c < 4; c++) patterns.setDrumCell(0, c, { on: true, velocity: 1 });
+    const emitted: number[] = [];
+    for (let s = 0; s < 4; s++) {
+      const when = s * 0.125 + clock.swingOffset(s);
+      emitted.push(when);
+      clock.fireTick(when);
+    }
+    // Whatever the clock emitted is exactly what sounded — no re-derivation.
+    expect(spies[0]!.mock.calls.map((c) => c[0] as number)).toEqual(emitted);
+  });
+
+  it('lands the fill on the bar\u2019s own last step in 7/8 (REQ-9)', () => {
+    const perf = createPerfStub();
+    const { clock, dm, spies } = build(perf);
+    dm.setEnabled(true);
+    dm.lane.setBarTicks(14); // 7/8 -> a 14-cell lane
+    perf.fillActive = true;
+    for (let s = 0; s < 14; s++) clock.fireTick(s * 0.125);
+
+    // Clap (track 7) accents the bar's last step: cell 13, not the 16-step 15.
+    expect(spies[7]).toHaveBeenCalledTimes(1);
+    expect(spies[7]!.mock.calls[0]![0]).toBeCloseTo(13 * 0.125, 9);
+    // The L→M→H tom roll occupies the last quarter of the bar: 14 - round(14/4)
+    // = cells 10..13, with H holding the extra cell exactly as it does in 4/4.
+    const tomTimes = [4, 5, 6].map((t) => spies[t]!.mock.calls.map((c) => c[0] as number));
+    expect(tomTimes[0]).toEqual([10 * 0.125]);
+    expect(tomTimes[1]).toEqual([11 * 0.125]);
+    expect(tomTimes[2]).toEqual([12 * 0.125, 13 * 0.125]);
+    // The kick anchors each half-bar: cells 0 and round(14/2) = 7.
+    expect(spies[0]!.mock.calls.map((c) => c[0] as number)).toEqual([0, 7 * 0.125]);
+  });
+
+  it('keeps the 16-step fill exactly as it was (REQ-9, regression)', () => {
+    const perf = createPerfStub();
+    const { clock, dm, spies } = build(perf);
+    dm.setEnabled(true);
+    perf.fillActive = true;
+    for (let s = 0; s < 16; s++) clock.fireTick(s);
+
+    // The pre-meter shape: kick on 0 and 8, toms L/M/H/H on 12..15, clap on 15.
+    expect(spies[0]!.mock.calls.map((c) => c[0])).toEqual([0, 8]);
+    expect(spies[4]!.mock.calls.map((c) => c[0])).toEqual([12]);
+    expect(spies[5]!.mock.calls.map((c) => c[0])).toEqual([13]);
+    expect(spies[6]!.mock.calls.map((c) => c[0])).toEqual([14, 15]);
+    expect(spies[7]!.mock.calls.map((c) => c[0])).toEqual([15]);
   });
 });

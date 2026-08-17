@@ -12,6 +12,9 @@ import { PatternStore } from '../../src/state/patterns';
 import { XyPadStore, XY_DEFAULT_ASSIGN } from '../../src/state/xy-pad';
 import { fakeArrangement } from '../fixtures/fake-arrangement';
 import { SONG_VERSION } from '../../src/state/song-version';
+import {
+  barTicks, DEFAULT_BAR_TICKS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT, DEFAULT_LANE_RATE, LEN_FOLLOW,
+} from '../../src/state/meter';
 
 /**
  * The song these tests assert against — the suite's own, never a shipped demo
@@ -645,5 +648,69 @@ describe('demo name resolution', () => {
   it('resolves an unknown name to the first demo, never to undefined', () => {
     expect(resolveDemoName(NOT_A_DEMO)).toBe(demoNames()[0]);
     expect(resolveDemoName(NOT_A_DEMO)).toBeDefined();
+  });
+});
+
+describe('Song — meter back-compat (meter.md REQ-19)', () => {
+  it('loads a pre-meter file as 4/4, with every lane following the bar', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    // Dirty the session first: apply() must be authoritative, not inheriting.
+    bus.set('transport.beats', 7);
+    bus.set('transport.beatUnit', 1);
+    bus.set('drum.len', 12);
+    bus.set('seq.rate', 0);
+
+    Song.apply(demo(), bus, new PatternStore(), fakeArrangement() as never);
+
+    expect(bus.get('transport.beats')).toBe(DEFAULT_BEATS);
+    expect(bus.get('transport.beatUnit')).toBe(DEFAULT_BEAT_UNIT);
+    expect(barTicks(bus.get('transport.beats'), bus.get('transport.beatUnit')))
+      .toBe(DEFAULT_BAR_TICKS);
+    for (const id of ['seq.len', 'drum.len', 'sampler.len', 'motion.len']) {
+      expect(bus.get(id), id).toBe(LEN_FOLLOW);
+    }
+    for (const id of ['seq.rate', 'drum.rate', 'sampler.rate', 'motion.rate']) {
+      expect(bus.get(id), id).toBe(DEFAULT_LANE_RATE);
+    }
+  });
+
+  it('carries the meter in `params`, so the format version never moves', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArrangement();
+    bus.set('transport.beats', 7);
+    bus.set('transport.beatUnit', 1);
+
+    const file = compactSongForExport(Song.capture(bus, patterns, arr as never, 'Seven'));
+    // The meter is ten scalars in the open `params` map — no new top-level key,
+    // no schema change, and so no version bump (ADR-007, meter.md REQ-19).
+    expect(file.params!['transport.beats']).toBe(7);
+    expect(file.params!['transport.beatUnit']).toBe(1);
+    expect(Object.keys(file)).not.toContain('meter');
+    expect(file.version).toBe(SONG_VERSION);
+    expect(Song.fromJSON(Song.toJSON(file))!.version).toBe(SONG_VERSION);
+  });
+
+  it('round-trips a 7/8 song with a polyrhythmic drum lane', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const patterns = new PatternStore();
+    const arr = fakeArrangement();
+    bus.set('transport.beats', 7);
+    bus.set('transport.beatUnit', 1);
+    bus.set('drum.len', 12);
+    bus.set('drum.rate', 0);
+
+    const file = Song.capture(bus, patterns, arr as never, 'Seven Eight');
+    const parsed = Song.fromJSON(Song.toJSON(compactSongForExport(file)))!;
+    const bus2 = new ParamBus();
+    registerDefaults(bus2);
+    Song.apply(parsed, bus2, new PatternStore(), fakeArrangement() as never);
+
+    expect(barTicks(bus2.get('transport.beats'), bus2.get('transport.beatUnit'))).toBe(14);
+    expect(bus2.get('drum.len')).toBe(12);
+    expect(bus2.get('drum.rate')).toBe(0);
   });
 });

@@ -327,6 +327,20 @@ patch param — snapshotted into presets, songs and share links by the generic
 special-casing anywhere. The **lock's own state is not stored**: it is `sync > 0`,
 recomputed on every load. Nothing about it reaches `localStorage`.
 
+### Note — the divisions are meter-neutral, except `1/1`
+
+`utils/tempo.ts` expresses every division in **quarter-note beats**, which is
+meter-neutral: `1/8` is an eighth in 7/8 exactly as in 4/4. The one exception is
+`'1/1', beats: 4` — that is a *whole note*, which is correct nomenclature but is
+no longer *a bar* once [meter](meter.md) lets a bar be 12 or 14 sixteenths.
+
+Deliberately left alone. `SYNC_LABELS` is **append-only** — its index is a stored
+value in every preset, song and share link — so a meter-aware "1 BAR" division
+would have to be *appended*, never substituted for `1/1`. Tempo-locked LFOs and
+delays are free-running (`audio/tempo-bind.ts` resolves a period in seconds and
+never bar-phase-resets), so they behave in 7/8 exactly as they do today: in time,
+but not aligned to the bar line.
+
 ## Scenarios (BDD)
 
 ```gherkin

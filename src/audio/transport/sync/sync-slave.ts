@@ -61,6 +61,13 @@ export interface SyncSlaveOptions {
   localBpm: () => number;
   /** performance.now()-domain ms -> AudioContext seconds. */
   toAudioTime: (perfMs: number) => number;
+  /**
+   * Adopt the master's time signature (meter.md REQ-18). Injected rather than
+   * writing the bus here: the meter is two `ParamBus` scalars, and the audio
+   * layer reaching for the bus would invert the dependency the whole app is
+   * built on (architecture REQ-1). Omitted in tests that don't exercise it.
+   */
+  setMeter?: (beats: number, unit: number) => void;
 }
 
 export class SyncSlave {
@@ -116,6 +123,11 @@ export class SyncSlave {
         break;
       case 'songposition':
         this.pendingBeat = msg.beat & 0xffff;
+        break;
+      case 'meter':
+        // Applied immediately, not on the next start: `pendingBeat` is a count of
+        // 16ths, and which BAR that lands in is exactly what the meter decides.
+        this.opts.setMeter?.(msg.beats, msg.unit);
         break;
       case 'stop':
         this.clock.stop();
@@ -229,7 +241,7 @@ export class SyncSlave {
     this.pulsesSinceNudge++;
     if (pulse % 12 !== 0) return;
     const pulseS = this.clock.sixteenthDuration() / 6;
-    const step = (this.startStep + pulse / 6) & 0xffff;
+    const step = this.startStep + pulse / 6;
     const rec = this.tickTimes.find((t) => t.step === step);
     if (!rec) {
       // The look-ahead guarantees a tick precedes its own pulse, so persistent
@@ -266,8 +278,11 @@ export class SyncSlave {
       if (nearest === null || Math.abs(t - rec.when) < Math.abs(t - nearest.when)) nearest = rec;
     }
     if (!nearest) return false;
-    const stepDelta = (nearest.step - this.startStep) & 0xffff;
-    if (stepDelta > 0x8000) return false; // wrapped negative — grid memory predates the run
+    // The clock's step counter no longer wraps (transport.md REQ-10), so a
+    // backwards delta is simply negative — it used to have to be recovered from
+    // a 16-bit fold by testing against 0x8000.
+    const stepDelta = nearest.step - this.startStep;
+    if (stepDelta < 0) return false; // grid memory predates this run
     const idx = stepDelta * 6 + Math.round((t - nearest.when) / pulseS);
     if (idx < 0) return false;
     this.pulseCount = idx + 1; // this pulse was idx; the next one continues from there
@@ -290,7 +305,7 @@ export class SyncSlave {
   };
 
   private resetFollowState(startStep = 0): void {
-    this.startStep = startStep & 0xffff;
+    this.startStep = Math.max(0, Math.floor(startStep));
     this.tickTimes = [];
     this.pulseCount = 0;
     this.phaseErr = null;

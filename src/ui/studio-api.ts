@@ -75,6 +75,14 @@ export interface StudioApi {
   /** Background-audio watchdog readings — underruns while hidden, and any suspends. */
   readonly backgroundAudio: WatchdogDiagnostics;
 
+  /**
+   * Bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
+   * currently resolve it (meter.md REQ-6). Read by the ruler, the `bar.step`
+   * readout and the export estimate, so every surface measures a bar exactly
+   * the way the transport does — deriving it twice is how they drift.
+   */
+  readonly barTicks: number;
+
   /** Stop the transport and silence every voice (Panic / Esc). */
   panic(): void;
   /**

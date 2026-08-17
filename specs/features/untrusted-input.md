@@ -3,7 +3,8 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 3   # v3: REQ-12 — an unresolvable automation target warns instead of
+version: 4   # v4: REQ-13 — a transport position is clamped, not masked
+             # v3: REQ-12 — an unresolvable automation target warns instead of
              #     rejecting; the validator gains a `warnings` channel
              # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
              #     not an overwrite worth prompting for
@@ -205,6 +206,15 @@ decision and the alternatives. This spec is the contract.
   interrupting a successful import to report a lane that will not sweep is the
   guard-crying-wolf failure REQ-9 already warns about.
 
+- **REQ-13** (v4) — **A transport position is bounded at ingress, not masked.**
+  `Clock.start(fromStep)` / `Clock.seek(step)` refuse non-finite input and clamp
+  to `0..MAX_STEP` (`state/limits.ts`) — replacing the `& 0xffff` fold, which
+  bounded the value but also wrapped it, jumping lane phase for any bar length
+  that does not divide 65536 ([transport](transport.md) REQ-10). The reachable
+  source is a peer: a Song Position arrives over MIDI and over the WiFi wire.
+  The meter itself is bounded the same way — `barTicks` clamps beats to
+  `MIN_BEATS..MAX_BEATS` and floors a non-finite value, because a `NaN` bar
+  length would make every machine's modulo `NaN` at once ([meter](meter.md)).
 ## Technical design
 
 ### Contract / public interface

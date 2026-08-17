@@ -1,5 +1,6 @@
 import type { TickSubscriber, TickListener } from './tick-source';
 import { type TickTimer, defaultTickTimer } from './tick-timer';
+import { MAX_STEP } from '../../state/limits';
 
 /**
  * Look-ahead transport clock. Subscribers receive a callback with the
@@ -96,6 +97,33 @@ export class Clock implements TickSubscriber {
   }
 
   /**
+   * The delay this tick carries, in seconds — 0 on an even step, up to half a
+   * 16th on an odd one (transport.md REQ-11).
+   *
+   * Public because a lane running coarser than a 16th needs to *undo* it: at
+   * 2 ticks per cell a lane only ever fires on even steps, which are never
+   * delayed, so it would play dead straight under swung hats. Such a lane
+   * subtracts this and adds the offset its own grid implies (meter.md REQ-16).
+   * The drain loop calls the same method, so swing has one definition, not two.
+   */
+  swingOffset(step: number): number {
+    return (step & 1) === 1 ? this.swing * 0.5 * this.sixteenthDuration() : 0;
+  }
+
+  /**
+   * A transport position, made safe to store. Non-finite is refused before the
+   * clamp — `Math.max(0, Math.min(MAX_STEP, NaN))` is `NaN`, and a NaN step
+   * makes every machine's modulo NaN (untrusted-input.md REQ-6). This replaced
+   * the old `& 0xffff` mask, which bounded the counter but folded it, jumping
+   * lane phase for any bar length that does not divide 65536 (transport.md
+   * REQ-10).
+   */
+  private static clampStep(step: number): number {
+    if (!Number.isFinite(step)) return 0;
+    return Math.max(0, Math.min(MAX_STEP, Math.floor(step)));
+  }
+
+  /**
    * Start the transport. `fromStep` seeds the step counter *before* start
    * listeners fire, so a subscriber (the Arrangement) can read `clock.step` in
    * `onStart` and seek to the implied bar — used by clock-sync's Song-Position
@@ -111,7 +139,7 @@ export class Clock implements TickSubscriber {
     this._playing = true;
     this.faultedListeners.clear(); // a new run reports its faults afresh
     this.nextStepTime = this.ctx.currentTime + 0.05;
-    this._step = fromStep & 0xffff;
+    this._step = Clock.clampStep(fromStep);
     for (const l of this.startListeners) l();
     this.tick(); // schedule the first horizon synchronously
     this.timer.start(this.tick, LOOKAHEAD_MS);
@@ -129,7 +157,7 @@ export class Clock implements TickSubscriber {
    * has settled the play banks before any machine reacts.
    */
   seek(step: number): void {
-    this._cue = this._step = step & 0xffff;
+    this._cue = this._step = Clock.clampStep(step);
     for (const l of this.seekListeners) l();
   }
 
@@ -196,7 +224,7 @@ export class Clock implements TickSubscriber {
       // Lay the off-beat 16ths back. Offset only the emitted time, never the
       // accumulated grid — so swing can't drift, and (max 0.5 * sixteenth) an
       // off-beat never crosses the next on-beat.
-      const off = (this._step & 1) === 1 ? this.swing * 0.5 * sixteenth : 0;
+      const off = this.swingOffset(this._step);
       // Each listener is isolated, and the two lines below run either way
       // (transport.md REQ-8). A throw used to escape this loop *before* them,
       // leaving _playing true and nextStepTime unmoved — so the timer re-entered
@@ -210,7 +238,10 @@ export class Clock implements TickSubscriber {
         }
       }
       this.nextStepTime += sixteenth;
-      this._step = (this._step + 1) & 0xffff; // monotonic; subscribers do their own modulo
+      // Monotonic and UNWRAPPED (transport.md REQ-10): subscribers do their own
+      // modulo, and a wrap that is not a multiple of every lane length would jump
+      // their phase. Bounded at ingress (start/seek) instead.
+      this._step++;
     }
   };
 

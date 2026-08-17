@@ -3,11 +3,14 @@
 ```yaml
 id: transport
 status: implemented
-version: 6   # v6: REQ-9 bounded catch-up — a stalled wakeup source (backgrounded
+version: 7   # v7: REQ-10 the step counter no longer wraps (bounded at ingress
+             #     instead), REQ-11 swingOffset is public — both for meter.md
+             # v6: REQ-9 bounded catch-up — a stalled wakeup source (backgrounded
              #     phone) recovers as silence, never as a burst of missed steps
 owner: core
 related:
   - architecture
+  - meter
   - arpeggiator
   - sequencer
   - arrangement
@@ -67,7 +70,8 @@ untouched.
   fallback (and the injectable test double). A wakeup that arrives after
   `stop()` must not emit ticks.
 
-- **REQ-5** (v3) — `start(fromStep = 0)` seeds `_step = fromStep & 0xffff`
+- **REQ-5** (v3) — `start(fromStep = 0)` seeds `_step = fromStep` (masked
+  `& 0xffff` until v7, clamped since — REQ-10)
   **before** firing `onStart`, so a subscriber (the [arrangement](arrangement.md))
   can read `clock.step` in `onStart` and seek to the implied bar. Plain
   `start()` / `start(0)` is bit-identical to v2 (step 0). Used by MIDI/WiFi
@@ -150,6 +154,35 @@ untouched.
   console. See [audio-lifecycle](audio-lifecycle.md) for the surrounding policy
   (context re-arm, click-free start).
 
+- **REQ-10** (v7) — **The step counter does not wrap; it is bounded at ingress.**
+  `_step` was masked with `& 0xffff` in `start`, `seek` and the drain loop, and the
+  "Open questions" note below justified it: `0x10000 % SEQ_LENGTH === 0`, so the
+  wrap was bar-aligned. That holds **only for bar lengths dividing 65536** — i.e.
+  powers of two. `65536 % 12 === 4`, `% 20 === 16`, `% 14 === 2`, so as soon as
+  [meter](meter.md) REQ-6 made a bar 12, 14 or 20 ticks, the wrap would jump bar
+  *and* lane phase mid-song (~2 h 16 min at 120 BPM, and immediately reachable via
+  a large `seek`).
+
+  `_step` is therefore a plain monotonic counter, and the bound moves to the two
+  places a position **enters** the clock: `start(fromStep)` and `seek(step)` clamp
+  to `0..MAX_STEP` (`src/state/limits.ts`), refusing non-finite input first — the
+  same shape `setBpm` uses (REQ-3), and what
+  [ADR-015](../decisions/adr-015-untrusted-input-is-bounded.md) actually asks for
+  (*bound the payload*, not *mask the state*). `MAX_STEP` is `2**31`, ~8.5 years of
+  16ths at 120 BPM, so it is a guard rail rather than a reachable limit.
+
+  Two call sites lose a workaround rather than gaining one:
+  `SyncSlave.reanchor`'s `(a - b) & 0xffff` plus a `> 0x8000` "wrapped negative"
+  test becomes a plain subtraction and a `< 0` test, and
+  `RecorderController.exportSong`'s elapsed-step counting no longer *has* to be
+  elapsed-based (it stays, being correct either way). `SyncMaster` keeps its
+  `& 0x3fff` — that is the MIDI Song-Position wire format, not our counter.
+
+- **REQ-11** (v7) — **`swingOffset(step)` is public**, so a consumer scheduling on
+  a coarser grid than a 16th can undo the clock's swing and apply its own
+  ([meter](meter.md) REQ-16). The drain loop computes its offset through the same
+  method, so there is one definition of swing, not two.
+
 ## Technical design
 
 ### Contract / public interface
@@ -164,11 +197,14 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
                        # (midi-clock-sync.md); surfaced by debug-panel.md
   setBpm(b)            # non-finite refused (v5), then clamped 20..400
   setSwing(s)          # 0 (straight) .. 1
+  swingOffset(step)    # v7: the delay this tick carries; 0 on even steps (REQ-11)
   get cue: number      # v4: where a plain start() begins; 0 until the first seek
-  start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step (& 0xffff) before
-                       # onStart. v4: the default is the cue, not the literal 0
-  seek(step)           # v4: _cue = _step = step & 0xffff; nextStepTime UNTOUCHED;
+  start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step before onStart.
+                       # v4: the default is the cue, not the literal 0.
+                       # v7: clamped 0..MAX_STEP, not masked (REQ-10)
+  seek(step)           # v4: _cue = _step = step; nextStepTime UNTOUCHED;
                        # fires onSeek synchronously. Playing or stopped.
+                       # v7: clamped 0..MAX_STEP, non-finite refused (REQ-10)
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
   get dropouts: number # v6: stalled-wakeup recoveries this session (REQ-9);
                        # monotonic, never reset — surfaced by debug-panel.md
@@ -297,6 +333,25 @@ Scenario: One wakeup can never emit an unbounded run (v6, edge)
   When the timer fires
   Then at most MAX_STEPS_PER_WAKEUP ticks are emitted before the wakeup ends
 # pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: The step counter passes 65536 without folding (v7, REQ-10)
+  Given a clock started just below 65536
+  When it ticks past it
+  Then the step keeps increasing — no wrap, so no lane changes phase
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A position is clamped at ingress, not masked (v7, REQ-10, edge)
+  Given a stopped clock
+  When seek(1e12) — or seek(-5), or seek(NaN) — is called
+  Then the position lands inside 0..MAX_STEP and never as a folded remainder
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: swingOffset agrees with the times the drain loop emits (v7, REQ-11)
+  Given setSwing(0.5)
+  When a tick fires for an odd step
+  Then swingOffset(step) equals the delay that tick's `when` carried
+   And it is 0 for an even step at any swing amount
+# pinned by: tests/audio/transport/clock.test.ts
 ```
 
 ## Tests & verification
@@ -312,8 +367,9 @@ Scenario: One wakeup can never emit an unbounded run (v6, edge)
 ## Open questions / future
 
 - `step` is a monotonically increasing 16th counter; bar logic is `step %
-  SEQ_LENGTH` (consumed by the arrangement + step machines). `0x10000 %
-  SEQ_LENGTH === 0`, so the 16-bit wrap is bar-aligned and never glitches phase.
+  barTicks` (consumed by the arrangement + step machines — [meter](meter.md)).
+  It no longer wraps at all: the old 16-bit mask was only phase-safe for bar
+  lengths dividing 65536, and REQ-10 replaced it with a clamp at ingress.
 - `nudge` and `seek` are deliberately different tools: `nudge` shifts *when* the
   future grid ticks (sub-10 ms, phase only); `seek` changes *which* step, leaving
   the grid alone. Neither is expressible in terms of the other.

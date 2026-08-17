@@ -1,5 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { SEQ_LENGTH } from '../../state/patterns';
+import { cellIndex, DEFAULT_LANE_RATE } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
 
 /**
@@ -69,11 +70,16 @@ export class Performance {
   /**
    * The stutter-mapped step folded into a bank position — what the seq, drum
    * and sampler machines read each tick. (The motion sequencer deliberately
-   * uses the *raw* `step % SEQ_LENGTH` instead: automation must not follow
-   * stutter remaps.)
+   * derives the same index from the *raw* step instead: automation must not
+   * follow stutter remaps.)
+   *
+   * `mapStep` still folds the **absolute** step, so a stutter over a 12-cell
+   * lane repeats 12-cell material and a stutter window is unaffected by the
+   * lane's length or rate (meter.md REQ-17). Only the modulo that follows it is
+   * lane-aware.
    */
-  stepIndex(step: number): number {
-    return this.mapStep(step) % SEQ_LENGTH;
+  stepIndex(step: number, cells: number = SEQ_LENGTH, rateIdx: number = DEFAULT_LANE_RATE): number {
+    return cellIndex(this.mapStep(step), cells, rateIdx);
   }
 
   // ---- Fill ----

@@ -3,7 +3,7 @@
 ```yaml
 id: performance
 status: implemented
-version: 4
+version: 5   # v5: stutter composes with a lane's length + rate (REQ-8)
 owner: core
 related:
   - architecture
@@ -62,6 +62,13 @@ so the Song panel can drive momentary controls without reaching into the machine
   (`mapStep` is the identity). Fill / Drop / DJ Filter hold no position state and
   are unaffected; Tape Stop's rAF ramp is a BPM ramp, not a position, so it too is
   untouched.
+
+- **REQ-8** (v5) — **Stutter composes with a lane's length and rate.**
+  `stepIndex(step, cells, rateIdx)` still folds the **absolute** step through
+  `mapStep` first and only then resolves a cell, so a stutter window is unchanged
+  by the meter and a stutter over a 12-cell lane repeats 12-cell material
+  ([meter](meter.md) REQ-17). Both extra arguments default to the pre-meter
+  values, so an un-metered caller behaves exactly as before.
 
 ## Technical design
 

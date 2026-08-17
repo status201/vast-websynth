@@ -97,6 +97,7 @@ material keyed by feature name).
 | a **rate / delay-time knob**, or any `*.sync` param | `features/tempo-lock.md` — one table (`src/state/tempo-lock.ts`) decides what is lockable; `Knob` self-wires from it |
 | `src/audio/compressor/` | `features/compressor.md`, ADR-002 |
 | `src/audio/transport/` | `features/transport.md`, `transport-position.md`, `arrangement.md`, `sequencer.md`, `drum-machine.md`, `sampler.md`, `motion-sequencer.md`, `performance.md`, `recipes/add-a-transport-module.md` |
+| a **bar**, a **step count** or anything `% SEQ_LENGTH`-shaped | `features/meter.md` + ADR-019 — the bar is `barTicks`, the grid is `GRID_CELLS`, a lane's window is `laneCells()`. `src/state/meter.ts` names the three apart; in the UI go through `src/ui/lane-grid.ts` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |
 | `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `render-to-sampler.md` |
 | `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md` |

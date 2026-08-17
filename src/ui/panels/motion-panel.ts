@@ -14,16 +14,17 @@ import { formatParam } from '../format-param';
 import { fromNorm } from '../../utils/taper';
 import { motionGraphPoints, motionGraphPoints1D } from '../components/motion-graph';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, clearMenuFor,
   VisibilityGate, type ClearRow, type GatedPanel,
 } from './step-panel-scaffold';
 import { xyPadLaunchButton } from '../components/live-fx';
 import type { MotionNeighbours, MotionTrackNeighbours } from '../../audio/transport/motion-curve';
 import { motionAxesFor } from '../../state/xy-effective';
 import {
-  REST, SEQ_LENGTH, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS, MOTION_TRACK_STEP_DEFAULTS,
+  REST, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS, MOTION_TRACK_STEP_DEFAULTS,
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
+import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -61,6 +62,7 @@ export function buildMotionPanel(
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-9).
   header.appendChild(laneControlsFor(bus, engine, 'motion', bridge).el);
+  header.appendChild(laneMeterControlsFor(bus, 'motion').el);
 
   // ---- XY lane header (REQ-8) ----
   // Everything that belongs to the XY lane rather than the machine: its
@@ -200,7 +202,7 @@ export function buildMotionPanel(
   // not an XY-lane setting); the ticks span the full width above the pads, which
   // have no left control column of their own. Outside the rest-overlay wrapper
   // on purpose: a rest bar dims the *pattern*, not where the transport is.
-  const ruler = playheadRulerFor(engine, 'motion', gate);
+  const ruler = playheadRulerFor(engine, bus, 'motion', gate);
   header.appendChild(ruler.barEl);
   root.appendChild(header);
   // Populated further down by the axes block; placed here so it renders between
@@ -222,10 +224,11 @@ export function buildMotionPanel(
       + ` · y ${y.toFixed(2)}${py ? ` (${py})` : ''}`;
   };
   const pads: MotionStepPad[] = [];
-  for (let s = 0; s < SEQ_LENGTH; s++) {
+  // Every cell is built; `bindLaneGrid` below decides which are live and where
+  // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+  for (let s = 0; s < ALL_CELLS; s++) {
     const step = s;
     const pad = new MotionStepPad({
-      beat: s % 4 === 0,
       onSet: (px, py) => patterns.setMotionStep(step, { on: true, x: px, y: py }),
       onClear: () => patterns.setMotionStep(step, { on: false }),
       onGesture: (g) =>
@@ -386,7 +389,7 @@ export function buildMotionPanel(
   // mode, and the same mode-aware polyline so slide interpolation and the
   // bar-line carry stay visible while authoring.
   const NONE = '— none —';
-  const buildTrackRow = (track: number): { repaint: () => void; pads: MotionStepPad[] } => {
+  const buildTrackRow = (track: number): { repaint: () => void; pads: MotionStepPad[]; cells: HTMLElement } => {
     const row = document.createElement('div');
     // The first track carries the one divider — A and B are the same kind of
     // lane, so only the XY lane above is fenced off (REQ-8).
@@ -425,10 +428,9 @@ export function buildMotionPanel(
     // so the tracks read as a distinct lane (REQ-8/REQ-16).
     cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
-    for (let sIdx = 0; sIdx < SEQ_LENGTH; sIdx++) {
+    for (let sIdx = 0; sIdx < ALL_CELLS; sIdx++) {
       const step = sIdx;
       const pad = new MotionStepPad({
-        beat: sIdx % 4 === 0,
         mode: 'level',
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
         // Clearing returns the cell to the default step (level included), so a
@@ -479,7 +481,7 @@ export function buildMotionPanel(
       // assigned one keeps whatever the readout was last showing — that
       // stickiness is what makes two lanes comparable (REQ-22).
       if (!assigned) readout.textContent = EMPTY_READOUT;
-      for (let i = 0; i < SEQ_LENGTH; i++) {
+      for (let i = 0; i < ALL_CELLS; i++) {
         const cell = t.steps[i]!;
         pads[i]!.setLevel(cell.on, cell.v, t.param);
         pads[i]!.setInert(!assigned);
@@ -498,10 +500,21 @@ export function buildMotionPanel(
         graph.appendChild(c);
       }
     };
-    return { repaint, pads };
+    return { repaint, pads, cells };
   };
 
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
+
+  // Column count, live cells and beat accents for the XY lane and both A/B
+  // lanes at once (meter.md REQ-8/REQ-11) — one binding, so the three rows and
+  // the ruler above them can never end up drawing different bars. Not
+  // unsubscribed: the panel is built once and lives as long as the page does.
+  bindLaneGrid(
+    bus,
+    'motion',
+    () => [cells, ...trackRows.map((r) => r.cells)],
+    () => [pads, ...trackRows.map((r) => r.pads)],
+  );
 
   // Repaint the A/B lanes only while they are on screen (REQ-16b). A repaint
   // clears and rebuilds an SVG polyline plus up to 16 circles and re-levels 16
@@ -535,7 +548,7 @@ export function buildMotionPanel(
 
   // ---- Wiring ----
   const paintAll = (bank: readonly MotionStep[]): void => {
-    for (let s = 0; s < SEQ_LENGTH; s++) pads[s]!.setStep(bank[s]!);
+    for (let s = 0; s < ALL_CELLS; s++) pads[s]!.setStep(bank[s]!);
     redrawGraph();
     refreshAxes();
   };

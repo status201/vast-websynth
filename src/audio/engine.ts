@@ -27,6 +27,7 @@ import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
 import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from '../state/patterns';
+import { barTicks } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
@@ -449,6 +450,17 @@ export class Engine {
       localBpm: () => this.bus.get('transport.bpm'),
       // One-shot tempo handoff when a link drops mid-play (REQ-21).
       setLocalBpm: (b) => this.bus.set('transport.bpm', b),
+      // The meter travels the WiFi wire so peers agree what bar a Song Position
+      // lands in (meter.md REQ-18). Written to the bus like any other param, so
+      // a followed meter shows in the picker and saves with the song.
+      meter: () => ({
+        beats: this.bus.get('transport.beats'),
+        unit: this.bus.get('transport.beatUnit'),
+      }),
+      setMeter: (beats, unit) => {
+        this.bus.set('transport.beats', beats);
+        this.bus.set('transport.beatUnit', unit);
+      },
     });
 
     // WiFi sync (WebRTC DataChannel) coexists with the MIDI transport; no RTC
@@ -699,6 +711,36 @@ export class Engine {
     return true;
   }
 
+  /**
+   * The bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
+   * currently say it (meter.md REQ-6). Read by the UI's ruler and readouts, so
+   * they measure a bar the same way the transport does.
+   */
+  get barTicks(): number {
+    return barTicks(this.bus.get('transport.beats'), this.bus.get('transport.beatUnit'));
+  }
+
+  /**
+   * Push the resolved bar length everywhere a bar is counted. Idempotent, and
+   * called from both meter params so the pair is always read together.
+   *
+   * The recorder is included because a bar-exact capture measures its bars in
+   * ticks too (meter.md REQ-7) — an export of a 7/8 song must be 7/8 bars long.
+   */
+  private applyMeter(): void {
+    const ticks = this.barTicks;
+    this.arrangement.setBarTicks(ticks);
+    this.seq.lane.setBarTicks(ticks);
+    this.drums.lane.setBarTicks(ticks);
+    this.sampler.lane.setBarTicks(ticks);
+    this.motion.lane.setBarTicks(ticks);
+    this.recorder.setBarTicks(ticks);
+    this.bankRender.setBarTicks(ticks);
+    // Peers number bars by their own meter, so a local change has to reach them
+    // or the same Song Position means two different bars (meter.md REQ-18).
+    this.sync.announceMeter();
+  }
+
   // ---------- Param subscriptions ----------
 
   private subscribeParams(): void {
@@ -824,6 +866,26 @@ export class Engine {
       // (lfo.md REQ-9) — each LFO subscribes transport.bpm in its own bind().
     });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
+
+    // ----- Meter (meter.md REQ-5/REQ-6, ADR-019) -----
+    // The two scalars resolve to ONE number — the bar length in 16th ticks —
+    // pushed to everything that counts a bar. Resolved here rather than in each
+    // consumer so `beats` and `beatUnit` can never be read a tick apart and
+    // disagree about how long the bar is.
+    bus.subscribe('transport.beats', () => this.applyMeter());
+    bus.subscribe('transport.beatUnit', () => this.applyMeter());
+    // Per-machine loop length + step rate (REQ-10/REQ-14). Both defaults are
+    // no-ops: `LEN_FOLLOW` follows the bar and the default rate is one cell per
+    // tick, i.e. exactly the pre-meter 16-step bar.
+    for (const [prefix, lane] of [
+      ['seq', () => this.seq.lane],
+      ['drum', () => this.drums.lane],
+      ['sampler', () => this.sampler.lane],
+      ['motion', () => this.motion.lane],
+    ] as const) {
+      bus.subscribe(`${prefix}.len`, (v) => lane().setLen(v));
+      bus.subscribe(`${prefix}.rate`, (v) => lane().setRate(v));
+    }
 
     // ----- Arpeggiator -----
     bus.subscribe('arp.on', (v) => this.arp.setEnabled(v >= 0.5));

@@ -3,7 +3,8 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 5   # v5: per-slot transpose on the seq lane (REQ-8) — SongFile v7
+version: 6   # v6: the bar is barTicks, not 16 (REQ-10) — meter.md
+             # v5: per-slot transpose on the seq lane (REQ-8) — SongFile v7
 owner: core
 related:
   - architecture
@@ -106,6 +107,16 @@ tick listener settles the play banks first.
   clamped to `MIDI_NOTE_MIN..MAX` ([untrusted-input](untrusted-input.md) REQ-4)
   — a clamp, not a skip, because dropping notes at the edge of the range would
   make a transposed bar silently lose part of its line.
+
+- **REQ-10** (v6) — **A bar is `barTicks`, not 16.** The bar line is
+  `step % barTicks === 0` and a seek resolves `floor(step / barTicks)`, where
+  `barTicks` comes from the meter ([meter](meter.md) REQ-6) and defaults to 16 —
+  so a chain in 4/4 is bit-identical to v5. `setBarTicks` re-bases through the
+  same `seekTo` a playhead jump uses (REQ-7): a meter change moves every bar
+  line, and lane positions counted against the old grid are stale the moment it
+  does. The four lanes still share one bar grid; per-lane *loop* lengths live on
+  the machines instead ([meter](meter.md) REQ-10), which is what closes the
+  "Open questions" note below.
 
 ## Technical design
 
@@ -248,5 +259,10 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
 
 ## Open questions / future
 
-- Lanes share one bar grid (`SEQ_LENGTH`); per-lane bar lengths would change the
-  advance math.
+- ~~Lanes share one bar grid (`SEQ_LENGTH`)~~ — they still share one grid, but it
+  is now `barTicks` (REQ-10). Per-lane *phrasing* against that grid is a machine
+  concern, not a chain one: [meter](meter.md) REQ-10 gives each machine its own
+  loop length, which is the polymeter the note was reaching for.
+- Per-**bank** or per-chain-slot meter (a song that changes signature mid-song)
+  is still open; the advance math would have to integrate bar lengths rather
+  than divide by one.

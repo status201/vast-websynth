@@ -3,7 +3,8 @@
 ```yaml
 id: sampler
 status: implemented
-version: 5   # v5: the Clear ▾ row item ejects the slot's sample, not just its
+version: 6   # v6: the lane's length + step rate come from the meter (REQ-10)
+             # v5: the Clear ▾ row item ejects the slot's sample, not just its
              #     steps (REQ-9)
              # v4: a transport stop cuts in-flight one-shots (REQ-8)
 owner: core
@@ -123,6 +124,12 @@ the song format.
   and calls the lane's pattern undo **only** if the store actually pushed a step
   mutation. An unconditional call would pop an unrelated edit off the stack when
   the slot held no steps, which is the failure the conditional pins.
+
+- **REQ-10** (v6) — **The lane's length and step rate come from the meter.**
+  `sampler.len` / `sampler.rate` decide how many of the 16 slots-worth of cells
+  play and how long each lasts ([meter](meter.md) REQ-10/REQ-14). Defaults follow
+  the bar at one cell per tick, so a 4/4 song is unchanged. The sampler still has
+  no fill behaviour of its own and plays straight through the drum machine's.
 
 ## Technical design
 

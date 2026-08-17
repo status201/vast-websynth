@@ -96,6 +96,12 @@ export class PresetSession {
  */
 const NON_PATCH_PREFIXES = [
   'transport.', 'arp.', 'seq.', 'drum.', 'sampler.', 'fx.drum.', 'fx.sampler.',
+  // `motion.` was missing (meter.md REQ-13): the motion sequencer is a song-level
+  // machine exactly like seq/drum/sampler, but `motion.on` / `.mute` / `.slide`
+  // were being captured into presets and reapplied on load — so auditioning a
+  // sound silently switched a song's automation off. That is the defect this
+  // predicate exists to prevent, not an exception to it.
+  'motion.',
 ];
 const NON_PATCH_IDS = new Set<ParamId>([
   'master.pitchBend', 'master.modWheel', 'fx.djfilter', 'keyboard.transpose',

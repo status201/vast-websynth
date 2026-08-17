@@ -92,6 +92,7 @@ export class MotionStepPad {
    * mid-stroke would teleport the value to the pointer, so it never does.
    */
   private relative = false;
+  private beat = false;
   private fine = false;
   private anchorClientX = 0;
   private anchorClientY = 0;
@@ -104,6 +105,7 @@ export class MotionStepPad {
     this.el.className = styles.pad!
       + (opts.beat ? ` ${styles.beat!}` : '')
       + (this.level ? ` ${styles.levelPad!}` : '');
+    this.beat = opts.beat ?? false;
 
     this.dot = document.createElement('div');
     this.dot.className = this.level ? styles.bar! : styles.dot!;
@@ -252,6 +254,23 @@ export class MotionStepPad {
   }
 
   /** Repaint from the store's cell: lit state + dot position. */
+  /**
+   * Move the beat accent (meter.md REQ-8) — the same surface `StepButton`
+   * exposes, so `bindLaneGrid` can drive an XY lane and a trigger grid through
+   * one code path. `'orange'` here means "not a beat column".
+   */
+  setAccent(accent: 'orange' | 'red' | 'yellow'): void {
+    const beat = accent !== 'orange';
+    if (beat === this.beat) return;
+    this.beat = beat;
+    this.el.classList.toggle(styles.beat!, beat);
+  }
+
+  /** Hide a cell the lane does not reach (meter.md REQ-11); the step is kept. */
+  setLive(live: boolean): void {
+    this.el.hidden = !live;
+  }
+
   setStep(step: MotionStep): void {
     this.cellX = step.x;
     this.cellY = step.y;

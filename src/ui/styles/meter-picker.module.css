@@ -1,0 +1,23 @@
+/*
+ * The header's time-signature picker (meter.md REQ-5). Sized to sit in the
+ * transport cluster beside the BPM and SWING knobs, so the caption matches
+ * knob.module.css's `.label` exactly — a different weight or tracking there
+ * reads as a different KIND of control, which it is not.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+  font-weight: 600;
+}

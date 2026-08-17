@@ -3,7 +3,8 @@
 ```yaml
 id: render-to-sampler
 status: implemented
-version: 3   # v3: explicit start(0) + a render blocks a playhead seek (REQ-2/REQ-6)
+version: 4   # v4: a rendered bar is the song's bar, not always 16 steps (REQ-11)
+             # v3: explicit start(0) + a render blocks a playhead seek (REQ-2/REQ-6)
              # v2: a `seq.render` help badge explains the section + the two-pass tail bake
 owner: core
 related:
@@ -101,6 +102,13 @@ the loop drifts against the grid and is unusable.
   of REQ-7, transport left stopped), both disabled reasons (REQ-6: empty bank /
   slaved to MIDI clock) and that the audio is not persisted with the song
   (REQ-7).
+
+- **REQ-11** (v4) — **"One bar" means the song's bar.** The render length and the
+  crop window are `barTicks × sixteenthDuration()`, not `16 ×`
+  ([meter](meter.md) REQ-7), so resampling a bank in 7/8 yields a 7/8 bar that
+  loops seamlessly instead of a 4/4 one that does not. Swing still never moves a
+  bar boundary — the clock's grid accumulator is unswung — so the crop stays
+  frame-exact at any swing.
 
 ## Technical design
 

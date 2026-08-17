@@ -3,7 +3,8 @@
 > A browser-based virtual-analog synthesizer studio: 8-voice poly synth with a
 > ladder filter, a 4-track 16-step note sequencer, an 8-track drum machine, an
 > 8-slot sampler, a parameter-automation (motion) sequencer, per-bar arrangement
-> chains, live DJ FX, and WAV/MP3 audio export.
+> chains, selectable time signatures with per-machine polyrhythm, live DJ FX,
+> and WAV/MP3 audio export.
 > Runs entirely client-side (vanilla TypeScript + Web Audio, no backend).
 
 AI agents can author songs for this synth as a single JSON file, which the
@@ -28,7 +29,8 @@ Two JSON formats are accepted on import:
   2-4) and v5 motionTracks (motion's two extra single-parameter tracks).
   Schema: /schema/websynth-song.schema.json
 
-Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note steps per bar;
+Dimensions: 4 banks (A/B/C/D) per machine; 16 sixteenth-note step CELLS per
+bank (always exactly 16, whatever the meter — see below);
 4 note-sequencer tracks per bank (track 1 in seqBanks, tracks 2-4 in the
 optional seqTracks[bank][track], which is indexed by the real track number so
 index 0 is always null); 8 drum tracks (0=Kick 1=Snare 2=C.Hat 3=O.Hat 4=L.Tom
@@ -42,6 +44,21 @@ transpose in semitones (-24..24) — `seqTranspose[]` in the canonical format,
 or an `A+5` suffix in the dialect's chain string — so one bank can play a
 whole chord progression. It shifts the note the sequencer triggers, never the
 stored bank, and only the seq lane has it.
+
+METER (time signature and polyrhythm). A bar is a number of sixteenth-note
+ticks, not a fixed 16. Two params in `params` set it: `transport.beats` (2..12)
+and `transport.beatUnit` (0 = a quarter is the beat, 1 = an eighth), so a bar is
+`beats x (4 or 2)` ticks — 4/4 = 16 (the default, and what every older file
+means), 3/4 = 12, 7/8 = 14, 5/4 = 20. Every machine follows it automatically.
+Each machine may also override its own loop with `<m>.len` (0 = follow the bar,
+else 1..16 cells) and `<m>.rate` (an index into the step-rate list published in
+/params.json; the default is one cell per tick, i.e. 1/16), for `m` in
+seq/drum/sampler/motion — a lane whose length differs from the bar phases
+against it deliberately. The grids stay 16 cells regardless: a shorter lane
+simply plays fewer of them, so seqBanks/drumBanks/samplerBanks/motionBanks and
+the schemas are unchanged and no song version moved. Note the one limit: a 5/4
+or 7/4 bar is 20 or 28 ticks, more cells than a grid has, so those need a
+coarser `<m>.rate` (e.g. 1/8 with len 10) to fill a bar.
 
 ## Preset formats
 

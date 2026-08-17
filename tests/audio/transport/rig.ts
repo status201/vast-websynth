@@ -1,6 +1,7 @@
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import type { Performance } from '../../../src/audio/transport/performance';
 import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
+import { cellIndex, DEFAULT_LANE_RATE } from '../../../src/state/meter';
 import { TestClock } from './test-clock';
 
 /**
@@ -17,7 +18,8 @@ export function createPerfStub(
 ): Performance & { fillActive: boolean } {
   return {
     mapStep,
-    stepIndex: (s: number) => mapStep(s) % SEQ_LENGTH,
+    stepIndex: (s: number, cells = SEQ_LENGTH, rate = DEFAULT_LANE_RATE) =>
+      cellIndex(mapStep(s), cells, rate),
     fillActive: false,
     setFill() {},
   } as unknown as Performance & { fillActive: boolean };

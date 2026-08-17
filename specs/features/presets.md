@@ -3,7 +3,8 @@
 ```yaml
 id: presets
 status: implemented
-version: 8   # v8: REQ-2b covers the FX tempo locks — a bank that ENGAGES an
+version: 9   # v9: the motion sequencer is not part of a sound (REQ-15)
+             # v8: REQ-2b covers the FX tempo locks — a bank that ENGAGES an
              #     effect must pin its .sync (tempo-lock.md REQ-8)
              # v7: the loaded song's sound is a pinned dropdown entry (REQ-13),
              #     and an options rebuild never relabels the selector (REQ-14)
@@ -185,6 +186,14 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   notice it by. Every rebuild therefore re-asserts `setValue(session.display)`
   afterwards, and the session stays the single source of what the selector reads.
 
+- **REQ-15** (v9) — **The motion sequencer is not part of a sound.**
+  `NON_PATCH_PREFIXES` listed `transport.`/`arp.`/`seq.`/`drum.`/`sampler.` but
+  not `motion.`, so `motion.on`, `motion.mute` and `motion.slide` were captured
+  into presets and reapplied on load — auditioning a sound silently switched a
+  song's automation off. Motion is a song-level machine like the other three;
+  the prefix is added ([meter](meter.md) REQ-13). Consequence to expect: a
+  previously saved preset that happens to carry `motion.*` keys keeps them in its
+  file, and they are now ignored on load rather than applied.
 ## Technical design
 
 ### Contract / public interface

@@ -11,7 +11,7 @@ import { Switch } from '../components/switch';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, clearMenuFor, GridCursor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, clearMenuFor, GridCursor,
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -27,11 +27,11 @@ import {
   BANK_LABELS,
   SAMPLER_SLOT_COUNT,
   SAMPLER_SLOT_LABELS,
-  SEQ_LENGTH,
   SEQ_TRACK_COUNT,
   SEQ_TRACK_LABELS,
   type SeqStep,
 } from '../../state/patterns';
+import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
 // (gate/velocity/prob/ratchet/tie) and a tooltip with the exact values.
@@ -67,6 +67,7 @@ export function buildSeqPanel(
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-9).
   header.appendChild(laneControlsFor(bus, engine, 'seq', bridge).el);
+  header.appendChild(laneMeterControlsFor(bus, 'seq').el);
   const bankBar = bankBarFor(engine, 'seq');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'seq'));
@@ -167,7 +168,7 @@ export function buildSeqPanel(
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable. It borrows the panel's own track
   // row / step-grid classes so its ticks line up with the steps beneath them.
-  const ruler = playheadRulerFor(engine, 'seq', gate);
+  const ruler = playheadRulerFor(engine, bus, 'seq', gate);
   const rulerRow = document.createElement('div');
   rulerRow.className = styles.trackRow!;
   const rulerCtrls = document.createElement('div');
@@ -226,7 +227,9 @@ export function buildSeqPanel(
     const stepRowEl = document.createElement('div');
     stepRowEl.className = styles.stepRow!;
     const btns: StepButton[] = [];
-    for (let i = 0; i < SEQ_LENGTH; i++) {
+    // Every cell is built; `bindLaneGrid` below decides which are live, so the
+    // meter owns the played length (meter.md REQ-11).
+    for (let i = 0; i < ALL_CELLS; i++) {
       const index = i;
       const cell = engine.patterns.seqTrack(track)![i]!;
       const sb = new StepButton(noteName(cell.note), 'orange');
@@ -287,6 +290,11 @@ export function buildSeqPanel(
     heldClass: StepButton.heldClass,
   });
 
+  // Column count + live cells from the meter. `'orange'` because the seq grid
+  // has never carried beat accents — the note names are its column landmarks —
+  // so this brings it the length, not a new visual language.
+  bindLaneGrid(bus, 'seq', () => trackNotes, () => stepBtns, 'orange');
+
   const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'seq', bankBar, grid);
   root.appendChild(gridWrap);
 
@@ -302,7 +310,7 @@ export function buildSeqPanel(
   bus.onNote((on, note) => {
     if (!armed || !on) return;
     engine.patterns.setSeqStep(cursor.selRow, cursor.selCol, { on: true, note });
-    setSelected(cursor.selRow, (cursor.selCol + 1) % SEQ_LENGTH);
+    setSelected(cursor.selRow, (cursor.selCol + 1) % ALL_CELLS);
   });
 
   const highlighter = wirePlayhead(engine, 'seq', stepBtns, restOverlay, gate);
@@ -311,7 +319,7 @@ export function buildSeqPanel(
   engine.patterns.onSeqBankChange((bank) => {
     highlighter.clear();
     for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
-      for (let i = 0; i < SEQ_LENGTH; i++) {
+      for (let i = 0; i < ALL_CELLS; i++) {
         const sb = stepBtns[t]?.[i];
         if (sb) paintStep(sb, bank[t]![i]!);
       }

@@ -102,10 +102,25 @@ export function createAnchorCache(): AnchorCache {
 const indicesOf = (bank: readonly Anchorable[], cache?: AnchorCache): number[] =>
   cache ? cache.indices(bank) : anchorIndices(bank);
 
+/**
+ * How many of `idx`'s ascending anchor positions fall inside a lane of `n`
+ * cells (meter.md REQ-10). A shortened lane simply cannot see the anchors past
+ * its loop; the cached index array is shared and must not be rebuilt per call,
+ * so the bound is computed instead of the array being filtered. `n` is at most
+ * `GRID_CELLS`, so this walks a handful of entries at worst.
+ */
+function anchorsWithin(idx: number[], n: number): number {
+  let c = idx.length;
+  while (c > 0 && idx[c - 1]! >= n) c--;
+  return c;
+}
+
 /** An adjacent bar's anchors, or null when there is nothing to carry to/from. */
 interface Carry<T> {
   bank: readonly T[];
   idx: number[];
+  /** Anchors visible within the lane's length — see {@link anchorsWithin}. */
+  len: number;
 }
 
 /** Absent neighbour ⇒ `bank` itself (the looping-bank self-wrap); null or
@@ -113,19 +128,27 @@ interface Carry<T> {
 function carryFrom<T extends Anchorable>(
   neighbour: readonly T[] | null | undefined,
   bank: readonly T[],
+  n: number,
   cache?: AnchorCache,
 ): Carry<T> | null {
   const b = neighbour === undefined ? bank : neighbour;
   if (!b) return null;
   const idx = indicesOf(b, cache);
-  return idx.length ? { bank: b, idx } : null;
+  const len = anchorsWithin(idx, n);
+  return len ? { bank: b, idx, len } : null;
 }
 
 /**
- * Evaluate one scalar lane at `barPos` ∈ [0, 1) (fraction of the bar; an anchor
- * at step i sits at position i / bank.length). Out-of-range positions wrap.
+ * Evaluate one scalar lane at `barPos` ∈ [0, 1) (fraction of the loop; an anchor
+ * at step i sits at position i / cells). Out-of-range positions wrap.
  * `get` reads the value off a cell, which is the only thing that differs between
  * the XY lane's two axes and an extra track.
+ *
+ * `cells` is the lane's played length (meter.md REQ-10) and defaults to the
+ * whole bank, so every caller that does not have a meter — the panel, the graph,
+ * the tests — is unaffected. When it is shorter, the loop seam moves with it:
+ * the slide that spans the bar line has to end at cell `cells`, not at cell 16,
+ * or a shortened lane would ramp toward a boundary it never reaches.
  */
 export function scalarAt<T extends Anchorable>(
   bank: readonly T[],
@@ -134,21 +157,23 @@ export function scalarAt<T extends Anchorable>(
   get: (s: T) => number,
   neighbours: Neighbours<T> = {},
   cache?: AnchorCache,
+  cells?: number,
 ): number | null {
   const idx = indicesOf(bank, cache);
-  if (idx.length === 0) return null;
+  const n = cells === undefined ? bank.length : Math.max(1, Math.min(bank.length, cells));
+  const alen = anchorsWithin(idx, n);
+  if (alen === 0) return null;
 
-  const n = bank.length;
   const p = (((barPos % 1) + 1) % 1) * n; // position in step units, [0, n)
   const firstIdx = idx[0]!;
-  const lastIdx = idx[idx.length - 1]!;
+  const lastIdx = idx[alen - 1]!;
 
   // Last anchor at or before p (-1 when p precedes the first anchor). `prevAt`
   // is its position in `idx`, so the slide branch below can step to the next
   // anchor directly instead of searching `idx` for it a second time.
   let prev = -1;
   let prevAt = -1;
-  for (let k = 0; k < idx.length; k++) {
+  for (let k = 0; k < alen; k++) {
     if (idx[k]! <= p) {
       prev = idx[k]!;
       prevAt = k;
@@ -158,8 +183,8 @@ export function scalarAt<T extends Anchorable>(
   if (mode === 'step') {
     if (prev >= 0) return get(bank[prev]!);
     // Before the first anchor: whatever the previous bar left holds.
-    const carry = carryFrom(neighbours.prev, bank, cache);
-    return get(carry ? carry.bank[carry.idx[carry.idx.length - 1]!]! : bank[firstIdx]!);
+    const carry = carryFrom(neighbours.prev, bank, n, cache);
+    return get(carry ? carry.bank[carry.idx[carry.len - 1]!]! : bank[firstIdx]!);
   }
 
   // Slide: find the surrounding segment a→b (the outer two span the bar line).
@@ -168,16 +193,16 @@ export function scalarAt<T extends Anchorable>(
   if (prev < 0) {
     // Before the first anchor: still inside the segment carried in from the
     // previous bar, which ends on this bank's first anchor.
-    const carry = carryFrom(neighbours.prev, bank, cache);
+    const carry = carryFrom(neighbours.prev, bank, n, cache);
     if (!carry) return get(bank[firstIdx]!);
-    const a = carry.idx[carry.idx.length - 1]!;
+    const a = carry.idx[carry.len - 1]!;
     sa = carry.bank[a]!;
     sb = bank[firstIdx]!;
     span = n - a + firstIdx;
     dist = p + n - a;
   } else if (prev === lastIdx) {
     // After the last anchor: head for the next bar's first anchor.
-    const carry = carryFrom(neighbours.next, bank, cache);
+    const carry = carryFrom(neighbours.next, bank, n, cache);
     if (!carry) return get(bank[lastIdx]!);
     const b = carry.idx[0]!;
     sa = bank[lastIdx]!;
@@ -210,12 +235,13 @@ export function valueAt(
   mode: MotionMode,
   neighbours: MotionNeighbours = {},
   cache?: AnchorCache,
+  cells?: number,
 ): MotionXY | null {
   // Both axes read the same anchor set, so a cache also removes the second
   // call's rescan — worth passing one here even more than elsewhere.
-  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache);
+  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache, cells);
   if (x === null) return null;
-  return { x, y: scalarAt(bank, barPos, mode, getY, neighbours, cache)! };
+  return { x, y: scalarAt(bank, barPos, mode, getY, neighbours, cache, cells)! };
 }
 
 /**
@@ -231,11 +257,12 @@ export function valueAtInto(
   neighbours: MotionNeighbours,
   cache: AnchorCache | undefined,
   out: MotionXY,
+  cells?: number,
 ): boolean {
-  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache);
+  const x = scalarAt(bank, barPos, mode, getX, neighbours, cache, cells);
   if (x === null) return false;
   out.x = x;
-  out.y = scalarAt(bank, barPos, mode, getY, neighbours, cache)!;
+  out.y = scalarAt(bank, barPos, mode, getY, neighbours, cache, cells)!;
   return true;
 }
 
@@ -246,6 +273,7 @@ export function valueAt1D(
   mode: MotionMode,
   neighbours: MotionTrackNeighbours = {},
   cache?: AnchorCache,
+  cells?: number,
 ): number | null {
-  return scalarAt(steps, barPos, mode, getV, neighbours, cache);
+  return scalarAt(steps, barPos, mode, getV, neighbours, cache, cells);
 }

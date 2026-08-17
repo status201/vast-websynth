@@ -37,6 +37,7 @@ const STATS_POLL_MS = 800;        // diagnostics getStats cadence (REQ-11)
 type Wire =
   | { t: 'start' } | { t: 'continue' } | { t: 'stop' }
   | { t: 'songposition'; beat: number } | { t: 'tempo'; bpm: number }
+  | { t: 'meter'; beats: number; unit: number }
   | { t: 'pulse'; at: number }
   | { t: 'ping'; a: number } | { t: 'pong'; a: number; b: number };
 
@@ -89,6 +90,9 @@ export class WebRtcSyncTransport implements SyncTransport {
         break;
       case 'songposition':
         this.sendControl({ t: 'songposition', beat: msg.beat });
+        break;
+      case 'meter':
+        this.sendControl({ t: 'meter', beats: msg.beats, unit: msg.unit });
         break;
       case 'tempo':
         this.sendControl({ t: 'tempo', bpm: msg.bpm });
@@ -326,6 +330,7 @@ export class WebRtcSyncTransport implements SyncTransport {
       case 'stop': this.emit({ type: 'stop' }, now); break;
       case 'songposition': this.emit({ type: 'songposition', beat: w.beat }, now); break;
       case 'tempo': this.emit({ type: 'tempo', bpm: w.bpm }, now); break;
+      case 'meter': this.emit({ type: 'meter', beats: w.beats, unit: w.unit }, now); break;
     }
   }
 
@@ -399,6 +404,7 @@ function isWire(v: unknown): v is Wire {
     case 'start': case 'continue': case 'stop': return true;
     case 'songposition': return num(o, 'beat');
     case 'tempo': return num(o, 'bpm');
+    case 'meter': return num(o, 'beats') && num(o, 'unit');
     case 'pulse': return num(o, 'at');
     case 'ping': return num(o, 'a');
     case 'pong': return num(o, 'a') && num(o, 'b');

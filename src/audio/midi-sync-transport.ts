@@ -33,7 +33,7 @@ export class MidiSyncTransport implements SyncTransport {
 
   send(msg: SyncMessage, atMs?: number): void {
     const data = encode(msg);
-    if (!data) return; // 'tempo' has no MIDI representation
+    if (!data) return; // 'tempo' / 'meter' have no MIDI representation
     this.access.outputs.forEach((out) => {
       try {
         out.send(data, atMs);
@@ -100,6 +100,7 @@ export class MidiSyncTransport implements SyncTransport {
 function encode(msg: SyncMessage): number[] | null {
   switch (msg.type) {
     case 'tempo': return null;
+    case 'meter': return null;  // no MIDI real-time message carries a meter
     case 'songposition': return [0xf2, msg.beat & 0x7f, (msg.beat >> 7) & 0x7f];
     case 'pulse': return [0xf8];
     case 'start': return [0xfa];

@@ -6,6 +6,7 @@ import { chokeAt, forEachActiveHit } from './step-hits';
 import { clamp01 } from '../../utils/math';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
+import { LaneMeter } from './lane-meter';
 
 export type SamplerStepListener = (step: number) => void;
 
@@ -30,6 +31,8 @@ export class SamplerMachine {
   /** Hits still sounding (or still scheduled), so a transport stop can cut them
    *  (REQ-8). Drums self-terminate; a user sample is any length at all. */
   private readonly inFlight = new Set<{ src: AudioBufferSourceNode; g: GainNode }>();
+  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  readonly lane: LaneMeter;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -39,6 +42,7 @@ export class SamplerMachine {
     private readonly perf: Performance,
     private readonly samplerBus: GainNode,
   ) {
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       const g = this.ctx.createGain();
       g.gain.value = 1;
@@ -125,17 +129,17 @@ export class SamplerMachine {
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.stepIndex(step);
-    this.stepListeners.emit(idx);
+    this.lane.forEachHit(step, when, (idx, at, cellDur) => {
+      this.stepListeners.emit(idx);
 
-    // Arrangement rest bar: keep the playhead moving but trigger nothing.
-    if (this.arrangement.samplerResting) return;
+      // Arrangement rest bar: keep the playhead moving but trigger nothing.
+      if (this.arrangement.samplerResting) return;
 
-    // Sampler plays through drum fills (no fill behaviour of its own).
-    const bank = this.patterns.samplerBank(this.arrangement.samplerPlayBank);
-    const stepDur = this.clock.sixteenthDuration();
-    forEachActiveHit(bank, idx, when, stepDur, this.muted, (s, h, cell) => {
-      this.play(s, h.t, cell.velocity, chokeAt(cell, h));
+      // Sampler plays through drum fills (no fill behaviour of its own).
+      const bank = this.patterns.samplerBank(this.arrangement.samplerPlayBank);
+      forEachActiveHit(bank, idx, at, cellDur, this.muted, (s, h, cell) => {
+        this.play(s, h.t, cell.velocity, chokeAt(cell, h));
+      });
     });
   }
 }

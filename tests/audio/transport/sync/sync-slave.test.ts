@@ -213,3 +213,35 @@ describe('SyncSlave', () => {
     expect(clockBpm(clock)).toBeCloseTo(100, 6);
   });
 });
+
+describe('SyncSlave — meter (meter.md REQ-18)', () => {
+  it('adopts an incoming time signature immediately', () => {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as unknown as AudioContext;
+    const clock = new Clock(ctx, { timer: new TimeoutTimer() });
+    const setMeter = vi.fn();
+    const slave = new SyncSlave(clock, {
+      localBpm: () => 120,
+      toAudioTime: (ms) => ms / 1000,
+      setMeter,
+    });
+    slave.enable();
+
+    slave.handleMessage({ type: 'meter', beats: 7, unit: 1 }, 0);
+    expect(setMeter).toHaveBeenCalledWith(7, 1);
+    // Not deferred to the next start: a pending Song Position is a count of
+    // 16ths, and the meter is what decides which bar that lands in.
+    expect(setMeter).toHaveBeenCalledTimes(1);
+  });
+
+  it('is inert when the host wires no meter sink (regression)', () => {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as unknown as AudioContext;
+    const clock = new Clock(ctx, { timer: new TimeoutTimer() });
+    const slave = new SyncSlave(clock, { localBpm: () => 120, toAudioTime: (ms) => ms / 1000 });
+    slave.enable();
+    // A MIDI-only session never sees this message; an optional sink must not
+    // make receiving one a crash.
+    expect(() => slave.handleMessage({ type: 'meter', beats: 3, unit: 0 }, 0)).not.toThrow();
+  });
+});

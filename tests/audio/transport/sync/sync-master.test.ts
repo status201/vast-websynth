@@ -187,3 +187,40 @@ describe('SyncMaster', () => {
     expect(sent.length).toBe(n);
   });
 });
+
+describe('SyncMaster — meter (meter.md REQ-18)', () => {
+  it('announces the meter before the position, and on demand', () => {
+    vi.useFakeTimers();
+    const ctx = { currentTime: 0 } as unknown as AudioContext;
+    const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+    const sent: SyncMessage[] = [];
+    const master = new SyncMaster(clock, (m) => sent.push(m), (t) => t * 1000, {
+      timer: new TimeoutTimer(),
+      nowMs: () => 0,
+      meter: () => ({ beats: 7, unit: 1 }),
+    });
+
+    master.announceTo((m) => sent.push(m));
+    const types = sent.map((m) => m.type);
+    // Before `songposition`: a peer resolves a position into a bar through its
+    // own bar length, so it has to learn the meter first.
+    expect(types.indexOf('meter')).toBeGreaterThan(types.indexOf('tempo'));
+    expect(sent.find((m) => m.type === 'meter')).toEqual({ type: 'meter', beats: 7, unit: 1 });
+
+    sent.length = 0;
+    master.announceMeter();
+    expect(sent).toEqual([{ type: 'meter', beats: 7, unit: 1 }]);
+    master.disable();
+  });
+
+  it('sends nothing when the host wires no meter reader (regression)', () => {
+    const ctx = { currentTime: 0 } as unknown as AudioContext;
+    const clock = new Clock(ctx, { timer: new TimeoutTimer() });
+    const sent: SyncMessage[] = [];
+    const master = new SyncMaster(clock, (m) => sent.push(m), (t) => t * 1000, {
+      timer: new TimeoutTimer(), nowMs: () => 0,
+    });
+    master.announceMeter();
+    expect(sent).toEqual([]);
+  });
+});

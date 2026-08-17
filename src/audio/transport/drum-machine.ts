@@ -1,7 +1,8 @@
 import type { Arrangement } from './arrangement';
 import type { Performance } from './performance';
 import type { PatternStore } from '../../state/patterns';
-import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import { DRUM_TRACK_COUNT } from '../../state/patterns';
+import { LaneMeter } from './lane-meter';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
 import { rampTo, RAMP_MEDIUM } from '../param-utils';
 import { memoizeDriveCurve } from '../drive-curve';
@@ -75,6 +76,8 @@ export class DrumMachine {
   private chokeEnabled = false;
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly hitListeners = new ListenerSet<[number, number, number]>();
+  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  readonly lane: LaneMeter;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -85,6 +88,7 @@ export class DrumMachine {
     private readonly drumBus: GainNode,
     private readonly fxOversample = true,
   ) {
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
     this.noise = makeNoiseBuffer(this.ctx, 2);
 
     // Track order must match DRUM_TRACKS in patterns.ts; each track boots on
@@ -242,25 +246,25 @@ export class DrumMachine {
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.stepIndex(step);
-    this.stepListeners.emit(idx);
+    this.lane.forEachHit(step, when, (idx, at, cellDur) => {
+      this.stepListeners.emit(idx);
 
-    // Arrangement rest bar: keep the playhead moving but trigger nothing.
-    if (this.arrangement.drumResting) return;
+      // Arrangement rest bar: keep the playhead moving but trigger nothing.
+      if (this.arrangement.drumResting) return;
 
-    if (this.perf.fillActive) {
-      this.playFill(step % SEQ_LENGTH, when);
-      return;
-    }
+      if (this.perf.fillActive) {
+        this.playFill(idx, this.lane.cells, at);
+        return;
+      }
 
-    const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
-    const stepDur = this.clock.sixteenthDuration();
-    forEachActiveHit(bank, idx, when, stepDur, this.muted, (t, h, cell) => {
-      this.fire(t, h.t, cell.velocity, chokeAt(cell, h));
-      // A closed hat ends whatever the open hat was doing (REQ-12). Fired from
-      // the hit's own `h.t`, not `when`, so a ratcheted closed hat chokes on
-      // every sub-hit exactly as a real one would.
-      this.chokeOpenHats(t, h.t);
+      const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
+      forEachActiveHit(bank, idx, at, cellDur, this.muted, (t, h, cell) => {
+        this.fire(t, h.t, cell.velocity, chokeAt(cell, h));
+        // A closed hat ends whatever the open hat was doing (REQ-12). Fired from
+        // the hit's own `h.t`, not `at`, so a ratcheted closed hat chokes on
+        // every sub-hit exactly as a real one would.
+        this.chokeOpenHats(t, h.t);
+      });
     });
   }
 
@@ -295,15 +299,25 @@ export class DrumMachine {
   /** REQ-12 — `drum.choke`. */
   setChokeEnabled(on: boolean): void { this.chokeEnabled = on; }
 
-  /** Momentary drum fill — snare ramp + tom cascade on the last beat. */
-  private playFill(s: number, when: number): void {
-    if (s % 8 === 0) this.fire(0, when, 0.85); // kick anchor
-    if (s >= 12) {
-      const tom = s === 12 ? 4 : s === 13 ? 5 : 6; // L→M→H tom roll
+  /**
+   * Momentary drum fill — snare ramp + tom cascade on the last beat.
+   *
+   * Written against the lane's own length `n` rather than a hard-coded 16
+   * (meter.md REQ-9), so a fill in 7/8 anchors, rolls and claps on that bar's
+   * own steps instead of landing mid-bar or never. At `n === 16` every branch
+   * evaluates exactly as the 16-step original did: the kick anchor was `s % 8`,
+   * the roll began at 12, the toms were L/M/H/H and the clap was step 15.
+   */
+  private playFill(s: number, n: number, when: number): void {
+    const half = Math.max(1, Math.round(n / 2));
+    const rollStart = n - Math.max(1, Math.round(n / 4));
+    if (s % half === 0) this.fire(0, when, 0.85); // kick anchor
+    if (s >= rollStart) {
+      const tom = 4 + Math.min(2, s - rollStart); // L→M→H tom roll
       this.fire(tom, when, 0.95);
-      if (s === 15) this.fire(7, when, 0.9); // clap accent
+      if (s === n - 1) this.fire(7, when, 0.9); // clap accent on the bar's last step
     } else {
-      this.fire(1, when, 0.5 + 0.45 * (s / 11)); // snare ramp
+      this.fire(1, when, 0.5 + 0.45 * (s / Math.max(1, rollStart - 1))); // snare ramp
       if (s % 2 === 0) this.fire(2, when, 0.35); // hats
     }
   }

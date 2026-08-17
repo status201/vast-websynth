@@ -34,6 +34,7 @@ the old one rather than rewriting it. An ADR's `status` is its own lifecycle —
 | [016](adr-016-one-filter-worklet-model-per-block.md) | One filter worklet, the model selected per block (not a node swap) | accepted |
 | [017](adr-017-modulation-in-graph.md) | Modulation lives in the audio graph; automation lives on the bus | accepted |
 | [018](adr-018-audio-graph-memory-is-committed-not-reclaimed.md) | Audio-graph memory is committed for the session, not reclaimed on bypass | accepted |
+| [019](adr-019-the-bar-is-a-tick-count.md) | The bar is a tick count, not a time signature | accepted |
 
 New ADRs copy [`_adr-template.md`](_adr-template.md) to `adr-NNN-<slug>.md`, numbered
 contiguously. Keep this index and the folder map in [`../README.md`](../README.md) in

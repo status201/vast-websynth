@@ -227,13 +227,25 @@ cursor). `paintTriggerCell` lives with `stepTitle` in
 `ui/components/step-settings.ts`; the seq panel keeps its own painter because it
 also writes the note name as the button label. Every `data-testid` is unchanged.
 
-The transport machines additionally share two helpers:
+The transport machines additionally share three helpers:
 `forEachActiveHit(bank, idx, when, stepDur, muted, fire)`
 (`audio/transport/step-hits.ts`) — the one-shot lane sweep (skip muted, skip
-off, roll `prob`, expand ratchets) used by the drum machine and the sampler —
-and `Performance.stepIndex(step)` = `mapStep(step) % SEQ_LENGTH`, read by the
-seq/drum/sampler machines. The **motion** machine deliberately uses the raw
-`step % SEQ_LENGTH`: automation must not follow stutter remaps.
+off, roll `prob`, expand ratchets) used by the drum machine and the sampler;
+`Performance.stepIndex(step, cells, rateIdx)` = `cellIndex(mapStep(step), …)`,
+read by the seq/drum/sampler machines; and **`LaneMeter`**
+(`audio/transport/lane-meter.ts`), which each of the four machines owns as
+`.lane` and asks `forEachHit(step, when, fn)` — usually one cell per tick, none
+on a tick a coarser lane skips, two or three inside one tick for a rate finer
+than a 16th ([features/meter.md](features/meter.md)). The **motion** machine
+builds its `LaneMeter` with no stutter map: automation must not follow stutter
+remaps.
+
+**A bar is `barTicks`, not 16.** `SEQ_LENGTH` used to mean cells-per-pattern,
+ticks-per-bar and columns-of-UI at once; `state/meter.ts` names the three apart
+(`GRID_CELLS`, `barTicks()`, `LANE_RATES`) and `SEQ_LENGTH` is now just an alias
+of the first. New code says which one it means — and in the UI goes through
+`ui/lane-grid.ts`, so a grid, its ruler and its beat accents cannot disagree.
+See [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md).
 
 Insert effects additionally share `bindBypassMix(bus, prefix, fx)`
 (`audio/effects/effect.ts`) — the `${prefix}.on` → `setBypass` and
@@ -560,6 +572,9 @@ load-bearing ones:
 - [ADR-014](decisions/adr-014-dont-make-me-think.md) — interaction design follows
   *"Don't Make Me Think"*: six ordered laws, with *one gesture, one outcome* and
   *precedent before invention* doing most of the work.
+- [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md) — the bar is a **tick
+  count**, not a time signature, and every lane's cell index is a pure function
+  of `clock.step` (which is what makes a 12- or 14-tick lane survive a seek).
 
 ## Tests & verification
 

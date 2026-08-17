@@ -3,7 +3,7 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 5
+version: 6   # v6: MIDI carries no meter — stated, not hidden (REQ-25)
 owner: core
 related:
   - architecture
@@ -121,8 +121,9 @@ clauses noted inline. The `SyncMessage` union grows two variants (`tempo`,
   **Slave:** `songposition` stores `pendingBeat`; `start` sets `pendingBeat = 0`
   and starts at 0 (v1 behaviour); `continue` calls `clock.start(pendingBeat)`.
   `resetFollowState(startStep)` records `startStep`, and the phase-step mapping
-  becomes `(startStep + pulse/6) & 0xffff` (v1 hardcoded pulse 0 ↔ step 0).
-  **Clock:** `start(fromStep = 0)` seeds `_step = fromStep & 0xffff` before
+  becomes `startStep + pulse/6` (v1 hardcoded pulse 0 ↔ step 0; masked
+  `& 0xffff` until [transport](transport.md) REQ-10 removed the wrap).
+  **Clock:** `start(fromStep = 0)` seeds `_step = fromStep` before
   firing start listeners (see transport.md). **Arrangement** seeks to the bar
   implied by `clock.step` on start (see arrangement.md). **Regression: plain
   `start()` / `Clock.start(0)` behaves exactly as v1** (bar 0, pos 0).
@@ -341,6 +342,16 @@ is a transport event, so sync has to have an opinion about it in both roles.
   mirrors REQ-13's `clockRampAllowed` gate on Tape Stop: local transport *controls*
   stay live (REQ-3), local transport *position* does not.
 
+- **REQ-25** (v6) — **MIDI cannot carry a meter, and that is stated rather than
+  hidden.** The real-time message set has no time-signature message at all, so
+  `MidiSyncTransport.send` drops the `meter` variant exactly as it drops `tempo`.
+  Song Position stays correct either way — it counts 16ths, which is
+  meter-neutral — but two peers in different meters will *number* bars
+  differently from the same position. A WiFi link does carry the meter
+  ([webrtc-sync](webrtc-sync.md) REQ-12); a MIDI-only link does not, and the fix
+  is to set the same signature on both devices. Related: `TICK_MEMORY` (16
+  recorded grid times) is a look-ahead-sized window, not "one bar" — its comment
+  said bar and no longer should.
 ## Technical design
 
 ### Contract / public interface
@@ -414,7 +425,8 @@ Clock.nudge(seconds): void        # nextStepTime += clamp(s, ±0.05); no-op stop
 # sync primitive. A slave refuses it (REQ-24); a master announces it (REQ-23).
 # It is NOT how incoming songposition is applied — that still goes through
 # restart -> clock.start(pendingBeat), which must reset the follow state (REQ-10).
-Clock.start(fromStep = 0): void   # v2: seeds _step = fromStep & 0xffff before firing onStart
+Clock.start(fromStep = 0): void   # v2: seeds _step = fromStep before firing onStart
+                                  # (clamped 0..MAX_STEP since transport.md REQ-10)
 
 # src/ui/components/sync-section.ts
 buildSyncSection(sync: SyncController, rtc: WebRtcSyncTransport): HTMLElement  # v2: WiFi link button + links status

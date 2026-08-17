@@ -123,7 +123,8 @@ COMPACT AUTHOR FORMAT (recommended output)
   "motionTracks": [ [Track, Track], … ] // OPTIONAL — 2 extra 1-param tracks per motion bank
 }
 
-SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note steps), any of these forms:
+SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note step cells; a bank is
+always ${SEQ_LENGTH} cells, but how many of them a BAR is depends on the meter — see METER), any of these forms:
 - Positional array of up to ${SEQ_LENGTH} entries, one per step; short arrays are rest-padded.
 - { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? }
   — simultaneous tracks, for chords and counter-lines. The first is track 1;
@@ -160,6 +161,20 @@ TRANSPOSE — a "seqChain" bank letter may carry "+n"/"-n" semitones (max ${MAX_
   the stored bank. Only "seqChain" is pitched — drums/sampler/motion chains reject
   a suffix, and so does a rest (".+5"). The array/object chain forms take a
   parallel "seqTranspose": [0,5,7,3] instead.
+
+METER — the time signature, in "params". A bar is a number of sixteenth-note
+  ticks, not a fixed ${SEQ_LENGTH}: "transport.beats" (2-12) x "transport.beatUnit"
+  (0 = quarter-note beat, 1 = eighth) ticks. 4/4 = 16 is the default, so omit both
+  for a normal song. 3/4 = { "transport.beats": 3 }, 7/8 = { "transport.beats": 7,
+  "transport.beatUnit": 1 }. Every machine follows it — you do NOT set a length per
+  machine to write in 3/4, just write 12 steps and leave the rest empty.
+  POLYRHYTHM is the opt-in on top: "<m>.len" (0 = follow the bar, else 1-${SEQ_LENGTH} cells)
+  and "<m>.rate" (step length; see /params.json for the list, default = 1/16) for m in
+  seq/drum/sampler/motion. A lane whose length differs from the bar phases against it
+  and re-aligns at the least common multiple — e.g. "drum.len": 12 under a 16-tick bar
+  repeats every 4 bars. Use it deliberately; it is not how you write an odd meter.
+  Bar longer than the grid: 5/4 is 20 ticks and 7/4 is 28, more cells than a bank has,
+  so those meters need a coarser rate (5/4 = "<m>.rate" of 1/8 with "<m>.len": 10).
 
 Chain — the song structure, one bank per bar, looped:
 - a string of bank letters where "." or "-" is a silent bar: "AABA", "AAAB AAAC" (spaces ignored), or

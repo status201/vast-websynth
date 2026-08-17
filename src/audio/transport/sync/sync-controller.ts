@@ -54,6 +54,10 @@ export interface SyncControllerOptions {
    * knob tells the truth. Omitted in tests that don't exercise the handoff.
    */
   setLocalBpm?: (bpm: number) => void;
+  /** The song's time signature, announced to peers (meter.md REQ-18). */
+  meter?: () => { beats: number; unit: number };
+  /** Adopt a peer's time signature while slaved (meter.md REQ-18). */
+  setMeter?: (beats: number, unit: number) => void;
   /** Read/write `websynth.midisync` (default true; tests pass false). */
   persist?: boolean;
   /** performance.now() (injectable for tests). */
@@ -174,6 +178,16 @@ export class SyncController {
   }
 
   /**
+   * Tell every peer the time signature changed (meter.md REQ-18). Without it a
+   * peer keeps numbering bars by whatever meter it joined with, so the same
+   * Song Position lands them on different bars. A no-op in any role but master.
+   */
+  announceMeter(): void {
+    if (this._activeMode !== 'master') return;
+    this.master?.announceMeter();
+  }
+
+  /**
    * The gate stays on the **selection** (REQ-7/REQ-20), never on `activeMode`:
    * an arriving message is exactly what proves the link is alive, so it re-arms
    * the role — and it must do so *before* being handled, or the freshly-built
@@ -259,13 +273,17 @@ export class SyncController {
         this.opts.toPerfMs,
         // Fan the start/stop flush out to every transport that can cancel
         // scheduled sends (REQ-18); transports without flush are untouched.
-        { flush: () => { for (const { t } of this.transports.values()) t.flush?.(); } },
+        {
+          flush: () => { for (const { t } of this.transports.values()) t.flush?.(); },
+          ...(this.opts.meter ? { meter: this.opts.meter } : {}),
+        },
       );
       this.master.enable();
     } else if (want === 'slave') {
       this.slave = new SyncSlave(this.clock, {
         localBpm: this.opts.localBpm,
         toAudioTime: this.opts.toAudioTime,
+        ...(this.opts.setMeter ? { setMeter: this.opts.setMeter } : {}),
       });
       this.slave.enable();
       this.slaveUnsub = this.slave.onChange(() => this.emitStatus());

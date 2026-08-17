@@ -3,7 +3,8 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 7   # v7: the transposed note is then quantized to the key (REQ-17)
+version: 8   # v8: the lane's length + step rate come from the meter (REQ-18)
+             # v7: the transposed note is then quantized to the key (REQ-17)
              # v6: notes are shifted by the arrangement slot's transpose (REQ-16)
              # v5: release held notes on a transport stop, too (REQ-15)
 owner: core
@@ -182,6 +183,16 @@ and tracks 2–4 start empty and silent.
   note is what lands in `SeqTrackState.lastPlayedNote`, so a note started in one key or
   transpose is released at the pitch it actually started, exactly as above. While
   `scale.type` is `chromatic` the call is an early return and this REQ is invisible.
+
+- **REQ-18** (v8) — **The lane's length and step rate come from the meter.**
+  `seq.len` / `seq.rate` decide how many of the 16 cells play and how long each
+  lasts ([meter](meter.md) REQ-10/REQ-14); the defaults follow the bar at one
+  cell per tick, i.e. the pre-meter 16-step behaviour exactly. `onTick` resolves
+  the cells through a `LaneMeter` and calls `tickCell` for each — usually one,
+  none on a tick a coarser lane skips, two or three for a triplet rate. Gate and
+  ratchet are fractions of the **cell**, not of a 16th, so a step at 1/8 holds
+  for twice as long; at the default rate the two numbers are identical.
+  This closes the "Open questions" note below.
 
 ## Technical design
 
@@ -386,5 +397,7 @@ Scenario: A chromatic key leaves every triggered note untouched (v7, REQ-17, bac
 
 ## Open questions / future
 
-- Length is fixed at `SEQ_LENGTH` (16); a variable length would touch the bank
-  shapes in [banks](banks.md) and the bar math in [arrangement](arrangement.md).
+- ~~Length is fixed at `SEQ_LENGTH` (16)~~ — answered by REQ-18 / [meter](meter.md).
+  The bank shapes did **not** have to change: the grid is still 16 cells and only
+  the played *window* moves, which is what kept [banks](banks.md), the validators
+  and every shipped demo untouched.

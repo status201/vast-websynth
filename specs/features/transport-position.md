@@ -3,7 +3,8 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 3  # v3: only an EXPORT blocks a seek — a free manual take no longer
+version: 4  # v4: the ruler is the lane's grid, sized by the meter (REQ-18)
+            # v3: only an EXPORT blocks a seek — a free manual take no longer
             #     locks the playhead (REQ-6)
             # v2: the ruler stops conflating cue with playhead and stops counting
             #     bars that don't exist — cue ring (REQ-14), mode-aware readout
@@ -252,13 +253,23 @@ counter silently desynchronises all four.
   Related honesty fix: ticks print beats `1 2 3 4` while the old title said
   "step N", two numbering systems on one control — the title now names the beat.
 
+- **REQ-18** (v4) — **The ruler is the lane's grid, not sixteen columns.** Its
+  tick count, its beat numbering and its accent columns all come from
+  `laneGrid()` — the same resolver the step grid beneath it uses — so the two can
+  never describe different bars ([meter](meter.md) REQ-8/REQ-11). Ticks past the
+  played length are `hidden`, never removed, so all sixteen testids keep
+  resolving and a meter change is a class flip rather than a DOM rebuild. Every
+  bar computation on this surface (the `‹ ›` steppers, the `Bar n/N` readout, a
+  tick click) measures with `barTicks` instead of 16.
+
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
 Clock:   # src/audio/transport/clock.ts — additions to transport.md's contract
-  seek(step): void          # _cue = _step = step & 0xffff; nextStepTime UNTOUCHED;
+  seek(step): void          # _cue = _step = clamp(step, 0, MAX_STEP)  (transport.md
+                            # REQ-10; `& 0xffff` before v7); nextStepTime UNTOUCHED;
                             # fires onSeek synchronously. Valid playing or stopped.
   get cue: number           # where a plain start() begins (0 until the first seek)
   start(fromStep = this.cue)  # was `= 0`; identical while cue is 0

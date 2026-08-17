@@ -8,6 +8,7 @@ import { ScaleQuantizer } from './scale-quantizer';
 import { rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
+import { LaneMeter } from './lane-meter';
 
 export type StepListener = (step: number) => void;
 /** (midi note, audio time it sounds, audio time it releases). */
@@ -59,6 +60,8 @@ export class StepSequencer {
     Array.from({ length: SEQ_TRACK_COUNT }, newTrackState);
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly noteListeners = new ListenerSet<[number, number, number]>();
+  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  readonly lane: LaneMeter;
 
   constructor(
     private readonly output: SynthOutput,
@@ -68,6 +71,7 @@ export class StepSequencer {
     private readonly perf: Performance,
     private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
+    this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
     clock.onTick((step, when) => this.onTick(step, when));
     // A playhead jump makes the per-track tie/held-note state meaningless: it
     // only ever describes the *adjacent* step. Left alone, a note tied at the
@@ -144,7 +148,12 @@ export class StepSequencer {
 
   private onTick(step: number, when: number): void {
     if (!this.enabled) return;
-    const idx = this.perf.stepIndex(step);
+    this.lane.forEachHit(step, when, (idx, at, cellDur) => this.tickCell(idx, at, cellDur));
+  }
+
+  /** One cell of the lane. Split out of `onTick` because a rate finer than a
+   *  16th can put two or three of them inside one tick (meter.md REQ-15). */
+  private tickCell(idx: number, when: number, cellDur: number): void {
     this.stepListeners.emit(idx);
     // Arrangement rest bar: play nothing this bar, but release notes tied into
     // the rest so they don't ring forever (mirrors the per-step rest path).
@@ -166,13 +175,13 @@ export class StepSequencer {
     for (let t = 0; t < last; t++) {
       const st = this.tracks[t]!;
       if (st.muted) continue;
-      this.tickTrack(bank[t]?.[idx], st, when);
+      this.tickTrack(bank[t]?.[idx], st, when, cellDur);
     }
   }
 
   /** One track's step. Its held-note/tie handling is exactly the pre-v3
    *  monophonic logic, now scoped to `st` instead of the whole machine. */
-  private tickTrack(s: SeqStep | undefined, st: SeqTrackState, when: number): void {
+  private tickTrack(s: SeqStep | undefined, st: SeqTrackState, when: number, cellDur: number): void {
     // Rest (or step skipped by probability): let any held note finish, but a
     // tie into a rest must be released here so it doesn't ring forever.
     if (!s || !s.on || !rollProb(s.prob)) {
@@ -200,7 +209,10 @@ export class StepSequencer {
     // safety REQ-16 describes covers this transform too, for free.
     const note = this.scale.get(transposeNote(s.note, this.arrangement.seqTranspose));
 
-    const hits = stepHits(s, when, this.clock.sixteenthDuration());
+    // `cellDur`, not the clock's 16th: gate and ratchet are fractions of the
+    // step the user sees, so a lane at 1/8 must hold twice as long (meter.md
+    // REQ-14). At the default rate the two are the same number.
+    const hits = stepHits(s, when, cellDur);
     for (const h of hits) {
       this.output.playNote(note, s.velocity, h.t);
       // The final sub-hit holds (no release) when the step ties into the next.

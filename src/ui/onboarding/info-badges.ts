@@ -38,6 +38,9 @@ const byHelp = (name: string): Element | null => document.querySelector(`[data-h
 const ANCHORS: Anchor[] = [
   { topic: 'transport', find: () => byTestId('transport-play') },
   { topic: 'transport.swing', find: () => byTestId('knob-transport.swing') },
+  // Pinned to the picker rather than a machine's GRID pair: the meter is one
+  // song-wide setting, and the topic covers the per-lane overrides too.
+  { topic: 'meter', find: () => byTestId('meter-picker') },
   { topic: 'voicing', find: () => byTestId('seg-voicing.mode') },
   { topic: 'panic', find: () => byTestId('panic') },
   // Covers the whole preset cluster — the selector plus the one door beside it

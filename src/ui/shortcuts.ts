@@ -1,7 +1,6 @@
 import type { StudioApi } from './studio-api';
 import type { ParamBus } from '../state/params';
 import type { UiBridge } from './ui-bridge';
-import { SEQ_LENGTH } from '../state/patterns';
 import { LAYOUTS, resolveLayout, onLayoutChange } from '../state/keyboard-layout';
 
 /**
@@ -120,8 +119,9 @@ export function installShortcuts(engine: StudioApi, bus: ParamBus, bridge: UiBri
       // Playing: relative to the live step. Stopped: relative to the cue — where
       // Play will begin — which is what the ruler shows, so the two agree.
       const from = engine.clock.playing ? engine.clock.step : engine.clock.cue;
-      const bar = Math.floor(from / SEQ_LENGTH) + (k === 'ArrowRight' ? 1 : -1);
-      if (engine.seekTo(Math.max(0, bar) * SEQ_LENGTH)) e.preventDefault();
+      const ticks = engine.barTicks;
+      const bar = Math.floor(from / ticks) + (k === 'ArrowRight' ? 1 : -1);
+      if (engine.seekTo(Math.max(0, bar) * ticks)) e.preventDefault();
       return;
     }
 

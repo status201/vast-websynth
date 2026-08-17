@@ -9,7 +9,7 @@ import { Dropdown } from '../components/dropdown';
 import { createButton } from '../components/button';
 import { StepButton } from '../components/step-button';
 import {
-  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, GridCursor, clearMenuFor,
+  bankBarFor, wrapGridWithRestOverlay, wirePlayhead, playheadRulerFor, laneControlsFor, laneMeterControlsFor, GridCursor, clearMenuFor,
   VisibilityGate, type MachinePanel,
 } from './step-panel-scaffold';
 import { attachGridGestures } from '../components/grid-gestures';
@@ -19,7 +19,8 @@ import { StepSettingsEditor, paintTriggerCell } from '../components/step-setting
 import { DRUM_KITS, applyKit, randomizeKit } from '../../audio/drums/drum-kits';
 import { ParamDropdown } from '../components/param-dropdown';
 import { DRUM_TRACK_LABELS, DRUM_MODEL_LABELS } from '../../state/params';
-import { DRUM_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import { DRUM_TRACK_COUNT } from '../../state/patterns';
+import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
@@ -38,6 +39,7 @@ export function buildDrumPanel(
   // Chain / Mute / Solo, right after the machine switch — the same three
   // controls the Song tab's lane card carries (machine-status.md REQ-9).
   header.appendChild(laneControlsFor(bus, engine, 'drum', bridge).el);
+  header.appendChild(laneMeterControlsFor(bus, 'drum').el);
   header.appendChild(new Knob({ bus, paramId: 'drum.master', label: 'MASTER' }).el);
   const bankBar = bankBarFor(engine, 'drum');
   header.appendChild(bankBar.el);
@@ -89,7 +91,7 @@ export function buildDrumPanel(
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable. It borrows the panel's own row
   // and cells classes, so its ticks line up with the steps beneath them.
-  const ruler = playheadRulerFor(engine, 'drum', gate);
+  const ruler = playheadRulerFor(engine, bus, 'drum', gate);
   const rulerRow = document.createElement('div');
   rulerRow.className = styles.row!;
   const rulerCtrls = document.createElement('div');
@@ -104,6 +106,7 @@ export function buildDrumPanel(
   const grid = document.createElement('div');
   grid.className = styles.grid!;
   const stepBtns: StepButton[][] = [];
+  const cellRows: HTMLElement[] = [];
   const trackLabels: HTMLButtonElement[] = [];
 
   // A row's display name follows its selected voice model (drum-machine.md
@@ -145,10 +148,13 @@ export function buildDrumPanel(
 
     const cells = document.createElement('div');
     cells.className = styles.cells!;
+    cellRows.push(cells);
     const trackBtns: StepButton[] = [];
-    for (let s = 0; s < SEQ_LENGTH; s++) {
+    // Every cell is built; `bindLaneGrid` below decides which are live and where
+    // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+    for (let s = 0; s < ALL_CELLS; s++) {
       const cell = engine.patterns.drum[t]![s]!;
-      const sb = new StepButton('', s % 4 === 0 ? 'red' : 'orange');
+      const sb = new StepButton('');
       sb.el.dataset.testid = `drum-step-${t}-${s}`;
       sb.el.classList.add(StepButton.drumCellClass);
       paintTriggerCell(sb, cell);
@@ -168,6 +174,10 @@ export function buildDrumPanel(
     onSelect: setSelected,
     heldClass: StepButton.heldClass,
   });
+
+  // Column count, live cells and beat accents, all from the meter. Not
+  // unsubscribed: the panel is built once and lives as long as the page does.
+  bindLaneGrid(bus, 'drum', () => cellRows, () => stepBtns);
 
   const { el: gridWrap, restOverlay } = wrapGridWithRestOverlay(engine, 'drum', bankBar, grid);
   root.appendChild(gridWrap);
@@ -287,7 +297,7 @@ export function buildDrumPanel(
   engine.patterns.onDrumBankChange((bank) => {
     highlighter.clear();
     for (let t = 0; t < DRUM_TRACK_COUNT; t++) {
-      for (let s = 0; s < SEQ_LENGTH; s++) {
+      for (let s = 0; s < ALL_CELLS; s++) {
         const sb = stepBtns[t]?.[s];
         if (sb) paintTriggerCell(sb, bank[t]![s]!);
       }

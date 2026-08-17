@@ -3,7 +3,6 @@ import { Dropdown } from './dropdown';
 import { createButton } from './button';
 import type { StudioApi } from '../studio-api';
 import { FALLBACK_BARS, MAX_RUNS, type ExportFormat } from '../../audio/recorder/recorder-controller';
-import { SEQ_LENGTH } from '../../state/patterns';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -225,7 +224,8 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
 
   function render(): void {
     for (const b of fmtBtns) b.classList.toggle('active', b.dataset.testid === `export-audio-fmt-${fmt}`);
-    const seconds = totalBars() * SEQ_LENGTH * sixteenthS;
+    // The song's own bar, so a 7/8 export is estimated in 7/8 bars (meter.md REQ-7).
+    const seconds = totalBars() * engine.barTicks * sixteenthS;
     const runsPart = runs > 1 ? `${songBars} bars × ${runs}` : `${songBars} bars`;
     lengthNote.textContent =
       `${runsPart}${tailBar ? ' + 1 tail bar' : ''} — about ${describeSeconds(seconds)}, rendered in real time.`;

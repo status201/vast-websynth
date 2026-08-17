@@ -1,9 +1,13 @@
 /* Seq-panel-specific styles; the per-step edit row lives in
    step-settings.module.css (shared with the drum/sampler panels). */
 
+/* Column count follows the lane's played length (meter.md REQ-11): a 3/4 song
+   draws 12 columns, not 16 with four dead ones. `--steps` is set by the panel
+   (and by the ruler that shares this class), so the two can never disagree; the
+   fallback keeps every other consumer at 16. */
 .stepRow {
   display: grid;
-  grid-template-columns: repeat(16, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--steps, 16), minmax(0, 1fr));
   gap: 4px;
   width: 100%;
 }

@@ -140,4 +140,21 @@ describe('isPatchParam', () => {
       expect(isPatchParam(id), id).toBe(false);
     }
   });
+
+  it('excludes the motion sequencer, so a preset cannot switch it off (meter.md REQ-13)', () => {
+    // `motion.` was missing from the prefix list: loading a sound reapplied
+    // `motion.on` = 0 from the patch defaults and silently killed a song's
+    // automation. It is a song-level machine like seq/drum/sampler.
+    for (const id of ['motion.on', 'motion.mute', 'motion.slide', 'motion.t0.slide',
+      'motion.len', 'motion.rate']) {
+      expect(isPatchParam(id), id).toBe(false);
+    }
+  });
+
+  it('excludes every meter param, so a preset cannot change the meter (meter.md REQ-5)', () => {
+    for (const id of ['transport.beats', 'transport.beatUnit',
+      'seq.len', 'seq.rate', 'drum.len', 'drum.rate', 'sampler.len', 'sampler.rate']) {
+      expect(isPatchParam(id), id).toBe(false);
+    }
+  });
 });

@@ -44,6 +44,17 @@ export const MAX_CHAIN_DEPTH = 8;
  */
 export const MAX_CHAIN_TRANSPOSE = 24;
 
+/**
+ * Transport position, in 16th-note ticks (transport.md REQ-10).
+ *
+ * `Clock._step` used to be masked with `& 0xffff`, which doubled as its bound.
+ * That wrap was only phase-safe for bar lengths dividing 65536 — i.e. powers of
+ * two — so meter.md REQ-4 had to remove it, and the bound moved here. `2**31` is
+ * ~8.5 years of 16ths at 120 BPM: a guard rail against a hostile `seek`, not a
+ * limit any song can reach.
+ */
+export const MAX_STEP = 2 ** 31;
+
 /** Keys in a `params` map. The bus registers ~150; unknown ids are kept (ADR-007). */
 export const MAX_PARAM_KEYS = 512;
 

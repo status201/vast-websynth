@@ -3,7 +3,8 @@
 ```yaml
 id: testids
 status: implemented
-version: 9  # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
+version: 10 # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
+            # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
             #     (tempo-lock.md, lfo.md v9)
             # v8: scope-resize-handle (scope.md REQ-19)
             # v7: createPanelTabs' ptab-/ppage- namespace (panel-tabs.md REQ-3) and
@@ -170,6 +171,10 @@ step grids, rulers & overlays:
   motion-step-<s>                    # the mini XY pads
   ruler-<lane> · ruler-<lane>-<0..15> · ruler-<lane>-bar   # lane = seq|drum|sampler|motion
   ruler-<lane>-bar-<prev|next>                             # the ‹ › bar steppers
+  # A tick past the lane's played length is `hidden`, not removed (meter.md
+  # REQ-11) — so all 16 ids always resolve, and `:visible` is what counts them.
+  # `ruler-<lane>-bar` shares the `ruler-<lane>-` prefix and is NOT a tick: count
+  # ticks inside `ruler-<lane>`, or assert the last live index directly.
   rest-overlay-<lane>                # features/arrangement-rest.md
   # the lit ruler tick carries the GLOBAL `playing` class, so e2e can find it
   # despite CSS-Module hashing — see features/transport-position.md
@@ -183,6 +188,10 @@ banks, clear menus & undo:                          # features/banks.md, step-gr
   undo-<lane>                                       # features/pattern-undo.md
   machine-<lane>-chain · machine-<lane>-mute · machine-<lane>-solo
                                                     # features/machine-status.md
+  machine-<lane>-grid · machine-<lane>-len · machine-<lane>-rate
+  machine-<lane>-meter-hint                         # features/meter.md (v10)
+  # `-grid` is the cluster root: its `title` carries the in-meter reading, and
+  # `-meter-hint` is EMPTY + hidden while the lane matches the bar.
 
 key tab:                     # features/scale-quantization.md, features/chord-tools.md
   # scale.root / scale.type / chord.voicing are ParamDropdowns, which mint no id of
@@ -276,6 +285,7 @@ shared UI:
   dropdown-filter                                   # features/dropdown.md
   tempolock-<paramId> · tempodiv-<paramId>          # features/tempo-lock.md
   dropdown-lfo.dest · dropdown-lfo2.dest            # features/lfo.md (v9)
+  meter-picker                                      # features/meter.md (v10)
   toast · toast-host · toast-action · toast-dismiss # `toast` is showToast's DEFAULT
                                                     #   root id (features/toast.md REQ-8)
   value-bubble                                      # the drag readout's default id;
@@ -296,7 +306,7 @@ onboarding:                                         # features/onboarding.md
   tour-overlay · tour-callout · tour-next · tour-done · tour-back · tour-skip
   start-tour                                        # in the About modal (REQ-20)
   shortcuts-layout-gear · shortcuts-layout-select   # features/keyboard-layout.md
-  info-badge-layer · info-badge-<topic>
+  info-badge-layer · info-badge-<topic>   # incl. info-badge-meter (features/meter.md)
   sweet-<paramId>-<label>                           # features/tempo-sync-help.md
 
 about → debug panel:                                # features/debug-panel.md

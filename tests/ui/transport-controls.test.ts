@@ -25,6 +25,9 @@ function harness(over: { canSeek?: boolean } = {}) {
   const api = {
     clock,
     arrangement,
+    // 4/4 — what `registerDefaults` resolves the meter params to, so every
+    // assertion in this file still describes a 16-tick bar (meter.md REQ-6).
+    barTicks: SEQ_LENGTH,
     seekTo,
     canSeek: () => over.canSeek !== false,
     sync: { onStatus: () => () => {} },

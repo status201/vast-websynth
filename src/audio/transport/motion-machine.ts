@@ -1,6 +1,7 @@
 import type { Arrangement } from './arrangement';
 import type { MotionStep, MotionTrackStep, PatternStore } from '../../state/patterns';
-import { MOTION_TRACK_COUNT, SEQ_LENGTH } from '../../state/patterns';
+import { MOTION_TRACK_COUNT } from '../../state/patterns';
+import { LaneMeter } from './lane-meter';
 import type { ParamBus } from '../../state/params';
 import type { XyAssign, XyPadStore } from '../../state/xy-pad';
 import { motionAxesInto, motionAxesMatch } from '../../state/xy-effective';
@@ -98,6 +99,8 @@ export class MotionMachine {
   private readonly caf: (id: number) => void;
   private readonly timer: TickTimer;
   private readonly doc: VisibilitySource | null;
+  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  readonly lane: LaneMeter;
 
   constructor(
     private readonly clock: TickSubscriber,
@@ -107,6 +110,7 @@ export class MotionMachine {
     private readonly bus: ParamBus,
     opts: MotionMachineOpts = {},
   ) {
+    this.lane = new LaneMeter(clock);
     this.minFrameMs = 1000 / (opts.fps ?? 60);
     this.now = opts.now ?? (() => 0);
     this.raf = opts.raf ?? ((cb) => requestAnimationFrame(cb));
@@ -120,13 +124,27 @@ export class MotionMachine {
     this.doc?.addEventListener('visibilitychange', this.onVisibility);
 
     clock.onTick((step, when) => {
-      // Raw step, not perf.mapStep: automation must not follow stutter remaps.
-      const idx = step % SEQ_LENGTH;
+      // The LaneMeter is built with no stutter map on purpose: automation must
+      // not follow a stutter remap (meter.md REQ-17). A cell finer than a tick
+      // would report several times per tick; the latch keeps the last, which is
+      // what the frame loop interpolates from.
+      // Scalars rather than an object the callback fills, because this runs on
+      // every tick and the frame loop is already the app's tightest budget
+      // (runtime-performance.md REQ-6). The initialisers are never read: `fired`
+      // gates every use of them.
+      let idx = 0;
+      let at = 0;
+      let dur = 0;
+      let fired = false;
+      this.lane.forEachHit(step, when, (i, t, cellDur) => {
+        idx = i; at = t; dur = cellDur; fired = true;
+      });
+      if (!fired) return; // a coarser lane skips this tick entirely
       this.prev = this.curr;
       this.curr = {
         idx,
-        when,
-        dur: clock.sixteenthDuration(),
+        when: at,
+        dur,
         resting: this.arrangement.motionResting,
         playBank: this.arrangement.motionPlayBank,
         prevBank: this.arrangement.motionPrevPlayBank,
@@ -255,7 +273,8 @@ export class MotionMachine {
     // (runtime-performance.md REQ-6), and valueAt only reads it.
     this.neighbours.prev = this.carryBank(tick.prevBank, tick.prevResting, axes, base);
     this.neighbours.next = this.carryBank(tick.nextBank, tick.nextResting, axes, base);
-    if (valueAtInto(bank, pos / SEQ_LENGTH, this.mode, this.neighbours, this.anchors, this.xyOut)) {
+    const cells = this.lane.cells;
+    if (valueAtInto(bank, pos / cells, this.mode, this.neighbours, this.anchors, this.xyOut, cells)) {
       this.write(axes.x, this.xyOut.x);
       this.write(axes.y, this.xyOut.y);
     }
@@ -293,8 +312,9 @@ export class MotionMachine {
       if (!track || !id) continue;
       this.trackNeighbours.prev = this.carryTrack(tick.prevBank, tick.prevResting, t, id);
       this.trackNeighbours.next = this.carryTrack(tick.nextBank, tick.nextResting, t, id);
+      const cells = this.lane.cells;
       const v = valueAt1D(
-        track.steps, pos / SEQ_LENGTH, this.trackModes[t]!, this.trackNeighbours, this.anchors,
+        track.steps, pos / cells, this.trackModes[t]!, this.trackNeighbours, this.anchors, cells,
       );
       if (v !== null) this.write(id, v);
     }

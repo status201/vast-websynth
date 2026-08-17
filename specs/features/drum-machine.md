@@ -3,7 +3,8 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 8   # v8: REQ-13 — a lane mute (or a solo elsewhere) suppresses the hit
+version: 9   # v9: lane length/rate + a meter-relative fill (REQ-14) — meter.md
+             # v8: REQ-13 — a lane mute (or a solo elsewhere) suppresses the hit
              #     report too, not just a per-track mute; "reported ⇔ audible"
              # v7: REQ-13 — onHit reports every hit that sounds, at its scheduled
              #     time; the sidechain ducker's trigger (sidechain-ducking.md)
@@ -172,6 +173,14 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     of stale triggers. Deliberate: the alternative is reaching into whatever a
     consumer already scheduled, and every consumer's envelope decays back to rest
     on its own within a release ([sidechain-ducking](sidechain-ducking.md) REQ-5).
+
+- **REQ-14** (v9) — **The lane's length, rate and fill follow the meter.**
+  `drum.len` / `drum.rate` size the played window ([meter](meter.md)
+  REQ-10/REQ-14), and `playFill` is written against that window rather than a
+  hard-coded 16: the kick anchors each half-lane, the L→M→H tom roll takes its
+  last quarter, and the clap accents its **own** last step. At 16 cells every
+  branch evaluates exactly as before (anchors on 0 and 8, roll from 12, clap on
+  15), so a 4/4 fill is unchanged.
 
 ## Technical design
 
