@@ -28,10 +28,13 @@ export class MeterPicker {
     this.el = document.createElement('div');
     this.el.className = styles.root!;
 
+    // No label for the meter, it's obvious what it is, and the label makes vertical alignment ugly.
+/*
     const label = document.createElement('div');
     label.className = styles.label!;
     label.textContent = 'METER';
     this.el.appendChild(label);
+*/
 
     this.dd = new Dropdown(METER_PRESETS.map((m) => m.label));
     this.dd.el.classList.add(dropdownStyles.compact!);

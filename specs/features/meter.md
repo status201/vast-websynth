@@ -131,7 +131,8 @@ alone.
   `transport.beatUnit` (discrete `1/4` | `1/8`), defaulting to 4 and `1/4` — i.e.
   4/4, a no-op ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). They are
   song state, not patch state: `NON_PATCH_PREFIXES` already excludes
-  `transport.`, so loading a preset can never change the meter.
+  `transport.`, so loading a preset can never change the meter. The global meter
+  setting has no label ('Meter') since it's self-obvious.
 
 - **REQ-6** — **`barTicks` is the arrangement's bar line.** Chain lanes advance on
   `step % barTicks === 0` and seek to `floor(step / barTicks)`
