@@ -39,10 +39,9 @@ test.describe('meter', () => {
     // Counted inside the ruler container: the `ruler-drum-bar` readout beside
     // it shares the id prefix and is not a tick.
     expect(await page.locator('[data-testid="ruler-drum"] button:visible').count()).toBe(14);
-    // In meter the hint stays out of the way — the machine header has a one-row
-    // budget (responsive-machine-header.md) — and the reading lives in the
-    // cluster's tooltip instead.
-    await expect(page.getByTestId('machine-drum-meter-hint')).toBeHidden();
+    // The reading lives on the closed GRID toggle, so it is legible without
+    // opening anything (the header has a one-row budget — see
+    // responsive-machine-header.md, which is why GRID is a popover at all).
     await expect(page.getByTestId('machine-drum-grid'))
       .toHaveAttribute('title', '14 steps of 1/16 = one 7/8 bar');
 
@@ -64,7 +63,9 @@ test.describe('meter', () => {
     expect(await liveCells(page, 'drum-step-0-')).toBe(12);
     await pickMeter(page, '4/4');
     expect(await liveCells(page, 'drum-step-0-')).toBe(16);
-    await expect(page.getByTestId('drum-step-0-15')).toHaveClass(/on/);
+    // The "on" class is surrounded by underscores and appended with a random id by building
+    //await expect(page.getByTestId('drum-step-0-15')).toHaveClass(/(^|\s)on(\s|$)/);
+    await expect(page.getByTestId('drum-step-0-15')).toHaveClass(/_on_/);
   });
 
   test('a lane can be set against the bar on purpose (REQ-10)', async ({ page }) => {
@@ -72,13 +73,37 @@ test.describe('meter', () => {
     await page.getByTestId('tab-drums').click();
     await busSet(page, 'drum.len', 12);
     expect(await liveCells(page, 'drum-step-0-')).toBe(12);
-    // Off the bar the hint appears and says it is deliberate, so 12-against-16
-    // does not read as a bug.
+    // The toggle lights, so a lane set against the bar is visible without
+    // opening the popover, and the wording inside says it is deliberate — a bare
+    // "12 vs 16" would read as a bug.
+    await expect(page.getByTestId('machine-drum-grid')).toHaveClass(/(^|\s)on(\s|$)/);
+    await page.getByTestId('machine-drum-grid').click();
     await expect(page.getByTestId('machine-drum-meter-hint'))
-      .toHaveText('12 steps vs 4/4 — polyrhythm');
+      .toHaveText('12 steps of 1/16 vs a 4/4 bar — polyrhythm');
+    await expect(page.getByTestId('machine-drum-len')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('machine-drum-len')).toBeHidden();
     // …and the sampler beside it is untouched: the override is per lane.
     await page.getByTestId('tab-sampler').click();
     expect(await liveCells(page, 'sampler-step-0-')).toBe(16);
+  });
+
+  test('the GRID popover drives the lane, and its inner pickers keep it open', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+    // Closed by default: the machine header cannot afford two inline dropdowns
+    // (responsive-machine-header.md REQ-8).
+    await expect(page.getByTestId('machine-drum-len')).toBeHidden();
+
+    await page.getByTestId('machine-drum-grid').click();
+    await page.getByTestId('machine-drum-len').locator('button').first().click();
+    await page.getByTestId('machine-drum-len').locator('button')
+      .filter({ hasText: /^12$/ }).click();
+
+    // Choosing inside a nested picker must not dismiss the popover…
+    await expect(page.getByTestId('machine-drum-len')).toBeVisible();
+    // …and the lane followed.
+    expect(await liveCells(page, 'drum-step-0-')).toBe(12);
   });
 
   test('the transport readout counts steps within the song bar, not a fixed 16', async ({ page }) => {

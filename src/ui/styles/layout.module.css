@@ -262,42 +262,38 @@
   min-width: 0;
 }
 
-/* ===== Per-machine LEN / RATE (meter.md REQ-10/REQ-14) ===== */
+/* ===== Per-machine GRID popover (meter.md REQ-10/REQ-14) ===== */
 
-.laneMeter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+/* The popover's anchor. Nothing but a box: the menu is `position: fixed`, so it
+   needs no positioned ancestor, and it must NOT carry `dropdown.module.css`'s
+   `.root` — that module's `.root.open .menu` is a descendant selector and would
+   open the two Dropdowns nested inside this popover along with it. */
+.laneMeterRoot {
+  display: inline-block;
   min-width: 0;
 }
 
-/* ONE caption for the pair, beside them rather than above.
-   Both choices are width/height discipline, not taste. A stacked caption makes
-   the cluster taller than every other control in the machine header; a caption
-   per dropdown makes it wider. The machine header has a hard one-row budget at
-   1440px (responsive-machine-header.md), and overflowing it pushes the per-step
-   edit row below the fold — where onboarding.md REQ-5b correctly hides its info
-   badge, which is how the cost shows up. `LEN` and `RATE` survive as the
-   dropdowns' own `title`s. */
+/* The popover's contents. A CHILD of `dropdown.module.css`'s `.menu` rather than
+   a second class on it: that element owns `display: none` until `.open`, and a
+   class here setting `display` would pin the popover open forever. */
+.laneMeter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 190px;
+}
+
+/* Caption beside its control, so a row is one line and the popover stays short. */
 .laneMeterField {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-/* The width goes on a WRAPPER, never on the Dropdown root: `dropdown.module.css`
-   sets `.compact { width: 100% }`, and which of two single-class rules wins is
-   import order — a coin toss that, lost, let the RATE toggle overflow its slot
-   and swallow clicks meant for the bank bar beside it. Sizing the box `.compact`
-   fills is the way that component is meant to be constrained.
-   Widths are their longest labels: `BAR` / `16`, and `1/16 D`. */
-.laneMeterLen { width: 58px; flex: none; min-width: 0; }
-.laneMeterRate { width: 74px; flex: none; min-width: 0; }
-
-/* Matches knob.module.css's `.label` — LEN and RATE sit beside knobs and must
-   read as the same kind of control, not a different one. */
+/* Matches knob.module.css's `.label` — these sit among knobs and switches and
+   must read as the same kind of control. */
 .laneMeterLabel {
   font-size: 9px;
   color: var(--text-dim);
@@ -306,18 +302,21 @@
   font-weight: 600;
 }
 
-/* The one line that says what LEN × RATE actually amounts to (ADR-014: don't
-   make the user simulate two interacting dropdowns in their head). Mono,
-   because it is a readout of changing figures (typography.md). */
-/* Rendered ONLY while the lane is off the bar, so it is always the polyrhythm
-   case — accented rather than warned about, because that is a setting and not a
-   mistake. Mono, being a readout of changing figures (typography.md). */
+/* The one line that says what LEN x RATE amounts to, so two interacting
+   controls never have to be reconciled in the head (ADR-014). Mono, being a
+   readout of changing figures (typography.md). */
 .laneMeterHint {
   font-family: var(--mono);
   font-size: 9px;
+  color: var(--text-dim);
+  line-height: 1.35;
+  max-width: 190px;
+}
+
+/* Off the bar on purpose — the polyrhythm case. Accented rather than warned
+   about: it is a setting, not a mistake. */
+.laneMeterOff {
   color: var(--accent);
-  align-self: center;
-  white-space: nowrap;
 }
 
 /* ===== Header ===== */

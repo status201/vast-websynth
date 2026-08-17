@@ -215,17 +215,6 @@
   padding: 6px 8px;
 }
 
-/* A compact dropdown narrower than the 120px `.toggle` floor. `width: 100%`
-   alone does not shrink it — `min-width: 120px` wins — so the toggle silently
-   overflowed its box and swallowed clicks meant for the control beside it
-   (caught by e2e/arrangement-rest.spec.ts, whose Follow button it covered).
-   Opt-in, because 120px is the right floor for a dropdown standing on its own;
-   this is for one sized into a dense row (the machine header's GRID pair —
-   features/meter.md). The MENU keeps its own width: an option list has to stay
-   readable however narrow its button is. */
-.narrow .toggle {
-  min-width: 0;
-}
 .compact .label {
   text-transform: uppercase;
   letter-spacing: 0.12em;

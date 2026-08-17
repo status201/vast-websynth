@@ -4,6 +4,7 @@ import type { UiBridge } from '../ui-bridge';
 import type { Arrangement, ChainLane } from '../../audio/transport/arrangement';
 import { BankBar } from '../components/bank-bar';
 import { Switch } from '../components/switch';
+import switchStyles from '../styles/switch.module.css';
 import { createChainToggle } from '../components/chain-toggle';
 import layout from '../styles/layout.module.css';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
@@ -313,50 +314,112 @@ export function laneControlsFor(
 }
 
 /**
- * The **LEN / RATE** pair for a machine header (meter.md REQ-10/REQ-14) — how
- * many cells this lane loops over and how long each one lasts.
+ * The **GRID** control for a machine header (meter.md REQ-10/REQ-14) — how many
+ * cells this lane loops over and how long each one lasts.
  *
- * Built here rather than per panel so all four machines get the identical
- * control, and so "follow the bar" reads the same everywhere: LEN's `0` renders
- * as **BAR**, which is what the default means and what makes the meter picker
- * the only control most users ever touch.
+ * A `▾` **popover**, not two inline dropdowns, and that is a measurement rather
+ * than a taste: the machine header must stay one row at 1440px
+ * (responsive-machine-header.md), and it has ~67px of slack there on this
+ * machine's own font stack. Two labelled dropdowns are ~169px, which fits
+ * locally and wraps on a CI runner's wider fallback font — and a wrapped header
+ * pushes the per-step edit row past the fold, where onboarding.md REQ-5b
+ * correctly hides its info badge. A 60px toggle cannot be the straw, and the
+ * popover then has room to label both controls properly and show what the pair
+ * amounts to in words. `Clear ▾` sits two controls away, so the idiom is already
+ * the row's own.
  *
- * A hint line says what the pair currently amounts to, because two dropdowns
- * that interact are exactly the case ADR-014 says not to make the user simulate
- * in their head: `12 × 1/16 = 3/4` tells them the lane is in meter, and
- * `12 × 1/16 vs 4/4` tells them it is deliberately not.
+ * The toggle lights when the lane is **off** the bar, so a deliberate polyrhythm
+ * is visible without opening anything.
  */
 export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControls {
-  const el = document.createElement('div');
-  el.className = layout.laneMeter!;
-  // The cluster carries its own id: its `title` is where the in-meter reading
-  // lives, and counting DOM levels up from a child is the kind of selector that
-  // breaks the moment a wrapper is added (testids.md REQ-3).
-  el.dataset.testid = `machine-${lane}-grid`;
+  const root = document.createElement('div');
+  // Deliberately NOT `dropdownStyles.root`: that module reveals its popover with
+  // `.root.open .menu`, a DESCENDANT selector, so an outer `.open` would also
+  // reveal the menus of the two Dropdowns nested inside this one — both option
+  // lists sprang open with the popover. `createClearMenu` never nests a dropdown
+  // and so never met this. Visibility is driven inline below instead, which
+  // leaves each inner Dropdown in sole charge of its own.
+  root.className = layout.laneMeterRoot!;
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = switchStyles.root!;
+  toggle.dataset.testid = `machine-${lane}-grid`;
+  toggle.textContent = 'Grid ▾';
+  toggle.setAttribute('aria-expanded', 'false');
+  root.appendChild(toggle);
+
+  const menu = document.createElement('div');
+  // `dropdownStyles.menu` alone: it owns `display: none` until `.open`, and a
+  // second class setting `display` here would leave the popover permanently
+  // visible. The layout goes on an inner body instead.
+  menu.className = dropdownStyles.menu!;
+  menu.style.display = 'none';
+  const body = document.createElement('div');
+  body.className = layout.laneMeter!;
+  menu.appendChild(body);
+  root.appendChild(menu);
 
   const len = new Dropdown(LEN_LABELS);
-  len.el.classList.add(dropdownStyles.compact!, dropdownStyles.narrow!);
+  len.el.classList.add(dropdownStyles.compact!);
   len.el.dataset.testid = `machine-${lane}-len`;
-  len.el.title = 'LEN — steps this machine loops over. BAR follows the time signature.';
   len.onChange((v) => bus.set(`${lane}.len`, LEN_LABELS.indexOf(v)));
 
   const rate = new Dropdown([...LANE_RATE_LABELS]);
-  rate.el.classList.add(dropdownStyles.compact!, dropdownStyles.narrow!);
+  rate.el.classList.add(dropdownStyles.compact!);
   rate.el.dataset.testid = `machine-${lane}-rate`;
-  rate.el.title = 'RATE — how long one step lasts.';
   rate.onChange((v) => bus.set(`${lane}.rate`, LANE_RATE_LABELS.indexOf(v)));
 
-  const hint = document.createElement('span');
+  const hint = document.createElement('div');
   hint.className = layout.laneMeterHint!;
   hint.dataset.testid = `machine-${lane}-meter-hint`;
 
-  // One caption for the pair: this is the machine's step GRID, and two captions
-  // cost width the header does not have (see layout.module.css).
-  el.append(
-    labelled('GRID', sized(len.el, layout.laneMeterLen!)),
-    sized(rate.el, layout.laneMeterRate!),
+  body.append(
+    field('LEN', 'Steps this lane loops over. BAR follows the time signature.', len.el),
+    field('RATE', 'How long one step lasts.', rate.el),
     hint,
   );
+
+  let open = false;
+
+  /** `position: fixed`, anchored to the toggle and flipped up near the bottom
+   *  edge — the rule `Dropdown.position` and `createClearMenu` both follow. */
+  const position = (): void => {
+    const r = toggle.getBoundingClientRect();
+    const s2 = menu.style;
+    // `.menu` carries `min-width: 100%`, and for a `position: fixed` box that
+    // 100% is the VIEWPORT — a popover the width of the screen. `createClearMenu`
+    // pins it to the toggle's width; this one is wider than its toggle, so it
+    // releases the floor and lets the body's own `min-width` size it.
+    s2.minWidth = '0px';
+    s2.left = `${r.left}px`;
+    const mh = menu.offsetHeight;
+    const flipUp = r.bottom + 6 + mh > window.innerHeight && r.top - 6 - mh > 0;
+    s2.top = `${flipUp ? r.top - 6 - mh : r.bottom + 6}px`;
+  };
+
+  const setOpen = (o: boolean): void => {
+    if (open === o) return;
+    open = o;
+    // `.menu` is `display: none` in CSS and a flex column when shown; setting it
+    // inline keeps the reveal on THIS element only (see the root's comment).
+    menu.style.display = o ? 'flex' : 'none';
+    toggle.setAttribute('aria-expanded', String(o));
+    if (o) position();
+  };
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOpen(!open);
+  });
+  // `root.contains` keeps the popover open while the user drives the two
+  // Dropdowns inside it — their own menus render within this root.
+  document.addEventListener('click', (e) => {
+    if (open && !root.contains(e.target as Node)) setOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (open && e.key === 'Escape') setOpen(false);
+  });
 
   const off = onLaneGridChange(bus, lane, () => {
     const grid = laneGrid(bus, lane);
@@ -365,44 +428,35 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
     const laneTicks = grid.cells * ticksPerCell(grid.rate);
     const meter = meterLabel(bus.get('transport.beats'), bus.get('transport.beatUnit'));
     const inMeter = laneTicks === grid.bar;
-    // Shown only when the lane is OFF the bar. In meter the two dropdowns
-    // already say everything ("BAR" / "1/16"), and this is a machine header
-    // that has to survive `responsive-machine-header.md`'s one-row budget at
-    // 1440px — a permanent third element ate it. Off the bar the words earn
-    // their width: `12 steps vs 4/4 — polyrhythm` is the difference between a
-    // deliberate setting and something that looks broken.
-    hint.textContent = inMeter ? '' : `${grid.cells} steps vs ${meter} — polyrhythm`;
-    hint.hidden = inMeter;
-    // The in-meter reading moves to the cluster's tooltip, so it is still
-    // reachable without costing a pixel of the header.
-    el.title = inMeter
-      ? `${grid.cells} steps of ${LANE_RATE_LABELS[grid.rate]} = one ${meter} bar`
-      : `${grid.cells} steps of ${LANE_RATE_LABELS[grid.rate]} against a ${meter} bar`;
+    const rateLabel = LANE_RATE_LABELS[grid.rate];
+    // Words, not two numbers to reconcile: `12 steps vs 4/4 — polyrhythm` is
+    // what tells a player a lane off the bar is a setting and not a fault
+    // (ADR-014 law 5).
+    hint.textContent = inMeter
+      ? `${grid.cells} steps of ${rateLabel} = one ${meter} bar`
+      : `${grid.cells} steps of ${rateLabel} vs a ${meter} bar — polyrhythm`;
+    hint.classList.toggle(layout.laneMeterOff!, !inMeter);
+    // The same sentence on the closed toggle, so it is readable without opening.
+    toggle.title = hint.textContent;
+    toggle.classList.toggle('on', !inMeter);
   });
 
   return {
-    el,
+    el: root,
     destroy(): void { off(); len.destroy(); rate.destroy(); },
   };
 }
 
-/** A fixed-width box for a `.compact` Dropdown to fill (see layout.module.css). */
-function sized(control: HTMLElement, cls: string): HTMLElement {
-  const box = document.createElement('div');
-  box.className = cls;
-  box.appendChild(control);
-  return box;
-}
-
-/** A caption beside a compact control, matching the knob captions near it. */
-function labelled(text: string, control: HTMLElement): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = layout.laneMeterField!;
+/** One labelled row inside the GRID popover. */
+function field(label: string, title: string, control: HTMLElement): HTMLElement {
+  const row = document.createElement('div');
+  row.className = layout.laneMeterField!;
+  row.title = title;
   const cap = document.createElement('span');
   cap.className = layout.laneMeterLabel!;
-  cap.textContent = text;
-  wrap.append(cap, control);
-  return wrap;
+  cap.textContent = label;
+  row.append(cap, control);
+  return row;
 }
 
 export function playheadRulerFor(
