@@ -3,7 +3,9 @@
 ```yaml
 id: add-a-modal-dialog
 status: implemented
-version: 3   # v3: the backdrop carries no backdrop-filter
+version: 4   # v4: a modal still playing its close fade is reaped the moment
+             #     any modal opens — a closed dialog must not outlive its answer
+             # v3: the backdrop carries no backdrop-filter
              #     (runtime-performance.md REQ-10)
 owner: core
 related:
@@ -61,6 +63,22 @@ modal.open();                      // mounts to document.body + reveals
 // close paths: the × / a Close button (modal.close()), backdrop click, or Escape
 ```
 
+**A closed modal must not outlive its answer.** `close()` hides the backdrop at
+once but leaves the node mounted for the fade (~200 ms) — and `dialog.ts`
+settles its promise *before* calling `close()`, so the caller is already running
+while the corpse is still in the document. If that caller opens another dialog
+inside the fade window, two are mounted at the same time and every element inside
+them exists twice: `getByTestId('dialog-choice-mine')` matches two nodes and any
+E2E that answers one dialog and immediately raises another is flaky by
+construction. (`.backdrop.hidden` already sets `pointer-events: none`, so the
+corpse cannot take a *click* — it is DOM presence alone that leaks.)
+
+So **`open()` reaps every modal still fading before it mounts.** A modal that is
+mid-close is on its way out by definition: nothing that arrives after it has any
+business seeing it. This is deliberately *not* a one-modal-at-a-time rule —
+dialogs legitimately stack on top of open modals (a confirm raised from the
+preset manager) and that keeps working. Only the *dying* ones are collected.
+
 ### 3. Verify
 
 ```bash
@@ -97,11 +115,24 @@ Scenario: A dialog opens, then closes and cleans up exactly once
   When it is opened and then closed (× / backdrop / Escape)
   Then the card mounts and reveals, then hides, and onClose fires exactly once
 # pinned by: tests/ui/modal.test.ts, e2e/mic.spec.ts
+
+Scenario: A closing modal never overlaps the one that replaces it (v4)
+  Given a modal that has just been closed and is still playing its fade
+  When another modal opens before the fade has finished
+  Then the closing one is removed on the spot
+  And exactly one modal card is in the document
+# pinned by: tests/ui/modal.test.ts
+
+Scenario: Stacking an OPEN modal still works (v4, edge)
+  Given a modal that is open and has not been closed
+  When a second modal opens on top of it
+  Then both stay mounted — only a CLOSING modal is reaped
+# pinned by: tests/ui/modal.test.ts
 ```
 
 ## Tests & verification
 
 - `tests/ui/modal.test.ts` — the lifecycle contract (open/close/Escape/backdrop,
-  `onClose` fires once).
+  `onClose` fires once, and v4's reap-on-open).
 - `e2e/mic.spec.ts` — the record-sound modal driven in a real browser.
 - `npm run typecheck` / `npm test`.

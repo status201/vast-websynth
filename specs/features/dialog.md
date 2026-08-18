@@ -3,7 +3,9 @@
 ```yaml
 id: dialog
 status: implemented
-version: 3   # v3: REQ-8 — chooseDialog, for a question whose answers are two
+version: 4   # v4: REQ-6's "one dialog at a time" is now enforced, not assumed
+             #     — a closing dialog is reaped when the next one opens
+             # v3: REQ-8 — chooseDialog, for a question whose answers are two
              #     positive actions rather than yes/no
 owner: core
 related:
@@ -59,6 +61,19 @@ backdrop-click-to-close) rather than reinventing it.
 - **REQ-6** — Stable `data-testid`s for E2E (a single dialog is open at a time):
   the affirmative button is `dialog-confirm`, the dismiss button is
   `dialog-cancel`, the prompt field is `dialog-input`.
+
+  *(v4)* "A single dialog is open at a time" was an **assumption** here, and it
+  did not hold. These helpers settle their promise *before* `modal.close()`, so
+  the caller resumes while the answered dialog is still mounted for its ~200 ms
+  fade. A caller that answers one dialog and raises another inside that window —
+  the demo-shadow question in [song-mode](song-mode.md) REQ-15 does exactly
+  that, twice in a row — had two dialogs mounted, so `dialog-cancel` and every
+  `dialog-choice-*` id matched **two** nodes and the E2E driving it failed
+  intermittently on a strict-mode violation. The testids were never ambiguous by
+  design; the lifecycle simply let a dead dialog linger. Fixed in `Modal`, where
+  the fade lives, rather than here: `open()` reaps anything still fading
+  ([add-a-modal-dialog](../recipes/add-a-modal-dialog.md) v4), so the invariant
+  this REQ has always claimed is now true for every modal, not just dialogs.
 - **REQ-7** *(v2)* — `confirmDialog`'s optional `detail?: string` renders a
   second paragraph below the message, in **italics** and slightly muted
   (`.detail`, `data-testid="dialog-detail"`) — supporting copy under the main
@@ -206,6 +221,13 @@ Scenario: Choose resolves null when dismissed — neither action runs (v3, REQ-8
   Then the promise resolves null
   And no choice id can be mistaken for a dismissal
 # pinned by: tests/ui/dialog.test.ts
+
+Scenario: Answering a dialog and immediately raising another leaves one (v4, REQ-6)
+  Given a dialog has just been answered and is still playing its close fade
+  When the caller opens a second dialog straight away
+  Then only the second dialog is in the document
+  And each dialog testid matches exactly one element
+# pinned by: tests/ui/dialog.test.ts, e2e/song.spec.ts
 
 Scenario: The promise settles exactly once
   Given any dialog is open

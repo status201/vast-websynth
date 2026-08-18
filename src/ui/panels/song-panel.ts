@@ -31,6 +31,7 @@ import {
 } from '../../state/patterns';
 import { restIcon } from '../components/rest-glyph';
 import { createChainToggle } from '../components/chain-toggle';
+import { attachChipReorder } from '../components/chip-reorder';
 import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
@@ -929,9 +930,44 @@ function buildChainLane(
     sel = to;
     setChain(s, lane.enabled, t);
   };
-  controls.appendChild(mk('◀', () => { moveSel(sel - 1); }));
-  controls.appendChild(mk('▶', () => { moveSel(sel + 1); }));
-  controls.appendChild(mk('✕', () => {
+  /**
+   * Move a slot to an arbitrary position — the drag's commit (arrangement.md
+   * REQ-11). A splice rather than `moveSel`'s swap, so a chip can travel the
+   * length of the chain in one gesture; over a single position the two agree
+   * exactly, which is what keeps the drag and the buttons one behaviour.
+   */
+  const reorderSlot = (fromIdx: number, to: number): void => {
+    if (fromIdx < 0 || fromIdx >= lane.steps.length) return;
+    if (to < 0 || to >= lane.steps.length || to === fromIdx) return;
+    const s = [...lane.steps];
+    const t = [...lane.transpose];
+    // The inner splice removes; `to` is already in post-removal coordinates.
+    s.splice(to, 0, ...s.splice(fromIdx, 1));
+    t.splice(to, 0, ...t.splice(fromIdx, 1));
+    sel = to; // the chip you dropped is the one − / + / ✕ now act on
+    setChain(s, lane.enabled, t);
+  };
+
+  /**
+   * Name a toolbar button three ways at once — testid, tooltip, screen reader.
+   * `◀ ▶ ✕` had none of the three while `− + Clear` beside them had all of
+   * them; REQ-11 makes the move buttons the precise path a drag falls back to,
+   * so they owe the same tooltip everything else in the row has
+   * (recipes/design-an-interaction.md step 4).
+   */
+  const labelled = (b: HTMLButtonElement, testId: string, text: string): HTMLButtonElement => {
+    b.dataset.testid = testId;
+    b.title = text;
+    b.setAttribute('aria-label', text);
+    return b;
+  };
+  controls.appendChild(labelled(
+    mk('◀', () => { moveSel(sel - 1); }),
+    `chain-move-left-${prefix}`, 'Move the selected bar one place earlier'));
+  controls.appendChild(labelled(
+    mk('▶', () => { moveSel(sel + 1); }),
+    `chain-move-right-${prefix}`, 'Move the selected bar one place later'));
+  controls.appendChild(labelled(mk('✕', () => {
     if (sel >= 0) {
       const s = [...lane.steps];
       const t = [...lane.transpose];
@@ -940,20 +976,17 @@ function buildChainLane(
       sel = -1;
       setChain(s, lane.enabled, t);
     }
-  }));
+  }), `chain-remove-${prefix}`, 'Remove the selected bar from the chain'));
   // Transpose the selected slot. Wheel is the fast path on a desktop, but this
   // app installs as a mobile PWA, so the gesture needs a touch-reachable twin
   // (arrangement.md gesture inventory).
   if (pitched) {
-    const minus = mk('−', () => { if (sel >= 0) nudgeSlot(sel, -1); });
-    minus.dataset.testid = 'chain-transpose-down-seq';
-    minus.title = 'Transpose the selected bar down a semitone';
-    minus.setAttribute('aria-label', 'Transpose the selected bar down a semitone');
-    const plus = mk('+', () => { if (sel >= 0) nudgeSlot(sel, 1); });
-    plus.dataset.testid = 'chain-transpose-up-seq';
-    plus.title = 'Transpose the selected bar up a semitone';
-    plus.setAttribute('aria-label', 'Transpose the selected bar up a semitone');
-    controls.append(minus, plus);
+    controls.append(
+      labelled(mk('−', () => { if (sel >= 0) nudgeSlot(sel, -1); }),
+        'chain-transpose-down-seq', 'Transpose the selected bar down a semitone'),
+      labelled(mk('+', () => { if (sel >= 0) nudgeSlot(sel, 1); }),
+        'chain-transpose-up-seq', 'Transpose the selected bar up a semitone'),
+    );
   }
   const clearBtn = mk('Clear', async () => {
     // Nothing to lose if the chain is already a single step — reset silently.
@@ -979,6 +1012,8 @@ function buildChainLane(
   // on every bar advance during playback.
   let chipEls: HTMLButtonElement[] = [];
   let lastKey = '';
+  /** Disposer for the drag controller bound to the CURRENT chip DOM. */
+  let detachReorder: (() => void) | null = null;
 
   const renderPlayState = () => {
     chainToggle.refresh();
@@ -991,14 +1026,21 @@ function buildChainLane(
   };
 
   const renderStructure = () => {
+    // The controller holds the old buttons; drop it before they do.
+    detachReorder?.();
+    detachReorder = null;
     chips.innerHTML = '';
     chipEls = lane.steps.map((b, idx) => {
       const isRest = b === REST;
       const c = el('button', isRest ? `${styles.chip!} ${styles.rest!}` : styles.chip!) as HTMLButtonElement;
       c.dataset.testid = `chain-chip-${prefix}-${idx}`;
+      // Every chip says how to move it: the drag has no other affordance, and
+      // a gesture with none of the discoverability triple does not exist for
+      // the user (recipes/design-an-interaction.md step 4).
+      const DRAG_HINT = ' — drag to reorder';
       if (isRest) {
         c.dataset.rest = 'true';
-        c.title = 'Rest (empty bar)';
+        c.title = 'Rest (empty bar)' + DRAG_HINT;
         c.innerHTML = restIcon();
       } else {
         // The offset is ON the chip, never hidden behind a selection — a slot
@@ -1006,10 +1048,10 @@ function buildChainLane(
         const semis = lane.transpose[idx] ?? 0;
         const label = BANK_LABELS[b] ?? '?';
         c.textContent = semis === 0 ? label : `${label}${semis > 0 ? '+' : ''}${semis}`;
-        if (semis !== 0) {
-          c.dataset.transposed = 'true';
-          c.title = `Bank ${label}, ${semis > 0 ? 'up' : 'down'} ${Math.abs(semis)} semitone${Math.abs(semis) === 1 ? '' : 's'}`;
-        }
+        c.title = semis === 0
+          ? `Bank ${label}${DRAG_HINT}`
+          : `Bank ${label}, ${semis > 0 ? 'up' : 'down'} ${Math.abs(semis)} semitone${Math.abs(semis) === 1 ? '' : 's'}${DRAG_HINT}`;
+        if (semis !== 0) c.dataset.transposed = 'true';
       }
       c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; renderPlayState(); });
       if (pitched && !isRest) {
@@ -1026,6 +1068,10 @@ function buildChainLane(
       chips.appendChild(c);
       return c;
     });
+    // Re-bound to the fresh buttons on every structural rebuild — including the
+    // one a drop itself triggers, which is why the controller never touches the
+    // DOM order and only reports the move (arrangement.md REQ-11).
+    detachReorder = attachChipReorder({ container: chips, chips: chipEls, onReorder: reorderSlot });
   };
 
   const render = () => {

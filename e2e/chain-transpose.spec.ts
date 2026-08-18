@@ -73,12 +73,15 @@ test.describe('chain slot transpose', () => {
     expect(await transposeOf(page)).toEqual([0, 0, 1]);
 
     // ◀ swaps the slot with its neighbour; the offset belongs to the slot, not
-    // to the position, so it must swap too.
-    await page.getByRole('button', { name: '◀', exact: true }).first().click();
+    // to the position, so it must swap too. By testid, not by glyph: the
+    // buttons gained real labels when the drag made them the precise path
+    // (arrangement.md REQ-11), and `.first()` was only ever picking the seq
+    // lane out of four identical glyphs by luck of DOM order.
+    await page.getByTestId('chain-move-left-seq').click();
     expect(await transposeOf(page)).toEqual([0, 1, 0]);
 
     // ✕ removes the selected slot — and its offset, not some other slot's.
-    await page.getByRole('button', { name: '✕', exact: true }).first().click();
+    await page.getByTestId('chain-remove-seq').click();
     expect(await transposeOf(page)).toEqual([0, 0]);
   });
 

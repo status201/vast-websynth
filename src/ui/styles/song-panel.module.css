@@ -132,6 +132,7 @@
 }
 
 .chip {
+  position: relative;   /* the drop marker is an edge pseudo-element */
   width: 28px;
   height: 28px;
   border-radius: 4px;
@@ -143,7 +144,12 @@
   font-size: 12px;
 }
 
-.chip:global(.sel) { border-color: var(--accent-secondary); }
+/* A chip carries three independent facts, so it spends three channels on them
+   — playing = fill, selected = border, transposed = label (arrangement.md
+   REQ-12). Until v7 the last two both set border-color to --accent-secondary at
+   equal specificity, so a transposed slot looked permanently selected and
+   selecting one did nothing visible. Source order matters below: the transient
+   states are declared AFTER the intrinsic one so they layer over it. */
 
 /* A transposed slot (e.g. "A+5"): the label grows a sign and a number, so the
    chip has to widen from its square default or the text clips. Tabular figures
@@ -156,14 +162,49 @@
   font-family: var(--mono);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  border-color: var(--accent-secondary);
+  /* The offset's own channel. A wash rather than an outline, so it cannot be
+     confused with the selection border and both can show at once. */
+  color: var(--accent-good);
+  background:
+    linear-gradient(180deg, rgba(111, 184, 106, 0.16), rgba(111, 184, 106, 0.05)),
+    linear-gradient(180deg, #1a1410, #0a0805);
 }
 
-.chip:global(.playing) {
+.chip:global(.sel) { border-color: var(--accent-secondary); }
+
+/* Playing owns the fill outright — including on a transposed chip, whose wash
+   and label colour it overrides here rather than blending with (a green-on-
+   orange numeral is unreadable, and "playing" is the fact that matters most in
+   that instant). Selection still reads: it is on the border, untouched. */
+.chip:global(.playing),
+.chip[data-transposed='true']:global(.playing) {
   background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
   color: #f4e4c2;
   box-shadow: 0 0 8px rgba(232, 116, 46, 0.5);
 }
+
+/* ---- Drag to reorder (arrangement.md REQ-11) ----
+   The chip being carried, and the gap it would drop into. The gap is an edge
+   bar on the neighbouring chip rather than a real inserted element: .chips is a
+   wrapping flex, so inserting anything would reflow the row under the pointer —
+   and a chip that has wrapped still marks the correct side of itself. */
+.chip[data-dragging='true'] {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.chip[data-drag-over]::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent-secondary);
+  box-shadow: 0 0 6px var(--accent-secondary-glow);
+}
+.chip[data-drag-over='before']::after { left: -3px; }
+.chip[data-drag-over='after']::after { right: -3px; }
 
 /* Rest chip: an empty bar — a rest glyph on a muted, dashed slot instead of a letter. */
 .chip.rest {

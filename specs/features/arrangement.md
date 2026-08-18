@@ -3,7 +3,9 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 6   # v6: the bar is barTicks, not 16 (REQ-10) — meter.md
+version: 7   # v7: drag a chip to reorder a lane (REQ-11); the chip's three
+             #     facts get three visual channels (REQ-12)
+             # v6: the bar is barTicks, not 16 (REQ-10) — meter.md
              # v5: per-slot transpose on the seq lane (REQ-8) — SongFile v7
 owner: core
 related:
@@ -118,6 +120,46 @@ tick listener settles the play banks first.
   the machines instead ([meter](meter.md) REQ-10), which is what closes the
   "Open questions" note below.
 
+- **REQ-11** (v7) — **A chip is dragged to its place.** Every add button
+  *appends*, so a slot belonging near the front of the chain used to cost one
+  `◀` press per position it had to travel. Dragging a chip and dropping it
+  between two others reorders the lane in one gesture, on all four lanes.
+
+  - The drag **moves** the slot: remove at `from`, insert at `to` (a splice).
+    For a one-position move that is the same result `◀`/`▶`'s swap already
+    gives, so the two routes cannot disagree and law 2 holds.
+  - The slot's `transpose` travels **with** it, for the reason REQ-8 gives: the
+    offset belongs to the slot, not to the position. A drag commits as one
+    `set*Chain(steps, enabled, transpose)` call on drop — never one per frame.
+  - Selection follows the moved slot, so the chip you dropped is the chip the
+    `− / + / ✕` row now acts on.
+  - **A press only becomes a drag past a slop threshold** (6 px, the one
+    `grid-gestures.ts` already uses). Under it the gesture is still a tap and
+    still selects — which is what retires this table's old "a drag would fight
+    selection" objection: the two are separated by travel, not by a mode.
+  - A drop outside the lane's chip row, or a cancelled pointer, writes nothing.
+  - `◀`/`▶` stay. A drag is fast but imprecise; the buttons are the precise
+    path, and the only one that works without pointing at a 28 px target.
+
+- **REQ-12** (v7) — **The chip's three facts use three channels.** A chip says
+  three independent things, and until v7 two of them said it the same way:
+  `.sel` and `[data-transposed]` both set `border-color: var(--accent-secondary)`.
+  Same declaration, same specificity, and the transposed rule came later in the
+  file — so a transposed slot looked permanently selected *and* selecting one
+  showed no feedback at all. One channel each instead:
+
+  | Fact | Nature | Channel |
+  | --- | --- | --- |
+  | playing | transient | filled background + glow (`--accent`) |
+  | selected | transient | border (`--accent-secondary`) |
+  | transposed | intrinsic to the data | label colour + background tint (`--accent-good`) |
+
+  Colour is never the only carrier ([machine-status](machine-status.md)): the
+  offset is written on the chip (`A+5`) and spelled out in its `title`. The
+  three may co-occur — a transposed slot can be selected *and* playing — so the
+  rules must compose rather than override, which is what separating the channels
+  buys. `--accent-good` is an existing palette entry, not a new colour.
+
 ## Technical design
 
 ### Contract / public interface
@@ -143,17 +185,18 @@ MAX_CHAIN_TRANSPOSE = 24    # ±2 octaves, matching drum.t*.tune's range
 
 ### Gesture inventory — a chain chip (ADR-014)
 
-The chip already had one job (select a slot). Transpose is its second, so every
-gesture it can receive is decided here, including the ones left unused.
+The chip already had one job (select a slot). Transpose is its second and
+reorder its third, so every gesture it can receive is decided here, including
+the ones left unused.
 
 | Gesture                | Outcome                                          | Precedent |
 | ---------------------- | ------------------------------------------------ | --------- |
-| tap / click            | select / deselect the slot (**unchanged**)       | existing |
+| tap / click            | select / deselect the slot — a press travelling less than the 6 px slop is a tap, so REQ-11's drag does not take this away | existing |
 | wheel over a chip      | ±1 semitone, **seq lane only**                   | `recipes/design-an-interaction.md`'s own worked example; Elektron per-pattern transpose |
 | double-click a chip    | reset that slot to `+0`                          | knob double-tap resets to the loaded value (README → Controls) |
 | `−` / `+` in the controls row | ±1 semitone on the selected slot; the **touch-reachable** path, since wheel is desktop-only and this app ships as an Android/iOS PWA | the row's existing `◀ ▶ ✕ Clear` idiom |
 | Shift + wheel          | — Shift means **finer** everywhere here (knobs, motion pads) and a semitone is already the finest step; making it mean *coarser* would invert the app's own convention | — |
-| drag a chip            | — reorder is `◀`/`▶`; a drag would fight selection | — |
+| drag a chip            | **reorder the lane** (REQ-11) — lift it, drop it between two others. Reverses this row's v5 `—`, whose stated reason (it would fight selection) the slop threshold removes | DAW arrangement / playlist reorder: Ableton, FL Studio's playlist, Bitwig — and the universal list-reorder idiom outside music software |
 | long-press / right-click | — nothing left to open; the chip has no third job | — |
 | `Delete` / `⌫`         | — `✕` removes the selected slot. The step grids bind Delete to *clear a step*, a different object; binding it here to a different outcome would break law 2 | — |
 
@@ -172,6 +215,12 @@ transpose:   seq only. StepSequencer reads arrangement.seqTranspose at trigger
              time and shifts the note it plays (sequencer.md REQ-16); the stored
              SeqStep is never rewritten (REQ-9)
 ui: src/ui/panels/song-panel.ts buildChainLane(...) -> setSeqChain/ setDrumChain/ setSamplerChain
+reorder: src/ui/components/chip-reorder.ts attachChipReorder({ chips, onReorder })
+         ONE shared controller for all four lanes (recipes/design-an-interaction.md
+         step 3); re-attached by renderStructure(), disposed before each rebuild.
+         Reports intent only - it never reorders the DOM itself, so a drop and
+         the arrangement's own onChange repaint cannot disagree (the rule
+         grid-gestures.ts follows for the same reason).
 persistence: captured/applied as ChainData in the SongFile (see song-mode.md)
 ```
 
@@ -243,6 +292,44 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
   When it is loaded
   Then every seq slot transposes by 0 and the song sounds exactly as it did
 # pinned by: tests/state/song.test.ts
+
+Scenario: A chip is dragged to a new place in the chain (v7, REQ-11)
+  Given a chain of A B C D
+  When the user drags the D chip and drops it before the B chip
+  Then the chain is A D B C, written with ONE setChain call
+  And the dropped slot is the selected one
+# pinned by: tests/ui/chip-reorder.test.ts, e2e/chain-reorder.spec.ts
+
+Scenario: A dragged slot keeps its transpose (v7, REQ-11)
+  Given a seq chain of A A+5 A+7 and the user drags the A+7 chip to the front
+  Then the chain reads A+7 A A+5 — the offset moved WITH the slot, not with the
+    position, so the progression is reordered rather than rewritten
+# pinned by: tests/ui/chip-reorder.test.ts, e2e/chain-reorder.spec.ts
+
+Scenario: A press that does not travel is still a tap (v7, REQ-11, edge)
+  Given a chain chip
+  When the pointer goes down and up having moved less than the slop threshold
+  Then the slot is selected/deselected exactly as before and no reorder happens
+# pinned by: tests/ui/chip-reorder.test.ts
+
+Scenario: A cancelled or stray drop writes nothing (v7, REQ-11, edge)
+  Given a drag in progress over a chain lane
+  When the pointer is cancelled, or released away from every chip in that lane
+  Then the chain is unchanged and no setChain call is made
+# pinned by: tests/ui/chip-reorder.test.ts
+
+Scenario: A drag never reaches another lane (v7, REQ-11, edge)
+  Given the Song tab with all four lanes visible
+  When a seq chip is dragged over the drum lane's chips and released
+  Then neither chain changes — a bank index means a different bank per machine
+# pinned by: tests/ui/chip-reorder.test.ts
+
+Scenario: A transposed chip can still show that it is selected (v7, REQ-12)
+  Given a seq chain slot at +5, drawn with the transposed label colour
+  When the user taps it
+  Then it ALSO shows the selection border — the two facts use different
+    channels, so neither hides the other
+# pinned by: tests/ui/chip-states.test.ts
 ```
 
 ## Tests & verification
@@ -250,6 +337,9 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
 - `tests/audio/transport/arrangement.test.ts`, `tests/audio/transport/sequencer.test.ts`
   (REQ-8/REQ-9), `tests/state/song-author.test.ts` (the `A+5` grammar),
   `e2e/song.spec.ts`, `e2e/chain-transpose.spec.ts` (the gesture inventory).
+- `tests/ui/chip-reorder.test.ts` (REQ-11 — one case per new inventory row, in
+  jsdom), `tests/ui/chip-states.test.ts` (REQ-12 — the three channels stay
+  independent), `e2e/chain-reorder.spec.ts` (the drag on the real panel).
 - `npm test` / `npm run e2e`.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)):
   transpose changes what the instrument plays, and no test can tell you whether a
@@ -258,6 +348,14 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
   or hangs, and a bar that clamps at the top of the range.
 
 ## Open questions / future
+
+- **Any chain edit restarts that lane at slot 1 while playing.** `set*Chain`
+  ends with `<lane>Pos = 0`, so add, `◀`/`▶`, `✕` and now a drag all snap a
+  playing lane back to the top of its chain. That predates REQ-11 and is left
+  alone here, but REQ-11 makes editing-while-playing far more likely, so it is
+  now the most visible rough edge in this spec. The fix would be to carry the
+  *slot* through the rewrite rather than the index — reordering should move the
+  playhead with the bar it is on, exactly as the transpose moves with its slot.
 
 - ~~Lanes share one bar grid (`SEQ_LENGTH`)~~ — they still share one grid, but it
   is now `barTicks` (REQ-10). Per-lane *phrasing* against that grid is a machine

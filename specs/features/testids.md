@@ -235,6 +235,11 @@ song panel — lanes, chains & live FX:
   song-lane-title-<lane>             # opens that machine's tab (features/machine-status.md)
   song-chain-<lane> · chain-chip-<lane>-<idx> · chain-add-<lane>-<i> ·
   chain-add-rest-<lane> · chain-clear-<lane>        # features/arrangement.md
+  chain-move-<left|right>-<lane> · chain-remove-<lane>   # the precise reorder path
+                                                    #   REQ-11 keeps beside the drag
+  # a chip being dragged / a chip about to receive a drop are read off the chip's
+  # own attributes, not extra testids (REQ-11):
+  #   data-dragging="true" · data-drag-over="before|after"
   chain-transpose-<up|down>-seq                     # SEQ ONLY — the other lanes are
                                                     #   unpitched, so the control is
                                                     #   absent, not disabled (REQ-8)
