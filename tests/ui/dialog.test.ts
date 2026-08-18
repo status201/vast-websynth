@@ -4,6 +4,7 @@ import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../../sr
 const byId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
 const clickId = (id: string) => (byId(id) as HTMLButtonElement).click();
 const card = () => document.querySelector('[role="dialog"]') as HTMLElement | null;
+const countId = (id: string) => document.querySelectorAll(`[data-testid="${id}"]`).length;
 
 describe('dialog', () => {
   // Every dialog closes itself on resolution (removing Modal's capturing Escape
@@ -131,6 +132,42 @@ describe('dialog', () => {
     const p = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
     card()!.parentElement!.dispatchEvent(new Event('pointerdown'));
     expect(await p).toBeNull();
+  });
+
+  // dialog.md REQ-6 (v4). These helpers settle their promise BEFORE
+  // `modal.close()`, so the caller resumes while the answered dialog is still
+  // mounted for its fade. Answering one and raising another inside that window
+  // put two in the document, and every testid matched twice — which is what
+  // made e2e/song.spec.ts's demo-shadow test fail intermittently on a Playwright
+  // strict-mode violation. Deliberately no `document.body.innerHTML = ''`
+  // between the two dialogs here: that reset is exactly what hid the leak.
+  it('answering a dialog and raising another straight away leaves one', async () => {
+    const first = chooseDialog({ title: 'Which?', message: 'x', choices: [twoWays, orMine] });
+    clickId('dialog-choice-demo');
+    expect(await first).toBe('demo');
+
+    // No timers advanced: the answered dialog is still inside its fade.
+    const second = chooseDialog({
+      title: 'Which?', message: 'x', choices: [twoWays, orMine], cancelLabel: 'Cancel',
+    });
+    expect(countId('dialog-choice-mine')).toBe(1);
+    expect(countId('dialog-choice-demo')).toBe(1);
+    expect(countId('dialog-cancel')).toBe(1);
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+
+    clickId('dialog-choice-mine');
+    expect(await second).toBe('mine');
+  });
+
+  it('the surviving dialog is the new one, and it still answers', async () => {
+    const first = confirmDialog({ title: 'Sure?', message: 'x' });
+    clickId('dialog-confirm');
+    expect(await first).toBe(true);
+
+    const second = promptDialog({ title: 'Name', message: 'x', defaultValue: 'hi' });
+    expect(countId('dialog-input')).toBe(1);
+    clickId('dialog-confirm');
+    expect(await second).toBe('hi');
   });
 
   it('chooseDialog renders a dismiss button only when cancelLabel is given', async () => {

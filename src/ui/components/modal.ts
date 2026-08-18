@@ -23,6 +23,24 @@ export interface ModalOptions {
   dismissOnBackdrop?: boolean;
 }
 
+/**
+ * Modals that have been closed but are still playing their fade-out, each
+ * mapped to the function that ends it early.
+ *
+ * `close()` hides the backdrop immediately but leaves the node mounted for the
+ * transition, and `dialog.ts` settles its promise *before* calling `close()` —
+ * so a caller can be off doing the next thing while the answered dialog is
+ * still in the document. When that next thing is another dialog, both were
+ * mounted at once and every element inside them existed twice.
+ *
+ * A modal that is mid-close is on its way out by definition, so anything that
+ * opens after it collects it first. Deliberately not a one-modal-at-a-time
+ * rule: dialogs legitimately stack on modals that are genuinely still open (a
+ * confirm raised from the preset manager), and only the dying are reaped.
+ * See specs/recipes/add-a-modal-dialog.md.
+ */
+const fading = new Set<() => void>();
+
 export class Modal {
   /** Caller appends its content here. */
   readonly body: HTMLElement;
@@ -91,6 +109,9 @@ export class Modal {
   open(): void {
     if (this.opened) return;
     this.opened = true;
+    // Before mounting: clear out anything still fading, so this modal is never
+    // in the document alongside one that has already been dismissed.
+    for (const reap of [...fading]) reap();
     document.body.appendChild(this.backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
     void this.backdrop.offsetWidth;
@@ -104,7 +125,18 @@ export class Modal {
     window.removeEventListener('keydown', this.onKey, true);
     this.backdrop.classList.add('hidden');
     const el = this.backdrop;
-    this.closeTimer = window.setTimeout(() => el.remove(), 200);
+    // Idempotent, and the single path out of `fading` — whether the fade runs
+    // to completion or another modal cuts it short.
+    const reap = (): void => {
+      if (this.closeTimer !== undefined) {
+        window.clearTimeout(this.closeTimer);
+        this.closeTimer = undefined;
+      }
+      fading.delete(reap);
+      el.remove();
+    };
+    fading.add(reap);
+    this.closeTimer = window.setTimeout(reap, 200);
     this.onCloseCb?.();
   }
 }

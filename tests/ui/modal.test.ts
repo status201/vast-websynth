@@ -3,6 +3,7 @@ import { Modal } from '../../src/ui/components/modal';
 
 const backdropSel = `.${Modal.backdropClass}`;
 const inDoc = () => document.querySelector(backdropSel) as HTMLElement | null;
+const allInDoc = () => document.querySelectorAll(backdropSel);
 
 describe('Modal', () => {
   // Track every modal so afterEach can close it — an open modal keeps a
@@ -48,6 +49,73 @@ describe('Modal', () => {
     vi.advanceTimersByTime(200);
     expect(inDoc()).toBeNull();
     vi.useRealTimers();
+  });
+
+  // The fade leaves a closed modal mounted for ~200ms, and dialog.ts settles its
+  // promise BEFORE close() — so the caller runs while the corpse is still in the
+  // document. Answering one dialog and raising another inside that window put two
+  // in the DOM, which is what made e2e/song.spec.ts's demo-shadow test flaky:
+  // every dialog testid matched twice. (add-a-modal-dialog.md v4, dialog.md REQ-6)
+  describe('a closing modal never overlaps the one that replaces it', () => {
+    it('reaps the fading modal when the next one opens', () => {
+      vi.useFakeTimers();
+      const a = mk({ title: 'A' });
+      a.open();
+      a.close();
+      // Mid-fade: still mounted, which is the whole problem.
+      vi.advanceTimersByTime(50);
+      expect(allInDoc()).toHaveLength(1);
+
+      const b = mk({ title: 'B' });
+      b.open();
+      expect(allInDoc()).toHaveLength(1);
+      expect(inDoc()?.querySelector(`.${Modal.titleClass}`)?.textContent).toBe('B');
+      vi.useRealTimers();
+    });
+
+    it('leaves no stale timer that could remove the new modal', () => {
+      vi.useFakeTimers();
+      const a = mk({ title: 'A' });
+      a.open();
+      a.close();
+      const b = mk({ title: 'B' });
+      b.open();
+      // A's fade timer would have fired around here; B must survive it.
+      vi.advanceTimersByTime(400);
+      expect(allInDoc()).toHaveLength(1);
+      expect(inDoc()?.querySelector(`.${Modal.titleClass}`)?.textContent).toBe('B');
+      vi.useRealTimers();
+    });
+
+    it('reaps several corpses at once', () => {
+      vi.useFakeTimers();
+      for (const t of ['A', 'B', 'C']) { const m = mk({ title: t }); m.open(); m.close(); }
+      const d = mk({ title: 'D' });
+      d.open();
+      expect(allInDoc()).toHaveLength(1);
+      vi.useRealTimers();
+    });
+
+    it('leaves an OPEN modal alone — only the dying are collected', () => {
+      // Dialogs legitimately stack on modals that are still open (a confirm
+      // raised from the preset manager), so this must not become a
+      // one-modal-at-a-time rule.
+      const a = mk({ title: 'A' });
+      a.open();
+      const b = mk({ title: 'B' });
+      b.open();
+      expect(allInDoc()).toHaveLength(2);
+    });
+
+    it('still removes the modal on its own when nothing else opens', () => {
+      vi.useFakeTimers();
+      const a = mk({ title: 'A' });
+      a.open();
+      a.close();
+      vi.advanceTimersByTime(200);
+      expect(allInDoc()).toHaveLength(0);
+      vi.useRealTimers();
+    });
   });
 
   it('Escape closes the modal', () => {

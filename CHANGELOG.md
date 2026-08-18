@@ -143,6 +143,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A dismissed dialog no longer lingers over the next one.** Answering a
+  question left the old dialog on screen for a fifth of a second while it faded,
+  so a flow that asks twice in a row — "you have your own song by this name,
+  which did you mean?" — briefly stacked two of them. Closing a dialog now
+  clears it out of the way the moment anything else opens.
+
 - **A transposed bar no longer looks like the selected one.** In a sequencer
   chain, a bar carrying a transpose (`A+5`) was outlined in the same yellow that
   marks the selected bar — so transposed bars all looked selected, and clicking
