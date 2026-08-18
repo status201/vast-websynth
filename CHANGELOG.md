@@ -129,7 +129,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   this device between sessions — and *only* here: it never travels into a preset
   or a song, so loading someone else's work never rearranges your screen.
 
+- **Drag a bar to where it belongs in the arrangement.** On the Song tab, the
+  bank buttons add a bar to the *end* of a chain, so putting one near the front
+  used to mean walking it there with ◀, one press per place. Now just drag the
+  chip: a line shows the gap it will drop into, and letting go puts it there. It
+  works on all four lanes — sequencer, drums, sampler and motion — and a
+  transposed bar keeps its offset when it moves, so `A A+5 A+7` can be
+  rearranged without being rewritten.
+
+  A plain click still selects a bar exactly as before; the drag only starts once
+  you have actually moved. ◀ and ▶ are still there for single-place nudges, and
+  they now say what they do when you hover them.
+
 ### Fixed
+
+- **A transposed bar no longer looks like the selected one.** In a sequencer
+  chain, a bar carrying a transpose (`A+5`) was outlined in the same yellow that
+  marks the selected bar — so transposed bars all looked selected, and clicking
+  one showed nothing at all. Transposed bars now read in their own colour and
+  keep the yellow outline for selection, so a chip can show both at once.
 
 - **Loading a preset no longer switches your motion automation off.** The Motion
   machine's on/mute/slide settings were being stored inside sounds and reapplied

@@ -858,6 +858,12 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'Tape&nbsp;Stop</strong> and a sweepable DJ filter), and save / load / export songs.</p>' +
       '<p>The demo buttons load complete examples — remember to press <strong>Play</strong> ' +
       'afterwards to hear them.</p>' +
+      '<p>A bank button <em>appends</em> to the chain, so to put a bar somewhere else just ' +
+      '<strong>drag the chip</strong> to where it belongs — a line shows the gap it will drop ' +
+      'into. <strong>◀</strong> and <strong>▶</strong> do the same one place at a time. On the ' +
+      'sequencer lane a chip can also be <strong>transposed</strong>: select it and use ' +
+      '<strong>−</strong> / <strong>+</strong> (or the mouse wheel over the chip), and it reads ' +
+      '<strong>A+5</strong> in its own colour — one bank becomes a whole progression.</p>' +
       '<p>Not sure what a button does? <strong>Save</strong>, <strong>Export</strong> and the ' +
       'audio <strong>Export Song</strong> are easy to mix up — each file button has its own (i) ' +
       'badge with the details.</p>',
