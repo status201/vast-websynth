@@ -11,6 +11,21 @@
   align-items: center;
   gap: 2px;
   min-width: 0;
+  /* The widest label is four glyphs ("12/8"), so the header does not owe this
+     control a panel-row's width — 80px is the whole thing, border included
+     (`box-sizing: border-box`, base.css). */
+  width: 80px;
+}
+
+/*
+ * Override the standard toggle's `min-width: 120px`, which is sized for a panel
+ * row and would hold the picker 40px wider than its content needs. Compounded
+ * selectors out-specify `.toggle`'s single class, so no `!important` — the same
+ * shape tempo-lock.module.css uses on the sync chip. The open menu anchors to
+ * the toggle's rect (dropdown.ts `position`), so it narrows along with it.
+ */
+.root :global(.dropdown) > button {
+  min-width: 0;
 }
 
 .label {
