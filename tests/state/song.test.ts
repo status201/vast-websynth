@@ -223,7 +223,47 @@ describe('Song', () => {
 
     const file = Song.capture(bus, patterns, fakeArrangement() as never, 'Full');
     expect(file.drumBanks[0]![2]![5]!).toEqual(
-      { on: true, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 3, tie: false });
+      { on: true, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 3, tie: false, micro: 0 });
+  });
+
+  // step-settings.md REQ-6 — micro defaults to a no-op, so it must vanish from
+  // the wire when unused and survive exactly when used (ADR-006 / ADR-011).
+  describe('micro-timing serialization (v3)', () => {
+    const captureWith = (mutate: (p: PatternStore) => void) => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      mutate(patterns);
+      return Song.capture(bus, patterns, fakeArrangement() as never, 'Micro');
+    };
+
+    it('omits micro entirely when every step is straight', () => {
+      const file = captureWith((p) => p.setDrumCell(2, 5, { on: true }));
+      const json = Song.toJSON(file);
+      expect(json).not.toContain('micro');
+    });
+
+    it('keeps a non-zero micro through toJSON/fromJSON, exactly', () => {
+      const file = captureWith((p) => {
+        p.setDrumCell(2, 5, { on: true, micro: -12 });
+        p.setSeqStep(0, 3, { on: true, note: 60, micro: 7 });
+      });
+      const parsed = Song.fromJSON(Song.toJSON(file));
+      expect(parsed.drumBanks[0]![2]![5]!.micro).toBe(-12);
+      expect(parsed.seqBanks[0]![3]!.micro).toBe(7);   // seqBanks is [bank][step]; track 0
+      // Integer notches are never rounded away by EXPORT_SIG_FIGS.
+      expect(parsed).toEqual(compactSongForExport(file));
+    });
+
+    it('a file written before v3 restores every step at micro 0', () => {
+      const bus = new ParamBus();
+      registerDefaults(bus);
+      const patterns = new PatternStore();
+      patterns.setDrumCell(2, 5, { on: true, micro: 9 }); // a live edit the load must clear
+      const legacy = Song.fromJSON(Song.toJSON(captureWith((p) => p.setDrumCell(2, 5, { on: true }))));
+      Song.apply(legacy, bus, patterns, fakeArrangement() as never);
+      expect(patterns.drumBanks[0]![2]![5]!.micro).toBe(0);
+    });
   });
 
   it('applying a legacy file (on/velocity drum cells) resets per-step settings to defaults', () => {

@@ -73,6 +73,35 @@ describe('StepButton', () => {
     expect(toggle).not.toHaveBeenCalled();
   });
 
+  // step-settings.md REQ-6 — the nudge has to be visible on the grid, or the
+  // state exists only in the edit row (ADR-014 law 5).
+  it('setViz writes --sb-micro as a signed fraction of the cell (v3)', () => {
+    const sb = new StepButton('C3');
+    const base = { velocity: 0.8, gate: 0.5, prob: 1, ratchet: 1, tie: false };
+
+    sb.setViz({ ...base, micro: 0 });
+    expect(sb.el.style.getPropertyValue('--sb-micro')).toBe('0');
+
+    sb.setViz({ ...base, micro: 12 });   // half a cell late
+    expect(sb.el.style.getPropertyValue('--sb-micro')).toBe('0.5');
+
+    sb.setViz({ ...base, micro: -6 });   // a quarter cell early
+    expect(sb.el.style.getPropertyValue('--sb-micro')).toBe('-0.25');
+  });
+
+  it('does not rewrite --sb-micro when only micro is unchanged (v3)', () => {
+    const sb = new StepButton('C3');
+    const viz = { velocity: 0.8, gate: 0.5, prob: 0.7, ratchet: 2, tie: true, micro: 3 };
+    sb.setViz(viz);
+    const setProp = vi.spyOn(sb.el.style, 'setProperty');
+    sb.setViz({ ...viz });
+    expect(setProp).not.toHaveBeenCalled();
+    // ...but a changed micro alone does write, and nothing else does.
+    sb.setViz({ ...viz, micro: 4 });
+    expect(setProp).toHaveBeenCalledTimes(1);
+    expect(setProp).toHaveBeenCalledWith('--sb-micro', String(4 / 24));
+  });
+
   it('never grows a fill layer when setViz is not used (drum/sampler usage)', () => {
     const sb = new StepButton('', 'red');
     sb.setOn(true);

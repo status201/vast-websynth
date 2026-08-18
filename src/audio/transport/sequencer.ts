@@ -5,7 +5,7 @@ import { SEQ_TRACK_COUNT } from '../../state/patterns';
 import { MIDI_NOTE_MIN, MIDI_NOTE_MAX } from '../../state/limits';
 import type { SynthOutput } from './note-output';
 import { ScaleQuantizer } from './scale-quantizer';
-import { rollProb, stepHits } from './step-hits';
+import { microOffset, rollProb, stepHits } from './step-hits';
 import type { TickSubscriber } from './tick-source';
 import { ListenerSet } from '../../utils/listeners';
 import { LaneMeter } from './lane-meter';
@@ -190,10 +190,18 @@ export class StepSequencer {
       return;
     }
 
+    // This step's micro-timing offset, resolved ONCE and used everywhere the step
+    // is placed in time (step-settings.md REQ-8). The sequencer cannot let
+    // `stepHits` apply it internally, the way the one-shot machines do, because
+    // the release below has to move with the attack.
+    const at = when + microOffset(s, cellDur);
+
     // Release the previous note before this attack — unless the previous step
     // tied, in which case we leave its voice ringing so the engine's mono
     // glide slurs into the new note (audible slide needs mixer.glide > 0).
-    if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, when);
+    // At `at`, not `when`: on a nudged-early step the grid time falls AFTER the
+    // new attack, so releasing there would cut the note that just started.
+    if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, at);
 
     // The arrangement slot's transpose (sequencer.md REQ-16). Resolved ONCE, and
     // `note` used everywhere `s.note` used to be — including what lands in
@@ -212,7 +220,7 @@ export class StepSequencer {
     // `cellDur`, not the clock's 16th: gate and ratchet are fractions of the
     // step the user sees, so a lane at 1/8 must hold twice as long (meter.md
     // REQ-14). At the default rate the two are the same number.
-    const hits = stepHits(s, when, cellDur);
+    const hits = stepHits(s, at, cellDur);
     for (const h of hits) {
       this.output.playNote(note, s.velocity, h.t);
       // The final sub-hit holds (no release) when the step ties into the next.
@@ -224,6 +232,6 @@ export class StepSequencer {
     // The LAST sub-hit's gate end, so a ratcheted step's key viz doesn't go dark
     // after the first sub-hit while the step is still sounding. The transposed
     // note, so the keyboard highlight shows the pitch actually sounding.
-    this.noteListeners.emit(note, when, st.lastReleaseAt);
+    this.noteListeners.emit(note, at, st.lastReleaseAt);
   }
 }

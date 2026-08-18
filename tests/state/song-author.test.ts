@@ -64,16 +64,19 @@ describe('expandAuthorSong — happy path', () => {
       drums: [{ kick: [0, 4, 8, 12], snare: [{ step: 15, ratchet: 3 }], chat: [0, 2, 4, 6] }],
     }));
     const bank = file.seqBanks[0]!;
-    expect(bank[0]).toEqual({ on: true, note: 45, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false });
+    expect(bank[0]).toEqual(
+      { on: true, note: 45, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 });
     expect(bank[1]!.on).toBe(false);
     expect(bank[2]!.note).toBe(45);
-    expect(bank[3]).toEqual({ on: true, note: 48, velocity: 0.85, gate: 0.8, prob: 1, ratchet: 1, tie: false });
+    expect(bank[3]).toEqual(
+      { on: true, note: 48, velocity: 0.85, gate: 0.8, prob: 1, ratchet: 1, tie: false, micro: 0 });
     // Short bank rest-padded to 16
     for (let i = 4; i < SEQ_LENGTH; i++) expect(bank[i]!.on).toBe(false);
     const drums = file.drumBanks[0]!;
     expect(drums[0]!.filter((c) => c.on)).toHaveLength(4);
     expect(drums[0]![4]!.on).toBe(true);
-    expect(drums[1]![15]).toEqual({ on: true, velocity: 0.85, gate: 1, prob: 1, ratchet: 3, tie: false });
+    expect(drums[1]![15]).toEqual(
+      { on: true, velocity: 0.85, gate: 1, prob: 1, ratchet: 3, tie: false, micro: 0 });
     expect(drums[2]![6]!.on).toBe(true);
     // Untouched banks stay empty
     expect(file.drumBanks[1]!.every((row) => row.every((c) => !c.on))).toBe(true);
@@ -151,6 +154,27 @@ describe('seq banks', () => {
     expect(expandErrors(base({ seq: [42] }))[0]).toMatch(/seq\[0\]/);
     expect(expandErrors(base({ seq: [{ steps: [] }] }))[0]).toMatch(/notes/);
     expect(expandErrors(base({ seq: [{ notes: [], swing: 1 }] }))[0]).toMatch(/swing/);
+  });
+
+  // step-settings.md REQ-6 — micro is authorable, cascades like every other
+  // step setting, and is refused as an out-of-range or fractional value.
+  it('accepts micro on a step, a track and a bank, nearest wins', () => {
+    const file = expandOk(base({
+      seq: [{ notes: ['C4', 'D4', { note: 'E4', micro: -5 }], micro: 3 }],
+      drums: [{ kick: [0, { step: 4, micro: -2 }] }],
+    }));
+    const bank = file.seqBanks[0]!;
+    expect(bank[0]!.micro).toBe(3);           // from the bank default
+    expect(bank[2]!.micro).toBe(-5);          // the step overrides it
+    expect(file.drumBanks[0]![0]![0]!.micro).toBe(0);
+    expect(file.drumBanks[0]![0]![4]!.micro).toBe(-2);
+  });
+
+  it('rejects an out-of-range or fractional micro with its authoring path', () => {
+    expect(expandErrors(base({ seq: [[{ note: 'C4', micro: 13 }]] }))[0])
+      .toMatch(/seq\[0\]\[0\]\.micro.*-12\.\.12/);
+    expect(expandErrors(base({ seq: [[{ note: 'C4', micro: -13 }]] }))[0]).toMatch(/-12\.\.12/);
+    expect(expandErrors(base({ seq: [[{ note: 'C4', micro: 1.5 }]] }))[0]).toMatch(/integer/);
   });
 });
 

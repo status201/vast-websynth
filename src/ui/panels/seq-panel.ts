@@ -34,7 +34,7 @@ import {
 import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 
 // Repaint a step cell: lit state, note label, the per-step settings viz
-// (gate/velocity/prob/ratchet/tie) and a tooltip with the exact values.
+// (gate/velocity/prob/ratchet/tie/micro) and a tooltip with the exact values.
 function paintStep(sb: StepButton, s: SeqStep): void {
   sb.setOn(s.on);
   sb.setLabel(noteName(s.note));

@@ -19,6 +19,14 @@ export interface StepSettings {
   prob: number;     // 0..1 chance to fire (1 = always)
   ratchet: number;  // 1..4 sub-hits within the step
   tie: boolean;     // hold into the next step (seq: legato/slide; drum/sampler: skip the choke)
+  /**
+   * Micro-timing: a signed integer in `-MICRO_MAX..+MICRO_MAX` notches of
+   * `1/MICRO_UNITS` of **this lane's cell** — negative early, positive late
+   * (step-settings.md REQ-6). 0 is the no-op default, so a step that predates the
+   * field sounds exactly as it did (ADR-006). Applied as a pure `when` offset by
+   * `microOffset` in step-hits.ts; nothing in the clock or the meter knows about it.
+   */
+  micro: number;
 }
 
 export interface SeqStep extends StepSettings {
@@ -38,11 +46,12 @@ export type SamplerStep = TriggerCell;
 /** Defaults for drum/sampler cells. gate 1 = natural decay (no choke), so
  *  legacy patterns/songs that predate per-step settings sound identical. */
 export const TRIGGER_CELL_DEFAULTS: TriggerCell = {
-  on: false, velocity: 0.85, gate: 1, prob: 1, ratchet: 1, tie: false,
+  on: false, velocity: 0.85, gate: 1, prob: 1, ratchet: 1, tie: false, micro: 0,
 };
 
-/** Seq fields that v1 song files may lack (on/note/velocity/gate were always present). */
-export const SEQ_EXTRA_DEFAULTS = { prob: 1, ratchet: 1, tie: false };
+/** Seq fields that v1 song files may lack (on/note/velocity/gate were always present).
+ *  `micro` joined them in v3 and is absent from every file written before it. */
+export const SEQ_EXTRA_DEFAULTS = { prob: 1, ratchet: 1, tie: false, micro: 0 };
 
 /**
  * Motion sequencer step — an optional XY anchor. x/y are 0..1 in *taper space*
@@ -214,6 +223,7 @@ export function makeSeqTrack(): SeqStep[] {
     prob: 1,
     ratchet: 1,
     tie: false,
+    micro: 0,
   }));
 }
 
@@ -418,7 +428,7 @@ export class PatternStore {
    * (ADR-004) and this is testable without a key (REQ-4).
    *
    * Only `on` and `note` are written, so a chord dropped onto shaped steps keeps their
-   * velocity/gate/prob/ratchet/tie. Tracks past `notes.length` are switched **off**
+   * velocity/gate/prob/ratchet/tie/micro. Tracks past `notes.length` are switched **off**
    * rather than left alone — otherwise a triad written over a 7th would leave the old
    * seventh ringing underneath it.
    */

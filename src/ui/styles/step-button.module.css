@@ -103,6 +103,14 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: calc(8% + var(--sb-gate, 0.5) * 92%); /* floor keeps gate 5% visible */
+  /* micro → the hit slides inside its cell, early (left) or late (right).
+     `left`, not `translateX`: a percentage translate resolves against the
+     element's OWN width, which here is the gate, so a short gate would travel
+     less than a long one for the same nudge. On an absolutely positioned box
+     `left` resolves against the cell, which is the distance actually meant.
+     Cheap enough — setViz is diffed and only runs when a step changes, never
+     per tick. No transition: this is a timing readout, not an animation. */
+  left: calc(var(--sb-micro, 0) * 100%);
   border-radius: 3px;
   background: linear-gradient(180deg, #d4602a 0%, #8a3010 100%);
   filter: brightness(calc(0.45 + 0.75 * var(--sb-vel, 0.8)));

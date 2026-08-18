@@ -28,7 +28,7 @@ import {
 } from './validate-utils';
 import {
   MAX_CHAIN_STEPS, MAX_CHAIN_TRANSPOSE, MAX_PARAM_KEYS,
-  MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
+  MICRO_MAX, MIDI_NOTE_MIN, MIDI_NOTE_MAX, reservedKeyIn,
 } from './limits';
 
 export type SongValidation =
@@ -104,6 +104,14 @@ function checkRatchet(path: string, v: unknown, add: AddError): void {
   }
 }
 
+/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-6). */
+function checkMicro(path: string, v: unknown, add: AddError): void {
+  if (v === undefined) return;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < -MICRO_MAX || v > MICRO_MAX) {
+    add(`${path} must be an integer ${-MICRO_MAX}..${MICRO_MAX} (got ${describe(v)})`);
+  }
+}
+
 function checkBool(path: string, v: unknown, add: AddError, optional: boolean): void {
   if (v === undefined && optional) return;
   if (typeof v !== 'boolean') add(`${path} must be a boolean (got ${describe(v)})`);
@@ -116,6 +124,7 @@ function checkStepSettings(path: string, c: Record<string, unknown>, add: AddErr
   checkUnit(`${path}.prob`, c.prob, add);
   checkRatchet(`${path}.ratchet`, c.ratchet, add);
   checkBool(`${path}.tie`, c.tie, add, true);
+  checkMicro(`${path}.micro`, c.micro, add);
 }
 
 /**

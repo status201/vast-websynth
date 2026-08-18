@@ -53,6 +53,12 @@
   overflow: hidden;
   cursor: ew-resize;
   touch-action: none;
+  /* The track is `flex: 1`, so anything else in the row shrinks it first. Micro
+     adds a label, two buttons and a readout to that row and squeezed the track
+     to 24px — a 25-notch control two pixels per notch wide. A floor here (rather
+     than a wider min-width on each variant) means no slider can ever be squeezed
+     below a usable size, whatever gets added beside it; the row wraps instead. */
+  min-width: 90px;
 }
 
 /* Full-width and scaled from the left edge rather than resized: a drag repaints
@@ -76,4 +82,37 @@
   min-width: 36px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* Bipolar (Micro) track: a detent line marks the zero notch, so a value of 0 —
+   where the fill scales to nothing — still reads as "centred" rather than
+   "empty". Drawn on the track, under the fill. */
+.sliderTrackCenter::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  bottom: 1px;
+  width: 1px;
+  background: var(--panel-border);
+}
+
+/* The arrow keys need a focus target, and a keyboard user must be able to see
+   which slider has it. :focus-visible only, so a pointer press does not ring. */
+.sliderTrack:focus-visible {
+  outline: 1px solid var(--accent-secondary);
+  outline-offset: 1px;
+}
+
+/* The −/+ steppers. Square-ish and matched to the ratchet buttons beside them,
+   so the row reads as one instrument rather than two vocabularies. They exist
+   because the track alone cannot be precise: 25 notches across it is a couple of
+   pixels each, and the arrow keys that give the same precision are invisible
+   until you find them (ADR-014 law 1). */
+.stepBtn {
+  justify-content: center;
+  min-width: 30px;
+  padding: 6px 4px;
+  font-size: 13px;
+  line-height: 1;
 }

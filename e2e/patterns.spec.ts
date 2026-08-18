@@ -184,6 +184,39 @@ test.describe('pattern grids', () => {
     await expect(cell).toHaveAttribute('title', /vel 85% · gate 100% · prob 100% · ×3 · tie/);
   });
 
+  // step-settings.md REQ-6 — micro through the real panel: the keyboard gesture,
+  // the store, the cell viz, and the fact that it does not move the octave.
+  test('drum micro-timing nudges a step and shows on its face', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('tab-drums').click();
+
+    await page.getByTestId('drum-step-1-4').click();
+    if (!(await drumOn(page, 1, 4))) await page.getByTestId('drum-step-1-4').click();
+
+    // Two routes to the same value: the buttons, then the keys.
+    await page.getByTestId('drum-micro-inc').click();
+    await page.getByTestId('drum-micro-inc').click();
+    await page.getByTestId('drum-micro-track').focus();
+    await page.keyboard.press('ArrowRight');
+
+    expect(await page.evaluate(() => (window as any).__synth.patterns.drum[1][4].micro)).toBe(3);
+    const cell = page.getByTestId('drum-step-1-4');
+    expect(await cell.evaluate((el) => el.style.getPropertyValue('--sb-micro'))).toBe(String(3 / 24));
+    await expect(cell).toHaveAttribute('title', /micro \+3\/24/);
+
+    await expect(page.getByTestId('drum-micro-value')).toHaveText('+3/24');
+
+    // The − button walks it back, so both directions are reachable by pointer.
+    await page.getByTestId('drum-micro-dec').click();
+    await expect(page.getByTestId('drum-micro-value')).toHaveText('+2/24');
+    await page.getByTestId('drum-micro-inc').click();
+
+    // ...and it survives a bank round-trip (it is stored per step, per bank).
+    await page.getByTestId('bank-drum-1').click();
+    await page.getByTestId('bank-drum-0').click();
+    expect(await page.evaluate(() => (window as any).__synth.patterns.drum[1][4].micro)).toBe(3);
+  });
+
   test('sampler per-step settings show up on the cell', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();

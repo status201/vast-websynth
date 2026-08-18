@@ -3,7 +3,10 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 8   # v8: the lane's length + step rate come from the meter (REQ-18)
+version: 9   # v9: REQ-1 also honours per-step `micro` — and applies it here
+             #     rather than inside stepHits, so the mono release moves with
+             #     the attack (step-settings.md REQ-8)
+             # v8: the lane's length + step rate come from the meter (REQ-18)
              # v7: the transposed note is then quantized to the key (REQ-17)
              # v6: notes are shifted by the arrangement slot's transpose (REQ-16)
              # v5: release held notes on a transport stop, too (REQ-15)
@@ -67,7 +70,9 @@ and tracks 2–4 start empty and silent.
 ## Requirements
 
 - **REQ-1** — On each tick, trigger the synth for the active step of the current
-  play bank, honouring velocity/gate/prob/ratchet/tie.
+  play bank, honouring velocity/gate/prob/ratchet/tie/micro
+  ([step-settings](step-settings.md); `micro` nudges the step off the grid and is
+  applied here rather than inside `stepHits`, REQ-8).
 - **REQ-2** — Release the held note at `gateEnd`; `tie` holds the last ratchet
   sub-hit into the next step.
 - **REQ-3** — `setMuted` stops triggering but keeps the playhead advancing and

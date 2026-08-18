@@ -55,6 +55,60 @@ describe('StepSequencer', () => {
     expect(playNote).toHaveBeenCalledWith(64, 0.7, 0.125);
   });
 
+  // step-settings.md REQ-8 — the sequencer applies micro ITSELF (rather than
+  // letting stepHits do it) precisely because the mono release below has to move
+  // with the attack.
+  it('nudges a step early and releases the previous note at the NUDGED time (v3)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    // -6 notches = a quarter of a 16th early. A 16th is 0.125 s, so -0.03125 s.
+    patterns.setSeqStep(0, 1, { on: true, note: 64, velocity: 0.7, gate: 0.5, micro: -6 });
+
+    clock.fireTick(0);
+    clock.fireTick(0.125);
+
+    const nudged = 0.125 - 0.03125;
+    expect(playNote).toHaveBeenCalledWith(64, 0.7, nudged);
+    // The bug this pins: releasing at the grid time (0.125) would land AFTER the
+    // new attack and cut the note that had just started.
+    expect(releaseNote).toHaveBeenCalledWith(60, nudged);
+    expect(releaseNote).not.toHaveBeenCalledWith(60, 0.125);
+  });
+
+  it('nudges a step late, carrying its gate end with it (v3)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5, micro: 6 });
+
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0.03125);
+    // gate 0.5 of a 0.125 s cell, measured from the NUDGED attack.
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.03125 + 0.0625);
+  });
+
+  it('a micro-0 pattern is bit-identical to pre-v3 (v3, regression)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const playNote = vi.fn();
+    const output: SynthOutput = { playNote, releaseNote: vi.fn() };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 0, { on: true, note: 60, velocity: 0.8, gate: 0.5 });
+    clock.fireTick(0);
+    expect(playNote).toHaveBeenCalledWith(60, 0.8, 0);
+  });
+
   // sequencer.md REQ-14 — tie/held-note state only ever describes the ADJACENT
   // step, so a playhead jump must not carry it across.
   it('releases the held note on a transport seek (v4)', () => {

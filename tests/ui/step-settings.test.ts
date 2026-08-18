@@ -132,11 +132,149 @@ describe('StepSettingsEditor controls', () => {
   });
 });
 
+// step-settings.md REQ-6 + its gesture inventory. Micro is the one bipolar,
+// stepped control in the row, and the one that takes keys.
+describe('the Micro slider (v3)', () => {
+  const microTrack = (editor: StepSettingsEditor): HTMLElement => {
+    const t = editor.el.querySelector<HTMLElement>('[data-testid="drum-micro-track"]')!;
+    stubBox(t, 0, 240); // 240px over the 25-notch range
+    return t;
+  };
+  const readout = (editor: StepSettingsEditor): string =>
+    editor.el.querySelector('[data-testid="drum-micro-value"]')!.textContent!;
+  const stepper = (editor: StepSettingsEditor, dir: 'dec' | 'inc'): HTMLButtonElement =>
+    editor.el.querySelector<HTMLButtonElement>(`[data-testid="drum-micro-${dir}"]`)!;
+
+  it('starts centred at 0 and reads as 0, not a percentage', () => {
+    const { editor } = build();
+    expect(readout(editor)).toBe('0');
+  });
+
+  it('snaps a drag to whole notches and reads them as a fraction of a step', () => {
+    const { editor, step } = build();
+    const track = microTrack(editor);
+    // The far right of the track is +MICRO_MAX.
+    track.dispatchEvent(new MouseEvent('pointerdown', { clientX: 240, bubbles: true }));
+    expect(step.micro).toBe(12);
+    expect(readout(editor)).toBe('+12/24');
+    window.dispatchEvent(new MouseEvent('pointerup'));
+
+    // The far left is -MICRO_MAX.
+    track.dispatchEvent(new MouseEvent('pointerdown', { clientX: 0, bubbles: true }));
+    expect(step.micro).toBe(-12);
+    expect(readout(editor)).toBe('-12/24');
+    window.dispatchEvent(new MouseEvent('pointerup'));
+
+    // Anywhere between lands on an integer, never a fraction.
+    track.dispatchEvent(new MouseEvent('pointerdown', { clientX: 137, bubbles: true }));
+    expect(Number.isInteger(step.micro)).toBe(true);
+    window.dispatchEvent(new MouseEvent('pointerup'));
+  });
+
+  it('writes nothing when a drag stays inside one notch (no undo spam)', () => {
+    const { editor, patches } = build();
+    const track = microTrack(editor);
+    track.dispatchEvent(new MouseEvent('pointerdown', { clientX: 240, bubbles: true }));
+    const after = patches.length;
+    // Several moves that all resolve to the same notch.
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 239 }));
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 238 }));
+    window.dispatchEvent(new MouseEvent('pointerup'));
+    expect(patches.length).toBe(after);
+  });
+
+  it('moves one notch per arrow key and clamps at the ends', () => {
+    const { editor, step } = build();
+    const track = microTrack(editor);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(step.micro).toBe(1);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(step.micro).toBe(-1);
+    for (let i = 0; i < 40; i++) {
+      track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    }
+    expect(step.micro).toBe(-12);
+  });
+
+  it('stops the arrow key reaching the global shortcut handler (ADR-014 law 2)', () => {
+    const { editor } = build();
+    const track = microTrack(editor);
+    // shortcuts.ts binds keydown on `window` in the BUBBLE phase; an unstopped
+    // bare arrow would also shift the playable keyboard's octave.
+    const onWindow = vi.fn();
+    window.addEventListener('keydown', onWindow);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(onWindow).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', onWindow);
+  });
+
+  it('lets an unclaimed key through untouched', () => {
+    const { editor } = build();
+    const track = microTrack(editor);
+    const onWindow = vi.fn();
+    window.addEventListener('keydown', onWindow);
+    // 'z' is a playable note key — the slider must not swallow it.
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', bubbles: true }));
+    expect(onWindow).toHaveBeenCalled();
+    window.removeEventListener('keydown', onWindow);
+  });
+
+  it('returns to 0 on a double-click', () => {
+    const { editor, step } = build();
+    const track = microTrack(editor);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(step.micro).toBe(1);
+    track.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(step.micro).toBe(0);
+    expect(readout(editor)).toBe('0');
+  });
+
+  it('is focusable, so the arrow keys have somewhere to land', () => {
+    const { editor } = build();
+    expect(microTrack(editor).tabIndex).toBe(0);
+    // The continuous sliders are not — they have no key gesture.
+    expect(trackOf(editor, 'drum-vel').tabIndex).toBe(-1);
+  });
+
+  it('moves one notch per −/+ press and clamps at the ends', () => {
+    const { editor, step } = build();
+    stepper(editor, 'inc').click();
+    expect(step.micro).toBe(1);
+    stepper(editor, 'inc').click();
+    expect(step.micro).toBe(2);
+    stepper(editor, 'dec').click();
+    expect(step.micro).toBe(1);
+    for (let i = 0; i < 40; i++) stepper(editor, 'dec').click();
+    expect(step.micro).toBe(-12);
+    for (let i = 0; i < 40; i++) stepper(editor, 'inc').click();
+    expect(step.micro).toBe(12);
+  });
+
+  it('brackets the track with the steppers, readout last', () => {
+    const { editor } = build();
+    const kids = [...editor.el.querySelector('[data-testid="drum-micro"]')!.children];
+    const ids = kids.map((k) => (k as HTMLElement).dataset.testid ?? 'label');
+    expect(ids).toEqual(['label', 'drum-micro-dec', 'drum-micro-track',
+      'drum-micro-inc', 'drum-micro-value']);
+  });
+
+  it('keeps the buttons in step with the readout', () => {
+    const { editor } = build();
+    stepper(editor, 'dec').click();
+    expect(readout(editor)).toBe('-1/24');
+    stepper(editor, 'inc').click();
+    expect(readout(editor)).toBe('0');
+  });
+});
+
 describe('stepTitle', () => {
-  it('lists the percentages, and only mentions ratchet/tie when set', () => {
-    expect(stepTitle({ velocity: 0.8, gate: 0.5, prob: 1, ratchet: 1, tie: false }))
+  it('lists the percentages, and only mentions ratchet/tie/micro when set', () => {
+    expect(stepTitle({ velocity: 0.8, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 }))
       .toBe('vel 80% · gate 50% · prob 100%');
-    expect(stepTitle({ velocity: 1, gate: 1, prob: 0.5, ratchet: 3, tie: true }))
+    expect(stepTitle({ velocity: 1, gate: 1, prob: 0.5, ratchet: 3, tie: true, micro: 0 }))
       .toBe('vel 100% · gate 100% · prob 50% · ×3 · tie');
+    expect(stepTitle({ velocity: 1, gate: 1, prob: 1, ratchet: 1, tie: false, micro: -4 }))
+      .toBe('vel 100% · gate 100% · prob 100% · micro -4/24');
   });
 });

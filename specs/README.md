@@ -245,7 +245,7 @@ specs/
     drum-machine.md    ·  8-track synth drums
     drum-kits.md       ·  factory kit presets + randomize + per-track reset
     sampler.md         ·  8-slot one-shot sampler
-    step-settings.md   ·  per-step vel/gate/prob/ratchet/tie + hit math
+    step-settings.md   ·  per-step vel/gate/prob/ratchet/tie/micro + hit math
     step-grid-editing.md ·  the shared grid gesture model (tap/paint/hold, Clear ▾)
     banks.md           ·  A/B/C/D banks, edit-vs-play bank
     pattern-undo.md    ·  per-machine step-grid undo (button + scoped Ctrl+Z)

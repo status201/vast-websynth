@@ -1,4 +1,5 @@
 import styles from '../styles/step-button.module.css';
+import { MICRO_UNITS } from '../../state/limits';
 
 /**
  * Per-step settings a button can visualize on its face. Structurally
@@ -10,6 +11,7 @@ export interface StepViz {
   prob: number;     // <1 → dashed border
   ratchet: number;  // >1 → tick marks on the top edge
   tie: boolean;     // fill bridges into the next cell
+  micro: number;    // ±notches → the fill slides left/right inside the cell
 }
 
 /**
@@ -100,7 +102,16 @@ export class StepButton {
     }
     if (prev?.prob !== v.prob) this.el.classList.toggle(styles.prob!, v.prob < 1);
     if (prev?.tie !== v.tie) this.el.classList.toggle(styles.tie!, v.tie);
-    this.viz = { velocity: v.velocity, gate: v.gate, prob: v.prob, ratchet: v.ratchet, tie: v.tie };
+    // Micro shows as a horizontal shift of the fill: the hit visibly sits early
+    // or late *inside* its cell, which is how the feature was asked for. Written
+    // as a fraction of the cell so the CSS needs no knowledge of the ladder.
+    if (prev?.micro !== v.micro) {
+      this.el.style.setProperty('--sb-micro', String(v.micro / MICRO_UNITS));
+    }
+    this.viz = {
+      velocity: v.velocity, gate: v.gate, prob: v.prob,
+      ratchet: v.ratchet, tie: v.tie, micro: v.micro,
+    };
   }
 
   get on(): boolean { return this._on; }

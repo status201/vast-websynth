@@ -228,7 +228,8 @@ describe('PatternStore', () => {
     const ps = new PatternStore();
     ps.setDrumCell(2, 5, { on: true, gate: 0.25, prob: 0.6, ratchet: 4, tie: true });
     ps.copyDrumBank(0, 1);
-    expect(ps.drumBanks[1]![2]![5]!).toEqual({ on: true, velocity: 0.85, gate: 0.25, prob: 0.6, ratchet: 4, tie: true });
+    expect(ps.drumBanks[1]![2]![5]!).toEqual(
+      { on: true, velocity: 0.85, gate: 0.25, prob: 0.6, ratchet: 4, tie: true, micro: 0 });
 
     const ps2 = new PatternStore();
     ps2.restore(ps.snapshot());
@@ -247,9 +248,9 @@ describe('PatternStore', () => {
       samplerBanks: [[[{ on: true, velocity: 0.6 }]]] as DrumCell[][][],
     });
     const d = ps.drumBanks[0]![0]![0]!;
-    expect(d).toEqual({ on: true, velocity: 0.7, gate: 1, prob: 1, ratchet: 1, tie: false });
+    expect(d).toEqual({ on: true, velocity: 0.7, gate: 1, prob: 1, ratchet: 1, tie: false, micro: 0 });
     const s = ps.samplerBanks[0]![0]![0]!;
-    expect(s).toEqual({ on: true, velocity: 0.6, gate: 1, prob: 1, ratchet: 1, tie: false });
+    expect(s).toEqual({ on: true, velocity: 0.6, gate: 1, prob: 1, ratchet: 1, tie: false, micro: 0 });
   });
 
   it('round-trips through snapshot/restore', () => {

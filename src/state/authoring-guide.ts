@@ -126,22 +126,22 @@ COMPACT AUTHOR FORMAT (recommended output)
 SeqBank — one bar of melody (${SEQ_LENGTH} sixteenth-note step cells; a bank is
 always ${SEQ_LENGTH} cells, but how many of them a BAR is depends on the meter — see METER), any of these forms:
 - Positional array of up to ${SEQ_LENGTH} entries, one per step; short arrays are rest-padded.
-- { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? }
+- { "tracks": [SeqBank, … up to ${SEQ_TRACK_COUNT}], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"?, "micro"? }
   — simultaneous tracks, for chords and counter-lines. The first is track 1;
   tracks 2-4 sound only in POLY voicing ("voicing.mode": 1), so set that when you
   use them. Settings next to "tracks" apply to EVERY track, so a chord bank sets
   its gate once: { "tracks": [["C3"],["E3"],["G3"]], "gate": 0.9 }.
   Entry = null (rest) | MIDI number 0-127 | note name "A2"/"C#4"/"Db3" (C4 = 60)
-        | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool }
-- Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"? } —
+        | { "note": <midi|name>, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool, "micro"?: -12..12 }
+- Bank-defaults form { "notes": [entries…], "velocity"?, "gate"?, "prob"?, "ratchet"?, "tie"?, "micro"? } —
   the bank-level settings apply to every sounded step (a per-entry object still overrides them).
 Settings cascade bank -> track -> step; the nearest one wins.
-Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false.
+Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false, micro 0.
 
 HitBank — one bar of triggers: an object mapping a track to its hits.
   Drum tracks: kick, snare, chat (closed hat), ohat (open hat), ltom, mtom, htom, clap — or "0".."7" (${drumTracks}).
   Sampler slots: "s1".."s${SAMPLER_SLOT_COUNT}" or "0".."${SAMPLER_SLOT_COUNT - 1}".
-  Hit = step index 0-${SEQ_LENGTH - 1} | { "step": 0-${SEQ_LENGTH - 1}, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool }.
+  Hit = step index 0-${SEQ_LENGTH - 1} | { "step": 0-${SEQ_LENGTH - 1}, "velocity"?: 0-1, "gate"?: 0-1, "prob"?: 0-1, "ratchet"?: 1-4, "tie"?: bool, "micro"?: -12..12 }.
 
 MotionBank — one bar of XY param automation: anchors the synth moves through while playing.
   Either an anchor list [ { "step": 0-${SEQ_LENGTH - 1}, "x": 0-1, "y": 0-1 }, … ] or
@@ -203,6 +203,10 @@ NOTES
   in Mono voicing ("voicing.mode": 0) for acid slides.
 - Drum/sampler hits: "gate" < 1 chokes a hit early (tight/choked open hats, gated snares), "ratchet" 2-4
   makes rolls, "prob" < 1 makes ghost notes, and "tie" lets the last ratchet hit of a choked step ring out.
+- "micro" (-12..12) nudges ONE step off the grid, in 1/24 of a step: negative = early (pushing, urgent),
+  positive = late (laid back). This is per-step feel, not global swing ("transport.swing"). Small values
+  are the musical ones — ±1..3 is a groove, ±8 is 1/3 of a step (a triplet placement), ±12 is half a step
+  and deliberately drunk. A snare at "micro": 2 and hats at -1 is a classic behind-the-beat backbeat.
 - Two bus compressors are available: "fx.drum.comp.*" (1176 FET style — punchy drums; ratio index 4 = ALL,
   the crushed all-buttons-in sound) and "fx.master.comp.*" (SSL G bus style — mix glue; release index 4 = auto).
   Their "ratio"/"release" params are discrete INDICES — see the value maps in PARAMS.
@@ -262,12 +266,14 @@ TOP-LEVEL SHAPE
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,
-             "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */ }
+             "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */,
+             "micro": number /* integer -12..12, 1/24 of a step; default 0 */ }
 DrumCell = SamplerStep = { "on": boolean, "velocity": number /* 0..1 */, "gate": number /* 0..1; 1 = ring naturally (default) */,
-             "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */ }
+             "prob": number /* 0..1, default 1 */, "ratchet": number /* 1-4, default 1 */, "tie": boolean /* default false */,
+             "micro": number /* integer -12..12, 1/24 of a step; default 0 */ }
 MotionStep = { "on": boolean, "x": number /* 0..1 */, "y": number /* 0..1 */ }   // a dead step is { "on": false }
 MotionAssign = { "x"?: "<param id>", "y"?: "<param id>" }
-On import, any omitted "gate"/"prob"/"ratchet"/"tie" falls back to its default, so plain
+On import, any omitted "gate"/"prob"/"ratchet"/"tie"/"micro" falls back to its default, so plain
 { "on", "velocity" } cells stay valid.
 
 EXAMPLE SHAPE (illustrative — fill EVERY array to full size; "…" marks omissions, never output it)

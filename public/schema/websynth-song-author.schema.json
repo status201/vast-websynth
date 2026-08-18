@@ -211,10 +211,16 @@
       },
       "tie": {
         "type": "boolean"
+      },
+      "micro": {
+        "type": "integer",
+        "minimum": -12,
+        "maximum": 12,
+        "description": "Micro-timing: integer -12..12 in 1/24 of the step's own cell. Negative = early, positive = late. Default 0."
       }
     },
     "seqEntry": {
-      "description": "One melody step: null = rest, a note, or a note object with per-step settings. Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false.",
+      "description": "One melody step: null = rest, a note, or a note object with per-step settings. Sounded-step defaults: velocity 0.85, gate 0.5, prob 1, ratchet 1, tie false, micro 0.",
       "oneOf": [
         {
           "type": "null"
@@ -245,6 +251,9 @@
             },
             "tie": {
               "$ref": "#/$defs/stepSettings/tie"
+            },
+            "micro": {
+              "$ref": "#/$defs/stepSettings/micro"
             }
           },
           "additionalProperties": false
@@ -288,6 +297,9 @@
             },
             "tie": {
               "$ref": "#/$defs/stepSettings/tie"
+            },
+            "micro": {
+              "$ref": "#/$defs/stepSettings/micro"
             }
           },
           "additionalProperties": false
@@ -321,6 +333,9 @@
             },
             "tie": {
               "$ref": "#/$defs/stepSettings/tie"
+            },
+            "micro": {
+              "$ref": "#/$defs/stepSettings/micro"
             }
           }
         }
@@ -359,6 +374,9 @@
             },
             "tie": {
               "$ref": "#/$defs/stepSettings/tie"
+            },
+            "micro": {
+              "$ref": "#/$defs/stepSettings/micro"
             }
           },
           "additionalProperties": false

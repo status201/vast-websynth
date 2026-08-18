@@ -28,7 +28,7 @@ import {
   makeMotionTrack,
 } from './patterns';
 import { validateSongFile, type SongValidation } from './song-validate';
-import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE } from './limits';
+import { MAX_CHAIN_STEPS, MAX_CHAIN_DEPTH, MAX_CHAIN_TRANSPOSE, MICRO_MAX } from './limits';
 import {
   MAX_ERRORS, isObject, describeValue as describe, type AddError,
 } from './validate-utils';
@@ -36,7 +36,7 @@ import {
 export const AUTHOR_FORMAT = 'websynth-song-author';
 
 /** Defaults for an authored seq step that is ON (off steps get the same + note 60). */
-const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false };
+const SEQ_ON_DEFAULTS = { velocity: 0.85, gate: 0.5, prob: 1, ratchet: 1, tie: false, micro: 0 };
 
 const ALLOWED_KEYS = new Set([
   'format', 'version', 'name', 'params',
@@ -138,6 +138,18 @@ function checkRatchet(path: string, v: unknown, add: AddError): number | undefin
   return v;
 }
 
+/** Signed integer notches, -MICRO_MAX..+MICRO_MAX (step-settings.md REQ-6). The
+ *  canonical validator has a same-named check that REFUSES; this one reports and
+ *  drops the value so the rest of the song still imports (ADR-013). */
+function checkMicro(path: string, v: unknown, add: AddError): number | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < -MICRO_MAX || v > MICRO_MAX) {
+    add(`${path} must be an integer ${-MICRO_MAX}..${MICRO_MAX} (got ${describe(v)})`);
+    return undefined;
+  }
+  return v;
+}
+
 function checkTie(path: string, v: unknown, add: AddError): boolean | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'boolean') {
@@ -153,18 +165,19 @@ interface StepOverrides {
   prob?: number;
   ratchet?: number;
   tie?: boolean;
+  micro?: number;
 }
 
 /** The per-step settings a bank, a track or a step may carry — the keys
  *  {@link readOverrides} understands. One list, so the three "is that a bank
  *  field?" checks below cannot drift apart. */
-const STEP_SETTING_KEYS = ['velocity', 'gate', 'prob', 'ratchet', 'tie'] as const;
+const STEP_SETTING_KEYS = ['velocity', 'gate', 'prob', 'ratchet', 'tie', 'micro'] as const;
 /** …plus the note list, for the `{notes: […], …}` bank-defaults form. */
 const SEQ_NOTES_BANK_KEYS: readonly string[] = ['notes', ...STEP_SETTING_KEYS];
 /** …plus the track list, for the `{tracks: […], …}` multi-track form (REQ-13b). */
 const SEQ_BANK_SETTING_KEYS: readonly string[] = ['tracks', ...STEP_SETTING_KEYS];
 
-/** Pull the optional velocity/gate/prob/ratchet/tie overrides off an object. */
+/** Pull the optional velocity/gate/prob/ratchet/tie/micro overrides off an object. */
 function readOverrides(path: string, o: Record<string, unknown>, add: AddError): StepOverrides {
   const out: StepOverrides = {};
   const velocity = checkUnit(`${path}.velocity`, o.velocity, add);
@@ -177,6 +190,8 @@ function readOverrides(path: string, o: Record<string, unknown>, add: AddError):
   if (ratchet !== undefined) out.ratchet = ratchet;
   const tie = checkTie(`${path}.tie`, o.tie, add);
   if (tie !== undefined) out.tie = tie;
+  const micro = checkMicro(`${path}.micro`, o.micro, add);
+  if (micro !== undefined) out.micro = micro;
   return out;
 }
 

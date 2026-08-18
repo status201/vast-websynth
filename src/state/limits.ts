@@ -63,6 +63,24 @@ export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
 
 /**
+ * Per-step micro-timing resolution: notches per **cell** (step-settings.md REQ-6).
+ * 24 makes a 1/384 note at the default lane rate — the same grid Elektron's Micro
+ * Timing uses — and, unlike 16, puts the triplet positions exactly on a notch
+ * (`8/24` is a third of a cell).
+ */
+export const MICRO_UNITS = 24;
+
+/**
+ * The bound on `micro`, in notches: half a cell either way (step-settings.md
+ * REQ-7). Chosen because it is exactly the point at which a fully-late step and
+ * the fully-early step after it *meet* rather than **cross** — which is what keeps
+ * the ducker's `when < onset` guard and the sequencer's mono release ordering
+ * correct with no extra machinery. It is the same bound, for the same reason, that
+ * swing uses to stop an off-beat crossing the next on-beat (transport.md REQ-11).
+ */
+export const MICRO_MAX = 12;
+
+/**
  * Keys a payload may never carry. `PatternStore.restore` does
  * `Object.assign(cell, DEFAULTS, parsedCell)`, and `Object.assign` uses [[Set]] —
  * so a `__proto__` key from `JSON.parse` re-points the destination cell's

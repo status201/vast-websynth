@@ -193,18 +193,19 @@
     },
     "stepSettings": {
       "type": "object",
-      "description": "Per-step settings shared by all three machines. All fields are OPTIONAL on disk: legacy cells omit them and the loader fills defaults (velocity 0.85, gate 1, prob 1, ratchet 1, tie false). When present they are type/range-checked.",
+      "description": "Per-step settings shared by all three machines. All fields are OPTIONAL on disk: legacy cells omit them and the loader fills defaults (velocity 0.85, gate 1, prob 1, ratchet 1, tie false, micro 0). When present they are type/range-checked.",
       "properties": {
         "velocity": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1." },
         "gate": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1 of one step. Drum/sampler: 1 = natural decay (let ring); <1 chokes the hit early." },
         "prob": { "type": "number", "minimum": 0, "maximum": 1, "description": "0..1 chance to fire (1 = always)." },
         "ratchet": { "type": "integer", "minimum": 1, "maximum": 4, "description": "1..4 sub-hits within the step." },
-        "tie": { "type": "boolean", "description": "Hold into the next step (seq: legato/slide; drum/sampler: skip the choke)." }
+        "tie": { "type": "boolean", "description": "Hold into the next step (seq: legato/slide; drum/sampler: skip the choke)." },
+        "micro": { "type": "integer", "minimum": -12, "maximum": 12, "description": "Micro-timing: integer -12..12 in 1/24 of the step's own cell. Negative = early, positive = late. Default 0." }
       }
     },
     "seqStep": {
       "type": "object",
-      "description": "A sequencer step. Requires on + note; the per-step settings (velocity/gate/prob/ratchet/tie) are optional and defaulted.",
+      "description": "A sequencer step. Requires on + note; the per-step settings (velocity/gate/prob/ratchet/tie/micro) are optional and defaulted.",
       "required": ["on", "note"],
       "allOf": [{ "$ref": "#/$defs/stepSettings" }],
       "properties": {

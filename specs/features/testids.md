@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 10 # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
+version: 11 # v11: the per-step edit row's micro slider exposes its PARTS
+            #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-6
+            # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
             # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
             #     (tempo-lock.md, lfo.md v9)
             # v8: scope-resize-handle (scope.md REQ-19)
@@ -181,6 +183,9 @@ step grids, rulers & overlays:
 
 per-step edit row (StepSettingsEditor):                    # features/step-settings.md
   <seq|drum|sampler>-vel · -gate · -prob · -ratchet · -ratchet-<n> · -tie
+  <seq|drum|sampler>-micro · -micro-track · -micro-dec · -micro-inc · -micro-value
+  # micro is the one slider whose PARTS are addressable: it grew −/+ buttons, so a
+  # positional selector into the row breaks (features/step-settings.md REQ-6)
 
 banks, clear menus & undo:                          # features/banks.md, step-grid-editing.md
   bank-<lane>-<i> · bank-<lane>-follow · bank-<lane>-copy

@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Micro-timing — pull a single hit off the grid.** Every step in the sequencer,
+  drum machine and sampler now carries a **MICRO** setting in the per-step edit
+  row: nudge one hit earlier or later without moving anything else. A snare a
+  couple of notches behind the beat lays the groove back; hats pushed early drive
+  it. This is the per-step counterpart to SWING, which moves every off-beat by
+  the same amount.
+
+  One notch is 1/24 of the step — about 5 ms at 120 BPM — and the range is twelve
+  notches either way, half a step. Small values are the musical ones; 8 notches
+  is exactly a third of a step, so a hit can land *on* a triplet rather than near
+  one. Set it with the −/+ buttons for single notches, drag the slider to sweep,
+  or use the left/right arrow keys. Double-click returns it to centre. The step
+  itself shows the nudge on its face — the lit block slides left or right inside
+  its cell — so a groove is visible on the grid, not just audible.
+
+  Nudging can never reorder two hits: half a step is exactly the point where a
+  late step and the early step after it meet without crossing. Existing songs are
+  untouched, straight steps sound exactly as before, and no saved file changes
+  format. Songs written by hand or by an AI can set `micro` per step too.
+
 - **Time signatures, and lanes that fight the bar.** A **METER** dropdown next to
   BPM puts the whole instrument in 3/4, 5/4, 6/8, 7/8, 9/8, 12/8, 2/4 or 7/4 —
   every machine follows it at once, so there is nothing else to set up. The step

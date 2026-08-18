@@ -135,6 +135,32 @@ describe('DrumMachine', () => {
     expect(steps).toEqual([0, 1, 2]);
   });
 
+  // step-settings.md REQ-6/REQ-8 — micro moves the SOUND, not the grid.
+  it('nudges a hit early or late without moving any other lane (v3)', () => {
+    const { clock, patterns, dm, spies } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, velocity: 0.7, micro: -6 }); // kick early
+    patterns.setDrumCell(1, 0, { on: true, velocity: 0.7, micro: 6 });  // snare late
+    patterns.setDrumCell(2, 0, { on: true, velocity: 0.7 });            // hat straight
+    clock.fireTick(1);
+    // A 16th at 120 BPM is 0.125 s; 6/24 of it is 0.03125 s.
+    expect(spies[0]).toHaveBeenCalledWith(1 - 0.03125, 0.7, undefined);
+    expect(spies[1]).toHaveBeenCalledWith(1 + 0.03125, 0.7, undefined);
+    expect(spies[2]).toHaveBeenCalledWith(1, 0.7, undefined);
+  });
+
+  it('does not move the PLAYHEAD with the nudge (v3, REQ-8)', () => {
+    const { clock, patterns, dm } = build();
+    dm.setEnabled(true);
+    patterns.setDrumCell(0, 0, { on: true, micro: 12 });
+    patterns.setDrumCell(0, 1, { on: true, micro: -12 });
+    const steps: number[] = [];
+    dm.onStep((st) => steps.push(st));
+    clock.fireTicks(3);
+    // The grid the user sees is untouched — only the audio time moved.
+    expect(steps).toEqual([0, 1, 2]);
+  });
+
   it('builds a per-track channel: one waveshaper (drive) + one panner per track', () => {
     const { ctx, dm } = build();
     expect(ctx.createWaveShaper).toHaveBeenCalledTimes(dm.tracks.length);

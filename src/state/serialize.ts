@@ -42,8 +42,8 @@ export function roundParams(params: Record<string, number>): Record<string, numb
 
 /**
  * Seq step → sparse object. `restore` spreads only `SEQ_EXTRA_DEFAULTS`
- * (prob/ratchet/tie) and `apply` does not reset the store first, so on/note/
- * velocity/gate are **always** kept; only prob/ratchet/tie drop when default.
+ * (prob/ratchet/tie/micro) and `apply` does not reset the store first, so on/note/
+ * velocity/gate are **always** kept; only prob/ratchet/tie/micro drop when default.
  */
 function compactSeqStep(s: SeqStep): Record<string, unknown> {
   const out: Record<string, unknown> = {
@@ -58,6 +58,10 @@ function compactSeqStep(s: SeqStep): Record<string, unknown> {
   if (ratchet !== SEQ_EXTRA_DEFAULTS.ratchet) out.ratchet = ratchet;
   const tie = s.tie ?? SEQ_EXTRA_DEFAULTS.tie;
   if (tie !== SEQ_EXTRA_DEFAULTS.tie) out.tie = tie;
+  // An integer notch count, so no roundNum: micro must survive EXPORT_SIG_FIGS
+  // exactly (step-settings.md REQ-6).
+  const micro = s.micro ?? SEQ_EXTRA_DEFAULTS.micro;
+  if (micro !== SEQ_EXTRA_DEFAULTS.micro) out.micro = micro;
   return out;
 }
 
@@ -78,6 +82,9 @@ function compactTriggerCell(c: TriggerCell): Record<string, unknown> {
   if (ratchet !== TRIGGER_CELL_DEFAULTS.ratchet) out.ratchet = ratchet;
   const tie = c.tie ?? TRIGGER_CELL_DEFAULTS.tie;
   if (tie !== TRIGGER_CELL_DEFAULTS.tie) out.tie = tie;
+  // Integer notches — deliberately not rounded (step-settings.md REQ-6).
+  const micro = c.micro ?? TRIGGER_CELL_DEFAULTS.micro;
+  if (micro !== TRIGGER_CELL_DEFAULTS.micro) out.micro = micro;
   return out;
 }
 

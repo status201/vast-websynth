@@ -1,4 +1,5 @@
 import type { StepSettings, TriggerCell } from '../../state/patterns';
+import { MICRO_UNITS } from '../../state/limits';
 
 /**
  * Pure per-step hit math shared by the sequencer, drum machine and sampler:
@@ -29,6 +30,38 @@ export function stepHits(
     const t = when + r * sub;
     return { t, gateEnd: t + sub * s.gate, holds: s.tie && r === ratchet - 1 };
   });
+}
+
+/**
+ * How far an *early* nudge may reach, in seconds (step-settings.md REQ-9).
+ *
+ * The clock emits a tick at most `SCHEDULE_AHEAD_S` (0.1 s) ahead and re-wakes
+ * every `LOOKAHEAD_MS` (25 ms), so the guaranteed lead on any tick is ~75 ms.
+ * Reaching past that schedules into the past, where the `Math.max(when,
+ * currentTime)` clamps in the drum voices and the sampler bunch hits onto *now* —
+ * the burst shape transport.md REQ-9 exists to prevent. 60 ms keeps 15 ms of
+ * margin for timer jitter.
+ *
+ * Late offsets need no cap: a later time is always schedulable.
+ */
+export const MAX_EARLY_S = 0.06;
+
+/**
+ * The step's micro-timing offset in seconds — negative early, positive late
+ * (step-settings.md REQ-6/REQ-8). One definition, the way `Clock.swingOffset` is
+ * one definition of swing.
+ *
+ * `cellDur` is the **lane's** cell, not the clock's 16th, so a lane running at
+ * 1/8 nudges in 1/24 of its own longer cell and the notch stays a constant
+ * fraction of what the user sees on the grid (meter.md REQ-14).
+ *
+ * `micro === 0` returns before any arithmetic: the overwhelmingly common case
+ * costs one property read and one branch (ADR-010 — cheap).
+ */
+export function microOffset(s: Pick<StepSettings, 'micro'>, cellDur: number): number {
+  if (!s.micro) return 0;
+  const off = (s.micro / MICRO_UNITS) * cellDur;
+  return off < 0 ? Math.max(off, -MAX_EARLY_S) : off;
 }
 
 /**
@@ -64,6 +97,10 @@ export function forEachActiveHit(
     if (muted[lane]) continue;
     const cell = bank[lane]?.[idx];
     if (!cell || !cell.on || !rollProb(cell.prob)) continue;
-    for (const h of stepHits(cell, when, stepDur)) fire(lane, h, cell);
+    // Per *cell*, inside the lane loop — each lane nudges independently, which is
+    // the whole point of micro-timing (step-settings.md REQ-8). Offsetting the
+    // shared `when` outside the loop would move the entire tick instead.
+    const at = when + microOffset(cell, stepDur);
+    for (const h of stepHits(cell, at, stepDur)) fire(lane, h, cell);
   }
 }

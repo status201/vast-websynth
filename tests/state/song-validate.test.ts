@@ -188,6 +188,26 @@ describe('validateSongFile — rejects', () => {
     expectReject(f, 'drumBanks[1][3][7].ratchet');
   });
 
+  // step-settings.md REQ-6 — micro is an INTEGER notch count, not a unit float,
+  // and the canonical validator refuses rather than coercing (ADR-013).
+  it('an out-of-range drum micro, naming its path', () => {
+    const f = clone(captureValid());
+    (f.drumBanks[1]![3]![7] as unknown as Record<string, unknown>).micro = 13;
+    expectReject(f, 'drumBanks[1][3][7].micro');
+  });
+
+  it('a negative micro past the range', () => {
+    const f = clone(captureValid());
+    (f.drumBanks[1]![3]![7] as unknown as Record<string, unknown>).micro = -13;
+    expectReject(f, 'drumBanks[1][3][7].micro');
+  });
+
+  it('a fractional micro (the ladder is integral)', () => {
+    const f = clone(captureValid());
+    (f.seqBanks[0]![2] as unknown as Record<string, unknown>).micro = 1.5;
+    expectReject(f, 'seqBanks[0][2].micro');
+  });
+
   it('a chain bank index out of range', () => {
     const f = clone(captureValid());
     f.seqChain = { enabled: true, steps: [7] };

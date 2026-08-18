@@ -211,6 +211,15 @@ Scenario: The Render button explains itself (v2)
 
 ## Open questions / future
 
+- **Per-step micro-timing is not accounted for in the crop.** REQ-1's reasoning —
+  the grid accumulator is never offset, only the emitted time is — applies to
+  [step-settings](step-settings.md) REQ-6's `micro` exactly as it does to swing, so
+  the bar length stays exact. The consequence is the same as swing's and is
+  accepted for the same reason: a micro-timed **first** cell nudged early sounds
+  before the crop start, and a **last** cell nudged late after its end, so either
+  can be clipped from the rendered loop. Moving the crop to follow them would make
+  the bar length depend on pattern content, which REQ-1 exists to prevent. Nudge
+  the interior cells, or leave the edges straight.
 - A "render drum bank" sibling would reuse `BankRenderController` with a tap on
   `drumReverb.output` and a drum-lane prepare closure.
 - Optional normalize / trim-silence post-steps could reuse `buffer-dsp.ts`.

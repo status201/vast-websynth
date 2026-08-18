@@ -3,7 +3,10 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 20  # v20: REQ-12 — demoNames() is one alphabetical list by display name,
+version: 21  # v21: step cells carry the optional `micro` notch count — additive,
+             #      default 0, dropped when default, so no SongFile version bump
+             #      (step-settings.md REQ-6)
+             # v20: REQ-12 — demoNames() is one alphabetical list by display name,
              #      so the project zips stop being pinned to the end of the shelf
              # v19: REQ-2/REQ-16 — SongFile v7 adds the optional per-slot
              #      `seqTranspose`, so one bank can carry a progression
@@ -471,7 +474,7 @@ strict (reject + name the path):
     validateSeqStep, validateTriggerCell, checkParams — via checkKeys():
     __proto__ / constructor / prototype             # untrusted-input REQ-5 scopes this exactly
 lenient (additive — do NOT require):
-  per-step velocity/gate/prob/ratchet/tie      # v1 cells omit them; restore defaults them
+  per-step velocity/gate/prob/ratchet/tie/micro  # pre-v3 cells omit them; restore defaults them
   required-per-cell: SeqStep -> {on, note}; TriggerCell -> {on}
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
@@ -505,11 +508,11 @@ so every persisted artifact is the *canonical compact* form. Live `ParamBus` /
 ```yaml
 round:   every number -> Number(n.toPrecision(4))   # 4 sig-figs; inaudible, keeps tiny exp values
 sparse cells (drop fields equal to the cell's restore default):
-  trigger (drum/sampler): keep `on`; drop velocity/gate/prob/ratchet/tie when default
+  trigger (drum/sampler): keep `on`; drop velocity/gate/prob/ratchet/tie/micro when default
                           -> a dead cell is just { "on": false }
-  seq:     keep on/note/velocity/gate ALWAYS; drop only prob/ratchet/tie when default
-           # asymmetry: restore spreads SEQ_EXTRA_DEFAULTS (prob/ratchet/tie) only, and
-           # apply() does not reset the store first, so velocity/gate must be present
+  seq:     keep on/note/velocity/gate ALWAYS; drop prob/ratchet/tie/micro when default
+           # asymmetry: restore spreads SEQ_EXTRA_DEFAULTS (prob/ratchet/tie/micro) only,
+           # and apply() does not reset the store first, so velocity/gate must be present
 params:  ALL params kept (rounded) — not default-omitted (forward-compat: a future
          default change must not silently move old songs)
 whitespace: download() -> pretty (2-space indent + trailing \n) — byte-identical to
@@ -654,7 +657,7 @@ Scenario: Export is the canonical compact form (round + default-sparse)
   Given a song with high-precision params and default-valued step cells
   When toJSON serializes it
   Then numbers are rounded to 4 significant figures, a dead drum cell is { "on": false },
-    and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie
+    and a default seq step keeps on/note/velocity/gate but omits prob/ratchet/tie/micro
   And fromJSON(toJSON(file)) deep-equals compactSongForExport(file)
   And applying it reproduces the original-sounding state (defaults re-expanded)
   And download() writes it pretty-printed (2-space + trailing newline), matching
