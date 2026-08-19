@@ -300,7 +300,7 @@ quietly become an error and taken ADR-007's forward-compatibility with it.
 ### Persistence
 
 Nothing new persists. REQ-8's validate-or-clear affects how existing keys are
-*read* (`websynth.session`, the song slot index, preset snapshots); REQ-9 gates
+*read* (`websynth.session.*`, the song slot index, preset snapshots); REQ-9 gates
 when a song slot is *written*.
 
 ## Scenarios (BDD)
