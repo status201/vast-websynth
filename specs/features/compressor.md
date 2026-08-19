@@ -34,8 +34,9 @@ fixed per instance via `processorOptions.mode`:
   program-dependent release, FET-ish tanh saturation. Heads the **drum** chain
   (`engine.drumComp`).
 - **`vca`** (SSL G-bus style): feed-forward detector, 6 dB soft knee ("glue"),
-  clean VCA gain, auto-release. Sits `djFilter → masterComp → analyser` on the
-  **master** bus (`engine.masterComp`).
+  clean VCA gain, auto-release. Sits `djLow → djHigh → masterComp → analyser` on
+  the **master** bus (`engine.masterComp`); the DJ filter is a series pair, see
+  [performance](performance.md) REQ-9.
 
 The UI exposes musician-friendly **discrete** ratio/release switches (e.g. `4:1`,
 `8:1`, … `ALL`); the engine maps those indices to the real numeric values the
@@ -54,7 +55,7 @@ boundedness) and runs cheaply on the audio thread.
 - **REQ-1** — A single worklet (`hardware-compressor`) supports both `fet` and
   `vca` via `processorOptions.mode`, fixed at construction.
 - **REQ-2** — Drum compressor sits on the drum bus (`fet`); master compressor sits
-  `djFilter → masterComp → analyser` (`vca`).
+  `djLow → djHigh → masterComp → analyser` (`vca`).
 - **REQ-3** — Ratio/release params are stored as **indices**; the engine maps each
   index to a real value. FET ratio index → `[4, 8, 12, 20, 100]` (`100` = "all
   buttons in"). Master release index **past the table end** → auto-release.
@@ -167,7 +168,7 @@ params (k-rate AudioParams, NOT messages):
 
 ```
 drumBus ─► drumComp (FET) ─► drumPhaser ─► drumDelay ─► drumReverb ─► preMaster
-preMaster ─► djFilter ─► masterComp (VCA) ─► analyser ─► master
+preMaster ─► djLow ─► djHigh ─► masterComp (VCA) ─► analyser ─► master
                               │ port (gain reduction dB, ~31 Hz)
                               └─────────────► GrMeter (grmeter-fx.master.comp)
 ```

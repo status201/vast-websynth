@@ -109,11 +109,11 @@ Performance:  # src/audio/transport/performance.ts
   setStutter(on) / setStutterSize(sixteenths)
   mapStep(rawStep): number          # stutter remap; identity when off
   setFill(on)
-  setDrop(on)                       # momentary lowpass dive on djFilter
+  setDrop(on)                       # momentary lowpass dive on djLow (djHigh opens out)
   setDjFilter(x)                    # manual sweep, -1..1 (LP..HP)
   setTapeStop(on)                   # BPM + pitch ramp via rAF
   clockRampAllowed: () => boolean   # v3: default () => true; gates Tape Stop's clock ramp + restore
-ctor deps: (ctx, clock, bus, djFilter: BiquadFilterNode)
+ctor deps: (ctx, clock, bus, djLow: BiquadFilterNode, djHigh: BiquadFilterNode)  # v6: a series pair (REQ-9)
 # v4: subscribes clock.onSeek -> re-anchor the stutter window (REQ-7)
 ```
 
@@ -162,7 +162,7 @@ Scenario: Each side rests transparent while the other works (v6, REQ-9)
 Scenario: Filter Drop overrides the manual DJ filter while held (edge)
   Given a manual fx.djfilter sweep is active
   When the user holds Filter Drop
-  Then the djFilter dives to lowpass until release, then the manual value resumes
+  Then djLow dives and djHigh opens back out until release, then the manual value resumes
 # pinned by: tests/audio/transport/performance.test.ts, e2e/song-fx.spec.ts
 
 Scenario: Tape Stop bends BPM and pitch down then recovers

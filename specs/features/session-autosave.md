@@ -204,7 +204,8 @@ happy path.
 
 ```ts
 // src/state/session-autosave.ts
-export const SESSION_KEY = 'websynth.session';
+export const SESSION_KEY = 'websynth.session';   // legacy: read-only (REQ-12)
+// The live key is `websynth.session.<tabId>`, the id kept in sessionStorage.
 export class SessionAutosave {
   constructor(capture: () => SongFile, opts?: { debounceMs?: number }); // default 1500
   attach(deps: { bus: ParamBus; patterns: PatternStore; arr: Arrangement; xy: XyPadStore }): void;
@@ -252,8 +253,13 @@ on `song-validate`/`serialize`, not `song.ts`.
 
 ### Persistence
 
-- `websynth.session` — the autosaved session (this spec). **Not** a song slot;
-  invisible to `Song.list()`.
+- `websynth.session.<tab>` — the autosaved session, one per tab (REQ-12). **Not**
+  a song slot; invisible to `Song.list()`, which keys on `websynth.song.`.
+- `websynth.session` — the pre-v8 single key. Read as a restore candidate and
+  cleared by `clear()`, never written. **Removable at the next major** (see
+  DEPLOYMENT.md → "Before a major version").
+- `sessionStorage['websynth.session.tab']` — this tab's id. Deliberately *session*
+  storage: it must die with the tab and survive that tab's reload.
 - Sampler audio lives in IndexedDB, not here (REQ-10).
 - Deliberately not persisted: the undo stash (memory only), any history.
 

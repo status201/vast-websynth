@@ -367,7 +367,7 @@ voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb
             drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─────────────┤
             samplerBus  (+ sampler dist/phaser/delay/reverb/duck) ────────────────┤
                                                                                    ▼
-        preMaster ─→ djFilter ─→ masterComp ─→ analyser ─→ master ─→ destination
+        preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
@@ -409,7 +409,7 @@ the bank-render tap point), `wire(input, output)` and `bind(bus)`. They are thre
 explicit factories rather than one generic spec because the chains are alike but
 not identical: only the synth has a wah, only the drum bus heads with a
 compressor. `masterComp` stays a flat Engine field — it is a master-bus insert
-(`djFilter → masterComp → analyser`), not a chain member — and `Engine.drumComp`
+(`djLow → djHigh → masterComp → analyser`), not a chain member — and `Engine.drumComp`
 remains available as a getter onto `drumFx.fx.comp`, which is what `StudioApi`
 and the drum panel's GR meter read.
 
@@ -445,7 +445,8 @@ localStorage:
   websynth.preset.index : preset name index — factory ∪ user (ensureFactoryPresets seeds it)
   websynth.song.*     : saved song slots          # state/song.ts
   websynth.song.index : slot name index
-  websynth.session    : debounced autosave of the live session (silent boot restore)  # state/session-autosave.ts
+  websynth.session.<tab> : debounced autosave of the live session, one per tab (silent boot restore)  # state/session-autosave.ts
+  websynth.session    : the pre-v8 single key — still READ once so an existing session survives, never written
   websynth.perf       : performance-mode pref (auto|weak|medium|strong)  # state/perf-mode.ts — device-scoped, NOT a patch param
   websynth.midisync   : sync mode (off|master|slave)   # state/sync-mode.ts — device-scoped, NOT a patch param
   websynth.onboarding.done : guided-tour completed flag        # ui/onboarding
