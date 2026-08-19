@@ -3,7 +3,9 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 7   # v7: REQ-14c — Save guards the same slot the import path does, and
+version: 8   # v8: REQ-12 — the session is PER TAB. Two tabs sharing one key was
+             #     last-writer-wins, and it silently ate a real session's motion
+             # v7: REQ-14c — Save guards the same slot the import path does, and
              #     REQ-14d — a demo click never writes a slot at all
              # v6: REQ-14 — an identical slot is not a conflict (re-importing the
              #     same song no longer re-asks). Also renumbers v5's import gate
@@ -49,7 +51,8 @@ happy path.
 
 - **REQ-1** — The working session (a full `Song.capture`: params + all banks +
   chains + sampleNames + xy + motion) is autosaved to
-  `localStorage['websynth.session']`, debounced ~1.5 s after the last change.
+  `localStorage['websynth.session.<tab>']` (REQ-12), debounced ~1.5 s after the
+  last change.
   Capture runs **only** inside the debounced callback, never synchronously in a
   change listener (so mid-`Song.apply` states are never captured).
 - **REQ-2** — Autosave triggers: any `ParamBus.onChange`, any `PatternStore`
@@ -105,8 +108,37 @@ happy path.
   `.needs-reload` hint, i.e. this spec's original behaviour).
 - **REQ-11** — Storage failures (quota, private mode) are silent no-ops; the
   app never breaks because autosave couldn't write.
-- **REQ-12** — Multi-tab is last-writer-wins on the single key. Documented
-  limitation, not defended against.
+- **REQ-12** (v8) — **Each tab autosaves to its own key, and no tab can
+  overwrite another's session.** This used to read "multi-tab is last-writer-wins
+  on the single key — documented limitation, not defended against". It came due:
+  with two tabs open, the one switched away from flushed its own, older session
+  over the shared key, and the next boot restored *that*. Because
+  [song-mode](song-mode.md) makes motion authoritative on apply, a stale session
+  that predates a song's motion does not merely fail to restore it — it **blanks
+  it**, silently, while params and patterns look untouched. A session's worth of
+  automation went that way, which is what a safety net must never do.
+
+  - **Identity.** A tab takes an id from `sessionStorage`, which is per-tab by
+    definition and survives that tab's own reload. Its session lives at
+    `websynth.session.<id>`. Writes therefore never collide: last-writer-wins is
+    gone because there is no shared writer.
+  - **Restore order.** Boot prefers **this tab's own** session (so a reload
+    returns exactly where that tab was), and falls back to the **most recently
+    saved** of any other — which is what keeps REQ-5's "tab close loses nothing"
+    true when the tab that did the work is gone.
+  - **Bounded.** At most `MAX_SESSIONS` (3) are kept; a write prunes the oldest
+    beyond that, never its own. A session is ~50-100 kB (no audio — clips live in
+    IndexedDB, [sample-persistence](sample-persistence.md)), so the cap costs a
+    fraction of the quota while covering the realistic number of open tabs.
+  - **Quota.** If a write throws, the other tabs' sessions are pruned and it is
+    retried **once** before standing down per REQ-11. Storing more sessions must
+    not make the safety net *more* likely to fail.
+  - **Legacy.** The old single `websynth.session` key is still read as a restore
+    candidate, so an existing session survives the upgrade. It is never written
+    again.
+  - **Storage disabled.** With no `sessionStorage` the id falls back to a
+    constant, which is exactly the old single-key behaviour — degraded, not
+    broken.
 - **REQ-13** — **`stats()` never parses the payload.** It is called from the
   [debug panel](debug-panel.md)'s poll, and the payload is the entire session —
   megabytes once samples are in play — so `JSON.parse`-ing it to recover one
@@ -234,6 +266,32 @@ Scenario: accidental demo click is undoable
   Then the demo applies and a toast offers Undo
   And clicking Undo restores their song including the audible sampler clip
 # pinned by: e2e/session.spec.ts
+
+Scenario: A second tab cannot overwrite the first tab's session (v8, REQ-12, regression)
+  Given two tabs each with their own session
+  When the second tab autosaves
+  Then the first tab's stored session is untouched
+  And each tab restores its own on reload
+# pinned by: tests/state/session-autosave.test.ts
+
+Scenario: A closed tab's session is still restored (v8, REQ-12)
+  Given a stored session belonging to a tab id this tab does not have
+  And no session of this tab's own
+  When the app boots
+  Then the most recently saved session is restored
+# pinned by: tests/state/session-autosave.test.ts
+
+Scenario: Stored sessions stay bounded (v8, REQ-12)
+  Given more than MAX_SESSIONS stored sessions
+  When a tab writes
+  Then the oldest beyond the cap are dropped and this tab's own is kept
+# pinned by: tests/state/session-autosave.test.ts
+
+Scenario: A session written before per-tab keys still restores (v8, REQ-12, edge)
+  Given only the legacy websynth.session key
+  When the app boots
+  Then it is restored, and never written to again
+# pinned by: tests/state/session-autosave.test.ts
 
 Scenario: tab close loses nothing
   Given the user edited params and toggled drum steps

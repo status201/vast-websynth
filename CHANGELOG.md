@@ -156,6 +156,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A second tab can no longer wipe out the first one's work.** The working
+  session was autosaved to one place, so with two tabs of the synth open the tab
+  you switched *away* from would write its own — often older — session over the
+  other's, and the next reload brought that one back. Motion automation was the
+  worst casualty: loading a song replaces motion outright, so a stale session
+  didn't just fail to restore it, it silently emptied it while everything else
+  looked untouched.
+
+  Each tab now autosaves to its own place and can't reach anyone else's. Reload a
+  tab and you get exactly that tab back; close it and open a fresh one and you get
+  the most recent session, as before. Sessions from before this change are still
+  picked up.
+
 - **Drums no longer click at the end of a hit.** Every drum voice faded out to a
   whisper and was then cut off dead rather than taken all the way to silence, which
   left a step in the waveform — a click. It was loudest on the kick, where the

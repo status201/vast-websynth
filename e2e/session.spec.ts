@@ -5,8 +5,16 @@ import { gotoAndStart, busGet, busSet, clickDemo, dropInDeclaring, otherBpm } fr
 const drumOn = (page: Page, t: number, s: number): Promise<boolean> =>
   page.evaluate(([tt, ss]) => (window as any).__synth.patterns.drum[tt!][ss!].on, [t, s]);
 
+/**
+ * The autosaved session, whichever per-tab key holds it — since v8 the key is
+ * `websynth.session.<tabId>` (session-autosave.md REQ-12), so naming one is
+ * wrong by construction.
+ */
 const autosaveRaw = (page: Page): Promise<string | null> =>
-  page.evaluate(() => localStorage.getItem('websynth.session'));
+  page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith('websynth.session.'));
+    return key ? localStorage.getItem(key) : null;
+  });
 
 test.describe('session safety net', () => {
   test('the working session autosaves and restores silently across a reload', async ({ page }) => {
@@ -18,7 +26,7 @@ test.describe('session safety net', () => {
     await page.getByTestId('drum-step-0-3').click();
     expect(await drumOn(page, 0, 3)).toBe(true);
 
-    // The debounced (1.5 s) write lands in websynth.session.
+    // The debounced (1.5 s) write lands in this tab's websynth.session.<id>.
     await expect.poll(() => autosaveRaw(page), { timeout: 5000 }).not.toBeNull();
 
     // Same context keeps localStorage: boot restores the session silently.
