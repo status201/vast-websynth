@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Two demos for the newest machines — Gankogui and Slouch.** *Gankogui* is
+  West-African funk-rock in **12/8**, named for the double bell whose seven-stroke
+  pattern it is built on. Three lanes run three different cycles against the bar —
+  the kit locked to it, the riff looping every 16 ticks, the motion lane every 18 —
+  so the whole thing only lands together once every six bars. Four drum lanes are
+  switched to the percussion voices, and the closed hat runs in twos across the
+  triple grouping.
+
+  *Slouch* is the opposite: 4/4, 88 BPM, every lane following the bar, and **swing
+  at zero**. All of its feel is per-step micro-timing — snare five notches behind,
+  clap trailing it by two more, kick pushing ahead, and one hi-hat sitting a third
+  of a step late. Hold a key over either: both leave the arpeggiator armed.
+
 - **Micro-timing — pull a single hit off the grid.** Every step in the sequencer,
   drum machine and sampler now carries a **MICRO** setting in the per-step edit
   row: nudge one hit earlier or later without moving anything else. A snare a

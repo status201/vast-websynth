@@ -1,10 +1,12 @@
 {
   "1973.websynth.zip": "A project bundle, so its sampled parts travel inside the file.",
   "First_Light.websynth.json": "One riff, four chords: the whole progression is bar transposes on two banks. POLY filter, hat choke, tempo-locked LFO — and the arp is armed, so hold a key.",
+  "Gankogui.websynth.json": "Twelve-eight, and three lanes on three different cycles: the bell locked to the 24-tick bar, the riff looping every 16 ticks and the motion lane every 18. The whole machine only lands together once every six bars.",
   "Nocturne.websynth.json": "The long, slow one: four sequencer tracks through the POLY filter, with motion driving it.",
   "Right.websynth.json": "No drums anywhere — four sequencer tracks and motion carry the whole piece.",
   "Run_Away_2.websynth.zip": "The Run Away idea rebuilt as a project bundle, sampled parts alongside the synth.",
+  "Slouch.websynth.json": "Swing sits at zero — every bit of the drag is per-step micro-timing. The snare is five notches late, the clap trails it by another two, the kick pushes ahead, and one hi-hat lands a third of a step off.",
   "Tosti.websynth.json": "Three sequencer tracks over a conga-and-clave kit.",
   "hacienda_neworder.json": "A nod to the Haçienda.",
-  "Maison.json": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
+  "Maison.websynth.json": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
 }
