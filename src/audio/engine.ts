@@ -123,7 +123,13 @@ export class Engine {
 
   readonly patterns: PatternStore;
   readonly clock: Clock;
-  readonly djFilter: BiquadFilterNode;
+  /**
+   * The DJ filter is a SERIES pair, not one node whose type flips (performance.md
+   * REQ-9). Each keeps its constructed type forever and rests transparent; only
+   * frequencies ramp, so crossing centre cannot click.
+   */
+  readonly djLow: BiquadFilterNode;
+  readonly djHigh: BiquadFilterNode;
   arp!: Arpeggiator;
   seq!: StepSequencer;
   drums!: DrumMachine;
@@ -266,15 +272,20 @@ export class Engine {
     this.samplerFx.wire(this.samplerBus, this.preMaster);
 
     // DJ performance filter — transparent by default, swept live.
-    this.djFilter = this.ctx.createBiquadFilter();
-    this.djFilter.type = 'lowpass';
-    this.djFilter.frequency.value = 20000;
-    this.djFilter.Q.value = 0.7;
+    this.djLow = this.ctx.createBiquadFilter();
+    this.djLow.type = 'lowpass';
+    this.djLow.frequency.value = 20000;
+    this.djLow.Q.value = 0.7;
+    this.djHigh = this.ctx.createBiquadFilter();
+    this.djHigh.type = 'highpass';
+    this.djHigh.frequency.value = 20;
+    this.djHigh.Q.value = 0.7;
 
     // SSL-style bus compressor after the DJ filter (sweeps breathe through
     // it) and before the analyser (the scope shows the compression).
-    this.preMaster.connect(this.djFilter);
-    this.djFilter.connect(this.masterComp.input);
+    this.preMaster.connect(this.djLow);
+    this.djLow.connect(this.djHigh);
+    this.djHigh.connect(this.masterComp.input);
     // Split the post-compressor stereo signal into per-channel analysers, then
     // merge it back losslessly so the mono `analyser` reads the same down-mix as
     // before and every analyser stays in the live path to destination (so they
@@ -374,7 +385,7 @@ export class Engine {
     this.arrangement = new Arrangement(this.patterns, this.clock);
     // The key, built before the machines so seq/arp can hold it by reference.
     this.scale = new ScaleQuantizer();
-    this.perf = new Performance(this.ctx, this.clock, this.bus, this.djFilter);
+    this.perf = new Performance(this.ctx, this.clock, this.bus, this.djLow, this.djHigh);
 
     // Transport modules — created after voices so they can call engine.playNote
     const synthOutput: SynthOutput = {

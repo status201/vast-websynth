@@ -62,21 +62,32 @@ describe('Performance.mapStep (stutter)', () => {
 });
 
 const DJ_OPEN_HZ = 20000;
+const DJ_HP_REST_HZ = 20;
 
 function makePerf() {
   const ctx = makeMockAudioContext();
   const clock = new TestClock();
   const bus = new ParamBus();
   registerDefaults(bus);
-  const djFilter = makeMockBiquadFilter();
+  // A SERIES pair (performance.md REQ-9): lowpass then highpass, each holding the
+  // type it was built with. `type` is set here only as the constructor would.
+  const djLow = makeMockBiquadFilter();
+  const djHigh = makeMockBiquadFilter();
+  djLow.type = 'lowpass';
+  djHigh.type = 'highpass';
   const perf = new Performance(
     ctx as unknown as AudioContext,
     clock,
     bus,
-    djFilter as unknown as BiquadFilterNode,
+    djLow as unknown as BiquadFilterNode,
+    djHigh as unknown as BiquadFilterNode,
   );
-  return { ctx, clock, bus, djFilter, perf };
+  return { ctx, clock, bus, djLow, djHigh, perf };
 }
+
+/** Last frequency a side was ramped to, or null if it was never touched. */
+const rampedTo = (node: { frequency: { exponentialRampToValueAtTime: { mock: { calls: unknown[][] } } } }) =>
+  (node.frequency.exponentialRampToValueAtTime.mock.calls.at(-1)?.[0] as number | undefined) ?? null;
 
 // performance.md REQ-7 — the stutter window is anchored to an ABSOLUTE step, so
 // a playhead jump would otherwise be folded back into the old window.
@@ -125,48 +136,63 @@ describe('Performance.setFill', () => {
 });
 
 describe('Performance.setDjFilter', () => {
-  it('opens fully to a lowpass at DJ_OPEN_HZ near zero', () => {
-    const { perf, djFilter } = makePerf();
+  it('rests both sides transparent near zero', () => {
+    const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(0);
-    expect(djFilter.type).toBe('lowpass');
-    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(DJ_OPEN_HZ, expect.any(Number));
+    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
+    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
   });
 
-  it('dives into a lowpass for negative values', () => {
-    const { perf, djFilter } = makePerf();
+  it('dives the lowpass side for negative values, leaving the highpass at rest', () => {
+    const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(-0.5);
-    expect(djFilter.type).toBe('lowpass');
-    const target = djFilter.frequency.exponentialRampToValueAtTime.mock.calls.at(-1)![0] as number;
-    expect(target).toBeLessThan(DJ_OPEN_HZ); // swept down from open
+    expect(rampedTo(djLow)).toBeLessThan(DJ_OPEN_HZ); // swept down from open
+    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);     // untouched, transparent
   });
 
-  it('switches to a highpass for positive values', () => {
-    const { perf, djFilter } = makePerf();
+  it('raises the highpass side for positive values, leaving the lowpass open', () => {
+    const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(0.5);
-    expect(djFilter.type).toBe('highpass');
+    expect(rampedTo(djHigh)).toBeGreaterThan(DJ_HP_REST_HZ);
+    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
+  });
+
+  /**
+   * REQ-9, regression. This is the whole point of the pair: a motion lane whose
+   * anchors straddle centre used to flip a live biquad's type six times a bar,
+   * and each flip swapped the coefficients under the filter's own state — a click
+   * on the master bus, heard on every voice.
+   */
+  it('never reassigns either filter type while sweeping through centre', () => {
+    const { perf, djLow, djHigh } = makePerf();
+    for (let x = -1; x <= 1.0001; x += 0.01) perf.setDjFilter(Number(x.toFixed(3)));
+    expect(djLow.type).toBe('lowpass');
+    expect(djHigh.type).toBe('highpass');
   });
 
   it('is a no-op while a Filter Drop is held', () => {
-    const { perf, djFilter } = makePerf();
-    perf.setDrop(true); // drop now owns the node
+    const { perf, djLow } = makePerf();
+    perf.setDrop(true); // drop now owns the lowpass side
     vi.clearAllMocks();
     perf.setDjFilter(0.8);
-    expect(djFilter.frequency.cancelScheduledValues).not.toHaveBeenCalled();
+    expect(djLow.frequency.cancelScheduledValues).not.toHaveBeenCalled();
   });
 });
 
 describe('Performance.setDrop', () => {
-  it('dives to a resonant lowpass on press and restores on release', () => {
-    const { perf, djFilter } = makePerf();
+  it('dives the lowpass side on press and restores on release', () => {
+    const { perf, djLow, djHigh } = makePerf();
     perf.setDrop(true);
-    expect(djFilter.type).toBe('lowpass');
-    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(160, expect.any(Number));
-    expect(djFilter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(9, expect.any(Number));
+    expect(djLow.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(160, expect.any(Number));
+    expect(djLow.Q.linearRampToValueAtTime).toHaveBeenCalledWith(9, expect.any(Number));
+    // REQ-3: the drop overrides the knob, so the highpass side opens back out
+    // rather than band-passing the dive.
+    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
 
     vi.clearAllMocks();
-    perf.setDrop(false); // returns to the (default 0) knob position → open lowpass
-    expect(djFilter.type).toBe('lowpass');
-    expect(djFilter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(DJ_OPEN_HZ, expect.any(Number));
+    perf.setDrop(false); // returns to the (default 0) knob position → both transparent
+    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
+    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
   });
 });
 

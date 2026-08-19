@@ -19,6 +19,21 @@ export interface DrumSynth {
 const CHOKE_FADE = 0.005;
 
 /**
+ * How long an envelope takes to reach TRUE zero before its source stops
+ * (drum-machine.md REQ-15).
+ *
+ * `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on a 0.001
+ * floor. Stopping the source there truncates the waveform mid-cycle, and a step
+ * discontinuity is a click. At -60 dBFS that would not matter, but the per-track
+ * drive (REQ-7) is `tanh(k*x)/tanh(k)` with `k = drive * 50`, whose small-signal
+ * slope is ~`k`: at `drive` 0.28 it lifts the residue ~32x (+30 dB), to about
+ * -30 dBFS. On the Kick — a 55 Hz sine, where that step is the only broadband
+ * content in the signal — it is plainly audible. The noise voices mask their own,
+ * which is why the bug lived in all ten of these and was heard in one.
+ */
+const TAIL_FADE = 0.005;
+
+/**
  * Destination for one one-shot hit: the synth's `output`, or — when the hit
  * is choked — a per-hit gain that ramps to 0 at `chokeAt`. Cutting in a
  * *downstream* gain never disturbs the envelope ramps already scheduled
@@ -31,13 +46,48 @@ function chokeRoute(
   ctx: AudioContext,
   output: AudioNode,
   chokeAt: number | undefined,
+  start: number,
 ): { dest: AudioNode; stopAt(natural: number): number; choke?: GainNode } {
-  if (chokeAt === undefined) return { dest: output, stopAt: (n) => n };
+  // A stop may never precede its own start (REQ-17): with a choke already past,
+  // `min` alone returned a time before `start` and the source never sounded.
+  if (chokeAt === undefined) return { dest: output, stopAt: (n) => Math.max(start, n) };
   const g = ctx.createGain();
   g.gain.setValueAtTime(1, chokeAt);
   g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
   g.connect(output);
-  return { dest: g, stopAt: (n) => Math.min(n, chokeAt + 0.03), choke: g };
+  return { dest: g, stopAt: (n) => Math.max(start, Math.min(n, chokeAt + 0.03)), choke: g };
+}
+
+/**
+ * One hit's start time and destination (drum-machine.md REQ-17).
+ *
+ * `when` may be in the past: the clock's guaranteed lead is finite and an early
+ * micro nudge eats into it (step-settings.md REQ-9), while the first tick after
+ * `start()` and every dropout re-origin carry less lead than `MAX_EARLY_S`. The
+ * start is clamped forward — and the choke shifts by **the same delta**, so the
+ * gate keeps its LENGTH. Clamping only the start left `chokeAt` behind the hit,
+ * cutting it mid-attack or, once the whole fade was past, resolving the gain to 0
+ * and dropping the hit silently.
+ */
+function voiceStart(
+  ctx: AudioContext,
+  output: AudioNode,
+  when: number,
+  chokeAt: number | undefined,
+): { t: number; r: ReturnType<typeof chokeRoute> } {
+  const t = Math.max(when, ctx.currentTime);
+  const shifted = chokeAt === undefined ? undefined : chokeAt + (t - when);
+  return { t, r: chokeRoute(ctx, output, shifted, t) };
+}
+
+/**
+ * Ramp an envelope to TRUE zero and return when its source may stop (REQ-15).
+ * Call it per envelope, not per voice: the Snare's noise and tone, the Conga's
+ * skin and overtone and the Bongo's head and click each have their own tail.
+ */
+function endAt(g: AudioParam, at: number): number {
+  g.linearRampToValueAtTime(0, at + TAIL_FADE);
+  return at + TAIL_FADE;
 }
 
 /**
@@ -69,8 +119,7 @@ export class Kick implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
     const baseHz = 55 * Math.pow(2, this.tune / 12);
@@ -84,7 +133,7 @@ export class Kick implements DrumSynth {
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
-    osc.stop(r.stopAt(t + this.decay + 0.05));
+    osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
     const nodes: AudioNode[] = [osc, env];
     if (r.choke) nodes.push(r.choke);
@@ -106,8 +155,7 @@ export class Snare implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = Math.pow(2, this.tune / 12);
 
     // Noise component (body of the snare)
@@ -123,7 +171,7 @@ export class Snare implements DrumSynth {
     noiseEnv.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
     noise.connect(noiseFilter).connect(noiseEnv).connect(r.dest);
     noise.start(t);
-    noise.stop(r.stopAt(t + this.decay + 0.05));
+    noise.stop(r.stopAt(endAt(noiseEnv.gain, t + this.decay)));
 
     // Body tone (~180 Hz, fast decay)
     const tone = this.ctx.createOscillator();
@@ -136,7 +184,7 @@ export class Snare implements DrumSynth {
     toneEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
     tone.connect(toneEnv).connect(r.dest);
     tone.start(t);
-    tone.stop(r.stopAt(t + 0.1));
+    tone.stop(r.stopAt(endAt(toneEnv.gain, t + 0.08)));
 
     const nodes: AudioNode[] = [noise, noiseFilter, noiseEnv, tone, toneEnv];
     if (r.choke) nodes.push(r.choke);
@@ -159,8 +207,7 @@ export class HiHat implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.02, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = Math.pow(2, this.tune / 12);
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.noiseBuf;
@@ -183,7 +230,7 @@ export class HiHat implements DrumSynth {
 
     noise.connect(hp).connect(peak).connect(env).connect(r.dest);
     noise.start(t);
-    noise.stop(r.stopAt(t + this.decay + 0.05));
+    noise.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
     const nodes: AudioNode[] = [noise, hp, peak, env];
     if (r.choke) nodes.push(r.choke);
@@ -207,8 +254,7 @@ export class Tom implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const osc = this.ctx.createOscillator();
     osc.type = 'sine';
     const f = this.baseHz * Math.pow(2, this.tune / 12);
@@ -222,7 +268,7 @@ export class Tom implements DrumSynth {
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
-    osc.stop(r.stopAt(t + this.decay + 0.05));
+    osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
     const nodes: AudioNode[] = [osc, env];
     if (r.choke) nodes.push(r.choke);
@@ -244,8 +290,7 @@ export class Clap implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.noiseBuf;
     noise.loop = true;
@@ -268,7 +313,7 @@ export class Clap implements DrumSynth {
 
     noise.connect(bp).connect(env).connect(r.dest);
     noise.start(t);
-    noise.stop(r.stopAt(t + this.decay + 0.05));
+    noise.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
     const nodes: AudioNode[] = [noise, bp, env];
     if (r.choke) nodes.push(r.choke);
@@ -290,8 +335,7 @@ export class Conga implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = 190 * Math.pow(2, this.tune / 12);
 
     // Skin tone: near-sine with a brief attack blip — rounder than a tom
@@ -318,8 +362,8 @@ export class Conga implements DrumSynth {
     ovt.connect(ovtEnv).connect(r.dest);
     osc.start(t);
     ovt.start(t);
-    osc.stop(r.stopAt(t + this.decay + 0.05));
-    ovt.stop(r.stopAt(t + 0.12));
+    osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
+    ovt.stop(r.stopAt(endAt(ovtEnv.gain, t + Math.min(this.decay, 0.09))));
 
     const nodes: AudioNode[] = [osc, env, ovt, ovtEnv];
     if (r.choke) nodes.push(r.choke);
@@ -341,8 +385,7 @@ export class Bongo implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.03, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = 400 * Math.pow(2, this.tune / 12);
 
     // Small tight head: higher and shorter than the conga.
@@ -371,8 +414,8 @@ export class Bongo implements DrumSynth {
     click.connect(bp).connect(clickEnv).connect(r.dest);
     osc.start(t);
     click.start(t);
-    osc.stop(r.stopAt(t + this.decay + 0.05));
-    click.stop(r.stopAt(t + 0.03));
+    osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
+    click.stop(r.stopAt(endAt(clickEnv.gain, t + 0.015)));
 
     const nodes: AudioNode[] = [osc, env, click, bp, clickEnv];
     if (r.choke) nodes.push(r.choke);
@@ -394,8 +437,7 @@ export class Cowbell implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.05, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = Math.pow(2, this.tune / 12);
 
     // 808 recipe: two detuned squares through a bandpass — clangy, not tonal.
@@ -408,6 +450,9 @@ export class Cowbell implements DrumSynth {
     env.gain.linearRampToValueAtTime(velocity * 0.8, t + 0.001);
     env.gain.exponentialRampToValueAtTime(0.001, t + this.decay);
 
+    // One envelope downstream of both oscillators, so its ramp is scheduled once
+    // and every source stops at the same end-of-ramp time.
+    const stopAt = r.stopAt(endAt(env.gain, t + this.decay));
     const oscs: OscillatorNode[] = [];
     for (const hz of [560, 845]) {
       const o = this.ctx.createOscillator();
@@ -415,7 +460,7 @@ export class Cowbell implements DrumSynth {
       o.frequency.value = hz * f;
       o.connect(bp);
       o.start(t);
-      o.stop(r.stopAt(t + this.decay + 0.05));
+      o.stop(stopAt);
       oscs.push(o);
     }
     bp.connect(env).connect(r.dest);
@@ -440,8 +485,7 @@ export class Clave implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.02, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = 1200 * Math.pow(2, this.tune / 12);
 
     // A bare high ping with the faintest pitch dip — rosewood on rosewood.
@@ -456,7 +500,7 @@ export class Clave implements DrumSynth {
 
     osc.connect(env).connect(r.dest);
     osc.start(t);
-    osc.stop(r.stopAt(t + this.decay + 0.05));
+    osc.stop(r.stopAt(endAt(env.gain, t + this.decay)));
 
     const nodes: AudioNode[] = [osc, env];
     if (r.choke) nodes.push(r.choke);
@@ -478,8 +522,7 @@ export class Shaker implements DrumSynth {
   setDecay(s: number): void { this.decay = Math.max(0.03, s); }
 
   trigger(when: number, velocity: number, chokeAt?: number): void {
-    const t = Math.max(when, this.ctx.currentTime);
-    const r = chokeRoute(this.ctx, this.output, chokeAt);
+    const { t, r } = voiceStart(this.ctx, this.output, when, chokeAt);
     const f = Math.pow(2, this.tune / 12);
 
     const noise = this.ctx.createBufferSource();
@@ -499,7 +542,7 @@ export class Shaker implements DrumSynth {
 
     noise.connect(bp).connect(env).connect(r.dest);
     noise.start(t);
-    noise.stop(r.stopAt(t + this.decay + 0.05));
+    noise.stop(r.stopAt(endAt(env.gain, t + Math.max(this.decay, 0.03))));
 
     const nodes: AudioNode[] = [noise, bp, env];
     if (r.choke) nodes.push(r.choke);

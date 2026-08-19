@@ -156,6 +156,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Drums no longer click at the end of a hit.** Every drum voice faded out to a
+  whisper and was then cut off dead rather than taken all the way to silence, which
+  left a step in the waveform — a click. It was loudest on the kick, where the
+  track's DRIVE amplifies anything quiet by around 30 dB and a low sine gives the
+  click nothing to hide behind, but every voice carried it. Voices now fade to true
+  silence before they stop.
+
+- **The DJ filter no longer clicks as it passes through the centre.** It was a
+  single filter that switched between low-pass and high-pass, and switching type
+  mid-signal is an instant jump — audible on everything, since it sits across the
+  whole mix. Automating the knob made it constant: a motion lane whose anchors sat
+  either side of centre crossed the boundary six times a bar. It is now a low-pass
+  and a high-pass in series, each staying what it is, with the unused side resting
+  wide open. The sweep sounds the same; the middle no longer clicks.
+
 - **A dismissed dialog no longer lingers over the next one.** Answering a
   question left the old dialog on screen for a fifth of a second while it faded,
   so a flow that asks twice in a row — "you have your own song by this name,

@@ -3,7 +3,10 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 9   # v9: lane length/rate + a meter-relative fill (REQ-14) — meter.md
+version: 10  # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
+             #      its source stops; the choke group restores on a ramp; a hit
+             #      clamped out of the past carries its choke with it
+             # v9: lane length/rate + a meter-relative fill (REQ-14) — meter.md
              # v8: REQ-13 — a lane mute (or a solo elsewhere) suppresses the hit
              #     report too, not just a per-track mute; "reported ⇔ audible"
              # v7: REQ-13 — onHit reports every hit that sounds, at its scheduled
@@ -182,6 +185,47 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   branch evaluates exactly as before (anchors on 0 and 8, roll from 12, clap on
   15), so a 4/4 fill is unchanged.
 
+
+- **REQ-15** (v10) — **A voice's envelope reaches true zero before its source
+  stops.** `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on
+  a 0.001 floor; stopping the source there truncates the waveform mid-cycle, and a
+  step discontinuity is a click. Each envelope therefore ends with a short linear
+  ramp to **exactly 0** (`TAIL_FADE`), and its source stops at the end of that
+  ramp rather than a fixed 50 ms later. Every source with its own envelope gets
+  its own ramp — the Snare's noise *and* tone, the Conga's skin *and* overtone,
+  the Bongo's head *and* click, the Cowbell's shared bandpass envelope.
+
+  Why it mattered at −60 dBFS: the per-track drive of REQ-7 is
+  `tanh(k·x)/tanh(k)` with `k = drive × 50`, whose small-signal slope is ≈ `k`.
+  At `drive` 0.28 the residual is amplified ~32× (+30 dB) to ≈ −30 dBFS, and on
+  the Kick — a 55 Hz sine, where the truncation step is the *only* broadband
+  content in the signal and nothing masks it — that is plainly audible. It is
+  inaudible on the noise voices, which is why this survived so long: the bug is
+  in all ten voices, but only one of them lets you hear it.
+
+  Stopping at the end of the ramp instead of `+0.05` also frees each hit's nodes
+  ~45 ms sooner (REQ-9).
+
+- **REQ-16** (v10) — **The choke group restores on a ramp, never a step.** REQ-12
+  fades the group gain down over `CHOKE_GROUP_FADE` and must put it back for the
+  next hit. Restoring with a bare `setValueAtTime(1, …)` moves the gain 0 → 1 in
+  a single sample while the open hat it just cut is still ringing — re-exposing
+  that tail instantly, which is the very click the 6 ms down-fade was chosen to
+  avoid. The restore is a short linear ramp. The intent of REQ-12 is unchanged:
+  the cut still belongs to the ringing tail, not to the track.
+
+- **REQ-17** (v10) — **A hit clamped out of the past carries its choke with it.**
+  A voice starts at `max(when, currentTime)` because `when` can be in the past —
+  the clock's guaranteed lead is finite and an early micro nudge eats into it
+  ([step-settings](step-settings.md) REQ-9), and the first tick after `start()`
+  and every dropout re-origin have less lead than `MAX_EARLY_S`. Clamping only
+  the start left `chokeAt` behind: the gate collapsed, cutting the hit
+  mid-attack, or — when the whole fade was already past — the gain resolved to 0
+  and the hit was **silently dropped**. The choke shifts by the same delta as the
+  start, so the gate keeps its *length*, and a stop time can never precede its
+  own start. [sampler](sampler.md) REQ-11 states the same rule for sampler slots.
+
+
 ## Technical design
 
 ### Contract / public interface
@@ -252,6 +296,35 @@ defaults keep existing presets/songs sounding identical.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: A voice never stops on a non-zero envelope (v10, REQ-15, regression)
+  Given any of the 13 drum voice models
+  When it is triggered
+  Then its envelope ends with a linear ramp to exactly 0
+  And every source stops at or after that ramp completes, never on the 0.001 floor
+# pinned by: tests/audio/drums/drum-synths.test.ts
+
+Scenario: The kick's tail no longer steps (v10, REQ-15, regression)
+  Given a kick whose track drive amplifies quiet residue ~32x
+  When the hit ends
+  Then the largest sample-to-sample step is bounded by the 55 Hz sine itself
+  And not by the truncation that used to leave a ~0.13 step at -30 dBFS
+# pinned by: tests/audio/drums/drum-synths.test.ts, npm run bench:metrics (by ear, ADR-010)
+
+Scenario: The choke group restores on a ramp (v10, REQ-16, regression)
+  Given choke is on and a closed hat cuts a ringing open hat
+  When the group gain is put back for the next hit
+  Then it ramps back to 1 rather than stepping there in one sample
+# pinned by: tests/audio/transport/drum-machine.test.ts
+
+Scenario: A hit clamped out of the past keeps its gate length (v10, REQ-17, regression)
+  Given a step whose scheduled time has already passed
+  And a gate < 1 that would choke it
+  When the voice clamps its start forward to now
+  Then the choke time shifts by the same delta, so the gate keeps its length
+  And the hit is neither cut mid-attack nor dropped
+# pinned by: tests/audio/drums/drum-synths.test.ts
+
+
 Scenario: A short gate chokes the hit early
   Given a kick step with gate 0.5
   When it fires

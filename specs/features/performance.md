@@ -3,7 +3,9 @@
 ```yaml
 id: performance
 status: implemented
-version: 5   # v5: stutter composes with a lane's length + rate (REQ-8)
+version: 6   # v6: REQ-9 — the DJ filter is a SERIES lowpass->highpass pair, so
+             #     crossing centre no longer swaps a live biquad's type (a click)
+             # v5: stutter composes with a lane's length + rate (REQ-8)
 owner: core
 related:
   - architecture
@@ -16,7 +18,7 @@ related:
 source:
   - src/audio/transport/performance.ts
   - src/state/params.ts                 # fx.djfilter
-  - src/audio/engine.ts                 # owns perf + the djFilter node
+  - src/audio/engine.ts                 # owns perf + the djLow/djHigh nodes
   - src/ui/panels/song-panel.ts
 ```
 
@@ -36,9 +38,9 @@ so the Song panel can drive momentary controls without reaching into the machine
 - **REQ-1** — **Stutter/beat-repeat**: loop a short slice; `mapStep` is consulted
   by the sequencer + drum machine each tick.
 - **REQ-2** — **Fill**: `fillActive` makes the drum machine play a roll.
-- **REQ-3** — **Filter Drop**: momentary lowpass dive on the master `djFilter`,
+- **REQ-3** — **Filter Drop**: momentary lowpass dive on the master `djLow`,
   overriding the manual DJ filter while held.
-- **REQ-4** — **DJ Filter**: manual bipolar sweep on the same node (`fx.djfilter`,
+- **REQ-4** — **DJ Filter**: manual bipolar sweep on the same pair (`fx.djfilter`,
   LP ← 0 → HP).
 - **REQ-5** — **Tape Stop**: ramp `Clock` BPM down + pitch-bend down via rAF, then
   recover on release.
@@ -70,6 +72,33 @@ so the Song panel can drive momentary controls without reaching into the machine
   ([meter](meter.md) REQ-17). Both extra arguments default to the pre-meter
   values, so an un-metered caller behaves exactly as before.
 
+
+- **REQ-9** (v6) — **The DJ filter is a series lowpass → highpass pair, and its
+  type is never reassigned.** It used to be one `BiquadFilterNode` whose `.type`
+  was assigned `'lowpass'` or `'highpass'` on every write, flipping as the value
+  crossed the `|x| < 0.02` dead zone. Swapping a biquad's type swaps its
+  coefficients **instantaneously** while its state variables still hold values for
+  the old ones — a transient, i.e. a click, on the master bus where every voice
+  passes through. Automation makes that pathological rather than rare: a motion
+  lane whose anchors straddle centre crossed the boundary six times a bar.
+
+  Two nodes instead, each keeping the type it was constructed with, forever:
+  - `djLow` (lowpass) rests **transparent** at `DJ_OPEN_HZ` and sweeps down to
+    130 Hz as `x → -1`;
+  - `djHigh` (highpass) rests **transparent** at 20 Hz and sweeps up to 4 kHz as
+    `x → +1`.
+
+  Each side's frequency and Q curve is unchanged, so the sweep sounds as it did.
+  What changes is the middle: crossing centre is now two frequency ramps toward
+  transparency, continuous by construction, with nothing to click. The dead zone
+  survives as the point where both are transparent. Filter Drop dives `djLow` and
+  leaves `djHigh` alone.
+
+  Cost is one extra biquad permanently in the master path — accepted: it is two
+  filters' worth of arithmetic on one stereo bus, against a defect that is audible
+  on every shipped song that automates the knob
+  ([runtime-performance](runtime-performance.md)).
+
 ## Technical design
 
 ### Contract / public interface
@@ -98,8 +127,9 @@ fx.djfilter: { range: -1..1, default: 0 }    # |x|<0.02 = off; <0 LP, >0 HP
 ### Layer touchpoints
 
 ```yaml
-engine: owns this.perf and the djFilter BiquadFilter, inserted preMaster -> djFilter
-        -> masterComp -> analyser; fx.djfilter -> perf.setDjFilter(x)
+engine: owns this.perf and the djLow/djHigh BiquadFilters, inserted
+        preMaster -> djLow -> djHigh -> masterComp -> analyser;
+        fx.djfilter -> perf.setDjFilter(x)
 machines: sequencer + drum machine call perf.mapStep() each tick; drum machine
           checks perf.fillActive
 ui: momentary buttons are built by the shared `buildLiveFxControls(engine, bus, opts)`
@@ -115,6 +145,18 @@ ui: momentary buttons are built by the shared `buildLiveFxControls(engine, bus, 
 Scenario: Stutter loops a short slice
   Given setStutter(true) with size 2 at anchor step a
   Then mapStep folds subsequent steps back into [a, a+2)
+# pinned by: tests/audio/transport/performance.test.ts
+
+Scenario: Crossing the centre of the DJ filter never swaps a filter type (v6, REQ-9, regression)
+  Given the DJ filter is swept from lowpass through centre into highpass
+  When each value is applied
+  Then djLow and djHigh keep the types they were constructed with
+  And only their frequencies ramp, so the crossing carries no discontinuity
+# pinned by: tests/audio/transport/performance.test.ts
+
+Scenario: Each side rests transparent while the other works (v6, REQ-9)
+  Given a lowpass-side value
+  Then djHigh stays at its 20 Hz resting frequency and only djLow sweeps
 # pinned by: tests/audio/transport/performance.test.ts
 
 Scenario: Filter Drop overrides the manual DJ filter while held (edge)

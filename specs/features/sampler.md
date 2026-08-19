@@ -3,7 +3,9 @@
 ```yaml
 id: sampler
 status: implemented
-version: 6   # v6: the lane's length + step rate come from the meter (REQ-10)
+version: 7   # v7: REQ-11 — a slot ramps up from zero and carries its choke when
+             #     a hit is clamped out of the past (drum-machine.md REQ-15/17)
+             # v6: the lane's length + step rate come from the meter (REQ-10)
              # v5: the Clear ▾ row item ejects the slot's sample, not just its
              #     steps (REQ-9)
              # v4: a transport stop cuts in-flight one-shots (REQ-8)
@@ -131,6 +133,22 @@ the song format.
   the bar at one cell per tick, so a 4/4 song is unchanged. The sampler still has
   no fill behaviour of its own and plays straight through the drum machine's.
 
+
+- **REQ-11** (v7) — **A slot starts from zero, and a clamped hit keeps its gate.**
+  Two edges the drum voices already own ([drum-machine](drum-machine.md) REQ-15
+  and REQ-17), stated here because `SamplerMachine.play` schedules its own gain:
+  - The per-hit gain **ramps up from 0** over `SAMPLER_ATTACK` (0.5 ms) instead of
+    being assigned with `gain.value = velocity`. A sample whose first frame is not
+    near zero otherwise starts on a full-scale step — a click on every hit, and
+    user audio is exactly the material we cannot assume anything about. 0.5 ms is
+    ~24 samples at 48 kHz: enough to turn a step into a slope, far too short to
+    soften a transient (a chop's own attack is orders of magnitude longer).
+  - The start is clamped forward out of the past, and the **choke shifts by the
+    same delta**, so a short gate keeps its length rather than collapsing — or
+    resolving to 0 and dropping the hit outright. The ramp is anchored at the
+    clamped start for the same reason.
+
+
 ## Technical design
 
 ### Contract / public interface
@@ -203,6 +221,20 @@ Scenario: Loading another song does not leave the old song's audio behind (regre
   Then slot 0 is empty and its label reverts to the placeholder — never the new
     name over the old audio
 # pinned by: e2e/song.spec.ts, tests/state/song.test.ts
+
+Scenario: A slot ramps up from zero rather than jumping to velocity (v7, REQ-11, regression)
+  Given a sample whose first frame is not near silence
+  When a slot fires it
+  Then the per-hit gain starts at 0 and ramps to velocity over SAMPLER_ATTACK
+  And the ramp is anchored at the same clamped time the source starts
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A clamped sampler hit keeps its gate length (v7, REQ-11, regression)
+  Given a gated slot step whose scheduled time has already passed
+  When the start is clamped forward to now
+  Then the choke shifts by the same delta and the hit still sounds
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
 
 Scenario: Stopping the transport cuts a long tied sample (v4, REQ-8, regression)
   Given a tied step is playing a long sample, so no choke was ever scheduled
