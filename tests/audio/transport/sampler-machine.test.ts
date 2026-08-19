@@ -109,7 +109,10 @@ describe('SamplerMachine', () => {
     clock.fireTick(0);
     const src = ctx.createBufferSource.mock.results[0]!.value;
     const g = ctx.createGain.mock.results.at(-1)!.value;
-    expect(g.gain.setValueAtTime).not.toHaveBeenCalled();
+    // "No cut" is a ramp DOWN to 0 that never happens — not "no scheduling at
+    // all": every hit now ramps up from 0 as its attack (REQ-11).
+    const down = g.gain.linearRampToValueAtTime.mock.calls.filter((c: number[]) => c[0] === 0);
+    expect(down).toHaveLength(0);
     expect(src.stop).not.toHaveBeenCalled();
   });
 
@@ -190,5 +193,53 @@ describe('SamplerMachine', () => {
     off();
     sm.setBuffer(0, makeStubBuffer());
     expect(seen).toEqual([3, 3]);
+  });
+});
+
+/**
+ * sampler.md REQ-11, regression.
+ *
+ * The per-hit gain was assigned (`gain.value = velocity`) rather than ramped, so a
+ * sample whose first frame is not near zero started on a full-scale step — a click
+ * on every hit. User audio is exactly the material we cannot assume anything
+ * about. And the start was clamped out of the past while `chokeAt` kept the stale
+ * time, so a short gate collapsed and could drop the hit entirely.
+ */
+describe('a slot starts from zero and carries its choke (v7, REQ-11)', () => {
+  it('ramps up from 0 instead of jumping to velocity', () => {
+    const { ctx, clock, patterns, sm } = build();
+    sm.setEnabled(true);
+    sm.setBuffer(0, makeStubBuffer());
+    patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6 });
+    clock.fireTick(0);
+
+    const g = ctx.createGain.mock.results.at(-1)!.value;
+    const src = ctx.createBufferSource.mock.results[0]!.value;
+    const startAt = src.start.mock.calls[0]![0] as number;
+
+    expect(g.gain.value).not.toBe(0.6);                                  // never assigned
+    expect(g.gain.setValueAtTime).toHaveBeenCalledWith(0, startAt);      // from silence
+    expect(g.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.6, startAt + 0.0005);
+  });
+
+  it('shifts the choke by the same delta when the start is clamped out of the past', () => {
+    const { ctx, clock, patterns, sm } = build();
+    sm.setEnabled(true);
+    sm.setBuffer(0, makeStubBuffer());
+    patterns.setSamplerCell(0, 0, { on: true, velocity: 0.6, gate: 0.5 });
+
+    ctx.currentTime = 2;              // "now" is well past the tick's scheduled time
+    clock.fireTick(0);                // …which schedules at 0
+
+    const g = ctx.createGain.mock.results.at(-1)!.value;
+    const src = ctx.createBufferSource.mock.results[0]!.value;
+    const startAt = src.start.mock.calls[0]![0] as number;
+    const stopAt = src.stop.mock.calls[0]![0] as number;
+
+    expect(startAt).toBe(2);                        // clamped forward
+    expect(stopAt).toBeGreaterThan(startAt);        // and the cut moved with it
+    // The gate is still ahead of the hit, not behind it — so the hit sounds.
+    const cut = g.gain.setValueAtTime.mock.calls.find((c: number[]) => c[0] === 0.6)?.[1] as number;
+    expect(cut).toBeGreaterThan(startAt);
   });
 });

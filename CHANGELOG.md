@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Two demos for the newest machines — Gankogui and Slouch.** *Gankogui* is
+  West-African funk-rock in **12/8**, named for the double bell whose seven-stroke
+  pattern it is built on. Three lanes run three different cycles against the bar —
+  the kit locked to it, the riff looping every 16 ticks, the motion lane every 18 —
+  so the whole thing only lands together once every six bars. Four drum lanes are
+  switched to the percussion voices, and the closed hat runs in twos across the
+  triple grouping.
+
+  *Slouch* is the opposite: 4/4, 88 BPM, every lane following the bar, and **swing
+  at zero**. All of its feel is per-step micro-timing — snare five notches behind,
+  clap trailing it by two more, kick pushing ahead, and one hi-hat sitting a third
+  of a step late. Hold a key over either: both leave the arpeggiator armed.
+
 - **Micro-timing — pull a single hit off the grid.** Every step in the sequencer,
   drum machine and sampler now carries a **MICRO** setting in the per-step edit
   row: nudge one hit earlier or later without moving anything else. A snare a
@@ -142,6 +155,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   they now say what they do when you hover them.
 
 ### Fixed
+
+- **A second tab can no longer wipe out the first one's work.** The working
+  session was autosaved to one place, so with two tabs of the synth open the tab
+  you switched *away* from would write its own — often older — session over the
+  other's, and the next reload brought that one back. Motion automation was the
+  worst casualty: loading a song replaces motion outright, so a stale session
+  didn't just fail to restore it, it silently emptied it while everything else
+  looked untouched.
+
+  Each tab now autosaves to its own place and can't reach anyone else's. Reload a
+  tab and you get exactly that tab back; close it and open a fresh one and you get
+  the most recent session, as before. Sessions from before this change are still
+  picked up.
+
+- **Drums no longer click at the end of a hit.** Every drum voice faded out to a
+  whisper and was then cut off dead rather than taken all the way to silence, which
+  left a step in the waveform — a click. It was loudest on the kick, where the
+  track's DRIVE amplifies anything quiet by around 30 dB and a low sine gives the
+  click nothing to hide behind, but every voice carried it. Voices now fade to true
+  silence before they stop.
+
+- **The DJ filter no longer clicks as it passes through the centre.** It was a
+  single filter that switched between low-pass and high-pass, and switching type
+  mid-signal is an instant jump — audible on everything, since it sits across the
+  whole mix. Automating the knob made it constant: a motion lane whose anchors sat
+  either side of centre crossed the boundary six times a bar. It is now a low-pass
+  and a high-pass in series, each staying what it is, with the unused side resting
+  wide open. The sweep sounds the same; the middle no longer clicks.
 
 - **A dismissed dialog no longer lingers over the next one.** Answering a
   question left the old dialog on screen for a fifth of a second while it faded,

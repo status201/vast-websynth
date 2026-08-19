@@ -6,7 +6,18 @@ import { PatternStore } from '../../src/state/patterns';
 import { Arrangement } from '../../src/audio/transport/arrangement';
 import { XyPadStore } from '../../src/state/xy-pad';
 import { TestClock } from '../audio/transport/test-clock';
-import { installLocalStorageMock } from '../storage-mock';
+import { installLocalStorageMock, installSessionStorageMock } from '../storage-mock';
+
+/**
+ * v8 (REQ-12): the session lives at `websynth.session.<tabId>`, where the id
+ * comes from sessionStorage. Tests read the same place the implementation does
+ * rather than being handed a test-only accessor.
+ */
+const TAB_ID_KEY = 'websynth.session.tab';
+const ownKey = (): string => `websynth.session.${sessionStorage.getItem(TAB_ID_KEY)}`;
+/** Every stored session payload, whichever tab wrote it. */
+const sessionKeys = (store: Map<string, string>): string[] =>
+  [...store.keys()].filter((k) => k === 'websynth.session' || k.startsWith('websynth.session.'));
 
 function build(debounceMs = 1500) {
   const bus = new ParamBus();
@@ -26,6 +37,7 @@ describe('SessionAutosave', () => {
 
   beforeEach(() => {
     store = installLocalStorageMock();
+    installSessionStorageMock(); // a fresh tab identity per test
     vi.useFakeTimers();
   });
 
@@ -40,10 +52,10 @@ describe('SessionAutosave', () => {
     patterns.setDrumCell(0, 3, { on: true });
     patterns.setSeqStep(0, { on: true, note: 60 });
     vi.advanceTimersByTime(1499);
-    expect(store.has(SESSION_KEY)).toBe(false);
+    expect(sessionKeys(store)).toEqual([]);
     vi.advanceTimersByTime(1);
     expect(capture).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(store.get(SESSION_KEY)!);
+    const payload = JSON.parse(store.get(ownKey())!);
     expect(payload.v).toBe(1);
     const file = Song.fromJSON(JSON.stringify(payload.file));
     expect(file).not.toBeNull();
@@ -87,7 +99,7 @@ describe('SessionAutosave', () => {
       vi.advanceTimersByTime(16);
     }
     expect(capture).not.toHaveBeenCalled(); // nothing armed it — nothing to write
-    expect(store.has(SESSION_KEY)).toBe(false);
+    expect(sessionKeys(store)).toEqual([]);
 
     // A real edit still arms it, and now the debounce actually elapses even
     // though automation keeps writing on top.
@@ -97,7 +109,7 @@ describe('SessionAutosave', () => {
       vi.advanceTimersByTime(16);
     }
     expect(capture).toHaveBeenCalledTimes(1);
-    expect(store.has(SESSION_KEY)).toBe(true);
+    expect(store.has(ownKey())).toBe(true);
   });
 
   it('flushes a pending save on pagehide', () => {
@@ -105,7 +117,7 @@ describe('SessionAutosave', () => {
     bus.set('filter.cutoff', 50);
     window.dispatchEvent(new Event('pagehide'));
     expect(capture).toHaveBeenCalledTimes(1);
-    expect(store.has(SESSION_KEY)).toBe(true);
+    expect(store.has(ownKey())).toBe(true);
     // No pending save → flush is a no-op (no double write).
     window.dispatchEvent(new Event('pagehide'));
     expect(capture).toHaveBeenCalledTimes(1);
@@ -167,7 +179,7 @@ describe('SessionAutosave', () => {
       vi.advanceTimersByTime(1500);
 
       const s = SessionAutosave.stats()!;
-      expect(s.bytes).toBe(store.get(SESSION_KEY)!.length);
+      expect(s.bytes).toBe(store.get(ownKey())!.length);
       expect(s.savedAt).toBeTypeOf('number');
     });
 
@@ -202,6 +214,120 @@ describe('SessionAutosave', () => {
       store.set(SESSION_KEY, odd);
       expect(SessionAutosave.stats()).toEqual({ bytes: odd.length, savedAt: null });
     });
+  });
+});
+
+/**
+ * REQ-12 (v8), regression. Two tabs used to share one key, so whichever was
+ * switched away from flushed its own — often older — session over the other's.
+ * Because song-mode makes motion authoritative on apply, a stale session does not
+ * merely fail to restore motion, it BLANKS it: params and patterns look fine and
+ * the automation is quietly gone. That is what this prevents.
+ */
+describe('SessionAutosave per-tab isolation (v8, REQ-12)', () => {
+  let store: Map<string, string>;
+
+  beforeEach(() => {
+    store = installLocalStorageMock();
+    installSessionStorageMock();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Run `fn` as if in another tab: a different sessionStorage identity. */
+  function asOtherTab<T>(fn: () => T): T {
+    const mine = sessionStorage.getItem(TAB_ID_KEY);
+    sessionStorage.setItem(TAB_ID_KEY, 'othertab');
+    try {
+      return fn();
+    } finally {
+      if (mine === null) sessionStorage.removeItem(TAB_ID_KEY);
+      else sessionStorage.setItem(TAB_ID_KEY, mine);
+    }
+  }
+
+  it('a second tab writing never touches the first tab\'s session', () => {
+    const first = build();
+    first.bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+    const firstKey = ownKey();
+    const firstPayload = store.get(firstKey)!;
+
+    asOtherTab(() => {
+      const second = build();
+      second.bus.set('filter.cutoff', 99);
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(store.get(firstKey)).toBe(firstPayload); // byte-identical, untouched
+    expect(sessionKeys(store)).toHaveLength(2);
+  });
+
+  it('restores this tab\'s own session in preference to a newer foreign one', () => {
+    const { bus } = build();
+    bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+
+    asOtherTab(() => {
+      const other = build();
+      other.bus.set('filter.cutoff', 99);
+      vi.advanceTimersByTime(1500); // newer, but not ours
+    });
+
+    expect(SessionAutosave.load()!.params['filter.cutoff']).toBe(42);
+  });
+
+  it('falls back to the most recent session when this tab has none', () => {
+    asOtherTab(() => {
+      const other = build();
+      other.bus.set('filter.cutoff', 77);
+      vi.advanceTimersByTime(1500);
+    });
+    // A brand-new tab: no session of its own, so the closed tab's is restored.
+    expect(SessionAutosave.load()!.params['filter.cutoff']).toBe(77);
+  });
+
+  it('keeps at most MAX_SESSIONS, never dropping its own', () => {
+    for (let i = 0; i < 5; i++) {
+      store.set(`websynth.session.old${i}`, JSON.stringify({ v: 1, savedAt: i + 1, file: {} }));
+    }
+    const { bus } = build();
+    bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+
+    expect(sessionKeys(store)).toHaveLength(3);
+    expect(store.has(ownKey())).toBe(true); // ours survives the prune
+  });
+
+  it('restores a pre-v8 session from the legacy key, and never writes it again', () => {
+    const legacy = build();
+    legacy.bus.set('filter.cutoff', 55);
+    vi.advanceTimersByTime(1500);
+    // Re-shape the store as a pre-v8 install: one session, under the old key.
+    store.set(SESSION_KEY, store.get(ownKey())!);
+    store.delete(ownKey());
+
+    expect(SessionAutosave.load()!.params['filter.cutoff']).toBe(55);
+
+    const next = build();
+    next.bus.set('filter.cutoff', 60);
+    vi.advanceTimersByTime(1500);
+    expect(JSON.parse(store.get(SESSION_KEY)!).file.params['filter.cutoff']).toBe(55);
+    expect(JSON.parse(store.get(ownKey())!).file.params['filter.cutoff']).toBe(60);
+  });
+
+  it('clear() removes every stored session, legacy key included', () => {
+    const { bus } = build();
+    bus.set('filter.cutoff', 42);
+    vi.advanceTimersByTime(1500);
+    store.set(SESSION_KEY, JSON.stringify({ v: 1, savedAt: 1, file: {} }));
+
+    SessionAutosave.clear();
+    expect(sessionKeys(store)).toEqual([]);
   });
 });
 

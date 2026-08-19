@@ -18,7 +18,24 @@ import { compactSongForExport } from './serialize';
  * validate/serialize helpers, never on `song.ts` itself.
  */
 
+/**
+ * The pre-v8 single key. Still READ as a restore candidate so an existing
+ * session survives the upgrade; never written again (REQ-12).
+ */
 export const SESSION_KEY = 'websynth.session';
+
+/** Per-tab session keys: `websynth.session.<tabId>` (REQ-12). */
+const SESSION_PREFIX = 'websynth.session.';
+
+/** Where a tab remembers its own id. sessionStorage is per-tab by definition. */
+const TAB_ID_KEY = 'websynth.session.tab';
+
+/**
+ * How many sessions to keep. Two tabs is the case this exists for; three leaves
+ * room without letting closed tabs accumulate. A session is ~50-100 kB (no audio
+ * - clips live in IndexedDB), so the cap costs a fraction of the quota.
+ */
+const MAX_SESSIONS = 3;
 
 const DEFAULT_DEBOUNCE_MS = 1500;
 
@@ -28,9 +45,57 @@ interface SessionPayload {
   file: unknown;
 }
 
+/**
+ * This tab's id, minted once and kept in `sessionStorage` - which is scoped to
+ * the tab and survives its reload, exactly the lifetime a session wants.
+ *
+ * With storage unavailable every tab answers `'0'`, which collapses back to one
+ * shared key: the old last-writer-wins behaviour, degraded rather than broken
+ * (REQ-11's posture).
+ */
+function tabId(): string {
+  try {
+    const existing = sessionStorage.getItem(TAB_ID_KEY);
+    if (existing) return existing;
+    const id = Math.random().toString(36).slice(2, 10) || '0';
+    sessionStorage.setItem(TAB_ID_KEY, id);
+    return id;
+  } catch {
+    return '0';
+  }
+}
+
+/** Every stored session key, newest first. Includes the legacy single key. */
+function storedSessions(): { key: string; savedAt: number }[] {
+  const out: { key: string; savedAt: number }[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key !== SESSION_KEY && !key.startsWith(SESSION_PREFIX)) continue;
+      if (key === TAB_ID_KEY) continue;
+      const value = localStorage.getItem(key);
+      if (value) out.push({ key, savedAt: readSavedAt(value) ?? 0 });
+    }
+  } catch {
+    return [];
+  }
+  return out.sort((a, b) => b.savedAt - a.savedAt);
+}
+
+function removeKey(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // storage unavailable - nothing to remove
+  }
+}
+
 export class SessionAutosave {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly debounceMs: number;
+  /** This tab's own key - the only one this instance ever writes (REQ-12). */
+  private readonly key = SESSION_PREFIX + tabId();
 
   constructor(
     private readonly capture: () => SongFile,
@@ -100,15 +165,38 @@ export class SessionAutosave {
   }
 
   private write(): void {
+    let json: string;
     try {
       const payload: SessionPayload = {
         v: 1,
         savedAt: Date.now(),
         file: compactSongForExport(this.capture()),
       };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+      json = JSON.stringify(payload);
     } catch {
-      // Quota / private mode / storage disabled: autosave silently stands down.
+      return; // capture/serialize failed - nothing to store
+    }
+    try {
+      localStorage.setItem(this.key, json);
+    } catch {
+      // Out of room. Keeping other tabs' sessions must never cost us our OWN
+      // (REQ-12): drop them and try once more before standing down per REQ-11.
+      for (const { key } of storedSessions()) if (key !== this.key) removeKey(key);
+      try {
+        localStorage.setItem(this.key, json);
+      } catch {
+        return; // quota / private mode / storage disabled: stand down silently
+      }
+    }
+    this.prune();
+  }
+
+  /** Keep at most MAX_SESSIONS, newest first, never dropping our own. */
+  private prune(): void {
+    const all = storedSessions();
+    if (all.length <= MAX_SESSIONS) return;
+    for (const { key } of all.slice(MAX_SESSIONS)) {
+      if (key !== this.key) removeKey(key);
     }
   }
 
@@ -117,30 +205,22 @@ export class SessionAutosave {
    * invalid payload clears the key so it can't wedge every future boot.
    */
   static load(): SongFile | null {
-    let raw: string | null;
-    try {
-      raw = localStorage.getItem(SESSION_KEY);
-    } catch {
-      return null;
+    // This tab's own session first, so a reload lands exactly where it was; then
+    // the most recent of anyone else's, which is what keeps "tab close loses
+    // nothing" true once the tab that did the work is gone (REQ-12).
+    const own = SESSION_PREFIX + tabId();
+    const rest = storedSessions().map((e) => e.key).filter((k) => k !== own);
+    for (const key of [own, ...rest]) {
+      const file = readSession(key);
+      if (file) return file;
     }
-    if (!raw) return null;
-    try {
-      const payload = JSON.parse(raw) as Partial<SessionPayload>;
-      const res = validateSongFile(payload.file);
-      if (res.ok) return res.file;
-    } catch {
-      // fall through to clear
-    }
-    SessionAutosave.clear();
     return null;
   }
 
+  /** Every stored session, this tab's included - a reset clears the lot. */
   static clear(): void {
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch {
-      // storage unavailable — nothing to clear
-    }
+    for (const { key } of storedSessions()) removeKey(key);
+    removeKey(SESSION_KEY);
   }
 
   /**
@@ -153,9 +233,11 @@ export class SessionAutosave {
    * recover one number is out of all proportion to the answer.
    */
   static stats(): { bytes: number; savedAt: number | null } | null {
+    // The one `load()` would pick, so the panel describes the session in play.
+    const own = SESSION_PREFIX + tabId();
     let raw: string | null;
     try {
-      raw = localStorage.getItem(SESSION_KEY);
+      raw = localStorage.getItem(own) ?? localStorage.getItem(storedSessions()[0]?.key ?? own);
     } catch {
       return null;
     }
@@ -174,6 +256,29 @@ export class SessionAutosave {
  */
 const SAVED_AT_SCAN_CHARS = 96;
 const SAVED_AT_RE = /"savedAt"\s*:\s*(\d+)/;
+
+/**
+ * One stored session, validated - or null. A corrupt or invalid payload removes
+ * **that key only**, so one bad entry cannot take a healthy tab's session with it.
+ */
+function readSession(key: string): SongFile | null {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(raw) as Partial<SessionPayload>;
+    const res = validateSongFile(payload.file);
+    if (res.ok) return res.file;
+  } catch {
+    // fall through to remove
+  }
+  removeKey(key);
+  return null;
+}
 
 /** `savedAt` from the raw payload, or null if it isn't where write() puts it. */
 function readSavedAt(raw: string): number | null {

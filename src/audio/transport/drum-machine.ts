@@ -50,6 +50,12 @@ const OPEN_HAT_MODEL = 3;
 /** Short enough to read as a cut, long enough not to click. */
 const CHOKE_GROUP_FADE = 0.006;
 
+/**
+ * How long the choke group takes to come back up (REQ-16). Short enough that the
+ * next open hat is at full level, long enough that returning does not itself step.
+ */
+const CHOKE_GROUP_RESTORE = 0.004;
+
 export class DrumMachine {
   readonly tracks: DrumSynth[] = [];
   readonly trackGains: GainNode[] = [];
@@ -290,9 +296,13 @@ export class DrumMachine {
       g.gain.cancelScheduledValues(when);
       g.gain.setValueAtTime(1, when);
       g.gain.linearRampToValueAtTime(0, when + CHOKE_GROUP_FADE);
-      // Straight back up: the cut belongs to the tail that was ringing, not to
-      // the track.
-      g.gain.setValueAtTime(1, when + CHOKE_GROUP_FADE + 0.001);
+      // Back up, but on a RAMP (REQ-16). The cut still belongs to the tail that
+      // was ringing rather than to the track, so the gain has to return for the
+      // next hit — but returning with a bare setValueAtTime moved it 0 -> 1 in a
+      // single sample while the open hat was still ringing underneath, which is
+      // the very click the down-fade above was chosen to avoid.
+      g.gain.setValueAtTime(0, when + CHOKE_GROUP_FADE);
+      g.gain.linearRampToValueAtTime(1, when + CHOKE_GROUP_FADE + CHOKE_GROUP_RESTORE);
     }
   }
 

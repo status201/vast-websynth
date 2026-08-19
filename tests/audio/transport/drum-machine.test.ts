@@ -286,8 +286,8 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true });
     clock.fireTick(0);
-    // Ramped to 0 — the cut — and restored by a later setValueAtTime.
-    expect(ramps(dm, 3)).toEqual([0]);
+    // Down to 0 — the cut — then back to 1 on a ramp of its own (REQ-16).
+    expect(ramps(dm, 3)).toEqual([0, 1]);
   });
 
   it('restores the gain, so the next open hat is at full level', () => {
@@ -296,10 +296,34 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     patterns.setDrumCell(2, 0, { on: true });
     clock.fireTick(0);
     const g = chokeNode(dm, 3);
-    const set = (g.gain.setValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    expect(set.at(-1)?.[0]).toBe(1);
+    const lin = (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(lin.at(-1)?.[0]).toBe(1);
     // …and the restore is scheduled after the fade, not before it.
-    expect(set.at(-1)?.[1] as number).toBeGreaterThan(set.at(0)?.[1] as number);
+    expect(lin.at(-1)?.[1] as number).toBeGreaterThan(lin.at(0)?.[1] as number);
+  });
+
+  /**
+   * REQ-16, regression. The down-fade was deliberately 6 ms ("long enough not to
+   * click"), but the restore was a bare setValueAtTime — moving the gain 0 -> 1 in
+   * one sample while the open hat it had just cut was still ringing underneath.
+   * That re-exposed the tail instantly: the click the down-fade existed to avoid.
+   */
+  it('restores on a ramp, never a step (REQ-16, regression)', () => {
+    const { clock, patterns, dm } = hats();
+    dm.setChokeEnabled(true);
+    patterns.setDrumCell(2, 0, { on: true });
+    clock.fireTick(0);
+    const g = chokeNode(dm, 3);
+    const set = (g.gain.setValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    // Nothing is ever SET to 1 after the cut — the only way back up is a ramp.
+    const cutAt = (set.find((c) => c[0] === 0)?.[1] as number) ?? Infinity;
+    for (const c of set) {
+      if ((c[1] as number) >= cutAt) expect(c[0]).not.toBe(1);
+    }
+    const lin = (g.gain.linearRampToValueAtTime as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const restore = lin.find((c) => c[0] === 1);
+    expect(restore).toBeDefined();
+    expect(restore![1] as number).toBeGreaterThan(cutAt);
   });
 
   it('never chokes itself, or a kick', () => {
@@ -319,7 +343,7 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     dm.setTrackModel(3, 0); // that slot becomes a kick
     patterns.setDrumCell(2, 0, { on: true }); // closed hat fires
     clock.fireTick(0);
-    expect(ramps(dm, 6)).toEqual([0]); // the relocated open hat is choked
+    expect(ramps(dm, 6)).toEqual([0, 1]); // the relocated open hat is choked
     expect(ramps(dm, 3)).toEqual([]);  // the slot that is now a kick is not
   });
 
@@ -328,7 +352,7 @@ describe('DrumMachine hat choke group (REQ-12)', () => {
     dm.setChokeEnabled(true);
     patterns.setDrumCell(2, 0, { on: true, ratchet: 3 });
     clock.fireTick(0);
-    expect(ramps(dm, 3)).toEqual([0, 0, 0]);
+    expect(ramps(dm, 3)).toEqual([0, 1, 0, 1, 0, 1]); // one cut+restore pair per sub-hit
   });
 });
 

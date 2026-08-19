@@ -23,7 +23,8 @@ describe('drum synth choke', () => {
     kick.trigger(0.5, 0.9);
     expect(mock.createGain).toHaveBeenCalledTimes(1); // env only — no choke gain
     const osc = mock.createOscillator.mock.results[0]!.value;
-    expect(osc.stop).toHaveBeenCalledWith(0.5 + 0.4 + 0.05);
+    // REQ-15: stops at the end of the ramp to zero, not 50 ms past the 0.001 floor.
+    expect(osc.stop).toHaveBeenCalledWith(0.5 + 0.4 + 0.005);
   });
 
   it('a choked Kick ramps the choke gain to 0 at chokeAt and stops early', () => {
@@ -67,7 +68,7 @@ describe('drum synth choke', () => {
 
     clap.trigger(0, 0.8, 5); // cut far beyond the tail
     const src = mock.createBufferSource.mock.results[0]!.value;
-    expect(src.stop).toHaveBeenCalledWith(0 + 0.25 + 0.05); // natural end wins
+    expect(src.stop).toHaveBeenCalledWith(0 + 0.25 + 0.005); // natural end wins
   });
 });
 
@@ -252,5 +253,101 @@ describe('percussion voices', () => {
     expect(o2.frequency.value).toBeCloseTo(1690);
     const bp = mock.createBiquadFilter.mock.results[0]!.value;
     expect(bp.frequency.value).toBeCloseTo(1400);
+  });
+});
+
+/**
+ * The click (drum-machine.md REQ-15, regression).
+ *
+ * `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on a 0.001
+ * floor. Stopping a source there truncates the waveform mid-cycle — a step
+ * discontinuity, i.e. a click. It was audible only on the Kick, whose 55 Hz sine
+ * gives the step nothing to hide behind and whose track drive amplifies quiet
+ * residue ~32x, but the defect was in all ten voices. This asserts the shape for
+ * every one of them at once, so a new voice cannot reintroduce it.
+ */
+describe('drum synth envelope tails reach zero (REQ-15)', () => {
+  const VOICES = ['Kick', 'Snare', 'HiHat', 'Clap', 'Conga', 'Bongo', 'Cowbell', 'Clave', 'Shaker'] as const;
+
+  const make = (name: string, ctx: AudioContext, noise: AudioBuffer): DrumSynth =>
+    name === 'Kick' ? new Kick(ctx) :
+    name === 'Snare' ? new Snare(ctx, noise) :
+    name === 'HiHat' ? new HiHat(ctx, noise, false) :
+    name === 'Clap' ? new Clap(ctx, noise) :
+    name === 'Conga' ? new Conga(ctx) :
+    name === 'Bongo' ? new Bongo(ctx, noise) :
+    name === 'Cowbell' ? new Cowbell(ctx) :
+    name === 'Clave' ? new Clave(ctx) :
+    new Shaker(ctx, noise);
+
+  it.each(VOICES)('%s ramps every envelope to exactly 0 before anything stops', (name) => {
+    const { mock, ctx, noise } = setup();
+    const synth = make(name, ctx, noise);
+    mock.createGain.mockClear();
+    mock.createOscillator.mockClear();
+    mock.createBufferSource.mockClear();
+
+    synth.trigger(0.5, 0.9);
+
+    // Every envelope gain this hit created must end on a ramp to exactly 0.
+    const envs = mock.createGain.mock.results.map((r) => r.value);
+    expect(envs.length).toBeGreaterThan(0);
+    const zeroRamps: number[] = [];
+    for (const env of envs) {
+      const toZero = env.gain.linearRampToValueAtTime.mock.calls.filter((c: number[]) => c[0] === 0);
+      expect(toZero.length).toBe(1); // exactly one, and it is the last word on this gain
+      zeroRamps.push(toZero[0]![1] as number);
+    }
+
+    // No source outlives the zero it was ramped to. (The floor is the earliest
+    // zero-ramp: a multi-source voice stops each source at its own env's end.)
+    const sources = [
+      ...mock.createOscillator.mock.results.map((r) => r.value),
+      ...mock.createBufferSource.mock.results.map((r) => r.value),
+    ];
+    expect(sources.length).toBeGreaterThan(0);
+    const lastZero = Math.max(...zeroRamps);
+    for (const src of sources) {
+      const stopAt = src.stop.mock.calls[0]![0] as number;
+      expect(stopAt).toBeGreaterThan(0.5);      // never before its own start
+      expect(stopAt).toBeLessThanOrEqual(lastZero + 1e-9);
+    }
+  });
+});
+
+/**
+ * A hit clamped out of the past keeps its gate (REQ-17, regression).
+ *
+ * The start was clamped forward to `currentTime` while `chokeAt` kept the stale
+ * time, so a short gate collapsed — cutting the hit mid-attack, or resolving the
+ * choke gain to 0 before the hit began and dropping it outright.
+ */
+describe('a past-scheduled hit carries its choke (REQ-17)', () => {
+  it('shifts the choke by the same delta as the clamped start', () => {
+    const { mock, ctx } = setup();
+    mock.currentTime = 1;                 // "now" is well past the scheduled time
+    const kick = new Kick(ctx);
+    mock.createGain.mockClear();
+
+    const when = 0.4;                     // 0.6 s in the past
+    const gate = 0.1;
+    kick.trigger(when, 0.9, when + gate);
+
+    const choke = mock.createGain.mock.results[0]!.value;
+    // Cut lands a full gate AFTER the clamped start, not 0.5 s before it.
+    expect(choke.gain.setValueAtTime).toHaveBeenCalledWith(1, 1 + gate);
+    expect(choke.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 1 + gate + 0.005);
+  });
+
+  it('never stops a source before its own start', () => {
+    const { mock, ctx } = setup();
+    mock.currentTime = 5;
+    const kick = new Kick(ctx);
+
+    kick.trigger(0.1, 0.9, 0.2);          // hit and choke both long past
+    const osc = mock.createOscillator.mock.results[0]!.value;
+    const startAt = osc.start.mock.calls[0]![0] as number;
+    const stopAt = osc.stop.mock.calls[0]![0] as number;
+    expect(stopAt).toBeGreaterThanOrEqual(startAt);
   });
 });

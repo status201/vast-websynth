@@ -48,7 +48,14 @@ test.describe('sampler', () => {
     // The session autosave (1.5 s) carries the NAME; the clip store (0.8 s)
     // carries the audio. Both must have landed before the reload.
     await expect
-      .poll(() => page.evaluate(() => localStorage.getItem('websynth.session')), { timeout: 5000 })
+      .poll(
+        () =>
+          // Per-tab key since v8 (session-autosave.md REQ-12) — scan, don't name.
+          page.evaluate(
+            () => Object.keys(localStorage).find((k) => k.startsWith('websynth.session.')) ?? null,
+          ),
+        { timeout: 5000 },
+      )
       .not.toBeNull();
 
     // Same context ⇒ localStorage and IndexedDB both survive.

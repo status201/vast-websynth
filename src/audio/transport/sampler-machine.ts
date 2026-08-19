@@ -12,6 +12,18 @@ export type SamplerStepListener = (step: number) => void;
 
 /** Click-free cut: ramp the per-hit gain to 0 over CHOKE_FADE, stop just after. */
 const CHOKE_FADE = 0.005;
+/**
+ * Attack ramp on a slot's per-hit gain (sampler.md REQ-11).
+ *
+ * User audio is exactly the material we cannot assume anything about: a sample
+ * whose first frame is not near zero used to start on a full-scale step, which is
+ * a click on every hit. 0.5 ms is ~24 samples at 48 kHz — Web Audio ramps are
+ * sample-accurate, so this is not rounded up to a render block. Enough to turn a
+ * step into a slope, far too short to soften a transient: a chop's own attack is
+ * orders of magnitude longer.
+ */
+const SAMPLER_ATTACK = 0.0005;
+
 const CHOKE_STOP = 0.03;
 
 /**
@@ -92,14 +104,21 @@ export class SamplerMachine {
     src.buffer = buf;
     const g = this.ctx.createGain();
     const vel = clamp01(velocity);
-    g.gain.value = vel;
+    // `when` can be in the past (step-settings.md REQ-9); the choke shifts by the
+    // same delta as the start so a short gate keeps its LENGTH instead of
+    // collapsing — or resolving to 0 and dropping the hit (sampler.md REQ-11).
+    const t = Math.max(when, this.ctx.currentTime);
+    const shift = t - when;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vel, t + SAMPLER_ATTACK);
     src.connect(g).connect(out);
-    src.start(Math.max(when, this.ctx.currentTime));
+    src.start(t);
     if (chokeAt !== undefined) {
       // Step gate < 1 chokes the sample early with a fast fade.
-      g.gain.setValueAtTime(vel, chokeAt);
-      g.gain.linearRampToValueAtTime(0, chokeAt + CHOKE_FADE);
-      src.stop(chokeAt + CHOKE_STOP);
+      const cut = Math.max(chokeAt + shift, t + SAMPLER_ATTACK);
+      g.gain.setValueAtTime(vel, cut);
+      g.gain.linearRampToValueAtTime(0, cut + CHOKE_FADE);
+      src.stop(cut + CHOKE_STOP);
     }
     const hit = { src, g };
     this.inFlight.add(hit);

@@ -3,7 +3,9 @@
 ```yaml
 id: step-settings
 status: implemented
-version: 3   # v3: per-step micro-timing — a step may sound early or late on its
+version: 4   # v4: the past-clamp note below understated the damage — the choke
+             #     did NOT clamp with the hit (drum-machine.md REQ-17)
+             # v3: per-step micro-timing — a step may sound early or late on its
              #     own cell (REQ-6..REQ-9), edited by a centre-detent slider
              #     bracketed by −/+ steppers
              # v2: the edit row's sliders are gesture-scoped (REQ-5)
@@ -377,7 +379,16 @@ Scenario: The Micro slider takes arrow keys without moving the octave (v3, REQ-9
 - **The first step after `start()`** carries only 50 ms of lead
   (`nextStepTime = ctx.currentTime + 0.05`), which is less than `MAX_EARLY_S`, so a
   deep early nudge on it clamps to on-time. It is the step under the Play press;
-  not worth re-origining the grid for.
+  not worth re-origining the grid for. The same 50 ms hole reopens on every
+  dropout re-origin (`clock.ts`), which is less forgivable — it lands whenever a
+  backgrounded tab comes back.
+
+  "Clamps to on-time" was true of the **envelope** and false of the **choke**,
+  which kept the unclamped time and so cut a short-gated hit mid-attack or
+  dropped it outright. Fixed in [drum-machine](drum-machine.md) REQ-17 and
+  [sampler](sampler.md) REQ-11: the choke shifts with the start, so the gate
+  keeps its length. The clamp is still a bunching device, not a repair — it is
+  `MAX_EARLY_S` that keeps hits out of the past in the first place.
 - A **per-lane** shift (a DAW-style track delay, "the whole snare sits behind the
   beat") is the natural neighbour and would reuse `microOffset` wholesale. Not
   built: nudging the lane's steps covers it, and a second control needs its own

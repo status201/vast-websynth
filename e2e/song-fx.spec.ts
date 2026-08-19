@@ -4,14 +4,26 @@ import { gotoAndStart, busGet, dragKnobUp } from './helpers';
 /**
  * Live DJ FX on the Song panel. The momentary buttons (Fill/Stutter/Drop/Tape
  * Stop) fire on pointerdown and release on pointerup; the DJ filter knob and
- * Tape Stop have observable effects through the dev bridge (`djFilter.type`,
- * `master.pitchBend`). Stutter/Fill are verified via their held `on` class
- * since their effect (step remap / drum roll) isn't directly observable here.
+ * Tape Stop have observable effects through the dev bridge (the djLow/djHigh
+ * frequencies, `master.pitchBend`). Stutter/Fill are verified via their held `on`
+ * class since their effect (step remap / drum roll) isn't directly observable here.
+ *
+ * The DJ filter is a SERIES lowpass -> highpass pair whose types never change
+ * (performance.md REQ-9), so the observable is which side has moved off its
+ * resting frequency, not a `.type` string.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const djType = (page: Page) =>
-  page.evaluate(() => (window as any).__synth.engine.djFilter.type as string);
+/** Which side of the DJ pair is engaged: 'lowpass' | 'highpass' | 'open'. */
+const djMode = (page: Page) =>
+  page.evaluate(() => {
+    const e = (window as any).__synth.engine;
+    const lo = e.djLow.frequency.value as number;
+    const hi = e.djHigh.frequency.value as number;
+    if (hi > 25) return 'highpass';
+    if (lo < 19000) return 'lowpass';
+    return 'open';
+  });
 
 test.describe('song panel live FX', () => {
   test.beforeEach(async ({ page }) => {
@@ -19,21 +31,26 @@ test.describe('song panel live FX', () => {
     await page.getByTestId('tab-song').click();
   });
 
-  test('the DJ filter knob sweeps the master djFilter into a highpass', async ({ page }) => {
+  // Both sides move by ramp, never by a type flip (performance.md REQ-9), so every
+  // assertion here polls: the knob smooths over ~40 ms and Filter Drop over 500 ms.
+  // Reading once immediately after the gesture races the ramp.
+  test('the DJ filter knob sweeps the master pair into a highpass', async ({ page }) => {
     await dragKnobUp(page, 'knob-fx.djfilter');
     expect(await busGet(page, 'fx.djfilter')).toBeGreaterThan(0);
-    expect(await djType(page)).toBe('highpass');
+    await expect.poll(() => djMode(page)).toBe('highpass');
   });
 
   test('Filter Drop overrides the knob while held and restores on release', async ({ page }) => {
     await dragKnobUp(page, 'knob-fx.djfilter'); // park the knob in highpass
-    expect(await djType(page)).toBe('highpass');
+    await expect.poll(() => djMode(page)).toBe('highpass');
 
     const drop = page.getByTestId('perf-drop');
     await drop.dispatchEvent('pointerdown');
-    expect(await djType(page)).toBe('lowpass'); // drop dives to a lowpass
+    // The drop OVERRIDES the knob: the highpass side opens back out as the
+    // lowpass dives, so the dive is not band-passed by the knob's position.
+    await expect.poll(() => djMode(page)).toBe('lowpass');
     await drop.dispatchEvent('pointerup');
-    expect(await djType(page)).toBe('highpass'); // back to the knob position
+    await expect.poll(() => djMode(page)).toBe('highpass'); // back to the knob position
   });
 
   test('Tape Stop bends the pitch down while held and recovers on release', async ({ page }) => {

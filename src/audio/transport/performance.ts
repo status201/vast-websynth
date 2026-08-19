@@ -15,6 +15,10 @@ import type { TickSubscriber } from './tick-source';
  * - Tape Stop: ramps BPM down + pitch down, then recovers on release.
  */
 const DJ_OPEN_HZ = 20000;
+/** Where the highpass side rests: below the band, i.e. transparent. */
+const DJ_HP_REST_HZ = 20;
+/** Resting resonance for both sides. */
+const DJ_REST_Q = 0.7;
 
 export class Performance {
   fillActive = false;
@@ -39,7 +43,8 @@ export class Performance {
     private readonly ctx: AudioContext,
     private readonly clock: TickSubscriber,
     private readonly bus: ParamBus,
-    private readonly djFilter: BiquadFilterNode,
+    private readonly djLow: BiquadFilterNode,
+    private readonly djHigh: BiquadFilterNode,
   ) {
     // The stutter window is anchored to an absolute step, so after a playhead
     // jump `mapStep` would fold the new position back into the *old* window —
@@ -93,12 +98,16 @@ export class Performance {
   setDrop(on: boolean): void {
     this.dropActive = on;
     const now = this.ctx.currentTime;
-    const f = this.djFilter.frequency;
-    const q = this.djFilter.Q;
+    const f = this.djLow.frequency;
+    const q = this.djLow.Q;
     f.cancelScheduledValues(now);
     q.cancelScheduledValues(now);
     if (on) {
-      this.djFilter.type = 'lowpass';
+      // REQ-3 — the drop OVERRIDES the knob, so the highpass side is opened back
+      // out as the lowpass dives. Leaving it where the knob had it would band-pass
+      // the dive instead of replacing it (which is what the single-node version
+      // did implicitly, by owning the only filter there was).
+      this.rampSide(this.djHigh, now, 0.5, DJ_HP_REST_HZ, DJ_REST_Q);
       f.setValueAtTime(Math.max(f.value, 400), now);
       f.exponentialRampToValueAtTime(160, now + 0.5);
       q.setValueAtTime(q.value, now);
@@ -116,30 +125,31 @@ export class Performance {
     this.applyDjFilter(x, 0.04);
   }
 
+  /**
+   * Drive both sides of the pair (REQ-9). Neither node's `type` is touched: the
+   * side that is not working is ramped back to transparency instead, so crossing
+   * centre is two continuous frequency ramps rather than a coefficient swap on a
+   * live biquad. Each side's own curve is exactly what it was when this was one
+   * node, so the sweep is unchanged either side of zero.
+   */
   private applyDjFilter(x: number, smooth: number): void {
     const now = this.ctx.currentTime;
-    const f = this.djFilter.frequency;
-    const q = this.djFilter.Q;
-    f.cancelScheduledValues(now);
-    q.cancelScheduledValues(now);
+    const lo = -Math.min(0, x); // 0..1 of lowpass
+    const hi = Math.max(0, x);  // 0..1 of highpass
+    const dead = Math.abs(x) < 0.02;
+    this.rampSide(this.djLow, now, smooth,
+      dead || lo === 0 ? DJ_OPEN_HZ : DJ_OPEN_HZ * Math.pow(130 / DJ_OPEN_HZ, lo),
+      dead ? DJ_REST_Q : DJ_REST_Q + lo * 3);
+    this.rampSide(this.djHigh, now, smooth,
+      dead || hi === 0 ? DJ_HP_REST_HZ : DJ_HP_REST_HZ * Math.pow(4000 / DJ_HP_REST_HZ, hi),
+      dead ? DJ_REST_Q : DJ_REST_Q + hi * 3);
+  }
 
-    if (Math.abs(x) < 0.02) {
-      this.djFilter.type = 'lowpass';
-      f.exponentialRampToValueAtTime(DJ_OPEN_HZ, now + smooth);
-      q.setTargetAtTime(0.7, now, smooth);
-      return;
-    }
-    if (x < 0) {
-      const t = -x; // 0..1
-      this.djFilter.type = 'lowpass';
-      f.exponentialRampToValueAtTime(DJ_OPEN_HZ * Math.pow(130 / DJ_OPEN_HZ, t), now + smooth);
-      q.setTargetAtTime(0.7 + t * 3, now, smooth);
-    } else {
-      const t = x; // 0..1
-      this.djFilter.type = 'highpass';
-      f.exponentialRampToValueAtTime(20 * Math.pow(4000 / 20, t), now + smooth);
-      q.setTargetAtTime(0.7 + t * 3, now, smooth);
-    }
+  private rampSide(node: BiquadFilterNode, now: number, smooth: number, hz: number, q: number): void {
+    node.frequency.cancelScheduledValues(now);
+    node.Q.cancelScheduledValues(now);
+    node.frequency.exponentialRampToValueAtTime(hz, now + smooth);
+    node.Q.setTargetAtTime(q, now, smooth);
   }
 
   // ---- Tape Stop (momentary) ----
