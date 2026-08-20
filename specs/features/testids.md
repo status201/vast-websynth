@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 11 # v11: the per-step edit row's micro slider exposes its PARTS
+version: 12 # v12: lazy-load-failed-toast, the deferred-surface load report
+            #      (onboarding.md REQ-24)
+            # v11: the per-step edit row's micro slider exposes its PARTS
             #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-6
             # v10: meter-picker + machine-<lane>-len/-rate/-meter-hint
             # v9: tempolock-/tempodiv-<paramId> and dropdown-<prefix>.dest
@@ -306,6 +308,8 @@ shared UI:
                                                     # features/compressor.md
   clips-restored-toast                              # boot-time sampler restore
                                                     # features/sample-persistence.md
+  lazy-load-failed-toast                            # a deferred surface's import()
+                                                    #   rejected (onboarding.md REQ-24)
   empty-play-modal · empty-play-demo · empty-play-dismiss · empty-play-close
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·

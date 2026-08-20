@@ -3,7 +3,8 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 1
+version: 2   # v2: REQ-6 — the About card joins the idle warm set, so the one
+             #     surface a stranded visitor reaches for opens offline too
 owner: Gijs
 related:
   - architecture
@@ -103,8 +104,15 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   what a user reaches for when something is confusing — which an offline
   returning visitor is no less likely to be. The warm also removes any chance
   the first-visit tour is still fetching when its 350 ms auto-launch fires.
-  Both warms share one `requestIdleCallback`-with-timeout-fallback in `main.ts`
-  and swallow their errors: the real `import()` at the trigger retries.
+  **The About card is warmed on idle too** (v2): it is the app's single help
+  door ([onboarding](onboarding.md) REQ-20/REQ-24), so leaving *it* cold made
+  the `?` button dead offline while the tour behind it was fetched and ready —
+  the warm list had covered the room but not the door to it.
+  All three warms share one `requestIdleCallback`-with-timeout-fallback in
+  `main.ts` and swallow their errors: the real `import()` at the trigger
+  retries. A warm is prevention, never a guarantee — a first visit that goes
+  offline before idle still has nothing cached, which is why the help door also
+  *reports* a failed import rather than doing nothing (onboarding.md REQ-24).
 - **REQ-7** (single import parse path) — Sniffing + parsing import bytes
   (`bytes → { file, clips } | errors`) is one pure function
   (`parseSongOrProject`), shared by the song panel's file input, the
@@ -274,7 +282,9 @@ Scenario: no SW in dev/E2E
 - Typecheck: `npm run typecheck`
 - Manual offline pass: `npm run build && npx vite preview` → load, reload
   (SW takes control + caches), DevTools → Offline → reload: app boots,
-  worklets load, Tap-to-start makes sound; Application panel shows one
+  worklets load, Tap-to-start makes sound; **the `?` button opens the About
+  card and its tour button starts the tour** (REQ-6's warm set — the only check
+  that the warms actually landed in the cache); Application panel shows one
   `websynth-<version>` cache; a version bump purges the old cache.
 - Icons: `node scripts/generate-icons.mjs` regenerates the committed PNGs.
 

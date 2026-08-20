@@ -8,8 +8,10 @@
 // builds the header — before any gesture — so every method has to answer
 // synchronously whether or not the body exists yet. The two commands return
 // `void` and start the load themselves; the two readers are answerable from
-// here alone (see below). Both imports are type-only, so this module carries no
-// runtime edge into the ~93 kB cluster.
+// here alone (see below). The two body-side imports are type-only, so this
+// module carries no runtime edge into the ~93 kB cluster; the one value import
+// is the load-failure toast, which is already in the entry chunk.
+import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import type { TourCtx } from './tour';
 import type { OnboardingImpl } from './onboarding-impl';
 
@@ -53,16 +55,37 @@ export function createOnboarding(ctx: TourCtx): Onboarding {
   // opening one twice is idempotent. Resolving this one *constructs state*, so
   // the ⓘ button and the `?` key racing each other must not end up with two
   // InfoBadges instances fighting over the same anchors.
+  //
+  // A *rejection* must not be memoized though (onboarding.md REQ-24): the cache
+  // would make one offline click permanent, leaving the tour dead for the rest
+  // of the session even once the network came back. Clearing `pending` before
+  // rethrowing keeps the state-sharing guarantee — a failed load constructed
+  // nothing, so there is nothing for a later load to duplicate.
   const load = (): Promise<OnboardingImpl> => (pending ??= import('./onboarding-impl')
-    .then((m) => m.createOnboardingImpl(ctx, emit, markDone)));
+    .then((m) => m.createOnboardingImpl(ctx, emit, markDone))
+    .catch((err: unknown) => {
+      pending = null;
+      throw err;
+    }));
+
+  /** Run `use` against the body, reporting rather than swallowing a failed load.
+   *  `retry` is the command itself, so Retry repeats the whole gesture. */
+  const withImpl = (surface: string, retry: () => void, use: (impl: OnboardingImpl) => void): void => {
+    // Two-arg `then`, not `.catch`: only the *load* may raise the toast — a
+    // throw from inside the tour or the badges is a bug, not a missing chunk.
+    void load().then(use, () => showLazyLoadFailure(surface, retry));
+  };
+
+  // Standalone consts, not object methods: app.ts hands these to the ⓘ button
+  // and UiBridge as bare references, so a `this`-based self-reference would be
+  // undefined by the time Retry fired.
+  const startTour = (): void => withImpl('the guided tour', startTour, (impl) => impl.startTour());
+  const toggleInfoBadges = (): void =>
+    withImpl('the info badges', toggleInfoBadges, (impl) => impl.toggleInfoBadges());
 
   return {
-    startTour(): void {
-      void load().then((impl) => impl.startTour());
-    },
-    toggleInfoBadges(): void {
-      void load().then((impl) => impl.toggleInfoBadges());
-    },
+    startTour,
+    toggleInfoBadges,
     isInfoBadgesActive(): boolean {
       return badgesActive;
     },
