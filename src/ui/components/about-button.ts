@@ -12,6 +12,7 @@
 import { Modal } from './modal';
 import { createButton } from './button';
 import { HEADER_ICONS } from './header-icons';
+import { showLazyLoadFailure } from './lazy-load-toast';
 import type { StudioApi } from '../studio-api';
 
 /** What the modal needs from the onboarding layer, injected so About never
@@ -76,7 +77,19 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     // half-built card (the ai-prompt.ts precedent). The `backdrop` check sits
     // *after* the await deliberately: two fast clicks both reach here, and
     // checking beforehand would let each build its own card.
-    const { buildModal } = await import('./about-modal');
+    //
+    // The catch is REQ-24: this is the app's single help door, so a rejected
+    // import must say so rather than leave the ? button looking dead. `main.ts`
+    // warms this chunk on idle to keep the case rare offline (pwa-install.md
+    // REQ-6), but a first visit that lost the network before idle has nothing
+    // cached — hence the retry, which is a real one since nothing is memoized.
+    let buildModal: typeof import('./about-modal').buildModal;
+    try {
+      ({ buildModal } = await import('./about-modal'));
+    } catch {
+      showLazyLoadFailure('Help & About', () => void open());
+      return;
+    }
     if (!backdrop) {
       const built = buildModal(close, engine, deps);
       backdrop = built.backdrop;

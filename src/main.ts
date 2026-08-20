@@ -247,9 +247,15 @@ async function boot() {
   // first-visit tour is never still fetching when its 350 ms auto-launch fires.
   // pwa-install.md REQ-6, runtime-performance.md REQ-1.
   const warmOnboarding = () => void import('./ui/onboarding/onboarding-impl').catch(() => {});
+  // The About card is the door those live behind — the app's single help
+  // surface (onboarding.md REQ-20) — and warming the room but not the door left
+  // the ? button dead offline, doing nothing at all. Same split, same warm.
+  // onboarding.md REQ-24, pwa-install.md REQ-6.
+  const warmAbout = () => void import('./ui/components/about-modal').catch(() => {});
   const warm = () => {
     warmMp3();
     warmOnboarding();
+    warmAbout();
   };
   // requestIdleCallback only reached Safari in 17.4, and we target installed
   // iOS PWAs — fall back to a plain timeout. (A `'x' in window` guard would

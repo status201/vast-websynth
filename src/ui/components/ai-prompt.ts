@@ -11,6 +11,7 @@ import type { ParamBus } from '../../state/params';
 import { Song, DEMO_SONGS } from '../../state/song';
 import switchStyles from '../styles/switch.module.css';
 import { createButton } from './button';
+import { showLazyLoadFailure } from './lazy-load-toast';
 import { copyText, flashCopied } from '../clipboard';
 import { buildPasteImport, type PasteImportOptions } from './paste-import';
 import { Modal } from './modal';
@@ -31,6 +32,9 @@ const BRIEF_PLACEHOLDER =
  * identically (paste-import.md REQ-5).
  */
 export type AiPromptRoutes = Pick<PasteImportOptions, 'onSong' | 'onPresets'>;
+
+/** Type-only reference — carries no runtime edge to the lazy chunk. */
+type BuildSongPrompt = typeof import('../../state/authoring-guide').buildSongPrompt;
 
 export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
@@ -65,9 +69,30 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
    * it loads with the click rather than at boot (runtime-performance.md REQ-1).
    * Awaited before the modal is built so the textarea is never briefly empty.
    */
+  /**
+   * Fetch just `buildSongPrompt`, or report and return null
+   * (lazy-load-failure.md) — without this the button silently did nothing.
+   *
+   * The destructure stays **inside** the `import()` expression. That is what
+   * lets rollup shake the guide's other exports (`buildPresetGuide`,
+   * `buildAuthoringGuide`, `paramTable`) out of the chunk; binding the
+   * namespace to a variable first and destructuring after re-attaches them —
+   * measured at +3.7 kB of prompt copy nothing on this path reads.
+   */
+  async function loadBuildSongPrompt(): Promise<BuildSongPrompt | null> {
+    try {
+      const { buildSongPrompt } = await import('../../state/authoring-guide');
+      return buildSongPrompt;
+    } catch {
+      showLazyLoadFailure('the AI prompt', () => void open());
+      return null;
+    }
+  }
+
   async function open(): Promise<void> {
     window.clearTimeout(closeTimer);
-    const { buildSongPrompt } = await import('../../state/authoring-guide');
+    const buildSongPrompt = await loadBuildSongPrompt();
+    if (!buildSongPrompt) return;
     backdrop ??= buildModal(bus, close, routes, buildSongPrompt);
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.

@@ -108,8 +108,14 @@ async function openModal(btn: HTMLButtonElement): Promise<void> {
  * *after* the next test's `beforeEach` has cleared the DOM, and that test then
  * sees two cards. Generous here costs nothing — the wait ends when the card
  * lands, not when the timeout does.
+ *
+ * Raised 15 s → 30 s when lazy-load-failure.test.ts joined the suite: it drives
+ * the same trigger modules (about-button, ai-prompt → state/song, sync-section)
+ * in a parallel worker, and on a loaded machine that was enough to push this
+ * file's first open past 15 s. The number is a contention guard, not an
+ * assertion about how fast the modal opens — nothing here measures speed.
  */
-const CARD_TIMEOUT = 15_000;
+const CARD_TIMEOUT = 30_000;
 
 function waitForCard(): Promise<void> {
   return vi.waitFor(

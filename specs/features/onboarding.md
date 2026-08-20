@@ -3,7 +3,10 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 24  # v24: a meter topic + badge on the header picker (REQ-23)
+version: 25  # v25: the help door never fails silently — the About body is warmed
+             #      on idle so it opens offline, and a rejected import says so
+             #      with a retry instead of doing nothing (REQ-24)
+             # v24: a meter topic + badge on the header picker (REQ-23)
              # v23: a badge hides when its anchor leaves the viewport in EITHER
              #      direction — the below-the-fold half was missing (REQ-5b)
              # v22: the facade's five signatures are unchanged, but its body now
@@ -55,6 +58,7 @@ related:
   - presets
   - audio-export
   - record-window
+  - lazy-load-failure     # REQ-24 — the report every deferred surface shares
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/info-badges.ts
@@ -66,6 +70,7 @@ source:
   - src/ui/components/header-icons.ts   # the ⓘ glyph's part hooks (REQ-8b)
   - src/ui/styles/tour.module.css       # .toggleActive + the badge/glyph colours
   - src/ui/components/about-button.ts   # the tour-replay route (REQ-20)
+  - src/main.ts                         # REQ-24 — the idle warm that prevents it
 ```
 
 First-run guidance: an interactive spotlight tour and persistent **info badges**
@@ -496,6 +501,37 @@ thing.
   that a lane off the bar is deliberate, and that 5/4 and 7/4 need a coarser
   rate because a bar of them is longer than the grid.
 
+- **REQ-24** (v25) — **The help door never fails silently.** Both surfaces
+  behind it load on demand ([runtime-performance](runtime-performance.md)
+  REQ-1) — the About card via `import('./about-modal')`, the tour and badges via
+  the facade's `import('./onboarding-impl')` — and a rejected `import()` used to
+  do *nothing at all*: no card, no error, a `?` button that reads as broken. The
+  realistic trigger is an offline revisit whose chunk was never fetched while
+  online (`pwa-install.md` REQ-6 caches only what the page actually requested),
+  and help is precisely what someone reaches for when they are stuck.
+
+  Two halves, because either alone is insufficient:
+
+  - **Prevention.** The About body joins `lamejs` and the onboarding body in
+    `main.ts`'s idle warm set, so one online visit is enough to make it openable
+    offline forever after. This is REQ-1's standing rule — *a deferred surface
+    the user can reach offline is warmed on idle* — applied to the surface that
+    most needs it; the warm swallows its error, because the click still retries.
+  - **Report.** When the `import()` rejects anyway (the first visit went offline
+    before idle, a flaky network, a purged cache), the trigger raises a
+    [toast](toast.md) naming the surface and offering **Retry**, rather than
+    returning silently. The About button and both facade commands (`startTour`,
+    `toggleInfoBadges`) route their failures through the app-wide
+    `showLazyLoadFailure` — wording, retry rule and the rest of the trigger set
+    are [lazy-load-failure](lazy-load-failure.md); the help door was simply the
+    first place its absence was noticed.
+
+  A failed facade load must also **not poison the memo**. `index.ts` caches its
+  import promise so two triggers cannot build two `InfoBadges` (REQ-1), but a
+  cached *rejection* is permanent: every later attempt reuses it, so the tour
+  stays dead even after the network returns. The catch clears `pending` before
+  rethrowing, making Retry — and any subsequent click — a real retry.
+
 ## Technical design
 
 ### Contract / public interface
@@ -528,6 +564,8 @@ components/info-badges-button.ts:
   createInfoBadgesButton({ toggle, isActive, onChange }): HTMLButtonElement
 components/about-button.ts:
   createAboutButton(engine, { startTour }): HTMLButtonElement   # REQ-20
+components/lazy-load-toast.ts:
+  showLazyLoadFailure(surface: string, retry: () => void): void # REQ-24
 ```
 
 **The facade is synchronous; its body is not.** `tour.ts`, `info-badges.ts`,
@@ -770,6 +808,30 @@ Scenario: The Render button says why it takes two bars (v9)
   Then the modal explains the import into a sampler slot and the second pass
     that lets the reverb tail blend into the loop
 # pinned by: tests/ui/help-content.test.ts (topic copy), e2e/onboarding.spec.ts
+
+Scenario: The ? button says so when the About body cannot load (v25, REQ-24, regression)
+  Given the About modal body has not loaded and its import will reject
+  When the user clicks the ? button
+  Then no card is appended, and a toast names Help & About and offers Retry
+  And the toast says "you're offline and this part of the app isn't
+    downloaded yet" while navigator.onLine is false, and "the download failed"
+    while it is true
+# pinned by: tests/ui/lazy-load-failure.test.ts
+
+Scenario: Retry opens About once the import succeeds (v25, REQ-24, regression)
+  Given the ? button raised the load-failure toast
+  When the import stops rejecting and the user clicks Retry
+  Then the About card opens normally
+# pinned by: tests/ui/lazy-load-failure.test.ts
+
+Scenario: A failed onboarding load is retryable, not permanent (v25, REQ-24, regression)
+  Given the facade's import of onboarding-impl rejects
+  When startTour() is called
+  Then a toast names the guided tour and offers Retry
+    — and names the info badges instead when the ⓘ toggle is what failed
+  And the memoized promise has been cleared, so a later call imports again
+    and starts the tour rather than replaying the cached rejection
+# pinned by: tests/ui/lazy-load-failure.test.ts
 ```
 
 ## Tests & verification
@@ -781,6 +843,12 @@ Scenario: The Render button says why it takes two bars (v9)
   `tests/ui/about.test.ts` (the tour button, the folded key list, REQ-17b/REQ-20).
 - `tests/ui/info-badges.test.ts` (REQ-5b: the three hide rules, in a jsdom
   viewport with stubbed anchor rects).
+- REQ-24's two halves are verified apart: the **report** by
+  `tests/ui/lazy-load-failure.test.ts` (both lazy modules mocked to throw on
+  evaluation, which is what a rejected chunk fetch looks like), the
+  **prevention** only by hand — load the built app
+  online once, then reload it with DevTools ▸ Network ▸ Offline and open `?`.
+  A green suite says nothing about whether the chunk is in the cache.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

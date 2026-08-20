@@ -14,6 +14,7 @@ import {
 import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
+import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
@@ -29,7 +30,16 @@ import editStyles from '../styles/step-settings.module.css';
  * (runtime-performance.md REQ-1). Both call sites go through here.
  */
 async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions): Promise<void> {
-  const m = await import('../components/record-sound-modal');
+  let m: typeof import('../components/record-sound-modal');
+  try {
+    m = await import('../components/record-sound-modal');
+  } catch {
+    // A missing chunk is reported with a retry rather than swallowed
+    // (lazy-load-failure.md). The retry carries `opts`, so the "render into
+    // this slot" door reopens on the same slot the click named.
+    showLazyLoadFailure('the sound recorder', () => void openRecordSoundModal(engine, opts));
+    return;
+  }
   m.openRecordSoundModal(engine, opts);
 }
 

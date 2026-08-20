@@ -156,6 +156,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The Help button works offline, and says something when it can't.** The
+  Help & About card is downloaded when you first click it rather than at
+  startup, so the app boots fast — but that also meant an offline visit could
+  find it missing, and pressing **?** then did nothing at all: no card, no
+  message, nothing to tell you the app wasn't simply broken.
+
+  The card is now fetched quietly in the background on every visit, so one
+  online session is enough to keep help available offline from then on. And if
+  it still can't be loaded — a first visit that lost the connection early, say —
+  the button now says so, tells you whether you're offline or the download
+  failed, and offers **Retry**. A failed attempt no longer sticks either: once
+  you're back online, trying again works.
+
+- **No button that opens a window can fail in silence any more.** The Help
+  card was the one that got noticed, but the preset manager, the audio-export
+  dialog, the sound recorder, the WiFi-pairing modal, the AI Prompt, the guided
+  tour and the ⓘ info badges are all fetched on the click that opens them — and
+  every one of them used to do nothing at all if that fetch failed. They now all
+  report it the same way, name themselves, and offer **Retry**.
+
 - **A second tab can no longer wipe out the first one's work.** The working
   session was autosaved to one place, so with two tabs of the synth open the tab
   you switched *away* from would write its own — often older — session over the

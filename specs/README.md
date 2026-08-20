@@ -282,6 +282,7 @@ specs/
     panel-tabs.md      ·  in-title tab strip paging one faceplate panel (LFO 1 / LFO 2)
     dialog.md          ·  shared confirm/prompt/alert dialog (replaces the native ones)
     toast.md           ·  transient bottom-center notification with one action (Undo)
+    lazy-load-failure.md ·  what every deferred surface says when its import() rejects
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
     typography.md      ·  the type rule: serif is display, sans is content, mono is readouts

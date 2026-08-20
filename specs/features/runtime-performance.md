@@ -3,7 +3,9 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 5   # v5: REQ-2 — a bank of expensive artefacts is built per entry on
+version: 6   # v6: REQ-1 — deferring a surface makes its load fallible; the
+             #     trigger owes the user a report when the import rejects
+             # v5: REQ-2 — a bank of expensive artefacts is built per entry on
              #     first use, not whole; the PWM duty bank charged every patch
              #     ~86 MB of native memory for the one wave it actually used
              # v4: REQ-10 — no viewport-scaled compositing effect on a persistent
@@ -26,6 +28,7 @@ related:
   - song-mode
   - transport            # REQ-9 — the worker-timer guarantee it generalises
   - oscillators          # REQ-2 — the PWM duty bank, the worked example
+  - lazy-load-failure    # REQ-1 — what a deferred surface says when its load fails
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -43,7 +46,8 @@ source:
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/app.ts
-  - src/main.ts                             # REQ-1 — the idle warms (lamejs, onboarding)
+  - src/main.ts                             # REQ-1 — the idle warms (lamejs,
+                                            #         onboarding, About)
   - src/ui/onboarding/index.ts              # REQ-1 — the synchronous facade
   - src/ui/onboarding/onboarding-impl.ts    # REQ-1 — the lazy body behind it
   - src/ui/components/about-button.ts       # REQ-1 — eager factory, lazy modal body
@@ -116,6 +120,16 @@ so a reviewer has something concrete to hold a new feature against.
   cutting only the button would have left `main.ts` holding the modal in the entry
   chunk. A deferred surface the user can reach *offline* is warmed on idle
   ([`pwa-install.md`](pwa-install.md) REQ-6).
+
+  **Deferring makes a surface's load fallible, and that cost is the trigger's to pay**
+  (v6). A static import cannot fail after boot; an `import()` can, and the default —
+  `void open()` on a click handler — turns that failure into a control that does
+  nothing, which reads as a broken app rather than a missing chunk. So a trigger added
+  under this REQ is not finished until it also handles the rejection: the failure
+  path, its wording and its retry rule are
+  [`lazy-load-failure.md`](lazy-load-failure.md), which every deferred surface in the
+  app now routes through. (A *warm* is the exception that proves it — it swallows its
+  error precisely because it is not a gesture.)
 
   **The gate is `npm run build`:** the entry chunk stays under Vite's 500 kB warning
   threshold, and the warning firing is the signal that something joined the boot path
@@ -281,7 +295,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 
 | Rule | Enforced at |
 |---|---|
-| REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms) |
+| REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
 | REQ-2 | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
 | REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
 | REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
@@ -369,6 +383,14 @@ Scenario: opening About twice while the body loads builds one modal
   When the button is clicked twice before the import resolves
   Then one backdrop is created and appended
 # pinned by: tests/ui/about.test.ts
+
+Scenario: a deferred surface whose import rejects reports instead of doing nothing (v6, REQ-1)
+  Given a trigger whose import() rejects (offline, chunk never cached)
+  When the user activates it
+  Then a toast names the surface and offers Retry
+  And a memoizing trigger has dropped its cached rejection, so Retry can succeed
+# pinned by: tests/ui/lazy-load-failure.test.ts
+#            (behaviour spec'd in full at lazy-load-failure.md)
 
 Scenario: an open dialog does not cost the app its frame rate (REQ-10, regression)
   Given the transport is playing

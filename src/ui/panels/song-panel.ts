@@ -25,6 +25,7 @@ import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../compo
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
+import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { unresolvedTargets } from '../../state/song-validate';
 import {
   BANK_LABELS, REST, SAMPLER_SLOT_COUNT, emptyPatternSnapshot, clampTranspose,
@@ -49,10 +50,17 @@ import {
 import { openExportSongModal } from '../components/export-song-modal';
 /**
  * The export dialog loads on the click that opens it — a player who never
- * exports never pays for it (runtime-performance.md REQ-1).
+ * exports never pays for it (runtime-performance.md REQ-1). A missing chunk is
+ * reported with a retry rather than swallowed (lazy-load-failure.md).
  */
 async function openExportAudioModal(engine: StudioApi, fmt: ExportFormat): Promise<void> {
-  const m = await import('../components/export-audio-modal');
+  let m: typeof import('../components/export-audio-modal');
+  try {
+    m = await import('../components/export-audio-modal');
+  } catch {
+    showLazyLoadFailure('the audio export dialog', () => void openExportAudioModal(engine, fmt));
+    return;
+  }
   m.openExportAudioModal(engine, fmt);
 }
 import { createRecordWindowLauncher } from '../components/record-window';

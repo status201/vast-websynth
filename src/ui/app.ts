@@ -35,6 +35,7 @@ import {
 } from './machine-status';
 import { Dropdown } from './components/dropdown';
 import { createButton, setButtonLabel } from './components/button';
+import { showLazyLoadFailure } from './components/lazy-load-toast';
 import { openEmptyPlayModal, emptyPlayHintDismissed } from './components/empty-play-modal';
 import { anythingToPlay } from '../audio/transport/anything-to-play';
 import switchStyles from './styles/switch.module.css';
@@ -54,9 +55,19 @@ import type { PresetManagerOptions } from './components/preset-manager-modal';
  * The preset manager loads on the click that opens it (runtime-performance.md
  * REQ-1) — both the header button and the `openPresetImport` bridge hook, so a
  * dropped preset file pulls it in exactly like the button does.
+ *
+ * Only the import is guarded: a rejection means the chunk is missing and the
+ * user gets a retry (lazy-load-failure.md), whereas a throw from the modal
+ * itself is a bug and must not be dressed up as one.
  */
 async function openPresetManagerModal(opts: PresetManagerOptions): Promise<void> {
-  const m = await import('./components/preset-manager-modal');
+  let m: typeof import('./components/preset-manager-modal');
+  try {
+    m = await import('./components/preset-manager-modal');
+  } catch {
+    showLazyLoadFailure('the preset manager', () => void openPresetManagerModal(opts));
+    return;
+  }
   m.openPresetManagerModal(opts);
 }
 import { Song, DEMO_SONGS, demoNames } from '../state/song';
