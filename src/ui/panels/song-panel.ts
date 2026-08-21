@@ -83,7 +83,7 @@ export interface SongPanel {
   el: HTMLElement;
   /**
    * Load a demo by name AND sync the slot dropdown (shared with the demo
-   * buttons). Resolves once applied — all but the two built-in demos are
+   * buttons). Resolves once applied — all but the built-in demo are
    * fetched on click (song-mode.md REQ-12), so callers that act on the loaded
    * song must await it.
    */
@@ -485,8 +485,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // Shared demo-load: apply the song AND sync the slot dropdown. Used by the
   // demo buttons, the Load button, the guided tour and the empty-play hint.
   //
-  // **Resolves when the song has actually been applied.** Only the two built-ins
-  // are immediate; the drop-in JSON and the project zips are fetched on click
+  // **Resolves when the song has actually been applied.** Only the built-in is
+  // immediate; the drop-in JSON and the project zips are fetched on click
   // (song-mode.md REQ-12), so any caller that acts on the loaded song — the tour
   // starting the transport, the empty-play modal pressing Play — must await this
   // or it will run against the song that was there before.
@@ -727,7 +727,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     d.addEventListener('click', onClick);
     return d;
   };
-  // Drop-in JSON, then the built-ins, then the project-zip demos. `demoNames()`
+  // Drop-in JSON, then the built-in, then the project-zip demos. `demoNames()`
   // owns that order; everything routes through `loadDemo`, which knows which of
   // the three a name belongs to (the fetched ones need a user gesture anyway, so
   // decodeAudioData is unlocked — project-export.md REQ-7).

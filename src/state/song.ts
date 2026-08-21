@@ -440,50 +440,24 @@ function pad4Drum(a: DrumCell[][], b: DrumCell[][]): DrumCell[][][] {
   return [a, b, copy(a), copy(a)];
 }
 
-// --- Zombie Nation / Kernkraft 400: the 4-bar A-minor hook. 8th-note grid
-// (note on even steps), played as four distinct bars via the seq chain.
-// MIDI: A4=69 C5=72 D5=74 E5=76 F5=77
-// Bar 1: rest A  C  D  E  A  rest
-// Bar 2: rest A  C  D  E  F  E   C
-// Bar 3: D  rest rest C rest E  A
-// Bar 4: (silent — melody drops out, drums carry the bar)
-const ZN_1 = seqFromNotes(
-  [null, null, 69, null, 72, null, 74, null, 76, null, 69, null, null, null, 69, null], 0.9, 0.95);
-const ZN_2 = seqFromNotes(
-  [null, null, 69, null, 72, null, 74, null, 76, null, 77, null, 76, null, 72, null], 0.9, 0.95);
-const ZN_3 = seqFromNotes(
-  [74, null, null, null, 74, null, 72, null, null, null, 76, null, 69, null, null, null], 0.9, 0.95);
-const ZN_4 = seqFromNotes(
-  [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null], 0.95, 0.95);
-const ZN_DRUM_A = drumFrom({
-  0: [0, 4, 8, 12],                       // four-on-the-floor
-  7: [4, 12],                             // clap on the backbeat
-  2: [0, 4, 8, 12],                       // closed hat on the beat
-  3: [2, 6, 10, 14],                      // open hat offbeats
-});
-const ZN_DRUM_B = drumFrom({
-  0: [0, 4, 8, 12], 7: [4, 12],
-  2: [0, 2, 4, 6, 8, 10, 12, 14], 3: [2, 6, 10, 14], 1: [15],
-});
-
-// --- I Feel Love: hypnotic mono octave-pulse bass through a resonant ladder ---
-const IFL_A = seqFromNotes(
+// --- Mordor: hypnotic mono octave-pulse bass through a resonant ladder ---
+const MOR_A = seqFromNotes(
   [45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45, 45, 45, 57, 45], 0.5, 0.9);
-const IFL_B = seqFromNotes(
+const MOR_B = seqFromNotes(
   [45, 45, 57, 45, 48, 48, 60, 48, 52, 52, 64, 52, 50, 50, 62, 50], 0.5, 0.9);
-const IFL_DRUM_A = drumFrom({
+const MOR_DRUM_A = drumFrom({
   0: [0, 4, 8, 12],                       // four-on-the-floor kick
   2: [0, 2, 4, 6, 8, 10, 12, 14],         // driving closed hats
   7: [4, 12],                             // clap backbeat
 });
-const IFL_DRUM_B = drumFrom({
+const MOR_DRUM_B = drumFrom({
   0: [0, 4, 8, 12], 2: [0, 2, 4, 6, 8, 10, 12, 14],
   3: [2, 6, 10, 14], 7: [4, 12], 1: [15], // + open-hat offbeats & pickup
 });
 
 /**
  * Drop-in demos: any `*.json` SongFile in `./demos` is auto-registered, ordered
- * by filename, and listed *before* the hand-authored built-ins below so
+ * by filename, and listed *before* the hand-authored built-in below so
  * dropped-in songs lead the demo button row.
  *
  * **Fetched on click, not bundled** (song-mode.md REQ-11). Eagerly importing
@@ -527,42 +501,10 @@ export const JSON_DEMOS: DemoRef[] = Object.keys(DEMO_URLS)
   });
 
 const BUILTIN_DEMOS: Record<string, SongFile> = {
-  'Zombie Nation': {
+  'Mordor': {
     format: 'websynth-song',
     version: 1,
-    name: 'Zombie Nation',
-    params: {
-      ...baseParams(),
-      'voicing.mode': 0,            // mono lead
-      // Dirty: saw + detuned square, fat unison beating, a little noise,
-      // a driven resonant ladder and a distortion stage on top.
-      'osc1.wave': 2, 'osc1.octave': 0, 'osc1.level': 0.85,
-      'osc2.wave': 3, 'osc2.octave': -1, 'osc2.detune': 12, 'osc2.level': 0.4,
-      'unison.voices': 3, 'unison.detune': 24,
-      'mixer.noise': 0.06, 'mixer.glide': 0, 'glide.mode': 0,
-      'filter.cutoff': 70, 'filter.resonance': 0.6, 'filter.drive': 2.0, 'filter.envAmount': 16,
-      'env.amp.attack': 0.004, 'env.amp.decay': 0.15, 'env.amp.sustain': 0.16, 'env.amp.release': 0.14,
-      'env.fil.attack': 0.004, 'env.fil.decay': 0.3, 'env.fil.sustain': 0.4, 'env.fil.release': 0.2,
-      'fx.dist.on': 1, 'fx.dist.drive': 0.55, 'fx.dist.tone': 3000, 'fx.dist.mix': 0.85,
-      'fx.delay.on': 1, 'fx.delay.time': 0.21, 'fx.delay.feedback': 0.3, 'fx.delay.mix': 0.22,
-      'fx.reverb.on': 1, 'fx.reverb.size': 0.45, 'fx.reverb.damp': 0.5, 'fx.reverb.mix': 0.12,
-      'analog.drift': 0.1,
-      'transport.bpm': 130,
-    },
-    seqBanks: [ZN_1, ZN_2, ZN_3, ZN_4],
-    drumBanks: pad4Drum(ZN_DRUM_A, ZN_DRUM_B),
-    seqChain: { enabled: true, steps: [0, 1, 2, 3] },   // four distinct bars
-    drumChain: { enabled: true, steps: [0, 0, 0, 1] },  // fill on bar 4
-    xy: {
-      'x': 'osc1.octave',
-      'y': 'osc2.octave'
-    },
-  },
-
-  'I Feel Love': {
-    format: 'websynth-song',
-    version: 1,
-    name: 'I Feel Love',
+    name: 'Mordor',
     params: {
       ...baseParams(),
       'voicing.mode': 0,            // mono
@@ -586,17 +528,17 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
       'transport.bpm': 125,
       'drum.master': 0.9,
     },
-    seqBanks: pad4Seq(IFL_A, IFL_B),
-    drumBanks: pad4Drum(IFL_DRUM_A, IFL_DRUM_B),
+    seqBanks: pad4Seq(MOR_A, MOR_B),
+    drumBanks: pad4Drum(MOR_DRUM_A, MOR_DRUM_B),
     seqChain: { enabled: true, steps: [0, 0, 0, 1] },   // A A A B
     drumChain: { enabled: true, steps: [0, 1] },
   },
 };
 
 /**
- * The demos that ship *inside the bundle* — the two hand-authored literals.
- * They stay synchronous because callers depend on it: the guided tour applies
- * one mid-step, and `ai-prompt.ts` renders `DEMO_SONGS['I Feel Love']` as its
+ * The demo that ships *inside the bundle* — the one hand-authored literal.
+ * It stays synchronous because callers depend on that: `Song.loadSlot` falls
+ * back to it, and `ai-prompt.ts` renders `DEMO_SONGS['Mordor']` as its
  * worked example. The drop-ins are `JSON_DEMOS` (fetched on click) and the
  * project bundles are `ZIP_DEMOS`; `SongPanel.loadDemo` dispatches across all
  * three, and `demoNames()` lists them in button order.
@@ -658,10 +600,10 @@ export function demoNames(): string[] {
  * name no source owns.
  *
  * The drop-ins and zips read it straight out of the generated index — they are
- * fetched on click, so nothing else can know their tempo before then. The two
- * **built-ins** are TS literals already in memory, so their facts are derived on
- * the spot instead; there are two of them and it happens once per button, which
- * is cheaper than teaching the generator about a source it cannot see.
+ * fetched on click, so nothing else can know their tempo before then. The
+ * **built-in** is a TS literal already in memory, so its facts are derived on
+ * the spot instead; it happens once per button, which is cheaper than teaching
+ * the generator about a source it cannot see.
  */
 export function demoMetaFor(name: string): DemoMeta | null {
   const ref = JSON_DEMOS.find((d) => d.name === name) ?? ZIP_DEMOS.find((d) => d.name === name);

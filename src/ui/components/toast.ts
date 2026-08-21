@@ -4,7 +4,7 @@ import styles from '../styles/toast.module.css';
 
 /**
  * Transient bottom-center notification with an optional single action button
- * (e.g. "Loaded Zombie Nation — Undo"). Non-modal: never steals focus, never
+ * (e.g. "Loaded Mordor — Undo"). Non-modal: never steals focus, never
  * blocks input, announces politely via `role="status"`. One toast at a time —
  * showing a new one replaces (and dismisses) the previous, so a caller holding
  * state in the toast's closure (the session-undo stash) knows exactly when its

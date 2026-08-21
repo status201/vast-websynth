@@ -43,7 +43,7 @@ action?, advanceOn? }`. `TourCtx` hooks: `bus, engine, toggleTransport, applyDem
 resumeAudio, expandFx`.
 
 `action` may return a promise and the tour **awaits** it before advancing, which
-matters for `applyDemo`: all but the two built-in demos are fetched on click
+matters for `applyDemo`: all but the built-in demo are fetched on click
 ([song-mode](../features/song-mode.md) REQ-12), so a step that loads a demo *and
 then acts on it* — starting the transport, say — must `await` or it will act on
 whatever was loaded before. `resumeAudio` is async for the same reason.

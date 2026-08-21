@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- **The *Zombie Nation* demo.** One of the two demos that shipped as code rather
+  than as a drop-in file; the shelf keeps the other 24.
+
+### Changed
+
+- **The *I Feel Love* demo is now called *Mordor*.** A rename only — the same
+  patch, banks and chains, so it sounds exactly as it did. It is also the song
+  the ✨ AI Prompt modal hands you as its worked example.
+
 ### Added
 
 - **Two demos for the new micro-timing and time gignatures features — Gankogui and

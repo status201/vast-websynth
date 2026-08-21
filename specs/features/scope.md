@@ -852,7 +852,7 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   delta, and survives a `reload()` — `npm run e2e`.
 - Typecheck: `npm run typecheck`.
 - **By eye (ADR-010)** — the auto-gain is a *look*, so a green suite does not verify
-  it. Load a quiet demo (**Nocturne**) and a loud one (**Zombie Nation**) in Wave
+  it. Load a quiet demo (**Nocturne**) and a loud one (**Mordor**) in Wave
   view: the quiet one must draw a readable trace (roughly half the panel) and the
   loud one must still draw visibly taller. Then check silence settles flat, a
   transient from silence does not paint outside its region, and Stereo keeps the L/R

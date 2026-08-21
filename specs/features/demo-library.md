@@ -28,7 +28,7 @@ source:
 ## Background / Why
 
 The library is the instrument's shop window — every song in `src/state/demos/`
-plus the two built-ins, and for most visitors the only music they will ever hear
+plus the built-in, and for most visitors the only music they will ever hear
 it make. Until now **nothing described them**.
 `demos-index.json` carried exactly one field per demo, `filename → name`, minted
 purely so the buttons could be labelled after demos became fetch-on-click

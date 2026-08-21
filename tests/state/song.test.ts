@@ -420,7 +420,7 @@ describe('Song', () => {
       const { bus, patterns, arr } = rig();
       const sampler = fakeSampler();
 
-      const v1 = demo(); // Zombie Nation — no sampler section at all
+      const v1 = demo(); // the v1 fixture — no sampler section at all
       expect(v1.sampleNames).toBeUndefined();
 
       Song.apply(v1, bus, patterns, arr as never, undefined, sampler);
@@ -478,7 +478,7 @@ describe('Song', () => {
       const target = new XyPadStore();
       target.set({ x: 'lfo.rate', y: 'lfo.amount' }); // pre-existing assignment
 
-      const v1 = demo(); // Zombie Nation, version 1
+      const v1 = demo(); // the v1 fixture
       delete v1.xy; // demos may carry an xy assignment; this test needs an xy-less file
       expect(v1.xy).toBeUndefined();
       Song.apply(v1, bus, patterns, arr as never, target);

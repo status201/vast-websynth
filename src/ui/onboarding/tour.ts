@@ -21,7 +21,7 @@ export interface TourCtx {
   /** Toggle the transport via the header button (keeps the LED/label synced). */
   toggleTransport: () => void;
   /** Load a demo song by name (does NOT start the transport). */
-  /** Load a demo song. Async — all but the two built-ins are fetched on click
+  /** Load a demo song. Async — all but the built-in are fetched on click
    *  (song-mode.md REQ-12), so a step that acts on the loaded song must await. */
   applyDemo: (name: string) => Promise<void>;
   /** Resume the AudioContext (idempotent) — needed before the note step. */

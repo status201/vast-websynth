@@ -3,7 +3,9 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 21  # v21: step cells carry the optional `micro` notch count — additive,
+version: 22  # v22: REQ-12 — one hand-authored built-in, not two: the "Zombie
+             #      Nation" demo is gone and "I Feel Love" is now "Mordor"
+             # v21: step cells carry the optional `micro` notch count — additive,
              #      default 0, dropped when default, so no SongFile version bump
              #      (step-settings.md REQ-6)
              # v20: REQ-12 — demoNames() is one alphabetical list by display name,
@@ -174,9 +176,10 @@ demos, the load path **must stay backward compatible** as the format grows.
   keys off audibility only, never off `<machine>.on`.
 - **REQ-12** (drop-in demos are fetched on click, v11) — There are **three** demo
   sources and `SongPanel.loadDemo(name)` dispatches across all of them:
-  - `DEMO_SONGS` — the two hand-authored built-ins. Bundled, **synchronous**,
-    because callers depend on that: the guided tour applies one mid-step and
-    `ai-prompt.ts` renders `DEMO_SONGS['I Feel Love']` as its worked example.
+  - `DEMO_SONGS` — the one hand-authored built-in, **Mordor**. Bundled,
+    **synchronous**, because callers depend on that: `Song.loadSlot` falls back
+    to it, and `ai-prompt.ts` renders `DEMO_SONGS['Mordor']` as its worked
+    example.
   - `JSON_DEMOS` — the `src/state/demos/*.json` drop-ins, as `{name, url}`.
     **Fetched on click** and parsed through the same `Song.parse` the Import
     button uses, so a corrupt drop-in reports what is actually wrong with it.
@@ -541,7 +544,7 @@ demos:       three sources, merged and sorted by display name by demoNames() —
              REQ-12 (the source a demo comes from does not affect its position):
                JSON_DEMOS  = src/state/demos/*.json via import.meta.glob '?url',
                              fetched on click; names from src/state/demos-index.json
-               DEMO_SONGS  = the two hand-authored built-ins (bundled, sync)
+               DEMO_SONGS  = the one hand-authored built-in (bundled, sync)
                ZIP_DEMOS   = src/state/demos/*.websynth.zip via '?url', fetched on click
              stored canonical + pretty-printed; re-canonicalize via `npm run clean:demos`
              (auto-run by `npm run build` via prebuild) — which also regenerates
