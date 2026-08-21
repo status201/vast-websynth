@@ -3,7 +3,16 @@
 ```yaml
 id: motion-sequencer
 status: implemented
-version: 15  # v15: the lane follows the meter, curve included (REQ-24)
+version: 16  # v16: the graph follows the lane's length, not the bank's (REQ-24b),
+             #      and a bank parks at its last anchor when the chain hands
+             #      over, so a lane that does not tile the bar stops stranding
+             #      its params mid-sweep (REQ-25). REQ-8's account of the overlay
+             #      is corrected to what it draws — a line whose anchor markers
+             #      the stretched viewBox flattens into ticks; the DOT is the
+             #      pad's, and the two mark different quantities. It also still
+             #      said "16 squares" three versions after the lane stopped
+             #      being 16 (REQ-24)
+             # v15: the lane follows the meter, curve included (REQ-24)
              # v14: the A/B lanes' repaint is visibility-gated like the XY graph
              #      beside them — it was rebuilding SVG every bar off-screen (REQ-16b)
              # v13: an unresolvable automation target is reported as a warning
@@ -148,8 +157,25 @@ The tab sits between Sampler and Song.
   gesture, double-click/double-tap clears; the dot sits at the literal coordinate.
   (v11) *When* that set commits, and the snap/fine/peek modifiers around it, are
   REQ-23; the value it shows while you do it is REQ-22.
-  An SVG polyline overlay traces the **selected axis** across the 16 squares
-  (view toggle Y/X, default Y — a local view state, not a param; dots never move).
+  An SVG polyline overlay traces the **selected axis** across the lane's cells
+  (view toggle Y/X, default Y — a local view state, not a param; the *pads'* dots
+  never move, since each is its cell's literal `(x, y)` and neither axis is a
+  projection).
+
+  **What the overlay actually draws** is a line, not dots. Its SVG is a 0–100
+  `viewBox` with `preserveAspectRatio="none"` stretched over a row that is ~1170
+  px wide and 64 px tall, so only the polylines keep their weight
+  (`vector-effect: non-scaling-stroke`); the per-anchor `<circle r="1.1">` the
+  panel appends has no such escape and is drawn as a ~26 × 1.4 px ellipse — a
+  short horizontal tick that reads as the line thickening, never as a dot. That
+  is the intended division of labour and not a rendering bug to chase: **the pad
+  owns the dot** (9 px, round, glowing, at the literal `(x, y)` within its cell,
+  `motion.module.css` `.dot`) and **the graph owns the line**. The two do not
+  even mark the same quantity — a graph tick sits at its anchor's *step
+  position*, i.e. its cell's horizontal centre, while the pad's dot sits at that
+  anchor's *x value* inside the cell, so at `x = 0.78` they are deliberately
+  ~28 % of a cell apart. Reading the tick as a misplaced dot is what makes the
+  overlay look broken; it is the line's own punctuation.
   The line is **mode-aware** (v2): in Slide mode it is the anchor-to-anchor
   polyline; in Step mode it is a full-width **staircase** (jump-and-hold at each
   anchor, including the last→first wrap hold before the first anchor — a single
@@ -161,13 +187,15 @@ The tab sits between Sampler and Song.
   the motion chain lane around the edit bank (lane disabled or bank absent from the
   chain ⇒ the bank itself — the self-loop that plays), so both edges stay flat when
   nothing carries. The geometry is the
-  pure `motionGraphPoints(bank, view, mode, neighbours?)`
+  pure `motionGraphPoints(bank, view, mode, neighbours?, cells?)`
   (`ui/components/motion-graph.ts`), whose edge values come from `valueAt` itself so
   the picture cannot drift from playback;
-  the panel redraws on its lane's `slide` param, chain and assignment changes.
+  the panel redraws on its lane's `slide` param, chain and assignment changes, and
+  (v16) on any meter change — `cells` is part of the geometry now (REQ-24b).
   (v5) The panel is **one header per lane**, each naming what that lane drives
-  and how it interpolates, with its 16 cells full width beneath — so all three
-  lanes share one 16-column grid and step *n* reads vertically across them:
+  and how it interpolates, with its cells full width beneath — so all three
+  lanes share one grid, sized by the meter (v15, REQ-24), and step *n* reads
+  vertically across them:
     - the **machine header** carries only machine-level controls — `motion.on`
       switch, BankBar (`bank-motion-*`), undo, `Clear ▾`;
     - the **XY lane header** sits *above* the pads with the XY Pad launcher
@@ -253,7 +281,9 @@ The tab sits between Sampler and Song.
   the tracks'.
 - **REQ-16** — **UI**: two lanes below the XY lane, each a **header row** (label,
   param dropdown, and its own Slide/Step segmented — `seg-motion.t<i>.slide`)
-  above 16 full-width **level pads** — drag up/down to set the value (the pad
+  above its full-width **level pads** — one per lane cell (v15, REQ-24: all 16 are
+  built, and the ones past the lane are `hidden`, so they leave the grid rather
+  than wrapping onto a second row) — drag up/down to set the value (the pad
   fills from the bottom), double-click/double-tap to clear, matching the XY pads'
   gesture family ([step-grid-editing](step-grid-editing.md) REQ-9) — the same
   component, so REQ-22's readout and REQ-23's peek/snap/fine apply here
@@ -506,6 +536,50 @@ The tab sits between Sampler and Song.
   ramps toward a boundary it never reaches. The machine keeps reading the **raw**
   step: automation must not follow a stutter remap ([meter](meter.md) REQ-17).
 
+- **REQ-24b** (v16) — **The graph follows the lane too.** `motionGraphPoints` /
+  `motionGraphPoints1D` take the same `cells` REQ-24 gave `scalarAt`, and every
+  coordinate they produce is a fraction of *that* — anchor centres at
+  `(s + 0.5) / cells`, the trailing edge sampled at the lane's seam, and anchors
+  past `cells` (invisible to the curve) not drawn at all. The panel passes
+  `laneGrid(bus, 'motion').cells` and repaints all three lanes on any meter
+  change, alongside the column count `bindLaneGrid` already owns.
+
+  Until v16 the geometry used `bank.length`, i.e. always 16, while the grid
+  beneath it drew `cells` columns — so a shortened lane squeezed its whole curve
+  into the left `cells/16` of the row and every jump landed in the wrong cell. At
+  `motion.len = 9` the anchor on step 5 drew its staircase edge over step **3**,
+  where there is no pad dot to explain it. The graph's whole claim is that its
+  edge values come from `scalarAt` itself so the drawing cannot drift from what
+  plays; drawing them at a different scale broke that claim in the one place a
+  reader would blame the sequencer rather than the drawing code.
+
+- **REQ-25** (v16) — **A bank parks at its last anchor when the chain leaves
+  it.** On the frame the governing tick's play bank changes (or goes to a rest),
+  the machine evaluates the **outgoing** bank once more at its lane seam
+  (`barPos → 1⁻`, no carry — which in both modes is exactly its last in-lane
+  anchor) and writes that, for every param the incoming bar does **not** drive
+  itself. Params the incoming bar keeps driving are skipped: it writes them this
+  same frame, and parking them first would insert a value the curve never
+  contains between the two.
+
+  This is the guarantee the Pitfalls section has claimed since v3 — "the held
+  value is the bank's last anchor, which is what the author drew" — made true
+  again. It held for free while every lane was 16 cells against a 16-tick bar,
+  because the bar line and the lane seam were the same instant. REQ-24's lane
+  lengths broke that: a lane that does not tile the bar ends its bar wherever the
+  phase happens to fall, so the bank parked on an arbitrary mid-sweep value and
+  — with nothing else driving those params — held it until the bank came round
+  again. A lane that *does* tile the bar already ends on its last cell, so the
+  value written here is the one already there and nothing about those songs
+  changes.
+
+  The park records baselines like any other write (REQ-5), so stop still returns
+  everything to its pre-play value; it is bracketed by the same
+  `withoutChangeSignal` as the frame that contains it (REQ-15/REQ-18); and it is
+  armed only by a *played* handover — `onStart`, `onSeek` and every baseline
+  restore clear it, so a seek or a stop never parks a bank the transport never
+  left.
+
 ## Technical design
 
 ### Gesture inventory
@@ -578,6 +652,10 @@ from both firing. Note the previously "saturated" motion column in
   `setTrackSlide(track, on)` (v5 — one mode per extra track), `onStep(cb)` (playhead),
   `stop()` restore hook via `clock.onStop`, plus a `clock.onSeek` hook that clears
   the `prev`/`curr` latch **without** touching the baselines (v10, REQ-21).
+  (v16) One more piece of latch state, `held` — the bank whose writes are live, or
+  `-1` while resting and before the first frame — drives REQ-25's handover park.
+  It is cleared wherever the latch is (`onStart`, `onSeek`) and by every baseline
+  restore, so only a handover the transport actually played can park a bank.
   Constructed by `Engine.init()` after
   the sampler (Arrangement first, as for all machines); exposed on `StudioApi` as
   `motion`. `MotionMachineOpts` carries the injectable seams the loop needs:
@@ -618,11 +696,18 @@ from both firing. Note the previously "saturated" motion column in
   (v3) — the one-line per-axis override/fallback rule (REQ-4), shared by
   `createEffectiveXy`, `MotionMachine`'s neighbour gate and the panel's graph.
 - `src/ui/components/motion-graph.ts` (pure, v2):
-  `motionGraphPoints(bank, view, mode, neighbours?)
+  `motionGraphPoints(bank, view, mode, neighbours?, cells?)
   → { line: [x,y][]; dots: [x,y][]; carry: [x,y][][] }` in the
-  graph SVG's 0–100 viewBox space (dots at anchor centres; step mode's line is
+  graph SVG's 0–100 viewBox space (`dots` at anchor centres; step mode's line is
   the wrap-aware staircase; `carry` holds the 0–2 dashed bar-edge segments, v3).
-  No DOM — unit-testable like `motion-curve.ts`.
+  `dots` is *geometry*, not the visible anchor marker: the panel strokes each as a
+  `<circle r="1.1">` that the non-uniform viewBox flattens into a tick on the line
+  (REQ-8) — the round dot a reader sees belongs to the pad underneath.
+  `cells` (v16, REQ-24b) is the lane's played length and defaults to the whole
+  bank, exactly as it does on `scalarAt` — one argument, threaded from the same
+  `laneGrid` the columns come from, is what keeps the drawing and the playing on
+  the same grid. `motionGraphPoints1D(steps, mode, neighbours?, cells?)` is the
+  A/B lanes' entry point. No DOM — unit-testable like `motion-curve.ts`.
 
 ### Data shapes
 
@@ -707,7 +792,7 @@ Scenario: Two lanes interpolate differently in the same bar (v5)
 Scenario: Every lane's controls sit above its own cells (v5)
   Given the Motion tab is open
   Then the XY Pad launcher, view toggle, Slide/Step, axis dropdowns and the
-    "graph:" hint are all in one row ABOVE the 16 XY pads
+    "graph:" hint are all in one row ABOVE the XY pads
   And each track's label, param picker and Slide/Step sit above its own cells
   And a single dashed divider separates the XY lane from the tracks
   And a solid divider separates the machine header from the XY lane (v6)
@@ -841,6 +926,36 @@ Scenario: Step mode graphs as a square line (v2)
     bar start to step 2 (wrap), jumps there, holds to step 10, jumps, holds to the end
   And in slide mode the same anchors draw the plain anchor-to-anchor polyline
 # pinned by: tests/ui/motion-graph.test.ts
+
+Scenario: The graph is drawn on the lane's cells, not the bank's 16 (v16, REQ-24b, regression)
+  Given motion.len is 9 and the XY lane has anchors on steps 1, 5 and 9
+  When the graph is drawn
+  Then the anchor points sit at the centres of cells 1, 5 and 9 of the NINE the grid
+    draws — the step-5 anchor's staircase edge over its own pad, not over step 3
+  And an anchor on a step past the lane's length is not drawn at all, matching the
+    curve that cannot see it (REQ-24)
+  And changing motion.len, motion.rate or the meter repaints all three lanes
+# pinned by: tests/ui/motion-graph.test.ts, tests/ui/motion-panel.test.ts
+
+Scenario: A bank parks at its last anchor when the chain hands over (v16, REQ-25, regression)
+  Given a 12/8 bar (24 ticks) and a motion lane of 9 cells at 1/8 — 18 ticks, so it
+    does not tile the bar
+  And bank B overrides the axes to params no other bank drives, sweeping up on its
+    step-5 anchor and home again on its step-9 one
+  When the chain plays bank B for its bar and moves on
+  Then the bar ends mid-sweep on the raised value, but the handover writes bank B's
+    step-9 anchor — the value the author drew as its resting place
+  And the param stays there instead of holding the sweep until bank B comes round again
+# pinned by: tests/audio/transport/motion-machine.test.ts
+
+Scenario: A handover parks nothing the incoming bar drives itself (v16, REQ-25)
+  Given a chain A → B where both banks drive the same param
+  When the bar line between them is crossed
+  Then only bank B's value is written on that frame — A's seam value is never put
+    in front of it, so the carry (REQ-2b) is bit-for-bit what it was
+  And a lane that tiles the bar is unchanged either way: its bar already ends on
+    its last cell, so the parked value is the one already there
+# pinned by: tests/audio/transport/motion-machine.test.ts
 
 Scenario: Muting from the Song tab restores baselines and the pad's base axes (v2)
   Given motion is on and driving params away from their baselines
@@ -1001,6 +1116,13 @@ Scenario: Dialect motion bank expands
 - E2E: `e2e/motion.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.bus.get('<assigned id>')` while playing.
+- By ear (v16, REQ-25): the park changes what is *heard* after a handover, which
+  [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) says a green suite cannot
+  settle. Load **Gankogui** — the one demo whose lanes deliberately run three
+  cycles against a 12/8 bar — play a full chain cycle and listen for the DJ filter
+  returning to centre after bank B's bar instead of staying open until the sweep
+  comes round again. A/B it against a 4/4 demo with per-bank overrides
+  (**First_Light**), which must sound exactly as it did.
 - By hand (v11): REQ-22/REQ-23 are a *feel* change and no suite covers feel.
   Check that a coarse drag steps cleanly between snap levels rather than
   stuttering, that Shift never jumps on press or on release, that the bubble
@@ -1021,10 +1143,19 @@ Scenario: Dialect motion bank expands
   prevents clock conflicts.
 - When the chain leaves a bank whose override drove other params, those params hold
   their last written value until stop (then baselines restore). Since v3 that held
-  value is the bank's **last anchor** (the carry holds flat toward an unusable
-  neighbour), which is what the author drew — pre-v3 it was the bank's *first*
-  anchor, because the self-wrap ran back up inside the final step. To bring a param
-  home during anchorless bars, anchor them.
+  value is the bank's **last anchor**, which is what the author drew — pre-v3 it was
+  the bank's *first* anchor, because the self-wrap ran back up inside the final step.
+  Up to v15 that came for free from the carry holding flat toward an unusable
+  neighbour, and only because the bar line *was* the lane seam; since v16 the
+  handover park (REQ-25) is what makes it true for a lane that does not tile the bar.
+  To bring a param home during anchorless bars, anchor them — the last anchor is the
+  resting place, so give it the value you want left behind.
+- A lane that does not tile the bar ([meter](meter.md) REQ-10) sees its anchors more
+  than once, or not at all, within a single bar: Gankogui's 9 cells of 1/8 against a
+  24-tick 12/8 bar play cells 3,4,5,6,7,8,0,1,2,3,4,5. That is the point of
+  polymeter, but it means a bank's bar can *end* anywhere in its loop, and no anchor
+  placement can change which cell that is. REQ-25's park is what keeps the bank's
+  resting value authorable regardless.
 
 ## Open questions / future
 

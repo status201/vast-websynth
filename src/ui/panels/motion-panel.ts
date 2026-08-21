@@ -24,7 +24,7 @@ import {
   REST, MOTION_TRACK_COUNT, MOTION_TRACK_LABELS, MOTION_TRACK_STEP_DEFAULTS,
   type MotionStep, type MotionTrackStep,
 } from '../../state/patterns';
-import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
+import { ALL_CELLS, bindLaneGrid, laneGrid, onLaneGridChange } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
@@ -309,13 +309,21 @@ export function buildMotionPanel(
     return { prev: at(slot - 1), next: at(slot + 1) };
   };
 
+  /**
+   * The lane's played length — the same `laneGrid` that sets `--steps` on the
+   * three grids, so the curve is drawn over exactly the cells beneath it
+   * (REQ-24b). Read per redraw rather than captured: the meter changes under a
+   * built panel.
+   */
+  const motionCells = (): number => laneGrid(bus, 'motion').cells;
+
   const redrawGraph = (): void => {
     graph.innerHTML = '';
     // Mode-aware line (REQ-8): slide = anchor polyline; step = the true
     // jump-and-hold staircase, so the graph matches what valueAt will play.
     const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
     const { line, dots, carry } =
-      motionGraphPoints(patterns.motion, view, mode, chainNeighbours());
+      motionGraphPoints(patterns.motion, view, mode, chainNeighbours(), motionCells());
     // Dashed first, so the solid in-bar line wins where they meet.
     for (const seg of carry) strokePolyline(seg, styles.carry!);
     if (line.length > 1) strokePolyline(line);
@@ -489,7 +497,7 @@ export function buildMotionPanel(
       graph.innerHTML = '';
       const mode = bus.get(`motion.t${track}.slide`) >= 0.5 ? 'slide' : 'step';
       const { line, dots, carry } =
-        motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param));
+        motionGraphPoints1D(t.steps, mode, trackNeighbours(track, t.param), motionCells());
       for (const seg of carry) strokePolylineIn(graph, seg, styles.carry!);
       if (line.length > 1) strokePolylineIn(graph, line);
       for (const [px, py] of dots) {
@@ -590,6 +598,14 @@ export function buildMotionPanel(
   bus.subscribe('motion.slide', redrawGraphIfShown);
   // Chain edits (and each bar's advance) move which banks border this one.
   engine.arrangement.onChange(redrawGraphIfShown);
+  // LEN / RATE / the meter change how many cells the curve is drawn over
+  // (REQ-24b), so all three lanes re-project — the column count `bindLaneGrid`
+  // sets above is only half of following the meter. Fires once on bind, which
+  // is harmless: the initial draws below are idempotent.
+  onLaneGridChange(bus, 'motion', () => {
+    redrawGraphIfShown();
+    repaintTracksIfShown();
+  });
 
   redrawGraph();
   refreshAxes();

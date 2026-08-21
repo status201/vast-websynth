@@ -90,4 +90,49 @@ describe('motionGraphPoints (motion-sequencer.md REQ-8)', () => {
       expect(carry).toEqual([]);        // the staircase already spans the bar
     });
   });
+
+  describe("drawn on the lane's cells, not the bank's 16 (v16, REQ-24b)", () => {
+    /** Anchor-centre x for a lane of `cells` columns. */
+    const cxOf = (s: number, cells: number): number => ((s + 0.5) / cells) * 100;
+    /** Gankogui's shape: a home anchor, a raised one, home again. */
+    const swept = bank({
+      0: { x: 0.5, y: 0.4 }, 4: { x: 0.5, y: 0.75 }, 8: { x: 0.5, y: 0.4 },
+    });
+
+    it('puts every anchor over its own pad', () => {
+      const { dots } = motionGraphPoints(swept, 'y', 'step', {}, 9);
+      expect(dots).toEqual([[cxOf(0, 9), 60], [cxOf(4, 9), 25], [cxOf(8, 9), 60]]);
+    });
+
+    it('jumps where the pad is, not where 16 cells would have put it (regression)', () => {
+      const { line } = motionGraphPoints(swept, 'y', 'step', {}, 9);
+      // The bug: at a fixed 16 the step-4 anchor drew its edge at 28.125% —
+      // inside cell 3 of a nine-column grid, with no pad dot to explain it.
+      expect(line).toContainEqual([cxOf(4, 9), 25]);
+      expect(line.some(([px]) => px === cxOf(4, 16))).toBe(false);
+    });
+
+    it('does not draw an anchor the lane is too short to reach', () => {
+      // Cell 8 is past a 6-cell lane, so the curve cannot see it (REQ-24) and
+      // neither can the graph — the line ends holding cell 4's value.
+      const { dots, line } = motionGraphPoints(swept, 'y', 'step', {}, 6);
+      expect(dots).toEqual([[cxOf(0, 6), 60], [cxOf(4, 6), 25]]);
+      expect(line[line.length - 1]).toEqual([100, 25]);
+    });
+
+    it('samples the bar edges at the lane seam, not the bank end', () => {
+      // Slide, self-wrapping: the wrap runs cell 4 → cell 2 the long way round,
+      // which over SIX cells is 4 long and the bar start sits 2 of them in — so
+      // the carried-in edge is halfway. Over sixteen it would be 6/7 of the way.
+      const b = bank({ 2: { x: 0.5, y: 1 }, 4: { x: 0.5, y: 0 } });
+      const { carry } = motionGraphPoints(b, 'y', 'slide', {}, 6);
+      expect(carry[0]).toEqual([[0, 50], [cxOf(2, 6), 0]]);
+    });
+
+    it('omitting cells — or overshooting it — still spans the whole bank', () => {
+      const full = motionGraphPoints(swept, 'y', 'step');
+      expect(motionGraphPoints(swept, 'y', 'step', {}, 16)).toEqual(full);
+      expect(motionGraphPoints(swept, 'y', 'step', {}, 99)).toEqual(full);
+    });
+  });
 });

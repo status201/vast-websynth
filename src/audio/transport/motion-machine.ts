@@ -13,6 +13,14 @@ import { ListenerSet } from '../../utils/listeners';
 
 export type MotionStepListener = (step: number) => void;
 
+/**
+ * "Evaluate this bank alone." Shared by the handover park (REQ-25), whose whole
+ * point is the value the bank rests at rather than anything it was ramping
+ * toward — and which only ever runs for params the next bar does not drive, i.e.
+ * exactly where `carryBank` would have returned null anyway.
+ */
+const NO_CARRY = { prev: null, next: null };
+
 /** The slice of `document` the frame loop's driver swap needs (REQ-20). */
 export interface VisibilitySource {
   readonly hidden: boolean;
@@ -84,6 +92,13 @@ export class MotionMachine {
     Array.from({ length: MOTION_TRACK_COUNT }, () => 'slide' as MotionMode);
   private curr: LatchedTick | null = null;
   private prev: LatchedTick | null = null;
+  /**
+   * The bank whose writes are live — `-1` while resting, and before the first
+   * frame of a play session or of a seek. The handover park (REQ-25) reads it to
+   * know which bank the chain just *left*; clearing it wherever the latch is
+   * cleared is what keeps a seek or a stop from parking a bank nobody left.
+   */
+  private held = -1;
   private readonly baselines = new Map<string, number>();
   private readonly stepListeners = new ListenerSet<[number]>();
   /** Anchor-index memo for the frame loop; dropped on any bank mutation. */
@@ -157,6 +172,7 @@ export class MotionMachine {
     });
     clock.onStart(() => {
       this.curr = this.prev = null;
+      this.held = -1;
       if (this.active) this.startLoop();
     });
     clock.onStop(() => {
@@ -170,7 +186,10 @@ export class MotionMachine {
     // param's value from before automation first touched it, for the whole play
     // session, and re-capturing them from automated values would lose the user's
     // original sound for good (motion-sequencer.md REQ-21).
-    clock.onSeek(() => { this.curr = this.prev = null; });
+    // `held` goes with the latch (v16): a seek lands wherever it lands, and the
+    // bank it left was never *played* out of — parking it would write a value
+    // the transport never reached (REQ-25).
+    clock.onSeek(() => { this.curr = this.prev = null; this.held = -1; });
 
     // Anchor sets are cached across frames, and banks are mutated in place — so
     // every stream that can flip a step's `on` must drop the memo. Cheap to be
@@ -255,6 +274,13 @@ export class MotionMachine {
     // rests and bank switches land on the heard bar boundary.
     const tick = nowS < curr.when && this.prev ? this.prev : curr;
     if (tick.dur <= 0) return;
+
+    // The chain has moved on — park the bank it left at its last anchor before
+    // this bar writes anything (REQ-25). A rest holds nothing of its own, so it
+    // reads as "no bank live" on both sides of the comparison.
+    const live = tick.resting ? -1 : tick.playBank;
+    if (this.held >= 0 && this.held !== live) this.parkBank(this.held, tick);
+    this.held = live;
     if (tick.resting) return;
 
     const bank = this.patterns.motionBank(tick.playBank);
@@ -296,6 +322,73 @@ export class MotionMachine {
     { prev: null, next: null };
   private readonly trackNeighbours: { prev: readonly MotionTrackStep[] | null; next: readonly MotionTrackStep[] | null } =
     { prev: null, next: null };
+
+  /** Park scratch: the outgoing bank's axes, and every id the incoming bar drives. */
+  private readonly heldAxes: XyAssign = { x: '', y: '' };
+  private readonly driven = new Set<string>();
+
+  /**
+   * The chain has left `outBank` (REQ-25). Write its **last in-lane anchor** —
+   * the curve at the lane's seam, with no carry, which is that anchor in both
+   * modes — for every param the incoming bar does not drive itself.
+   *
+   * Without this a bank parks wherever the bar line happened to fall inside its
+   * loop. While every lane was 16 cells against a 16-tick bar those were the
+   * same instant, so the bank always ended on its last cell for free; a lane
+   * that does not tile the bar (meter.md REQ-10) ends its bar mid-sweep, and
+   * with nothing else driving those params they held that arbitrary value until
+   * the bank came round again. A lane that *does* tile the bar writes the value
+   * already there, so nothing about those songs changes.
+   *
+   * Params the incoming bar keeps driving are skipped rather than written and
+   * immediately overwritten: it evaluates them later in this same frame, and
+   * putting the outgoing seam in front of that would insert a value the curve
+   * never contains — exactly what REQ-2b's carry exists to avoid.
+   *
+   * Runs at most once per bar, so it may allocate nothing per *frame* but is not
+   * on the 60 fps path itself (runtime-performance.md REQ-6); the scratch above
+   * is reused all the same, since `runFrame` refills its own straight after.
+   */
+  private parkBank(outBank: number, incoming: LatchedTick): void {
+    const base = this.base;
+    this.xy.readAssignInto(base);
+    this.fillDriven(incoming, base);
+    const axes = this.heldAxes;
+    motionAxesInto(this.patterns, outBank, base, axes);
+    const cells = this.lane.cells;
+    // A sliver before the seam — `barPos` 1 wraps back to 0, which would give
+    // the bank's *opening* value instead of its last anchor.
+    const seam = (cells - 1e-6) / cells;
+    const bank = this.patterns.motionBank(outBank);
+    if (valueAtInto(bank, seam, this.mode, NO_CARRY, this.anchors, this.xyOut, cells)) {
+      if (!this.driven.has(axes.x)) this.write(axes.x, this.xyOut.x);
+      if (!this.driven.has(axes.y)) this.write(axes.y, this.xyOut.y);
+    }
+    const tracks = this.patterns.motionTracks(outBank);
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const track = tracks[t];
+      const id = track?.param;
+      if (!track || !id || this.driven.has(id)) continue;
+      const v = valueAt1D(track.steps, seam, this.trackModes[t]!, NO_CARRY, this.anchors, cells);
+      if (v !== null) this.write(id, v);
+    }
+  }
+
+  /** Every param id the incoming bar drives itself — a rest drives none. */
+  private fillDriven(tick: LatchedTick, base: XyAssign): void {
+    const ids = this.driven;
+    ids.clear();
+    if (tick.resting) return;
+    const axes = this.axes;
+    motionAxesInto(this.patterns, tick.playBank, base, axes);
+    ids.add(axes.x);
+    ids.add(axes.y);
+    const tracks = this.patterns.motionTracks(tick.playBank);
+    for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
+      const id = tracks[t]?.param;
+      if (id) ids.add(id);
+    }
+  }
 
   /**
    * The extra single-param tracks (REQ-13/REQ-14). Each is evaluated with the
@@ -373,6 +466,9 @@ export class MotionMachine {
   private readonly runRestoreBaselines = (): void => {
     for (const [id, v] of this.baselines) this.bus.set(id, v);
     this.baselines.clear();
+    // Nothing is live any more, so the next frame must not park what this just
+    // undid (REQ-25) — a stop, a mute or motion.on → 0 is not a handover.
+    this.held = -1;
   };
 
   private startLoop(): void {

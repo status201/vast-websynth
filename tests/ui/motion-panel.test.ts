@@ -167,3 +167,43 @@ describe('Motion panel lane repaint (REQ-16b)', () => {
     expect(laneGraph(panel.el).innerHTML).not.toBe(before);
   });
 });
+
+/** The XY lane's graph — the overlay `redrawGraph` rebuilds. */
+const xyGraph = (el: HTMLElement): SVGElement =>
+  el.querySelector<SVGElement>('[data-testid="motion-graph"]')!;
+/** Where the first anchor's dot lands, as a fraction of a lane of `cells`. */
+const dotCx = (el: SVGElement): string | null =>
+  el.querySelector('circle')!.getAttribute('cx');
+const centre = (step: number, cells: number): string => String(((step + 0.5) / cells) * 100);
+
+describe('Motion panel draws on the lane, not the bank (REQ-24b)', () => {
+  it('re-projects the XY graph when the lane length changes', () => {
+    const { bus, patterns, panel } = harness();
+    patterns.setMotionStep(4, { on: true, x: 0.5, y: 0.75 });
+    expect(dotCx(xyGraph(panel.el))).toBe(centre(4, 16));
+    // Nine cells: the same anchor is now the lane's midpoint, over its own pad —
+    // at sixteen it drew at 28.125%, inside cell 3 of the nine the grid shows.
+    bus.set('motion.len', 9);
+    expect(dotCx(xyGraph(panel.el))).toBe(centre(4, 9));
+  });
+
+  it('re-projects the A/B lanes on the same signal', () => {
+    const { bus, patterns, panel } = harness();
+    patterns.setMotionTrackParam(0, 'filter.cutoff');
+    patterns.setMotionTrackStep(0, 4, { on: true, v: 0.75 });
+    expect(dotCx(laneGraph(panel.el))).toBe(centre(4, 16));
+    bus.set('motion.len', 9);
+    expect(dotCx(laneGraph(panel.el))).toBe(centre(4, 9));
+  });
+
+  it('coalesces a meter change into the reveal repaint like every other redraw', () => {
+    const { bus, patterns, panel } = harness();
+    patterns.setMotionStep(4, { on: true, x: 0.5, y: 0.75 });
+    const stale = xyGraph(panel.el).innerHTML;
+    panel.gate.set(false);
+    bus.set('motion.len', 9);
+    expect(xyGraph(panel.el).innerHTML).toBe(stale);   // nothing rebuilt off-screen
+    panel.gate.set(true);
+    expect(dotCx(xyGraph(panel.el))).toBe(centre(4, 9));
+  });
+});

@@ -9,7 +9,11 @@ import {
  * `motion-curve.ts`. Coordinates are in the graph SVG's 0–100 viewBox space,
  * y-down (an anchor value of 1 draws at y=0).
  *
- * Dots always sit at the anchor centres. The line is mode-aware:
+ * Dots always sit at the anchor centres — geometry, not the visible anchor
+ * marker: the panel strokes each as a circle that the overlay's non-uniform
+ * viewBox flattens into a tick on the line, and the round dot a reader sees at an
+ * anchor belongs to the pad underneath (motion-sequencer.md REQ-8). The line is
+ * mode-aware:
  *   - 'slide' — the anchor-to-anchor polyline (the panel only strokes it when
  *     there are ≥ 2 points, matching the machine's constant-value single-anchor
  *     case).
@@ -27,6 +31,14 @@ import {
  * accessor", exactly like the curve core it samples — so the XY row's two axes
  * and an extra single-param track (`motionGraphPoints1D`) draw through one
  * implementation.
+ *
+ * (v16) Every coordinate is a fraction of the **lane's** played length, not the
+ * bank's 16 (motion-sequencer.md REQ-24b). `cells` is the same argument
+ * `scalarAt` takes and defaults the same way, so a caller with no meter is
+ * unaffected — but the panel has one, and passing it is what keeps the drawing
+ * on the grid the pads are drawn on. Before it existed a 9-cell lane squeezed
+ * its whole curve into the left 9/16 of the row and every jump landed in the
+ * wrong cell.
  */
 export interface MotionGraph {
   line: Array<[number, number]>;
@@ -39,9 +51,14 @@ function graphPoints<T extends { on: boolean }>(
   get: (s: T) => number,
   mode: MotionMode,
   neighbours: Neighbours<T>,
+  cells?: number,
 ): MotionGraph {
-  const n = bank.length;
+  // Clamped exactly as `scalarAt` clamps it, so the two agree on the lane's
+  // length for every input the panel can hand them.
+  const n = cells === undefined ? bank.length : Math.max(1, Math.min(bank.length, cells));
   const dots: Array<[number, number]> = [];
+  // Anchors past the lane are skipped, not drawn off the right edge: the curve
+  // cannot see them either (REQ-24), and their cells are dark.
   for (let s = 0; s < n; s++) {
     const step = bank[s]!;
     if (!step.on) continue;
@@ -53,7 +70,7 @@ function graphPoints<T extends { on: boolean }>(
   // trailing edge is sampled a sliver before the bar line (`barPos` 1 wraps back
   // to 0), so round the float dust off the coordinate it produces.
   const edge = (barPos: number): number => {
-    const v = scalarAt(bank, barPos, mode, get, neighbours)!;
+    const v = scalarAt(bank, barPos, mode, get, neighbours, undefined, n)!;
     return Math.round((1 - v) * 1e6) / 1e4;
   };
   const yIn = edge(0);
@@ -86,14 +103,15 @@ function graphPoints<T extends { on: boolean }>(
 const getX = (s: MotionStep): number => s.x;
 const getY = (s: MotionStep): number => s.y;
 
-/** The XY row's graph, projected onto one axis (REQ-8). */
+/** The XY row's graph, projected onto one axis (REQ-8); `cells` per REQ-24b. */
 export function motionGraphPoints(
   bank: readonly MotionStep[],
   view: 'x' | 'y',
   mode: MotionMode,
   neighbours: MotionNeighbours = {},
+  cells?: number,
 ): MotionGraph {
-  return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours);
+  return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours, cells);
 }
 
 /** An extra single-param track's graph (REQ-16). */
@@ -101,6 +119,7 @@ export function motionGraphPoints1D(
   steps: readonly MotionTrackStep[],
   mode: MotionMode,
   neighbours: MotionTrackNeighbours = {},
+  cells?: number,
 ): MotionGraph {
-  return graphPoints(steps, (s) => s.v, mode, neighbours);
+  return graphPoints(steps, (s) => s.v, mode, neighbours, cells);
 }

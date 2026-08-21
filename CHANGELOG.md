@@ -167,6 +167,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The Motion curve is drawn over the lane you actually set.** Give the motion
+  sequencer its own LEN — Gankogui's nine cells, say — and the curve above the
+  pads was still laid out as sixteen, squeezing the whole shape into the left
+  half of the row. Every jump landed in the wrong cell: the anchor on step 5 drew
+  its step over step 3, with no pad under it to explain what had happened. The
+  line now follows the lane, anchors past its end are not drawn at all, and
+  changing LEN, RATE or the meter redraws all three lanes instead of leaving them
+  showing the old shape.
+
+- **A motion bank leaves its parameters where you drew them, not mid-sweep.**
+  When the chain moves on to a bank driving other parameters — or to a rest — the
+  bank it left now writes its **last anchor** one final time. That was already
+  what happened while every lane matched the bar, because the bar line and the
+  end of the lane were the same instant. Set a lane to fight the bar and it
+  stopped being true: the bar could end anywhere inside the loop, so a sweep
+  froze wherever it had got to and stayed there until that bank came round again.
+  Gankogui's DJ filter now returns to centre after its bar instead of staying
+  open for the rest of the song. Songs whose lanes follow the bar are unchanged —
+  their bar already ended on the lane's last cell.
+
 - **The Help button works offline, and says something when it can't.** The
   Help & About card is downloaded when you first click it rather than at
   startup, so the app boots fast — but that also meant an offline visit could

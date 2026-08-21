@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MotionMachine } from '../../../src/audio/transport/motion-machine';
 import { Arrangement } from '../../../src/audio/transport/arrangement';
 import { PatternStore, SEQ_LENGTH } from '../../../src/state/patterns';
+import { LANE_RATES } from '../../../src/state/meter';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { XyPadStore } from '../../../src/state/xy-pad';
 import { fromNorm } from '../../../src/utils/taper';
@@ -318,6 +319,128 @@ describe('MotionMachine', () => {
       // The 12→4 wrap spans 8 steps across the bar line; step 0 is halfway.
       driver(clock, machine)(bar(1, 0));
       expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.5), 6);
+    });
+  });
+
+  describe('handover park (v16, REQ-25)', () => {
+    const EIGHTH = LANE_RATES.findIndex((r) => r.label === '1/8');
+
+    /**
+     * Gankogui's meter: a 24-tick 12/8 bar under a nine-cell lane of 1/8 — 18
+     * ticks, so the lane deliberately does NOT tile the bar (meter.md REQ-10)
+     * and a bank's bar cannot end on the lane's last cell. Bank B's bar plays
+     * cells 3,4,5,6,7,8,0,1,2,3,4,5 and ends on cell 5.
+     */
+    function polymetric(machine: MotionMachine, arrangement: Arrangement): void {
+      arrangement.setBarTicks(24);
+      machine.lane.setBarTicks(24);
+      machine.lane.setLen(9);
+      machine.lane.setRate(EIGHTH);
+    }
+
+    /** Bank B: home, raised, home again — on params nothing else drives. */
+    function sweepBank(patterns: PatternStore): void {
+      patterns.setMotionEditBank(1);
+      anchor(patterns, 0, 0.2, 0.2);
+      anchor(patterns, 4, 0.9, 0.9);
+      // The author's resting place — deliberately not either param's default,
+      // so "parked" can never be confused with "never written".
+      anchor(patterns, 8, 0.55, 0.55);
+      patterns.setMotionAssign({ x: 'fx.delay.mix', y: 'fx.reverb.mix' });
+      patterns.setMotionEditBank(0);
+      anchor(patterns, 0, 0.5, 0.5);   // bank A, on the pad's own axes
+    }
+
+    /** Fire every tick up to and including `tick`, as the transport does. */
+    function ticksTo(clock: TestClock, from: number, tick: number): number {
+      for (let i = from; i <= tick; i++) clock.fireTick(i * STEP_DUR);
+      return tick + 1;
+    }
+
+    it("leaves the outgoing bank on its last anchor, not wherever the bar line fell", () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      polymetric(machine, arrangement);
+      sweepBank(patterns);
+      arrangement.setMotionChain([0, 1, 0], true);
+      const def = bus.def('fx.delay.mix')!;
+      clock.fireStart();
+      const next = ticksTo(clock, 0, 47);
+      // Bank B's bar ends mid-sweep, holding the raised anchor — the bug's cause.
+      machine.frame(47.9 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.9), 6);
+      // Crossing into bank A, which drives other params entirely: the handover
+      // writes bank B's step-8 anchor rather than stranding the sweep.
+      ticksTo(clock, next, 48);
+      machine.frame(48 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.55), 6);
+      expect(bus.get('fx.reverb.mix')).toBeCloseTo(fromNorm(bus.def('fx.reverb.mix')!, 0.55), 6);
+      // …and it stays there while bank A plays on.
+      machine.frame(56 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.55), 6);
+    });
+
+    it('a rest bar parks the bank it interrupts too', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      polymetric(machine, arrangement);
+      sweepBank(patterns);
+      arrangement.setMotionChain([0, 1, -1], true);
+      const def = bus.def('fx.delay.mix')!;
+      clock.fireStart();
+      const next = ticksTo(clock, 0, 47);
+      machine.frame(47.9 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.9), 6);
+      // A rest writes nothing of its own, so before v16 the sweep simply froze
+      // here for the whole bar.
+      ticksTo(clock, next, 48);
+      machine.frame(48 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.55), 6);
+    });
+
+    it('parks nothing the incoming bar drives itself — the carry is untouched', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);          // slide; a 16-cell lane tiling a 16-tick bar
+      anchor(patterns, 0, 0.1, 0.1);
+      anchor(patterns, 8, 0.8, 0.8);     // bank A's last anchor
+      patterns.setMotionEditBank(1);
+      anchor(patterns, 0, 0.2, 0.2);     // bank B opens elsewhere, same axes
+      patterns.setMotionEditBank(0);
+      arrangement.setMotionChain([0, 1], true);
+      const def = bus.def('filter.cutoff')!;
+      clock.fireStart();
+      const next = ticksTo(clock, 0, 15);
+      machine.frame(15.5 * STEP_DUR);
+      const seen: number[] = [];
+      bus.subscribe('filter.cutoff', (v) => seen.push(v));
+      seen.length = 0;                   // drop subscribe's immediate replay
+      ticksTo(clock, next, 16);
+      machine.frame(16 * STEP_DUR);
+      // One write on the handover frame: bank B's opening. Bank A's seam value
+      // is never put in front of it (REQ-2b's carry stays bit-for-bit).
+      expect(seen).toEqual([fromNorm(def, 0.2)]);
+    });
+
+    it('a seek is not a handover (REQ-21)', () => {
+      const { bus, patterns, clock, arrangement, machine } = build();
+      machine.setEnabled(true);
+      machine.setSlide(false);
+      polymetric(machine, arrangement);
+      sweepBank(patterns);
+      arrangement.setMotionChain([0, 1, 0], true);
+      const def = bus.def('fx.delay.mix')!;
+      clock.fireStart();
+      ticksTo(clock, 0, 47);
+      machine.frame(47.9 * STEP_DUR);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.9), 6);
+      // Jumping back to bar 0 is not the chain playing out of bank B, so nothing
+      // is parked — the latch is simply dropped and refilled (REQ-21).
+      clock.fireSeek(0);
+      clock.fireTick(0);
+      machine.frame(0);
+      expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.9), 6);
     });
   });
 
