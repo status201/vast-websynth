@@ -3,7 +3,9 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 4   # v4: the reply pastes back in (step 3) instead of going via a file
+version: 5   # v5: REQ-5 — the worked example is the built-in "Mordor", renamed
+             #     from "I Feel Love"
+             # v4: the reply pastes back in (step 3) instead of going via a file
 owner: ui
 related:
   - song-mode
@@ -78,7 +80,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 - **REQ-5** — The PARAMS table (one line per `ParamBus` id with range/default/value
   map) and the NOTES/tips section are generated live and kept as the format
   reference; the modal's **Copy Example JSON** / **Download Example** buttons still
-  return the full built-in "I Feel Love" demo. The NOTES include a tip that
+  return the full built-in "Mordor" demo. The NOTES include a tip that
   `drum.t{i}.model` swaps a track's voice (models 8–12 = conga/bongo/cowbell/
   clave/shaker — a percussion section; drum-machine.md REQ-11).
 
@@ -130,7 +132,7 @@ Modal wiring: an editable brief `<textarea>` (`.aiBrief`) sits above the read-on
 prompt `<textarea>` (`.aiText`); an `input` listener rebuilds the prompt value via
 `buildSongPrompt(bus, brief.value)`. **Copy Prompt** copies the live prompt value
 (so the brief is always included). **Copy Example JSON** / **Download Example** use
-`Song.toJSON` / `Song.download` of `DEMO_SONGS['I Feel Love']`.
+`Song.toJSON` / `Song.download` of `DEMO_SONGS['Mordor']`.
 
 The ad-hoc card must carry both classes —
 `card.className = ${Modal.cardClass} ${Modal.cardWideClass}` — so it inherits the
@@ -208,7 +210,7 @@ Scenario: An empty brief yields a placeholder, not the example
 Scenario: The prompt no longer embeds a full song
   When buildSongPrompt(bus) is generated
   Then it contains the EXAMPLE SHAPE skeleton marker with "…"
-  And it is far shorter than Song.toJSON(DEMO_SONGS['I Feel Love'])
+  And it is far shorter than Song.toJSON(DEMO_SONGS['Mordor'])
 # pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — an illustrative skeleton, not a full song)
 
 Scenario: The reply pastes back in the same modal (REQ-9)

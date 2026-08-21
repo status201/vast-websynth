@@ -544,7 +544,7 @@ tour.ts:
     bus, engine
     toggleTransport()        # via the header button (keeps LED/label synced)
     applyDemo(name): Promise # load a demo song (does not start transport).
-                             #   ASYNC: all but the two built-ins are fetched on
+                             #   ASYNC: all but the built-in are fetched on
                              #   click (song-mode REQ-12), so a step that acts on
                              #   the loaded song must await it (see below).
                              #   The tour names DEMO_FOR_TOUR by constant while

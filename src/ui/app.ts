@@ -115,7 +115,7 @@ export function mountApp(
   };
   // Default loads a demo without UI sync; replaced by the Song panel's own
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
-  // Only the built-ins are reachable here — the drop-in and zip demos are
+  // Only the built-in is reachable here — the drop-in and zip demos are
   // fetched on click and so are inherently async (song-mode.md REQ-11) — but
   // this fallback is replaced a few lines below and never actually used.
   // The real unknown-name fallback lives in `resolveDemoName` (REQ-12, v18),
@@ -345,7 +345,7 @@ function buildHeader(
         && engine.sync.activeMode === 'off'
         && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
         openEmptyPlayModal({
-          // Awaited: all but the two built-in demos are fetched (song-mode.md
+          // Awaited: all but the built-in demo are fetched (song-mode.md
           // REQ-12), and the re-entry below re-runs the has-anything-to-play
           // check — clicking Play before the song lands just reopens this modal.
           onPlayDemo: async () => {

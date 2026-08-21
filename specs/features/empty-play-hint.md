@@ -55,7 +55,7 @@ again (the flag survives sessions).
 - **REQ-4** (play a demo) — The demo action closes the modal, loads a random demo
   — any of the three sources, via `demoNames()` — through the Song panel's
   `loadDemo` (dropdown stays in sync), then re-clicks Play: the check now passes
-  and the transport starts. The load is **awaited**: all but the two built-ins are
+  and the transport starts. The load is **awaited**: all but the built-in are
   fetched on click ([song-mode](song-mode.md) REQ-12), and re-clicking Play before
   the song lands just re-runs `anythingToPlay` against the old (still empty) state
   and reopens this very modal. `onPlayDemo` is therefore typed

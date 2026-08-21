@@ -1,7 +1,7 @@
 // "AI Prompt" button + modal. Hands the user a copyable prompt that
 // exactly describes the song formats (the compact authoring dialect first,
 // canonical as appendix; the PARAMS table is generated live from ParamBus so
-// it can never drift from registerDefaults) plus the built-in "I Feel Love"
+// it can never drift from registerDefaults) plus the built-in "Mordor"
 // demo as a worked, downloadable example. Reuses the Modal lifecycle and the
 // modal.module.css styling. The prompt text itself lives in the pure
 // state/authoring-guide.ts (shared with the MCP server); this module keeps
@@ -18,7 +18,7 @@ import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
 
-const EXAMPLE_NAME = 'I Feel Love';
+const EXAMPLE_NAME = 'Mordor';
 
 /** Greyed example shown in the "Describe your song" field (placeholder only). */
 const BRIEF_PLACEHOLDER =
