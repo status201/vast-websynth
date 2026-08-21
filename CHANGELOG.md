@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-21
+
 ### Removed
 
 - **The *Zombie Nation* demo.** One of the two demos that shipped as code rather
@@ -2061,7 +2063,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.8.2...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/status201/vast-websynth/compare/v2.8.2...v2.9.0
 [2.8.2]: https://github.com/status201/vast-websynth/compare/v2.8.1...v2.8.2
 [2.8.1]: https://github.com/status201/vast-websynth/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/status201/vast-websynth/compare/v2.7.1...v2.8.0
