@@ -1,7 +1,7 @@
 {
   "format": "websynth-song",
   "version": 6,
-  "name": "Around and around",
+  "name": "Around",
   "params": {
     "voicing.mode": 0,
     "osc1.wave": 2,

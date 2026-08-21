@@ -25,11 +25,11 @@
     "glide.mode": 1,
     "filter.cutoff": 74,
     "filter.resonance": 1.7,
-    "filter.drive": 0.8875,
+    "filter.drive": 0.5275,
     "filter.envAmount": 22,
     "filter.velAmount": 0.35,
     "filter.model": 1,
-    "filter.shape": 0.155,
+    "filter.shape": 0.1,
     "filter.keytrack": 0.6,
     "env.amp.attack": 0.003,
     "env.amp.decay": 0.13,
@@ -50,9 +50,9 @@
     "lfo2.dest": 0,
     "lfo2.sync": 2,
     "fx.dist.on": 1,
-    "fx.dist.drive": 0.2,
+    "fx.dist.drive": 0.115,
     "fx.dist.tone": 2503,
-    "fx.dist.mix": 0.38,
+    "fx.dist.mix": 0.295,
     "fx.wah.on": 0,
     "fx.wah.rate": 2,
     "fx.wah.depth": 0.075,
@@ -94,11 +94,11 @@
     "fx.drum.reverb.damp": 0.55,
     "fx.drum.reverb.mix": 0.12,
     "fx.drum.comp.on": 1,
-    "fx.drum.comp.threshold": -20,
-    "fx.drum.comp.ratio": 1,
+    "fx.drum.comp.threshold": -21.6,
+    "fx.drum.comp.ratio": 4,
     "fx.drum.comp.attack": 0.0002,
     "fx.drum.comp.release": 0.2,
-    "fx.drum.comp.makeup": 5,
+    "fx.drum.comp.makeup": 3.92,
     "fx.sampler.dist.on": 0,
     "fx.sampler.dist.drive": 0.3,
     "fx.sampler.dist.tone": 3000,
@@ -125,16 +125,16 @@
     "fx.sampler.duck.src": 0,
     "fx.djfilter": 0,
     "fx.master.comp.on": 1,
-    "fx.master.comp.threshold": -13,
+    "fx.master.comp.threshold": -23.8,
     "fx.master.comp.ratio": 0,
-    "fx.master.comp.attack": 0.015,
+    "fx.master.comp.attack": 0.00404,
     "fx.master.comp.release": 4,
     "fx.master.comp.makeup": 2.5,
     "master.volume": 0.8,
     "master.pitchBend": 0,
     "master.modWheel": 0,
     "keyboard.transpose": 0,
-    "transport.bpm": 150,
+    "transport.bpm": 130,
     "transport.swing": 0,
     "transport.beats": 12,
     "transport.beatUnit": 1,
@@ -181,15 +181,15 @@
     "drum.solo": 0,
     "drum.len": 0,
     "drum.rate": 5,
-    "drum.t0.vol": 0.95,
+    "drum.t0.vol": 0.245,
     "drum.t0.tune": -6,
-    "drum.t0.decay": 0.34,
+    "drum.t0.decay": 0.3622,
     "drum.t0.tone": 0.85,
     "drum.t0.drive": 0.1,
     "drum.t0.pan": 0,
     "drum.t0.mute": 0,
     "drum.t0.model": 0,
-    "drum.t1.vol": 0.8,
+    "drum.t1.vol": 0.15,
     "drum.t1.tune": -14,
     "drum.t1.decay": 0.1778,
     "drum.t1.tone": 0.7,
@@ -213,7 +213,7 @@
     "drum.t3.pan": -0.15,
     "drum.t3.mute": 0,
     "drum.t3.model": 3,
-    "drum.t4.vol": 0.78,
+    "drum.t4.vol": 0.495,
     "drum.t4.tune": -4,
     "drum.t4.decay": 0.3,
     "drum.t4.tone": 1,
@@ -221,7 +221,7 @@
     "drum.t4.pan": 0.32,
     "drum.t4.mute": 0,
     "drum.t4.model": 8,
-    "drum.t5.vol": 0.7,
+    "drum.t5.vol": 0.57,
     "drum.t5.tune": 6,
     "drum.t5.decay": 0.22,
     "drum.t5.tone": 1,
@@ -229,7 +229,7 @@
     "drum.t5.pan": -0.4,
     "drum.t5.mute": 0,
     "drum.t5.model": 9,
-    "drum.t6.vol": 0.72,
+    "drum.t6.vol": 0.26,
     "drum.t6.tune": 1,
     "drum.t6.decay": 0.26,
     "drum.t6.tone": 1,
@@ -693,8 +693,7 @@
         },
         {
           "on": true,
-          "velocity": 0.92,
-          "micro": -3
+          "velocity": 0.92
         },
         {
           "on": false
@@ -1171,8 +1170,7 @@
         },
         {
           "on": true,
-          "velocity": 0.92,
-          "micro": -3
+          "velocity": 0.92
         },
         {
           "on": false
@@ -1182,8 +1180,7 @@
         },
         {
           "on": true,
-          "velocity": 0.9,
-          "micro": 2
+          "velocity": 0.9
         },
         {
           "on": true,
@@ -2085,8 +2082,7 @@
         },
         {
           "on": true,
-          "velocity": 0.9,
-          "micro": -2
+          "velocity": 0.9
         },
         {
           "on": false
@@ -2499,6 +2495,8 @@
   "seqChain": {
     "enabled": true,
     "steps": [
+      1,
+      0,
       0,
       0,
       0,
@@ -2516,6 +2514,8 @@
   "drumChain": {
     "enabled": true,
     "steps": [
+      -1,
+      -1,
       0,
       0,
       0,
@@ -5086,6 +5086,8 @@
       0,
       0,
       0,
+      0,
+      0,
       1,
       0
     ]
@@ -5220,6 +5222,8 @@
     ]
   ],
   "seqTranspose": [
+    0,
+    0,
     0,
     0,
     0,

@@ -89,8 +89,8 @@
   },
   "Gankogui.websynth.json": {
     "name": "Gankogui",
-    "bpm": 150,
-    "bars": 12,
+    "bpm": 130,
+    "bars": 14,
     "uses": [
       "seq",
       "drums",
@@ -217,7 +217,7 @@
     "blurb": "Three sequencer tracks over a conga-and-clave kit."
   },
   "apex-twin.json": {
-    "name": "Apex Twin",
+    "name": "Apex",
     "bpm": 128,
     "bars": 8,
     "uses": [
@@ -226,7 +226,7 @@
     ]
   },
   "around_and_around.websynth.json": {
-    "name": "Around and around",
+    "name": "Around",
     "bpm": 121,
     "bars": 23,
     "uses": [

@@ -1,7 +1,7 @@
 {
   "format": "websynth-song",
   "version": 2,
-  "name": "Apex Twin",
+  "name": "Apex",
   "params": {
     "voicing.mode": 0,
     "osc1.wave": 2,
