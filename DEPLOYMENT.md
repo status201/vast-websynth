@@ -124,7 +124,7 @@ one behind; delete the row when you remove it.**
 
 | Shim | Since | Why it exists | Safe to drop when |
 | --- | --- | --- | --- |
-| `websynth.session` read fallback (`state/session-autosave.ts`) | 2.9 | Sessions moved to one key per tab ([session-autosave](specs/features/session-autosave.md) REQ-12). The old single key is still read once so an in-progress session survives the upgrade; it is never written. | Anyone who has opened the app since 2.9 has been migrated by their first autosave. Dropping it only costs a user who has not opened it since — their unsaved session, not their saved songs. |
+| `websynth.session` read fallback (`state/session-autosave.ts`) | 2.9 | Sessions moved to one key per browser tab ([session-autosave](specs/features/session-autosave.md) REQ-12). The old single key is still read once so an in-progress session survives the upgrade; it is never written. | Anyone who has opened the app since 2.9 has been migrated by their first autosave. Dropping it only costs a user who has not opened it since — their unsaved session, not their saved songs. |
 
 Song *file* versions are not on this list: they are additive by design and every
 version from v1 still loads with no migration step (ADR-007), so a major bump is
