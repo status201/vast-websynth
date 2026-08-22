@@ -3,7 +3,11 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 9   # v9: about.ts split five ways — the panel is now about-debug.ts,
+version: 10  # v10: the Suspend action goes through Engine.suspendForDebug() so the
+             #      universal statechange re-arm can tell a deliberate suspend from
+             #      an OS one, and the ctx-state row shows when a resume is waiting
+             #      for a gesture (audio-lifecycle.md v5 REQ-13/REQ-15)
+             # v9: about.ts split five ways — the panel is now about-debug.ts,
              #     the late-bound row sources are state/debug-sources.ts, and
              #     createAboutButton is about-button.ts (runtime-performance REQ-1)
              # v8: createAboutButton takes the tour hook too, and the section
@@ -72,7 +76,9 @@ instead of transcribing it from a phone screen.
   (reusing the modal's `.keys`/`.key`/`.act` classes) that returns the value element to
   write into. The section body wraps that grid **plus** the actions block (REQ-7), so
   collapsing hides both. Built-in rows: **AudioContext** state
-  (`data-testid="debug-ctx-state"`), **Sample rate**, **Latency** (`debug-latency`,
+  (`data-testid="debug-ctx-state"`; v10 appends `· awaiting gesture` while
+  `engine.audioRecovery.gestureArmed` — the state alone cannot distinguish "the OS
+  took it" from "we asked and were refused"), **Sample rate**, **Latency** (`debug-latency`,
   base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm` ·
   sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
   wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
@@ -130,7 +136,10 @@ instead of transcribing it from a phone screen.
   Each is the *small hammer* for something that previously needed a factory reset.
 - **REQ-7** — A panel-level **actions block** (`data-testid="debug-actions"`) of
   plain buttons sits under the grid: **Resume/Suspend** (`debug-ctx-toggle`, label
-  follows `ctx.state`; `engine.resume()` / `ctx.suspend()`), **Panic**
+  follows `ctx.state`; `engine.resume()` / `engine.suspendForDebug()` — v10: the
+  suspend goes through the Engine so it is recorded as *deliberate* and the
+  now-universal `statechange` re-arm leaves it alone,
+  [audio-lifecycle](audio-lifecycle.md) REQ-15), **Panic**
   (`debug-panic`, `engine.panic()`), **Test tone** (`debug-test-tone`) and
   **Copy report** (`debug-copy`). The report is built from the *row registry*
   (name + current text, in order), not by scraping the DOM, prefixed with
@@ -270,8 +279,15 @@ Scenario: The context toggle follows and drives the AudioContext (REQ-7)
   Given the context is suspended
   Then the action reads "Resume" and calls engine.resume()
   When the context becomes running
-  Then it reads "Suspend" and calls ctx.suspend()
+  Then it reads "Suspend" and calls engine.suspendForDebug()
 # pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
+
+Scenario: The context row says when a resume is waiting for a gesture (v10)
+  Given every automatic resume attempt failed and the gesture fallback is armed
+  Then the AudioContext row reads "suspended · awaiting gesture"
+  When the context comes back
+  Then the suffix is gone
+# pinned by: tests/ui/about.test.ts
 
 Scenario: The test tone goes straight to the destination (REQ-7b)
   When Test tone is pressed

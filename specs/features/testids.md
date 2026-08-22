@@ -308,6 +308,9 @@ shared UI:
                                                     # features/compressor.md
   clips-restored-toast                              # boot-time sampler restore
                                                     # features/sample-persistence.md
+  audio-suspended-toast                             # "tap to resume" when every
+                                                    #   automatic resume failed
+                                                    # features/audio-lifecycle.md REQ-14
   lazy-load-failed-toast                            # a deferred surface's import()
                                                     #   rejected (onboarding.md REQ-24)
   empty-play-modal · empty-play-demo · empty-play-dismiss · empty-play-close

@@ -8,6 +8,14 @@ import { gotoAndStart } from './helpers';
  * and the Spectrum peak-hold (max-dB line rises with sound, click-to-reset).
  */
 
+/** The auto-gain mirrored onto the canvas dataset (null when absent/empty). */
+const waveGain = (page: import('@playwright/test').Page): Promise<number | null> =>
+  page.evaluate(() => {
+    const v = document.querySelector<HTMLCanvasElement>('[data-testid="scope-canvas"]')
+      ?.dataset.waveGain;
+    return v === undefined || v === '' ? null : parseFloat(v);
+  });
+
 test.describe('scope mono/stereo', () => {
   test('channels toggle defaults to Mono and flips to Stereo and back', async ({ page }) => {
     await gotoAndStart(page);
@@ -110,19 +118,11 @@ test.describe('scope mono/stereo', () => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');
 
-    // The auto-gain mirrored onto the canvas dataset (null when absent/empty).
-    const waveGain = (): Promise<number | null> =>
-      page.evaluate(() => {
-        const v = document.querySelector<HTMLCanvasElement>('[data-testid="scope-canvas"]')
-          ?.dataset.waveGain;
-        return v === undefined || v === '' ? null : parseFloat(v);
-      });
-
     // Wave is the boot view; the gain appears on the first drawn frame and is
     // never below unity (a clipping signal is scaled 1:1, never shrunk).
     await expect(mode).toHaveText('Wave');
     await page.waitForTimeout(150);
-    const gain = await waveGain();
+    const gain = await waveGain(page);
     expect(gain).not.toBeNull();
     expect(gain!).toBeGreaterThanOrEqual(1);
 
@@ -130,7 +130,33 @@ test.describe('scope mono/stereo', () => {
     await mode.click();
     await expect(mode).toHaveText('Spectrum');
     await page.waitForTimeout(100);
-    expect(await waveGain()).toBeNull();
+    expect(await waveGain(page)).toBeNull();
+  });
+
+  // scope.md REQ-24 — a backgrounded tab can have its canvas backing store
+  // reclaimed. The recovery is the pair of listeners, and this proves they are
+  // wired in a real browser: the loop is still painting after the round trip.
+  test('a lost and restored canvas context keeps drawing', async ({ page }) => {
+    await gotoAndStart(page);
+    const canvas = page.getByTestId('scope-canvas');
+
+    // Without preventDefault the browser never restores a lost 2D context.
+    const prevented = await canvas.evaluate((el) =>
+      !el.dispatchEvent(new Event('contextlost', { cancelable: true })));
+    expect(prevented).toBe(true);
+
+    await canvas.evaluate((el) => { el.dispatchEvent(new Event('contextrestored')); });
+
+    // Clear the dataset mirror the honest way (it only writes on change) and
+    // watch it come back — which it can only do from a live frame.
+    const mode = page.getByTestId('scope-toggle');
+    await mode.click();                       // → Spectrum, clears waveGain
+    await expect(mode).toHaveText('Spectrum');
+    await mode.click();                       // → Wave
+    await expect(mode).toHaveText('Wave');
+    await expect
+      .poll(async () => await waveGain(page), { timeout: 2000 })
+      .toBeGreaterThanOrEqual(1);
   });
 });
 

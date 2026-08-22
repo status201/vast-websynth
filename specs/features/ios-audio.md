@@ -3,8 +3,9 @@
 ```yaml
 id: ios-audio
 status: implemented
-version: 3   # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-4);
-             #     the ctx 'statechange' listener still is
+version: 4   # v4: the ctx 'statechange' listener is no longer iOS-only either — it is
+             #     gated on a deliberate-suspend flag instead (audio-lifecycle REQ-15)
+             # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-4)
 owner: core
 related:
   - architecture
@@ -87,17 +88,21 @@ rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-
   `shouldResumeContext(ctx.state)` is true — i.e. the state is neither `'running'`
   nor `'closed'`. This covers `'suspended'` **and** the non-standard
   `'interrupted'` without referencing a literal outside TS's `AudioContextState`.
-- **REQ-5** (v3) — `Engine.init()` installs a `document` `visibilitychange`
-  listener on **every** platform, plus a `ctx` `statechange` listener **on iOS
-  only**. On return-to-foreground iOS resumes *unconditionally* (the silent loop
-  must be replayed to hold the media-backed category even when the context
-  survived); elsewhere it resumes only when `shouldResumeContext(ctx.state)` — the
-  Android case, where the OS suspends a hidden page's context and it stays
-  suspended on return. `statechange` stays iOS-only because `'interrupted'` arrives
-  *while visible* and nothing else recovers it, whereas off iOS auto-resuming on
-  `statechange` would undo the Debug panel's deliberate Suspend
-  ([audio-lifecycle](audio-lifecycle.md) REQ-4/REQ-5). Resume may still need a
-  fresh gesture on some iOS versions — the next tap is the natural fallback.
+- **REQ-5** (v3, amended v4) — `Engine.init()` installs a `document`
+  `visibilitychange` listener on **every** platform. On return-to-foreground iOS
+  resumes *unconditionally* (the silent loop must be replayed to hold the
+  media-backed category even when the context survived); elsewhere it resumes only
+  when `shouldResumeContext(ctx.state)` — the Android case, where the OS suspends
+  a hidden page's context and it stays suspended on return.
+  **(v4)** The `ctx` `statechange` listener is **no longer iOS-only**. It was,
+  because `'interrupted'` arrives *while visible* and nothing else recovers it,
+  whereas off iOS auto-resuming on `statechange` would undo the Debug panel's
+  deliberate Suspend. That trade is gone: the listener runs everywhere and is
+  gated on the suspend's *intent* instead of on the platform
+  ([audio-lifecycle](audio-lifecycle.md) REQ-15), so iOS keeps its recovery and
+  every other platform gains one. Resume may still need a fresh gesture on some
+  iOS versions — and that fallback is now built rather than assumed
+  ([audio-lifecycle](audio-lifecycle.md) REQ-13).
 - **REQ-6** (v3) — Off iOS the *session* workaround stays fully inert: no `<audio>`
   element, no media-element source, `unlock()`/`rearm()` return immediately, and
   nothing iOS-specific is persisted. What is **not** iOS-gated (v3) is the
@@ -134,8 +139,9 @@ class IosAudioSession:
 # src/audio/engine.ts
 Engine.resume(): Promise<void>                      # iosSession.unlock(); if shouldResumeContext(ctx.state) → fade in + ctx.resume()
 Engine.iosAudio: IosAudioDiagnostics                # re-exports iosSession.diagnostics
-# Engine.init(): installContextRearm() — visibilitychange (all platforms; iOS resumes
-#   unconditionally, others only when not running) + ctx 'statechange' (iOS only)
+# Engine.init(): installContextRearm() — visibilitychange + pageshow (all platforms; iOS
+#   resumes unconditionally, others only when not running) + ctx 'statechange'
+#   (v4: all platforms, gated on deliberateSuspend — audio-lifecycle REQ-15)
 
 # src/ui/studio-api.ts
 StudioApi.iosAudio: IosAudioDiagnostics             # Engine satisfies it structurally
@@ -146,7 +152,8 @@ StudioApi.iosAudio: IosAudioDiagnostics             # Engine satisfies it struct
 ```yaml
 engine ctor: this.iosSession = new IosAudioSession(this.ctx)   # after ctx exists; element built lazily on first unlock
 engine.init(): installContextRearm() (after graph + voices exist) — visibilitychange
-  everywhere, ctx 'statechange' only when iosSession.active
+  + pageshow everywhere, ctx 'statechange' everywhere (v4; gated on deliberateSuspend,
+  not on iosSession.active)
 engine.resume(): unlock() (sync, in gesture) → shouldResumeContext(ctx.state) ? fade + ctx.resume()
 main.ts: unchanged — start handler still calls `await engine.resume()`
 ui (about.ts): buildDebugSection reads engine.iosAudio for its two rows (panel owned by debug-panel)

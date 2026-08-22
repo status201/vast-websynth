@@ -177,9 +177,15 @@ export interface ScopeOptions {
   fps?: number;
 }
 
+/** Target redraw rate when none is given, and the fallback for a nonsense one. */
+const DEFAULT_FPS = 60;
+
 /** Min ms between drawn frames for a target fps; 0 = draw every frame. */
 function fpsToInterval(fps: number): number {
-  return fps >= 60 ? 0 : 1000 / fps;
+  // A non-finite or non-positive rate would give NaN/Infinity here — a loop that
+  // spins and never draws, which is the black panel of REQ-22 by another route.
+  const f = Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS;
+  return f >= 60 ? 0 : 1000 / f;
 }
 
 /** An analyser paired with its reusable time-domain + frequency buffers. */
@@ -237,7 +243,7 @@ export class Scope {
   private wavePeak = 0;
 
   constructor(analysers: ScopeAnalysers, opts: ScopeOptions = {}) {
-    this.frameInterval = fpsToInterval(opts.fps ?? 60);
+    this.frameInterval = fpsToInterval(opts.fps ?? DEFAULT_FPS);
     this.el = document.createElement('canvas');
     this.el.className = styles.root!;
     this.el.dataset.testid = 'scope-canvas';
@@ -253,6 +259,15 @@ export class Scope {
     // children) of it, so clicking a button never resets — "anywhere but the
     // buttons" with no stopPropagation needed. (REQ-13)
     this.el.addEventListener('click', this.onClick);
+    // A backgrounded tab can have its canvas backing store reclaimed. The
+    // browser only ever restores a lost 2D context if the page asks it to, so
+    // these two are the difference between "blank for a moment" and "blank for
+    // the life of the page" (REQ-24).
+    this.el.addEventListener('contextlost', this.onContextLost);
+    this.el.addEventListener('contextrestored', this.onContextRestored);
+    // A bfcache restore can reach a visible page without a visibilitychange
+    // (REQ-25) — and it is exactly the path that drops a queued frame.
+    window.addEventListener('pageshow', this.onVisibility);
     // Track the canvas's layout box so the rAF loop never reads clientWidth/Height
     // (a per-frame forced reflow). jsdom (unit tests) has no ResizeObserver — the
     // draw path measures itself in that case (see syncSize).
@@ -290,8 +305,32 @@ export class Scope {
   get channelMode(): ScopeChannels { return this.channels; }
 
   private readonly onVisibility = (): void => {
-    if (document.hidden) this.stop();
-    else this.start();
+    if (document.hidden) { this.stop(); return; }
+    // ResizeObserver will not fire for a box that comes back the size it left,
+    // so a hidden spell that zeroed the layout would otherwise leave `cssW/cssH`
+    // stale and every draw early-returning. `measure()` refuses a 0×0 read, so
+    // this can only help (REQ-25).
+    this.measure();
+    this.start();
+  };
+
+  /**
+   * Without `preventDefault()` here the browser never restores the context and
+   * the panel stays blank forever — the whole of REQ-24 is this one line.
+   */
+  private readonly onContextLost = (e: Event): void => {
+    e.preventDefault();
+    this.stop();
+  };
+
+  private readonly onContextRestored = (): void => {
+    // The restored context comes back with a blank bitmap of unknown size and
+    // no cached gradients; force `measure()` past its unchanged-size check.
+    this.gradCache.clear();
+    this.bitmapW = 0;
+    this.bitmapH = 0;
+    this.measure();
+    this.start();
   };
 
   private readonly onClick = (): void => { this.resetPeak(); };
@@ -335,6 +374,7 @@ export class Scope {
 
   /** Change the target redraw rate live (e.g. a perf-mode tier switch). */
   setFps(fps: number): void {
+    // `fpsToInterval` rejects a non-finite or non-positive rate for us.
     this.frameInterval = fpsToInterval(fps);
   }
 
@@ -352,18 +392,30 @@ export class Scope {
     }
   }
 
+  /**
+   * Start (or restart) the redraw loop. Deliberately **not** guarded on
+   * `running` (REQ-22): that guard was the only thing between a broken frame
+   * chain and recovery. A frame the browser dropped while freezing the renderer,
+   * or one that threw before re-arming, left `running` latched true with nothing
+   * queued — and then every restart path in this component was a no-op, forever.
+   * Cancelling first means a restart on a healthy loop is still exactly one
+   * callback in flight.
+   */
   private start(): void {
-    if (this.running) return;
+    cancelAnimationFrame(this.rafId);
     this.running = true;
     // Throttle to frameInterval using the rAF timestamp, not a frame counter — a
     // counter would lock to the display's refresh rate (wrong on 120Hz panels).
     const loop = (now: number) => {
       if (!this.running) return;
+      // Re-arm BEFORE drawing (REQ-23). A throw in draw() then still reaches the
+      // console — an invisible error is how this shipped — but the next frame is
+      // already queued, so one bad frame cannot end the loop.
+      this.rafId = requestAnimationFrame(loop);
       if (now - this.lastDrawTs >= this.frameInterval) {
         this.lastDrawTs = now;
         this.draw();
       }
-      this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);
   }
@@ -577,7 +629,10 @@ export class Scope {
     this.stop();
     this.ro?.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
+    window.removeEventListener('pageshow', this.onVisibility);
     this.el.removeEventListener('click', this.onClick);
+    this.el.removeEventListener('contextlost', this.onContextLost);
+    this.el.removeEventListener('contextrestored', this.onContextRestored);
   }
 }
 

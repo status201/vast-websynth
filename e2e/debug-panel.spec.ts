@@ -30,6 +30,11 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
   await toggle.click();
   await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
   await expect(toggle).toHaveText('Resume');
+  // REQ-15 regression: the statechange re-arm now runs on every platform, so a
+  // deliberate suspend has to survive the event its own suspend() fires. If the
+  // intent flag were missing this would be back to 'running' immediately.
+  await page.waitForTimeout(400);
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
   await toggle.click();
   await expect(page.getByTestId('debug-ctx-state')).toHaveText('running');
 

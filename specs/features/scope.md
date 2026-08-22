@@ -3,15 +3,18 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 11  # v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5; v11: a drag handle on the top edge resizes the scope (REQ-19), height persisted as a device-scoped workspace pref (REQ-20) — the first thing about this panel that survives a reload
+version: 12  # v12: the redraw loop can always be restarted (REQ-22..25) — a device
+             #      report of a scope that went black while backgrounded and stayed
+             #      black; v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5; v11: a drag handle on the top edge resizes the scope (REQ-19), height persisted as a device-scoped workspace pref (REQ-20) — the first thing about this panel that survives a reload
 owner: status201
 related:
   - architecture
   - performance-mode
   - compressor
   - runtime-performance
+  - audio-lifecycle
 source:
-  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19
+  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19; v12 is entirely here
   - src/ui/components/resize-handle.ts
   - src/state/scope-height.ts
   - src/audio/engine.ts
@@ -89,6 +92,28 @@ it buys two things for free:
 - `Scope` needs **no change at all**. Its buffers are sized by `fftSize`, not by
   pixels, and its own `ResizeObserver` → `measure()` already re-allocates the bitmap
   and invalidates the gradient cache (REQ-16). Height was never baked in.
+
+**The loop that could not be restarted (v12).** A device report: on an Android
+tablet under battery saving the scope went black while the app was backgrounded
+and **stayed** black on return, even once the audio was running again. The panel's
+canvas is `background: transparent` — the black is the `.scopeScreen` bezel showing
+through — so a black panel means *nothing was painted*, not that the signal went
+away. (A silent signal draws a flat mid-line, which is a very different picture.)
+
+Three separate ways this component could stop painting for good, all of them one
+line apart. `start()` opened with `if (this.running) return`, and the loop's
+`requestAnimationFrame` re-arm sat *after* `draw()` — so any frame that threw, or
+any callback the browser dropped while freezing the renderer, ended the chain with
+`running` still latched `true`, and the `visibilitychange` → `start()` recovery
+path then did nothing at all, forever. Nothing in the repo handled canvas
+**context loss**, which Android inflicts on a backgrounded tab under memory
+pressure, and a lost 2D context is only ever restored if the page calls
+`preventDefault()` on `contextlost`. And `measure()` is driven by a
+`ResizeObserver` that will not fire again if the box comes back the size it left.
+
+v12 is four small edits with one theme: **there is no state this component can
+reach from which it cannot start drawing again.** It adds no feature and no
+control; the whole of it is inside `scope.ts`.
 
 Where the extra space comes from is a question the layout had already answered
 before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
@@ -269,6 +294,34 @@ and only then does the page scroll. The keyboard is never squeezed out of reach.
   pending value and schedules at most one frame, so a fast drag costs one style write
   and one bitmap re-allocation **per frame**, not per event. At rest the handle holds
   no global listener and costs nothing.
+
+- **REQ-22** (v12) — **The redraw loop can always be restarted.** `start()` cancels
+  any pending frame and re-arms unconditionally instead of early-returning on
+  `running`. That early return was the *only* thing standing between a broken frame
+  chain and recovery: with `running` latched true and no frame queued, every
+  restart path in the component was a no-op. Restarting an already-running loop is
+  harmless — the pending frame is cancelled first, so there is never more than one
+  callback in flight.
+- **REQ-23** (v12) — **One bad frame cannot end the loop.** The next
+  `requestAnimationFrame` is issued **before** `draw()`, not after. A throw is
+  therefore not swallowed — it still reaches the console, which is where a bug like
+  this needs to be visible — but the following frame is already queued when it
+  happens, so the scope keeps drawing.
+- **REQ-24** (v12) — **Canvas context loss is survivable.** The canvas listens for
+  `contextlost` → `preventDefault()` (**without which the browser never restores
+  it**) then `stop()`; and `contextrestored` → drop the cached gradients, zero the
+  cached bitmap size so `measure()` re-allocates, then `start()`. Both listeners are
+  removed in `destroy()`. This is the failure a backgrounded tab hits when the OS
+  reclaims its canvas backing store, and the only one of the three that is not the
+  app's own fault.
+- **REQ-25** (v12) — **Becoming visible re-measures.** The `visibilitychange` →
+  visible path, and a `pageshow` (a bfcache restore can reach a visible page without
+  a `visibilitychange`), both call `measure()` before `start()`. `ResizeObserver`
+  does not fire for a box that comes back the size it left, and `measure()` already
+  refuses a 0×0 read (REQ-16), so this is free and cannot make things worse.
+  `setFps` likewise rejects a non-finite or non-positive rate — `frameInterval` of
+  `NaN`/`Infinity` is a loop that spins and never draws, which is the same black
+  panel by a fourth route.
 
 ## Technical design
 
@@ -814,6 +867,33 @@ Scenario: Pressing the handle never resets the spectrum peak-hold (regression)
   And this holds because the handle is a sibling of the canvas, not a child (REQ-13)
 # pinned by: tests/ui/resize-handle.test.ts
 
+Scenario: The scope comes back after the tab was hidden (v12, regression)
+  Given the scope is drawing and the tab is hidden, pausing the loop
+  When the tab becomes visible again
+  Then the canvas is measured and the loop restarts and draws
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A frame that throws does not kill the loop for good (v12, regression)
+  Given the scope is drawing
+  When one draw throws
+  Then the next animation frame is still delivered and draws
+   And a restart after a broken frame chain re-arms rather than early-returning
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A lost canvas context is restored, not left black (v12)
+  Given the browser reclaims the canvas backing store and fires contextlost
+  Then the event's default is prevented, so the browser will restore it
+   And the loop stops until it is restored
+  When contextrestored fires
+  Then the cached bitmap size and gradients are dropped and the loop draws again
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A nonsense frame rate cannot silently stop the drawing (v12, edge)
+  Given a mounted scope
+  When setFps is called with 0, a negative number or NaN
+  Then the target rate falls back to the default instead of never drawing
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
 Scenario: The handle holds no global listener at rest (REQ-21)
   Given a mounted resize handle that is not being dragged
   Then it has registered no window pointermove listener
@@ -832,6 +912,13 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   gate, the `WAVE_MAX_GAIN` ceiling, monotonic drawn height, asymmetric fall/rise,
   frame-rate independence); and `Scope.resetPeak()` clearing the dataset mirror —
   `npm test`.
+- Unit: `tests/ui/scope-lifecycle.test.ts` (v12) — one case per recovery route:
+  hidden→visible restarts and measures; a `draw()` that throws once still draws on
+  the following frame; `start()` re-arms after the frame chain was broken with
+  `running` latched true; `contextlost` calls `preventDefault()` and
+  `contextrestored` repaints; `setFps` rejects `0` / negative / `NaN`. Drives a real
+  `Scope` over jsdom with stub analysers and a stubbed 2D context, the way
+  `scope-regions.test.ts` already drives `resetPeak`.
 - Unit: `tests/state/scope-height.test.ts` (v11) — `clampScopeHeight` at and past both
   ends, rounding, and non-finite input; `readScopeHeight`/`writeScopeHeight` round-trip
   over `tests/storage-mock.ts`, with a missing key, garbage, an out-of-range value and

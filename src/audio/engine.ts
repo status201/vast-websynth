@@ -52,6 +52,46 @@ const RESUME_FADE_S = 0.15;
 const GLITCH_FADE_S = 0.06;
 
 /**
+ * How long `ctx.resume()` gets to actually take before we stop believing it
+ * (audio-lifecycle.md REQ-13). Android does not always reject a resume it will
+ * not honour — it can hand back a promise that never settles at all — so the
+ * await is raced rather than trusted, and the verdict comes from `ctx.state`.
+ */
+const RESUME_VERIFY_MS = 400;
+/** Gap between resume attempts. Long enough for the OS to hand back audio focus. */
+const RESUME_RETRY_MS = 150;
+/** Retries after the first attempt, so three tries in total. */
+const RESUME_RETRIES = 2;
+
+/** What the UI needs to know about a resume that did not take (REQ-13/REQ-14). */
+export interface AudioRecoveryState {
+  /** Every attempt failed: the app is silent and waiting for a gesture. */
+  blocked: boolean;
+  /** Consecutive failed recovery runs (one run = its whole retry sequence). */
+  attempts: number;
+  /** A one-shot window listener is waiting for a real user gesture. */
+  gestureArmed: boolean;
+}
+
+/** The gestures that count as "the user touched the app" for a forced resume. */
+const RESUME_GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
+
+const delay = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
+
+/**
+ * Settle when `p` does or when `ms` elapses, whichever is first, and never
+ * reject. A rejected `ctx.resume()` and one that hangs forever are the same
+ * event here — both mean "the context is not running yet", and `ctx.state` is
+ * the only thing worth asking afterwards.
+ */
+function raceTimeout(p: Promise<unknown>, ms: number): Promise<void> {
+  return Promise.race([
+    p.then(() => undefined, () => undefined),
+    delay(ms),
+  ]);
+}
+
+/**
  * Fan one LFO's per-voice outputs into a voice (lfo.md REQ-13). Every target is
  * a summing `AudioParam`, so calling this for both LFOs is what makes two of
  * them on one destination add rather than fight. `pan` is bus-wide and wired
@@ -191,6 +231,35 @@ export class Engine {
   private readonly media: MediaSessionKeepAlive;
   /** Watches a backgrounded context for real underruns (audio-lifecycle REQ-9). */
   private watchdog!: BackgroundAudioWatchdog;
+
+  /**
+   * True while the context is suspended *because we asked* — only ever set by
+   * `suspendForDebug()`. The `statechange` re-arm (REQ-15) is gated on this
+   * rather than on the platform, which is what lets the listener exist off iOS
+   * without instantly undoing the Debug panel's Suspend (REQ-5).
+   */
+  private deliberateSuspend = false;
+  /** True while the watchdog's fade-out is still holding the master at 0 (REQ-16). */
+  private glitchMuted = false;
+  /** The watchdog's pending suspend, cancellable if we come back first (REQ-16). */
+  private glitchTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Consecutive failed recovery runs (REQ-13). */
+  private resumeAttempts = 0;
+  /** True from the moment we give up until a resume actually takes (REQ-14). */
+  private blocked = false;
+  /**
+   * Whether the context has ever been running. Until it has, the automatic
+   * re-arms stay out of the way: before the Tap-to-start gesture a refused
+   * resume is the *expected* state, not a fault to report (REQ-13). Without
+   * this the initial `pageshow` would raise the "tap to resume" toast over the
+   * start modal on every load.
+   */
+  private everRan = false;
+  /** Detach for the armed one-shot gesture listeners; null when nothing is armed. */
+  private disarmGesture: (() => void) | null = null;
+  /** Serialises `resume()` so a visibilitychange mid-retry cannot start a second run. */
+  private resuming: Promise<void> | null = null;
+  private readonly blockedListeners = new Set<(blocked: boolean) => void>();
 
   constructor(private readonly bus: ParamBus, opts: EngineOptions = {}) {
     registerDefaults(bus);
@@ -502,6 +571,9 @@ export class Engine {
     this.watchdog = new BackgroundAudioWatchdog(this.ctx, {
       onGlitch: () => this.suspendForGlitch(),
       isBusy: () => this.recorder.isCapturing() || this.bankRender.isRendering(),
+      // Nothing sounding, nothing to protect from crackle — and a suspend/resume
+      // cycle is exactly what went wrong on the device (audio-lifecycle REQ-17).
+      isSilent: () => !this.clock.playing,
     });
     this.watchdog.start();
   }
@@ -547,16 +619,123 @@ export class Engine {
    * no-op elsewhere. `shouldResumeContext` then covers `'suspended'` and the
    * iOS-only `'interrupted'` state alike — and gates the fade with it, so
    * resuming an already-running context can never dip live audio.
+   *
+   * The call is **verified, not trusted** (audio-lifecycle.md REQ-13). Android
+   * can refuse a resume that lands outside a user gesture, and it does not
+   * always refuse by rejecting — the promise can simply never settle. So each
+   * attempt is raced against `RESUME_VERIFY_MS`, the verdict comes from
+   * `ctx.state`, and three failures hand the job to the next real gesture.
    */
   async resume(): Promise<void> {
+    // Serialise: a visibilitychange arriving mid-retry must join the run in
+    // flight, not start a competing one that re-ramps the master under it.
+    this.resuming ??= this.runResume().finally(() => { this.resuming = null; });
+    return this.resuming;
+  }
+
+  private async runResume(): Promise<void> {
+    // Any resume is intent to play, so it clears a Debug-panel suspend (REQ-15).
+    this.deliberateSuspend = false;
     this.iosSession.unlock();
     // Android: become a media player the OS protects (media-session.md). Like
     // the iOS call above it must run inside the gesture, and it is a no-op off
     // its own platform — so both run before the state check.
     this.media.unlock();
-    if (!shouldResumeContext(this.ctx.state)) return;
-    this.fadeInMaster();
-    try { await this.ctx.resume(); } catch { /* stays suspended until gesture */ }
+
+    for (let attempt = 0; ; attempt++) {
+      // A context that is already running still needs its gain back if the
+      // watchdog muted it and something else resumed us (REQ-16). This is the
+      // one exception to REQ-2, and it is not a dip: the gain is at 0.
+      if (!shouldResumeContext(this.ctx.state)) {
+        if (this.glitchMuted) this.fadeInMaster();
+        this.onResumeSucceeded();
+        return;
+      }
+      this.fadeInMaster();
+      // Raced, not awaited: `currentTime` is frozen, so the ramp above is
+      // already on the timeline whatever this promise decides to do (REQ-3).
+      await raceTimeout(this.ctx.resume(), RESUME_VERIFY_MS);
+      if (!shouldResumeContext(this.ctx.state)) { this.onResumeSucceeded(); return; }
+      if (attempt >= RESUME_RETRIES) break;
+      await delay(RESUME_RETRY_MS);
+    }
+
+    // Out of attempts. The platform wants a gesture; take the next one.
+    this.resumeAttempts++;
+    this.armGestureResume();
+  }
+
+  /** Clear the recovery state after a resume that actually took (REQ-13). */
+  private onResumeSucceeded(): void {
+    this.everRan = true;
+    this.glitchMuted = false;
+    this.clearGlitchTimer();
+    this.resumeAttempts = 0;
+    this.disarmGesture?.();
+    this.disarmGesture = null;
+    if (!this.blocked) return;
+    this.blocked = false;
+    this.notifyBlocked(false);
+  }
+
+  /**
+   * Arm a one-shot resume on the next real user gesture (REQ-13). Capture-phase
+   * so a control that stops propagation cannot swallow it, and passive so it can
+   * never delay a scroll or a key. Idempotent — re-arming while already armed
+   * keeps the existing listeners rather than stacking a second set.
+   */
+  private armGestureResume(): void {
+    if (this.disarmGesture) return;
+    const opts: AddEventListenerOptions = { capture: true, passive: true, once: true };
+    const onGesture = (): void => {
+      // Disarm before resuming: `once` has already removed the listener that
+      // fired, and the sibling types must go with it whether or not this works.
+      this.disarmGesture?.();
+      this.disarmGesture = null;
+      void this.resume();
+    };
+    for (const type of RESUME_GESTURES) window.addEventListener(type, onGesture, opts);
+    this.disarmGesture = () => {
+      for (const type of RESUME_GESTURES) window.removeEventListener(type, onGesture, opts);
+    };
+    if (this.blocked) return;
+    this.blocked = true;
+    this.notifyBlocked(true);
+  }
+
+  private notifyBlocked(blocked: boolean): void {
+    // A UI listener must never be able to break the audio layer (ADR-015).
+    for (const fn of this.blockedListeners) {
+      try { fn(blocked); } catch { /* a broken listener is not the Engine's problem */ }
+    }
+  }
+
+  /**
+   * Subscribe to "audio is stuck and needs a tap" (REQ-14). The Engine owns the
+   * state and touches no DOM; `main.ts` turns this into the toast (ADR-001).
+   * Returns an unsubscribe.
+   */
+  onAudioBlocked(fn: (blocked: boolean) => void): () => void {
+    this.blockedListeners.add(fn);
+    return () => { this.blockedListeners.delete(fn); };
+  }
+
+  /** Recovery state for the Debug panel and the toast (REQ-13/REQ-14). */
+  get audioRecovery(): AudioRecoveryState {
+    return {
+      blocked: this.blocked,
+      attempts: this.resumeAttempts,
+      gestureArmed: this.disarmGesture !== null,
+    };
+  }
+
+  /**
+   * The Debug panel's Suspend — the *only* suspend that counts as deliberate, so
+   * the `statechange` re-arm leaves it alone (audio-lifecycle.md REQ-5/REQ-15).
+   */
+  async suspendForDebug(): Promise<void> {
+    this.deliberateSuspend = true;
+    try { await this.ctx.suspend(); } catch { /* already gone — nothing to do */ }
   }
 
   /**
@@ -587,26 +766,46 @@ export class Engine {
    * iOS drops it into `'suspended'`/`'interrupted'` on calls, Siri and
    * app-switching. Both are fixed by resuming when the page comes back.
    *
-   * The `statechange` listener is iOS-only on purpose: `'interrupted'` arrives
-   * *while visible* and nothing else recovers from it, whereas elsewhere
-   * auto-resuming on state change would instantly undo the Debug panel's
-   * deliberate Suspend (audio-lifecycle.md REQ-4/REQ-5). Some iOS versions still
-   * require a fresh gesture — the next tap is the natural fallback.
+   * The `statechange` listener runs on **every** platform (v5) and is gated on
+   * `deliberateSuspend`, not on the OS. Not installing it off iOS used to stand
+   * in for "don't fight the Debug panel's Suspend" (audio-lifecycle.md REQ-5),
+   * and the price was that every non-iOS device had no recovery at all from a
+   * suspension arriving while the page is *visible* — an audio-focus loss, a
+   * battery saver, an interruption. Gating on the intent keeps REQ-5 and buys
+   * back the recovery (REQ-15).
+   *
+   * `pageshow` joins `visibilitychange` because a bfcache restore can reach a
+   * visible, interactive page without one (REQ-18).
    */
   private installContextRearm(): void {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) return;
+    const onForeground = (): void => {
+      if (document.hidden || !this.everRan) return;
+      // We are back before the watchdog's fade finished — call the suspend off
+      // rather than letting it land on a foreground page (REQ-16).
+      this.clearGlitchTimer();
       // The Android keep-alive first: if the OS paused our element while we were
       // away, the session it holds needs to come back too (media-session REQ-6).
       this.media.rearm();
       // iOS re-arms unconditionally: even a context that survived needs the
-      // silent loop replayed to hold the media-backed session category.
-      if (this.iosSession.active || shouldResumeContext(this.ctx.state)) void this.resume();
-    });
-    if (!this.iosSession.active) return;
+      // silent loop replayed to hold the media-backed session category. Off iOS
+      // a muted-but-running context still needs `resume()` to undo the fade.
+      if (this.iosSession.active || this.glitchMuted || shouldResumeContext(this.ctx.state)) {
+        void this.resume();
+      }
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('pageshow', onForeground);
     this.ctx.addEventListener('statechange', () => {
+      if (this.deliberateSuspend || !this.everRan) return;
       if (!document.hidden && shouldResumeContext(this.ctx.state)) void this.resume();
     });
+  }
+
+  /** Drop the watchdog's pending suspend, if one is still in flight (REQ-16). */
+  private clearGlitchTimer(): void {
+    if (this.glitchTimer === null) return;
+    clearTimeout(this.glitchTimer);
+    this.glitchTimer = null;
   }
 
   /** iOS audio-session diagnostics for the Debug panel (see ios-audio.md / debug-panel.md). */
@@ -625,13 +824,23 @@ export class Engine {
    * transport's grid is preserved and the foreground re-arm picks up where it
    * left off. The suspend is deferred past the fade; a throttled background timer
    * can only make it *later*, which is inaudible at zero gain.
+   *
+   * `glitchMuted` records that the master is being held at 0 by *us*, so that
+   * whatever brings the context back restores it — including a browser that
+   * resumes the context by itself, where the state-gated `fadeInMaster()` would
+   * otherwise leave a running context silent (REQ-16).
    */
   private suspendForGlitch(): void {
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
     this.master.gain.setValueAtTime(this.master.gain.value, t);
     this.master.gain.linearRampToValueAtTime(0, t + GLITCH_FADE_S);
-    setTimeout(() => {
+    this.glitchMuted = true;
+    this.clearGlitchTimer();
+    this.glitchTimer = setTimeout(() => {
+      this.glitchTimer = null;
+      // Coming back inside the fade window cancels this, so by here the page is
+      // still hidden and the suspend is still the right answer.
       void this.ctx.suspend().catch(() => { /* already gone — nothing to do */ });
     }, GLITCH_FADE_S * 1000);
   }

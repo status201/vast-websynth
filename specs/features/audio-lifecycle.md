@@ -3,7 +3,11 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 4   # v4: REQ-10 — a severe reading trips on ONE window (measured: a Pixel
+version: 5   # v5: REQ-13..REQ-18 — recovery. A resume that does not take is
+             #     retried and then handed to the next gesture (measured: an
+             #     Android tablet under battery saving came back silent, and only
+             #     the Debug panel could revive it)
+             # v4: REQ-10 — a severe reading trips on ONE window (measured: a Pixel
              #     8a runs its backgrounded audio clock at 36% of real time)
              # v3: REQ-9..REQ-12 — the background watchdog
 owner: core
@@ -15,12 +19,14 @@ related:
   - pwa-install
   - performance-mode
   - debug-panel
+  - toast
 source:
   - src/audio/engine.ts
   - src/audio/background-watchdog.ts
   - src/audio/transport/clock.ts
   - src/audio/ios-audio-session.ts
   - src/types/pwa.d.ts                # AudioRenderCapacity ambient types
+  - src/main.ts                        # the "tap to resume" toast (v5, REQ-14)
   - src/ui/studio-api.ts
   - src/ui/components/about-debug.ts   # the Debug rows that surface context state
 ```
@@ -62,6 +68,23 @@ be a media player it recognises ([`media-session`](media-session.md), REQ-8). Th
 spec owns the policy tying them together — what resumes, what fades, what keeps
 the session alive, and what the Debug panel shows.
 
+**3. (v5) Coming back did not bring the sound back.** An Android tablet under
+battery saving (below 10 %), transport **stopped**, backgrounded: the context went
+`suspended` and returning to the foreground left the app silent. Only the Debug
+panel's Resume revived it. Everything above is about *entering* the background
+gracefully; nothing checked that leaving it worked. REQ-4's re-arm fires
+`ctx.resume()` and then trusts it — but on Android that call can reject **or return
+a promise that never settles** when it lands outside a user gesture, and the
+rejection was swallowed by a bare `catch` whose comment ("stays suspended until
+gesture") described a fallback that did not exist. Three more holes sat behind it:
+the `statechange` listener that would have noticed was iOS-only; the watchdog's
+fade-to-zero was undone only by a fade gated on the context *not* already running,
+so a context Chrome resumed by itself would come back running and silent; and the
+watchdog was suspending a **stopped, silent** instrument, where there was no
+crackle to prevent in the first place. v5 is the recovery half: verify, retry, and
+if the platform really does want a gesture, take the next one the user makes and
+say so.
+
 ## Requirements
 
 - **REQ-1** — **A start is click-free.** When `Engine.resume()` actually resumes a
@@ -90,14 +113,18 @@ the session alive, and what the Debug panel shows.
   on becoming visible it calls `resume()` when `shouldResumeContext(ctx.state)` —
   Android suspends a hidden page's context and it stays suspended on return. On iOS
   the call is unconditional (the silent loop must be replayed to hold the media-backed
-  session category even when the context survived), and the `ctx` `statechange`
-  listener stays iOS-only. See [`ios-audio`](ios-audio.md) REQ-5.
+  session category even when the context survived). See [`ios-audio`](ios-audio.md)
+  REQ-5. **(v5)** `pageshow` joins `visibilitychange` (REQ-18), the `ctx`
+  `statechange` listener is no longer iOS-only (REQ-15), and none of the three
+  fires before audio has run once (REQ-13).
 
 - **REQ-5** — **`statechange` must not fight a deliberate suspend.** The Debug
-  panel's Suspend action suspends a *visible* context; auto-resuming from
-  `statechange` off iOS would undo it instantly, so that listener is not installed
-  there (REQ-4). The iOS case is the deliberate exception: `'interrupted'` arrives
-  while visible and there is nothing else to recover from it.
+  panel's Suspend action suspends a *visible* context, and auto-resuming from
+  `statechange` would undo it instantly. **(v5)** The contract is unchanged; the
+  *mechanism* is. Not installing the listener off iOS was a proxy for "do not fight
+  a deliberate suspend", and it cost every non-iOS device its only recovery from a
+  suspension that arrives while the page is visible. The listener is now installed
+  everywhere and gated on the intent itself — see REQ-15.
 
 - **REQ-6** — **A frozen renderer produces silence, never a burst.** While the
   wakeup source is stalled the transport emits nothing at all, and it resumes from
@@ -177,6 +204,78 @@ the session alive, and what the Debug panel shows.
   glitching is happening downstream of the renderer and nothing in this app can
   reach it — which is a finding, not a dead end.
 
+- **REQ-13** (v5) — **A resume that does not take is retried, then handed to the
+  next gesture.** `resume()` no longer trusts `ctx.resume()`. It races the promise
+  against `RESUME_VERIFY_MS` (400 ms — Android's can hang indefinitely rather than
+  reject) and then reads `ctx.state`. While the context is still not running it
+  retries, up to `RESUME_RETRIES` (2, so three attempts) with a `RESUME_RETRY_MS`
+  (150 ms) gap; retrying is safe because every attempt re-enters the same
+  `shouldResumeContext` gate, so an attempt that lands after the context is already
+  running does nothing. If all three fail it **arms a one-shot gesture fallback** —
+  `pointerdown` / `keydown` / `touchend` on `window`, capture-phase and passive —
+  so the very next touch anywhere in the app resumes from inside a real user
+  gesture. At most one arming is live at a time, and it is disarmed the moment the
+  context reaches `running`.
+
+  **The automatic re-arms (REQ-4/REQ-15/REQ-18) stay out of the way until the
+  context has run at least once.** Before the Tap-to-start gesture a refused
+  resume is the *expected* state, not a fault — and the initial `pageshow` fires
+  on a normal load too, so without this guard every boot would raise the toast of
+  REQ-14 over the start modal. An explicit `resume()` (the start button, the
+  Debug panel, the tour, the Media Session's play action) always runs the full
+  verify-and-arm, including the very first one.
+
+- **REQ-14** (v5) — **A stuck context is visible, not silent.** While the fallback
+  is armed the app shows a **sticky** [`toast`](toast.md) (`durationMs: 0`,
+  `audio-suspended-toast`) reading "Audio is suspended — tap to resume" with a
+  Resume action, dismissed automatically when the context comes back. Silence with
+  no explanation is the worst outcome an instrument can produce
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md)), and the toast is
+  *belt* — the invisible fallback of REQ-13 is the braces, and a user who taps
+  anything at all never sees the toast for long. **The layers stay apart**
+  ([ADR-001](../decisions/adr-001-parambus-over-redux.md)): the Engine owns the
+  state (`Engine.audioRecovery` + `Engine.onAudioBlocked`) and touches no DOM;
+  `main.ts`, which already owns the start modal and the wake lock, subscribes and
+  drives the toast. The toast facility is single-slot, so another toast can evict
+  this one — acceptable, because the toast is not what performs the recovery.
+
+- **REQ-15** (v5) — **A suspension the app did not ask for is recovered wherever it
+  happens.** The `ctx` `statechange` listener is installed on **every** platform
+  and gated on an explicit `deliberateSuspend` flag rather than on the platform.
+  Only the Debug panel sets it, through `Engine.suspendForDebug()`; any `resume()`
+  clears it. REQ-5's guarantee is therefore unchanged — a deliberate suspend still
+  stays suspended — while an OS-initiated suspend on a *visible* page (audio-focus
+  loss, a battery-saver kicking in, an interruption) now recovers on Android and
+  desktop as it already did on iOS.
+
+- **REQ-16** (v5) — **The glitch fade-out is always undone.** `suspendForGlitch()`
+  records that it muted the master. `resume()` restores the ramp whenever that flag
+  is set, **even on an already-running context** — the single deliberate exception
+  to REQ-2, and not a dip: the gain is at 0, so `fadeInMaster()` ramps 0 → target
+  exactly as it does from a real resume. Without this, a context the browser
+  resumed by itself comes back **running and silent**, which is the hardest
+  possible variant to diagnose because the Debug panel reads `running`.
+  `suspendForGlitch()` also **cancels its own pending suspend** if the page becomes
+  visible inside the `GLITCH_FADE_S` window, so a trip can no longer suspend a page
+  that is already back in the foreground.
+
+- **REQ-17** (v5) — **Nothing is suspended for crackle that is not making sound.**
+  The trip is refused while the transport is stopped. REQ-9 exists to stop audible
+  break-up; with nothing sounding there is nothing to break up, and the only effect
+  of tripping is a suspend/resume cycle that can go wrong — which is precisely the
+  session that produced v5. The check sits in the watchdog's `judge()` beside
+  `isBusy` (REQ-11), **not** in `beginWatch()`, so a transport started while hidden
+  by a MIDI or WiFi clock master ([`midi-clock-sync`](midi-clock-sync.md),
+  [`webrtc-sync`](webrtc-sync.md)) still arms the trip. One deliberate edge: a
+  release tail still ringing as the page hides is not counted as "sounding" — a
+  tail is shorter than the two 0.25 s windows a marginal reading needs, and a
+  severe reading during one is a false trip that costs nothing.
+
+- **REQ-18** (v5) — **A bfcache restore counts as coming back.** The foreground
+  re-arm (REQ-4) also runs from a `window` `pageshow`. A page restored from the
+  back/forward cache can reach a visible, interactive state without a
+  `visibilitychange`, and nothing in the app listened for it.
+
 ## Technical design
 
 ### Contract / public interface
@@ -184,9 +283,17 @@ the session alive, and what the Debug panel shows.
 ```yaml
 # src/audio/engine.ts
 RESUME_FADE_S = 0.15                 # module constant
+RESUME_VERIFY_MS = 400               # v5: how long ctx.resume() gets to actually take
+RESUME_RETRY_MS  = 150               # v5: gap between attempts
+RESUME_RETRIES   = 2                 # v5: retries after the first attempt (3 total)
 Engine.resume(): Promise<void>       # unlock()s (iOS + Android) → (if resuming) fadeInMaster() → ctx.resume()
+                                     #   v5: → verify → retry → arm the gesture fallback
+Engine.suspendForDebug(): Promise<void>   # v5: the ONLY suspend that sets deliberateSuspend
+Engine.audioRecovery: AudioRecoveryState  # v5: { blocked, attempts, gestureArmed }
+Engine.onAudioBlocked(fn: (blocked: boolean) => void): () => void   # v5: returns an unsubscribe
 Engine.installContextRearm(): void   # private, called from init(); replaces installIosRearm
-                                     #   visibilitychange (all platforms) + statechange (iOS only)
+                                     #   visibilitychange + pageshow (all platforms)
+                                     #   statechange (all platforms, v5 — gated on deliberateSuspend)
 
 # src/audio/transport/clock.ts       — see transport.md REQ-9
 Clock.dropouts: number               # recoveries this session (monotonic, never reset)
@@ -196,10 +303,17 @@ SAMPLE_S = 0.25, UNDERRUN_TRIP = 0.01, DRIFT_TRIP = 0.9, BAD_WINDOWS = 2
 SEVERE_UNDERRUN = 0.1, SEVERE_DRIFT = 0.5      # v4: one window is enough
 WatchdogDiagnostics: { supported, watching, underrunRatio, worstUnderrunRatio, driftRatio, suspensions }
 class BackgroundAudioWatchdog:
-  constructor(ctx, opts: { onGlitch(): void; isBusy?(): boolean; doc?; timer?; now? })
+  constructor(ctx, opts: { onGlitch(): void; isBusy?(): boolean; isSilent?(): boolean; doc?; timer?; now? })
+                                     #   isSilent — v5, REQ-17: refuse the trip with nothing sounding
   start(): void                      # install the visibilitychange listener
   get diagnostics(): WatchdogDiagnostics
 Engine.backgroundAudio: WatchdogDiagnostics
+
+# v5 — the recovery state the UI renders (REQ-14)
+AudioRecoveryState:
+  blocked: boolean        # every attempt failed; audio is silent and waiting
+  attempts: number        # consecutive failed resume attempts (0 when running)
+  gestureArmed: boolean   # a one-shot window listener is waiting for a real gesture
 
 # src/types/pwa.d.ts                 — ambient, not in lib.dom
 AudioRenderCapacity: start({ updateInterval }) / stop() / 'update' event
@@ -210,18 +324,29 @@ AudioContext.renderCapacity?: AudioRenderCapacity
 ### Layer touchpoints & ordering
 
 ```yaml
-engine.resume():   iosSession.unlock(); media.unlock()       # sync, inside the gesture
+re-arm handlers:   everRan or return                        # v5: nothing automatic before the
+                   #   first successful resume (REQ-13)
+engine.resume():   deliberateSuspend = false                 # v5: any resume is intent to play
+                   iosSession.unlock(); media.unlock()       # sync, inside the gesture
                    #   ios-audio REQ-4 / media-session REQ-2 — each inert off its OS
+                   glitchMuted && ctx.state === 'running' ? fadeInMaster() : —   # v5, REQ-16
                    shouldResumeContext(ctx.state) ? fadeInMaster() : return
-                   await ctx.resume()                        # ramp already on the timeline (REQ-3)
+                   await ctx.resume() raced with RESUME_VERIFY_MS   # v5, REQ-13
+                   #   ramp already on the timeline (REQ-3)
+                   still not running ? retry (RESUME_RETRIES) : done
+                   still not running ? armGestureFallback() + notify blocked      # v5, REQ-13/14
 engine.init():     installContextRearm()                     # after the graph + voices exist
                    #   on foreground: resume() as below, plus media.rearm() (REQ-8)
                    watchdog.start()                          # v3: AFTER recorder/bankRender —
-                   #   isBusy() reads them (REQ-11)
+                   #   isBusy() reads them (REQ-11); isSilent() reads clock (v5, REQ-17)
 watchdog trip:     master.gain → 0 over GLITCH_FADE_S, then ctx.suspend()
                    #   the fade first so the exit is not itself a click (REQ-1's sibling)
-main.ts:           unchanged — the start handler still awaits engine.resume()
+                   #   v5: glitchMuted = true; the pending suspend is cancellable (REQ-16)
+main.ts:           the start handler still awaits engine.resume()
+                   #   v5: engine.onAudioBlocked(...) → sticky showToast / dismiss (REQ-14)
 ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
+                   #   v5: Suspend goes through engine.suspendForDebug(); the ctx-state row
+                   #   appends `· awaiting gesture` while the fallback is armed
 wake lock:         unchanged — it follows ctx.state from main.ts and the OS drops it
                    on screen-off anyway (pwa-install.md REQ-1)
 ```
@@ -255,10 +380,11 @@ Scenario: Android suspends the context while the screen is off
   Then Engine.resume() runs, fading the master back in
 # pinned by: tests/audio/engine-resume.test.ts
 
-Scenario: A deliberate suspend stays suspended (edge, off iOS)
+Scenario: A deliberate suspend stays suspended (edge)
   Given the Debug panel's Suspend action suspended a visible context
   When the statechange event fires
   Then the context is NOT auto-resumed
+   And this holds on every platform, because the gate is the intent flag and not the OS
 # pinned by: tests/audio/engine-resume.test.ts
 
 Scenario: A backgrounded tab that underruns is suspended (v3)
@@ -299,6 +425,49 @@ Scenario: A frozen renderer trips on drift where underruns cannot (v3)
   Then the context is suspended
 # pinned by: tests/audio/background-watchdog.test.ts
 
+Scenario: Nothing is resumed automatically before the first start (v5, edge)
+  Given the app has booted and the Tap-to-start modal is up
+  When a visibilitychange, a pageshow and a statechange all fire
+  Then no resume is attempted and no toast is raised
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A resume that never takes is retried, then waits for a gesture (v5)
+  Given a suspended context whose ctx.resume() rejects
+  When the page becomes visible and Engine.resume() runs
+  Then it retries up to RESUME_RETRIES times
+   And it ends with the gesture fallback armed and audioRecovery.blocked true
+   And subscribers of onAudioBlocked were told
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A resume whose promise never settles is not waited on forever (v5, edge)
+  Given a suspended context whose ctx.resume() returns a promise that never settles
+  When Engine.resume() runs
+  Then it gives up on that attempt after RESUME_VERIFY_MS rather than hanging
+   And it still ends with the gesture fallback armed
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: The next tap anywhere brings the audio back (v5)
+  Given the gesture fallback is armed
+  When a pointerdown reaches the window
+  Then Engine.resume() runs again from inside that gesture
+   And on success the fallback is disarmed and audioRecovery.blocked goes false
+   And the listener is one-shot, so a second tap re-arms nothing
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A context that came back running is not left silent (v5, REQ-16)
+  Given the watchdog faded the master to zero and suspended
+  When the context is running again and Engine.resume() runs
+  Then the master is ramped back up even though the context was already running
+   And a resume with no glitch mute outstanding still leaves a running context alone
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A stopped instrument is never suspended for crackle (v5, REQ-17)
+  Given the page is hidden with the transport stopped
+  When a window reports the audio clock at 36% of real time
+  Then the context is NOT suspended
+   And the same window with the transport playing does suspend it
+# pinned by: tests/audio/background-watchdog.test.ts
+
 Scenario: Screen off on a device that freezes the renderer (device)
   Given the transport is playing on a Pixel 8a
   When the screen turns off for a minute and comes back on
@@ -306,13 +475,24 @@ Scenario: Screen off on a device that freezes the renderer (device)
    And playback continues from the step it was on
    And the Debug panel's Transport row shows the dropouts it recovered from
 # verified manually on device; jsdom cannot pin this
+
+Scenario: Backgrounded under battery saving and back again (v5, device)
+  Given the app is playing on an Android tablet with battery saving on
+  When it is backgrounded for a minute and brought back
+  Then the audio returns without touching the Debug panel
+   And if the platform did demand a gesture, the toast said so and one tap fixed it
+   And with the transport stopped instead, nothing was suspended at all
+# verified manually on device; jsdom cannot pin this
 ```
 
 ## Tests & verification
 
-- `tests/audio/engine-resume.test.ts` — the fade + re-arm policy, driven against
+- `tests/audio/engine-resume.test.ts` — the fade + re-arm policy **and (v5) the
+  retry / gesture-fallback / glitch-restore policy**, driven against
   `Engine.prototype` with a structural stub (the same technique as
-  `engine-seek.test.ts`: it pins the production method, not a copy of it).
+  `engine-seek.test.ts`: it pins the production method, not a copy of it). The v5
+  cases use fake timers, since `RESUME_VERIFY_MS` and `RESUME_RETRY_MS` are waits.
+- `tests/audio/background-watchdog.test.ts` — includes the v5 `isSilent` refusal.
 - `tests/audio/transport/clock.test.ts` — the dropout mechanism (transport.md REQ-9).
 - By ear on device: the click is a startup transient, so the only real verification
   is opening the app on the phone that clicked ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),

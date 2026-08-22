@@ -229,7 +229,9 @@ export function buildDebugSection(engine: StudioApi): {
     onClick: () => {
       // Suspending is how you prove a stuck note is the graph and not the
       // device; resuming is the escape hatch when the OS suspended us.
-      if (engine.ctx.state === 'running') void engine.ctx.suspend();
+      // Through the Engine, not ctx.suspend(): that is what marks it deliberate
+      // so the automatic re-arm leaves it alone (audio-lifecycle.md REQ-15).
+      if (engine.ctx.state === 'running') void engine.suspendForDebug();
       else void engine.resume();
     },
   });
@@ -291,7 +293,11 @@ export function buildDebugSection(engine: StudioApi): {
 
   const refresh = (force = false): void => {
     // ---- every tick: cheap field reads ----
-    stateVal.textContent = engine.ctx.state;
+    // `suspended` alone cannot tell "the OS took it" from "we asked and were
+    // refused" — the suffix is the difference (audio-lifecycle.md REQ-13).
+    stateVal.textContent = engine.audioRecovery.gestureArmed
+      ? `${engine.ctx.state} · awaiting gesture`
+      : engine.ctx.state;
     setButtonLabel(ctxToggle, engine.ctx.state === 'running' ? 'Suspend' : 'Resume');
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
     const base = engine.ctx.baseLatency;

@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Backgrounding the app no longer leaves it silent.** On a device that suspends
+  the audio while you are away, returning to the app now verifies that the
+  context actually came back rather than assuming it — it retries, and if the
+  platform insists on a real gesture, the next tap anywhere resumes and a toast
+  says so. Previously the only way back was the Debug panel's Resume button.
+- **A backgrounded, *stopped* instrument is no longer suspended at all.** The
+  background watchdog exists to stop crackle; with nothing playing there is none.
+- **The scope can no longer go black and stay black.** Its redraw loop can always
+  be restarted, one bad frame can no longer end it, and a canvas whose backing
+  store the OS reclaimed while the app was in the background is now restored
+  instead of leaving the panel blank for the rest of the session.
+- **An interruption while the app is in the foreground now recovers on Android
+  and desktop**, not only on iOS — an audio-focus loss or a battery saver used
+  to leave the instrument silent with nothing to show for it. A deliberate
+  Suspend from the Debug panel still stays suspended.
+
 ## [2.9.0] - 2026-08-21
 
 ### Removed

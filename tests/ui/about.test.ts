@@ -12,6 +12,7 @@ import type { StudioApi } from '../../src/ui/studio-api';
 import type { IosAudioDiagnostics } from '../../src/audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../../src/audio/media-session';
 import type { WatchdogDiagnostics } from '../../src/audio/background-watchdog';
+import type { AudioRecoveryState } from '../../src/audio/engine';
 
 // The About modal wires the factory-reset button to this helper; the helper's
 // own behaviour (clear + reload) is pinned by tests/state/factory-reset.test.ts.
@@ -28,6 +29,8 @@ const INERT_MEDIA: MediaSessionDiagnostics = {
 const IDLE_BG: WatchdogDiagnostics = {
   supported: true, watching: false, underrunRatio: 0, worstUnderrunRatio: 0, driftRatio: 1, suspensions: 0,
 };
+/** Nothing has gone wrong with a resume (audio-lifecycle.md REQ-13). */
+const OK_RECOVERY: AudioRecoveryState = { blocked: false, attempts: 0, gestureArmed: false };
 
 /** Minimal StudioApi — the Debug panel reads the context, the clock/sync state,
  *  the iOS + Android session diagnostics, and (for its actions) panic/resume/sampler. */
@@ -36,6 +39,7 @@ function stubEngine(
   iosAudio: IosAudioDiagnostics = INERT_IOS,
   mediaSession: MediaSessionDiagnostics = INERT_MEDIA,
   backgroundAudio: WatchdogDiagnostics = IDLE_BG,
+  audioRecovery: AudioRecoveryState = OK_RECOVERY,
 ) {
   const osc = {
     frequency: { value: 0 },
@@ -68,11 +72,14 @@ function stubEngine(
     iosAudio,
     mediaSession,
     backgroundAudio,
+    audioRecovery,
     clock: { playing: false, bpm: 120, dropouts: 0 },
     sync: { mode: 'off' },
     sampler: { setBuffer: vi.fn() },
     panic: vi.fn(),
     resume: vi.fn(async () => {}),
+    suspendForDebug: vi.fn(async () => {}),
+    onAudioBlocked: vi.fn(() => () => {}),
   };
   return { engine: engine as unknown as StudioApi, ctx, osc, api: engine };
 }
@@ -337,13 +344,27 @@ describe('About modal — Debug section', () => {
     toggle.click();
     expect(api.resume).toHaveBeenCalledTimes(1);
 
-    // Running: it offers the opposite, and suspends the real context.
+    // Running: it offers the opposite, and suspends the real context — through
+    // the Engine, so the suspend is marked deliberate and the automatic re-arm
+    // leaves it alone (audio-lifecycle.md REQ-15).
     ctx.state = 'running';
     const handler = ctx.addEventListener.mock.calls.find((c) => c[0] === 'statechange')?.[1] as () => void;
     handler();
     expect(toggle.textContent).toBe('Suspend');
     toggle.click();
-    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+    expect(api.suspendForDebug).toHaveBeenCalledTimes(1);
+    expect(ctx.suspend).not.toHaveBeenCalled();
+  });
+
+  it('says when a resume is waiting for a gesture (audio-lifecycle REQ-13)', async () => {
+    const { engine } = stubEngine('suspended', INERT_IOS, INERT_MEDIA, IDLE_BG, {
+      blocked: true, attempts: 1, gestureArmed: true,
+    });
+    await openAbout(engine);
+    expandDebug();
+    // "suspended" alone cannot tell "the OS took it" from "we asked and were
+    // refused"; the suffix is the difference.
+    expect(ctxStateRow()?.textContent).toBe('suspended · awaiting gesture');
   });
 
   it('panics and plays a test tone straight to the destination', async () => {

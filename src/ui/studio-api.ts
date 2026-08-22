@@ -14,6 +14,7 @@ import type { Compressor } from '../audio/effects/compressor';
 import type { IosAudioDiagnostics } from '../audio/ios-audio-session';
 import type { MediaSessionDiagnostics } from '../audio/media-session';
 import type { WatchdogDiagnostics } from '../audio/background-watchdog';
+import type { AudioRecoveryState } from '../audio/engine';
 
 /**
  * The UI's narrow view of the `Engine` (ADR-009). UI panels/components depend on
@@ -76,6 +77,12 @@ export interface StudioApi {
   readonly backgroundAudio: WatchdogDiagnostics;
 
   /**
+   * Whether a resume failed and the app is waiting for a real user gesture
+   * (audio-lifecycle.md REQ-13/REQ-14). Read by the Debug panel's context row.
+   */
+  readonly audioRecovery: AudioRecoveryState;
+
+  /**
    * Bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
    * currently resolve it (meter.md REQ-6). Read by the ruler, the `bar.step`
    * readout and the export estimate, so every surface measures a bar exactly
@@ -96,4 +103,16 @@ export interface StudioApi {
   canSeek(): boolean;
   /** Resume the AudioContext from within a user gesture. */
   resume(): Promise<void>;
+  /**
+   * Suspend the context *deliberately* (the Debug panel's Suspend). Distinct
+   * from `ctx.suspend()`: this is what tells the automatic re-arm to leave it
+   * alone (audio-lifecycle.md REQ-15).
+   */
+  suspendForDebug(): Promise<void>;
+  /**
+   * Subscribe to "audio is stuck and needs a tap" (audio-lifecycle.md REQ-14).
+   * Returns an unsubscribe. The Engine never touches the DOM — this is the
+   * seam the toast hangs off (ADR-001).
+   */
+  onAudioBlocked(fn: (blocked: boolean) => void): () => void;
 }

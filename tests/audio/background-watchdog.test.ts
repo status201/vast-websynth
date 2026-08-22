@@ -10,7 +10,7 @@ import type { TickTimer } from '../../src/audio/transport/tick-timer';
  * underrun reports independently, which is the whole point: the trip must follow
  * the *measurement*, never the device.
  */
-function harness(opts: { renderCapacity?: boolean; busy?: boolean } = {}) {
+function harness(opts: { renderCapacity?: boolean; busy?: boolean; silent?: boolean } = {}) {
   let hidden = false;
   let visibilityFn: (() => void) | null = null;
   const doc = {
@@ -49,6 +49,7 @@ function harness(opts: { renderCapacity?: boolean; busy?: boolean } = {}) {
   const watchdog = new BackgroundAudioWatchdog(ctx as unknown as AudioContext, {
     onGlitch,
     isBusy: () => opts.busy ?? false,
+    isSilent: () => opts.silent ?? false,
     doc,
     timer,
     now: () => wall,
@@ -160,6 +161,22 @@ describe('BackgroundAudioWatchdog', () => {
     h.hide();
     for (let i = 0; i < 6; i++) h.underruns(0.5);
     expect(h.onGlitch).not.toHaveBeenCalled();
+  });
+
+  // REQ-17 — the trip exists to stop audible break-up. With nothing sounding
+  // there is none, and the suspend/resume cycle is pure risk.
+  it('never suspends an instrument that is not making a sound', () => {
+    const h = harness({ silent: true });
+    h.hide();
+    for (let i = 0; i < 6; i++) h.underruns(0.5);
+    expect(h.onGlitch).not.toHaveBeenCalled();
+  });
+
+  it('does suspend the same windows once the transport is playing (REQ-17)', () => {
+    const h = harness({ silent: false });
+    h.hide();
+    h.underruns(0.5);   // severe — one window is the whole verdict
+    expect(h.onGlitch).toHaveBeenCalledTimes(1);
   });
 
   it('trips on audio-clock drift where underruns cannot be seen', () => {

@@ -55,6 +55,8 @@ export interface WatchdogOptions {
   onGlitch: () => void;
   /** True while a real-time capture must not be interrupted (REQ-11). */
   isBusy?: () => boolean;
+  /** True while nothing is sounding, so there is no crackle to prevent (REQ-17). */
+  isSilent?: () => boolean;
   doc?: VisibilityDoc;
   /** Sampling wakeups; worker-backed by default so throttling cannot blind it. */
   timer?: TickTimer;
@@ -82,6 +84,7 @@ export class BackgroundAudioWatchdog {
   private readonly timer: TickTimer;
   private readonly now: () => number;
   private readonly isBusy: () => boolean;
+  private readonly isSilent: () => boolean;
 
   private watching = false;
   private badWindows = 0;
@@ -100,6 +103,7 @@ export class BackgroundAudioWatchdog {
     this.timer = opts.timer ?? defaultTickTimer();
     this.now = opts.now ?? (() => performance.now());
     this.isBusy = opts.isBusy ?? (() => false);
+    this.isSilent = opts.isSilent ?? (() => false);
   }
 
   /** Begin following the page's visibility. Call once, after the graph exists. */
@@ -189,6 +193,11 @@ export class BackgroundAudioWatchdog {
     // A capture is recording the live output in real time — suspending mid-take
     // truncates the file, which is worse than a damaged one (REQ-11).
     if (this.isBusy()) return;
+    // Nothing is sounding, so there is no break-up to prevent and the only
+    // effect of tripping would be a suspend/resume cycle that can go wrong
+    // (REQ-17). Checked here and not in beginWatch(), so a transport started
+    // while hidden by a clock master still arms the trip.
+    if (this.isSilent()) { this.badWindows = 0; return; }
     if (++this.badWindows < BAD_WINDOWS && !severe) return;
     this.endWatch();
     this.suspensions++;

@@ -19,7 +19,7 @@ import { Modal } from './ui/components/modal';
 import { createBrand } from './ui/components/brand';
 import { alertDialog, confirmDialog } from './ui/components/dialog';
 import { WakeLockManager } from './utils/wake-lock';
-import { showToast } from './ui/components/toast';
+import { showToast, type ToastHandle } from './ui/components/toast';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
 import type { Onboarding } from './ui/onboarding';
 
@@ -126,6 +126,28 @@ async function boot() {
     else wake.disable();
   });
   setWakeLockSource(() => ({ supported: wake.supported, held: wake.held }));
+
+  // A resume the platform refused leaves the app silent with nothing to look at,
+  // which is the worst thing an instrument can do (audio-lifecycle.md REQ-14).
+  // The Engine has already armed a one-shot listener so *any* tap fixes it —
+  // this only says so out loud, and gets out of the way the moment audio is back.
+  // Engine → UI through a subscription, never the reverse (ADR-001).
+  let suspendedToast: ToastHandle | null = null;
+  engine.onAudioBlocked((blocked) => {
+    if (!blocked) { suspendedToast?.dismiss(); suspendedToast = null; return; }
+    if (suspendedToast) return;
+    const toast = showToast({
+      message: 'Audio is suspended — tap to resume.',
+      actionLabel: 'Resume',
+      onAction: () => { void engine.resume(); },
+      durationMs: 0,   // sticky: it is true until the audio is actually back
+      testId: 'audio-suspended-toast',
+    });
+    // Single-slot: another toast can evict this one. Harmless — the toast is
+    // not what performs the recovery, so let the reference go with it.
+    toast.onDismiss(() => { if (suspendedToast === toast) suspendedToast = null; });
+    suspendedToast = toast;
+  });
 
   // Dev-only debug bridge for E2E tests (Playwright drives the dev server, so
   // import.meta.env.DEV is true there). Lets specs read/drive state directly —
