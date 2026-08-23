@@ -254,17 +254,34 @@ The failure tells you which half is wrong, if you read what produced it:
 The distinction that matters: **a Plesk-styled error page is never from us.** This
 server only ever answers JSON, so any HTML means the request did not get to it.
 
+The same rule applies one level down, on the **subdomain** itself:
+
+| What you see on `https://<subdomain>/healthz` | What it means |
+| --- | --- |
+| A **Plesk 404** | nginx served that subdomain *statically* — Passenger never saw the request. Node.js is not enabled or not running on it, so an empty `httpdocs` answered instead. Start with step 1 below. |
+| A **Passenger error page** or a **500** | Passenger *is* wired in and tried to start the app, and the app failed. This is the good kind of failure: the reason is in the log (step 4). |
+| **JSON** | The app is healthy. Any remaining problem is the nginx directive on the main domain, not the server. |
+
+A clean static 404 and a Passenger error mean opposite things — the first says the
+runtime was never invoked, the second says it was. Reading which one you have
+saves checking the app for a fault that is really a panel toggle.
+
 Plesk specifics worth checking, in order:
 
-1. **Apache & nginx Settings → Additional nginx directives** on the *main* domain
+1. **Node.js is enabled on the subdomain at all.** The panel's button is a
+   toggle: if it reads *"Enable Node.js"* it is currently **off**, and nginx is
+   serving `httpdocs` statically. It should read *"Disable Node.js"*. This is the
+   usual cause of a clean Plesk 404 on the subdomain.
+2. The **Application Startup File is `app.js`**, and the files sit in the
+   *Application Root* — `app.js` and `dist/song-core.mjs` directly in it, **not**
+   in `httpdocs`. Put them in `httpdocs` and Passenger never finds the entry.
+3. **Restart App** after replacing any file. Plesk does not pick up changes on
+   its own, so a fixed deploy can keep serving the broken one.
+4. **Apache & nginx Settings → Additional nginx directives** on the *main* domain
    actually contains the block, and the page was **saved without an error**.
    Plesk validates the config on save and refuses invalid input — a block that
    never applied often means a save that silently failed.
-2. The subdomain's **Node.js app is running** (Plesk shows its state; use
-   *Restart App* after replacing files — it does not pick up changes on its own).
-3. The **Application Startup File is `app.js`** and the files sit in the
-   *Application Root*, not in `httpdocs`.
-4. Node's own output: the app logs `[websynth-mcp] ready (http, v…)` on a
+5. Node's own output: the app logs `[websynth-mcp] ready (http, v…)` on a
    successful boot, and a missing `dist/song-core.mjs` fails loudly at start
    rather than at the first request.
 
