@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `npm run start:mcp:http` runs that server locally, and `npm run release` now
   also produces `mcp-v<version>.zip` for deploying it. Hosting instructions are
   in DEPLOYMENT.md.
+- **The ✨ AI Prompt modal points at that connector** as the shorter route: if
+  your assistant supports MCP connectors, adding the URL shown there lets it
+  validate and fix songs directly instead of you copying a prompt out and pasting
+  the reply back. The prompt text itself is unchanged — it is read by an agent
+  that, by definition, does not have the connector. `llms.txt` names the endpoint
+  too, so an agent that finds the site on its own learns it can have tools rather
+  than documents.
 
 ### Fixed
 
