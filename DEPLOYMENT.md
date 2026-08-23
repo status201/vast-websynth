@@ -142,7 +142,14 @@ are trying to work out what a box is actually running.
 
 ### Requirements
 
-- Node **≥ 20** (the bundle targets `node20`; the repo itself wants ≥ 22).
+- Node **≥ 20**, and **prefer an even-numbered major**. The bundle is compiled
+  `target: 'node20'` and uses no API newer than that, so 20.x is exactly what it
+  was built for. Odd majors (21, 23, …) are never LTS: they stop getting security
+  patches within months of release, and Plesk panels often still list one — a box
+  offering "21.7.3 or 20.20.2" should be set to **20.20.2**, which is both LTS and
+  years newer despite the lower number. That matters more here than for most apps,
+  because this endpoint is public and unauthenticated, so its HTTP parser is
+  reachable by anyone.
 - **No dependencies.** There is no `dependencies` block (ADR-003) — do not run
   `npm install` on the server; there is nothing to install.
 - The zip ships `dist/song-core.mjs` prebuilt. The deployed entry deliberately
@@ -161,7 +168,7 @@ are trying to work out what a box is actually running.
 
    | Field | Value |
    | --- | --- |
-   | Node.js version | 22.x |
+   | Node.js version | the newest **LTS** the panel offers — 20.x or above (see below) |
    | Application Root | where you unzipped (one level above Document Root) |
    | Document Root | `httpdocs` — leave it empty |
    | Application Startup File | `app.js` |

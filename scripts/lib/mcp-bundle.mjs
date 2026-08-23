@@ -94,7 +94,8 @@ Plesk (panel only)
      Application Root : this folder's contents (NOT httpdocs)
      Document Root    : httpdocs (leave empty)
      Startup File     : app.js
-     Node version     : 22.x        Mode: production
+     Node version     : newest LTS offered (20.x+; prefer an EVEN major)
+     Mode             : production
    Do not click "NPM install".
 2. Enable Let's Encrypt on the subdomain.
 3. On the main site's domain, Apache & nginx Settings ->
