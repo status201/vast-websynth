@@ -1,6 +1,9 @@
 # Deployment
 
-WebSynth is a static site. Build, then serve the output folder.
+WebSynth is a static site. Build, then serve the output folder. (The repo also
+ships an *optional* MCP server you can host alongside it — that is a separate,
+skippable artifact; see [Hosting the MCP server](#hosting-the-mcp-server). The
+app itself never talks to it and works exactly the same without it.)
 
 ```bash
 npm run build   # → dist/

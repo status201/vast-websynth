@@ -38,6 +38,13 @@ source:
   - .mcp.json                         # repo-root registration for Claude Code
 ```
 
+`scripts/mcp/**` and `.mcp.json` are **not** SDD-gated paths — `sdd-guard.mjs`
+watches `src/**` and `public/worklets/**` — but this spec is their source of
+truth anyway: treat a change to any of them as a change to this spec. That
+matters more here than the exemption suggests, because `http.mjs` is the trust
+boundary of a public endpoint (REQ-11) and nothing automated will stop an edit
+to it landing without one.
+
 ## Background / Why
 
 AI agents that can call tools do far better with a **feedback loop** than with

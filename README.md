@@ -73,7 +73,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Published parameter list**: every synth parameter — id, range, default, taper and (for choice knobs) its value map — is *generated* from the live registry and shipped as [`/params.md`](public/params.md) and [`/params.json`](public/params.json), so an AI agent can fetch the list without opening the app or running a tool. See **Formats & schemas** below
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that teaches the compact dialect first (with the full format as an appendix) and links both live schema URLs; paste it into any AI agent and import the song it returns
 - **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song after "Tap to start". `#songUrl=<https url>` loads a hosted song/project file
-- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them — see **MCP server** below
+- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them. It runs locally over stdio, or hosted over HTTP at `https://vast.status201.com/mcp` — add that as a connector and an agent gets the authoring loop with nothing installed — see **MCP server** below
 - **Paste, don't save-then-import**: AI agents answer with JSON in the chat window, so the Song panel has a **Paste** button (and the ✨ AI Prompt modal ends with a paste box) that takes the reply as-is — code fences and surrounding chatter are stripped — and tells you what it recognised before anything is applied. Preset and bank JSON goes in the same box and is routed to the preset importer
 - **Presets**: a 19-sound factory bank — basses (bass, upright, pbass, reese, acid, **ember**), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass, **vellum**), leads/plucks (basic, lead, pluck, **prism**) and wobble — + user presets saved to `localStorage`. The three bold ones show off the POLY filter (a bass that holds its bottom at screaming resonance, a band-pass pad whose filter type breathes, a high-pass pluck); flip the model switch to LADDER on any of them to hear the difference. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either — both have a published JSON Schema ([preset](public/schema/websynth-preset.schema.json), [bank](public/schema/websynth-preset-bank.schema.json)). Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI — note velocity, pitch bend, mod wheel, **sustain pedal** (CC64, doubles as an arp latch), and volume/cutoff/resonance CCs
@@ -200,10 +200,11 @@ See [`specs/features/mcp-server.md`](specs/features/mcp-server.md).
 
 `npm run release -- <version|major|minor|patch>` bumps `package.json`, promotes
 the CHANGELOG `[Unreleased]` section, builds the app, and zips `dist/` into
-`dist-v<version>.zip` — then **prints** the `git` and `gh release create`
+`dist-v<version>.zip` — plus `mcp-v<version>.zip`, the deployable MCP server —
+then **prints** the `git` and `gh release create`
 commands to publish (it never touches git/GitHub itself). Use `--dry-run` to
-preview, `--yes` to skip the prompt, `--skip-build` to skip the build + zip.
-Attaching the zip needs the [`gh` CLI](https://cli.github.com/) authenticated.
+preview, `--yes` to skip the prompt, `--skip-build` to skip the build + zips.
+Attaching them needs the [`gh` CLI](https://cli.github.com/) authenticated.
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full flow and how to deploy the
 built `dist/`.
 
