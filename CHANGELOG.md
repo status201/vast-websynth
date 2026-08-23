@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-08-23
+
 ### Added
 
 - **The MCP server can now be hosted, so AI agents can write songs for the synth
@@ -2106,7 +2108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.9.0...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/status201/vast-websynth/compare/v2.9.0...v2.10.0
 [2.9.0]: https://github.com/status201/vast-websynth/compare/v2.8.2...v2.9.0
 [2.8.2]: https://github.com/status201/vast-websynth/compare/v2.8.1...v2.8.2
 [2.8.1]: https://github.com/status201/vast-websynth/compare/v2.8.0...v2.8.1
