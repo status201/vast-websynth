@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createAiPromptButton, type AiPromptRoutes } from '../../src/ui/components/ai-prompt';
-import { buildSongPrompt } from '../../src/state/authoring-guide';
+import { buildSongPrompt, buildAuthoringGuide } from '../../src/state/authoring-guide';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import { Song, DEMO_SONGS } from '../../src/state/song';
 import modalStyles from '../../src/ui/styles/modal.module.css';
@@ -111,5 +111,42 @@ describe('AI Prompt modal', () => {
     const card = document.querySelector('[role="dialog"]')!;
     expect(card.textContent).toContain('3 · Paste the reply here');
     expect(card.lastElementChild!.textContent).toBe('Close');
+  });
+
+  // ai-prompt.md REQ-10 — the modal offers the connector, above step 1.
+  it('offers the hosted MCP endpoint, origin-resolved, before step 1', async () => {
+    const btn = createAiPromptButton(bus(), routes());
+    document.body.appendChild(btn);
+    btn.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+
+    const card = document.querySelector('[role="dialog"]')!;
+    const url = card.querySelector(`.${modalStyles.aiConnectorUrl!}`);
+    expect(url).not.toBeNull();
+    // Resolved like REQ-3's schema URLs, so a fork advertises its own host.
+    expect(url!.textContent).toBe(`${window.location.origin}/mcp`);
+
+    // NOT an anchor: the endpoint answers POST only, so a click would render a
+    // 405 JSON body and read as a broken link (mcp-server.md REQ-9b).
+    expect(card.querySelector('a[href*="/mcp"]')).toBeNull();
+    expect(url!.tagName).not.toBe('A');
+
+    // It is an aside, not a fourth step — it precedes the numbered flow.
+    const text = card.textContent!;
+    expect(text.indexOf('/mcp')).toBeLessThan(text.indexOf('1 · Describe your song'));
+  });
+});
+
+// The load-bearing half of REQ-10: the prompt text must NOT carry the pitch.
+// buildAuthoringGuide is what the MCP server's get_song_format returns, so a
+// connector line there would advertise the tool to an agent already holding it;
+// and in buildSongPrompt it would cost context on every paste to describe a
+// capability that reader lacks. Both are easy to "helpfully" add later.
+describe('the connector pitch stays out of the prompt (REQ-10)', () => {
+  it('is absent from buildSongPrompt and buildAuthoringGuide', () => {
+    for (const text of [buildSongPrompt(bus(), 'a brief'), buildAuthoringGuide(bus())]) {
+      expect(text).not.toMatch(/mcp/i);
+      expect(text).not.toMatch(/connector/i);
+    }
   });
 });

@@ -23,11 +23,14 @@
 //
 // Zero dependencies — Node built-ins only.
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
-import { deflateRawSync } from 'node:zlib';
+import path from 'node:path';
+
+import { zipDir } from './lib/zip.mjs';
+import { packMcpBundle } from './lib/mcp-bundle.mjs';
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -289,105 +292,6 @@ function runBuild() {
   }
 }
 
-// CRC32 — table-based, so we don't depend on zlib.crc32 (newer Node only).
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c >>> 0;
-  }
-  return t;
-})();
-
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-/** Recursively list files under dir, returning paths relative to `dir` (posix). */
-function listFiles(dir, base = '') {
-  const out = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const abs = `${dir}/${entry.name}`;
-    const rel = base ? `${base}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) out.push(...listFiles(abs, rel));
-    else if (entry.isFile()) out.push(rel);
-  }
-  return out;
-}
-
-/** Pack a Date into DOS date + time words (used by the ZIP local header). */
-function dosDateTime(d) {
-  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds() / 2));
-  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
-  return { time: time & 0xffff, date: date & 0xffff };
-}
-
-/**
- * Build a ZIP archive (Buffer) of every file under `srcDir`, with each entry
- * named `<topPrefix>/<relative path>`. Dependency-free: deflate via node:zlib,
- * CRC32 in JS. Implements the minimal local-header + central-directory + EOCD
- * structure (no Zip64 — fine for a web build).
- */
-function zipDir(srcDir, topPrefix) {
-  const files = listFiles(srcDir).sort();
-  const local = [];
-  const central = [];
-  let offset = 0;
-
-  for (const rel of files) {
-    const name = `${topPrefix}/${rel}`;
-    const nameBuf = Buffer.from(name, 'utf8');
-    const data = readFileSync(`${srcDir}/${rel}`);
-    const crc = crc32(data);
-    const compressed = deflateRawSync(data);
-    const { time, date } = dosDateTime(statSync(`${srcDir}/${rel}`).mtime);
-
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0); // local file header signature
-    localHeader.writeUInt16LE(20, 4); // version needed
-    localHeader.writeUInt16LE(0, 6); // general purpose flags
-    localHeader.writeUInt16LE(8, 8); // method: deflate
-    localHeader.writeUInt16LE(time, 10);
-    localHeader.writeUInt16LE(date, 12);
-    localHeader.writeUInt32LE(crc, 14);
-    localHeader.writeUInt32LE(compressed.length, 18);
-    localHeader.writeUInt32LE(data.length, 22);
-    localHeader.writeUInt16LE(nameBuf.length, 26);
-    localHeader.writeUInt16LE(0, 28); // extra field length
-    local.push(localHeader, nameBuf, compressed);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0); // central dir header signature
-    centralHeader.writeUInt16LE(20, 4); // version made by
-    centralHeader.writeUInt16LE(20, 6); // version needed
-    centralHeader.writeUInt16LE(0, 8); // flags
-    centralHeader.writeUInt16LE(8, 10); // method: deflate
-    centralHeader.writeUInt16LE(time, 12);
-    centralHeader.writeUInt16LE(date, 14);
-    centralHeader.writeUInt32LE(crc, 16);
-    centralHeader.writeUInt32LE(compressed.length, 20);
-    centralHeader.writeUInt32LE(data.length, 24);
-    centralHeader.writeUInt16LE(nameBuf.length, 28);
-    centralHeader.writeUInt32LE(offset, 42); // relative offset of local header
-    central.push(centralHeader, nameBuf);
-
-    offset += localHeader.length + nameBuf.length + compressed.length;
-  }
-
-  const centralBuf = Buffer.concat(central);
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0); // end of central dir signature
-  eocd.writeUInt16LE(files.length, 8); // entries on this disk
-  eocd.writeUInt16LE(files.length, 10); // total entries
-  eocd.writeUInt32LE(centralBuf.length, 12); // central dir size
-  eocd.writeUInt32LE(offset, 16); // central dir offset
-
-  return Buffer.concat([...local, centralBuf, eocd]);
-}
-
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -462,8 +366,10 @@ async function main() {
   const notes = renderNotes(parsed.body);
   const tag = `v${targetVersion}`;
   const zipName = `dist-${tag}.zip`;
+  const mcpZipName = `mcp-${tag}.zip`;
   const notesName = `dist-${tag}.notes.md`;
   const ZIP_PATH = fileURLToPath(new URL(zipName, root));
+  const MCP_ZIP_PATH = fileURLToPath(new URL(mcpZipName, root));
   const NOTES_PATH = fileURLToPath(new URL(notesName, root));
 
   // --- Preview ---------------------------------------------------------------
@@ -492,6 +398,7 @@ async function main() {
   if (!skipBuild) {
     arrow(`dist/           ${c.dim('build via npm run build')}`);
     arrow(`${zipName}    ${c.dim('zip of dist/ (GitHub release asset)')}`);
+    arrow(`${mcpZipName}     ${c.dim('zip of the MCP server (GitHub release asset)')}`);
   }
 
   if (dryRun) {
@@ -549,15 +456,25 @@ async function main() {
   // --- Build + zip dist/ -----------------------------------------------------
   if (skipBuild) {
     log('');
-    note(`--skip-build: not building. ${zipName} must already exist for the gh command below.`);
+    note(`--skip-build: not building. ${zipName} and ${mcpZipName} must already exist for the gh command below.`);
   } else {
     heading('Building app (npm run build)');
     runBuild();
 
     const zip = zipDir(DIST_DIR, 'dist');
     writeFileSync(ZIP_PATH, zip);
-    heading('Release artifact');
+
+    // The MCP server ships prebuilt: production has no node_modules, and
+    // core.mjs refuses to self-build there (mcp-server.md REQ-3). The same
+    // packer backs `npm run pack:mcp`, so what a tester deploys before a
+    // release is the layout the release then ships.
+    heading('Building MCP core bundle (npm run build:mcp)');
+    const mcpZip = packMcpBundle(targetVersion);
+    writeFileSync(MCP_ZIP_PATH, mcpZip);
+
+    heading('Release artifacts');
     ok(`${zipName}  ${c.dim(`(${(zip.length / 1024).toFixed(0)} kB — zip of dist/)`)}`);
+    ok(`${mcpZipName}   ${c.dim(`(${(mcpZip.length / 1024).toFixed(0)} kB — the MCP server, prebuilt)`)}`);
   }
 
   // --- Publish playbook ------------------------------------------------------
@@ -572,12 +489,13 @@ async function main() {
   note('--follow-tags pushes the annotated tag alongside the commit.');
 
   // --- GitHub release (with the dist zip attached) ---------------------------
-  heading('Then: create the GitHub release (with the dist zip attached)');
+  heading('Then: create the GitHub release (with both zips attached)');
   commands([
-    c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName}`,
+    c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName} ${mcpZipName}`,
   ]);
   note('Requires the `gh` CLI (authenticated). --verify-tag uses the tag you pushed above.');
-  note(`No gh? Create it at ${repoBase}/releases/new?tag=${tag} and upload ${zipName} manually.`);
+  note(`No gh? Create it at ${repoBase}/releases/new?tag=${tag} and upload both zips manually.`);
+  note(`${zipName} is the static site; ${mcpZipName} is the MCP server (see DEPLOYMENT.md).`);
 
   log('\n' + c.green(c.bold(`✓ Prepared ${targetVersion}.`)) + ' ' + c.dim('Run the commands above to publish.') + '\n');
 }

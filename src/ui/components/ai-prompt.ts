@@ -134,6 +134,40 @@ function buildModal(
     'Describe your song, copy the prompt into any AI agent, then paste the ' +
     'JSON it answers with straight back here.';
 
+  // The shorter route, offered before the three-step round trip (REQ-10). An
+  // agent with MCP connector support does not need this modal at all, and the
+  // person most likely to benefit is the one who just opened it.
+  //
+  // Origin-resolved like REQ-3's schema URLs, so a fork points at its own host
+  // rather than advertising ours. Plain text, NOT an anchor: the endpoint
+  // answers POST only, so a click would render a 405 JSON body and read as a
+  // broken link (mcp-server.md REQ-9b).
+  //
+  // Nothing about this goes into the prompt text — REQ-10 has the reasoning.
+  const connector = document.createElement('div');
+  connector.className = modalStyles.aiConnector!;
+
+  const connectorText = document.createElement('span');
+  connectorText.textContent =
+    'Using an AI that supports MCP connectors? Add this and it can validate ' +
+    'and fix songs directly — no copy-paste round trip:';
+
+  const connectorUrl = document.createElement('span');
+  connectorUrl.className = modalStyles.aiConnectorUrl!;
+  const origin =
+    typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  connectorUrl.textContent = `${origin}/mcp`;
+
+  const copyConnector = createButton({
+    label: 'Copy URL',
+    onClick: () =>
+      flashCopied(copyConnector, 'Copy URL', copyText(connectorUrl.textContent!)),
+  });
+
+  connector.appendChild(connectorText);
+  connector.appendChild(connectorUrl);
+  connector.appendChild(copyConnector);
+
   // Editable creative brief. Seeded only as a placeholder so an un-typed copy
   // never injects the example text; the prompt updates live as the user types.
   const briefLabel = document.createElement('label');
@@ -200,6 +234,7 @@ function buildModal(
 
   card.appendChild(title);
   card.appendChild(tag);
+  card.appendChild(connector);
   card.appendChild(briefLabel);
   card.appendChild(brief);
   card.appendChild(promptLabel);

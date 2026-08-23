@@ -46,3 +46,14 @@ export {
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
+// The public endpoint's bounds (mcp-server.md REQ-11, untrusted-input.md REQ-14).
+// `http.mjs` is plain .mjs and cannot import the TS module, so it reads them from
+// here — which is what keeps `src/state/limits.ts` the single place a bound is
+// written down (untrusted-input.md REQ-3) rather than the place it is written
+// down twice.
+export {
+  MAX_MCP_REQUEST_BYTES,
+  MAX_MCP_REQUESTS_PER_MINUTE,
+  MAX_MCP_RATE_KEYS,
+  MAX_MCP_REQUEST_MS,
+} from '../../src/state/limits';

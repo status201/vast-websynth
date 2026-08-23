@@ -3,7 +3,9 @@
 ```yaml
 id: untrusted-input
 status: implemented
-version: 4   # v4: REQ-13 — a transport position is clamped, not masked
+version: 5   # v5: REQ-14 — the public MCP endpoint is an ingest surface, and the
+             #     first one with no user behind it
+             # v4: REQ-13 — a transport position is clamped, not masked
              # v3: REQ-12 — an unresolvable automation target warns instead of
              #     rejecting; the validator gains a `warnings` channel
              # v2: REQ-9 — "destroy" means a *difference*; an identical slot is
@@ -38,6 +40,7 @@ source:
   - src/main.ts                         # songUrl consent + hardened fetch
   - src/audio/webrtc-sync-transport.ts  # wire type guard
   - scripts/mcp/tools.mjs               # save_song/save_preset dir containment
+  - scripts/mcp/http.mjs                # public endpoint: body cap, rate limit, Origin (REQ-14)
 ```
 
 ## Background / Why
@@ -78,8 +81,9 @@ decision and the alternatives. This spec is the contract.
 - **REQ-1** — **The surfaces are enumerated.** The trust boundary is: `#song=`,
   `#songUrl=`, the file input (`.json` / `.zip`), the PWA `launchQueue`, paste,
   demo fetches, the WebRTC data channel, a scanned QR blob, rehydration from
-  `localStorage` / IndexedDB, and MCP tool arguments. Anything reading one of
-  these obeys REQ-2..REQ-8. A new ingest surface owes an entry here.
+  `localStorage` / IndexedDB, MCP tool arguments, and (v5) **`POST` bodies to the
+  public MCP endpoint**. Anything reading one of these obeys REQ-2..REQ-8. A new
+  ingest surface owes an entry here.
 
 - **REQ-2** — **Bounds live in the validator, sizes live in the codec.** Ranges are
   checked by `song-validate.ts` / `song-author.ts` / `preset-validate.ts`,
@@ -215,6 +219,39 @@ decision and the alternatives. This spec is the contract.
   The meter itself is bounded the same way — `barTicks` clamps beats to
   `MIN_BEATS..MAX_BEATS` and floors a non-finite value, because a `NaN` bar
   length would make every machine's modulo `NaN` at once ([meter](meter.md)).
+
+- **REQ-14** (v5) — **The public MCP endpoint is bounded instead of
+  authenticated, and it is the first surface with nobody behind it.** Every other
+  surface in REQ-1 is reached by a *user* who chose to open a link, pick a file
+  or pair a peer; `https://vast.status201.com/mcp` is reachable by anyone, at any
+  rate, forever ([ADR-020](../decisions/adr-020-remote-mcp-is-authless-and-read-only.md)).
+  That changes what a bound is for. Elsewhere a limit stops one hostile document
+  from wedging one browser tab, and REQ-3's sizing rule — generous, because
+  refusing a real song is the worse failure — is right. Here a limit is the only
+  thing standing between the endpoint and someone's bill, so the four `MAX_MCP_*`
+  constants are deliberately **tighter** than their in-app equivalents:
+  `MAX_MCP_REQUEST_BYTES` is 1 MB where `MAX_SONG_JSON_BYTES` is 8 MB, because a
+  public endpoint pays CPU for everything it parses and no authored song is
+  anywhere near either number.
+
+  Three things follow, and all three are existing rules applied to a new shape
+  rather than new rules:
+  - REQ-2's "enforce while decoding" becomes **enforce while reading the
+    socket**: the byte count runs during the stream and the request is refused
+    in transit, never after buffering.
+  - **The limiter is a payload-reachable data structure, so it is bounded too.**
+    Its per-IP map is capped at `MAX_MCP_RATE_KEYS` with eviction. A rate limiter
+    that allocates one entry per attacker-chosen key is a memory-exhaustion
+    vector wearing a defence's clothes.
+  - The identity it keys on (`X-Forwarded-For`, first hop) is trustworthy only
+    because the deployed proxy overwrites that header. The code cannot check
+    that, so `DEPLOYMENT.md` carries it next to the directive.
+
+  What does **not** change: the tools behind the endpoint are the same
+  validators, so a hostile song `POST`ed here meets REQ-4/REQ-5 exactly as one
+  pasted into the app does. The endpoint adds a layer; it does not get its own
+  parser ([mcp-server](mcp-server.md) REQ-11).
+
 ## Technical design
 
 ### Contract / public interface
@@ -230,6 +267,10 @@ export const MAX_CHAIN_STEPS: number;       // arrangement chain length
 export const MAX_CHAIN_DEPTH: number;       // expandChain recursion
 export const MAX_PARAM_KEYS: number;        // params map size
 export const MAX_CHAIN_TRANSPOSE: number;   // |semitones| on a chain slot (arrangement REQ-16)
+export const MAX_MCP_REQUEST_BYTES: number;      // one POST body to the public MCP endpoint
+export const MAX_MCP_REQUESTS_PER_MINUTE: number;// per-IP fixed window        } REQ-14
+export const MAX_MCP_RATE_KEYS: number;          // IPs the limiter may track  }
+export const MAX_MCP_REQUEST_MS: number;         // wall clock for one request }
 export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
 export const RESERVED_KEYS: readonly string[]; // __proto__, constructor, prototype
@@ -268,6 +309,13 @@ MAX_CHAIN_STEPS:      1024        # 1024 bars is ~34 min at 120 BPM
 MAX_CHAIN_DEPTH:      8           # {enabled,steps:{...}} nesting
 MAX_PARAM_KEYS:       512         # the bus registers ~150
 MAX_CHAIN_TRANSPOSE:  24          # +/- 2 octaves on a chain slot
+
+# REQ-14: the public MCP endpoint. Sized the OTHER way — tight, because there is
+# no user behind the request and no auth in front of it (ADR-020).
+MAX_MCP_REQUEST_BYTES:       1048576   # 1 MB  — 1/8th of MAX_SONG_JSON_BYTES
+MAX_MCP_REQUESTS_PER_MINUTE: 60        # per IP, fixed window
+MAX_MCP_RATE_KEYS:           10000     # the limiter must not become the leak
+MAX_MCP_REQUEST_MS:          15000     # socket to response
 ```
 
 ### Layer touchpoints & ordering
@@ -282,7 +330,9 @@ zip:                sniffImportKind -> zipRead (count/entry/total caps)
                     -> parseProjectZip -> Song.parse
 clock:              tick() -> per-listener try/catch -> advance step ALWAYS  # REQ-6
 webrtc:             onmessage -> isWireMessage(guard) -> emit   # REQ-8, drops silently
-mcp:                save_* -> containedDir(dir) + safeName(name) # REQ-11
+mcp (stdio):        save_* -> containedDir(dir) + safeName(name) # REQ-11
+mcp (http):         rate limit -> Origin -> capped body read      # REQ-14
+                    -> JSON.parse -> dispatch -> the same validators
 ```
 
 The error paths are the **existing** typed ones — `ZipError`,
@@ -382,6 +432,22 @@ Scenario: An MCP save cannot escape the working directory
   Then it throws without writing
   And dir 'sub/dir' still writes normally
 # pinned by: tests/mcp/tools.test.ts
+
+Scenario: The public endpoint refuses an oversized body in transit (v5, REQ-14)
+  Given a POST to the MCP endpoint larger than MAX_MCP_REQUEST_BYTES
+  Then it answers 413 and the body is never fully buffered
+# pinned by: tests/mcp/http.test.ts
+
+Scenario: The public endpoint's rate limiter is itself bounded (v5, REQ-14)
+  Given requests from more distinct IPs than MAX_MCP_RATE_KEYS
+  Then the limiter evicts and never tracks more than MAX_MCP_RATE_KEYS keys
+# pinned by: tests/mcp/http.test.ts
+
+Scenario: A hostile song meets the same validators over HTTP (v5, REQ-14)
+  Given a song carrying a __proto__ key or a note of 1e6 is POSTed to validate_song
+  Then the answer is the same {ok:false, errors:[...]} the in-app import gives
+  And the endpoint added no parser of its own
+# pinned by: tests/mcp/http.test.ts
 
 Scenario: A misspelled automation target is reported, not swallowed (v3, REQ-12)
   Given a song with xy.x "filter.cuttoff" and motionTracks[0][0].param "not.a.param"

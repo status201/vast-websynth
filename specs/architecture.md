@@ -533,8 +533,15 @@ into the committed demos and share links.)
 ## Key decisions (ADRs)
 
 The *why* behind the choices above — and the alternatives each one rejected —
-lives in [`decisions/`](decisions/) as Architecture Decision Records. The
-load-bearing ones:
+lives in [`decisions/`](decisions/) as Architecture Decision Records.
+
+This list is a **selection, not the index** — it carries the decisions that
+constrain work anywhere in the system, so a reader who never opens
+`decisions/` still cannot violate one by accident. A decision scoped to one
+subsystem belongs in that feature's spec instead, and
+[`decisions/README.md`](decisions/README.md) is the complete list. Say which
+side a new ADR falls on when you write it; the omissions below are deliberate,
+and stating the rule is what keeps them distinguishable from neglect.
 
 - [ADR-000](decisions/adr-000-spec-driven-development.md) — Spec-Driven Development
   as the working method (enforced, not optional).
@@ -573,6 +580,16 @@ load-bearing ones:
 - [ADR-014](decisions/adr-014-dont-make-me-think.md) — interaction design follows
   *"Don't Make Me Think"*: six ordered laws, with *one gesture, one outcome* and
   *precedent before invention* doing most of the work.
+- [ADR-015](decisions/adr-015-untrusted-input-is-bounded.md) — every untrusted
+  payload is **bounded** before it is used (ranges in the validator, byte budgets
+  in the codec, the numbers in `state/limits.ts`), and **no `Clock` subscriber can
+  wedge the transport** — `tick()` isolates each listener and advances anyway.
+- [ADR-017](decisions/adr-017-modulation-in-graph.md) — **modulation lives in the
+  audio graph, automation lives on the bus**, and the boundary is *whether the
+  destination has a real `AudioParam`*: an audio-rate signal source sums into one
+  through a per-route `GainNode`, while a timeline or gesture writes any
+  registered param via `bus.set`. A destination with no node (`pulse`) is
+  therefore not offered by the mod matrix at all.
 - [ADR-019](decisions/adr-019-the-bar-is-a-tick-count.md) — the bar is a **tick
   count**, not a time signature, and every lane's cell index is a pure function
   of `clock.step` (which is what makes a 12- or 14-tick lane survive a seek).

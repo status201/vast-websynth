@@ -143,6 +143,22 @@ describe('strategyFor', () => {
     expect(sw.strategyFor(at('/api'), 'no-cors', 'POST', ORIGIN)).toBe('passthrough');
     expect(sw.strategyFor(new URL('https://elsewhere.com/x.js'), 'no-cors', 'GET', ORIGIN)).toBe('passthrough');
   });
+
+  // pwa-install.md REQ-6 / mcp-server.md REQ-9b. The POST case above already
+  // covers real MCP traffic; these pin the GET shapes, which is where the
+  // guarantee stops being accidental — a 405 happens not to be cacheable, but
+  // that is the endpoint's business, not the worker's.
+  it('passes the MCP endpoint through on GET too, not just POST', () => {
+    expect(sw.strategyFor(at('/mcp'), 'no-cors', 'GET', ORIGIN)).toBe('passthrough');
+    expect(sw.strategyFor(at('/mcp/'), 'no-cors', 'GET', ORIGIN)).toBe('passthrough');
+    expect(sw.strategyFor(at('/healthz'), 'no-cors', 'GET', ORIGIN)).toBe('passthrough');
+    // Even as a navigation, which would otherwise fall back to the cached shell.
+    expect(sw.strategyFor(at('/mcp'), 'navigate', 'GET', ORIGIN)).toBe('passthrough');
+  });
+
+  it('does not swallow an app route that merely starts with the same letters', () => {
+    expect(sw.strategyFor(at('/mcp-guide'), 'navigate', 'GET', ORIGIN)).toBe('network-first-nav');
+  });
 });
 
 describe('install', () => {

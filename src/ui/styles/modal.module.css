@@ -417,6 +417,35 @@
   margin-top: 12px;
 }
 
+/*
+ * The hosted-MCP shortcut above step 1 (ai-prompt.md REQ-10). An aside, not a
+ * step: it is inset and quieter than the numbered flow so it reads as "there is
+ * a shorter way" rather than as a fourth thing to do.
+ */
+.aiConnector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: #0a0805;
+  border: 1px solid var(--panel-border);
+  border-left: 2px solid var(--accent-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+/* The endpoint itself: pasted text, so --mono (typography.md REQ-3). */
+.aiConnectorUrl {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 /* Paste import (paste-import.md): the pasted-JSON textarea + its status line. */
 .pasteText {
   width: 100%;

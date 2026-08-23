@@ -73,7 +73,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **Published parameter list**: every synth parameter — id, range, default, taper and (for choice knobs) its value map — is *generated* from the live registry and shipped as [`/params.md`](public/params.md) and [`/params.json`](public/params.json), so an AI agent can fetch the list without opening the app or running a tool. See **Formats & schemas** below
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that teaches the compact dialect first (with the full format as an appendix) and links both live schema URLs; paste it into any AI agent and import the song it returns
 - **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song after "Tap to start". `#songUrl=<https url>` loads a hosted song/project file
-- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them — see **MCP server** below
+- **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them. It runs locally over stdio, or hosted over HTTP at `https://vast.status201.com/mcp` — add that as a connector and an agent gets the authoring loop with nothing installed — see **MCP server** below
 - **Paste, don't save-then-import**: AI agents answer with JSON in the chat window, so the Song panel has a **Paste** button (and the ✨ AI Prompt modal ends with a paste box) that takes the reply as-is — code fences and surrounding chatter are stripped — and tells you what it recognised before anything is applied. Preset and bank JSON goes in the same box and is routed to the preset importer
 - **Presets**: a 19-sound factory bank — basses (bass, upright, pbass, reese, acid, **ember**), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass, **vellum**), leads/plucks (basic, lead, pluck, **prism**) and wobble — + user presets saved to `localStorage`. The three bold ones show off the POLY filter (a bass that holds its bottom at screaming resonance, a band-pass pad whose filter type breathes, a high-pass pluck); flip the model switch to LADDER on any of them to hear the difference. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either — both have a published JSON Schema ([preset](public/schema/websynth-preset.schema.json), [bank](public/schema/websynth-preset-bank.schema.json)). Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
 - **Input**: on-screen keyboard, computer-keyboard mapping, and Web MIDI — note velocity, pitch bend, mod wheel, **sustain pedal** (CC64, doubles as an arp latch), and volume/cutoff/resonance CCs
@@ -86,13 +86,36 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 ```bash
 npm install
-npm run dev      # vite dev server, --host (open the printed URL)
-npm run build    # tsc typecheck + vite production build to dist/
-npm run preview  # serve the production build
-npm run typecheck
-npm test         # vitest run — unit tests (jsdom)
-npm run e2e      # playwright run — browser end-to-end tests (Chromium)
-npm run release  # cut a versioned release (see Releasing below)
+npm run dev          # vite dev server, --host (open the printed URL)
+npm run build        # tsc typecheck + vite production build to dist/
+npm run preview      # serve the production build
+npm run typecheck    # the primary gate: strict + noUncheckedIndexedAccess
+
+# Tests — there is no linter
+npm test             # vitest run — unit tests (jsdom)
+npm run test:watch   # vitest in watch mode
+npm run e2e          # playwright run — browser end-to-end tests (Chromium)
+npm run e2e:ui       # playwright's interactive UI runner
+
+# Specs and generated files. The three checks run in CI too — check:demos and
+# check:params in the test job, spec:lint in the SDD workflow.
+npm run spec:lint    # spec structure + the README/ADR indexes
+npm run gen:params   # regenerate public/params.{json,md} from the live registry
+npm run check:params # fail if a parameter was added without regenerating
+npm run clean:demos  # rewrite src/state/demos/ to canonical form + reindex
+npm run check:demos  # fail if the demo index drifted
+                     # (prebuild runs clean:demos + gen:params automatically)
+
+# Sound work — nothing automated can judge this; see ADR-010
+npm run bench:audio                        # render takes through the real engine, to listen to
+npm run bench:metrics -- bench/take.wav    # measure a rendered take (--compare a/b for A/B)
+
+# MCP server (see MCP server below)
+npm run start:mcp:http # serve the HTTP transport on 127.0.0.1:8787
+npm run build:mcp      # rebuild the song-core bundle it imports
+npm run pack:mcp       # mcp-v<version>.zip for deploying it, without a release
+
+npm run release      # cut a versioned release (see Releasing below)
 ```
 
 Audio starts behind a **"Tap to start"** overlay — browsers require a user
@@ -131,8 +154,22 @@ Regenerate them with `npm run gen:params` (it also runs in `prebuild`);
 
 ## MCP server (songs and sounds from AI agents)
 
-The repo ships a zero-dependency MCP server (stdio JSON-RPC, hand-rolled — no
-SDK) that gives tool-using AI agents a full authoring loop.
+A zero-dependency MCP server (hand-rolled JSON-RPC — no SDK) that gives
+tool-using AI agents a full authoring loop. It runs two ways: **hosted**, which
+needs nothing installed, or **locally over stdio**, which adds the two tools
+that write files.
+
+### Hosted — nothing to install
+
+```bash
+claude mcp add --transport http websynth https://vast.status201.com/mcp
+```
+
+Or in Claude.ai: **Settings → Connectors → Add custom connector**, same URL. No
+account, no token, no clone — it is authless and read-only, because every tool
+below except the two `save_*` ones is a pure function over a public document
+format. `make_share_link` is how you get the result back: a URL that opens the
+song in the synth.
 
 **Discovery**: `get_params` returns the whole parameter catalogue as structured
 JSON — ranges an agent can compute against, rather than the prose table the two
@@ -153,6 +190,13 @@ was loaded before) and `save_preset` (writes a `.preset.websynth.json` or, for
 several sounds, a `.bank.websynth.json`). See
 [`specs/features/preset-authoring.md`](specs/features/preset-authoring.md).
 
+### Locally over stdio — adds the write tools
+
+`save_song` and `save_preset` exist only here. They write into the server's
+working directory, which is your checkout locally and would be a directory no
+caller can reach on a shared host, so the hosted profile omits them
+([ADR-020](specs/decisions/adr-020-remote-mcp-is-authless-and-read-only.md)).
+
 After `npm install` the server self-builds its song-core bundle on first run —
 no other setup. **Claude Code** picks it up automatically from the committed
 [`.mcp.json`](.mcp.json). For other MCP clients, register:
@@ -169,16 +213,21 @@ no other setup. **Claude Code** picks it up automatically from the committed
 }
 ```
 
+To run the HTTP transport yourself — against a fork, or to try a change before
+deploying it — `npm run start:mcp:http` serves it on `127.0.0.1:8787`. Hosting
+it publicly is in [DEPLOYMENT.md](DEPLOYMENT.md#hosting-the-mcp-server).
+
 See [`specs/features/mcp-server.md`](specs/features/mcp-server.md).
 
 ## Releasing
 
 `npm run release -- <version|major|minor|patch>` bumps `package.json`, promotes
 the CHANGELOG `[Unreleased]` section, builds the app, and zips `dist/` into
-`dist-v<version>.zip` — then **prints** the `git` and `gh release create`
+`dist-v<version>.zip` — plus `mcp-v<version>.zip`, the deployable MCP server —
+then **prints** the `git` and `gh release create`
 commands to publish (it never touches git/GitHub itself). Use `--dry-run` to
-preview, `--yes` to skip the prompt, `--skip-build` to skip the build + zip.
-Attaching the zip needs the [`gh` CLI](https://cli.github.com/) authenticated.
+preview, `--yes` to skip the prompt, `--skip-build` to skip the build + zips.
+Attaching them needs the [`gh` CLI](https://cli.github.com/) authenticated.
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full flow and how to deploy the
 built `dist/`.
 

@@ -101,7 +101,10 @@ passes it.
 - **REQ-7** — Four MCP tools (see [mcp-server](mcp-server.md) REQ-5b) serve this:
   `get_preset_format`, `validate_preset`, `expand_preset`, `save_preset`. A failed
   validation is a **successful** call carrying the errors — the same rule the song
-  tools follow.
+  tools follow. Three of the four are also on the **public** endpoint;
+  `save_preset` is local-only, because it writes into the *server's* working
+  directory and a shared host has no such directory a caller can reach
+  ([mcp-server](mcp-server.md) REQ-10).
 
 ## Technical design
 

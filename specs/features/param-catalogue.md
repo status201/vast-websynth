@@ -155,7 +155,8 @@ registered range as-is and adds no unit of its own.
 ```yaml
 registerDefaults(bus)  ->  buildParamCatalog(bus)  ->  public/params.json
                        ->  paramTable(bus, filter) ->  public/params.md
-                       ->  get_params (MCP)        ->  JSON over stdio
+                       ->  get_params (MCP)        ->  JSON over stdio (local)
+                                                  ->  JSON over HTTP  (public)
 ```
 
 `scripts/gen-params.ts` builds its own `ParamBus` + `registerDefaults()` — the same

@@ -10,6 +10,25 @@
 AI agents can author songs for this synth as a single JSON file, which the
 user imports via Song panel -> Import (or opens via a share link).
 
+## MCP server (tools, not just documents)
+
+If you support MCP connectors, everything below is also available as TOOLS at:
+
+    https://vast.status201.com/mcp     (Streamable HTTP, no authentication)
+
+Eight read-only tools: get_params, get_song_format, validate_song, expand_song,
+make_share_link, get_preset_format, validate_preset, expand_preset. Validating a
+draft against the live registry beats guessing from a document — an unknown
+parameter id or an out-of-range value comes back as a field-level error you can
+fix, and make_share_link returns a URL that opens the finished song in the synth.
+
+It speaks JSON-RPC 2.0 over POST only; GET answers 405, so this is not a page to
+fetch. Add it as a connector, or:
+
+    claude mcp add --transport http websynth https://vast.status201.com/mcp
+
+The rest of this file is the same material as documents, for agents without MCP.
+
 ## Song formats
 
 Two JSON formats are accepted on import:
@@ -95,8 +114,8 @@ published as two files you can fetch directly:
   A parameter with `labels` is a CHOICE: its value is the index into that list.
 
 Two other doors serve the same table: the app's Song panel -> "✨ AI Prompt"
-(the complete authoring prompt with the PARAMS table inlined), and the repo's
-MCP server (`get_params` for the JSON catalogue, `get_song_format` /
+(the complete authoring prompt with the PARAMS table inlined), and the MCP
+server above (`get_params` for the JSON catalogue, `get_song_format` /
 `get_preset_format` for the guides).
 
 ## Formats and versions
@@ -126,5 +145,7 @@ LOWEST canonical version that holds its content, not always 7.
 
 - The repository's `specs/` folder is the architectural source of truth
   (specs/features/song-authoring-dialect.md documents the author dialect).
-- An MCP server for song *and* preset authoring/validation ships in the repo
-  under `scripts/mcp/` (see the README).
+- The MCP server for song *and* preset authoring/validation lives in the repo
+  under `scripts/mcp/` (see the README). Run locally over stdio it adds two more
+  tools, save_song and save_preset, which write importable files; the hosted
+  endpoint above omits them because it has no directory a caller can reach.

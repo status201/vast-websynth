@@ -67,7 +67,7 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
 
 ## Invariants you'll trip over if you don't look them up
 
-Four one-line pointers — the rules whose violation typecheck won't catch:
+Five one-line pointers — the rules whose violation typecheck won't catch:
 
 - **UI and audio never call each other.** A control writes `bus.set(...)`; the
   Engine `bus.subscribe(...)`s. → `specs/architecture.md` REQ-1, ADR-001.
@@ -103,10 +103,10 @@ material keyed by feature name).
 | `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md` |
 | `src/ui/` (any) | `src/ui/CLAUDE.md`, `recipes/add-a-ui-component.md`, `add-a-panel.md`, `add-a-modal-dialog.md`, `add-a-floating-window.md`, ADR-009 |
 | any **new gesture** | ADR-014 + `recipes/design-an-interaction.md` — every interactive control owes a gesture inventory in its spec |
-| any **new ingest surface** (a link, file, paste, peer or MCP arg) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down |
+| any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down |
 | anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md` |
 | `tests/`, `e2e/` | `recipes/write-a-test.md`, `features/testids.md`, `e2e/CLAUDE.md` |
-| `scripts/mcp/` | `features/mcp-server.md` |
+| `scripts/mcp/` | `features/mcp-server.md` — two transports: stdio (local, all ten tools) and Streamable HTTP (public, read-only eight, ADR-020). Hosting it: `DEPLOYMENT.md` |
 
 ## Directory-scoped guidance
 

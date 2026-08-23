@@ -262,7 +262,7 @@ specs/
     untrusted-input.md ·  the trust boundary: payload limits, ranges, consent (cross-cutting)
     song-authoring-dialect.md ·  compact input-only song format for AI agents (expanded on import)
     song-share-link.md ·  #song=/#songUrl= hash links + the export modal's Copy Link
-    mcp-server.md      ·  zero-dep stdio MCP server for song authoring/validation
+    mcp-server.md      ·  zero-dep MCP server for song authoring/validation (stdio + public HTTP)
     project-export.md  ·  song + sampler audio in one .websynth.zip (zero-dep zip codec)
     session-autosave.md ·  working-session autosave + load-undo toast safety net
     sample-persistence.md ·  sampler clips in IndexedDB, so audio survives a reload
@@ -351,6 +351,8 @@ specs/
     adr-018-audio-graph-memory-is-committed-not-reclaimed.md
                                                ·  bypass gives back CPU, not memory
     adr-019-the-bar-is-a-tick-count.md         ·  meter is ticks, not a signature
+    adr-020-remote-mcp-is-authless-and-read-only.md
+                                               ·  the public MCP endpoint: no auth, no writes, no SDK
 ```
 
 > Coverage note: the feature set above documents the current system. New features

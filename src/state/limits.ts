@@ -58,6 +58,40 @@ export const MAX_STEP = 2 ** 31;
 /** Keys in a `params` map. The bus registers ~150; unknown ids are kept (ADR-007). */
 export const MAX_PARAM_KEYS = 512;
 
+/**
+ * The public MCP endpoint (untrusted-input.md REQ-14, ADR-020). Everything above
+ * is sized *generously* — refusing a real song is the worse failure. These four
+ * are sized the other way, and the difference is deliberate: every other surface
+ * is reached by a user who chose to open something, while
+ * `https://vast.status201.com/mcp` is authless and reachable by anyone forever.
+ * There a limit is not a compatibility surface, it is the only defence, so it
+ * costs nothing to be tight and it costs real money to be loose.
+ */
+
+/**
+ * One `POST /mcp` body. An eighth of {@link MAX_SONG_JSON_BYTES}: a public
+ * endpoint pays CPU for everything it parses, and no authored song is near
+ * either number. Enforced against a *running* count while the socket is read,
+ * per REQ-2 — a cap applied after buffering has already spent the memory.
+ */
+export const MAX_MCP_REQUEST_BYTES = 1024 * 1024;
+
+/** Per-IP fixed-window request budget. */
+export const MAX_MCP_REQUESTS_PER_MINUTE = 60;
+
+/**
+ * IPs the rate limiter may track at once, after which it evicts.
+ *
+ * The limiter is itself a payload-reachable data structure: it allocates one
+ * entry per caller-chosen key, so without this it is a memory-exhaustion vector
+ * wearing a defence's clothes. ADR-015's rule applies to the guard as much as to
+ * the thing guarded.
+ */
+export const MAX_MCP_RATE_KEYS = 10_000;
+
+/** Wall clock for one MCP request, socket to response. */
+export const MAX_MCP_REQUEST_MS = 15_000;
+
 /** MIDI note range. `midiToHz(1e6)` is Infinity, and a non-finite AudioParam write throws. */
 export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
