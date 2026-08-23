@@ -122,10 +122,19 @@ Plesk (panel only)
 
 Verify
 ------
-  curl -s https://<your-domain>/healthz
+  # 1. the app itself, at the subdomain (no proxy involved)
+  curl -s https://<subdomain>/healthz
+
+  # 2. through the proxy. NOTE /mcp/healthz, not /healthz: the directive
+  #    matches ^~ /mcp and proxy_pass's trailing slash strips that prefix,
+  #    so /healthz at the root is never proxied and always 404s.
+  curl -s https://<your-domain>/mcp/healthz
   curl -s https://<your-domain>/mcp -X POST \
     -H 'content-type: application/json' \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+  A Plesk-styled HTML error page is never from this server -- it only ever
+  answers JSON, so HTML means nginx never proxied the request.
 
 Full documentation: DEPLOYMENT.md in the websynth repo.
 `;

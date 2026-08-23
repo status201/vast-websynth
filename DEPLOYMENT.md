@@ -215,15 +215,58 @@ differs.
 
 ### Verifying a deploy
 
-The MCP half:
+**Check the subdomain first, then the proxy.** In that order the two failures
+cannot be confused: the first says whether the Node app runs at all, the second
+whether nginx reaches it. Doing it the other way round makes one error message
+stand for both problems.
 
 ```bash
-curl -s https://vast.status201.com/healthz          # {"ok":true,"version":"…"}
-curl -si https://vast.status201.com/mcp | head -1   # 405 — there is no SSE stream
-curl -s https://vast.status201.com/mcp -X POST \
+# 1. The app itself, straight at the origin — no proxy involved.
+curl -s https://mcp.status201.com/healthz            # {"ok":true,"version":"…"}
+```
+
+If that fails, nothing below can pass: fix the Plesk Node.js app first (see
+"When it doesn't work"). If it succeeds:
+
+```bash
+# 2. Through the proxy on the main domain.
+#    NOTE the path: the directive matches `^~ /mcp` and proxy_pass's trailing
+#    slash strips that prefix, so the health check is /mcp/healthz — /healthz at
+#    the root is NOT proxied and will always be Plesk's own 404.
+curl -s  https://vast.status201.com/mcp/healthz      # {"ok":true,"version":"…"}
+curl -si https://vast.status201.com/mcp | head -1    # 405 — there is no SSE stream
+curl -s  https://vast.status201.com/mcp -X POST \
   -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'   # 8 tools, no save_*
 ```
+
+### When it doesn't work
+
+The failure tells you which half is wrong, if you read what produced it:
+
+| What you see on `/mcp` | What it means |
+| --- | --- |
+| A **Plesk error page** (`<!DOCTYPE html>`, `/error_docs/styles.css`) — 404 or 403 | nginx never proxied: the request was served by the static site. The `location ^~ /mcp` block is missing, wasn't saved, or Plesk rejected the config. Nothing reached Node. |
+| **502 / 504** | The block *is* live and nginx tried, but could not reach the upstream. The Node app is stopped, or the subdomain's certificate/SNI is failing. |
+| **405** with `Allow: POST` | It works. That is our answer — `GET` offers no stream by design (REQ-9b). |
+| A JSON-RPC body | It works. |
+
+The distinction that matters: **a Plesk-styled error page is never from us.** This
+server only ever answers JSON, so any HTML means the request did not get to it.
+
+Plesk specifics worth checking, in order:
+
+1. **Apache & nginx Settings → Additional nginx directives** on the *main* domain
+   actually contains the block, and the page was **saved without an error**.
+   Plesk validates the config on save and refuses invalid input — a block that
+   never applied often means a save that silently failed.
+2. The subdomain's **Node.js app is running** (Plesk shows its state; use
+   *Restart App* after replacing files — it does not pick up changes on its own).
+3. The **Application Startup File is `app.js`** and the files sit in the
+   *Application Root*, not in `httpdocs`.
+4. Node's own output: the app logs `[websynth-mcp] ready (http, v…)` on a
+   successful boot, and a missing `dist/song-core.mjs` fails loudly at start
+   rather than at the first request.
 
 The half that actually breaks — **the static site must be unchanged**:
 
