@@ -3,7 +3,9 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 5   # v5: REQ-5 — the worked example is the built-in "Mordor", renamed
+version: 6   # v6: REQ-10 — the modal names the hosted MCP connector as the
+             #     shorter route; the PROMPT TEXT deliberately does not
+             # v5: REQ-5 — the worked example is the built-in "Mordor", renamed
              #     from "I Feel Love"
              # v4: the reply pastes back in (step 3) instead of going via a file
 owner: ui
@@ -13,6 +15,7 @@ related:
   - paste-import
   - architecture
   - webrtc-sync
+  - mcp-server
 source:
   - src/state/authoring-guide.ts          # buildAuthoringGuide + buildSongPrompt (pure, no song.ts)
   - src/ui/components/ai-prompt.ts        # createAiPromptButton (its ONLY export); buildModal is local
@@ -99,7 +102,11 @@ is ~40 lines. The prompt-building logic moved to the pure
 - **REQ-8** — `public/llms.txt` gives crawling agents the app intro, both format
   names + schema URLs, the grid dimensions and drum track names, and points at
   the in-app AI Prompt for the live PARAMS table (which is bus-generated and
-  would drift if duplicated).
+  would drift if duplicated). (v6) It also names the **hosted MCP endpoint**
+  ([mcp-server](mcp-server.md) REQ-1b) rather than describing the server as
+  repo-only: an agent reaching `llms.txt` under its own steam is exactly the
+  reader who can act on a connector URL, and telling it to clone a repo instead
+  was the wrong answer the moment the endpoint went up.
 
 - **REQ-9** — (v4) The modal is a **numbered three-step round trip**: *1 · Describe
   your song* (the brief), *2 · Copy this prompt into any AI agent* (the prompt +
@@ -109,6 +116,28 @@ is ~40 lines. The prompt-building logic moved to the pure
   (`onDone`) so the user sees what landed; a rejected one leaves the modal and the
   pasted text alone ([paste-import](paste-import.md) REQ-8). The Close button
   moves below the fragment, staying the card's last child.
+
+- **REQ-10** — (v6) **The modal offers the connector; the prompt text does
+  not.** Above step 1 the card names the hosted MCP endpoint
+  (`<origin>/mcp` — resolved like REQ-3's schema URLs, so a fork points at
+  itself) with a Copy button, as the shorter route for an agent that supports
+  MCP connectors: it validates and fixes directly instead of round-tripping
+  through this modal.
+
+  **The generated prompt is deliberately unchanged**, and that is the load-bearing
+  half of this requirement:
+  - `buildAuthoringGuide` is what the MCP server's `get_song_format` returns
+    ([mcp-server](mcp-server.md) REQ-5). A connector pitch there would be read by
+    an agent *already connected* — an advert for the tool it is holding.
+  - `buildSongPrompt` reaches an agent that by construction has no such
+    connector, so the line would cost context on every paste to describe a
+    capability the reader lacks, and invites a weaker model to try fetching the
+    URL (`GET` answers `405` — [mcp-server](mcp-server.md) REQ-9b).
+  - It is the same principle REQ-4 already states for the example buttons: the
+    prompt text carries the *format*, never the app's UI.
+
+  The URL is **plain text, never an anchor.** The endpoint answers `POST` only,
+  so a click would show a `405` JSON body and read as a broken link.
 
 ## Technical design
 
@@ -223,6 +252,19 @@ Scenario: Modal stays usable on a small screen
   When the AI Prompt modal is opened
   Then its dialog card carries both the base "card" and "cardWide" classes
   And so it is height-capped and scrolls internally (Close stays reachable)
+# pinned by: tests/ui/ai-prompt.test.ts
+
+Scenario: The modal offers the connector as the shorter route (v6, REQ-10)
+  When the AI Prompt modal is opened
+  Then it shows <origin>/mcp with a Copy URL button, above step 1
+  And that URL is plain text, never an anchor — the endpoint answers POST only
+# pinned by: tests/ui/ai-prompt.test.ts
+
+Scenario: The prompt text never mentions the connector (v6, REQ-10)
+  When buildSongPrompt or buildAuthoringGuide is generated
+  Then neither mentions MCP or a connector
+  And so get_song_format cannot advertise the tool its own caller is holding,
+      and a pasted prompt costs no context describing a capability its reader lacks
 # pinned by: tests/ui/ai-prompt.test.ts
 ```
 

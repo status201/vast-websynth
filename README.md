@@ -86,13 +86,35 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 
 ```bash
 npm install
-npm run dev      # vite dev server, --host (open the printed URL)
-npm run build    # tsc typecheck + vite production build to dist/
-npm run preview  # serve the production build
-npm run typecheck
-npm test         # vitest run — unit tests (jsdom)
-npm run e2e      # playwright run — browser end-to-end tests (Chromium)
-npm run release  # cut a versioned release (see Releasing below)
+npm run dev          # vite dev server, --host (open the printed URL)
+npm run build        # tsc typecheck + vite production build to dist/
+npm run preview      # serve the production build
+npm run typecheck    # the primary gate: strict + noUncheckedIndexedAccess
+
+# Tests — there is no linter
+npm test             # vitest run — unit tests (jsdom)
+npm run test:watch   # vitest in watch mode
+npm run e2e          # playwright run — browser end-to-end tests (Chromium)
+npm run e2e:ui       # playwright's interactive UI runner
+
+# Specs and generated files. The three checks run in CI too — check:demos and
+# check:params in the test job, spec:lint in the SDD workflow.
+npm run spec:lint    # spec structure + the README/ADR indexes
+npm run gen:params   # regenerate public/params.{json,md} from the live registry
+npm run check:params # fail if a parameter was added without regenerating
+npm run clean:demos  # rewrite src/state/demos/ to canonical form + reindex
+npm run check:demos  # fail if the demo index drifted
+                     # (prebuild runs clean:demos + gen:params automatically)
+
+# Sound work — nothing automated can judge this; see ADR-010
+npm run bench:audio                        # render takes through the real engine, to listen to
+npm run bench:metrics -- bench/take.wav    # measure a rendered take (--compare a/b for A/B)
+
+# MCP server (see MCP server below)
+npm run start:mcp:http # serve the HTTP transport on 127.0.0.1:8787
+npm run build:mcp      # rebuild the song-core bundle it imports
+
+npm run release      # cut a versioned release (see Releasing below)
 ```
 
 Audio starts behind a **"Tap to start"** overlay — browsers require a user

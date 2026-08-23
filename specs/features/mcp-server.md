@@ -227,31 +227,35 @@ question of which tools a stranger may call.
   the server has no notion of a path being "wrong" — every non-`POST` is
   answered by method, not by location.
 
-  - **REQ-9a** — **No session.** No `Mcp-Session-Id` is ever issued. There is no
-    per-connection state to key one on: the single lazily-created `ParamBus`
-    inside `makeTools` is read-only and shared per process. The MCP spec permits
-    the omission, and it means no session table to bound and no eviction policy.
-  - **REQ-9b** — **No SSE.** Every response is a single JSON body, so nothing
-    depends on a reverse proxy declining to buffer. `GET` answering `405` is the
-    spec's sanctioned way to say "this server offers no server-initiated stream",
-    and it doubles as the reason the service worker can never cache this path
-    ([pwa-install](pwa-install.md) REQ-6 — a 405 is not a cacheable 200).
-  - **REQ-9c** — **`Origin` absent is allowed; `Origin` present must match.**
-    Claude calls server-side and sends none, so requiring the header would break
-    the only client that matters. When a browser *does* send one it must be in
-    the allowlist (the published site, plus loopback for the MCP Inspector), else
-    `403`. That is the spec's DNS-rebinding defence, and it is a browser-only
-    concern by construction.
-  - **REQ-9d** — **`MCP-Protocol-Version` is ignored.** Not read and discarded —
-    never consulted. `rpc.mjs` behaves identically at every revision it knows and
-    `initialize` already negotiates (REQ-2), so there is nothing the header could
-    change; validating it would only give a client newer than this file a way to
-    be refused for no reason.
-  - **REQ-9e** — **The path is not matched.** Any path accepts the `POST`
-    (`/healthz` excepted), because the same process is reached at `/mcp` behind
-    the production proxy, at `/` on the origin server, and at whatever a
-    developer types locally. Hard-matching `/mcp` would make the deployment
-    topology a code constant.
+- **REQ-9a** — **No session.** No `Mcp-Session-Id` is ever issued. There is no
+  per-connection state to key one on: the single lazily-created `ParamBus`
+  inside `makeTools` is read-only and shared per process. The MCP spec permits
+  the omission, and it means no session table to bound and no eviction policy.
+
+- **REQ-9b** — **No SSE.** Every response is a single JSON body, so nothing
+  depends on a reverse proxy declining to buffer. `GET` answering `405` is the
+  spec's sanctioned way to say "this server offers no server-initiated stream",
+  and it doubles as the reason the service worker can never cache this path
+  ([pwa-install](pwa-install.md) REQ-6 — a 405 is not a cacheable 200).
+
+- **REQ-9c** — **`Origin` absent is allowed; `Origin` present must match.**
+  Claude calls server-side and sends none, so requiring the header would break
+  the only client that matters. When a browser *does* send one it must be in
+  the allowlist (the published site, plus loopback for the MCP Inspector), else
+  `403`. That is the spec's DNS-rebinding defence, and it is a browser-only
+  concern by construction.
+
+- **REQ-9d** — **`MCP-Protocol-Version` is ignored.** Not read and discarded —
+  never consulted. `rpc.mjs` behaves identically at every revision it knows and
+  `initialize` already negotiates (REQ-2), so there is nothing the header could
+  change; validating it would only give a client newer than this file a way to
+  be refused for no reason.
+
+- **REQ-9e** — **The path is not matched.** Any path accepts the `POST`
+  (`/healthz` excepted), because the same process is reached at `/mcp` behind
+  the production proxy, at `/` on the origin server, and at whatever a
+  developer types locally. Hard-matching `/mcp` would make the deployment
+  topology a code constant.
 
 - **REQ-10** — (v8) **The remote profile is read-only, and named.**
   `makeTools(core, {allowWrites})` defaults `allowWrites` to **`true`**, so the
