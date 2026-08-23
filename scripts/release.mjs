@@ -23,16 +23,14 @@
 //
 // Zero dependencies — Node built-ins only.
 
-import {
-  readFileSync, writeFileSync, readdirSync, statSync,
-  mkdtempSync, mkdirSync, copyFileSync, rmSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
-import { deflateRawSync } from 'node:zlib';
+import path from 'node:path';
+
+import { zipDir } from './lib/zip.mjs';
+import { packMcpBundle } from './lib/mcp-bundle.mjs';
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -295,213 +293,6 @@ function runBuild() {
 }
 
 // ---------------------------------------------------------------------------
-// The MCP server bundle (DEPLOYMENT.md → "Hosting the MCP server")
-// ---------------------------------------------------------------------------
-
-/**
- * Files the deployed MCP server needs, relative to `scripts/mcp/`.
- *
- * `app.js` is the Passenger startup file; `dist/song-core.mjs` is the prebuilt
- * bundle it refuses to run without (mcp-server.md REQ-3), which is the whole
- * reason this artifact exists rather than the server being told to `git pull`.
- * `websynth-mcp.mjs` and `core.mjs`'s self-build path are deliberately absent
- * from what the server ever runs — but `core.mjs` itself ships, because
- * `loadCore` is what enforces the refusal.
- */
-const MCP_BUNDLE_FILES = ['app.js', 'http.mjs', 'core.mjs', 'rpc.mjs', 'tools.mjs'];
-
-/** Run `npm run build:mcp` so `dist/song-core.mjs` matches this release. */
-function runMcpBuild() {
-  const res = spawnSync('npm', ['run', 'build:mcp'], { stdio: 'inherit', cwd: ROOT_DIR, shell: true });
-  if (res.error) die(`Failed to run "npm run build:mcp": ${res.error.message}`);
-  if (res.status !== 0) die(`MCP core build failed (exit ${res.status}).`);
-}
-
-/**
- * Stage the deployable MCP server in a temp dir and return its path.
- *
- * The layout mirrors `scripts/mcp/` exactly — same filenames, same `dist/`
- * subdirectory — because `core.mjs` resolves the bundle relative to itself.
- * That is what lets the identical files run from the repo and from a Plesk
- * Application Root with no build-time rewriting.
- */
-function stageMcpBundle(version) {
-  const stage = mkdtempSync(path.join(tmpdir(), 'websynth-mcp-'));
-  const srcDir = fileURLToPath(new URL('scripts/mcp/', root));
-
-  for (const f of MCP_BUNDLE_FILES) copyFileSync(path.join(srcDir, f), path.join(stage, f));
-  mkdirSync(path.join(stage, 'dist'));
-  copyFileSync(path.join(srcDir, 'dist', 'song-core.mjs'), path.join(stage, 'dist', 'song-core.mjs'));
-
-  // Minimal and dependency-free by construction (ADR-003): `"type": "module"`
-  // is what makes app.js ESM under Passenger, and `version` is what the server
-  // reports from /healthz and `initialize` (core.mjs → readVersion).
-  writeFileSync(
-    path.join(stage, 'package.json'),
-    JSON.stringify(
-      {
-        name: 'websynth-mcp',
-        version,
-        private: true,
-        type: 'module',
-        engines: { node: '>=20' },
-      },
-      null,
-      2,
-    ) + '\n',
-  );
-
-  writeFileSync(path.join(stage, 'README.txt'), MCP_BUNDLE_README(version));
-  return stage;
-}
-
-const MCP_BUNDLE_README = (version) => `websynth MCP server v${version} — deploy notes
-================================================
-
-A read-only, authless MCP server over Streamable HTTP. Zero dependencies: do
-NOT run "npm install". Node >= 20.
-
-Plesk (panel only)
-------------------
-1. Subdomain (e.g. mcp.status201.com) -> Node.js:
-     Application Root : this folder's contents (NOT httpdocs)
-     Document Root    : httpdocs (leave empty)
-     Startup File     : app.js
-     Node version     : 22.x        Mode: production
-   Do not click "NPM install".
-2. Enable Let's Encrypt on the subdomain.
-3. On the main site's domain, Apache & nginx Settings ->
-   Additional nginx directives:
-
-     location ^~ /mcp {
-         proxy_pass            https://<subdomain>/;
-         proxy_ssl_server_name on;
-         proxy_set_header      Host <subdomain>;
-         proxy_set_header      X-Forwarded-Proto https;
-         proxy_set_header      X-Forwarded-For $remote_addr;
-         proxy_http_version    1.1;
-         client_max_body_size  1m;
-         proxy_read_timeout    30s;
-     }
-
-   X-Forwarded-For must be OVERWRITTEN, not appended: the rate limiter keys on
-   the first hop, and appending would let a caller choose its own bucket.
-
-   Never enable the Node.js extension on the main site's own domain — Passenger
-   would take over its document root and change how /worklets/*.js are served,
-   and audioWorklet.addModule throws on a wrong MIME type. The app would load
-   and make no sound.
-
-Verify
-------
-  curl -s https://<your-domain>/healthz
-  curl -s https://<your-domain>/mcp -X POST \
-    -H 'content-type: application/json' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-
-Full documentation: DEPLOYMENT.md in the websynth repo.
-`;
-
-// CRC32 — table-based, so we don't depend on zlib.crc32 (newer Node only).
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c >>> 0;
-  }
-  return t;
-})();
-
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-/** Recursively list files under dir, returning paths relative to `dir` (posix). */
-function listFiles(dir, base = '') {
-  const out = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const abs = `${dir}/${entry.name}`;
-    const rel = base ? `${base}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) out.push(...listFiles(abs, rel));
-    else if (entry.isFile()) out.push(rel);
-  }
-  return out;
-}
-
-/** Pack a Date into DOS date + time words (used by the ZIP local header). */
-function dosDateTime(d) {
-  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds() / 2));
-  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
-  return { time: time & 0xffff, date: date & 0xffff };
-}
-
-/**
- * Build a ZIP archive (Buffer) of every file under `srcDir`, with each entry
- * named `<topPrefix>/<relative path>`. Dependency-free: deflate via node:zlib,
- * CRC32 in JS. Implements the minimal local-header + central-directory + EOCD
- * structure (no Zip64 — fine for a web build).
- */
-function zipDir(srcDir, topPrefix) {
-  const files = listFiles(srcDir).sort();
-  const local = [];
-  const central = [];
-  let offset = 0;
-
-  for (const rel of files) {
-    const name = `${topPrefix}/${rel}`;
-    const nameBuf = Buffer.from(name, 'utf8');
-    const data = readFileSync(`${srcDir}/${rel}`);
-    const crc = crc32(data);
-    const compressed = deflateRawSync(data);
-    const { time, date } = dosDateTime(statSync(`${srcDir}/${rel}`).mtime);
-
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0); // local file header signature
-    localHeader.writeUInt16LE(20, 4); // version needed
-    localHeader.writeUInt16LE(0, 6); // general purpose flags
-    localHeader.writeUInt16LE(8, 8); // method: deflate
-    localHeader.writeUInt16LE(time, 10);
-    localHeader.writeUInt16LE(date, 12);
-    localHeader.writeUInt32LE(crc, 14);
-    localHeader.writeUInt32LE(compressed.length, 18);
-    localHeader.writeUInt32LE(data.length, 22);
-    localHeader.writeUInt16LE(nameBuf.length, 26);
-    localHeader.writeUInt16LE(0, 28); // extra field length
-    local.push(localHeader, nameBuf, compressed);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0); // central dir header signature
-    centralHeader.writeUInt16LE(20, 4); // version made by
-    centralHeader.writeUInt16LE(20, 6); // version needed
-    centralHeader.writeUInt16LE(0, 8); // flags
-    centralHeader.writeUInt16LE(8, 10); // method: deflate
-    centralHeader.writeUInt16LE(time, 12);
-    centralHeader.writeUInt16LE(date, 14);
-    centralHeader.writeUInt32LE(crc, 16);
-    centralHeader.writeUInt32LE(compressed.length, 20);
-    centralHeader.writeUInt32LE(data.length, 24);
-    centralHeader.writeUInt16LE(nameBuf.length, 28);
-    centralHeader.writeUInt32LE(offset, 42); // relative offset of local header
-    central.push(centralHeader, nameBuf);
-
-    offset += localHeader.length + nameBuf.length + compressed.length;
-  }
-
-  const centralBuf = Buffer.concat(central);
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0); // end of central dir signature
-  eocd.writeUInt16LE(files.length, 8); // entries on this disk
-  eocd.writeUInt16LE(files.length, 10); // total entries
-  eocd.writeUInt32LE(centralBuf.length, 12); // central dir size
-  eocd.writeUInt32LE(offset, 16); // central dir offset
-
-  return Buffer.concat([...local, centralBuf, eocd]);
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
@@ -674,16 +465,11 @@ async function main() {
     writeFileSync(ZIP_PATH, zip);
 
     // The MCP server ships prebuilt: production has no node_modules, and
-    // core.mjs refuses to self-build there (mcp-server.md REQ-3).
+    // core.mjs refuses to self-build there (mcp-server.md REQ-3). The same
+    // packer backs `npm run pack:mcp`, so what a tester deploys before a
+    // release is the layout the release then ships.
     heading('Building MCP core bundle (npm run build:mcp)');
-    runMcpBuild();
-    const stage = stageMcpBundle(targetVersion);
-    let mcpZip;
-    try {
-      mcpZip = zipDir(stage, 'websynth-mcp');
-    } finally {
-      rmSync(stage, { recursive: true, force: true });
-    }
+    const mcpZip = packMcpBundle(targetVersion);
     writeFileSync(MCP_ZIP_PATH, mcpZip);
 
     heading('Release artifacts');

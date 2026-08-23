@@ -113,6 +113,7 @@ npm run bench:metrics -- bench/take.wav    # measure a rendered take (--compare 
 # MCP server (see MCP server below)
 npm run start:mcp:http # serve the HTTP transport on 127.0.0.1:8787
 npm run build:mcp      # rebuild the song-core bundle it imports
+npm run pack:mcp       # mcp-v<version>.zip for deploying it, without a release
 
 npm run release      # cut a versioned release (see Releasing below)
 ```

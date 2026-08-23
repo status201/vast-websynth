@@ -123,6 +123,23 @@ why those two go together.
 > must keep its type. The layout below keeps Passenger on a subdomain of its own
 > and reaches it by proxy, so nginx serves `dist/` for every path but `/mcp`.
 
+### Getting the bundle
+
+`npm run release` produces `mcp-v<version>.zip`, but you usually want it *before*
+committing to a version number — deploy the server, point Claude at it, find out
+whether the Plesk config is right. So:
+
+```bash
+npm run pack:mcp                 # -> mcp-v<version>.zip
+npm run pack:mcp -- --out /tmp/x.zip
+```
+
+It touches nothing else: no version bump, no CHANGELOG, no git. Both paths call
+the same packer, so what you test is byte-for-byte the layout a release ships.
+The only difference is a provenance line in the bundle's `README.txt` recording
+the commit it came from and whether the tree was dirty — worth reading when you
+are trying to work out what a box is actually running.
+
 ### Requirements
 
 - Node **≥ 20** (the bundle targets `node20`; the repo itself wants ≥ 22).

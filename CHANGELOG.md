@@ -29,9 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   working directory, which is your own checkout locally and nobody's directory
   on a shared host. `make_share_link` is the hosted answer — a URL that opens the
   song in the synth.
-- `npm run start:mcp:http` runs that server locally, and `npm run release` now
-  also produces `mcp-v<version>.zip` for deploying it. Hosting instructions are
-  in DEPLOYMENT.md.
+- `npm run start:mcp:http` runs that server locally, `npm run pack:mcp` writes
+  the deployable `mcp-v<version>.zip` without cutting a release, and
+  `npm run release` produces the same zip alongside the site's. Hosting
+  instructions are in DEPLOYMENT.md.
 - **The ✨ AI Prompt modal points at that connector** as the shorter route: if
   your assistant supports MCP connectors, adding the URL shown there lets it
   validate and fix songs directly instead of you copying a prompt out and pasting
