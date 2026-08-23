@@ -23,7 +23,12 @@
 //
 // Zero dependencies — Node built-ins only.
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  readFileSync, writeFileSync, readdirSync, statSync,
+  mkdtempSync, mkdirSync, copyFileSync, rmSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
@@ -289,6 +294,114 @@ function runBuild() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The MCP server bundle (DEPLOYMENT.md → "Hosting the MCP server")
+// ---------------------------------------------------------------------------
+
+/**
+ * Files the deployed MCP server needs, relative to `scripts/mcp/`.
+ *
+ * `app.js` is the Passenger startup file; `dist/song-core.mjs` is the prebuilt
+ * bundle it refuses to run without (mcp-server.md REQ-3), which is the whole
+ * reason this artifact exists rather than the server being told to `git pull`.
+ * `websynth-mcp.mjs` and `core.mjs`'s self-build path are deliberately absent
+ * from what the server ever runs — but `core.mjs` itself ships, because
+ * `loadCore` is what enforces the refusal.
+ */
+const MCP_BUNDLE_FILES = ['app.js', 'http.mjs', 'core.mjs', 'rpc.mjs', 'tools.mjs'];
+
+/** Run `npm run build:mcp` so `dist/song-core.mjs` matches this release. */
+function runMcpBuild() {
+  const res = spawnSync('npm', ['run', 'build:mcp'], { stdio: 'inherit', cwd: ROOT_DIR, shell: true });
+  if (res.error) die(`Failed to run "npm run build:mcp": ${res.error.message}`);
+  if (res.status !== 0) die(`MCP core build failed (exit ${res.status}).`);
+}
+
+/**
+ * Stage the deployable MCP server in a temp dir and return its path.
+ *
+ * The layout mirrors `scripts/mcp/` exactly — same filenames, same `dist/`
+ * subdirectory — because `core.mjs` resolves the bundle relative to itself.
+ * That is what lets the identical files run from the repo and from a Plesk
+ * Application Root with no build-time rewriting.
+ */
+function stageMcpBundle(version) {
+  const stage = mkdtempSync(path.join(tmpdir(), 'websynth-mcp-'));
+  const srcDir = fileURLToPath(new URL('scripts/mcp/', root));
+
+  for (const f of MCP_BUNDLE_FILES) copyFileSync(path.join(srcDir, f), path.join(stage, f));
+  mkdirSync(path.join(stage, 'dist'));
+  copyFileSync(path.join(srcDir, 'dist', 'song-core.mjs'), path.join(stage, 'dist', 'song-core.mjs'));
+
+  // Minimal and dependency-free by construction (ADR-003): `"type": "module"`
+  // is what makes app.js ESM under Passenger, and `version` is what the server
+  // reports from /healthz and `initialize` (core.mjs → readVersion).
+  writeFileSync(
+    path.join(stage, 'package.json'),
+    JSON.stringify(
+      {
+        name: 'websynth-mcp',
+        version,
+        private: true,
+        type: 'module',
+        engines: { node: '>=20' },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+
+  writeFileSync(path.join(stage, 'README.txt'), MCP_BUNDLE_README(version));
+  return stage;
+}
+
+const MCP_BUNDLE_README = (version) => `websynth MCP server v${version} — deploy notes
+================================================
+
+A read-only, authless MCP server over Streamable HTTP. Zero dependencies: do
+NOT run "npm install". Node >= 20.
+
+Plesk (panel only)
+------------------
+1. Subdomain (e.g. mcp.status201.com) -> Node.js:
+     Application Root : this folder's contents (NOT httpdocs)
+     Document Root    : httpdocs (leave empty)
+     Startup File     : app.js
+     Node version     : 22.x        Mode: production
+   Do not click "NPM install".
+2. Enable Let's Encrypt on the subdomain.
+3. On the main site's domain, Apache & nginx Settings ->
+   Additional nginx directives:
+
+     location ^~ /mcp {
+         proxy_pass            https://<subdomain>/;
+         proxy_ssl_server_name on;
+         proxy_set_header      Host <subdomain>;
+         proxy_set_header      X-Forwarded-Proto https;
+         proxy_set_header      X-Forwarded-For $remote_addr;
+         proxy_http_version    1.1;
+         client_max_body_size  1m;
+         proxy_read_timeout    30s;
+     }
+
+   X-Forwarded-For must be OVERWRITTEN, not appended: the rate limiter keys on
+   the first hop, and appending would let a caller choose its own bucket.
+
+   Never enable the Node.js extension on the main site's own domain — Passenger
+   would take over its document root and change how /worklets/*.js are served,
+   and audioWorklet.addModule throws on a wrong MIME type. The app would load
+   and make no sound.
+
+Verify
+------
+  curl -s https://<your-domain>/healthz
+  curl -s https://<your-domain>/mcp -X POST \
+    -H 'content-type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+Full documentation: DEPLOYMENT.md in the websynth repo.
+`;
+
 // CRC32 — table-based, so we don't depend on zlib.crc32 (newer Node only).
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
@@ -462,8 +575,10 @@ async function main() {
   const notes = renderNotes(parsed.body);
   const tag = `v${targetVersion}`;
   const zipName = `dist-${tag}.zip`;
+  const mcpZipName = `mcp-${tag}.zip`;
   const notesName = `dist-${tag}.notes.md`;
   const ZIP_PATH = fileURLToPath(new URL(zipName, root));
+  const MCP_ZIP_PATH = fileURLToPath(new URL(mcpZipName, root));
   const NOTES_PATH = fileURLToPath(new URL(notesName, root));
 
   // --- Preview ---------------------------------------------------------------
@@ -492,6 +607,7 @@ async function main() {
   if (!skipBuild) {
     arrow(`dist/           ${c.dim('build via npm run build')}`);
     arrow(`${zipName}    ${c.dim('zip of dist/ (GitHub release asset)')}`);
+    arrow(`${mcpZipName}     ${c.dim('zip of the MCP server (GitHub release asset)')}`);
   }
 
   if (dryRun) {
@@ -549,15 +665,30 @@ async function main() {
   // --- Build + zip dist/ -----------------------------------------------------
   if (skipBuild) {
     log('');
-    note(`--skip-build: not building. ${zipName} must already exist for the gh command below.`);
+    note(`--skip-build: not building. ${zipName} and ${mcpZipName} must already exist for the gh command below.`);
   } else {
     heading('Building app (npm run build)');
     runBuild();
 
     const zip = zipDir(DIST_DIR, 'dist');
     writeFileSync(ZIP_PATH, zip);
-    heading('Release artifact');
+
+    // The MCP server ships prebuilt: production has no node_modules, and
+    // core.mjs refuses to self-build there (mcp-server.md REQ-3).
+    heading('Building MCP core bundle (npm run build:mcp)');
+    runMcpBuild();
+    const stage = stageMcpBundle(targetVersion);
+    let mcpZip;
+    try {
+      mcpZip = zipDir(stage, 'websynth-mcp');
+    } finally {
+      rmSync(stage, { recursive: true, force: true });
+    }
+    writeFileSync(MCP_ZIP_PATH, mcpZip);
+
+    heading('Release artifacts');
     ok(`${zipName}  ${c.dim(`(${(zip.length / 1024).toFixed(0)} kB — zip of dist/)`)}`);
+    ok(`${mcpZipName}   ${c.dim(`(${(mcpZip.length / 1024).toFixed(0)} kB — the MCP server, prebuilt)`)}`);
   }
 
   // --- Publish playbook ------------------------------------------------------
@@ -572,12 +703,13 @@ async function main() {
   note('--follow-tags pushes the annotated tag alongside the commit.');
 
   // --- GitHub release (with the dist zip attached) ---------------------------
-  heading('Then: create the GitHub release (with the dist zip attached)');
+  heading('Then: create the GitHub release (with both zips attached)');
   commands([
-    c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName}`,
+    c.cyan('gh') + ` release create ${tag} --title ${tag} --notes-file ${notesName} --verify-tag ${zipName} ${mcpZipName}`,
   ]);
   note('Requires the `gh` CLI (authenticated). --verify-tag uses the tag you pushed above.');
-  note(`No gh? Create it at ${repoBase}/releases/new?tag=${tag} and upload ${zipName} manually.`);
+  note(`No gh? Create it at ${repoBase}/releases/new?tag=${tag} and upload both zips manually.`);
+  note(`${zipName} is the static site; ${mcpZipName} is the MCP server (see DEPLOYMENT.md).`);
 
   log('\n' + c.green(c.bold(`✓ Prepared ${targetVersion}.`)) + ' ' + c.dim('Run the commands above to publish.') + '\n');
 }

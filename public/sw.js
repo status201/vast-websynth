@@ -10,6 +10,7 @@
  *
  * Strategy (see `strategyFor`):
  *   - non-GET / cross-origin        → passthrough (not intercepted)
+ *   - /mcp, /healthz                → passthrough (the API, not the app)
  *   - /assets/* (hashed, immutable) → cache-first, miss-fill
  *   - navigations                   → network-first, fallback to cached '/'
  *   - other same-origin GETs        → network-first, cache on success
@@ -36,11 +37,26 @@ function isHashedAsset(pathname) {
 }
 
 /**
+ * Paths served from this origin by a reverse proxy rather than from `dist/`:
+ * the public MCP endpoint (mcp-server.md REQ-9) and its health check.
+ *
+ * These were already safe by accident — the traffic is POST, which the non-GET
+ * rule below passes through, and `GET /mcp` answers 405, which `fetchAndCache`
+ * declines to cache. Naming them makes it safe on PURPOSE: an API response has
+ * no business in a cache keyed by app version, and the accident stops holding
+ * the moment that endpoint ever answers a GET with 200.
+ */
+function isApiPath(pathname) {
+  return pathname === '/mcp' || pathname.indexOf('/mcp/') === 0 || pathname === '/healthz';
+}
+
+/**
  * Classify a request. `passthrough` requests are never intercepted; the rest
  * map to the handlers below.
  */
 function strategyFor(url, mode, method, origin) {
   if (method !== 'GET' || url.origin !== origin) return 'passthrough';
+  if (isApiPath(url.pathname)) return 'passthrough';
   if (isHashedAsset(url.pathname)) return 'cache-first';
   if (mode === 'navigate') return 'network-first-nav';
   return 'network-first';
@@ -129,6 +145,7 @@ self.addEventListener('fetch', function (event) {
 self.__sw = {
   cacheName: cacheName,
   isHashedAsset: isHashedAsset,
+  isApiPath: isApiPath,
   strategyFor: strategyFor,
   CORE_ASSETS: CORE_ASSETS,
 };

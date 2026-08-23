@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The MCP server can now be hosted, so AI agents can write songs for the synth
+  without installing anything.** A public endpoint at
+  `https://vast.status201.com/mcp` speaks Streamable HTTP; add it with
+  `claude mcp add --transport http websynth https://vast.status201.com/mcp`, or
+  as a custom connector in Claude.ai. It is authless and read-only — the
+  authoring guides, the parameter catalogue, both validators, both expanders and
+  share-link building, all of which are pure functions over a public format.
+  `save_song` / `save_preset` stay local-only: they write into the *server's*
+  working directory, which is your own checkout locally and nobody's directory
+  on a shared host. `make_share_link` is the hosted answer — a URL that opens the
+  song in the synth.
+- `npm run start:mcp:http` runs that server locally, and `npm run release` now
+  also produces `mcp-v<version>.zip` for deploying it. Hosting instructions are
+  in DEPLOYMENT.md.
+
 ### Fixed
 
 - **Backgrounding the app no longer leaves it silent.** On a device that suspends

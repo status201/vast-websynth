@@ -95,6 +95,130 @@ export default defineConfig({
 Then rebuild (`npm run build`) and deploy `dist/` into that subfolder. Vite
 rewrites the asset and worklet URLs to `/synth/…` accordingly.
 
+## Hosting the MCP server
+
+Optional, and entirely separate from the static site. `mcp-v<version>.zip`
+contains a small Node server that exposes the song/preset authoring tools over
+**Streamable HTTP**, so anyone can add them as a Claude connector without
+cloning this repo:
+
+```bash
+claude mcp add --transport http websynth https://vast.status201.com/mcp
+```
+
+It is **authless and read-only** — eight tools, all pure functions over a public
+document format, no filesystem writes. See
+[mcp-server](specs/features/mcp-server.md) REQ-9/10/11 for the contract and
+[ADR-020](specs/decisions/adr-020-remote-mcp-is-authless-and-read-only.md) for
+why those two go together.
+
+> **Never enable a Node.js application on the site's own domain.** Plesk's
+> Node.js extension puts Phusion Passenger in front of the whole document root,
+> which changes how static files are served. `/worklets/*.js` must arrive with a
+> JavaScript MIME type or `audioWorklet.addModule` throws and **the app loads but
+> makes no sound**; `/sw.js` must stay at root scope, and `/site.webmanifest`
+> must keep its type. The layout below keeps Passenger on a subdomain of its own
+> and reaches it by proxy, so nginx serves `dist/` for every path but `/mcp`.
+
+### Requirements
+
+- Node **≥ 20** (the bundle targets `node20`; the repo itself wants ≥ 22).
+- **No dependencies.** There is no `dependencies` block (ADR-003) — do not run
+  `npm install` on the server; there is nothing to install.
+- The zip ships `dist/song-core.mjs` prebuilt. The deployed entry deliberately
+  does *not* self-build ([mcp-server](specs/features/mcp-server.md) REQ-3): a
+  missing bundle fails loudly at boot rather than shelling out to a bundler on
+  an unauthenticated request.
+
+### Plesk, panel only (no shell)
+
+1. **Add a subdomain** — e.g. `mcp.status201.com` — and enable **Let's Encrypt**
+   on it.
+2. Unzip `mcp-v<version>.zip` and put the **contents of `websynth-mcp/`** in the
+   subdomain's **Application Root**, *not* in `httpdocs`. Nothing in the bundle
+   should be publicly downloadable; Passenger serves the app, not the folder.
+3. **Node.js** on that subdomain:
+
+   | Field | Value |
+   | --- | --- |
+   | Node.js version | 22.x |
+   | Application Root | where you unzipped (one level above Document Root) |
+   | Document Root | `httpdocs` — leave it empty |
+   | Application Startup File | `app.js` |
+   | Application Mode | production |
+
+   Do **not** click "NPM install".
+4. On **`vast.status201.com`** → *Apache & nginx Settings* → **Additional nginx
+   directives**:
+
+   ```nginx
+   location ^~ /mcp {
+       proxy_pass            https://mcp.status201.com/;
+       proxy_ssl_server_name on;
+       proxy_set_header      Host mcp.status201.com;
+       proxy_set_header      X-Forwarded-Proto https;
+       proxy_set_header      X-Forwarded-For $remote_addr;
+       proxy_http_version    1.1;
+       client_max_body_size  1m;
+       proxy_read_timeout    30s;
+   }
+   ```
+
+   - `^~` stops any regex `location` Plesk injects from claiming the path, and
+     the longer prefix already beats the document root's `location /`. Every
+     other path keeps being served from `dist/` exactly as before.
+   - The trailing `/` on `proxy_pass` strips the `/mcp` prefix, so the app is
+     reached at `/`. It accepts the POST on any path
+     ([mcp-server](specs/features/mcp-server.md) REQ-9e), so the mount point is
+     not baked into the code.
+   - **`X-Forwarded-For` is overwritten (`$remote_addr`), not appended.** The
+     rate limiter keys on the first hop; appending would let an unauthenticated
+     caller choose its own bucket by sending the header itself. This is the one
+     line the code cannot enforce, and the first thing to check if the limiter
+     ever looks ineffective.
+   - `client_max_body_size 1m` mirrors `MAX_MCP_REQUEST_BYTES`, so oversized
+     bodies are refused at the edge and never reach Node.
+
+### With root SSH (simpler, if you have it)
+
+Skip the subdomain. Run `app.js` under a systemd unit on `127.0.0.1:8787`
+(`PORT` and `HOST` are read from the environment) and change the directive's
+first four lines to a single `proxy_pass http://127.0.0.1:8787;`. Nothing else
+differs.
+
+### Verifying a deploy
+
+The MCP half:
+
+```bash
+curl -s https://vast.status201.com/healthz          # {"ok":true,"version":"…"}
+curl -si https://vast.status201.com/mcp | head -1   # 405 — there is no SSE stream
+curl -s https://vast.status201.com/mcp -X POST \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'   # 8 tools, no save_*
+```
+
+The half that actually breaks — **the static site must be unchanged**:
+
+```bash
+curl -si https://vast.status201.com/worklets/ladder-filter.js | grep -i content-type
+curl -si https://vast.status201.com/sw.js | grep -i content-type
+curl -si https://vast.status201.com/site.webmanifest | head -1
+```
+
+Then hard-reload the site and **confirm it makes sound** — that is the real
+assertion behind the worklet MIME type; a header check can pass while the
+browser still refuses the module. Check DevTools → Application → Service Workers
+still shows the worker active at scope `/`.
+
+Finally, add the connector from a machine that has never cloned this repo.
+
+### Firewall
+
+Anthropic's outbound traffic comes from `160.79.104.0/21`. Nothing needs
+allowlisting for an open endpoint, but if a WAF or fail2ban sits in front, that
+range must not be throttled — Claude's request pattern can resemble scraping.
+
 ## Versioned releases
 
 `npm run release -- <version|major|minor|patch>` (`scripts/release.mjs`, zero
@@ -104,10 +228,15 @@ dependencies) cuts a versioned release artifact. It:
    dated heading.
 2. Runs `npm run build`.
 3. Zips `dist/` into **`dist-v<version>.zip`** (the deployable build).
-4. Writes the release notes to `dist-v<version>.notes.md`.
-5. **Prints** the exact `git` (commit / tag / push) and `gh release create …`
+4. Runs `npm run build:mcp` and zips the MCP server into
+   **`mcp-v<version>.zip`** — see [Hosting the MCP server](#hosting-the-mcp-server).
+5. Writes the release notes to `dist-v<version>.notes.md`.
+6. **Prints** the exact `git` (commit / tag / push) and `gh release create …`
    commands. It never touches git or GitHub itself — nothing is published until
    you run the printed commands.
+
+Both zips go on the same GitHub release. They are independent: the site can be
+updated without redeploying the MCP server and vice versa.
 
 ```bash
 npm run release -- 1.4.0            # explicit version

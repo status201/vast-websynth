@@ -10,23 +10,13 @@ import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 // eslint-disable-next-line
 import { makeTools } from '../../scripts/mcp/tools.mjs';
+import { core } from './core-fixture';
+// The same symbols the fixture injects, imported directly where a test asserts
+// against them rather than driving a tool through them.
 import { validateSongFile } from '../../src/state/song-validate';
-import { isAuthorSong, expandAuthorSong } from '../../src/state/song-author';
-import { compactSongForExport } from '../../src/state/serialize';
-import { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';
+import { expandAuthorSong } from '../../src/state/song-author';
+import { validatePresetPayload } from '../../src/state/preset-validate';
 import { ParamBus, registerDefaults } from '../../src/state/params';
-import { validatePresetPayload, expandPresetParams } from '../../src/state/preset-validate';
-import { buildPresetFile, buildBankFile, presetFilename, bankFilename } from '../../src/state/preset-file';
-import { buildParamCatalog } from '../../src/state/param-catalog';
-
-const core = {
-  validateSongFile, isAuthorSong, expandAuthorSong,
-  compactSongForExport, buildAuthoringGuide, buildSongPrompt,
-  ParamBus, registerDefaults, buildParamCatalog,
-  // presets (preset-authoring.md)
-  buildPresetGuide, validatePresetPayload, expandPresetParams,
-  buildPresetFile, buildBankFile, presetFilename, bankFilename,
-};
 
 type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean };
 type Tool = {
@@ -65,6 +55,31 @@ describe('makeTools', () => {
       'get_preset_format', 'validate_preset', 'expand_preset', 'save_preset',
     ]);
     for (const t of tools) expect(t.inputSchema).toMatchObject({ type: 'object' });
+  });
+
+  // mcp-server.md REQ-10. The default must stay `true` or the stdio profile
+  // silently loses two tools — which is why this asserts the default explicitly
+  // rather than trusting the list above to notice.
+  it('defaults allowWrites to true, so the local profile is unchanged', () => {
+    expect((makeTools(core) as Tool[]).map((t) => t.name))
+      .toEqual((makeTools(core, { allowWrites: true }) as Tool[]).map((t) => t.name));
+  });
+
+  it('omits exactly the two write tools when allowWrites is false', () => {
+    const tools = makeTools(core, { allowWrites: false }) as Tool[];
+    expect(tools.map((t) => t.name)).toEqual([
+      'get_params',
+      'get_song_format', 'validate_song', 'expand_song', 'make_share_link',
+      'get_preset_format', 'validate_preset', 'expand_preset',
+    ]);
+    // The survivors keep their identity, not just their names: the read-only
+    // profile is the same tools minus two, never a re-declared list.
+    const full = makeTools(core, { allowWrites: true }) as Tool[];
+    for (const t of tools) {
+      const twin = full.find((f) => f.name === t.name)!;
+      expect(t.description).toBe(twin.description);
+      expect(t.inputSchema).toEqual(twin.inputSchema);
+    }
   });
 });
 

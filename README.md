@@ -131,8 +131,22 @@ Regenerate them with `npm run gen:params` (it also runs in `prebuild`);
 
 ## MCP server (songs and sounds from AI agents)
 
-The repo ships a zero-dependency MCP server (stdio JSON-RPC, hand-rolled — no
-SDK) that gives tool-using AI agents a full authoring loop.
+A zero-dependency MCP server (hand-rolled JSON-RPC — no SDK) that gives
+tool-using AI agents a full authoring loop. It runs two ways: **hosted**, which
+needs nothing installed, or **locally over stdio**, which adds the two tools
+that write files.
+
+### Hosted — nothing to install
+
+```bash
+claude mcp add --transport http websynth https://vast.status201.com/mcp
+```
+
+Or in Claude.ai: **Settings → Connectors → Add custom connector**, same URL. No
+account, no token, no clone — it is authless and read-only, because every tool
+below except the two `save_*` ones is a pure function over a public document
+format. `make_share_link` is how you get the result back: a URL that opens the
+song in the synth.
 
 **Discovery**: `get_params` returns the whole parameter catalogue as structured
 JSON — ranges an agent can compute against, rather than the prose table the two
@@ -153,6 +167,13 @@ was loaded before) and `save_preset` (writes a `.preset.websynth.json` or, for
 several sounds, a `.bank.websynth.json`). See
 [`specs/features/preset-authoring.md`](specs/features/preset-authoring.md).
 
+### Locally over stdio — adds the write tools
+
+`save_song` and `save_preset` exist only here. They write into the server's
+working directory, which is your checkout locally and would be a directory no
+caller can reach on a shared host, so the hosted profile omits them
+([ADR-020](specs/decisions/adr-020-remote-mcp-is-authless-and-read-only.md)).
+
 After `npm install` the server self-builds its song-core bundle on first run —
 no other setup. **Claude Code** picks it up automatically from the committed
 [`.mcp.json`](.mcp.json). For other MCP clients, register:
@@ -168,6 +189,10 @@ no other setup. **Claude Code** picks it up automatically from the committed
   }
 }
 ```
+
+To run the HTTP transport yourself — against a fork, or to try a change before
+deploying it — `npm run start:mcp:http` serves it on `127.0.0.1:8787`. Hosting
+it publicly is in [DEPLOYMENT.md](DEPLOYMENT.md#hosting-the-mcp-server).
 
 See [`specs/features/mcp-server.md`](specs/features/mcp-server.md).
 

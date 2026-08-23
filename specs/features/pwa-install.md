@@ -3,7 +3,9 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 2   # v2: REQ-6 — the About card joins the idle warm set, so the one
+version: 3   # v3: REQ-6 — /mcp and /healthz are passthrough by path, not by
+             #     accident (the public MCP endpoint shares this origin)
+             # v2: REQ-6 — the About card joins the idle warm set, so the one
              #     surface a stranded visitor reaches for opens offline too
 owner: Gijs
 related:
@@ -11,6 +13,7 @@ related:
   - ios-audio
   - responsive-header
   - project-export
+  - mcp-server
 source:
   - src/utils/wake-lock.ts
   - src/ui/components/fullscreen-button.ts
@@ -86,6 +89,14 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   navigations (falling back to cached `/`) and all other same-origin GETs;
   non-GET and cross-origin requests pass through untouched. A core shell
   (`/`, manifest, icons, the three `/worklets/*.js`) is precached at install.
+  (v3) **`/mcp` and `/healthz` pass through too**, by path. Those are the public
+  MCP endpoint ([mcp-server](mcp-server.md) REQ-9), served from this origin by a
+  reverse proxy rather than from `dist/`. They are already safe by accident —
+  the traffic is `POST`, which the non-GET rule passes through, and `GET /mcp`
+  answers `405`, which `fetchAndCache`'s `status === 200 && type === 'basic'`
+  test declines to cache. Naming them makes it safe **on purpose**: an API
+  response has no business in a cache keyed by app version, and the accident
+  stops holding the moment that endpoint ever answers a GET with 200.
   Caches are named `websynth-<version>`; `activate` purges every other
   `websynth-*` cache and claims clients. Guarantee: **offline-ready after the
   first revisit/reload** (runtime caching, no precache manifest of hashed
@@ -269,6 +280,12 @@ Scenario: no SW in dev/E2E
   When the app boots
   Then no service worker is registered
 # pinned by: e2e/pwa.spec.ts (navigator.serviceWorker.controller === null)
+
+Scenario: the MCP endpoint is never cached (v3, REQ-6)
+  Given a same-origin GET to /mcp or /healthz
+  Then strategyFor classifies it "passthrough"
+  And a POST to /mcp was already passthrough by the non-GET rule
+# pinned by: tests/pwa/sw.test.ts
 ```
 
 ## Tests & verification

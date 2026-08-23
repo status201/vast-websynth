@@ -98,15 +98,27 @@ function containedDir(cwd, dir) {
 
 const toBase64Url = (buf) => buf.toString('base64url');
 
+/** The tools omitted from the read-only profile (mcp-server.md REQ-10). */
+const WRITE_TOOLS = new Set(['save_song', 'save_preset']);
+
 /**
  * Build the tool list: one shared discovery tool, then the song half and the
  * preset half.
  * @param {object} core - the song core (bundle or src imports): validateSongFile,
  *   isAuthorSong, expandAuthorSong, compactSongForExport, buildAuthoringGuide,
  *   buildParamCatalog, ParamBus, registerDefaults.
- * @param {{baseUrl?: string, cwd?: string}} [opts]
+ * @param {{baseUrl?: string, cwd?: string, allowWrites?: boolean}} [opts]
  */
 export function makeTools(core, opts = {}) {
+  // Whether the two write tools exist (mcp-server.md REQ-10). Defaults TRUE, so
+  // the stdio profile is exactly what it always was; the HTTP transport passes
+  // false. This is a property of the transport, not of a deployment: a write
+  // here lands in the *server's* working directory, which for a local agent is
+  // the user's own repo and for a public host is a directory no caller can
+  // retrieve a file from. Remotely it would be a disk-filling vector in
+  // exchange for an artifact nobody collects — `make_share_link` is the answer
+  // to "give me the result" for a caller who is not on this machine.
+  const allowWrites = opts.allowWrites ?? true;
   // The guides cite absolute schema URLs off this. It defaulted to the dev
   // server, so every schema link an agent was handed 404'd unless the operator
   // happened to have a `vite dev` running — the published site is the only base
@@ -154,7 +166,7 @@ export function makeTools(core, opts = {}) {
     };
   };
 
-  return [
+  const tools = [
     /* ---------------- shared discovery (param-catalogue.md) ---------------- */
 
     {
@@ -366,4 +378,9 @@ export function makeTools(core, opts = {}) {
       },
     },
   ];
+
+  // Filtered, not conditionally assembled: the read-only profile keeps the
+  // remaining eight in exactly the order above, which mcp-server.md REQ-10
+  // pins by name. Building two lists would let them drift.
+  return allowWrites ? tools : tools.filter((t) => !WRITE_TOOLS.has(t.name));
 }
