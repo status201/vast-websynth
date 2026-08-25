@@ -101,6 +101,19 @@
     ],
     "blurb": "Twelve-eight, and three lanes on three different cycles: the bell locked to the 24-tick bar, the riff looping every 16 ticks and the motion lane every 18. The whole machine only lands together once every six bars."
   },
+  "Kutmuziek.websynth.json": {
+    "name": "Kutmuziek",
+    "bpm": 138,
+    "bars": 16,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ],
+    "armed": [
+      "arp"
+    ]
+  },
   "Maison.websynth.json": {
     "name": "Maison",
     "bpm": 124,
