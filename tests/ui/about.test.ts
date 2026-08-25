@@ -636,24 +636,24 @@ describe('About modal — keyboard shortcut list', () => {
     expect(document.querySelector('[data-testid="start-tour"]')?.closest('.hidden')).not.toBeNull();
   });
 
-  it('draws every arrow on its own cap in the glyph face (REQ-17)', async () => {
+  it('draws every arrow cap rather than typing it (REQ-17, iconography.md)', async () => {
     const keys = await openAbout();
     const caps = [...keys.querySelectorAll(`.${modalStyles.cap!}`)];
-    // Every arrow is a cap of its own carrying the glyph class — the monospace
-    // face has no glyph for them, so a bare one renders as an illegible dash.
-    const arrows = caps.filter((c) => /[←→↑↓⌫⏮]/.test(c.textContent ?? ''));
-    expect(arrows.length).toBeGreaterThan(0);
-    for (const a of arrows) {
-      expect(a.classList.contains(modalStyles.glyph!)).toBe(true);
-      expect(a.textContent).toMatch(/^[←→↑↓⌫⏮]+$/);
+    const drawn = caps.filter((c) => c.querySelector('svg.ui-icon'));
+    expect(drawn.length).toBeGreaterThan(0);
+
+    for (const a of drawn) {
+      // The cap holds no text at all, so `role=img` + a label are the only
+      // thing a screen reader has to go on (iconography.md REQ-3).
+      expect(a.getAttribute('role')).toBe('img');
+      expect(a.getAttribute('aria-label')).toBeTruthy();
+      expect(a.classList.contains(modalStyles.iconCap!)).toBe(true);
     }
-    // …and no arrow is left loose as bare text in a cell.
-    const loose = [...keys.children].filter((cell) =>
-      [...cell.childNodes].some(
-        (n) => n.nodeType === Node.TEXT_NODE && /[←→↑↓]/.test(n.textContent ?? ''),
-      ),
-    );
-    expect(loose).toEqual([]);
+
+    // The regression this replaced a font-swap for: not one arrow *character*
+    // survives anywhere in the list. Re-facing them worked on a desktop and
+    // could never work on Android, where the sans face has no arrow either.
+    expect(keys.textContent).not.toMatch(/[←→↑↓⌫⏮]/);
   });
 
   // onboarding.md REQ-17c — the row must not read as a keyboard shortcut.
@@ -818,11 +818,13 @@ describe('About modal — the keyboard-layout picker', () => {
 
   // It rendered an empty button once: an inline hdr-icon SVG only gets its size
   // and `stroke: currentColor` from rules scoped to the *header* button classes.
-  // The fix was to use the app's existing in-panel gear instead — the same `⚙`
-  // the XY Pad's axis-assignment button draws.
+  // The fix was to use the app's existing in-panel gear instead — the same one
+  // the XY Pad's axis-assignment button draws, now from `ui-icons.ts`, which
+  // `base.css` strokes wherever it lands (iconography.md REQ-5).
   it('draws the same gear glyph as the XY Pad, beside the section title', async () => {
     const { gear } = await openAbout();
-    expect(gear.textContent).toBe('⚙');
+    expect(gear.querySelector('svg.ui-icon')).not.toBeNull();
+    expect(gear.textContent).not.toContain('⚙');
 
     const title = gear.parentElement!;
     expect(title.classList.contains(modalStyles.secFoldTitle!)).toBe(true);

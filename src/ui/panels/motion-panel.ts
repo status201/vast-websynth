@@ -30,6 +30,7 @@ import switchStyles from '../styles/switch.module.css';
 import drumStyles from '../styles/drum.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/motion.module.css';
+import { iconLabel } from '../components/ui-icons';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -362,7 +363,7 @@ export function buildMotionPanel(
   resetBtn.type = 'button';
   resetBtn.className = switchStyles.root!;
   resetBtn.dataset.testid = 'motion-assign-reset';
-  resetBtn.textContent = '↺ inherit';
+  resetBtn.innerHTML = iconLabel('reset', 'inherit');
   resetBtn.title = "Clear this bank's override and follow the XY Pad assignment";
   resetBtn.addEventListener('click', () => patterns.setMotionAssign(null));
   xyHeader.appendChild(resetBtn);

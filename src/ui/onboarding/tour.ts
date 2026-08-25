@@ -8,6 +8,7 @@ import type { StudioApi } from '../studio-api';
 import { createButton, setButtonLabel } from '../components/button';
 import { clamp } from '../../utils/math';
 import styles from '../styles/tour.module.css';
+import { iconTextEl } from '../components/ui-icons';
 
 export type Placement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -252,7 +253,7 @@ export class Tour {
   private confirmNote(): void {
     const c = document.createElement('div');
     c.className = styles.confirm!;
-    c.textContent = "✓ Nice — that's your synth talking.";
+    c.appendChild(iconTextEl('check', "Nice — that's your synth talking."));
     this.bodyEl.appendChild(c);
   }
 

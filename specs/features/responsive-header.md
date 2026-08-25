@@ -67,7 +67,12 @@ end of the row.
   fullscreen last, still omitted entirely where `document.fullscreenEnabled`
   is false. Icons are inline SVG strings coloured via CSS `currentColor`
   (never Unicode emoji, which render coloured on some platforms), so the Perf
-  button's tier classes tint its glyph automatically.
+  button's tier classes tint its glyph automatically. That rule is no longer
+  local to this header — it is app-wide and lives in
+  [iconography](iconography.md); what stays here is the header's own
+  specialisation of it (the `hdr-icon` class, its state hooks, its 20px paint
+  size). The ⓘ's drawing is now the shared `INFO_SHAPE`, so this button and the
+  one help copy points at cannot diverge.
 - **REQ-6** — Every icon button carries a descriptive `title` (hover tooltip)
   **and** an `aria-label`, so accessible names survive the loss of text labels
   (`createButton` defaults `aria-label` to the `label` option when an icon is

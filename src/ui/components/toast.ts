@@ -1,6 +1,7 @@
 import { createButton } from './button';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/toast.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Transient bottom-center notification with an optional single action button
@@ -93,8 +94,8 @@ export function showToast(opts: ToastOptions): ToastHandle {
   }
 
   el.appendChild(createButton({
-    label: '✕',
-    ariaLabel: 'Dismiss',
+    label: 'Dismiss',
+    icon: UI_ICONS.close,
     className: `${switchStyles.root!} ${styles.dismiss!}`,
     testId: 'toast-dismiss',
     onClick: dismiss,

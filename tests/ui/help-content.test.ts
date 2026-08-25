@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { HELP_TOPICS, TOUR_STEPS, DEMO_FOR_TOUR } from '../../src/ui/onboarding/help-content';
+import { iconLabel } from '../../src/ui/components/ui-icons';
 import { demoNames } from '../../src/state/song';
+
+/** The Clear button as help copy renders it — the caret is an icon, not a `▾`
+ *  (iconography.md REQ-1), so the assertions go through the same helper. */
+const CLEAR_BTN = iconLabel('caretDown', 'Clear', 'after');
 
 /** A topic's authored copy — asserts it exists and is static (not a widget). */
 function bodyOf(id: keyof typeof HELP_TOPICS): string {
@@ -54,7 +59,8 @@ describe('help-content motion topic', () => {
     expect(body).toContain('two more tracks');
     expect(body).toContain('per bank');
     // Motion's Clear lists lanes, not a selected row (step-grid-editing REQ-6).
-    expect(body).toContain('Clear ▾');
+    // Its caret is drawn, so assert against the helper rather than a character.
+    expect(body).toContain(CLEAR_BTN);
   });
 
   // The two short per-lane badges (onboarding.md REQ-14 / motion-sequencer.md v6).
@@ -86,7 +92,7 @@ describe('help-content grid gestures', () => {
     expect(body).toContain('Press and hold');
     expect(body).toContain('right-click');
     expect(body).toContain('Delete');
-    expect(body).toContain('Clear ▾');
+    expect(body).toContain(CLEAR_BTN);
     expect(body).toContain('Ctrl+Z');
   });
 

@@ -25,7 +25,8 @@ async function choose(
 ): Promise<void> {
   const dd = page.getByTestId(testid);
   await dd.click();
-  await dd.getByRole('button', { name: label, exact: true }).click();
+  // Not by name: the toggle carries the current value too (dropdown.md REQ-13).
+  await dd.locator('.dropdown-option', { hasText: new RegExp(`^${label}$`) }).click();
 }
 
 test.describe('key & chord tools', () => {

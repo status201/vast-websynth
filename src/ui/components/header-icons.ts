@@ -6,6 +6,8 @@
  * Perf button's tier colours tint the glyph automatically. Solid shapes
  * (the ⓘ dot, the ? dot) opt out of the stroke style via `class="fill"`.
  */
+import { INFO_SHAPE } from './ui-icons';
+
 const icon = (inner: string): string =>
   `<svg class="hdr-icon" viewBox="0 0 16 16" aria-hidden="true">${inner}</svg>`;
 
@@ -29,11 +31,7 @@ export const HEADER_ICONS = {
    * (onboarding.md REQ-8b). The part classes are inert until then — no colour
    * is declared here, as for every other glyph.
    */
-  info: icon(
-    '<circle class="disc" cx="8" cy="8" r="6"/>' +
-    '<path class="stem" d="M8 7.5 V11.2"/>' +
-    '<circle class="fill dot" cx="8" cy="5" r="1"/>',
-  ),
+  info: icon(INFO_SHAPE),
   /** ? in a circle — Help & About. */
   help: icon(
     '<circle cx="8" cy="8" r="6"/>' +

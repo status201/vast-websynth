@@ -1,5 +1,6 @@
 import styles from '../styles/dropdown.module.css';
 import switchStyles from '../styles/switch.module.css';
+import { iconLabel } from './ui-icons';
 
 /**
  * The `Clear ▾` header control — `specs/features/step-grid-editing.md` REQ-6.
@@ -43,7 +44,7 @@ export function createClearMenu(opts: ClearMenuOptions): HTMLElement {
   toggle.type = 'button';
   toggle.className = switchStyles.root!;
   toggle.dataset.testid = `clear-${opts.lane}`;
-  toggle.textContent = 'Clear ▾';
+  toggle.innerHTML = iconLabel('caretDown', 'Clear', 'after');
   toggle.title = 'Clear this bank — or just the selected row. Undoable.';
   root.appendChild(toggle);
 

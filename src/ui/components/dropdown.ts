@@ -1,4 +1,5 @@
 import styles from '../styles/dropdown.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Option count at which the menu grows a live filter row (dropdown.md REQ-7).
@@ -113,7 +114,11 @@ export class Dropdown {
     for (const [i, opt] of options.entries()) {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = styles.option!;
+      // `dropdown-option` is a bridge class, not styling: the toggle and the
+      // option showing the same value are two buttons with the same accessible
+      // name, so a by-name lookup is ambiguous by construction. A test picks
+      // the option by this class (dropdown.md REQ-13).
+      item.className = `dropdown-option ${styles.option!}`;
       item.textContent = opt;
       if (i === dividerAt) item.classList.add(styles.divider!);
       if (opt === this._value) item.classList.add('active');
@@ -266,7 +271,7 @@ export class Dropdown {
     label.textContent = this._value;
     const caret = document.createElement('span');
     caret.className = styles.caret!;
-    caret.textContent = '▾';
+    caret.innerHTML = UI_ICONS.caretDown;
     this.toggle.appendChild(label);
     this.toggle.appendChild(caret);
   }

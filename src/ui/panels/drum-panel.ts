@@ -24,6 +24,7 @@ import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/drum.module.css';
 import editStyles from '../styles/step-settings.module.css';
+import { UI_ICONS } from '../components/ui-icons';
 
 export function buildDrumPanel(
   bus: ParamBus,
@@ -242,7 +243,8 @@ export function buildDrumPanel(
   kitDd.el.dataset.testid = 'drum-kit';
   kitDd.onChange((name) => applyKit(bus, name));
   const kitRandom = createButton({
-    label: '🎲 Random',
+    label: 'Random',
+    iconBefore: UI_ICONS.dice,
     testId: 'drum-randomize',
     onClick: () => randomizeKit(bus),
   });

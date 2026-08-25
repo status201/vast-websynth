@@ -92,7 +92,9 @@ test('the AI Prompt modal embeds the same paste step', async ({ page }) => {
   await gotoAndStart(page);
   await openSongTab(page);
 
-  await page.getByRole('button', { name: '✨ AI Prompt' }).click();
+  // The sparkle is an aria-hidden drawing now, so the accessible name is the
+  // words alone — which is the point (iconography.md REQ-3).
+  await page.getByRole('button', { name: 'AI Prompt' }).click();
   await page.getByTestId('paste-input').fill(asReply(SONG));
   await page.getByTestId('paste-confirm').click();
 

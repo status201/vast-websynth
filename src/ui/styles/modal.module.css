@@ -178,14 +178,15 @@
     0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
-/* Arrows etc. on a cap. The monospace face has no glyph for them, so the
-   browser substitutes a fallback at its own (much smaller) size — at 11px the
-   arrows became illegible dashes. Draw them in the UI sans instead. */
-.glyph {
-  font-family: var(--sans);
+/* A cap whose label is a drawn glyph rather than a character (iconography.md).
+   Swapping the *face* was the old fix and it could not survive Android, where
+   the sans face has no arrow either; the cap now holds an `svg.ui-icon` sized
+   in `em`, so this rule only has to set how much larger than a letter it sits.
+   No letter-spacing to compensate for — an icon has no trailing track. */
+.iconCap {
   font-size: 13px;
   letter-spacing: 0;
-  text-indent: 0; /* no trailing letter-space here, so nothing to compensate */
+  text-indent: 0;
 }
 
 /* The two ranks of the note diagram. Telling them apart is the requirement, not

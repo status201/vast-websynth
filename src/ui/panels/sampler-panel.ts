@@ -23,6 +23,7 @@ import layout from '../styles/layout.module.css';
 import drumStyles from '../styles/drum.module.css';
 import samplerStyles from '../styles/sampler.module.css';
 import editStyles from '../styles/step-settings.module.css';
+import { UI_ICONS } from '../components/ui-icons';
 
 /**
  * The recorder/editor is ~19 kB of modal that a player reaching for the sampler
@@ -209,7 +210,7 @@ export function buildSamplerPanel(
     const editBtn = document.createElement('button');
     editBtn.className = samplerStyles.edit!;
     editBtn.dataset.testid = `sampler-edit-${slot}`;
-    editBtn.textContent = '✎';
+    editBtn.innerHTML = UI_ICONS.edit;
     editBtn.title = 'Edit this sample';
     editBtn.style.display = 'none';
     editBtn.addEventListener('click', () => {

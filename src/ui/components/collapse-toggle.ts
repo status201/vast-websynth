@@ -1,4 +1,5 @@
 import tabStyles from '../styles/tabs.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Reusable fold/unfold chevron. Toggles a `.collapsed` class on `target`
@@ -63,7 +64,7 @@ export function createCollapseToggle(
   const el = document.createElement('button');
   el.type = 'button';
   el.className = tabStyles.collapse!;
-  el.textContent = '▾'; // ▾ — matches dropdown caret glyph
+  el.innerHTML = UI_ICONS.caretDown; // the same caret the dropdown draws
   el.setAttribute('aria-label', 'Collapse panel');
 
   const apply = (collapsed: boolean): void => {

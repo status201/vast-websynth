@@ -57,7 +57,7 @@ export class StepSettingsEditor {
         resetTo: 0,
         format: microLabel,
         testid: `${prefix}-micro`,
-        title: 'Micro-timing — drag, −/+ or ←/→ to nudge this step early/late;'
+        title: 'Micro-timing — drag, −/+ or the arrow keys to nudge this step early/late;'
           + ' double-click to reset',
       });
     this.el.appendChild(microSlider.el);

@@ -48,6 +48,7 @@ import { PERF_PROFILES, resolveTier, type PerfTier } from '../state/perf-mode';
 import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
+import { UI_ICONS } from './components/ui-icons';
 import { Presets } from '../state/preset';
 import type { PresetManagerOptions } from './components/preset-manager-modal';
 
@@ -187,7 +188,8 @@ function buildHeader(
   // sticky header compact; CSS parks it top-right and expands the cluster inline
   // while `.menuOpen` is set (see specs/features/responsive-header.md).
   const menuToggle = createButton({
-    label: '☰',
+    label: 'Toggle preset menu',
+    icon: UI_ICONS.menu,
     testId: 'header-menu',
     className: `${switchStyles.root!} ${styles.menuToggle!}`,
     onClick: () => {
@@ -195,7 +197,6 @@ function buildHeader(
       menuToggle.setAttribute('aria-expanded', String(open));
     },
   });
-  menuToggle.setAttribute('aria-label', 'Toggle preset menu');
   menuToggle.setAttribute('aria-expanded', 'false');
   el.appendChild(menuToggle);
 

@@ -1,6 +1,7 @@
 import switchStyles from '../styles/switch.module.css';
 import layout from '../styles/layout.module.css';
 import styles from '../styles/seq.module.css';
+import { iconLabel } from '../components/ui-icons';
 import editStyles from '../styles/step-settings.module.css';
 import type { ParamBus } from '../../state/params';
 import type { StudioApi } from '../studio-api';
@@ -255,12 +256,15 @@ export function buildSeqPanel(
 
     const setFolded = (folded: boolean, persist: boolean): void => {
       row.classList.toggle(styles.folded!, folded);
-      foldBtn.textContent = `${folded ? '▸' : '▾'} ${SEQ_TRACK_LABELS[track] ?? track + 1}`;
+      foldBtn.innerHTML = iconLabel(
+        folded ? 'caretRight' : 'caretDown',
+        String(SEQ_TRACK_LABELS[track] ?? track + 1),
+      );
       foldBtn.title = folded ? 'Show this track' : 'Hide this track';
       if (persist) localStorage.setItem(collapseKey(track), folded ? '1' : '0');
     };
     if (track === 0) {
-      foldBtn.textContent = `▾ ${SEQ_TRACK_LABELS[0]}`;
+      foldBtn.innerHTML = iconLabel('caretDown', String(SEQ_TRACK_LABELS[0]));
       foldBtn.disabled = true;
       foldBtn.title = 'Track 1 is always shown';
     } else {

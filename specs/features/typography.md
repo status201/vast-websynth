@@ -97,7 +97,10 @@ otherwise never gets.
 
 - **REQ-5** — **This spec is the single home for the rule.** Other specs
   reference it rather than restating it, so there is one place to change when it
-  changes. A spec may still record a *local* consequence (the way
+  changes. Its sibling is [iconography](iconography.md): a glyph that labels a
+  control is **not type at all** and never reaches a face token — it is drawn.
+  The two specs meet at the `←` keycap, which this rule could not save (the app
+  bundles no font, so a face token is a request, not a guarantee). A spec may still record a *local* consequence (the way
   [webrtc-sync](webrtc-sync.md) notes that its body copy must not reuse
   `Modal.tagClass`).
 

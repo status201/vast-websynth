@@ -534,11 +534,12 @@ test.describe('song mode', () => {
       // dialogs above use.
       await expect(page.getByTestId('export-audio-modal')).toHaveCount(0);
       await page.getByTestId('song-export-audio').click();
-      // Dropdown options are plain buttons; scope to the dropdown so the row
-      // "1" can't collide with anything else on the page.
+      // The toggle shows the current value, so it and the matching option are
+      // two buttons with the same accessible name — pick the option by its
+      // `dropdown-option` bridge class, not by name (dropdown.md REQ-13).
       const dd = page.getByTestId('export-audio-runs');
       await dd.click();
-      await dd.getByRole('button', { name: runs, exact: true }).click();
+      await dd.locator('.dropdown-option', { hasText: new RegExp(`^${runs}$`) }).click();
       if (!tail) await page.getByTestId('export-audio-tail').click();
       const dl = page.waitForEvent('download', { timeout: 30000 });
       await page.getByTestId('export-audio-confirm').click();

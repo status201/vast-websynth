@@ -317,12 +317,21 @@ thing.
   what the tail bar is for. The anchors (`song-record`, `song-export-audio`) are
   unchanged.
 
-- **REQ-17** (v11) — **Symbols in the About modal's key list are legible.** The
-  key column is monospace at 11px, which has no glyph for `← → ↑ ↓`: the
-  browser substitutes per character at its own much smaller size, and the arrow
-  rows rendered as unreadable dashes. Such a symbol carries `Modal.glyphClass`
-  and is drawn in the UI sans instead (v16: on its own keycap, rather than as a
-  run inside a text string — same reason, same class).
+- **REQ-17** (v11, mechanism replaced v17) — **Symbols in the About modal's key
+  list are legible.** The key column is monospace at 11px, which has no glyph for
+  `← → ↑ ↓`: the browser substitutes per character at its own much smaller
+  size, and the arrow rows rendered as unreadable dashes.
+
+  v11–v16 fixed this by re-*facing* such a cap to the UI sans
+  (`Modal.glyphClass`). **That is gone.** It could only ever work where the sans
+  face has the arrow, and on Android it does not — `--sans` names Inter, which is
+  not bundled, so it resolves to Roboto and the character falls through to a
+  symbol font at its own weight and baseline. The two octave-shift caps came out
+  in different faces, off each other's baseline. A symbol cap is now **drawn**:
+  an `svg.ui-icon` from `ui-icons.ts`, on a cap carrying `role="img"` and an
+  `aria-label` because it holds no text at all → [iconography](iconography.md).
+  Still one glyph per keycap, not a run inside a string (v16's finding, which
+  survives the mechanism change).
   The list is also the canonical on-screen shortcut reference, so it must name
   every global key — including `Home` / `Shift`+arrows
   ([transport-position.md](transport-position.md) REQ-11), `Delete` and

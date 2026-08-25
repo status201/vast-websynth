@@ -4,6 +4,7 @@ import { FloatingWindow } from './floating-window';
 import switchStyles from '../styles/switch.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/transport-controls.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * The song-scale transport shared by the Song panel's row and the TRANSPORT
@@ -35,7 +36,7 @@ function djButton(label: string, testid: string): HTMLButtonElement {
 }
 
 /**
- * `[Play/Stop, ⏮, bar.step, scrubber]` — or just `[⏮, bar.step, scrubber]`
+ * `[Play/Stop, |◀, bar.step, scrubber]` — or just `[|◀, bar.step, scrubber]`
  * when `compact`.
  *
  * Takes the `UiBridge` rather than touching the clock, because Play/Stop must
@@ -76,7 +77,10 @@ export function buildTransportControls(
     out.push(play);
   }
 
-  const toStart = djButton('⏮', `${p}-tostart`);
+  // Built empty, then drawn: `djButton` sets `textContent`, which would print
+  // the SVG source rather than render it.
+  const toStart = djButton('', `${p}-tostart`);
+  toStart.innerHTML = UI_ICONS.toStart;
   toStart.title = 'Back to bar 1 (Home)';
   toStart.setAttribute('aria-label', 'Back to the start');
   toStart.addEventListener('click', () => engine.seekTo(0));
@@ -199,11 +203,11 @@ export function createTransportWindowLauncher(
   bridge: UiBridge,
 ): HTMLButtonElement {
   const b = djButton('TRANSPORT', 'transport-open');
-  // "Opens a new window" glyph (❐, the title-bar window control). aria-hidden —
-  // the button's own aria-label carries the meaning for assistive tech.
+  // The "opens a new window" glyph, drawn rather than typed (iconography.md).
+  // aria-hidden — the button's own aria-label carries the meaning.
   const glyph = document.createElement('span');
   glyph.className = songStyles.winGlyph!;
-  glyph.textContent = '❐';
+  glyph.innerHTML = UI_ICONS.popOut;
   glyph.setAttribute('aria-hidden', 'true');
   b.appendChild(glyph);
   b.setAttribute('aria-label', 'Open TRANSPORT window');

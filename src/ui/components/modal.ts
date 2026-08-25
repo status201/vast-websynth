@@ -62,10 +62,6 @@ export class Modal {
   static get secClass(): string { return styles.sec!; }
   static get keysClass(): string { return styles.keys!; }
   static get keyClass(): string { return styles.key!; }
-  /** Inside a `.key`: a run of symbols (arrows…) the monospace face has no
-   *  glyph for, so they get a legible sans size instead of the browser's
-   *  per-glyph fallback. */
-  static get glyphClass(): string { return styles.glyph!; }
   static get actClass(): string { return styles.act!; }
   static get closeBtnClass(): string { return styles.closeBtn!; }
 

@@ -1,5 +1,6 @@
 import styles from '../styles/floating-window.module.css';
 import { clamp } from '../../utils/math';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * Reusable **non-modal** floating window — a titled, draggable panel that hovers
@@ -98,7 +99,7 @@ export class FloatingWindow {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = styles.closeBtn!;
-    closeBtn.textContent = '✕';
+    closeBtn.innerHTML = UI_ICONS.close;
     closeBtn.setAttribute('aria-label', 'Close');
     // Stop the pointerdown so the title-bar drag never starts from the × button.
     closeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());

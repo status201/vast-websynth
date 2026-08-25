@@ -15,6 +15,7 @@ import type { WebRtcSyncTransport } from '../../audio/webrtc-sync-transport';
 import type { SyncController } from '../../audio/transport/sync/sync-controller';
 import { type WebRtcDiagnostics, summarizeDiagnostics } from '../../audio/webrtc-diagnostics';
 import modalStyles from '../styles/modal.module.css';
+import { UI_ICONS, iconLabel, iconTextEl, type IconName } from './ui-icons';
 
 type El = HTMLElement;
 
@@ -130,12 +131,20 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
 
   const content = el('div'); // the step area — replaced per wizard step
 
-  const status = el('div', modalStyles.aiLabel, rtc.linked ? 'Linked ✓' : 'Not linked');
+  const status = el('div', modalStyles.aiLabel);
+  /** "Linked ✓" / "Not linked" — the tick is drawn, so it is replaced wholesale
+   *  rather than written as text (iconography.md REQ-1). */
+  const setStatus = (): void => {
+    status.replaceChildren(
+      rtc.linked ? iconTextEl('check', 'Linked', 'after') : document.createTextNode('Not linked'),
+    );
+  };
+  setStatus();
   status.dataset.testid = 'sync-pair-status';
 
   unsub = rtc.onPortsChange(() => {
     if (rtc.linked) {
-      status.textContent = 'Linked ✓';
+      setStatus();
       disarmAwaiting();
       showLinked();
       window.setTimeout(() => modal.close(), 1200);
@@ -194,7 +203,13 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
     const panel = qrPanel('sync-pair-offer');
     const nav = navRow({
       back: () => showChoose(),
-      primary: { label: 'Next →', testId: 'sync-pair-next', disabled: true, onClick: () => showMasterReply() },
+      primary: {
+        label: 'Next',
+        iconAfter: UI_ICONS.arrowRight,
+        testId: 'sync-pair-next',
+        disabled: true,
+        onClick: () => showMasterReply(),
+      },
     });
     content.appendChild(stepFrame({
       step: 'Step 1 of 2 · Create Link',
@@ -288,7 +303,8 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   function showLinked(): void {
     resetContent();
     content.appendChild(stepFrame({
-      heading: 'Linked ✓',
+      heading: 'Linked',
+      headingIcon: 'check',
       hints: ['The two devices are synced. This will close automatically.'],
       body: el('div'),
     }));
@@ -305,10 +321,16 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
   }
 
   /** Consistent wizard chrome: step label, heading, instruction lines, body, nav. */
-  function stepFrame(o: { step?: string; heading: string; hints?: string[]; body: El; nav?: El }): El {
+  function stepFrame(o: {
+    step?: string; heading: string; headingIcon?: IconName; hints?: string[]; body: El; nav?: El;
+  }): El {
     const frame = el('div');
     if (o.step) frame.appendChild(el('div', modalStyles.aiLabel, o.step));
-    const h = el('div', undefined, o.heading); // subtitle → serif (per the type rule)
+    // A heading mark is drawn, never typed — a ✓ character comes back as a
+    // colour emoji on Android (iconography.md REQ-1).
+    const h = o.headingIcon
+      ? (() => { const d = el('div'); d.innerHTML = iconLabel(o.headingIcon, o.heading, 'after'); return d; })()
+      : el('div', undefined, o.heading); // subtitle → serif (per the type rule)
     h.style.fontFamily = 'var(--serif)';
     h.style.fontSize = '16px';
     h.style.fontWeight = '700';
@@ -330,13 +352,24 @@ export function openSyncPairModal(rtc: WebRtcSyncTransport, sync: Pick<SyncContr
 
   function navRow(o: {
     back?: () => void;
-    primary?: { label: string; testId: string; onClick: () => void; disabled?: boolean };
+    primary?: {
+      label: string; testId: string; onClick: () => void; disabled?: boolean; iconAfter?: string;
+    };
   }): { row: El; primaryBtn: HTMLButtonElement | null } {
     const row = el('div', modalStyles.aiActions);
     let primaryBtn: HTMLButtonElement | null = null;
-    if (o.back) row.appendChild(createButton({ label: '← Back', testId: 'sync-pair-back', onClick: o.back }));
+    if (o.back) {
+      row.appendChild(createButton({
+        label: 'Back', iconBefore: UI_ICONS.arrowLeft, testId: 'sync-pair-back', onClick: o.back,
+      }));
+    }
     if (o.primary) {
-      primaryBtn = createButton({ label: o.primary.label, testId: o.primary.testId, onClick: o.primary.onClick });
+      primaryBtn = createButton({
+        label: o.primary.label,
+        iconAfter: o.primary.iconAfter,
+        testId: o.primary.testId,
+        onClick: o.primary.onClick,
+      });
       if (o.primary.disabled) primaryBtn.disabled = true;
       row.appendChild(primaryBtn);
     }
@@ -528,7 +561,8 @@ export function renderDiagnosticsInto(body: HTMLElement, d: WebRtcDiagnostics): 
   body.appendChild(facts);
 
   for (const hint of summarizeDiagnostics(d)) {
-    const h = el('div', undefined, '💡 ' + hint);
+    const h = el('div');
+    h.appendChild(iconTextEl('bulb', hint));
     h.style.color = 'var(--accent)';
     h.style.fontSize = '11.5px';
     h.style.lineHeight = '1.5';

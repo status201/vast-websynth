@@ -71,7 +71,8 @@ describe('the Record window launcher', () => {
     // probe both anchor to it.
     expect(l.el.dataset.testid).toBe('song-record');
     expect(l.el.getAttribute('aria-label')).toBe('Open Record window');
-    expect(l.el.textContent).toContain('❐');
+    // The "opens a window" glyph is drawn, not typed (iconography.md REQ-1).
+    expect(l.el.querySelector('svg.ui-icon')).not.toBeNull();
 
     expect(byId('record-window')).toBeNull();
     l.el.click();

@@ -37,6 +37,7 @@ import switchStyles from '../styles/switch.module.css';
 import bankStyles from '../styles/bank-bar.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
+import { UI_ICONS } from '../components/ui-icons';
 import layout from '../styles/layout.module.css';
 import {
   Song, DEMO_SONGS, JSON_DEMOS, ZIP_DEMOS, demoNames, demoMetaFor, isDemoName, resolveDemoName,
@@ -853,15 +854,16 @@ function buildChainLane(
   const head = el('div', styles.head!);
 
   // The title navigates to that machine's tab (machine-status.md REQ-5/REQ-6).
-  // The ↗ glyph is aria-hidden — the aria-label already names the destination,
-  // so it must not be announced as "north east arrow".
+  // The launch glyph is aria-hidden — the aria-label already names the
+  // destination, so it must not be announced twice.
   const titleBtn = document.createElement('button');
   titleBtn.type = 'button';
   titleBtn.className = styles.title!;
   titleBtn.dataset.testid = `song-lane-title-${prefix}`;
   titleBtn.setAttribute('aria-label', `Open the ${title} tab`);
   titleBtn.title = `Open the ${title} tab`;
-  const arrow = el('span', styles.arrow!, '↗');
+  const arrow = el('span', styles.arrow!);
+  arrow.innerHTML = UI_ICONS.launch;
   arrow.setAttribute('aria-hidden', 'true');
   titleBtn.append(el('span', '', title), arrow);
   titleBtn.addEventListener('click', () => { bridge.showTab(MACHINE_TAB[prefix]); });
@@ -927,6 +929,12 @@ function buildChainLane(
     b.addEventListener('click', fn);
     return b;
   };
+  /** As `mk`, for a button whose label is a drawn glyph (iconography.md). */
+  const mkIcon = (glyph: string, fn: () => void) => {
+    const b = mk('', fn);
+    b.innerHTML = glyph;
+    return b;
+  };
   /** Swap the selected slot with its neighbour. The transpose swaps **with** it:
    *  the offset belongs to the slot, not to the position in the chain. */
   const moveSel = (to: number) => {
@@ -970,12 +978,12 @@ function buildChainLane(
     return b;
   };
   controls.appendChild(labelled(
-    mk('◀', () => { moveSel(sel - 1); }),
+    mkIcon(UI_ICONS.triangleLeft, () => { moveSel(sel - 1); }),
     `chain-move-left-${prefix}`, 'Move the selected bar one place earlier'));
   controls.appendChild(labelled(
-    mk('▶', () => { moveSel(sel + 1); }),
+    mkIcon(UI_ICONS.triangleRight, () => { moveSel(sel + 1); }),
     `chain-move-right-${prefix}`, 'Move the selected bar one place later'));
-  controls.appendChild(labelled(mk('✕', () => {
+  controls.appendChild(labelled(mkIcon(UI_ICONS.close, () => {
     if (sel >= 0) {
       const s = [...lane.steps];
       const t = [...lane.transpose];

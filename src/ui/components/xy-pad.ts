@@ -5,6 +5,7 @@ import { Dropdown } from './dropdown';
 import { toNorm, fromNorm } from '../../utils/taper';
 import { clamp01 } from '../../utils/math';
 import styles from '../styles/xy-pad.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * XY Pad surface — a Kaoss-pad-style square whose two axes each drive an
@@ -67,7 +68,7 @@ export function createXyPad(
   const gear = document.createElement('button');
   gear.type = 'button';
   gear.className = styles.gearBtn!;
-  gear.textContent = '⚙'; // ⚙
+  gear.innerHTML = UI_ICONS.gear;
   gear.dataset.testid = 'xypad-gear';
   gear.setAttribute('aria-label', 'Axis assignment');
   // Stop the pointerdown so a click on the gear never starts a window drag.

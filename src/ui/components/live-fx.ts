@@ -7,6 +7,7 @@ import { FloatingWindow } from './floating-window';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import styles from '../styles/song-panel.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * The live "DJ" FX controls (Fill, Stutter + bar size, Drop, Tape Stop) shared by
@@ -107,11 +108,11 @@ export function createLiveFxWindowLauncher(
   xyWin: XyPadWindowController,
 ): HTMLButtonElement {
   const b = djButton('LIVE FX', 'livefx-open');
-  // A "opens a new window" glyph (❐, the title-bar window control). aria-hidden —
-  // the button's own aria-label carries the meaning for assistive tech.
+  // The "opens a new window" glyph, drawn rather than typed (iconography.md).
+  // aria-hidden — the button's own aria-label carries the meaning.
   const glyph = document.createElement('span');
   glyph.className = styles.winGlyph!;
-  glyph.textContent = '❐';
+  glyph.innerHTML = UI_ICONS.popOut;
   glyph.setAttribute('aria-hidden', 'true');
   b.appendChild(glyph);
   b.setAttribute('aria-label', 'Open LIVE FX window');

@@ -17,6 +17,7 @@ import { buildPasteImport, type PasteImportOptions } from './paste-import';
 import { Modal } from './modal';
 import modalStyles from '../styles/modal.module.css';
 import songStyles from '../styles/song-panel.module.css';
+import { UI_ICONS } from './ui-icons';
 
 const EXAMPLE_NAME = 'Mordor';
 
@@ -39,7 +40,8 @@ type BuildSongPrompt = typeof import('../../state/authoring-guide').buildSongPro
 export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement {
   // `open` is a hoisted function declaration, so wiring it here is safe.
   const btn = createButton({
-    label: '✨ AI Prompt',
+    label: 'AI Prompt',
+    iconBefore: UI_ICONS.sparkle,
     className: songStyles.demo,
     onClick: () => void open(),
   });

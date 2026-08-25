@@ -3,6 +3,7 @@ import { createButton } from './button';
 import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/empty-play-modal.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * The "nothing to play yet" hint (empty-play-hint.md): shown instead of
@@ -45,7 +46,7 @@ export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
   for (const text of [
     'Switch on the Sequencer, Drum Machine or Sampler and light up a few steps in its grid.',
     'Load a song — or one of the demos — from the Song tab.',
-    'Or let one rip right now with ▶ Play a demo.',
+    'Or let one rip right now with the Play a demo button below.',
   ]) {
     const li = document.createElement('li');
     li.textContent = text;
@@ -88,7 +89,8 @@ export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
     onClick: () => modal.close(),
   }));
   const demoBtn = createButton({
-    label: '▶ Play a demo',
+    label: 'Play a demo',
+    iconBefore: UI_ICONS.triangleRight,
     className: `${switchStyles.root!} ${styles.demoBtn!}`,
     testId: 'empty-play-demo',
     onClick: () => {

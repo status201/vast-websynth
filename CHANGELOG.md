@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Icons no longer depend on the device having the right font.** On Android the
+  two octave-shift arrows in Help & About came out in different weights, off each
+  other's baseline: the app bundles no font, so `←` fell through to whatever
+  symbol face the phone picked. Every glyph that labels a control — the arrows,
+  the dropdown and fold carets, `‹ ›`, `◀ ▶`, the transport's return-to-start,
+  the window close and pop-out marks, the gear, the pencil, the hamburger — is now
+  drawn rather than typed, so it renders identically everywhere and follows the
+  colour of whatever it sits in.
+- **The AI Prompt, Random and pairing-hint glyphs are monochrome again.** Android
+  handed `✨ 🎲 💡 ✓ ✕ ⚙` to the colour-emoji font, which put full-colour
+  emoji inside an otherwise monochrome instrument.
+
+### Changed
+
+- **A screen reader no longer announces a button's decoration.** The AI Prompt
+  button is now "AI Prompt" rather than "sparkles AI Prompt", and the same for
+  Random, Play a demo and Clear. Buttons whose only label was a symbol keep a
+  spoken name, and the About modal's arrow keycaps gained one — they previously
+  had no text for a screen reader to read at all.
+
 ## [2.10.0] - 2026-08-23
 
 ### Added

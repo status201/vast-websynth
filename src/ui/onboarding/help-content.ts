@@ -2,6 +2,7 @@
 // stays pure): the interactive tour script + the contextual help topics shown
 // by the ⓘ info badges.
 import type { TourStep } from './tour';
+import { UI_ICONS, iconLabel, type IconName } from '../components/ui-icons';
 import type { ParamBus } from '../../state/params';
 import {
   renderTempoSync,
@@ -11,6 +12,18 @@ import {
   renderUnisonDetune,
   renderCompThreshold,
 } from './help-widgets';
+
+/**
+ * A control's glyph inside help copy, drawn rather than typed (iconography.md
+ * REQ-1). `<strong>` because that is how this copy already marks a control's
+ * name; the SVG is aria-hidden, so the label on the wrapper is what a screen
+ * reader gets — without it the sentence would simply lose a word (REQ-3).
+ */
+const g = (name: IconName, label: string): string =>
+  `<strong role="img" aria-label="${label}">${UI_ICONS[name]}</strong>`;
+
+/** The Clear button, which wears a caret. Referred to in three topics. */
+const CLEAR_BTN = `<strong>${iconLabel('caretDown', 'Clear', 'after')}</strong>`;
 
 /** A loud, instantly-recognisable demo for the "load a demo" headline step. */
 export const DEMO_FOR_TOUR = 'Night Rider';
@@ -94,7 +107,7 @@ export const TOUR_STEPS: TourStep[] = [
     body:
       'Tap a step to switch it on. <strong>Drag</strong> across several and they all follow — ' +
       'start on a lit step and the drag erases instead. <strong>Hold</strong> one to edit it ' +
-      'without switching it off, and <strong>Clear ▾</strong> wipes a row or the bank ' +
+      'without switching it off, and ' + CLEAR_BTN + ' wipes a row or the bank ' +
       '(Undo brings it back).',
     placement: 'top',
     precondition: () => clickTestId('tab-drums'),
@@ -124,7 +137,8 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'info-badges',
     title: "That's it — go play",
     body:
-      'You know enough to make noise. Stuck on a control? This <strong>ⓘ</strong> button switches ' +
+      'You know enough to make noise. Stuck on a control? This ' + g('info', 'Info badges') +
+      ' button switches ' +
       'on the info badges — one on every section, each explaining what it does. Next to it, ' +
       '<strong>?</strong> replays this tour and lists the keyboard shortcuts.',
     placement: 'bottom',
@@ -158,7 +172,7 @@ const GRID_GESTURES =
   '<p><strong>Editing faster:</strong> <strong>drag</strong> across the grid to paint a whole ' +
   'run at once — starting on a lit step erases instead of filling. <strong>Press and hold</strong> ' +
   'a step (or right-click it) to select it for editing <em>without</em> switching it off, and ' +
-  '<strong>Delete</strong> clears the selected step. <strong>Clear ▾</strong> wipes the whole bank ' +
+  '<strong>Delete</strong> clears the selected step. ' + CLEAR_BTN + ' wipes the whole bank ' +
   'or just the row you have selected, and <strong>Ctrl+Z</strong> undoes the last edit on the tab ' +
   'you are looking at — even a bulk clear comes back in one press.</p>';
 
@@ -180,13 +194,15 @@ const RULER_HELP: HelpTopic = {
     '<p>The readout on the left says where you are. With no chains switched on, your song is ' +
     'one bank looping, so it names that bank — <strong>BANK A</strong> — matching the A/B/C/D ' +
     'buttons. Switch on a <strong>Chain</strong> and it becomes <strong>BAR 3/4</strong> with ' +
-    '<strong>‹</strong> <strong>›</strong> arrows that step a bar at a time, keeping the same ' +
+    g('chevronLeft', 'Previous bar') + ' ' + g('chevronRight', 'Next bar') +
+    ' arrows that step a bar at a time, keeping the same ' +
     'step within the bar.</p>' +
     '<p>Unlike the lit step in the grid below it, this always tells you where you are — even ' +
     'when the transport is stopped, this machine is switched off, or you are editing one bank ' +
     'while another one plays.</p>' +
     '<p><strong>Home</strong> jumps back to the start, and <strong>Shift</strong> + ' +
-    '<strong>←</strong> / <strong>→</strong> steps one bar (from the top of the bar). The Song ' +
+    g('arrowLeft', 'Left arrow') + ' / ' + g('arrowRight', 'Right arrow') +
+    ' steps one bar (from the top of the bar). The Song ' +
     'tab has a scrubber for the whole arrangement.</p>',
 };
 
@@ -747,13 +763,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'the echo off at the end. So expect about two bars of playing before it lands, then the ' +
       'transport stops by itself.</p>' +
       '<p>The slot is named after what you rendered, like <strong>seq-A-120bpm</strong>. Play with ' +
-      'it like any sample: put it on the sampler grid, retune it, or re-open it with ✎.</p>' +
+      'it like any sample: put it on the sampler grid, retune it, or re-open it with ' +
+      g('edit', 'Edit') + '.</p>' +
       '<p><strong>Button greyed out?</strong> Either the bank has no steps yet (there would be ' +
       'nothing to record), or the synth is slaved to an external MIDI clock — it needs to own the ' +
       'tempo to cut the bar exactly.</p>' +
       '<p>The recorded audio is <em>not</em> saved inside a song file (only the slot name is), the ' +
       'same as any loaded sample. Render it again after loading, or save it to disk from the ' +
-      'slot’s ✎ editor.</p>',
+      'slot’s ' + g('edit', 'Edit') + ' editor.</p>',
   },
   drums: {
     title: 'Drum Machine',
@@ -770,7 +787,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Eight slots that each play your own sound as a one-shot on a 16-step grid. ' +
       '<strong>Load</strong> a WAV/MP3 into a slot, or use <strong>Record a sound</strong> to ' +
-      'capture from your mic and edit it. The ✎ button re-opens a loaded sound in the editor.</p>' +
+      'capture from your mic and edit it. The ' + g('edit', 'Edit') +
+      ' button re-opens a loaded sound in the editor.</p>' +
       GRID_GESTURES +
       '<p>Plays while the transport runs, with its own master and effects. Note: after loading a ' +
       'saved song you re-load the audio files (only their names are stored).</p>',
@@ -791,7 +809,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'parameters at once — or move just these two and leave the XY Pad free for you to play ' +
       'live (using the XY lane is what costs you the pad).</p>' +
       '<p>There is no on/off tap here — a cell either holds a value or it does not — so ' +
-      '<strong>Clear ▾</strong> lists whichever lanes currently hold steps (XY, A, B) rather than ' +
+      CLEAR_BTN + ' lists whichever lanes currently hold steps (XY, A, B) rather than ' +
       'a selected row. <strong>Ctrl+Z</strong> undoes the last edit, a bulk clear included.</p>' +
       '<p><strong>Reading the graph:</strong> every dot stores <em>two</em> values (X and Y), but ' +
       'the overlay line can only trace one at a time. The <strong>Y / X</strong> toggle picks ' +
@@ -841,7 +859,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Where you are in the <strong>whole song</strong>, not just the bar. The readout is ' +
       '<strong>bar.step</strong>, and the numbered cells beside it are one per bar of your ' +
       'arrangement — click one to jump straight to that bar instead of playing from the top and ' +
-      'waiting. <strong>⏮</strong> goes back to the start.</p>' +
+      'waiting. ' + g('toStart', 'Back to the start') + ' goes back to the start.</p>' +
       '<p>Each cell lines up with a slot in the chains above, so cell&nbsp;3 and the third chip ' +
       'in a lane are the same bar.</p>' +
       '<p><strong>TRANSPORT</strong> opens all of this in a floating window — with Play/Stop ' +
@@ -860,7 +878,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'afterwards to hear them.</p>' +
       '<p>A bank button <em>appends</em> to the chain, so to put a bar somewhere else just ' +
       '<strong>drag the chip</strong> to where it belongs — a line shows the gap it will drop ' +
-      'into. <strong>◀</strong> and <strong>▶</strong> do the same one place at a time. On the ' +
+      'into. ' + g('triangleLeft', 'Move left') + ' and ' + g('triangleRight', 'Move right') +
+      ' do the same one place at a time. On the ' +
       'sequencer lane a chip can also be <strong>transposed</strong>: select it and use ' +
       '<strong>−</strong> / <strong>+</strong> (or the mouse wheel over the chip), and it reads ' +
       '<strong>A+5</strong> in its own colour — one bank becomes a whole progression.</p>' +
@@ -1022,7 +1041,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'it the first device’s code (paste it, or <strong>scan the QR</strong> where your camera ' +
       'supports it).</li>' +
       '<li>Send the answer code back to the first device to finish. When both show ' +
-      '<strong>Linked ✓</strong> you’re synced — set one to Master and the other to Slave.</li>' +
+      '<strong>' + iconLabel('check', 'Linked', 'after') + '</strong> you’re synced — ' +
+      'set one to Master and the other to Slave.</li>' +
       '</ol>' +
       '<p>Cross-device WiFi needs the secure (HTTPS) site; two tabs on one computer work on ' +
       '<em>localhost</em>.</p>',
@@ -1033,7 +1053,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Click the on-screen keys to play, or use your computer keyboard: the bottom letter ' +
       'row is the lower octave, the top one the upper, with the sharps on the row above each — ' +
       'a piano laid over the keys. <strong>Help &amp; About</strong> draws the exact mapping for ' +
-      'your keyboard layout. The <strong>←</strong> / <strong>→</strong> arrow keys shift octave.</p>' +
+      'your keyboard layout. The ' + g('arrowLeft', 'Left arrow') + ' / ' +
+      g('arrowRight', 'Right arrow') + ' arrow keys shift octave.</p>' +
       '<p>Notes sound immediately, with or without the transport running.</p>',
   },
   pitchBend: {

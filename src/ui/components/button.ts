@@ -14,6 +14,14 @@ export interface ButtonOptions {
    * name (`aria-label`) unless `ariaLabel` overrides it.
    */
   icon?: string;
+  /**
+   * Inline SVG rendered *alongside* the text label rather than instead of it
+   * (`← Back`, the AI Prompt sparkle). The glyph is `aria-hidden`, so the
+   * accessible name stays the text alone — iconography.md REQ-3.
+   */
+  iconBefore?: string;
+  /** As `iconBefore`, on the other side (a trailing caret). */
+  iconAfter?: string;
   /** Tooltip (`title` attribute). */
   title?: string;
   /** Accessible name; defaults to `label` when `icon` replaces the text. */
@@ -43,6 +51,13 @@ export function createButton(opts: ButtonOptions): HTMLButtonElement {
     btn.appendChild(label);
   } else if (opts.icon) {
     btn.innerHTML = opts.icon;
+  } else if (opts.iconBefore || opts.iconAfter) {
+    // A span around the text, not a bare node: `base.css` puts the gap on
+    // `.icon-label`, so no call site has to style the pairing itself.
+    btn.innerHTML =
+      (opts.iconBefore ?? '')
+      + `<span class="icon-label">${opts.label}</span>`
+      + (opts.iconAfter ?? '');
   } else {
     btn.textContent = opts.label;
   }
@@ -55,9 +70,14 @@ export function createButton(opts: ButtonOptions): HTMLButtonElement {
   return btn;
 }
 
-/** Update a button's text, honouring the label span if present. */
+/**
+ * Update a button's text, honouring the label span if present — either the LED
+ * variant's `.label` or the `.icon-label` an `iconBefore`/`iconAfter` button
+ * wraps its text in. Writing `textContent` on one of those would take the glyph
+ * with it, which is exactly the bug this branch exists to avoid.
+ */
 export function setButtonLabel(btn: HTMLButtonElement, text: string): void {
-  const label = btn.querySelector<HTMLElement>(`.${styles.label!}`);
+  const label = btn.querySelector<HTMLElement>(`.${styles.label!}, .icon-label`);
   if (label) label.textContent = text;
   else btn.textContent = text;
 }

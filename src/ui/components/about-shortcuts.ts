@@ -11,18 +11,27 @@ import { createButton } from './button';
 import { createCollapseToggle } from './collapse-toggle';
 import { NOTE_ROWS } from '../shortcuts';
 import { Dropdown } from './dropdown';
+import { UI_ICONS, type IconName } from './ui-icons';
 import {
   LAYOUTS, labelFor, readLayoutPref, writeLayoutPref, resolveLayout, onLayoutChange,
   type LayoutId, type LayoutPref,
 } from '../../state/keyboard-layout';
 import styles from '../styles/modal.module.css';
 
-/** One token of a combo: a bare string is a keycap, `t(...)` is literal text. */
-type Token = string | { text: string };
+/** One token of a combo: a bare string is a keycap, `t(...)` is literal text,
+ *  `k(...)` is a keycap whose label is a drawn glyph rather than a character. */
+type Token = string | { text: string } | { icon: IconName; name: string };
 /** Literal text between caps — a `+`, a `(hold)`, a mouse action. Keep the
  *  spacing: flex layout trims it visually, and it keeps each cell's
  *  `textContent` reading the way a human would say the combo. */
 const t = (text: string): { text: string } => ({ text });
+
+/**
+ * A keycap labelled with an icon (iconography.md REQ-1). `name` is not
+ * decoration: the cap holds no text, so it is the only thing a screen reader
+ * has to go on (REQ-3 there).
+ */
+const k = (icon: IconName, name: string): { icon: IconName; name: string } => ({ icon, name });
 
 /** The two note rows are a keyboard diagram, not a token list (REQ-17c). */
 const notes = (row: Record<string, number>): { notes: Record<string, number> } => ({ notes: row });
@@ -42,7 +51,7 @@ type Combo = Token[] | { notes: Record<string, number> };
 const SHORTCUTS: Array<[Combo, string]> = [
   [notes(NOTE_ROWS.lower), 'Play notes — lower octave'],
   [notes(NOTE_ROWS.upper), 'Play notes — upper octave'],
-  [['←', '→'], 'Shift keyboard octave down / up'],
+  [[k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Shift keyboard octave down / up'],
   // Two rows, not one: the keys are stacked vertically on the board, so the
   // list stacks them too (input-control.md REQ-12).
   [["'"], 'Pitch bend up'],
@@ -50,7 +59,7 @@ const SHORTCUTS: Array<[Combo, string]> = [
   [['Space'], 'Play / stop transport'],
   // ---- folded by default; everything above ends at Space (REQ-17b) ----
   [['Home'], 'Move the playhead to bar 1'],
-  [['Shift', t(' + '), '←', '→'], 'Move the playhead one bar'],
+  [['Shift', t(' + '), k('arrowLeft', 'Left arrow'), k('arrowRight', 'Right arrow')], 'Move the playhead one bar'],
   [['F', t(' (hold)')], 'Drum fill'],
   [['Shift', t(' + '), 'R'], 'Open / close the Record window'],
   [['Esc'], 'Panic — all notes off'],
@@ -64,22 +73,29 @@ const SHORTCUTS: Array<[Combo, string]> = [
  *  itself — it went 5 → 6 when pitch bend became one row per key. */
 const SHORTCUTS_SHOWN = 6;
 
-/**
- * Arrows and other symbols have no glyph in the monospace face, so the browser
- * falls back per character and draws them much smaller than their neighbours —
- * unreadable at the key row's size. Such a cap is drawn in the UI sans instead
- * (onboarding.md REQ-17).
- */
-const SYMBOL = /^[←→↑↓⌫⏮]+$/;
-
 /** One keycap. `variant` tints the two ranks of the note diagram apart. */
 function cap(label: string, variant?: 'natural' | 'sharp'): HTMLElement {
   const el = document.createElement('span');
   el.className = styles.cap!;
-  if (SYMBOL.test(label)) el.classList.add(Modal.glyphClass);
   if (variant === 'natural') el.classList.add(styles.capNatural!);
   if (variant === 'sharp') el.classList.add(styles.capSharp!);
   el.textContent = label;
+  return el;
+}
+
+/**
+ * A keycap whose label is a drawn glyph. Until v17 these were arrow *characters*
+ * re-faced to the UI sans, because the monospace cap face has no arrow — which
+ * worked until Android, where the sans face has none either and the character
+ * fell through to a symbol font at its own weight and baseline
+ * (iconography.md). The cap is textless, so it carries the accessible name.
+ */
+function iconCap(name: IconName, label: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = `${styles.cap!} ${styles.iconCap!}`;
+  el.innerHTML = UI_ICONS[name];
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', label);
   return el;
 }
 
@@ -163,6 +179,7 @@ function comboCell(combo: Combo): HTMLElement {
   cell.className = styles.combo!;
   for (const token of combo) {
     if (typeof token === 'string') cell.appendChild(cap(token));
+    else if ('icon' in token) cell.appendChild(iconCap(token.icon, token.name));
     else cell.appendChild(document.createTextNode(token.text));
   }
   return cell;
@@ -277,12 +294,13 @@ function buildLayoutPicker(): { gear: HTMLButtonElement; row: HTMLElement } {
 
   row.append(caption, dd.el, note);
 
-  // The same `⚙` the XY Pad's axis-assignment gear uses, not one of the
-  // header's inline-SVG glyphs — this is the in-panel "reveals a setting"
-  // affordance, and it should look like the one the app already has.
+  // The same gear the XY Pad's axis-assignment button uses, not one of the
+  // header's glyphs — this is the in-panel "reveals a setting" affordance, and
+  // it should look like the one the app already has.
   let open = false;
   const gear = createButton({
     label: 'Keyboard layout',
+    icon: UI_ICONS.gear,
     title: 'Keyboard layout',
     className: styles.gearBtn!,
     testId: 'shortcuts-layout-gear',
@@ -293,8 +311,6 @@ function buildLayoutPicker(): { gear: HTMLButtonElement; row: HTMLElement } {
       gear.setAttribute('aria-expanded', String(open));
     },
   });
-  gear.textContent = '⚙';
-  gear.setAttribute('aria-label', 'Keyboard layout');
   gear.setAttribute('aria-expanded', 'false');
 
   return { gear, row };

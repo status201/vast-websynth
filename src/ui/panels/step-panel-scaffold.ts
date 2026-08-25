@@ -5,6 +5,7 @@ import type { Arrangement, ChainLane } from '../../audio/transport/arrangement';
 import { BankBar } from '../components/bank-bar';
 import { Switch } from '../components/switch';
 import switchStyles from '../styles/switch.module.css';
+import { iconLabel } from '../components/ui-icons';
 import { createChainToggle } from '../components/chain-toggle';
 import layout from '../styles/layout.module.css';
 import { PlayheadHighlighter, type PlayheadCell } from '../components/playhead-highlighter';
@@ -345,7 +346,7 @@ export function laneMeterControlsFor(bus: ParamBus, lane: StepLane): LaneControl
   toggle.type = 'button';
   toggle.className = switchStyles.root!;
   toggle.dataset.testid = `machine-${lane}-grid`;
-  toggle.textContent = 'Grid ▾';
+  toggle.innerHTML = iconLabel('caretDown', 'Grid', 'after');
   toggle.setAttribute('aria-expanded', 'false');
   root.appendChild(toggle);
 

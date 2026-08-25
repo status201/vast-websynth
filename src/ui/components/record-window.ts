@@ -6,6 +6,7 @@ import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/record-window.module.css';
+import { UI_ICONS } from './ui-icons';
 
 /**
  * The free-form recorder's floating transport (record-window.md).
@@ -46,7 +47,7 @@ export function createRecordWindowLauncher(
   b.title = 'Open the Record window (Shift+R)';
   const glyph = document.createElement('span');
   glyph.className = songStyles.winGlyph!;
-  glyph.textContent = '❐';
+  glyph.innerHTML = UI_ICONS.popOut;
   glyph.setAttribute('aria-hidden', 'true');
   b.appendChild(glyph);
   b.setAttribute('aria-label', 'Open Record window');

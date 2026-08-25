@@ -5,6 +5,7 @@ import { BANK_LABELS } from '../../state/patterns';
 import { GRID_CELLS } from '../../state/meter';
 import { beatOfCell, isBeatCell, laneCellAt, laneGrid, onLaneGridChange } from '../lane-grid';
 import styles from '../styles/playhead-ruler.module.css';
+import { UI_ICONS } from './ui-icons';
 
 export type RulerLane = 'seq' | 'drum' | 'sampler' | 'motion';
 
@@ -98,7 +99,7 @@ export function buildPlayheadRuler(
     b.type = 'button';
     b.className = styles.barNav!;
     b.dataset.testid = `ruler-${lane}-bar-${delta < 0 ? 'prev' : 'next'}`;
-    b.textContent = glyph;
+    b.innerHTML = glyph;
     b.addEventListener('click', () => {
       const pos = position();
       const bars = api.arrangement.songBars();
@@ -111,8 +112,8 @@ export function buildPlayheadRuler(
     });
     return b;
   };
-  const prevBtn = mkNav('‹', -1);
-  const nextBtn = mkNav('›', 1);
+  const prevBtn = mkNav(UI_ICONS.chevronLeft, -1);
+  const nextBtn = mkNav(UI_ICONS.chevronRight, 1);
   const label = document.createElement('div');
   label.className = styles.bar!;
   label.dataset.testid = `ruler-${lane}-bar`;

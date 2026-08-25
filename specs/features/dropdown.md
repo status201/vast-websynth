@@ -3,7 +3,9 @@
 ```yaml
 id: dropdown
 status: implemented
-version: 7  # v7: setOptions takes a dividerAfter group separator, and REQ-11 writes
+version: 8  # v8: options carry the `dropdown-option` bridge class — the toggle and
+            #     the matching option share an accessible name (REQ-13)
+            # v7: setOptions takes a dividerAfter group separator, and REQ-11 writes
             #     down that a rebuild can strand the displayed value
             # v6: setDisabledOptions — individual options can be unselectable (REQ-10)
             # v5: setDimmed + the "never dim the root" invariant (REQ-9)
@@ -196,6 +198,21 @@ without anyone remembering to ask.
   **call `setValue` after `setOptions`, not before**, whenever the displayed value
   is not guaranteed to be in the list. `setValue` early-returns when unchanged, so
   the re-assert costs nothing in the common case.
+
+- **REQ-13** (v8) — **An option carries the `dropdown-option` bridge class, because
+  a by-name lookup cannot tell it from the toggle.** The toggle shows the current
+  value and an option *is* that value, so the two are buttons with the same
+  accessible name — ambiguous by construction, for a test and for anything else
+  walking by role.
+
+  It went unnoticed while the toggle's name was `"1 ▾"`: the caret character was
+  part of the name and made it unique. Drawing the caret
+  ([iconography](iconography.md) REQ-1/REQ-3) made the name correctly just `"1"`,
+  which is what a screen reader should say and what broke the audio-export
+  selector. The class is the fix, not a longer name — padding an accessible name
+  to disambiguate a selector is a test problem solved at the user's expense. A
+  test picks an option by this class; the same bridge-class idiom as
+  `switch-label`.
 
 ## Technical design
 

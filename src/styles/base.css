@@ -78,6 +78,45 @@ button {
   transform: translateY(1px);
 }
 
+/* ===== Icons (specs/features/iconography.md) =====
+   Every glyph that labels a control is inline SVG from `ui-icons.ts`, not a
+   font character — Inter is not bundled, so on Android `--sans` falls back to
+   Roboto and then to a symbol/emoji font per character, at its own weight and
+   baseline. Global rather than a CSS Module because the class name is
+   hard-coded in the markup strings, which a module would scope away (REQ-5).
+
+   Sized in `em` so one glyph is correct at every call site's own font-size —
+   the 13px keycap, the 11px button, the help paragraph — instead of pinning a
+   pixel size that is wrong in three contexts out of four. */
+svg.ui-icon {
+  width: 1em;
+  height: 1em;
+  /* Baseline-correct in prose; flex containers centre it and ignore this. */
+  vertical-align: -0.125em;
+  /* Never let a flex row squeeze a glyph out of square. */
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Solid sub-shapes (carets, triangles, dice pips) opt out of the stroke. */
+svg.ui-icon .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Icon + text in one control: the gap is the icon's business, not each call
+   site's, so `iconLabel()` needs no per-consumer stylesheet. */
+svg.ui-icon + .icon-label {
+  margin-left: 0.45em;
+}
+.icon-label + svg.ui-icon {
+  margin-left: 0.45em;
+}
+
 /* ===== Themed scrollbars (tab content, dropdown menus, modals) ===== */
 * {
   scrollbar-width: thin;

@@ -20,7 +20,8 @@ test.describe('LIVE FX window', () => {
 
   test('the launcher doubles as the section title: leads the row with a window glyph', async ({ page }) => {
     const open = page.getByTestId('livefx-open');
-    await expect(open).toContainText('❐'); // "opens a new window" glyph
+    // The "opens a new window" glyph is drawn, not typed (iconography.md).
+    await expect(open.locator('svg.ui-icon')).toHaveCount(1);
     await expect(open).toHaveAttribute('aria-label', 'Open LIVE FX window');
 
     // Row order: LIVE FX (first) → DJ FLT knob → Fill → … (the button replaced the label).

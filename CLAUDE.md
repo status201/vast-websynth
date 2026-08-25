@@ -102,6 +102,7 @@ material keyed by feature name).
 | `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `render-to-sampler.md` |
 | `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md` |
 | `src/ui/` (any) | `src/ui/CLAUDE.md`, `recipes/add-a-ui-component.md`, `add-a-panel.md`, `add-a-modal-dialog.md`, `add-a-floating-window.md`, ADR-009 |
+| a **glyph that labels a control** (an arrow, a caret, a ✕, an emoji) | `features/iconography.md` — it is inline SVG from `src/ui/components/ui-icons.ts`, never a font character: the app bundles no font, so on Android a typed glyph falls through to a symbol or colour-emoji face. `tests/ui/iconography.test.ts` fails the suite on a new one |
 | any **new gesture** | ADR-014 + `recipes/design-an-interaction.md` — every interactive control owes a gesture inventory in its spec |
 | any **new ingest surface** (a link, file, paste, peer, MCP arg or a request to the public endpoint) | `features/untrusted-input.md` + ADR-015 — bounds live in the validator, byte budgets in the codec, and `src/state/limits.ts` is the only place they're written down |
 | anything **per-frame, per-tick or at boot** | `features/runtime-performance.md` (the app-wide cost contract), `features/performance-mode.md` |

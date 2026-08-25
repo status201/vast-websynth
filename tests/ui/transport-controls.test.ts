@@ -245,7 +245,7 @@ describe('createTransportWindowLauncher', () => {
     const b = createTransportWindowLauncher(api, bridge);
     expect(b.dataset.testid).toBe('transport-open');
     expect(b.getAttribute('aria-label')).toBe('Open TRANSPORT window');
-    expect(b.textContent).toContain('❐'); // the "opens a window" glyph
+    expect(b.querySelector('svg.ui-icon')).not.toBeNull(); // the "opens a window" glyph
 
     b.click();
     const win = document.querySelector('[data-testid="transport-window"]') as HTMLElement;
