@@ -4,7 +4,7 @@
 id: song-mode
 status: implemented
 version: 22  # v22: REQ-12 — one hand-authored built-in, not two: the "Zombie
-             #      Nation" demo is gone and "I Feel Love" is now "Mordor"
+             #      Nation" demo is gone and "I Feel Love" is renamed to "Mordor"
              # v21: step cells carry the optional `micro` notch count — additive,
              #      default 0, dropped when default, so no SongFile version bump
              #      (step-settings.md REQ-6)

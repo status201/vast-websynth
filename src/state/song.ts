@@ -522,6 +522,7 @@ const BUILTIN_DEMOS: Record<string, SongFile> = {
       'fx.dist.on': 1, 'fx.dist.drive': 0.05, 'fx.dist.tone': 1500, 'fx.dist.mix': 0.35,
       'fx.delay.on': 1, 'fx.delay.time': 0.3, 'fx.delay.feedback': 0.32,
       'fx.delay.mix': 0.18,
+      'fx.drum.comp.on': 1,
       'fx.reverb.on': 1, 'fx.reverb.size': 0.4, 'fx.reverb.damp': 0.5,
       'fx.reverb.mix': 0.14,
       'analog.drift': 0.08,
