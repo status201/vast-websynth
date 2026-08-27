@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 7,
-  "count": 263,
+  "count": 359,
   "params": [
     {
       "id": "voicing.mode",
@@ -2763,6 +2763,113 @@
       ]
     },
     {
+      "id": "sampler.t0.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t0.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t0.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t0.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t0.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
+      ]
+    },
+    {
       "id": "sampler.t1.mute",
       "min": 0,
       "max": 1,
@@ -2773,6 +2880,113 @@
       "labels": [
         "on",
         "mute"
+      ]
+    },
+    {
+      "id": "sampler.t1.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t1.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t1.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t1.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t1.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
       ]
     },
     {
@@ -2789,6 +3003,113 @@
       ]
     },
     {
+      "id": "sampler.t2.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t2.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t2.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t2.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t2.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
+      ]
+    },
+    {
       "id": "sampler.t3.mute",
       "min": 0,
       "max": 1,
@@ -2799,6 +3120,113 @@
       "labels": [
         "on",
         "mute"
+      ]
+    },
+    {
+      "id": "sampler.t3.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t3.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t3.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t3.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t3.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
       ]
     },
     {
@@ -2815,6 +3243,113 @@
       ]
     },
     {
+      "id": "sampler.t4.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t4.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t4.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t4.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t4.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
+      ]
+    },
+    {
       "id": "sampler.t5.mute",
       "min": 0,
       "max": 1,
@@ -2825,6 +3360,113 @@
       "labels": [
         "on",
         "mute"
+      ]
+    },
+    {
+      "id": "sampler.t5.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t5.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t5.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t5.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t5.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
       ]
     },
     {
@@ -2841,6 +3483,113 @@
       ]
     },
     {
+      "id": "sampler.t6.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t6.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t6.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t6.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t6.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
+      ]
+    },
+    {
       "id": "sampler.t7.mute",
       "min": 0,
       "max": 1,
@@ -2851,6 +3600,113 @@
       "labels": [
         "on",
         "mute"
+      ]
+    },
+    {
+      "id": "sampler.t7.vol",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.pan",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.tone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.res",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.pitch",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "unit": "st"
+    },
+    {
+      "id": "sampler.t7.start",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.end",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.rev",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "fwd",
+        "rev"
+      ]
+    },
+    {
+      "id": "sampler.t7.attack",
+      "min": 0,
+      "max": 0.5,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.decay",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "sampler.t7.choke",
+      "min": 0,
+      "max": 4,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "id": "sampler.t7.poly",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "poly",
+        "mono"
       ]
     },
     {

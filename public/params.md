@@ -271,13 +271,109 @@ Schemas: [`llms.txt`](llms.txt).
 - "sampler.len": number  // range 0..16, default 0, step 1
 - "sampler.rate": number  // range 0..8, default 2, step 1, values 0=1/32 1=1/16 T 2=1/16 3=1/8 T 4=1/16 D 5=1/8 6=1/4 T 7=1/8 D 8=1/4
 - "sampler.t0.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t0.vol": number  // range 0..1, default 1
+- "sampler.t0.pan": number  // range -1..1, default 0
+- "sampler.t0.tone": number  // range 0..1, default 1
+- "sampler.t0.res": number  // range 0..1, default 0
+- "sampler.t0.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t0.start": number  // range 0..1, default 0
+- "sampler.t0.end": number  // range 0..1, default 1
+- "sampler.t0.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t0.attack": number  // range 0..0.5, default 0
+- "sampler.t0.decay": number  // range 0..4, default 0
+- "sampler.t0.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t0.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t1.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t1.vol": number  // range 0..1, default 1
+- "sampler.t1.pan": number  // range -1..1, default 0
+- "sampler.t1.tone": number  // range 0..1, default 1
+- "sampler.t1.res": number  // range 0..1, default 0
+- "sampler.t1.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t1.start": number  // range 0..1, default 0
+- "sampler.t1.end": number  // range 0..1, default 1
+- "sampler.t1.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t1.attack": number  // range 0..0.5, default 0
+- "sampler.t1.decay": number  // range 0..4, default 0
+- "sampler.t1.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t1.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t2.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t2.vol": number  // range 0..1, default 1
+- "sampler.t2.pan": number  // range -1..1, default 0
+- "sampler.t2.tone": number  // range 0..1, default 1
+- "sampler.t2.res": number  // range 0..1, default 0
+- "sampler.t2.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t2.start": number  // range 0..1, default 0
+- "sampler.t2.end": number  // range 0..1, default 1
+- "sampler.t2.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t2.attack": number  // range 0..0.5, default 0
+- "sampler.t2.decay": number  // range 0..4, default 0
+- "sampler.t2.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t2.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t3.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t3.vol": number  // range 0..1, default 1
+- "sampler.t3.pan": number  // range -1..1, default 0
+- "sampler.t3.tone": number  // range 0..1, default 1
+- "sampler.t3.res": number  // range 0..1, default 0
+- "sampler.t3.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t3.start": number  // range 0..1, default 0
+- "sampler.t3.end": number  // range 0..1, default 1
+- "sampler.t3.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t3.attack": number  // range 0..0.5, default 0
+- "sampler.t3.decay": number  // range 0..4, default 0
+- "sampler.t3.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t3.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t4.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t4.vol": number  // range 0..1, default 1
+- "sampler.t4.pan": number  // range -1..1, default 0
+- "sampler.t4.tone": number  // range 0..1, default 1
+- "sampler.t4.res": number  // range 0..1, default 0
+- "sampler.t4.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t4.start": number  // range 0..1, default 0
+- "sampler.t4.end": number  // range 0..1, default 1
+- "sampler.t4.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t4.attack": number  // range 0..0.5, default 0
+- "sampler.t4.decay": number  // range 0..4, default 0
+- "sampler.t4.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t4.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t5.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t5.vol": number  // range 0..1, default 1
+- "sampler.t5.pan": number  // range -1..1, default 0
+- "sampler.t5.tone": number  // range 0..1, default 1
+- "sampler.t5.res": number  // range 0..1, default 0
+- "sampler.t5.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t5.start": number  // range 0..1, default 0
+- "sampler.t5.end": number  // range 0..1, default 1
+- "sampler.t5.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t5.attack": number  // range 0..0.5, default 0
+- "sampler.t5.decay": number  // range 0..4, default 0
+- "sampler.t5.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t5.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t6.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t6.vol": number  // range 0..1, default 1
+- "sampler.t6.pan": number  // range -1..1, default 0
+- "sampler.t6.tone": number  // range 0..1, default 1
+- "sampler.t6.res": number  // range 0..1, default 0
+- "sampler.t6.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t6.start": number  // range 0..1, default 0
+- "sampler.t6.end": number  // range 0..1, default 1
+- "sampler.t6.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t6.attack": number  // range 0..0.5, default 0
+- "sampler.t6.decay": number  // range 0..4, default 0
+- "sampler.t6.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t6.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "sampler.t7.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
+- "sampler.t7.vol": number  // range 0..1, default 1
+- "sampler.t7.pan": number  // range -1..1, default 0
+- "sampler.t7.tone": number  // range 0..1, default 1
+- "sampler.t7.res": number  // range 0..1, default 0
+- "sampler.t7.pitch": number  // range -24..24, default 0, step 1
+- "sampler.t7.start": number  // range 0..1, default 0
+- "sampler.t7.end": number  // range 0..1, default 1
+- "sampler.t7.rev": number  // range 0..1, default 0, step 1, values 0=fwd 1=rev
+- "sampler.t7.attack": number  // range 0..0.5, default 0
+- "sampler.t7.decay": number  // range 0..4, default 0
+- "sampler.t7.choke": number  // range 0..4, default 0, step 1, values 0=off 1=1 2=2 3=3 4=4
+- "sampler.t7.poly": number  // range 0..1, default 0, step 1, values 0=poly 1=mono
 - "motion.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "motion.mute": number  // range 0..1, default 0, step 1, values 0=on 1=mute
 - "motion.slide": number  // range 0..1, default 1, step 1, values 0=step 1=slide

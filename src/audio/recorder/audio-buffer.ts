@@ -16,6 +16,25 @@ export function capturedToAudioBuffer(ctx: BaseAudioContext, a: CapturedAudio): 
   return buf;
 }
 
+/**
+ * A reversed copy of an `AudioBuffer`, **channel count preserved**
+ * (sampler.md REQ-13).
+ *
+ * Deliberately not `buffer-dsp.ts`'s `reverse()`: that one works on
+ * `CapturedAudio`, which is always stereo, so routing a slot's playback through it
+ * would widen every mono clip and double its memory just to play it backwards.
+ * The sampler plays whatever `decodeAudioData` handed back.
+ */
+export function reverseBuffer(ctx: BaseAudioContext, buf: AudioBuffer): AudioBuffer {
+  const out = ctx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const src = buf.getChannelData(ch);
+    const dst = out.getChannelData(ch);
+    for (let i = 0, n = src.length; i < n; i++) dst[i] = src[n - 1 - i]!;
+  }
+  return out;
+}
+
 /** Reverse bridge: an AudioBuffer (sampler slot / decoded file) → the pure
  * `CapturedAudio` interchange type, so a loaded sample can be re-edited.
  * Mono buffers duplicate channel 0 to the right (matches the recorder). */

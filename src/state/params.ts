@@ -1,4 +1,4 @@
-import { DRUM_TRACK_COUNT, DRUM_TRACKS, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from './patterns';
+import { DRUM_TRACK_COUNT, DRUM_TRACKS, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from './patterns';
 import {
   GRID_CELLS, LEN_FOLLOW, LANE_RATE_LABELS, DEFAULT_LANE_RATE,
   BEAT_UNIT_LABELS, MIN_BEATS, MAX_BEATS, DEFAULT_BEATS, DEFAULT_BEAT_UNIT,
@@ -666,10 +666,42 @@ function laneMeterParams(prefix: string): ParamDef[] {
   ];
 }
 
+/**
+ * The per-slot channel + voice window (sampler.md REQ-12/REQ-13).
+ *
+ * Sibling of {@link drumTrackParams} below, and deliberately shaped like it — but
+ * note `vol` defaults to **1**, not the drum machine's 0.85. A default is the
+ * compatibility surface (ADR-006): a sampler slot has always been unity gain, so
+ * 0.85 would pull every existing song and demo down by ~1.4 dB in exchange for
+ * looking tidy next to the drums. `sampler.master` (0.85) is where the bus-level
+ * headroom lives.
+ *
+ * Every other default is picked the same way: open filter, centre, no pitch shift,
+ * whole buffer, forwards, no envelope — i.e. exactly what `SamplerMachine.play()`
+ * did before the family existed.
+ */
 function samplerTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
     out.push({ id: `sampler.t${i}.mute`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['on', 'mute'] });
+    // Channel — ramped AudioParams (REQ-12).
+    out.push({ id: `sampler.t${i}.vol`, min: 0, max: 1, default: 1, format: fmtPct });
+    out.push({ id: `sampler.t${i}.pan`, min: -1, max: 1, default: 0, format: fmtPan });
+    out.push({ id: `sampler.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });
+    out.push({ id: `sampler.t${i}.res`, min: 0, max: 1, default: 0, format: fmtPct });
+    // Voice window — read by play() at trigger time (REQ-13).
+    // fmtSemi, not the bare `unit`: formatParam reads only `format`, so a unit on
+    // its own renders as "0.00" — which is what a semitone knob must never say.
+    out.push({ id: `sampler.t${i}.pitch`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });
+    out.push({ id: `sampler.t${i}.start`, min: 0, max: 1, default: 0, format: fmtPct });
+    out.push({ id: `sampler.t${i}.end`, min: 0, max: 1, default: 1, format: fmtPct });
+    out.push({ id: `sampler.t${i}.rev`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['fwd', 'rev'] });
+    out.push({ id: `sampler.t${i}.attack`, min: 0, max: 0.5, default: 0, format: fmtMs });
+    out.push({ id: `sampler.t${i}.decay`, min: 0, max: 4, default: 0, format: fmtMs });
+    // Choke group + mono (REQ-14). Both default to what the machine already did:
+    // no group, and hits that layer.
+    out.push({ id: `sampler.t${i}.choke`, min: 0, max: 4, default: 0, step: 1, taper: 'discrete', labels: ['off', '1', '2', '3', '4'] });
+    out.push({ id: `sampler.t${i}.poly`, min: 0, max: 1, default: 0, step: 1, taper: 'discrete', labels: ['poly', 'mono'] });
   }
   return out;
 }
@@ -678,7 +710,10 @@ function drumTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
   for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
     out.push({ id: `drum.t${i}.vol`, min: 0, max: 1, default: 0.85, format: fmtPct });
-    out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st' });
+    // fmtSemi, not the bare `unit`: formatParam consults only `format`, so a unit
+    // on its own leaves the knob reading "0.00" (drum-machine.md REQ-18). `unit`
+    // stays because the generated param catalogue does read it.
+    out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });
     out.push({ id: `drum.t${i}.decay`, min: 0.02, max: 1.5, default: 0.3, format: fmtMs });
     // Per-track channel — all no-op at default (open / clean / centre).
     out.push({ id: `drum.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });

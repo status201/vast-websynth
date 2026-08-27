@@ -256,6 +256,11 @@ export type TopicId =
   | 'seq.render'
   | 'drums'
   | 'sampler'
+  | 'sampler.pitch'
+  | 'sampler.window'
+  | 'sampler.env'
+  | 'sampler.tone'
+  | 'sampler.choke'
   | 'motion'
   | 'motion.xy'
   | 'motion.tracks'
@@ -790,8 +795,74 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'capture from your mic and edit it. The ' + g('edit', 'Edit') +
       ' button re-opens a loaded sound in the editor.</p>' +
       GRID_GESTURES +
-      '<p>Plays while the transport runs, with its own master and effects. Note: after loading a ' +
-      'saved song you re-load the audio files (only their names are stored).</p>',
+      '<p>Select a slot and the strip below the grid becomes <em>that slot\'s</em> voice: ' +
+      'tune it, trim it, reverse it, filter it, place it in the stereo field. The controls ' +
+      'that need explaining carry their own badge while these are on.</p>' +
+      '<p>In the editor you can also <strong>Chop</strong> a break into slices and spread them ' +
+      'across the slots — the classic way to turn one bar of drums into eight playable hits.</p>' +
+      '<p>Plays while the transport runs, with its own master and effects. A saved ' +
+      '<strong>song</strong> stores only the slots\' filenames, so you re-load the audio after ' +
+      'opening one; export a <strong>project</strong> instead and the audio travels with it.</p>',
+  },
+
+  'sampler.pitch': {
+    title: 'Slot — Pitch',
+    body:
+      '<p>Tunes the slot up or down two octaves, by playing the sample <em>faster or ' +
+      'slower</em> — so it changes the <strong>length</strong> as well as the note. Down an ' +
+      'octave is twice as long: a chop that filled its step will now run past it, which is ' +
+      'the sound, not a bug.</p>' +
+      '<p>Pitch belongs to the <em>slot</em>, not to a step — every hit on that row is ' +
+      'tuned the same. To hear two pitches at once, put the sample in two slots.</p>',
+  },
+
+  'sampler.window': {
+    title: 'Slot — Start & End',
+    body:
+      '<p>Chooses <em>which part</em> of the file plays, as a position from its beginning to ' +
+      'its end. Pull <strong>START</strong> in to skip a slow attack; pull ' +
+      '<strong>END</strong> back to cut a long tail.</p>' +
+      '<p>With <strong>REV</strong> on the numbers keep meaning what you see on the waveform ' +
+      '— START is still the front of the sound, so reversing does not turn your trim inside ' +
+      'out.</p>' +
+      '<p>Drag END below START and it holds at the shortest playable sliver rather than ' +
+      'going silent, so a slot never stops responding.</p>',
+  },
+
+  'sampler.env': {
+    title: 'Slot — Attack & Decay',
+    body:
+      '<p><strong>DECAY</strong> at 0 means <em>no envelope</em>: the sample plays to its ' +
+      'natural end. Turn it up and the hit fades out over that time instead — how a long ' +
+      'sound becomes a short, tight one without re-editing the file.</p>' +
+      '<p><strong>ATK</strong> fades the hit <em>in</em>. Even at 0 there is a half-millisecond ' +
+      'ramp: audio that does not begin at silence would otherwise click on every hit, and a ' +
+      'sample you recorded is exactly the kind that does.</p>' +
+      '<p>Whichever comes first wins — the END trim, the decay, or a shortened ' +
+      '<strong>gate</strong> on the step itself.</p>',
+  },
+
+  'sampler.tone': {
+    title: 'Slot — Tone & Res',
+    body:
+      '<p>A low-pass filter on this slot alone. <strong>TONE</strong> at 100% is fully open ' +
+      '(off); lower it to take the top off a loop so it sits behind something brighter.</p>' +
+      '<p><strong>RES</strong> at 0% is flat. Raising it peaks the filter right at the cutoff ' +
+      '— the classic filtered-break sweep — and it gets loud fast, so ride ' +
+      '<strong>VOL</strong> with it.</p>',
+  },
+
+  'sampler.choke': {
+    title: 'Slot — Choke & Mono',
+    body:
+      '<p><strong>CHOKE</strong> puts the slot in one of four groups. Two slots in the same ' +
+      'group cut each other off, so a closed hat stops an open one dead instead of the two ' +
+      'ringing together — the same trick on an 808, and it works for any pair you like.</p>' +
+      '<p><strong>MONO</strong> is the same idea aimed at itself: retriggering the slot cuts ' +
+      'its own previous hit rather than layering. Off, hits stack.</p>' +
+      '<p>The drum machine has a single CHOKE switch because it can tell a closed hat from an ' +
+      'open one by its voice. A sampler slot holds whatever you put in it, so here you say ' +
+      'which slots belong together.</p>',
   },
   motion: {
     title: 'Motion sequencer',

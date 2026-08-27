@@ -85,3 +85,38 @@
 }
 
 .rec:hover { color: var(--accent); }
+
+/* The CHOKE picker in the selected-slot strip. `ParamDropdown` applies the shared
+   `.compact` class, which is `width: 100%` for the narrow columns it was built
+   for — inside the strip's wrapping flex row that makes it claim a whole line.
+   The wrapper bounds it instead of fighting `.compact` on specificity. */
+.chokePick {
+  flex: 0 0 auto;
+  width: 76px;
+}
+
+/* The selected-slot strip's control row (sampler.md REQ-12/REQ-14).
+   Deliberately NOT `drum.module.css`'s `.tuningKnobs`, which the panel borrows
+   for the row *around* it: that one holds seven controls and this one holds
+   twelve, so this is the one that has to fold — and making the shared class wrap
+   pushed the drum panel's model dropdown onto a line of its own. Two rows with
+   genuinely different content, so two classes. */
+.slotKnobs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* One control of the selected-slot strip. Persistent: the Knob inside is
+   rebuilt on every slot change, this is not, because an info badge resolves its
+   anchor once and keeps it (onboarding.md REQ-25). */
+.slotCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}

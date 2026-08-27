@@ -16,7 +16,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Every sampler slot is now a voice you can shape.** A slot used to have one
+  control — mute — while every synthesised drum track had eight. Select a slot and
+  the strip below the grid becomes that slot's own channel: **PITCH** (±2 octaves,
+  varispeed, so it changes the hit's length too), **START/END** to trim what plays,
+  **REV**, **ATK/DECAY**, a **TONE/RES** filter, **PAN** and **VOL**. Everything
+  sits at a no-op by default, so existing songs sound exactly as they did.
+- **Chop a break into slices and spread them across the slots.** In the sample
+  editor, cut the selection into 2–8 pieces — evenly, or at the transients it
+  finds — drag any boundary to taste, then **Spread to slots**. Each slice becomes
+  an ordinary slot with its own full channel, playable from the grid, and the
+  spread is undoable in one press.
+- **Choke groups and mono slots.** Put two slots in the same **CHOKE** group and
+  they cut each other off, the way a closed hat stops an open one. **MONO** aims
+  the same idea at a single slot, so retriggering it cuts its own previous hit
+  instead of layering.
+- Info badges on the slot controls that need explaining — pitch, the trim window,
+  the envelope, the filter and the choke group.
+
 ### Fixed
+
+- **A mono sample played 3 dB quieter than it should have** once a slot gained a
+  pan stage: at centre, stereo passes through untouched but mono is treated as a
+  source to be placed, and loses half its power to the law. Slots now hand the
+  panner a stereo signal, so a mono clip sits where it always did.
+- **The drum machine's TUNE knob reads in semitones again.** It showed a bare
+  "0.00" for a control whose whole range is whole semitones, so the number said
+  nothing. It now reads "+7st" / "-12st", like every other tuning control.
+- **Chopping then aiming at a later slot no longer loses slices.** Picking a slot
+  with less room behind it than the chop needed left the row still promising all
+  of them, and Spread quietly wrote as many as fitted. It now says so and waits.
+- **Chopped slices no longer start a few milliseconds late.** Transient detection
+  cut where the energy rise *peaked*, which is just inside the attack, so every
+  slice lost the front of its own hit. It now cuts at the foot of the rise.
 
 - **Icons no longer depend on the device having the right font.** On Android the
   two octave-shift arrows in Help & About came out in different weights, off each

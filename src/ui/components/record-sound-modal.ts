@@ -13,7 +13,10 @@ import { openMicSession, MicCaptureError, type MicSession } from '../../audio/re
 import type { CapturedAudio } from '../../audio/recorder/node';
 import {
   cloneCaptured, crop, reverse, normalize, gain, fadeIn, fadeOut, computePeaks, peakDb,
+  sliceEqual, sliceRanges, detectOnsets,
 } from '../../audio/recorder/buffer-dsp';
+import { confirmDialog } from './dialog';
+import { showToast } from './toast';
 import { renderEffect } from '../../audio/recorder/offline-render';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import { encodeWav, encodeMp3, triggerDownload } from '../../audio/recorder/encode';
@@ -76,6 +79,10 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let lastAction = 'Ready';
   let onPlayingChange: ((playing: boolean) => void) | null = null;
   let redrawHook: (() => void) | null = null;
+  /** Interior chop boundaries, absolute sample indices (sample-chop.md REQ-3). */
+  let marks: number[] = [];
+  /** Re-reads `marks` into the chop row's labels and disabled states. */
+  let syncChop: (() => void) | null = null;
 
   const stopPreview = (): void => {
     cancelAnimationFrame(playRaf);
@@ -98,6 +105,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     stopPreview();
     onPlayingChange = null;
     redrawHook = null;
+    syncChop = null;
     resizeObs?.disconnect();
     resizeObs = null;
   };
@@ -276,6 +284,22 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
         }
       }
 
+      // Chop boundaries (sample-chop.md REQ-3). Drawn after the waveform so they
+      // read as cuts THROUGH it, and clipped to the selection because that is the
+      // region they divide (REQ-2).
+      for (const m of marks) {
+        if (m <= cropStart || m >= cropEnd) continue;
+        const x = xOf(m);
+        g.strokeStyle = '#f4cd5e';
+        g.lineWidth = 1;
+        g.setLineDash([3, 3]);
+        g.beginPath();
+        g.moveTo(x, 0);
+        g.lineTo(x, h);
+        g.stroke();
+        g.setLineDash([]);
+      }
+
       hL.style.left = `${xOf(cropStart)}px`;
       hR.style.left = `${xOf(cropEnd)}px`;
       refreshStatus(buf);
@@ -328,6 +352,39 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     dragHandle(hL, 'start');
     dragHandle(hR, 'end');
 
+    // Dragging a chop boundary (REQ-3). Hit-tested on the canvas rather than given
+    // handles of its own: there can be seven of them, and the two crop handles are
+    // separate elements that keep priority wherever they overlap.
+    const GRAB_PX = 8;
+    canvas.addEventListener('pointerdown', (e) => {
+      if (marks.length === 0) return;
+      const rect = wrap.getBoundingClientRect();
+      let idx = -1;
+      let best = GRAB_PX;
+      marks.forEach((m, i) => {
+        const d = Math.abs(xOf(m) - (e.clientX - rect.left));
+        if (d < best) { best = d; idx = i; }
+      });
+      if (idx < 0) return;
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      const gap = Math.max(1, Math.floor(sampleLen() * 0.005));
+      const onMove = (ev: PointerEvent): void => {
+        const lo = (marks[idx - 1] ?? cropStart) + gap;
+        const hi = (marks[idx + 1] ?? cropEnd) - gap;
+        if (hi <= lo) return;
+        marks[idx] = Math.max(lo, Math.min(sampleAt(ev.clientX - rect.left), hi));
+        redraw();
+      };
+      const onUp = (ev: PointerEvent): void => {
+        canvas.releasePointerCapture(ev.pointerId);
+        canvas.removeEventListener('pointermove', onMove);
+        canvas.removeEventListener('pointerup', onUp);
+      };
+      canvas.addEventListener('pointermove', onMove);
+      canvas.addEventListener('pointerup', onUp);
+    });
+
     // Cutoff slider (log-mapped) for the filters
     const cutoffRow = document.createElement('div');
     cutoffRow.className = recStyles.cutoff!;
@@ -367,14 +424,26 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     body.appendChild(fxRow);
 
     const allButtons: HTMLButtonElement[] = [];
-    const setBusy = (busy: boolean): void => {
-      for (const b of allButtons) b.disabled = busy;
+    let busy = false;
+    const setBusy = (b: boolean): void => {
+      busy = b;
+      for (const btn of allButtons) btn.disabled = b;
+      // The chop row's buttons depend on more than busy (room to spread into, and
+      // whether any boundary exists), so it re-derives its own rather than being
+      // swept along — a blanket re-enable would light up Spread with nothing to
+      // spread, and an offline effect would be racing the audio it spreads.
+      syncChop?.();
     };
 
     const afterMutate = (next: CapturedAudio, action: string, btn?: HTMLButtonElement): void => {
       working = next;
       cropStart = 0;
       cropEnd = Math.min(next.left.length, next.right.length);
+      // Every edit re-bases the sample indices, so the old boundaries now point at
+      // the wrong audio. Dropping them is the only honest answer: a stale marker
+      // that still LOOKS placed is how a chop cuts in the wrong place silently.
+      marks = [];
+      syncChop?.();
       lastAction = action;
       redraw();
       if (btn) {
@@ -454,10 +523,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     editRow.append(undoBtn, resetBtn, playBtn);
     body.appendChild(editRow);
 
-    // Done actions: slot picker + save/load/close
-    const actions = document.createElement('div');
-    actions.className = recStyles.actions!;
-
+    // Built before the chop row, which needs to know where a spread would start
+    // to decide how many slices fit (sample-chop.md REQ-5).
     const slotOptions = Array.from({ length: SAMPLER_SLOT_COUNT }, (_, i) => {
       const name = engine.patterns.sampleNames[i] ?? null;
       const tag = SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
@@ -468,6 +535,158 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       slotOptions[Math.max(0, Math.min(defaultSlot, SAMPLER_SLOT_COUNT - 1))],
     );
     picker.el.dataset.testid = 'mic-slot-select';
+
+    // ---- Chop (sample-chop.md) ----
+    const chopRow = document.createElement('div');
+    chopRow.className = recStyles.fxRow!;
+    chopRow.dataset.testid = 'chop-row';
+    const chopLabel = document.createElement('span');
+    chopLabel.className = recStyles.hint!;
+    chopRow.appendChild(chopLabel);
+
+    const startSlot = (): number => Math.max(0, slotOptions.indexOf(picker.value));
+    const slotTag = (i: number): string => SAMPLER_SLOT_LABELS[i] ?? `S${i + 1}`;
+    /** REQ-5 — offer only counts that fit from the picker's slot, so a spread can
+     *  never quietly drop the slices it has no room for. */
+    const fittingCounts = (): string[] => {
+      const room = SAMPLER_SLOT_COUNT - startSlot();
+      return [2, 4, 6, 8].filter((n) => n <= room).map((n) => `${n} slices`);
+    };
+    // `—` rather than an empty list: a dropdown with no options reads as broken,
+    // and this state is legitimate (the last slot has no room to spread into).
+    const countDd = new Dropdown(fittingCounts().length ? fittingCounts() : ['—'], '4 slices');
+    countDd.el.dataset.testid = 'chop-count';
+    chopRow.appendChild(countDd.el);
+    const wantCount = (): number => parseInt(countDd.value, 10) || 2;
+
+    const layMarks = (next: number[]): void => {
+      marks = next;
+      syncChop?.();
+      redraw();
+    };
+
+    const chopBtn = createButton({
+      label: 'Chop',
+      testId: 'chop-equal',
+      onClick: () => {
+        const cur = working;
+        if (cur) layMarks(sliceEqual(cur, wantCount(), cropStart, cropEnd));
+      },
+    });
+    const detectBtn = createButton({
+      label: 'Detect',
+      testId: 'chop-detect',
+      onClick: () => {
+        const cur = working;
+        if (!cur) return;
+        const found = detectOnsets(cur, {
+          from: cropStart, to: cropEnd, maxSlices: wantCount(),
+        });
+        // Falling back to an equal cut would misrepresent the result as detection.
+        // Say nothing was found and leave the boundaries alone.
+        if (found.length === 0) { lastAction = 'No transients found'; redraw(); return; }
+        layMarks(found);
+      },
+    });
+    const spreadBtn = createButton({
+      label: 'Spread to slots',
+      testId: 'chop-spread',
+      onClick: () => { void spread(); },
+    });
+    chopRow.append(chopBtn, detectBtn, spreadBtn);
+
+    syncChop = (): void => {
+      const fits = fittingCounts();
+      const noRoom = fits.length === 0;
+      countDd.setOptions(noRoom ? ['—'] : fits);
+      const room = SAMPLER_SLOT_COUNT - startSlot();
+      const n = marks.length + 1;
+      // REQ-5 has to survive the picker MOVING, not just the moment of chopping.
+      // Filtering the count list is what stops an over-long chop being made; this
+      // is what stops one being made and then aimed at a slot with less room
+      // behind it. Refuse rather than quietly re-cut: the user chose this many
+      // slices, and silently dropping the tail — or silently merging it into the
+      // last slice — is the same class of defect in a nicer coat.
+      const tooMany = marks.length > 0 && n > room;
+      chopLabel.textContent = noRoom
+        ? `Chop: no room below ${slotTag(startSlot())} — pick an earlier slot.`
+        : tooMany
+          ? `Chop: ${n} slices need ${n} slots — ${slotTag(startSlot())} has room for ${room}.`
+          : marks.length === 0
+            ? 'Chop: cut the selection, then drag any boundary.'
+            : `Chop: ${n} slices → ${slotTag(startSlot())}–${slotTag(startSlot() + n - 1)}`;
+      chopBtn.disabled = busy || noRoom;
+      detectBtn.disabled = busy || noRoom;
+      spreadBtn.disabled = busy || noRoom || tooMany || marks.length === 0;
+    };
+    picker.onChange(() => syncChop?.());
+    syncChop();
+
+    /** The slices' shared stem: the source slot's filename without its extension. */
+    const baseName = (): string =>
+      (engine.patterns.sampleNames[defaultSlot] ?? 'chop').replace(/\.[^.]+$/, '');
+
+    const spread = async (): Promise<void> => {
+      const cur = working;
+      if (!cur || marks.length === 0) return;
+      const start = startSlot();
+      const ranges = sliceRanges(cropStart, cropEnd, marks);
+      const n = ranges.length;
+      // Guarded by `syncChop`, which disables the button rather than let this be
+      // reached. Kept as a hard refuse and NOT as a `Math.min` clamp: clamping
+      // here is what silently dropped the slices that did not fit, and it did it
+      // behind a label that had already promised them.
+      if (n > SAMPLER_SLOT_COUNT - start) return;
+      const targets = Array.from({ length: n }, (_, k) => start + k);
+      const occupied = targets.filter((slot) =>
+        engine.patterns.sampleNames[slot] != null || engine.sampler.buffers[slot] != null);
+      // REQ-6 — it overwrites up to eight slots at once, so it names them first.
+      const ok = await confirmDialog({
+        title: `Spread ${n} slices`,
+        message: `Slices go to ${slotTag(start)}–${slotTag(start + n - 1)}.`,
+        detail: occupied.length
+          ? `This replaces ${occupied.map(slotTag).join(', ')}. You can undo it.`
+          : undefined,
+        confirmLabel: 'Spread',
+        danger: occupied.length > 0,
+      });
+      if (!ok) return;
+
+      // Captured BEFORE the writes, and held only by the toast's closure — the
+      // pattern-undo stack carries steps, never audio, so this mutation owns its
+      // own reversal exactly as `samplerSlotClearRow` does (REQ-6).
+      const base = baseName();
+      const prev = targets.map((slot) => ({
+        slot,
+        buffer: engine.sampler.buffers[slot] ?? null,
+        name: engine.patterns.sampleNames[slot] ?? null,
+      }));
+      targets.forEach((slot, k) => {
+        const [from, to] = ranges[k]!;
+        engine.sampler.setBuffer(slot, capturedToAudioBuffer(engine.ctx, crop(cur, from, to)));
+        engine.patterns.setSampleName(slot, `${base} ${k + 1}/${n}`);
+      });
+      modal.close();
+      showToast({
+        message: `Chopped into ${n} slices`,
+        actionLabel: 'Undo',
+        testId: 'chop-toast',
+        onAction: () => {
+          for (const q of prev) {
+            // Buffer first, then the name: the meta event is what repaints the
+            // row, and it reads `buffers[slot]` for the .needs-reload hint.
+            engine.sampler.setBuffer(q.slot, q.buffer);
+            engine.patterns.setSampleName(q.slot, q.name);
+          }
+        },
+      });
+    };
+
+    body.appendChild(chopRow);
+
+    // Done actions: save/load/close
+    const actions = document.createElement('div');
+    actions.className = recStyles.actions!;
 
     const finalClip = (): CapturedAudio => crop(working!, cropStart, cropEnd);
 

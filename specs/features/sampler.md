@@ -3,7 +3,12 @@
 ```yaml
 id: sampler
 status: implemented
-version: 7   # v7: REQ-11 — a slot ramps up from zero and carries its choke when
+version: 9   # v9: REQ-14/15 — per-slot choke groups and a mono mode, and a
+             #     polyphony cap so a slot can no longer stack without limit
+             # v8: REQ-12/13 — each slot gains a channel (vol/pan/tone/res) and a
+             #     per-hit voice window (pitch/start/end/rev/attack/decay); every
+             #     default reproduces v7 exactly
+             # v7: REQ-11 — a slot ramps up from zero and carries its choke when
              #     a hit is clamped out of the past (drum-machine.md REQ-15/17)
              # v6: the lane's length + step rate come from the meter (REQ-10)
              # v5: the Clear ▾ row item ejects the slot's sample, not just its
@@ -13,6 +18,8 @@ owner: core
 related:
   - architecture
   - drum-machine
+  - onboarding              # REQ-25: the strip's five info badges
+  - sample-chop             # chopping a break across these slots
   - step-settings
   - step-grid-editing
   - banks
@@ -29,6 +36,8 @@ source:
   - src/audio/engine.ts
   - src/ui/panels/sampler-panel.ts
   - src/ui/panels/step-panel-scaffold.ts   # the Clear ▾ row (REQ-9)
+  - src/audio/recorder/audio-buffer.ts     # reverseBuffer (REQ-13)
+  - src/audio/param-utils.ts               # the shared toneCutoff (REQ-12)
 ```
 
 An 8-slot one-shot sampler — structurally a sibling of the
@@ -148,6 +157,112 @@ the song format.
     resolving to 0 and dropping the hit outright. The ramp is anchored at the
     clamped start for the same reason.
 
+- **REQ-12** (v8) — **Each slot has a channel.** Until v8 a slot's only per-slot
+  control was its mute: `slotGains[i]` was created at unity and never written again, so
+  a break the user recorded was the one voice in the instrument that could not be
+  levelled, placed or filtered — while every *synthesised* drum track could
+  ([drum-machine](drum-machine.md) REQ-2). A slot now carries the same shape of channel,
+  downstream of the per-hit gain:
+
+  ```
+  perHitGain → slotIn → slotTone → slotGain → slotPan → samplerBus
+  ```
+
+  - `sampler.t{i}.vol` → `slotGain.gain`; `.pan` → `slotPan.pan`; `.tone` / `.res` →
+    the lowpass `slotTone`'s `frequency` and `Q`. All four are `AudioParam`s written
+    through `rampTo`, so a knob drag never zippers.
+  - `slotIn` is unity and inert today. It exists so REQ-14's group choke has a node to
+    cut that is **upstream of the tone filter** — a cut tail must not go on ringing
+    through a resonant filter — and so adding that later re-wires nothing.
+  - **`vol` defaults to 1, not the drum machine's 0.85.** A default is the
+    compatibility surface ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)):
+    today's slot is unity, so 0.85 would quietly pull every existing song and demo down
+    by ~1.4 dB. Matching the drum machine here would be tidiness bought with the corpus.
+    `sampler.master` (0.85) already supplies the bus-level headroom.
+  - **The panner's input is forced stereo.** At pan 0 a `StereoPannerNode` passes a
+    *stereo* input straight through, but applies equal-power gain to a *mono* one —
+    so a mono clip would arrive 3 dB down, which is exactly the silent re-voicing
+    ADR-006 exists to prevent. `slotGain` therefore declares
+    `channelCount = 2, channelCountMode = 'explicit'`. The up-mix it performs
+    (L = R = input, unity) is what the graph did downstream anyway, so stereo
+    material is untouched and the filter upstream still runs mono for a mono clip.
+  - **What the channel is not is bit-transparent, and that is stated rather than
+    claimed away.** At `tone` 1 / `res` 0 the lowpass sits at 20 kHz with Q 0.7:
+    flat to within ~0.1 dB below 12 kHz, −3 dB at 20 kHz. That is the *same* no-op
+    every drum track has carried since the machine existed
+    ([drum-machine](drum-machine.md) REQ-2), and it is the honest boundary of
+    REQ-13's exact-path guarantee — which is about `play()`'s scheduling, not about
+    the graph. Making it truly transparent would need a per-slot bypass
+    ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)) — eight more
+    wrappers, and a rewire that can land mid-hit — for a hair of air at the very
+    top. Not worth it; revisit only if a listening test says otherwise.
+
+- **REQ-13** (v8) — **A hit plays a *window* of a slot's buffer.** Six per-slot values
+  are read by `play()` at trigger time rather than living on an `AudioParam`, because
+  each shapes an individual hit: `pitch`, `start`, `end`, `rev`, `attack`, `decay`.
+  - `pitch` is semitones, applied as `playbackRate = 2 ** (pitch/12)` — varispeed, so a
+    pitched hit also changes length. It is per **slot**, not per step. Automating
+    `sampler.t{i}.pitch` from the [motion sequencer](motion-sequencer.md) is *not* a
+    substitute for a step field: motion writes on animation frames while hits are
+    scheduled up to `SCHEDULE_AHEAD_S` ahead, so the value read when a hit is scheduled
+    is not the value showing when it sounds.
+  - `start` / `end` are fractions of the buffer, clamped so `end ≥ start + MIN_WINDOW`.
+    A crossed pair clamps — it never drops the hit silently, which is the same choice
+    REQ-11 made for a choke that resolved to 0.
+  - `rev` plays a **cached reversed copy** of the buffer, built on the first reversed
+    hit and dropped by `setBuffer` — REQ-6 is the one convergence point, so no caller
+    has to know the cache exists. The window stays stated in *forward* coordinates and
+    is mapped onto the copy (`offset = duration − endSec`), so the numbers keep meaning
+    what the waveform shows. The copy is **kept** when `rev` goes back off
+    ([ADR-018](../decisions/adr-018-audio-graph-memory-is-committed-not-reclaimed.md)):
+    re-reversing on a live toggle would stall the main thread mid-song.
+  - `attack` resolves to `max(attack, SAMPLER_ATTACK)`. REQ-11's 0.5 ms floor is not a
+    default to be overridden downward — it is what stops user audio clicking, and a
+    0 ms attack would reintroduce exactly the bug REQ-11 fixed.
+  - The hit is cut at the **earliest** of three reasons: the window's end, the decay's
+    end (`attack + decay`, when `decay > 0`), and the per-step gate's `chokeAt`. One
+    cut path, reusing REQ-8's `CHOKE_FADE`/`CHOKE_STOP` fade, so a shortened hit never
+    clicks whichever reason shortened it.
+  - **At its defaults the path is the v7 path.** With
+    `pitch 0 · start 0 · end 1 · fwd · attack 0 · decay 0` `play()` writes no
+    `playbackRate`, passes no offset and schedules no stop. ADR-006 is usually a claim
+    about a value; here it is a claim about a *code path*, which is the only form of it
+    a test can actually pin — and one does, below.
+
+
+- **REQ-14** (v9) — **A slot can cut another slot, or itself.**
+  `sampler.t{i}.choke` puts a slot in one of four groups; two slots sharing a
+  group cut each other, which is how an open hat stops when the closed one
+  lands. `sampler.t{i}.poly` set to `mono` makes a slot cut its own previous
+  hit, which is how an 808 slide behaves. Both default to the behaviour the
+  machine already had (no group, poly), so no existing song changes.
+
+  Deliberately unlike the drum machine's: `drum.choke` is one machine-wide switch
+  keyed on **voice model** ([drum-machine](drum-machine.md) REQ-12), because any
+  drum track can hold any voice and the closed/open hat pair is discoverable from
+  the model alone. A slot holds arbitrary audio, so nothing can be inferred and
+  the group has to be stated. The asymmetry is deliberate, not an oversight.
+
+  **The cut is scheduled at the new hit's time, not at `currentTime`.** Hits are
+  scheduled up to `SCHEDULE_AHEAD_S` ahead, so cutting at "now" would silence the
+  old hit up to 100 ms before the new one arrives — an audible hole exactly where
+  the choke is supposed to be seamless. `stopAll` (REQ-8) *does* cut at
+  `currentTime`, because a transport stop genuinely is now; the two must not be
+  made to share an implementation on the strength of looking alike.
+
+  Reaching a hit's gain mid-envelope needs the value it will have at the cut, and
+  `cancelAndHoldAtTime` is not available everywhere this app runs. Each in-flight
+  hit therefore carries the shape it was scheduled with (`t0`, `atk`, `vel`, and
+  the decay if any) and the value is computed. It is exact — the envelope is
+  straight lines — and it needs nothing of the platform.
+
+- **REQ-15** (v9) — **A slot's polyphony is bounded.** Every hit used to allocate
+  a source with nothing ever capping the total: a fast ratchet on a long sample
+  stacks without limit, and each layer adds gain. `MAX_SLOT_VOICES` caps the
+  in-flight hits per slot, stealing the oldest first — the one nearest its end,
+  and the one a listener is least likely to be following. The cap is set high
+  enough that ordinary playing never reaches it: this is a guard rail, not a
+  voicing decision, and a player who hears it working has already lost.
 
 ## Technical design
 
@@ -159,7 +274,15 @@ SamplerMachine:  # src/audio/transport/sampler-machine.ts
   setEnabled(on)
   setBuffer(slot, buf | null)
   setSlotMute(slot, muted)
-  triggerSlot(slot, velocity?)     # manual audition
+  # v8 REQ-12 — ramped AudioParams on the slot's channel
+  setSlotVol(slot, v) / setSlotPan(slot, v) / setSlotTone(slot, v) / setSlotRes(slot, v)
+  # v8 REQ-13 — plain fields, read by play() at trigger time
+  setSlotPitch(slot, semitones) / setSlotStart(slot, f) / setSlotEnd(slot, f)
+  setSlotRev(slot, on) / setSlotAttack(slot, s) / setSlotDecay(slot, s)
+  # v9 REQ-14 — 0 = no group; mono cuts the slot's own previous hit
+  setSlotChokeGroup(slot, group) / setSlotMono(slot, on)
+  triggerSlot(slot, velocity?)     # manual audition — same play(), so it reproduces
+                                   # a voice bug with the transport stopped
   onStep(fn) -> unsubscribe
   onBufferChange(fn) -> unsubscribe   # slot's buffer replaced/cleared
   stopAll()                        # v4, REQ-8: fade + stop every in-flight hit
@@ -181,7 +304,22 @@ samplerSlotClearRow(engine, undo, slot): ClearRow   # v5, REQ-9
 sampler.on:     { discrete, labels: [off, on], default: 0 }
 sampler.master: { range: 0..1, default: 0.85 }
 sampler.mute / sampler.solo:  # lane mixer (song-mode)
-sampler.t{i}.mute: { discrete, labels: [on, mute], default: 0 }   # per slot 0..7
+sampler.t{i}.mute:   { discrete, labels: [on, mute], default: 0 }   # per slot 0..7
+# v8 — the per-slot channel (REQ-12) and voice window (REQ-13). Every default
+# reproduces v7 exactly; see REQ-12 on why vol is 1 and not the drum machine's 0.85.
+sampler.t{i}.vol:    { range: 0..1,    default: 1 }
+sampler.t{i}.pan:    { range: -1..1,   default: 0 }
+sampler.t{i}.tone:   { range: 0..1,    default: 1 }    # 1 = open (20 kHz)
+sampler.t{i}.res:    { range: 0..1,    default: 0 }    # 0 = Q 0.7
+sampler.t{i}.pitch:  { range: -24..24, default: 0, step: 1, unit: st }
+sampler.t{i}.start:  { range: 0..1,    default: 0 }    # fraction of the buffer
+sampler.t{i}.end:    { range: 0..1,    default: 1 }
+sampler.t{i}.rev:    { discrete, labels: [fwd, rev], default: 0 }
+sampler.t{i}.attack: { range: 0..0.5,  default: 0 }    # s, floored at SAMPLER_ATTACK
+sampler.t{i}.decay:  { range: 0..4,    default: 0 }    # s, 0 = off (natural length)
+# v9 — REQ-14. Both default to what the machine already did.
+sampler.t{i}.choke:  { discrete, labels: [off, 1, 2, 3, 4], default: 0 }
+sampler.t{i}.poly:   { discrete, labels: [poly, mono], default: 0 }
 store:
   PatternStore.samplerBanks: SamplerStep[bank][slot][step]   # 4 × 8 × 16
   PatternStore.sampleNames:  (string | null)[8]              # in the song; buffers are NOT
@@ -194,9 +332,19 @@ store:
 engine (subscribeParams):
   sampler.on -> setEnabled; sampler.master -> laneMixer.setSamplerVol
   sampler.t{i}.mute -> sampler.setSlotMute(i, ...)
-graph: slotGain -> samplerBus (+ sampler dist/phaser/delay/reverb) -> preMaster
+  sampler.t{i}.{vol,pan,tone,res,pitch,start,end,rev,attack,decay} -> the v8 setters
+  sampler.t{i}.{choke,poly} -> setSlotChokeGroup / setSlotMono (v9)
+graph: perHitGain -> slotIn -> slotTone -> slotGain -> slotPan -> samplerBus
+       (+ sampler dist/phaser/delay/reverb/duck) -> preMaster
 ui: src/ui/panels/sampler-panel.ts
   sampler-step-<slot>-<s> grid; sampler-load/name/edit/file-<slot>; per-slot mute
+  v8: a selected-slot strip below the grid, mirroring the drum panel's tuning strip
+  (drum-panel.ts) — it rebinds on a row change, so it never widens the 210px row
+  controls. Knobs PITCH START END ATK DECAY TONE RES PAN VOL, a REV switch and
+  sampler-slot-reset. Knob/Switch testids derive from the paramId (testids.md).
+  Each control that earns an explanation sits in a persistent `data-help` cell
+  the strip never replaces, so the five info badges anchored there survive a slot
+  change ([onboarding](onboarding.md) REQ-25).
   Load decode failure reports via the custom alertDialog (see dialog.md), not alert()
 ```
 
@@ -280,6 +428,101 @@ Scenario: Clear bank leaves the filenames alone (v5, REQ-9, edge)
     slot shared by the other three banks
 # pinned by: tests/ui/clear-menu-sampler.test.ts
 
+Scenario: A slot at its defaults takes the pre-v8 code path (v8, REQ-13, regression)
+  Given every sampler.t0.* param is at its default
+  When slot 0 fires
+  Then play() writes no playbackRate, passes no start offset and schedules no stop
+  And the scheduling is exactly v7's — the channel's own no-op cost is REQ-12's
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: Pitch is varispeed (v8, REQ-13)
+  Given sampler.t0.pitch is -12
+  When slot 0 fires
+  Then playbackRate is 0.5, so the hit sounds an octave down and lasts twice as long
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A trimmed window starts and ends where it says (v8, REQ-13)
+  Given start 0.25 and end 0.5 on a 2 s buffer
+  When slot 0 fires at time t
+  Then the source starts at offset 0.5 s and is faded out 0.5 s after t
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: Reverse keeps the window in forward coordinates (v8, REQ-13, edge)
+  Given start 0 and end 0.25 on a 2 s buffer, with rev on
+  When slot 0 fires
+  Then the cached reversed buffer plays from offset 1.5 s for 0.5 s — the same
+    half-second the forward window names, backwards
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: Replacing a slot's buffer drops its reversed copy (v8, REQ-13, edge)
+  Given slot 0 has played reversed, so a reversed copy is cached
+  When setBuffer(0, other) runs
+  Then the cache is dropped, and the next reversed hit reverses the NEW buffer
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: The shortest reason wins (v8, REQ-13, edge)
+  Given a 2 s decay, a 1 s window and a step gate that chokes 0.3 s in
+  When slot 0 fires
+  Then the hit is cut once, at 0.3 s — not three times, and not at the longest
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A crossed window clamps rather than dropping the hit (v8, REQ-13, edge)
+  Given end is set below start
+  When slot 0 fires
+  Then the window clamps to MIN_WINDOW and the hit still sounds
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A mono sample is not quietened by the pan stage (v8, REQ-12, regression)
+  Given a mono buffer in slot 0 and pan at its centre default
+  When it plays
+  Then the slot's volume stage declares an explicit stereo output, so the panner
+    passes it through rather than applying equal-power gain and losing 3 dB
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A slot's volume default does not re-voice existing songs (v8, REQ-12, regression)
+  Given a song written before v8, carrying no sampler.t*.vol
+  When it is loaded
+  Then every slot gain resolves to 1 — the unity the slot has always had, not 0.85
+# pinned by: tests/state/params.test.ts
+
+Scenario: A closed hat cuts the open hat sharing its group (v9, REQ-14)
+  Given slots 0 and 1 are both in choke group 1, and slot 1 is sounding
+  When slot 0 fires
+  Then slot 1's hit is faded out and stopped
+  And slot 0 sounds normally
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: The cut is scheduled at the new hit, not at "now" (v9, REQ-14, regression)
+  Given a hit is scheduled 80 ms ahead of the audio clock
+  When it chokes a sounding slot
+  Then the fade is scheduled at the new hit's time, not at currentTime —
+    cutting at "now" would open a hole up to a look-ahead wide
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A slot in a group does not cut slots outside it (v9, REQ-14, edge)
+  Given slot 0 is in group 1 and slot 2 is in no group
+  When slot 0 fires while slot 2 is sounding
+  Then slot 2 keeps playing
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A mono slot cuts its own previous hit (v9, REQ-14)
+  Given slot 0 is mono and is already sounding
+  When slot 0 fires again
+  Then the earlier hit is cut and only the new one continues
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A poly slot still layers (v9, REQ-14, regression)
+  Given slot 0 is at its defaults
+  When it fires twice in quick succession
+  Then both hits sound — the pre-v9 behaviour is the default
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
+Scenario: A slot cannot stack without limit (v9, REQ-15)
+  Given a slot has MAX_SLOT_VOICES hits in flight
+  When it fires again
+  Then the oldest hit is stolen rather than the total growing
+# pinned by: tests/audio/transport/sampler-machine.test.ts
+
 Scenario: Filling a slot notifies exactly once
   Given a listener registered via onBufferChange
   When setBuffer(3, buf) runs
@@ -297,5 +540,20 @@ Scenario: Filling a slot notifies exactly once
 
 ## Open questions / future
 
-- Per-slot pitch/start-offset would extend `SamplerStep`/the slot params; keep new
-  fields optional for [song](song-mode.md) backward-compat.
+- **Per-*step* pitch / slice (p-locks)** — v8 put pitch and the window on the *slot*
+  (REQ-13). Per-step versions need a field on `SamplerStep`, which today is exactly
+  `TriggerCell`; splitting the two types costs `serialize.ts`, `song-validate.ts` and
+  `song-author.ts` a sampler-only branch each. Keep any such field optional and no-op
+  for [song](song-mode.md) backward-compat.
+- **Loop mode / bar-synced varispeed** — `bindTempoLocked` + `TEMPO_LOCKS`
+  ([tempo-lock](tempo-lock.md)) would make the sync half nearly free. True
+  time-stretch stays out: it needs a granular engine
+  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) and no dependency is
+  available to supply one ([ADR-003](../decisions/adr-003-no-runtime-dependencies.md)).
+- **Per-slot drive** — deliberately not added with the rest of REQ-12's channel: the
+  sampler bus already has a distortion, and eight waveshapers is a real idle cost
+  ([runtime-performance](runtime-performance.md)) for a duplicate capability.
+- **Playing a slot by hand** — the only manual trigger is clicking the slot's name, at
+  a fixed velocity of 0.9. Pads (QWERTY / MIDI, velocity-sensitive) would make the
+  machine playable rather than only programmable; `src/audio/midi.ts` currently routes
+  note-on to the synth alone.

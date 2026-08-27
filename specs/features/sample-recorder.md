@@ -9,6 +9,7 @@ owner: core
 related:
   - architecture
   - sampler
+  - sample-chop            # the chop row this modal hosts
   - audio-export
 source:
   - src/ui/components/record-sound-modal.ts
@@ -39,6 +40,13 @@ modal says so.
   `destination` (so the zero-output sink stays pulled).
 - **REQ-2** — Edit in `CapturedAudio` space: crop / reverse / normalize / gain /
   fade in-out, plus filter / octave via `OfflineAudioContext`.
+- **REQ-2a** — The same modal hosts the **chop row** ([sample-chop](sample-chop.md)):
+  cut the current selection into slices, drag the boundaries on the waveform this
+  spec already draws, and spread them across the sampler's slots. It lives here
+  rather than on the panel because the waveform, the selection handles and the
+  preview it needs are all REQ-2's, and duplicating them elsewhere is the thing
+  that would drift.
+
 - **REQ-3** — Save the result (reusing [encode.ts](audio-export.md)) or load it
   into a sampler slot.
 - **REQ-4** — A loaded slot exposes a ✎ button that reopens its buffer in the same
