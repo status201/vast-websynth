@@ -19,6 +19,22 @@
 //   --velocity <0..1>  note velocity in note mode                    [default 0.9]
 //                      Needed to hear anything velocity-sensitive — `filter.velAmount`
 //                      only differs BETWEEN velocities (envelopes.md REQ-5).
+//
+// Hearing the SAMPLER needs one of two flags, because they answer two questions.
+// A *song* carries only its slots' filenames (sampler.md REQ-4) — but a *project
+// zip* carries the audio too (project-export.md), and shipped zip demos exist.
+//
+//   --project <path>   import a .websynth.zip and render a song pass. The whole
+//                      arrangement, slots filled — "does the song sound right?".
+//                      Goes through the app's own Import, so a take is what a
+//                      user gets. Composes with --runs / --tail-bar / --set.
+//   --sample <path>    load one WAV/MP3 into a slot and trigger it by hand with
+//                      the transport stopped — "is play() right?". Isolates the
+//                      voice from the scheduler, which is how a per-hit bug is
+//                      cornered before anything is measured.
+//   --slot <n>         which sampler slot --sample fills                [default 0]
+//   --hits <n>         how many times --sample triggers the slot        [default 4]
+//   --gap <s>          seconds between those hits                       [default 1]
 //   --demo <name>      load a demo song and render one full pass instead
 //   --runs <n>         passes to render in --demo mode (1..10)        [default 1]
 //   --tail-bar         hold the capture open a whole bar after the last step,
@@ -44,7 +60,7 @@
 // See specs/recipes/verify-audio-by-ear.md.
 
 import { spawn } from 'node:child_process';
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -69,6 +85,11 @@ const opts = {
   // renders the same file. Clamped, since it goes straight to bus.noteOn.
   velocity: Math.max(0, Math.min(1, Number(flag('velocity', 0.9)))),
   demo: flag('demo'),
+  project: flag('project'),
+  sample: flag('sample'),
+  slot: Math.max(0, Math.min(7, Number(flag('slot', 0)))),
+  hits: Math.max(1, Number(flag('hits', 4))),
+  gap: Math.max(0.05, Number(flag('gap', 1))),
   url: flag('url'),
   format: flag('format', 'wav'),
   headed: argv.includes('--headed'),
@@ -86,6 +107,33 @@ const opts = {
 if (!opts.name) {
   console.error('audio-bench: --name is required (output goes to bench/<name>.wav)');
   process.exit(1);
+}
+
+/**
+ * Wait for a project's clips to finish landing in their slots.
+ *
+ * `applyProjectBundle` applies the song first and then decodes the clips
+ * **sequentially** (8 x multi-MB WAVs, project-export.md REQ-8), so the song is
+ * live well before the sampler is. A fixed timeout either races the decodes or
+ * pads every take; polling the slots settles as soon as they do and gives the
+ * caller the count to report.
+ */
+async function waitForClips(page, deadlineMs = 30_000) {
+  const filled = () => page.evaluate(
+    () => window.__synth.engine.sampler.buffers.filter(Boolean).length,
+  );
+  const until = Date.now() + deadlineMs;
+  let last = await filled();
+  let stableSince = Date.now();
+  while (Date.now() < until) {
+    await page.waitForTimeout(250);
+    const now = await filled();
+    if (now !== last) { last = now; stableSince = Date.now(); continue; }
+    // Settled: the count stopped moving. 1 s of quiet is many decodes' worth of
+    // margin, and a song with no clips at all falls straight through it.
+    if (Date.now() - stableSince > 1000) break;
+  }
+  return last;
 }
 
 /** "A2" / "C#3" / "45" → MIDI number. C4 = 60, matching the repo convention. */
@@ -181,6 +229,19 @@ try {
   await start.click();
   await start.waitFor({ state: 'hidden' });
 
+  if (opts.project) {
+    // The app's OWN import path (song-panel's file input accepts .json and .zip),
+    // so the song is applied and every clip decoded into its slot exactly as it
+    // is for a user — no second loader here to drift from the shipped one.
+    await page.getByTestId('tab-song').click();
+    await page.getByTestId('song-import-file').setInputFiles(opts.project);
+    const n = await waitForClips(page);
+    console.log(`audio-bench: imported ${opts.project} — ${n} slot${n === 1 ? '' : 's'} filled`);
+    if (n === 0) {
+      console.warn('audio-bench: WARNING no clips landed — the sampler lane will be silent.');
+    }
+  }
+
   if (opts.demo) {
     // The demo buttons live on the Song tab, and only the first few are inline —
     // the rest sit behind "All Demos" (song-mode.md REQ-10).
@@ -192,6 +253,29 @@ try {
     if (!(await btn.isVisible())) await page.getByTestId('song-demo-more').click();
     await btn.click();
     await page.waitForTimeout(800); // the fetched demos resolve async
+    // A ZIP demo (project-export.md) carries sampler clips and decodes them
+    // sequentially after the song applies, exactly as --project does — so the
+    // flat wait above is not enough for one. Settling on the slots costs a JSON
+    // demo nothing: with no clips the count never moves.
+    const demoClips = await waitForClips(page, 20_000);
+    if (demoClips > 0) {
+      console.log(`audio-bench: demo carries ${demoClips} sampler clip${demoClips === 1 ? '' : 's'}`);
+    }
+  }
+
+  if (opts.sample) {
+    // Decode in the page, through the app's own AudioContext, and hand the buffer
+    // to the one entry point every slot-filling path already uses (sampler.md
+    // REQ-6) — so persistence and the UI react exactly as they do for a Load.
+    const bytes = readFileSync(opts.sample).toString('base64');
+    await page.evaluate(async (a) => {
+      const synth = window.__synth;
+      const raw = Uint8Array.from(atob(a.bytes), (c) => c.charCodeAt(0));
+      const buf = await synth.engine.ctx.decodeAudioData(raw.buffer);
+      synth.engine.sampler.setBuffer(a.slot, buf);
+      synth.bus.set('sampler.on', 1);
+    }, { bytes, slot: opts.slot });
+    console.log(`audio-bench: loaded ${opts.sample} into slot ${opts.slot}`);
   }
 
   // Param writes go through the bus, exactly as the UI does.
@@ -207,7 +291,7 @@ try {
 
   const download = page.waitForEvent('download', { timeout: 180_000 });
 
-  if (opts.demo) {
+  if (opts.demo || opts.project) {
     // One full pass of the longest enabled chain, then auto-stop — deterministic
     // and directly comparable between takes.
     console.log(
@@ -218,6 +302,27 @@ try {
       (a) => window.__synth.engine.recorder.exportSong(a.format, { runs: a.runs, tailBar: a.tailBar }),
       { format: opts.format, runs: opts.runs, tailBar: opts.tailBar },
     );
+  } else if (opts.sample) {
+    // Trigger the slot by hand, with the transport stopped. That isolates the
+    // VOICE from the scheduler: if a take sounds wrong here, the bug is in
+    // `play()`, not in the tick that would have called it.
+    console.log(`audio-bench: ${opts.hits} hit${opts.hits === 1 ? '' : 's'} on slot ${opts.slot}, ${opts.gap}s apart…`);
+    await page.evaluate(() => window.__synth.engine.recorder.startManual());
+    for (let i = 0; i < opts.hits; i++) {
+      await page.evaluate(
+        (a) => window.__synth.engine.sampler.triggerSlot(a.slot, a.velocity),
+        { slot: opts.slot, velocity: opts.velocity },
+      );
+      await page.waitForTimeout(opts.gap * 1000);
+    }
+    await page.waitForTimeout(1000); // let the last hit and any FX tail through
+    await page.evaluate(async (f) => {
+      const rec = window.__synth.engine.recorder;
+      // stopManual awaits the worklet's final batch and only THEN parks the take
+      // in `review` — saveTake is a no-op until it has (audio-export.md REQ-4).
+      await rec.stopManual();
+      return rec.saveTake(f);
+    }, opts.format);
   } else {
     console.log(`audio-bench: holding ${notes.join(', ')} at vel ${opts.velocity} for ${opts.seconds}s…`);
     await page.evaluate((a) => {
@@ -246,9 +351,9 @@ try {
     await page.waitForTimeout(1000);
     // Stop parks the take in `review` and writes nothing — saving is the
     // separate, explicit step now (audio-export.md REQ-4).
-    await page.evaluate((f) => {
+    await page.evaluate(async (f) => {
       const rec = window.__synth.engine.recorder;
-      rec.stopManual();
+      await rec.stopManual();
       return rec.saveTake(f);
     }, opts.format);
   }

@@ -4,7 +4,7 @@ import type { PatternStore } from '../../state/patterns';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 import { LaneMeter } from './lane-meter';
 import { Kick, Snare, HiHat, Tom, Clap, Conga, Bongo, Cowbell, Clave, Shaker, makeNoiseBuffer, type DrumSynth } from '../drums/drum-synths';
-import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import { rampTo, RAMP_MEDIUM, toneCutoff } from '../param-utils';
 import { memoizeDriveCurve } from '../drive-curve';
 import { chokeAt, forEachActiveHit } from './step-hits';
 import type { TickSubscriber } from './tick-source';
@@ -355,9 +355,3 @@ function buildDriveCurve(amount: number, samples = 1024): Float32Array<ArrayBuff
 
 const driveCurve = memoizeDriveCurve((amount) => buildDriveCurve(amount));
 
-/** Map a `tone` knob (0..1) to a lowpass cutoff in Hz; 1 = open (~no-op). */
-function toneCutoff(tone: number): number {
-  const min = 300, max = 20000;
-  const t = tone < 0 ? 0 : tone > 1 ? 1 : tone;
-  return min * Math.pow(max / min, t);
-}

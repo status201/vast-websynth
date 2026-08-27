@@ -26,7 +26,7 @@ import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
 import { BankRenderController } from './recorder/bank-render';
-import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT } from '../state/patterns';
+import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SAMPLER_SLOT_COUNT } from '../state/patterns';
 import { barTicks } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
@@ -1154,9 +1154,24 @@ export class Engine {
     // ----- Sampler -----
     bus.subscribe('sampler.on', (v) => this.sampler.setEnabled(v >= 0.5));
     bus.subscribe('sampler.master', (v) => this.laneMixer.setSamplerVol(v));
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
+      // The per-slot channel (sampler.md REQ-12) …
+      bus.subscribe(`sampler.t${i}.vol`, (v) => this.sampler.setSlotVol(slot, v));
+      bus.subscribe(`sampler.t${i}.pan`, (v) => this.sampler.setSlotPan(slot, v));
+      bus.subscribe(`sampler.t${i}.tone`, (v) => this.sampler.setSlotTone(slot, v));
+      bus.subscribe(`sampler.t${i}.res`, (v) => this.sampler.setSlotRes(slot, v));
+      // … and its voice window (REQ-13).
+      bus.subscribe(`sampler.t${i}.pitch`, (v) => this.sampler.setSlotPitch(slot, v));
+      bus.subscribe(`sampler.t${i}.start`, (v) => this.sampler.setSlotStart(slot, v));
+      bus.subscribe(`sampler.t${i}.end`, (v) => this.sampler.setSlotEnd(slot, v));
+      bus.subscribe(`sampler.t${i}.rev`, (v) => this.sampler.setSlotRev(slot, v >= 0.5));
+      bus.subscribe(`sampler.t${i}.attack`, (v) => this.sampler.setSlotAttack(slot, v));
+      bus.subscribe(`sampler.t${i}.decay`, (v) => this.sampler.setSlotDecay(slot, v));
+      // Choke group + mono (REQ-14).
+      bus.subscribe(`sampler.t${i}.choke`, (v) => this.sampler.setSlotChokeGroup(slot, v));
+      bus.subscribe(`sampler.t${i}.poly`, (v) => this.sampler.setSlotMono(slot, v >= 0.5));
     }
 
     // ----- Motion sequencer -----

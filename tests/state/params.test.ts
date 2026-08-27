@@ -357,3 +357,49 @@ describe('ParamBus', () => {
     expect(bus.def('lfo.rate')!.max).toBe(20);
   });
 });
+
+/**
+ * sampler.md REQ-12, regression.
+ *
+ * The per-slot channel was added by copying `drumTrackParams()`, where `vol`
+ * defaults to 0.85. A sampler slot has always been unity, so inheriting 0.85 with
+ * the rest of the shape would have pulled every existing song and demo down by
+ * ~1.4 dB — silently, and only audible next to a copy of the old build. A default
+ * is the compatibility surface (ADR-006); this is the one that was easiest to get
+ * wrong, so it is pinned rather than trusted.
+ */
+describe('the sampler slot family defaults to a no-op (REQ-12/REQ-13)', () => {
+  const NO_OP: Record<string, number> = {
+    vol: 1, // NOT the drum machine's 0.85
+    pan: 0,
+    tone: 1, // open
+    res: 0, // flat
+    pitch: 0,
+    start: 0,
+    end: 1, // the whole buffer
+    rev: 0, // forwards
+    attack: 0, // floored at SAMPLER_ATTACK by the machine
+    decay: 0, // off — natural length
+    mute: 0,
+  };
+
+  it('registers every slot at the value a pre-v8 slot already had', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    for (let i = 0; i < 8; i++) {
+      for (const [suffix, expected] of Object.entries(NO_OP)) {
+        const id = `sampler.t${i}.${suffix}`;
+        expect(bus.def(id), `${id} is not registered`).toBeDefined();
+        expect(bus.get(id), `${id} default`).toBe(expected);
+      }
+    }
+  });
+
+  it('leaves a song written before the family loading unchanged', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    bus.restore({ 'sampler.master': 0.9 }); // a song that names no slot params
+    expect(bus.get('sampler.t0.vol')).toBe(1);
+    expect(bus.get('sampler.t7.end')).toBe(1);
+  });
+});

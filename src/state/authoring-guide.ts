@@ -213,6 +213,14 @@ NOTES
 - Each drum track's VOICE is swappable via "drum.t{i}.model" (see its value map in PARAMS): models 8-12
   (Conga/Bongo/Cowbell/Clave/Shaker) turn tracks into a percussion section — great for latin/afro grooves.
   The track keys (kick/snare/chat/...) still address the same slots whatever voice is selected.
+- Each SAMPLER slot is a voice too, via "sampler.t{i}.*": "pitch" (semitones, varispeed — it changes the
+  hit's LENGTH as well as its note), "start"/"end" (0..1 of the file, to trim what plays), "rev",
+  "attack"/"decay" ("decay": 0 means play to the natural end), "tone"/"res" (a per-slot low-pass),
+  "pan", "vol". All default to a no-op, so a slot you say nothing about sounds exactly as before.
+  "sampler.t{i}.choke" 1-4 puts slots in a group that cut each other (closed hat silencing an open one),
+  and "sampler.t{i}.poly": 1 makes a slot cut its OWN previous hit instead of layering.
+  Remember the audio itself never travels in a song — only "sampleNames" — so these are staging for
+  whatever the player loads into those slots.
 - A song is a STAGE SETUP for a player, not only a description of what sounds by itself. It is correct
   and often deliberate to set a param that makes no sound on playback: "arp.on": 1 arms the arpeggiator
   for whoever holds a key over the running song (the arp follows the keyboard/MIDI, never the sequencer),

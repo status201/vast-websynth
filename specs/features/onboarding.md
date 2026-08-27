@@ -3,7 +3,9 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 25  # v25: the help door never fails silently — the About body is warmed
+version: 26  # v26: five badges on the Sampler's selected-slot strip, anchored to
+             #      cells that outlive a slot change (REQ-25)
+             # v25: the help door never fails silently — the About body is warmed
              #      on idle so it opens offline, and a rejected import says so
              #      with a retry instead of doing nothing (REQ-24)
              # v24: a meter topic + badge on the header picker (REQ-23)
@@ -62,6 +64,7 @@ related:
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/info-badges.ts
+  - src/ui/panels/sampler-panel.ts      # the REQ-25 badge cells
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/help-widgets.ts
   - src/ui/onboarding/index.ts            # the synchronous facade (contract below)
@@ -540,6 +543,30 @@ thing.
   cached *rejection* is permanent: every later attempt reuses it, so the tour
   stays dead even after the network returns. The catch clears `pending` before
   rethrowing, making Retry — and any subsequent click — a real retry.
+
+
+- **REQ-25** (v26) — **The Sampler's selected-slot strip carries five badges**:
+  `sampler.pitch`, `sampler.window` (START, speaking for END and REV),
+  `sampler.env` (DECAY, for ATK), `sampler.tone` (TONE, for RES) and
+  `sampler.choke` (CHOKE, for MONO). Between them they cover the controls a
+  player cannot guess — pitch that changes a hit's *length*, a trim that stays in
+  forward coordinates when reversed, a decay whose 0 means "play to the end", and
+  a choke *group*, which is a concept with no label ([sampler](sampler.md)
+  REQ-12/REQ-13/REQ-14). PAN and VOL get none: they say what they are.
+
+  **They anchor to `data-help` cells, never to the knobs' own testids**, and that
+  is the requirement rather than an implementation note. A `Knob` binds its
+  paramId at construction, so the strip *rebuilds every control* when the grid
+  cursor moves to another slot; `enable()` resolves each anchor once and keeps
+  the `Element`, so a badge pinned to `knob-sampler.t0.pitch` would be holding a
+  detached node the moment the user selected slot 3 — measuring 0×0 and hiding
+  itself on the next reflow. Nothing throws and nothing logs; the help just
+  stops being there. `sampler-panel.ts` therefore builds one persistent cell per
+  control and swaps only its contents.
+
+  The failure is invisible until something forces a re-measure, so the e2e that
+  pins it **resizes the viewport after the slot change** — asserting visibility
+  without that passes with the bug present.
 
 ## Technical design
 

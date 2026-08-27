@@ -5,6 +5,8 @@ import type { UiBridge } from '../ui-bridge';
 import { createUndoButton } from '../components/undo-button';
 import { Switch } from '../components/switch';
 import { Knob } from '../components/knob';
+import { createButton } from '../components/button';
+import { ParamDropdown } from '../components/param-dropdown';
 import { fxGroup } from '../components/fx-group';
 import { StepButton } from '../components/step-button';
 import {
@@ -147,6 +149,7 @@ export function buildSamplerPanel(
   // Selection cursor for the per-step edit row (one cell across the grid).
   const cursor = new GridCursor(stepBtns, () => {
     renderSelected();
+    renderSlotStrip();
     editor.refresh();
   });
   const setSelected = (sl: number, st: number): void => cursor.set(sl, st);
@@ -266,6 +269,123 @@ export function buildSamplerPanel(
     heldClass: StepButton.heldClass,
   });
 
+  // ---- Selected-slot strip (sound design for the selected slot) ----
+  // The drum panel's tuning strip, applied to a sampler slot (sampler.md REQ-12/13):
+  // one shared row driven by the selection cursor. Per-row knobs were the obvious
+  // alternative and are the wrong one — the row controls are 210px wide and would
+  // have to hold nine knobs and a switch, eight times over.
+  // `help` pins an info badge to this control's CELL (onboarding.md REQ-25). Only
+  // the controls a player cannot guess carry one, and each covers its neighbours:
+  // START speaks for END, DECAY for ATK, TONE for RES.
+  const SLOT_PARAMS: { suffix: string; label: string; help?: string }[] = [
+    { suffix: 'pitch', label: 'PITCH', help: 'sampler.pitch' },
+    { suffix: 'start', label: 'START', help: 'sampler.window' },
+    { suffix: 'end', label: 'END' },
+    { suffix: 'attack', label: 'ATK' },
+    { suffix: 'decay', label: 'DECAY', help: 'sampler.env' },
+    { suffix: 'tone', label: 'TONE', help: 'sampler.tone' },
+    { suffix: 'res', label: 'RES' },
+    { suffix: 'pan', label: 'PAN' },
+    { suffix: 'vol', label: 'VOL' },
+  ];
+  const CHOKE_LABELS = ['off', '1', '2', '3', '4'];
+  const slotName = (slot: number): string =>
+    engine.patterns.sampleNames[slot] ?? SAMPLER_SLOT_LABELS[slot] ?? `S${slot + 1}`;
+
+  const strip = document.createElement('div');
+  strip.className = drumStyles.tuning!;
+  const stripLabel = document.createElement('div');
+  stripLabel.className = editStyles.selectedLabel!;
+  const stripKnobs = document.createElement('div');
+  stripKnobs.className = samplerStyles.slotKnobs!;
+  let stripCells: Knob[] = [];
+  let stripRev: Switch | null = null;
+  let stripMono: Switch | null = null;
+  let stripChoke: ParamDropdown | null = null;
+  let stripSlot = -1;
+
+  /**
+   * One persistent cell per control, built ONCE and never replaced.
+   *
+   * The controls inside are rebuilt on every slot change — a `Knob` binds its
+   * paramId at construction — but the cells are not, and that is the whole point:
+   * `InfoBadges` resolves each anchor when the badges are switched on and then
+   * *keeps the element*. A badge pinned to `knob-sampler.t0.pitch` would be
+   * holding a detached node the moment the cursor moved to another slot, measure
+   * 0x0, and silently vanish (onboarding.md REQ-25).
+   */
+  const cellFor = (help?: string): HTMLElement => {
+    const cell = document.createElement('div');
+    cell.className = samplerStyles.slotCell!;
+    if (help) cell.dataset.help = help;
+    stripKnobs.appendChild(cell);
+    return cell;
+  };
+  const knobCells = SLOT_PARAMS.map((p) => cellFor(p.help));
+  const revCell = cellFor();
+  const monoCell = cellFor();
+  const chokeCell = cellFor();
+  // A dropdown, not a knob: a choke group is a name, not a quantity, and a knob
+  // that landed between "2" and "3" would be a lie about what it sets.
+  const chokeLabel = document.createElement('span');
+  chokeLabel.className = drumStyles.kitLabel!;
+  chokeLabel.textContent = 'CHOKE';
+  // The badge anchors here rather than on the cell, and covers MONO beside it.
+  chokeLabel.dataset.help = 'sampler.choke';
+  chokeLabel.title = 'Slots sharing a group cut each other — open hat / closed hat';
+  const chokePick = document.createElement('div');
+  chokePick.className = samplerStyles.chokePick!;
+  chokeCell.append(chokeLabel, chokePick);
+  function renderSlotStrip(): void {
+    // The knobs bind per-slot paramIds, so the strip only needs rebuilding when the
+    // selected SLOT changes — not on every step click within it.
+    if (cursor.selRow === stripSlot) return;
+    stripSlot = cursor.selRow;
+    for (const k of stripCells) k.destroy();
+    stripCells = [];
+    stripRev?.destroy();
+    stripMono?.destroy();
+    stripChoke?.destroy();
+    stripLabel.textContent = `${slotName(cursor.selRow)} — sound`;
+    // Only the CONTENTS of each cell are replaced; the cells themselves outlive
+    // every slot change so the badges anchored to them stay put.
+    SLOT_PARAMS.forEach(({ suffix, label }, i) => {
+      const cell = knobCells[i];
+      if (!cell) return;
+      cell.replaceChildren();
+      const knob = new Knob({ bus, paramId: `sampler.t${cursor.selRow}.${suffix}`, label, size: 34 });
+      stripCells.push(knob);
+      cell.appendChild(knob.el);
+    });
+    revCell.replaceChildren();
+    stripRev = new Switch(bus, `sampler.t${cursor.selRow}.rev`, 'REV');
+    stripRev.el.title = 'Play this slot backwards';
+    revCell.appendChild(stripRev.el);
+    monoCell.replaceChildren();
+    stripMono = new Switch(bus, `sampler.t${cursor.selRow}.poly`, 'MONO');
+    stripMono.el.title = 'Retriggering this slot cuts its own previous hit';
+    monoCell.appendChild(stripMono.el);
+    chokePick.replaceChildren();
+    stripChoke = new ParamDropdown(bus, `sampler.t${cursor.selRow}.choke`, CHOKE_LABELS);
+    chokePick.appendChild(stripChoke.el);
+  }
+  const stripReset = createButton({
+    label: 'Reset',
+    testId: 'sampler-slot-reset',
+    onClick: () => {
+      // Same baseline a knob's double-tap uses: the loaded preset/song value, else
+      // the default (param-reset-baseline.md).
+      for (const { suffix } of SLOT_PARAMS) bus.reset(`sampler.t${cursor.selRow}.${suffix}`);
+      for (const suffix of ['rev', 'poly', 'choke']) {
+        bus.reset(`sampler.t${cursor.selRow}.${suffix}`);
+      }
+    },
+  });
+  strip.appendChild(stripLabel);
+  strip.appendChild(stripKnobs);
+  strip.appendChild(stripReset);
+  root.appendChild(strip);
+
   // ---- Per-step edit row (shared component; below the grid) ----
   const editor = new StepSettingsEditor({
     testidPrefix: 'sampler',
@@ -306,7 +426,10 @@ export function buildSamplerPanel(
   // Filename / load-state changes
   engine.patterns.onSampleMetaChange((slot) => {
     refreshLabel(slot);
-    if (slot === cursor.selRow) renderSelected();
+    if (slot === cursor.selRow) {
+      renderSelected();
+      stripLabel.textContent = `${slotName(slot)} — sound`;
+    }
   });
 
   return {

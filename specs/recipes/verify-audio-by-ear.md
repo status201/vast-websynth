@@ -70,6 +70,11 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--name <id>` | output basename → `bench/<id>.wav` (**required**) |
 | `--note <spec>` | notes to hold: `A2`, `C#3`, a MIDI number, or a comma-separated chord (default `A2`) |
 | `--seconds <n>` | take length in note mode (default 6) |
+| `--velocity <0..1>` | note velocity in note mode (default 0.9) — anything velocity-sensitive needs it, since e.g. `filter.velAmount` only differs *between* velocities |
+| `--project <path>` | import a `.websynth.zip` and render a song pass — the only way to hear a whole sampler arrangement |
+| `--sample <path>` | load one WAV/MP3 into a slot and trigger it by hand, transport stopped |
+| `--slot <n>` | which slot `--sample` fills (default 0) |
+| `--hits <n>` / `--gap <s>` | how many times `--sample` triggers it, and how far apart (default 4, 1 s) |
 | `--demo <name>` | load a demo song and render one full pass instead |
 | `--runs <n>` | passes to render in `--demo` mode, 1..10 (default 1) |
 | `--tail-bar` | hold the capture open a whole bar after the last step so tails decay (default off — a plain take stays bar-exact) |
@@ -78,6 +83,21 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--url <url>` | drive an already-running server instead of spawning vite |
 | `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |
 | `--headed` | show the browser, for debugging |
+
+**Hearing the sampler needs `--project` or `--sample`, and they answer different
+questions.** A *song* stores only its slots' filenames ([sampler](../features/sampler.md)
+REQ-4), so a plain `--demo` of a `.json` demo renders a silent sampler lane. A
+**project zip** carries the audio ([project-export](../features/project-export.md)),
+and shipped zip demos exist — so `--project <file.websynth.zip>` renders the whole
+arrangement with its slots filled, which answers *does the song sound right?*
+`--sample` loads one clip and triggers it with the transport **stopped**, which
+answers *is `play()` right?* — it separates a per-hit bug from a scheduling one in
+a single take, and is how the sampler's own defects have actually been cornered.
+
+To check a lane is contributing at all, **solo it** rather than muting it and
+watching the total: the master compressor takes up the slack when a lane is
+removed, so the summed RMS barely moves even when the lane is plainly audible on
+its own.
 
 **Anything about voice allocation needs `--stagger`.** A chord released all at once
 sounds identical whether or not stealing is book-kept correctly — the difference only

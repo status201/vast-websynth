@@ -276,6 +276,7 @@ specs/
     audio-export.md    ·  WAV/MP3 capture of the master (phases, runs, tail bar)
     record-window.md   ·  floating record transport: pause, timer, save-or-discard
     sample-recorder.md ·  mic record + buffer editor
+    sample-chop.md     ·  chop a break into slices and spread them across the slots
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
     # — UI / UX —
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)

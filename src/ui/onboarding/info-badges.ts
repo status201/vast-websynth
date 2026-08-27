@@ -89,6 +89,18 @@ const ANCHORS: Anchor[] = [
   { topic: 'seq.render', find: () => byTestId('seq-import-render') },
   { topic: 'drums', find: () => byTestId('tab-drums') },
   { topic: 'sampler', find: () => byTestId('tab-sampler') },
+  // The selected-slot strip (sampler.md REQ-12/REQ-13). These pin to the strip's
+  // persistent CELLS, not to the knobs: a Knob binds its paramId at construction,
+  // so the strip rebuilds every control when the grid cursor moves to another
+  // slot, and a badge holding one of those would be left on a detached node.
+  { topic: 'sampler.pitch', find: () => byHelp('sampler.pitch') },
+  { topic: 'sampler.window', find: () => byHelp('sampler.window') },
+  { topic: 'sampler.env', find: () => byHelp('sampler.env') },
+  { topic: 'sampler.tone', find: () => byHelp('sampler.tone') },
+  // Anchored on the CHOKE label, not the cell: the cell is a label plus a
+  // dropdown, and a badge placed against its box lands inside the picker and
+  // reads as part of it. On the label it tucks exactly as the knob badges do.
+  { topic: 'sampler.choke', find: () => byHelp('sampler.choke') },
   { topic: 'motion', find: () => byTestId('tab-motion') },
   // Short per-lane Motion badges (onboarding.md REQ-14): pinned to the panel via
   // data-help, so they hide/reposition on tab switch like the other in-panel badges.

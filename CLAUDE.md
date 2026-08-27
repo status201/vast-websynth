@@ -99,7 +99,7 @@ material keyed by feature name).
 | `src/audio/transport/` | `features/transport.md`, `transport-position.md`, `arrangement.md`, `sequencer.md`, `drum-machine.md`, `sampler.md`, `motion-sequencer.md`, `performance.md`, `recipes/add-a-transport-module.md` |
 | a **bar**, a **step count** or anything `% SEQ_LENGTH`-shaped | `features/meter.md` + ADR-019 — the bar is `barTicks`, the grid is `GRID_CELLS`, a lane's window is `laneCells()`. `src/state/meter.ts` names the three apart; in the UI go through `src/ui/lane-grid.ts` |
 | `src/audio/transport/sync/` | `features/midi-clock-sync.md`, `features/webrtc-sync.md` |
-| `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `render-to-sampler.md` |
+| `src/audio/recorder/` | `features/audio-export.md`, `record-window.md`, `sample-recorder.md`, `sample-chop.md`, `render-to-sampler.md` |
 | `public/worklets/` | ADR-010, `recipes/add-an-audioworklet.md`, `features/ladder-filter.md`, `features/compressor.md` |
 | `src/ui/` (any) | `src/ui/CLAUDE.md`, `recipes/add-a-ui-component.md`, `add-a-panel.md`, `add-a-modal-dialog.md`, `add-a-floating-window.md`, ADR-009 |
 | a **glyph that labels a control** (an arrow, a caret, a ✕, an emoji) | `features/iconography.md` — it is inline SVG from `src/ui/components/ui-icons.ts`, never a font character: the app bundles no font, so on Android a typed glyph falls through to a symbol or colour-emoji face. `tests/ui/iconography.test.ts` fails the suite on a new one |

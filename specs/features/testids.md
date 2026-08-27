@@ -225,6 +225,10 @@ motion tab:                                         # features/motion-sequencer.
 sampler slots:                                      # features/sampler.md
   sampler-load-<slot> · sampler-name-<slot> · sampler-edit-<slot> ·
   sampler-file-<slot> · sampler-record
+  sampler-slot-reset                                # the selected-slot strip's
+    # Reset (sampler.md REQ-12). The strip's own controls mint no ids of their own:
+    # they are Knob/Switch, so they are knob-sampler.t<slot>.<param> and
+    # switch-sampler.t<slot>.rev — and the <slot> moves with the grid cursor.
   seq-import-slot · seq-import-render               # features/render-to-sampler.md
 
 xy pad:                                             # features/xy-pad.md
@@ -282,6 +286,10 @@ audio capture:
     record-status · record-timer · record-fmt-<wav|mp3>   # features/record-window.md
   mic-record-toggle · mic-play · mic-load · mic-undo · mic-reset · mic-close ·
     mic-save-<wav|mp3> · mic-slot-select · mic-fx-<name>  # features/sample-recorder.md
+  chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
+    chop-toast                                        # features/sample-chop.md
+    # The boundaries themselves are canvas strokes, not elements, so they mint no
+    # ids — a chop is asserted through the slots it fills, not through its markers.
 
 presets:                                            # features/presets.md
   preset-manager · preset-mgr-save · preset-mgr-export-preset ·
