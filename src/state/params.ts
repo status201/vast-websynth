@@ -710,7 +710,10 @@ function drumTrackParams(): ParamDef[] {
   const out: ParamDef[] = [];
   for (let i = 0; i < DRUM_TRACK_COUNT; i++) {
     out.push({ id: `drum.t${i}.vol`, min: 0, max: 1, default: 0.85, format: fmtPct });
-    out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st' });
+    // fmtSemi, not the bare `unit`: formatParam consults only `format`, so a unit
+    // on its own leaves the knob reading "0.00" (drum-machine.md REQ-18). `unit`
+    // stays because the generated param catalogue does read it.
+    out.push({ id: `drum.t${i}.tune`, min: -24, max: 24, default: 0, step: 1, unit: 'st', format: fmtSemi });
     out.push({ id: `drum.t${i}.decay`, min: 0.02, max: 1.5, default: 0.3, format: fmtMs });
     // Per-track channel — all no-op at default (open / clean / centre).
     out.push({ id: `drum.t${i}.tone`, min: 0, max: 1, default: 1, format: fmtPct });

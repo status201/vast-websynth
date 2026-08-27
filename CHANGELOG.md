@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pan stage: at centre, stereo passes through untouched but mono is treated as a
   source to be placed, and loses half its power to the law. Slots now hand the
   panner a stereo signal, so a mono clip sits where it always did.
+- **The drum machine's TUNE knob reads in semitones again.** It showed a bare
+  "0.00" for a control whose whole range is whole semitones, so the number said
+  nothing. It now reads "+7st" / "-12st", like every other tuning control.
 - **Chopping then aiming at a later slot no longer loses slices.** Picking a slot
   with less room behind it than the chop needed left the row still promising all
   of them, and Spread quietly wrote as many as fitted. It now says so and waits.

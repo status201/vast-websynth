@@ -3,7 +3,9 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 10  # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
+version: 11  # v11: REQ-18 — TUNE reads in semitones; `unit` alone never reached
+             #      the readout, so a semitone knob showed "0.00"
+             # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
              #      its source stops; the choke group restores on a ramp; a hit
              #      clamped out of the past carries its choke with it
              # v9: lane length/rate + a meter-relative fill (REQ-14) — meter.md
@@ -226,6 +228,18 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   own start. [sampler](sampler.md) REQ-11 states the same rule for sampler slots.
 
 
+
+- **REQ-18** (v11) — **TUNE reads in semitones.** `drum.t{i}.tune` declared
+  `unit: 'st'` and no `format`, but `formatParam` only ever consults `format` —
+  `unit` reaches nothing that draws — so the knob fell through to the plain
+  numeric branch and read `0.00` for a control whose whole range is `-24..24`
+  **whole** semitones. It now formats through `fmtSemi` (`+7st`, `-12st`), the
+  helper `filter.envAmount` already uses.
+
+  `unit` stays: it is carried into the generated param catalogue
+  (`public/params.json`, the MCP `get_params`) where it *is* read. The two are
+  not alternatives — anything a knob shows needs `format`, whatever `unit` says.
+
 ## Technical design
 
 ### Contract / public interface
@@ -296,6 +310,12 @@ defaults keep existing presets/songs sounding identical.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: TUNE reads as semitones, not a bare number (v11, REQ-18, regression)
+  Given drum.t0.tune is +7
+  When its knob renders its value
+  Then it reads "+7st" — never "7.00", which is what a unit with no format gives
+# pinned by: tests/ui/format-param.test.ts
+
 Scenario: A voice never stops on a non-zero envelope (v10, REQ-15, regression)
   Given any of the 13 drum voice models
   When it is triggered
