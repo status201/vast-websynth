@@ -15,7 +15,12 @@ async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
   await dd.locator('.dropdown-option', { hasText: label }).click();
 }
 
-/** Load a clip into `slot` and open it in the editor via the ✎ button. */
+/**
+ * Load a clip into `slot`, open it in the editor via the ✎ button, and unfold the
+ * Chop section — every editor section rests closed (sample-recorder.md REQ-9), so
+ * the fold itself belongs to `sample-editor-folds.spec.ts` and not to each test
+ * here.
+ */
 async function openEditor(page: Page, slot: number, name = 'break.wav'): Promise<void> {
   await gotoAndStart(page);
   await page.getByTestId('tab-sampler').click();
@@ -24,7 +29,14 @@ async function openEditor(page: Page, slot: number, name = 'break.wav'): Promise
   });
   await expect(page.getByTestId(`sampler-name-${slot}`)).toHaveText(name);
   await page.getByTestId(`sampler-edit-${slot}`).click();
-  await expect(page.getByTestId('chop-row')).toBeVisible();
+  await unfoldChop(page);
+}
+
+/** Reveal the chop row, whichever way the stored fold left it. */
+async function unfoldChop(page: Page): Promise<void> {
+  const row = page.getByTestId('chop-row');
+  if (!(await row.isVisible())) await page.getByTestId('chop-toggle').click();
+  await expect(row).toBeVisible();
 }
 
 /**
@@ -128,6 +140,7 @@ test.describe('sample chop', () => {
     await expect(page.getByTestId('sampler-name-1')).toHaveText('keeper.wav');
 
     await page.getByTestId('sampler-edit-0').click();
+    await unfoldChop(page);
     await page.getByTestId('chop-equal').click();
     await page.getByTestId('chop-spread').click();
     await page.getByTestId('dialog-confirm').click();

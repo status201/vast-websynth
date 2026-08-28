@@ -100,9 +100,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The AI Prompt, Random and pairing-hint glyphs are monochrome again.** Android
   handed `✨ 🎲 💡 ✓ ✕ ⚙` to the colour-emoji font, which put full-colour
   emoji inside an otherwise monochrome instrument.
+- **The Scratch section's title is no longer stranded at the right edge.** "Scratch"
+  sat hard against the far right of its own header, past the caret that opens it,
+  which read as a mistake because it was one.
 
 ### Changed
 
+- **The sample editor's three sections now fold.** **Chop**, **Fit & Shift** and
+  **Scratch** each have a title on the left and a caret on the right, and clicking
+  anywhere along the header opens or closes that section. All three start closed,
+  so the editor opens on the waveform and the trim rather than on a wall of
+  controls, and each remembers whether you left it open.
 - **A screen reader no longer announces a button's decoration.** The AI Prompt
   button is now "AI Prompt" rather than "sparkles AI Prompt", and the same for
   Random, Play a demo and Clear. Buttons whose only label was a symbol keep a

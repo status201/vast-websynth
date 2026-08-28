@@ -3,7 +3,9 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 4   # v4: REQ-8 — the Scratch section (scratch.md)
+version: 5   # v5: REQ-9 — every editor section is a titled fold: Chop and
+             #     Fit & Shift join Scratch, title left, caret right
+             # v4: REQ-8 — the Scratch section (scratch.md)
              # v3: REQ-7 — the Fit and Shift rows (time-stretch.md)
              # v2: REQ-6 — a session's RecorderNode is disconnected and its port
              #     handler cleared on dispose; every modal open leaked one
@@ -15,14 +17,22 @@ related:
   - time-stretch           # the Fit / Shift rows this modal hosts
   - scratch                # the Scratch section this modal hosts
   - audio-export
+  - onboarding             # REQ-9 borrows the About modal's fold idiom
+  - panel-tabs             # REQ-9's `websynth.ui.collapsed.*` key convention
+  - iconography            # REQ-9's caret is UI_ICONS.caretDown, not a character
+  - testids
 source:
   - src/ui/components/record-sound-modal.ts
+  - src/ui/components/collapse-toggle.ts  # REQ-9's fold
+  - src/ui/styles/record-sound.module.css
+  - src/ui/styles/modal.module.css        # .sec / .secFold / .secFoldLabel
   - src/audio/recorder/mic-capture.ts
   - src/audio/recorder/buffer-dsp.ts
   - src/audio/recorder/offline-render.ts
   - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/audio-buffer.ts
   - src/audio/recorder/node.ts            # CapturedAudio
+  - src/ui/onboarding/help-content.ts     # the `sampler` topic names REQ-9's three headings
 ```
 
 The Sampler's "Record a sound" modal: record from the mic (or re-edit a loaded
@@ -86,13 +96,45 @@ modal says so.
   further `start`/`stop`.
 - **REQ-8** — (v4) **The modal hosts a Scratch section**, below the Shift row and
   folded away until asked for. It applies through the same `runOp` path for the
-  same reason REQ-7 gives, and it is a *fold* rather than a row because its editor
-  is a 210 px canvas — too much modal to spend on a section most sessions never
-  open. Its behaviour and bounds are [scratch](scratch.md) REQ-15/REQ-21; what
-  this spec owns is that it lives here. Two shared pieces move to serve it: the
-  sixteenth-count arithmetic the Fit row used privately is hoisted above both
-  rows, and `playSelection` splits into a `playClip` that can audition an
-  uncommitted render.
+  same reason REQ-7 gives. Its editor is a 210 px canvas — too much modal to spend
+  on a section most sessions never open — which makes it the most expensive of the
+  three folds REQ-9 now defines, and the only one whose fold state also gates work
+  (the peak scan, [scratch](scratch.md) REQ-15). Its behaviour and bounds are
+  [scratch](scratch.md) REQ-15/REQ-21; what this spec owns is that it lives here.
+  Two shared pieces move to serve it: the sixteenth-count arithmetic the Fit row
+  used privately is hoisted above both rows, and `playSelection` splits into a
+  `playClip` that can audition an uncommitted render.
+- **REQ-9** — (v5) **Every section below the waveform is a titled fold**, built by
+  one local factory rather than three hand-rolled headers: **Chop** (REQ-2a),
+  **Fit & Shift** (REQ-7) and **Scratch** (REQ-8). Each is a wrapper holding a
+  header and a body, and each obeys the same four rules:
+
+  1. **The title is on the left, the caret on the right.** The caret is the shared
+     `createCollapseToggle` chevron, whose class carries `margin-left: auto` — so
+     the title is appended **first** and the caret **last**. Appending them the
+     other way round is what pushed the Scratch title to the right edge before v5,
+     against [scratch](scratch.md) REQ-15's own visual aid.
+  2. **The whole header row is the hit target**, not the 18 px caret
+     (ADR-014 law 6). The caret is the affordance; the header is the button.
+  3. **All three are folded on a first open.** The editor's job at that moment is
+     the waveform and the trim; every section below it is a thing the user goes
+     looking for. Each remembers its own choice afterwards, under
+     `websynth.ui.collapsed.sample-<chop|stretch|scratch>` — the convention
+     [panel-tabs](panel-tabs.md) REQ-2 names, and the only view state in this app
+     that survives a reload.
+  4. **One fold idiom per modal.** The header is the About modal's
+     ([onboarding](onboarding.md) REQ-17b) — `.sec` + `.secFold` + `.secFoldLabel`
+     from `modal.module.css` — because a second lookalike fold in a second modal is
+     how two idioms start.
+
+  A section's `onChange` re-runs its own sync (`syncChop` / `syncFit` /
+  `syncScratch`), so an unfold never reveals a stale hint, and a folded Scratch
+  still pays for no peak scan.
+
+  Because the tools are now behind a heading rather than on the page, the
+  `sampler` help topic ([onboarding](onboarding.md)) names all three and says a
+  heading opens them — help that describes controls the reader cannot see is worse
+  than none.
 
 ## Technical design
 
@@ -149,6 +191,15 @@ Scenario: Disposing twice is harmless (v2, REQ-6, edge)
   And a disposed recorder posts nothing further to its port
 # pinned by: tests/audio/recorder/mic-capture.test.ts, tests/audio/recorder/node.test.ts
 
+Scenario: The editor opens with all three sections folded (v5, REQ-9)
+  Given a slot holding audio
+  When the user opens it in the editor for the first time
+  Then Chop, Fit & Shift and Scratch each show a header and no body
+  And each header's title is drawn to the left of its caret
+  When the user clicks one header anywhere along its row
+  Then that section's body appears and the other two stay folded
+# pinned by: e2e/sample-editor-folds.spec.ts
+
 Scenario: Pure DSP is deterministic and AudioContext-free
   Given a CapturedAudio buffer
   When normalize/reverse/crop are applied
@@ -179,6 +230,11 @@ Scenario: Insecure context is reported, not crashed (edge)
   response itself is the browser's), `tests/audio/recorder/mic-capture.test.ts`
   (the `MicError` contract and the session's teardown), `e2e/mic.spec.ts`
   (`--use-fake-device-for-media-stream` + `grantPermissions(['microphone'])`).
+- `e2e/sample-editor-folds.spec.ts` (REQ-9) — parameterised over the three
+  sections: folded on a first open, title left of caret, one header toggles one
+  body. The alignment is asserted by geometry, not by DOM order alone, because the
+  bug it regresses was a CSS auto margin acting on an append order that *looked*
+  right in the source.
 - `npm test` / `npm run e2e`.
 
 ## Open questions / future

@@ -3,7 +3,9 @@
 ```yaml
 id: scratch
 status: implemented
-version: 1
+version: 2 # v2: REQ-15 — the header is the modal's shared fold (title left,
+           #     caret right); the fold key joins the app's convention
+           # v1: the scratch graph, the reader and the section
 owner: core
 related:
   - architecture
@@ -20,6 +22,7 @@ related:
   - iconography          # the dice button's glyph
   - typography           # REQ-3: the legend counts while a point is dragged
   - runtime-performance  # REQ-4: a folded section pays for no peak scan
+  - panel-tabs           # REQ-15's `websynth.ui.collapsed.*` key convention
   - testids
 source:
   - src/audio/recorder/scratch-curve.ts
@@ -153,6 +156,16 @@ makes the model legible (REQ-17).
   by a collapse toggle, not a second surface. It operates on the current selection
   ([sample-chop](sample-chop.md) REQ-2's rule), and a second modal owning its own
   selection, undo and preview is exactly what that spec warns drifts.
+
+  (v2) The section is one of the modal's three, and its header follows the shape
+  [sample-recorder](sample-recorder.md) REQ-9 owns: **title `Scratch` on the left,
+  caret on the right**, the whole row a hit target. Until v2 the caret was appended
+  *before* the title, and because the shared caret class carries `margin-left:
+  auto` that pushed both to the right edge — against the visual aid below, which
+  has always drawn it left. Folded, the section still pays for **no peak scan**
+  ([runtime-performance](runtime-performance.md) REQ-1): the recompute is gated on
+  the body's `.collapsed` class and re-run by the fold's `onChange`, so unfolding
+  is what buys the scan.
 - **REQ-16** — The graph is two lanes on one x-axis of **output time**, gridded in
   sixteenths with the beat accented from `engine.barTicks`
   ([meter](meter.md) REQ-7). The upper lane draws the warped result; the lower
@@ -316,18 +329,26 @@ length, the cue, and any record that a clip was ever scratched. The curve lives
 for as long as the modal is open and no longer.
 
 The one thing stored is whether the *section is folded*, under
-`websynth.scratch.open`, because that is what the shared collapse toggle does for
-every panel in the app and a scratch-heavy player should not have to open it
-twice. It is a view preference, not feature state: it says nothing about any clip
-and losing it costs one click.
+`websynth.ui.collapsed.sample-scratch`, because that is what the shared collapse
+toggle does for every panel in the app and a scratch-heavy player should not have
+to open it twice. It is a view preference, not feature state: it says nothing about
+any clip and losing it costs one click.
+
+(v2) The key was `websynth.scratch.open` in v1 — renamed when its two siblings
+arrived, both to join the `websynth.ui.collapsed.*` convention
+([panel-tabs](panel-tabs.md) REQ-2) and because it stored the opposite of what it
+said (`'1'` meant *collapsed*). No migration: one stored `true` reverts to the
+default the section had anyway, which is the cost the paragraph above already
+accepts.
 
 ## Visual aids
 
 ```
-editor modal, below the shift row, revealed by the Scratch collapse toggle
+editor modal, below the Fit & Shift section, folded on a first open (REQ-15)
 +---------------------------------------------------------------------+
-| v Scratch                                    16 · 1 bar at 92 BPM    |
-| cut  ####        ######        ####                                  |
+| SCRATCH                                                          v   |
+|.....................................................................|
+| cut  ####        ######        ####          16 · 1 bar at 92 BPM    |
 | +-------------- warped result preview (read-only) ----------------+  |
 | |    .:iII|Ii:.    .:iI|Ii:.:iI|Ii:.        .:iiIIIIIIIii:.       |  |
 | +-----------------------------------------------------------------+  |
@@ -342,12 +363,17 @@ editor modal, below the shift row, revealed by the Scratch collapse toggle
 | Scratch: selection is ~13.4 sixteenths  [16 · 1 bar v] [Baby v]      |
 |                                          [dice] [Preview] [Scratch]  |
 +---------------------------------------------------------------------+
+
+folded — the resting state, and how the editor opens:
+| SCRATCH                                                          >   |
 ```
 
 ### Gesture inventory (ADR-014)
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
 | --- | --- | --- | --- | --- | --- |
+| `scratch-head` (the whole title row) | folds / unfolds the section | — | — | — | — |
+| `scratch-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
 | a curve point | selects it | x = timing (snaps to a 32nd), y = rate (snaps to quarters); **Shift** frees both | — | deletes the point | — |
 | empty rate lane | adds a point there | adds a point, then drags it | — | — | — |
 | a segment's cut band | toggles the crossfader closed / open | — | — | — | — |
@@ -361,7 +387,8 @@ editor modal, below the shift row, revealed by the Scratch collapse toggle
 
 A `—` is a decision, not an omission. Nothing here is momentary, so nothing takes
 a long press; and no control is a mode, so no gesture's outcome depends on
-invisible state (ADR-014 law 2). Precedent: turntablist scratch notation for the
+invisible state (ADR-014 law 2) — which is also why the header and its caret do
+the same one thing rather than splitting the row into two live zones. Precedent: turntablist scratch notation for the
 graph itself, and this app's own `motion-step-pad.ts` for the Shift-fine drag.
 Touch-first (law 6): the point hit radius is 22 px — a 44 px target — against a
 6 px drawn dot; `touchAction` is set imperatively, because `preventDefault()`
@@ -377,6 +404,13 @@ Scenario: a scratch is exactly as long as the bar it was drawn against
   When the scratch is rendered at the current tempo
   Then the result is exactly round(N * sixteenthDuration * sampleRate) frames long
 # pinned by: tests/audio/scratch.test.ts
+
+Scenario: the section's title sits left of its caret (v2, REQ-15, regression)
+  Given the editor is open on a clip
+  Then the Scratch header shows "Scratch" to the LEFT of its caret
+  # the caret's class carries `margin-left: auto`, so appending it first pushed
+  # the title to the right edge — the whole header read as right-aligned
+# pinned by: e2e/sample-editor-folds.spec.ts
 
 Scenario: pitch rides the speed
   Given a 440 Hz sine
@@ -469,7 +503,10 @@ Scenario: the editor explains itself (docs)
 - Unit: `tests/ui/scratch-graph.test.ts` — jsdom with `getBoundingClientRect`
   stubbed (jsdom has no layout) and `setPointerCapture` optional-chained.
 - In-app copy: `tests/ui/help-content.test.ts`.
-- E2E: `e2e/scratch.spec.ts` — `npm run e2e`.
+- E2E: `e2e/scratch.spec.ts` — `npm run e2e`; `e2e/sample-editor-folds.spec.ts`
+  for the header's alignment and its fold (REQ-15), asserted by geometry rather
+  than DOM order, because the bug it regresses was an auto margin acting on an
+  append order that read correctly in the source.
 - Typecheck: `npm run typecheck`.
 - Dev-bridge assertions: `window.__synth.engine.sampler.buffers[0].duration`
   against `engine.barTicks * engine.clock.sixteenthDuration()`.

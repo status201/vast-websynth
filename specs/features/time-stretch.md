@@ -3,7 +3,8 @@
 ```yaml
 id: time-stretch
 status: implemented
-version: 1
+version: 2 # v2: REQ-18 — the Fit and Shift rows share one titled fold
+           # v1: Fit / Shift in the editor, and the slot-row FIT button
 owner: core
 related:
   - architecture
@@ -18,11 +19,14 @@ related:
   - dropdown
   - lazy-load-failure    # REQ-17: why the FIT load reports its own sentence
   - runtime-performance  # REQ-17: the DSP defers to the click that needs it
+  - iconography          # REQ-18's caret is an inline SVG, not a character
+  - testids
 source:
   - src/audio/recorder/fft.ts
   - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/offline-render.ts
   - src/ui/components/record-sound-modal.ts
+  - src/ui/components/collapse-toggle.ts  # REQ-18's fold
   - src/ui/panels/sampler-panel.ts
   - src/state/limits.ts
   - src/ui/onboarding/help-content.ts   # the `sampler` / `sampler.pitch` copy
@@ -157,6 +161,16 @@ out. The user picks, and the default is the rhythmic one.
   Inside the editor no such branch exists — the modal is already loaded, and the
   DSP came with it.
 
+- **REQ-18** — (v2) **The Fit and Shift rows share one folded, titled section**
+  headed `Fit & Shift`. The shape and its rules are
+  [sample-recorder](sample-recorder.md) REQ-9, which owns them for all three of the
+  modal's sections. What this spec owns is that the two rows are **one** fold and
+  not two: they are the same question asked twice — retime and keep the pitch, or
+  repitch and keep the time — and splitting them would make the user open two
+  sections to find out which one they wanted. The section is **folded on a first
+  open**; the slot row's FIT button (REQ-11) is unaffected and remains the
+  no-clicks-at-all path for the common case.
+
 ## Technical design
 
 ### Contract / public interface
@@ -209,6 +223,7 @@ src/audio/recorder/fft.ts:           pure; no imports
 src/audio/recorder/time-stretch.ts:  pure; imports fft.ts, limits.ts, node.ts (type only)
 src/audio/recorder/offline-render.ts: adds 'resample' + renderPitchShift (async, OfflineAudioContext)
 src/ui/components/record-sound-modal.ts:
+  one `Fit & Shift` fold (sample-recorder.md REQ-9) holding BOTH rows (REQ-18)
   fit row + shift row, built AFTER the chop row (they read `working` and the crop the same way)
   both go through the existing apply()/setBusy()/afterMutate() path, so undo,
   the busy latch and the marks reset are inherited rather than reimplemented
@@ -228,11 +243,16 @@ clip was ever stretched (REQ-16).
 ## Visual aids
 
 ```
-editor modal, below the chop row
+editor modal, below the chop section — folded on a first open (REQ-18)
 +-----------------------------------------------------------------+
+| FIT & SHIFT                                                   v  |
+|.................................................................|
 | Fit: 1.87 s -> 2.00 s · 1.07x   [16 · 1 bar v] [Rhythmic v] [Fit]|
 | Shift: pitch only, length kept  [+0 st v]                [Shift] |
 +-----------------------------------------------------------------+
+
+folded:
+| FIT & SHIFT                                                   >  |
 
 sampler slot row (210px control cluster)
 [ Load ][ break.wav        ][FIT][*][mute]
@@ -242,6 +262,8 @@ sampler slot row (210px control cluster)
 
 | Control | Tap / click | Drag | Long press | Double | Keyboard |
 | --- | --- | --- | --- | --- | --- |
+| `stretch-head` (the whole title row) | folds / unfolds both rows | — | — | — | — |
+| `stretch-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
 | `fit-target` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `fit-mode` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `fit-apply` | fits the selection to the target | — | — | — | Enter/Space when focused |
@@ -251,11 +273,22 @@ sampler slot row (210px control cluster)
 
 A `—` here is a decision, not an omission: none of these controls is continuous,
 so none takes a drag, and a second press is simply a second edit (each one
-undoable in turn) rather than a distinct gesture.
+undoable in turn) rather than a distinct gesture. The header and its caret are
+**one gesture, one outcome** (ADR-014 law 2) — the caret does nothing the header
+does not — and the fold's precedent (law 4) is the app's own
+`createCollapseToggle`, used unchanged.
 
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: Fit and Shift open together, and start closed (v2, REQ-18)
+  Given a slot holding audio
+  When the user opens it in the editor for the first time
+  Then the Fit & Shift header is visible and neither row is
+  When the user clicks the header
+  Then both the Fit row and the Shift row appear
+# pinned by: e2e/sample-editor-folds.spec.ts, e2e/time-stretch.spec.ts
+
 Scenario: a clip is fitted to an exact target length
   Given a captured clip of an arbitrary length
   When it is fitted to N sixteenths at the current tempo
@@ -318,7 +351,9 @@ Scenario: the app explains the feature it shipped (docs)
 - In-app copy: `tests/ui/help-content.test.ts` — the `sampler` and
   `sampler.pitch` topics. Help text has no other gate, so what the app *claims*
   about this feature is pinned like any other contract.
-- E2E: `e2e/time-stretch.spec.ts` — `npm run e2e`
+- E2E: `e2e/time-stretch.spec.ts` — `npm run e2e`. Its editor tests unfold the
+  section first (REQ-18); `e2e/sample-editor-folds.spec.ts` is what asserts the
+  fold itself.
 - Typecheck: `npm run typecheck`
 - Dev-bridge assertions: `window.__synth.engine.sampler.buffers[0].duration`
 - **By ear — the acceptance test, not the suite**

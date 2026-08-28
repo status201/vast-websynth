@@ -798,16 +798,19 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>Select a slot and the strip below the grid becomes <em>that slot\'s</em> voice: ' +
       'tune it, trim it, reverse it, filter it, place it in the stereo field. The controls ' +
       'that need explaining carry their own badge while these are on.</p>' +
-      '<p>In the editor you can also <strong>Chop</strong> a break into slices and spread them ' +
+      '<p>The editor keeps its bigger tools folded under three headings — ' +
+      '<strong>Chop</strong>, <strong>Fit &amp; Shift</strong> and <strong>Scratch</strong>. ' +
+      'Click a heading to open it; it stays as you left it.</p>' +
+      '<p>Open <strong>Chop</strong> to cut a break into slices and spread them ' +
       'across the slots — the classic way to turn one bar of drums into eight playable hits.</p>' +
       '<p>A loop recorded at someone else\'s tempo can be made to fit yours. ' +
       '<strong>FIT</strong> on the slot row retimes it to the nearest bar length in one press, ' +
-      'and offers <strong>Undo</strong> afterwards. The editor\'s <strong>Fit</strong> row lets ' +
-      'you name the length yourself — one bar, or any count of sixteenths — and pick ' +
+      'and offers <strong>Undo</strong> afterwards. The editor\'s <strong>Fit &amp; Shift</strong> ' +
+      'section lets you name the length yourself — one bar, or any count of sixteenths — and pick ' +
       '<em>Rhythmic</em> for drums and loops or <em>Tonal</em> for pads and sustained sounds. ' +
       'The pitch stays exactly where it was, which is what separates this from PITCH. ' +
-      '<strong>Shift</strong> beside it does the opposite: it moves the pitch and leaves the ' +
-      'length alone.</p>' +
+      '<strong>Shift</strong>, in the same section, does the opposite: it moves the pitch and ' +
+      'leaves the length alone.</p>' +
       '<p>Open <strong>Scratch</strong> in the editor to draw a turntable gesture over the ' +
       'clip. The lower lane is the <em>speed</em> of the record: drag a point up and the ' +
       'needle runs faster and higher, drag it below the middle line and it runs backwards. ' +
