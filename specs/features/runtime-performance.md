@@ -3,7 +3,8 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 6   # v6: REQ-1 — deferring a surface makes its load fallible; the
+version: 7   # v7: REQ-1 — the time-stretch DSP defers behind the FIT button
+             # v6: REQ-1 — deferring a surface makes its load fallible; the
              #     trigger owes the user a report when the import rejects
              # v5: REQ-2 — a bank of expensive artefacts is built per entry on
              #     first use, not whole; the PWM duty bank charged every patch
@@ -93,7 +94,8 @@ so a reviewer has something concrete to hold a new feature against.
   surfaces are behind `import()` at their trigger: the sample recorder/editor, the
   preset manager, the audio-export dialog, the WiFi pair modal (which also defers
   `jsqr`), the MP3 encoder (`lamejs`), the authoring-guide prompt text behind the
-  AI Prompt button, and the Help & About modal. The onboarding layer — the tour, the
+  AI Prompt button, the time-stretch DSP behind a slot row's FIT button
+  ([time-stretch](time-stretch.md) REQ-11), and the Help & About modal. The onboarding layer — the tour, the
   info badges and the ~54 kB of help copy they read — loads on the first `startTour()`
   or badge toggle, behind the synchronous `Onboarding` facade so no caller learns that
   it is lazy.

@@ -245,7 +245,11 @@ Scenario: Declining the confirmation changes nothing (REQ-6, edge)
 ## Open questions / future
 
 - **Chop at the grid** — dividing by the song's bar rather than by a count, so a
-  break recorded at another tempo lands on the meter.
+  break recorded at another tempo lands on the meter. **Largely answered from the
+  other side** by [time-stretch](time-stretch.md): fit the break to a bar first
+  and an equal chop into 16 *is* the grid chop, with no new control. What is left
+  open is chopping at the grid *without* retiming the audio — worth a surface only
+  if fitting first turns out to be the wrong default for someone.
 - **Per-step slice choice** — rejected for v1 (see Background); revisit only with
   a reason that outweighs a song-format change.
 - **Re-chop without re-loading** — the original is discarded once slices are

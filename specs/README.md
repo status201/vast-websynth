@@ -278,6 +278,7 @@ specs/
     sample-recorder.md ·  mic record + buffer editor
     sample-chop.md     ·  chop a break into slices and spread them across the slots
     render-to-sampler.md ·  resample a seq bank into a sampler slot (bar-exact)
+    time-stretch.md    ·  fit a clip to a bar or N sixteenths, pitch preserved (offline)
     # — UI / UX —
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
     panel-tabs.md      ·  in-title tab strip paging one faceplate panel (LFO 1 / LFO 2)

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderEffect } from '../../../src/audio/recorder/offline-render';
+import { renderEffect, renderPitchShift } from '../../../src/audio/recorder/offline-render';
+import { MAX_PITCH_SHIFT_SEMITONES } from '../../../src/state/limits';
 import type { CapturedAudio } from '../../../src/audio/recorder/node';
 
 /**
@@ -217,5 +218,75 @@ describe('renderEffect — what comes back', () => {
     const out = await renderEffect(src, { kind: 'octaveUp' });
     out.left[0] = 99;
     expect(src.left[0]).toBe(0);
+  });
+});
+
+// `resample` is the generalisation the two octave effects were always special
+// cases of (time-stretch.md REQ-8) — they are kept because their names are the
+// contract the editor's buttons and the tests above are written to.
+describe('renderEffect — resample', () => {
+  it('is the octave effects at an arbitrary factor', async () => {
+    expect((await renderEffect(captured(1000), { kind: 'resample', ratio: 2 })).left).toHaveLength(500);
+    expect((await renderEffect(captured(1000), { kind: 'resample', ratio: 0.5 })).left).toHaveLength(2000);
+    expect(graphs[0]!.playbackRate).toBe(2);
+    expect(graphs[0]!.biquad).toBeNull();
+  });
+
+  it('carries a fractional factor through to playbackRate', async () => {
+    const r = 2 ** (7 / 12);
+    await renderEffect(captured(1000), { kind: 'resample', ratio: r });
+    expect(graphs[0]!.playbackRate).toBeCloseTo(r, 10);
+  });
+
+  // A non-finite or non-positive rate would make the length NaN or Infinity and
+  // reach `new OfflineAudioContext(…, length, …)` (ADR-015).
+  it.each([NaN, Infinity, 0, -2])('refuses rate %p without building a graph', async (ratio) => {
+    const out = await renderEffect(captured(100), { kind: 'resample', ratio });
+    expect(out.left).toHaveLength(100);
+    expect(graphs).toEqual([]);
+  });
+});
+
+describe('renderPitchShift', () => {
+  it('keeps the length to within a frame', async () => {
+    for (const st of [1, 5, 7, 12, -3, -12]) {
+      const out = await renderPitchShift(captured(20_000, 48_000), st);
+      expect(Math.abs(out.left.length - 20_000)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('resamples by the same factor it stretched by', async () => {
+    await renderPitchShift(captured(20_000, 48_000), 12);
+    // +12 st doubles the rate; the stretch before it doubled the length, so the
+    // two cancel and the duration survives.
+    expect(graphs[0]!.playbackRate).toBeCloseTo(2, 10);
+    expect(graphs[0]!.length).toBe(20_000);
+  });
+
+  it('is a copy at 0 semitones, and builds no graph', async () => {
+    const src = captured(1000);
+    const out = await renderPitchShift(src, 0);
+    expect(Array.from(out.left)).toEqual(Array.from(src.left));
+    expect(out.left).not.toBe(src.left);
+    expect(graphs).toEqual([]);
+  });
+
+  it('clamps past MAX_PITCH_SHIFT_SEMITONES rather than refusing', async () => {
+    await renderPitchShift(captured(20_000, 48_000), 96);
+    expect(graphs[0]!.playbackRate).toBeCloseTo(2 ** (MAX_PITCH_SHIFT_SEMITONES / 12), 10);
+  });
+
+  it.each([NaN, Infinity, -Infinity])('is a no-op for %p semitones', async (st) => {
+    const out = await renderPitchShift(captured(1000), st);
+    expect(out.left).toHaveLength(1000);
+    expect(graphs).toEqual([]);
+  });
+
+  it('handles an empty take', async () => {
+    const out = await renderPitchShift(
+      { left: new Float32Array(0), right: new Float32Array(0), sampleRate: 48_000 }, 7,
+    );
+    expect(out.left).toHaveLength(0);
+    expect(graphs).toEqual([]);
   });
 });

@@ -3,19 +3,22 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 2   # v2: REQ-6 — a session's RecorderNode is disconnected and its port
+version: 3   # v3: REQ-7 — the Fit and Shift rows (time-stretch.md)
+             # v2: REQ-6 — a session's RecorderNode is disconnected and its port
              #     handler cleared on dispose; every modal open leaked one
 owner: core
 related:
   - architecture
   - sampler
   - sample-chop            # the chop row this modal hosts
+  - time-stretch           # the Fit / Shift rows this modal hosts
   - audio-export
 source:
   - src/ui/components/record-sound-modal.ts
   - src/audio/recorder/mic-capture.ts
   - src/audio/recorder/buffer-dsp.ts
   - src/audio/recorder/offline-render.ts
+  - src/audio/recorder/time-stretch.ts
   - src/audio/recorder/audio-buffer.ts
   - src/audio/recorder/node.ts            # CapturedAudio
 ```
@@ -65,6 +68,16 @@ modal says so.
   behind** — the leak grows with how often the player records, which is exactly the
   usage the feature invites. `RecorderNode.dispose()` is the node's own teardown so
   the knowledge of what it holds stays with it rather than at the call site.
+- **REQ-7** — (v3) **The modal hosts a Fit row and a Shift row**, below the chop
+  row: retime the selection to a musical length with its pitch preserved, and
+  shift its pitch with its length preserved. Both go through the same `apply()`
+  path as every other effect button, so the busy latch, the one-level undo and
+  the marks reset that follow an edit are inherited rather than reimplemented.
+  The behaviour and its bounds are [time-stretch](time-stretch.md)
+  REQ-9/REQ-10; what this spec owns is that this modal is where they live — for
+  the reason the [chop row](sample-chop.md) is here too: the waveform, the crop
+  handles, the preview and the undo already exist in this modal, and a second
+  surface that rebuilt them is a second surface that drifts from them.
 
   Disposal is **idempotent and terminal**: it is reachable from a cancel, a save
   and a re-open, and a double dispose must not throw. A disposed node accepts no

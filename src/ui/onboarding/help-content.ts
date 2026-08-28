@@ -800,6 +800,14 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'that need explaining carry their own badge while these are on.</p>' +
       '<p>In the editor you can also <strong>Chop</strong> a break into slices and spread them ' +
       'across the slots — the classic way to turn one bar of drums into eight playable hits.</p>' +
+      '<p>A loop recorded at someone else\'s tempo can be made to fit yours. ' +
+      '<strong>FIT</strong> on the slot row retimes it to the nearest bar length in one press, ' +
+      'and offers <strong>Undo</strong> afterwards. The editor\'s <strong>Fit</strong> row lets ' +
+      'you name the length yourself — one bar, or any count of sixteenths — and pick ' +
+      '<em>Rhythmic</em> for drums and loops or <em>Tonal</em> for pads and sustained sounds. ' +
+      'The pitch stays exactly where it was, which is what separates this from PITCH. ' +
+      '<strong>Shift</strong> beside it does the opposite: it moves the pitch and leaves the ' +
+      'length alone.</p>' +
       '<p>Plays while the transport runs, with its own master and effects. A saved ' +
       '<strong>song</strong> stores only the slots\' filenames, so you re-load the audio after ' +
       'opening one; export a <strong>project</strong> instead and the audio travels with it.</p>',
@@ -813,7 +821,11 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'octave is twice as long: a chop that filled its step will now run past it, which is ' +
       'the sound, not a bug.</p>' +
       '<p>Pitch belongs to the <em>slot</em>, not to a step — every hit on that row is ' +
-      'tuned the same. To hear two pitches at once, put the sample in two slots.</p>',
+      'tuned the same. To hear two pitches at once, put the sample in two slots.</p>' +
+      '<p>When you want one without the other, the sample editor separates them: ' +
+      '<strong>Fit</strong> changes the length and leaves the pitch alone, ' +
+      '<strong>Shift</strong> changes the pitch and leaves the length alone. Both rewrite the ' +
+      'clip; this knob stays live and undoable.</p>',
   },
 
   'sampler.window': {

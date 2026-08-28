@@ -199,6 +199,32 @@ test.describe('transport position', () => {
     }
   });
 
+  /**
+   * A ruler that does not sit over its steps marks nothing (REQ-9).
+   *
+   * The sampler panel got this wrong for real: its slot rows widened their control
+   * cluster to fit a filename while the ruler row kept the drum panel's bare width,
+   * so every tick sat 80px left of the step it named. Nothing caught it — the ruler
+   * was present, visible and correct, just in the wrong place — so this measures
+   * the geometry rather than trusting the class names to agree.
+   */
+  test('the ruler tick sits over the step it marks, on every tab', async ({ page }) => {
+    await gotoAndStart(page);
+    for (const [tab, lane, step] of [
+      ['seq', 'seq', 'seq-step-0'], ['drums', 'drum', 'drum-step-0-0'],
+      ['sampler', 'sampler', 'sampler-step-0-0'], ['motion', 'motion', 'motion-step-0'],
+    ]) {
+      await page.getByTestId(`tab-${tab}`).click();
+      const tick = await page.getByTestId(`ruler-${lane}-0`).boundingBox();
+      const cell = await page.getByTestId(step!).boundingBox();
+      expect(tick, `${lane} ruler tick`).not.toBeNull();
+      expect(cell, `${lane} first step`).not.toBeNull();
+      // Same left edge, within a pixel of rounding.
+      expect(Math.abs(tick!.x - cell!.x), `${lane} ruler is ${tick!.x - cell!.x}px off`)
+        .toBeLessThanOrEqual(1);
+    }
+  });
+
   test('the ruler re-syncs to the current step when its tab is revealed', async ({ page }) => {
     await gotoAndStart(page);
     // Chained, so the bar readout is a bar (REQ-15) and this still asserts it.

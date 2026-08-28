@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   instead of layering.
 - Info badges on the slot controls that need explaining — pitch, the trim window,
   the envelope, the filter and the choke group.
+- **Fit a loop to your tempo without detuning it.** A break recorded at someone
+  else’s tempo can now be retimed to yours with its pitch left where it was.
+  **FIT** on a slot row does it in one press, choosing the nearest bar length and
+  offering **Undo**; the sample editor’s **Fit** row lets you name the target — one
+  bar, or any count of sixteenths, labelled against the song’s own meter — and
+  preselects whichever is closest to the clip already. Choose **Rhythmic** for
+  drums and loops or **Tonal** for pads and sustained sounds.
+- **Shift a sample’s pitch without changing its length** — the converse of the
+  slot’s varispeed PITCH knob, ±12 semitones, in the sample editor.
 
 ### Fixed
 
@@ -51,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Chopped slices no longer start a few milliseconds late.** Transient detection
   cut where the energy rise *peaked*, which is just inside the attack, so every
   slice lost the front of its own hit. It now cuts at the foot of the rise.
+- **The sampler’s position ruler now lines up with its steps.** Its slot rows use
+  a wider label column than the drum grid, to fit a filename — but the ruler above
+  them kept the drum grid’s width, so every playhead tick sat 80px to the left of
+  the step it marks. Both rows now take the same width.
 
 - **Icons no longer depend on the device having the right font.** On Android the
   two octave-shift arrows in Help & About came out in different weights, off each

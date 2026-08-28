@@ -3,7 +3,9 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 4  # v4: the ruler is the lane's grid, sized by the meter (REQ-18)
+version: 5  # v5: a tick sits over the step it marks — a panel that widens its
+            #     row-label slot must widen the ruler row too (REQ-19)
+            # v4: the ruler is the lane's grid, sized by the meter (REQ-18)
             # v3: only an EXPORT blocks a seek — a free manual take no longer
             #     locks the playhead (REQ-6)
             # v2: the ruler stops conflating cue with playhead and stops counting
@@ -261,6 +263,16 @@ counter silently desynchronises all four.
   resolving and a meter change is a class flip rather than a DOM rebuild. Every
   bar computation on this surface (the `‹ ›` steppers, the `Bar n/N` readout, a
   tick click) measures with `barTicks` instead of 16.
+- **REQ-19** (v5) — **A tick sits over the step it marks.** `playheadRulerFor`
+  hands the panel two pieces and the panel places them, so the ruler's row-label
+  slot must be the **same width** as the slot/track rows beneath it — that
+  placement is the whole reason the ruler is not one shared component. The
+  [sampler](sampler.md) panel got this wrong: its rows widened their control
+  cluster to fit a filename while the ruler row kept the drum panel's bare width,
+  putting every tick 80px left of its step. Nothing detected it, because the ruler
+  was present, visible and internally correct — only in the wrong place. A panel
+  that overrides that width therefore does so from **one constant used by both
+  rows**, and the alignment is pinned by measuring geometry, not class names.
 
 ## Technical design
 
@@ -485,6 +497,12 @@ Scenario: Shift+Arrow moves a bar without shifting the keyboard octave (edge, RE
   When the user presses Shift+ArrowRight
   Then the playhead advances exactly one bar
   And the on-screen keyboard's octave is unchanged
+# pinned by: e2e/transport-position.spec.ts
+
+Scenario: A ruler tick lines up with the step beneath it (regression, v5, REQ-19)
+  Given any machine tab
+  When the ruler and the step grid are measured
+  Then tick 0 and step 0 share a left edge
 # pinned by: e2e/transport-position.spec.ts
 
 Scenario: A stopped ruler shows a cue, never a playhead (v2, REQ-14)

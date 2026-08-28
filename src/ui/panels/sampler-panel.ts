@@ -18,7 +18,9 @@ import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
 import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
-import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
+import { audioBufferToCaptured, capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
+import { showToast } from '../components/toast';
+import { MIN_STRETCH_RATIO, MAX_STRETCH_RATIO } from '../../state/limits';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import { ALL_CELLS, bindLaneGrid } from '../lane-grid';
 import layout from '../styles/layout.module.css';
@@ -45,6 +47,22 @@ async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions
   }
   m.openRecordSoundModal(engine, opts);
 }
+
+/**
+ * Width of a slot row's control cluster — Load, name, ✎, FIT, mute.
+ *
+ * Wider than the drum panel's 130px because a sampler row carries a filename, and
+ * wider again since the FIT button joined it (time-stretch.md REQ-11): at 210px
+ * the name collapsed to about four characters, which is not a label.
+ *
+ * **The ruler row uses this too.** It used to take the drum panel's bare 130px
+ * while the slot rows overrode to 210px, so the playhead ticks sat 80px left of
+ * the steps they mark — the one thing `playheadRulerFor` asks the panel to get
+ * right ("reusing each panel's real grid class is what keeps the ticks aligned
+ * with the steps beneath them", transport-position.md REQ-9). One constant, both
+ * rows, so they cannot drift apart again.
+ */
+const SLOT_CTRLS_WIDTH = '240px';
 
 export function buildSamplerPanel(
   bus: ParamBus,
@@ -129,6 +147,7 @@ export function buildSamplerPanel(
   rulerRow.className = drumStyles.row!;
   const rulerCtrls = document.createElement('div');
   rulerCtrls.className = drumStyles.rowCtrls!;
+  rulerCtrls.style.width = SLOT_CTRLS_WIDTH;
   rulerCtrls.appendChild(ruler.barEl);
   rulerRow.appendChild(rulerCtrls);
   ruler.cellsEl.classList.add(drumStyles.cells!);
@@ -145,6 +164,95 @@ export function buildSamplerPanel(
   const cellRows: HTMLElement[] = [];
   const labels: HTMLButtonElement[] = [];
   const editBtns: HTMLButtonElement[] = [];
+  const fitBtns: HTMLButtonElement[] = [];
+
+  /**
+   * The nearest musical length for a clip, among quarter-bar to four bars
+   * (time-stretch.md REQ-11), or `null` when none is reachable inside the stretch
+   * limits.
+   *
+   * Nearest, deliberately, rather than "one bar": a 3.9-bar loop forced into one
+   * bar is a 0.26x smear, and the one-click action has no dialog in which to warn
+   * about that. Picking the closest length instead keeps the ratio near 1 wherever
+   * the clip was already roughly musical, which is the case this button exists for.
+   */
+  const fitPlan = (buf: AudioBuffer | null): { frames: number; label: string; ratio: number } | null => {
+    if (!buf || buf.length === 0) return null;
+    const sixteenth = engine.clock.sixteenthDuration();
+    const bar = Math.max(1, engine.barTicks);
+    if (!Number.isFinite(sixteenth) || sixteenth <= 0) return null;
+
+    const options: { bars: number; label: string }[] = [
+      { bars: 0.25, label: '¼ bar' },
+      { bars: 0.5, label: '½ bar' },
+      { bars: 1, label: '1 bar' },
+      { bars: 2, label: '2 bars' },
+      { bars: 4, label: '4 bars' },
+    ];
+    let best: { frames: number; label: string; ratio: number } | null = null;
+    for (const o of options) {
+      const frames = Math.round(o.bars * bar * sixteenth * buf.sampleRate);
+      if (frames <= 0) continue;
+      const ratio = frames / buf.length;
+      if (ratio < MIN_STRETCH_RATIO || ratio > MAX_STRETCH_RATIO) continue;
+      if (!best || Math.abs(Math.log(ratio)) < Math.abs(Math.log(best.ratio))) {
+        best = { frames, label: o.label, ratio };
+      }
+    }
+    return best;
+  };
+
+  /**
+   * Retime a slot to its nearest musical length, and offer the previous audio back
+   * (time-stretch.md REQ-12). No confirm: a confirm would defeat a one-click
+   * action, and the toast makes it reversible instead. The clip keeps its name —
+   * same sound, new timing — which also avoids sampler.md REQ-7 evicting the audio
+   * this just wrote.
+   *
+   * The DSP is loaded on the click that needs it, like the editor modal above
+   * (runtime-performance.md REQ-1): most players never press this.
+   */
+  const quickFit = async (slot: number): Promise<void> => {
+    const prev = engine.sampler.buffers[slot] ?? null;
+    const plan = fitPlan(prev);
+    if (!prev || !plan) return;
+
+    let m: typeof import('../../audio/recorder/time-stretch');
+    try {
+      m = await import('../../audio/recorder/time-stretch');
+    } catch {
+      // Deliberately NOT `showLazyLoadFailure`: this import sits inside an
+      // *operation*, not behind a surface that opens, and
+      // lazy-load-failure.md REQ-5 keeps those with their own feature and their
+      // own sentence — "Couldn't open the time-stretcher" describes nothing the
+      // user asked for. Same shape as the `lamejs` and `jsqr` deferrals.
+      showToast({
+        message: navigator.onLine
+          ? "Couldn't fit the clip — the download failed."
+          : "Couldn't fit the clip — you're offline and this part of the app isn't "
+            + 'downloaded yet.',
+        actionLabel: 'Retry',
+        testId: 'fit-load-failed-toast',
+        onAction: () => void quickFit(slot),
+      });
+      return;
+    }
+    // The slot may have been reloaded or cleared while the chunk was in flight.
+    if (engine.sampler.buffers[slot] !== prev) return;
+
+    const out = m.fitToFrames(audioBufferToCaptured(prev), plan.frames, 'rhythmic');
+    engine.sampler.setBuffer(slot, capturedToAudioBuffer(engine.ctx, out));
+    refreshLabel(slot);
+    showToast({
+      message: `Fitted to ${plan.label} · ${plan.ratio.toFixed(2)}x`,
+      actionLabel: 'Undo',
+      testId: 'fit-toast',
+      onAction: () => {
+        engine.sampler.setBuffer(slot, prev);
+        refreshLabel(slot);
+      },
+    });
+  };
 
   // Selection cursor for the per-step edit row (one cell across the grid).
   const cursor = new GridCursor(stepBtns, () => {
@@ -166,6 +274,19 @@ export function buildSamplerPanel(
       : 'Load a WAV/MP3 file';
     const editBtn = editBtns[slot];
     if (editBtn) editBtn.style.display = loaded ? '' : 'none';
+
+    // The FIT button shares the edit button's visibility rule, and states what it
+    // will actually do — the target moves with the tempo, the meter and the clip.
+    const fitBtn = fitBtns[slot];
+    if (fitBtn) {
+      fitBtn.style.display = loaded ? '' : 'none';
+      const plan = fitPlan(engine.sampler.buffers[slot] ?? null);
+      fitBtn.disabled = plan == null;
+      fitBtn.title = plan
+        ? `Fit to ${plan.label} — ${plan.ratio.toFixed(2)}x, pitch unchanged`
+        : `This clip is more than ${MAX_STRETCH_RATIO}x away from every bar length `
+          + 'at this tempo — open the editor to pick a target.';
+    }
   };
 
   for (let t = 0; t < SAMPLER_SLOT_COUNT; t++) {
@@ -175,7 +296,7 @@ export function buildSamplerPanel(
 
     const ctrls = document.createElement('div');
     ctrls.className = drumStyles.rowCtrls!;
-    ctrls.style.width = '210px';
+    ctrls.style.width = SLOT_CTRLS_WIDTH;
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -223,6 +344,15 @@ export function buildSamplerPanel(
     });
     editBtns[slot] = editBtn;
     ctrls.appendChild(editBtn);
+
+    const fitBtn = document.createElement('button');
+    fitBtn.className = samplerStyles.fit!;
+    fitBtn.dataset.testid = `sampler-fit-${slot}`;
+    fitBtn.textContent = 'FIT';
+    fitBtn.style.display = 'none';
+    fitBtn.addEventListener('click', () => void quickFit(slot));
+    fitBtns[slot] = fitBtn;
+    ctrls.appendChild(fitBtn);
 
     const mute = new Switch(bus, `sampler.t${slot}.mute`, 'mute');
     mute.el.classList.add(drumStyles.mute!);
@@ -272,7 +402,7 @@ export function buildSamplerPanel(
   // ---- Selected-slot strip (sound design for the selected slot) ----
   // The drum panel's tuning strip, applied to a sampler slot (sampler.md REQ-12/13):
   // one shared row driven by the selection cursor. Per-row knobs were the obvious
-  // alternative and are the wrong one — the row controls are 210px wide and would
+  // alternative and are the wrong one — the row controls are a fixed narrow width and would
   // have to hold nine knobs and a switch, eight times over.
   // `help` pins an info badge to this control's CELL (onboarding.md REQ-25). Only
   // the controls a player cannot guess carry one, and each covers its neighbours:

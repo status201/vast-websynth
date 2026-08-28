@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 12 # v12: lazy-load-failed-toast, the deferred-surface load report
+version: 13 # v13: the Fit / Shift rows and the slot-row FIT button
+            #      (time-stretch.md)
+            # v12: lazy-load-failed-toast, the deferred-surface load report
             #      (onboarding.md REQ-24)
             # v11: the per-step edit row's micro slider exposes its PARTS
             #      (-micro-track/-dec/-inc/-value), step-settings.md REQ-6
@@ -224,7 +226,10 @@ motion tab:                                         # features/motion-sequencer.
 
 sampler slots:                                      # features/sampler.md
   sampler-load-<slot> · sampler-name-<slot> · sampler-edit-<slot> ·
-  sampler-file-<slot> · sampler-record
+  sampler-file-<slot> · sampler-record ·
+  sampler-fit-<slot>                                # the row's FIT button
+    # (sampler.md REQ-16 / time-stretch.md REQ-11). Hidden with sampler-edit-<slot>
+    # while the slot holds no buffer, so assert on visibility, not presence.
   sampler-slot-reset                                # the selected-slot strip's
     # Reset (sampler.md REQ-12). The strip's own controls mint no ids of their own:
     # they are Knob/Switch, so they are knob-sampler.t<slot>.<param> and
@@ -290,6 +295,11 @@ audio capture:
     chop-toast                                        # features/sample-chop.md
     # The boundaries themselves are canvas strokes, not elements, so they mint no
     # ids — a chop is asserted through the slots it fills, not through its markers.
+  fit-row · fit-target · fit-mode · fit-apply · fit-hint ·
+    shift-row · shift-amount · shift-apply ·
+    fit-toast · fit-load-failed-toast                 # features/time-stretch.md
+    # `fit-toast` is raised by the SLOT-ROW button (sampler-fit-<slot>), not by the
+    # modal: inside the modal the one-level undo already covers the edit.
 
 presets:                                            # features/presets.md
   preset-manager · preset-mgr-save · preset-mgr-export-preset ·

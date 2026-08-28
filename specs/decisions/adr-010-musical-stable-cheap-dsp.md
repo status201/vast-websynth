@@ -97,3 +97,25 @@ two bus instances at 2 channels.
 The decision is untouched — a smaller budget than stated argues *for*
 *musical, stable, cheap*, not against it. Recorded here rather than edited above,
 because ADRs are append-only ([`specs/README.md`](../README.md) → Decisions).
+
+## Note (2026-08-28) — scope: this ADR governs the audio thread
+
+The three priorities above were written for DSP that runs *per sample, per voice,
+per live instance* — worklets on the audio thread. They were cited to decline
+true time-stretch in [sampler](../features/sampler.md) on the grounds that it
+"needs a granular engine", which is the right answer for a realtime playback
+mode and the wrong one for an offline buffer edit.
+
+**Offline sample edits answer to a different cost budget.** `buffer-dsp.ts` and
+`offline-render.ts` are paid once, on a button press, with the calling surface
+disabled — not multiplied by polyphony and not on a deadline. *Cheap* therefore
+ranks far lower there, and an algorithm rejected as too expensive for a worklet
+can still be the right one for a clip.
+
+*Musical* and *stable* are unchanged and still apply in full. Stability in
+particular is not relaxed by being offline: a stretch ratio reaches a length
+calculation and an allocation, so bounded, finite output for any input remains
+non-negotiable ([ADR-015](adr-015-untrusted-input-is-bounded.md)).
+
+The decision is untouched; only its scope is stated. See
+[time-stretch](../features/time-stretch.md).
