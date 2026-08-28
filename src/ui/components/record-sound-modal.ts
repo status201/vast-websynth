@@ -19,16 +19,27 @@ import { confirmDialog } from './dialog';
 import { showToast } from './toast';
 import { renderEffect, renderPitchShift } from '../../audio/recorder/offline-render';
 import { fitToFrames, type StretchMode } from '../../audio/recorder/time-stretch';
+import { renderScratch } from '../../audio/recorder/scratch';
+import {
+  scratchPreset, randomScratch, autoCue, SCRATCH_PRESETS,
+  type ScratchCurve, type ScratchPresetName,
+} from '../../audio/recorder/scratch-curve';
+import { ScratchGraph } from './scratch-graph';
+import { createCollapseToggle, type CollapseToggle } from './collapse-toggle';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import { encodeWav, encodeMp3, triggerDownload } from '../../audio/recorder/encode';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
 import {
   MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,
-  MAX_PITCH_SHIFT_SEMITONES,
+  MAX_PITCH_SHIFT_SEMITONES, MAX_SCRATCH_STEPS,
 } from '../../state/limits';
+import { UI_ICONS } from './ui-icons';
 
 const FADE_MS = 150;
 const BOOST_FACTOR = 2; // ≈ +6 dB
+/** Columns of source peaks the scratch graph warps. Enough to resolve a hit at
+ *  any usable width, cheap enough to recompute on a crop drag. */
+const PEAK_COLS = 512;
 const MIN_F = 20;
 const MAX_F = 18000;
 
@@ -91,9 +102,16 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   /** Re-reads the selection into the Fit row's target list, hint and disabled
    *  states (time-stretch.md REQ-9/REQ-10). */
   let syncFit: ((repick?: boolean) => void) | null = null;
+  /** Re-reads the selection into the Scratch row's hint, grid and disabled state
+   *  (scratch.md REQ-15). */
+  let syncScratch: ((repick?: boolean) => void) | null = null;
   /** Last-rendered Fit target labels, so a meter change rebuilds the list and a
    *  crop drag does not. */
   let fitLabels = '';
+  /** The drawn scratch. Lives exactly as long as the modal does — nothing about
+   *  it is persisted (scratch.md REQ-24). */
+  let scratch: ScratchCurve = scratchPreset('Baby', 16);
+  let scratchGraph: ScratchGraph | null = null;
 
   const stopPreview = (): void => {
     cancelAnimationFrame(playRaf);
@@ -118,6 +136,11 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     redrawHook = null;
     syncChop = null;
     syncFit = null;
+    syncScratch = null;
+    // The graph owns a ResizeObserver and, mid-drag, listeners on its own canvas
+    // plus the shared value bubble — none of which the modal's teardown can see.
+    scratchGraph?.destroy();
+    scratchGraph = null;
     resizeObs?.disconnect();
     resizeObs = null;
   };
@@ -318,11 +341,13 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     };
     redrawHook = redraw;
 
-    const playSelection = (): void => {
-      const cur = working;
-      if (!cur) return;
+    /**
+     * Audition one clip. Split out of `playSelection` so the scratch row can
+     * preview a render it has NOT committed (scratch.md REQ-23) through the same
+     * node lifecycle, playhead loop and Play/Stop button as everything else.
+     */
+    const playClip = (c: CapturedAudio): void => {
       stopPreview();
-      const c = crop(cur, cropStart, cropEnd);
       const node = engine.ctx.createBufferSource();
       node.buffer = capturedToAudioBuffer(engine.ctx, c);
       node.connect(engine.ctx.destination);
@@ -340,6 +365,12 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       playRaf = requestAnimationFrame(loop);
     };
 
+    const playSelection = (): void => {
+      const cur = working;
+      if (!cur) return;
+      playClip(crop(cur, cropStart, cropEnd));
+    };
+
     const dragHandle = (handle: HTMLElement, which: 'start' | 'end'): void => {
       handle.addEventListener('pointerdown', (e) => {
         e.preventDefault();
@@ -352,6 +383,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
           else cropEnd = Math.min(sampleLen(), Math.max(s, cropStart + gap));
           redraw();
           syncFit?.();
+          syncScratch?.();
         };
         const onUp = (ev: PointerEvent): void => {
           handle.releasePointerCapture(ev.pointerId);
@@ -436,6 +468,49 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     fxRow.className = recStyles.fxRow!;
     body.appendChild(fxRow);
 
+    /* ---- musical length arithmetic, shared by the Fit and Scratch rows ----
+     * Targets are sixteenth counts, because that is the unit the clock actually
+     * runs on (ADR-019: a tick IS a sixteenth) and because "a bar" is only a
+     * count of them — one that changes with the meter. Annotating the ones that
+     * land on a bar keeps both readings in one control instead of two.
+     *
+     * This sits above both rows rather than inside Fit's, because
+     * time-stretch.md REQ-9 forbids re-deriving what a bar is and a second
+     * derivation for the scratch length would be exactly that. */
+    const FIT_TARGETS: readonly number[] = [
+      ...Array.from({ length: 32 }, (_, i) => i + 1), 48, MAX_SCRATCH_STEPS,
+    ];
+
+    const srOf = (): number => working?.sampleRate ?? engine.ctx.sampleRate;
+    const selFrames = (): number => Math.max(0, cropEnd - cropStart);
+    /** Frames one target occupies at the current tempo — render-to-sampler.md's
+     *  arithmetic, never a second derivation of what a bar is. */
+    const framesFor = (steps: number): number =>
+      Math.round(steps * engine.clock.sixteenthDuration() * srOf());
+
+    const fitLabel = (steps: number): string => {
+      const bars = steps / Math.max(1, engine.barTicks);
+      if (Number.isInteger(bars)) return `${steps} · ${bars} bar${bars === 1 ? '' : 's'}`;
+      if (bars === 0.5) return `${steps} · ½ bar`;
+      if (bars === 0.25) return `${steps} · ¼ bar`;
+      return `${steps}`;
+    };
+    const stepsFor = (label: string): number =>
+      FIT_TARGETS.find((s) => fitLabel(s) === label) ?? 0;
+
+    /** The target closest to how long the selection already is — what both rows
+     *  preselect, so the first thing offered is the one that barely moves. */
+    const nearestTarget = (): number => {
+      const frames = selFrames();
+      let best = FIT_TARGETS[0]!;
+      let bestErr = Infinity;
+      for (const s of FIT_TARGETS) {
+        const err = Math.abs(framesFor(s) - frames);
+        if (err < bestErr) { bestErr = err; best = s; }
+      }
+      return best;
+    };
+
     const allButtons: HTMLButtonElement[] = [];
     let busy = false;
     const setBusy = (b: boolean): void => {
@@ -449,6 +524,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       // Same reasoning for Fit: the target may be out of the stretch limits for
       // this selection, and a blanket re-enable would offer a fit that is refused.
       syncFit?.();
+      // And for Scratch, whose chosen length must still fit the frame bound.
+      syncScratch?.();
     };
 
     const afterMutate = (next: CapturedAudio, action: string, btn?: HTMLButtonElement): void => {
@@ -461,6 +538,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       marks = [];
       syncChop?.();
       syncFit?.(true);
+      syncScratch?.(true);
       lastAction = action;
       redraw();
       if (btn) {
@@ -715,30 +793,8 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     body.appendChild(chopRow);
 
     // ---- Fit + Shift (time-stretch.md REQ-9/REQ-10) ----
-    // Targets are sixteenth counts, because that is the unit the clock actually
-    // runs on (ADR-019: a tick IS a sixteenth) and because "a bar" is only a
-    // count of them — one that changes with the meter. Annotating the ones that
-    // land on a bar keeps both readings in one control instead of two.
-    const FIT_TARGETS: readonly number[] = [
-      ...Array.from({ length: 32 }, (_, i) => i + 1), 48, 64,
-    ];
-
-    const srOf = (): number => working?.sampleRate ?? engine.ctx.sampleRate;
-    const selFrames = (): number => Math.max(0, cropEnd - cropStart);
-    /** Frames one target occupies at the current tempo — render-to-sampler.md's
-     *  arithmetic, never a second derivation of what a bar is. */
-    const framesFor = (steps: number): number =>
-      Math.round(steps * engine.clock.sixteenthDuration() * srOf());
-
-    const fitLabel = (steps: number): string => {
-      const bars = steps / Math.max(1, engine.barTicks);
-      if (Number.isInteger(bars)) return `${steps} · ${bars} bar${bars === 1 ? '' : 's'}`;
-      if (bars === 0.5) return `${steps} · ½ bar`;
-      if (bars === 0.25) return `${steps} · ¼ bar`;
-      return `${steps}`;
-    };
-    const stepsFor = (label: string): number =>
-      FIT_TARGETS.find((s) => fitLabel(s) === label) ?? 0;
+    // The sixteenth arithmetic these read lives above the chop row, shared with
+    // the Scratch section.
 
     /** Whether a target is reachable from this selection within the stretch limits. */
     const fitOk = (steps: number): boolean => {
@@ -819,6 +875,178 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     shiftRow.appendChild(shiftBtn);
     body.appendChild(shiftRow);
 
+    /* ---- Scratch (scratch.md REQ-15 … REQ-23) ----
+     * A section rather than a second modal: it edits the same selection, and it
+     * applies through the same `runOp`, so undo, the busy latch and the crop
+     * reset are inherited rather than reimplemented. It is collapsed until asked
+     * for, because a 210 px canvas is a lot of modal to spend on a feature most
+     * sessions never open (runtime-performance.md).
+     */
+    const scratchWrap = document.createElement('div');
+    scratchWrap.className = recStyles.scratchSection!;
+    scratchWrap.dataset.testid = 'scratch-section';
+    const scratchHead = document.createElement('div');
+    scratchHead.className = recStyles.scratchHead!;
+    const scratchTitle = document.createElement('span');
+    scratchTitle.textContent = 'Scratch';
+    const scratchBody = document.createElement('div');
+    scratchBody.className = recStyles.scratchBody!;
+    scratchBody.dataset.testid = 'scratch-body';
+
+    const scratchRow = document.createElement('div');
+    scratchRow.className = recStyles.fxRow!;
+    scratchRow.dataset.testid = 'scratch-row';
+    const scratchHint = document.createElement('span');
+    scratchHint.className = recStyles.hint!;
+    scratchHint.dataset.testid = 'scratch-hint';
+    scratchRow.appendChild(scratchHint);
+
+    const lenDd = new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16));
+    lenDd.el.dataset.testid = 'scratch-length';
+    lenDd.el.title = 'How long the scratch lasts, in sixteenths at the current tempo.';
+    scratchRow.appendChild(lenDd.el);
+
+    // "Custom" is not a preset you can pick — it is what the dropdown says once
+    // the curve stops being any of them, so the control never names a shape that
+    // is no longer on screen (ADR-014 law 5).
+    const CUSTOM = 'Custom';
+    const PRESET_LABELS = [
+      ...SCRATCH_PRESETS.map((n) => (n === 'Baby' ? 'Baby (short-short-long)' : n)),
+      CUSTOM,
+    ];
+    const presetDd = new Dropdown([...PRESET_LABELS], PRESET_LABELS[0]);
+    presetDd.el.dataset.testid = 'scratch-preset';
+    presetDd.el.title = 'Classic patterns. Baby is a push, a pull and a long push — '
+      + 'the one that reads as a scratch straight away.';
+    scratchRow.appendChild(presetDd.el);
+
+    const scratchSteps = (): number => stepsFor(lenDd.value) || 16;
+    const scratchFrames = (): number => framesFor(scratchSteps());
+    const presetFor = (label: string): ScratchPresetName =>
+      SCRATCH_PRESETS[Math.max(0, PRESET_LABELS.indexOf(label))] ?? 'Baby';
+
+    /** Drop the needle so the gesture reads from inside the sample (REQ-20).
+     *  Recomputed whenever the shape or the length changes, never stored. */
+    const recue = (c: ScratchCurve): ScratchCurve =>
+      ({ ...c, cue: autoCue(c, selFrames(), scratchFrames()) });
+
+    const setScratch = (c: ScratchCurve, recueIt = true): void => {
+      scratch = recueIt ? recue(c) : c;
+      scratchGraph?.setCurve(scratch);
+      syncScratch?.();
+    };
+
+    const graph = new ScratchGraph({
+      curve: scratch,
+      // A hand-edited curve is no longer any named preset, and saying so is
+      // cheaper than a dropdown that lies about what is on screen.
+      onChange: (c) => {
+        scratch = c;
+        if (presetDd.value !== CUSTOM) presetDd.setValue(CUSTOM);
+        syncScratch?.();
+      },
+      // Reuse the checkbox the user already set rather than inventing a second
+      // preference for the same question.
+      onCommit: () => { if (autoPlay.checked) previewScratch(); },
+      onAudition: () => previewScratch(),
+    });
+    scratchGraph = graph;
+
+    const scratchOf = (src: CapturedAudio): CapturedAudio =>
+      renderScratch(src, scratch, scratchFrames());
+
+    /** Render and play without committing (REQ-23) — no `working`, no undo
+     *  snapshot, no button flash. The render is a single pass over a bar of
+     *  audio, so it is cheap enough to sit behind a tap. */
+    function previewScratch(): void {
+      const cur = working;
+      if (!cur || busy || selFrames() <= 0) return;
+      playClip(scratchOf(crop(cur, cropStart, cropEnd)));
+    }
+
+    const diceBtn = createButton({
+      label: 'Roll',
+      iconBefore: UI_ICONS.dice,
+      testId: 'scratch-random',
+      title: 'Roll a new scratch on the grid.',
+      onClick: () => {
+        setScratch(randomScratch(scratchSteps()));
+        presetDd.setValue(CUSTOM);
+      },
+    });
+    const previewBtn = createButton({
+      label: 'Preview',
+      testId: 'scratch-preview',
+      title: 'Hear it without applying it.',
+      onClick: () => previewScratch(),
+    });
+    const scratchBtn = createButton({
+      label: 'Scratch',
+      testId: 'scratch-apply',
+      onClick: () => {
+        if (selFrames() <= 0) return;
+        runOp(scratchBtn, 'Scratch', (src) => scratchOf(src));
+      },
+    });
+    allButtons.push(diceBtn, previewBtn, scratchBtn);
+    scratchRow.append(diceBtn, previewBtn, scratchBtn);
+
+    scratchBody.append(graph.el, scratchRow);
+    // Closed until asked for: a 210 px canvas is a lot of modal to spend on a
+    // section most sessions never open. The chevron persists that choice like
+    // every other panel in the app — the curve itself is not persisted (REQ-24).
+    const scratchFold: CollapseToggle = createCollapseToggle(
+      scratchBody,
+      'websynth.scratch.open',
+      { defaultCollapsed: () => true, trigger: scratchHead, onChange: () => syncScratch?.() },
+    );
+    scratchFold.el.dataset.testid = 'scratch-toggle';
+    scratchHead.append(scratchFold.el, scratchTitle);
+    scratchWrap.append(scratchHead, scratchBody);
+    body.appendChild(scratchWrap);
+
+    lenDd.onChange(() => setScratch(scratch));
+    presetDd.onChange((v) => {
+      if (v === CUSTOM) return;
+      setScratch(scratchPreset(presetFor(v), scratchSteps()));
+    });
+
+    syncScratch = (repick = false): void => {
+      const frames = selFrames();
+      const sr = srOf();
+      const labels = FIT_TARGETS.map(fitLabel);
+      if (lenDd.value !== '' && labels.indexOf(lenDd.value) < 0) lenDd.setOptions(labels);
+      // Same rule the Fit row follows: preselect what the material suggests, and
+      // only on a real change of material, or a crop drag would fight the choice.
+      if (repick && frames > 0) lenDd.setValue(fitLabel(nearestTarget()));
+
+      const steps = scratchSteps();
+      const out = framesFor(steps);
+      const ok = frames > 0 && out > 0 && out <= MAX_STRETCH_OUTPUT_FRAMES;
+
+      // Peaks are recomputed only when the section is open and the selection has
+      // audio: a crop drag with the panel folded away would otherwise pay for a
+      // 512-column min/max scan nobody can see (runtime-performance.md).
+      if (!scratchBody.classList.contains('collapsed') && working && frames > 0) {
+        graph.setSource(computePeaks(crop(working, cropStart, cropEnd), PEAK_COLS), frames);
+      }
+      graph.setGrid(steps, Math.max(1, engine.barTicks), out);
+
+      if (frames <= 0) {
+        scratchHint.textContent = 'Scratch: nothing selected.';
+      } else if (!ok) {
+        scratchHint.textContent = 'Scratch: that length is past the limit.';
+      } else {
+        const inSteps = frames / Math.max(1, framesFor(1));
+        scratchHint.textContent = `Scratch: selection is ~${inSteps.toFixed(1)} sixteenths `
+          + `→ ${(out / sr).toFixed(2)} s`;
+      }
+      for (const b of [diceBtn, previewBtn, scratchBtn]) b.disabled = busy || !ok;
+      scratchBtn.title = ok
+        ? 'Print the drawn scratch into the selection. Undo takes it back.'
+        : 'Select some audio and pick a length that fits.';
+    };
+
     syncFit = (repick = false): void => {
       const frames = selFrames();
       const sr = srOf();
@@ -837,15 +1065,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       // the offered action is the one that barely moves the audio. Only on a real
       // change of material: re-picking under a dragging crop handle would fight
       // whatever the user had chosen.
-      if (repick && frames > 0) {
-        let best = FIT_TARGETS[0]!;
-        let bestGap = Infinity;
-        for (const s of FIT_TARGETS) {
-          const gap = Math.abs(framesFor(s) - frames);
-          if (gap < bestGap) { bestGap = gap; best = s; }
-        }
-        targetDd.setValue(fitLabel(best));
-      }
+      if (repick && frames > 0) targetDd.setValue(fitLabel(nearestTarget()));
 
       targetDd.setDisabledOptions(FIT_TARGETS.filter((s) => !fitOk(s)).map(fitLabel));
 
@@ -878,6 +1098,10 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     targetDd.onChange(() => syncFit?.());
     shiftDd.onChange(() => syncFit?.());
     syncFit(true);
+    // Built last so it sees the Fit row settled, then given the length the
+    // material suggests and a cue placed for it (REQ-20).
+    syncScratch(true);
+    setScratch(scratch);
 
     // Done actions: save/load/close
     const actions = document.createElement('div');

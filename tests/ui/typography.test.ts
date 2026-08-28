@@ -120,6 +120,8 @@ describe('the type rule (specs/features/typography.md)', () => {
     // old-style with no `tnum`, so a serif counter shifts sideways per digit.
     expect(faceOf(find('transport-controls.module.css', '.readout')!)).toBe('var(--mono)');
     expect(faceOf(find('playhead-ruler.module.css', '.bar')!)).toBe('var(--mono)');
+    // The scratch legend's values count while a curve point is dragged.
+    expect(faceOf(find('scratch-graph.module.css', '.legend b')!)).toBe('var(--mono)');
   });
 
   it('defines all three faces in one place (REQ-3)', () => {

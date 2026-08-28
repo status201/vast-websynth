@@ -808,6 +808,15 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'The pitch stays exactly where it was, which is what separates this from PITCH. ' +
       '<strong>Shift</strong> beside it does the opposite: it moves the pitch and leaves the ' +
       'length alone.</p>' +
+      '<p>Open <strong>Scratch</strong> in the editor to draw a turntable gesture over the ' +
+      'clip. The lower lane is the <em>speed</em> of the record: drag a point up and the ' +
+      'needle runs faster and higher, drag it below the middle line and it runs backwards. ' +
+      'The lane above it shows what will come out, laid over the sixteenths of your bar, so ' +
+      'you can see the scratch land on the beat before you hear it. The thin band at the top ' +
+      'is the <em>crossfader</em> — tap it to cut the sound out under a stroke, which is what ' +
+      'turns a wobble into a scratch. Start from a preset (<em>Baby</em> is the classic short, ' +
+      'short, long), roll a random one, hit <strong>Preview</strong> to hear it, and ' +
+      '<strong>Scratch</strong> to print it into the clip. Undo takes it straight back.</p>' +
       '<p>Plays while the transport runs, with its own master and effects. A saved ' +
       '<strong>song</strong> stores only the slots\' filenames, so you re-load the audio after ' +
       'opening one; export a <strong>project</strong> instead and the audio travels with it.</p>',

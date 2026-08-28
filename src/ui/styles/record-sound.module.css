@@ -111,3 +111,29 @@
   border-color: var(--accent);
   animation: flash 0.3s ease-out alternate 2;
 }
+
+/* ---- Scratch section (scratch.md REQ-15) ----
+   A fold rather than a second modal: it edits the same selection through the
+   same undo, and a second surface is what sample-chop.md warns drifts. */
+
+.scratchSection {
+  margin-top: 16px;
+  border-top: 1px dashed rgba(244, 205, 94, 0.18);
+  padding-top: 12px;
+}
+
+.scratchHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* `.collapsed` is a global state class, so it needs :global() here. */
+.scratchBody:global(.collapsed) {
+  display: none;
+}
