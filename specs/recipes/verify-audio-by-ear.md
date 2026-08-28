@@ -3,12 +3,14 @@
 ```yaml
 id: verify-audio-by-ear
 status: implemented
-version: 1
+version: 2  # v2: the mono-down-mix gotcha — per-channel checks miss stereo
+            #     decorrelation, and pure tones do not reproduce it
 owner: core
 related:
   - architecture
   - ../features/audio-export       # the capture path this reuses
   - ../features/effects            # the usual subject: an insert on a bus
+  - ../features/time-stretch        # the mono-down-mix gotcha came from here
   - ../decisions/adr-010-musical-stable-cheap-dsp
 source:
   - scripts/audio-bench.mjs        # renders a take through the real graph
@@ -154,6 +156,18 @@ cannot come back silently. The render finds it; the unit test keeps it found.
 - **Synthetic probes can exonerate wrongly, and condemn wrongly.** A pure-tone
   probe once rated a control the worst in its module; on real material it was
   indistinguishable from bypassed. Trust the rendered take over the bench-of-one.
+- **`audio-metrics` measures the MONO down-mix — so it sees stereo damage that a
+  per-channel check cannot.** Any process that decides something *per channel*
+  can drift the two apart, and two channels that have drifted cancel when summed.
+  [time-stretch](../features/time-stretch.md) REQ-5 hit exactly this: each channel
+  on its own measured −0.2 dB while the take measured **−5.7 dB**, because the
+  phase vocoder was integrating each channel's phase separately. If the numbers
+  here disagree with a per-channel unit test, the down-mix is usually right and
+  the stereo image is the thing that broke. The matching trap in the unit test:
+  **pure tones do not reproduce it** — both channels then carry the same phase in
+  every bin, so per-channel processing happens to agree. Reach for broadband
+  material with an independent per-channel component, and confirm the test fails
+  against the bug before trusting it.
 - **A take that measures clean can still sound bad.** These metrics catch
   discontinuities and generated energy, not musicality — a process can be
   mathematically smooth and still be something nobody wants to play. That

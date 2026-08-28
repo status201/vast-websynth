@@ -114,6 +114,42 @@ export const MICRO_UNITS = 24;
  */
 export const MICRO_MAX = 12;
 
+/* ------------------------------------------------------- sample time-stretch */
+/*
+ * time-stretch.md REQ-7. These bound a *local* edit rather than a payload, and
+ * they are here anyway for the reason ADR-015 gives: a stretch ratio reaches a
+ * length calculation and then an allocation, and the buffer it is applied to did
+ * arrive from outside (a dropped file, a project zip, a restored IndexedDB clip).
+ * A bound is written down once, in the module that is the single source of truth
+ * for bounds — not as a literal beside the `new Float32Array`.
+ */
+
+/**
+ * How far a clip may be retimed, as output ÷ input. Past roughly these figures an
+ * overlap-add stretch stops sounding like the source and starts sounding like the
+ * algorithm, so this is a *quality* floor as much as a safety one — the arithmetic
+ * would survive far wider. 4× also keeps `MAX_STRETCH_OUTPUT_FRAMES` reachable
+ * only from an already-long clip.
+ */
+export const MIN_STRETCH_RATIO = 0.25;
+export const MAX_STRETCH_RATIO = 4;
+
+/**
+ * Hard cap on the frames a stretch may allocate, checked **before** the output is
+ * created. The ratio alone does not bound the allocation: 4× of an hour-long clip
+ * is four hours. Two minutes at 48 kHz is far past any sampler one-shot and still
+ * ~46 MB per channel — refusing a real clip is the worse failure (ADR-015).
+ */
+export const MAX_STRETCH_OUTPUT_FRAMES = 48_000 * 120;
+
+/**
+ * Pitch-shift range in semitones. An octave either way; beyond that the resample
+ * half is doing more damage than the shift is worth. Matches the ±24 span of
+ * `sampler.t*.pitch` in spirit but is deliberately tighter, because that one is
+ * varispeed and this one has to reconstruct what it moved.
+ */
+export const MAX_PITCH_SHIFT_SEMITONES = 12;
+
 /**
  * Keys a payload may never carry. `PatternStore.restore` does
  * `Object.assign(cell, DEFAULTS, parsedCell)`, and `Object.assign` uses [[Set]] —

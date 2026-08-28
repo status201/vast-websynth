@@ -3,7 +3,9 @@
 ```yaml
 id: sampler
 status: implemented
-version: 9   # v9: REQ-14/15 — per-slot choke groups and a mono mode, and a
+version: 10  # v10: REQ-16 — a FIT button on every slot row, fitting the clip to
+             #     the nearest bar length (time-stretch.md)
+             # v9: REQ-14/15 — per-slot choke groups and a mono mode, and a
              #     polyphony cap so a slot can no longer stack without limit
              # v8: REQ-12/13 — each slot gains a channel (vol/pan/tone/res) and a
              #     per-hit voice window (pitch/start/end/rev/attack/decay); every
@@ -20,6 +22,7 @@ related:
   - drum-machine
   - onboarding              # REQ-25: the strip's five info badges
   - sample-chop             # chopping a break across these slots
+  - time-stretch            # REQ-16: the FIT button on each slot row
   - step-settings
   - step-grid-editing
   - banks
@@ -263,6 +266,13 @@ the song format.
   and the one a listener is least likely to be following. The cap is set high
   enough that ordinary playing never reaches it: this is a guard rail, not a
   voicing decision, and a player who hears it working has already lost.
+- **REQ-16** (v10) — **A slot row carries a FIT button**, shown under the same
+  condition as its ✎ (a buffer exists). One click retimes the clip to the nearest
+  musical length with its pitch preserved, and offers Undo in a toast. The
+  behaviour, its bounds and its reversal are [time-stretch](time-stretch.md)
+  REQ-11/REQ-12; what this spec owns is that the button lives on the row, that it
+  fills the slot through `setBuffer` like every other path (REQ-6), and that it
+  does **not** rename the clip — REQ-7 would evict the audio it just wrote.
 
 ## Technical design
 
@@ -546,10 +556,18 @@ Scenario: Filling a slot notifies exactly once
   `song-author.ts` a sampler-only branch each. Keep any such field optional and no-op
   for [song](song-mode.md) backward-compat.
 - **Loop mode / bar-synced varispeed** — `bindTempoLocked` + `TEMPO_LOCKS`
-  ([tempo-lock](tempo-lock.md)) would make the sync half nearly free. True
-  time-stretch stays out: it needs a granular engine
-  ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) and no dependency is
-  available to supply one ([ADR-003](../decisions/adr-003-no-runtime-dependencies.md)).
+  ([tempo-lock](tempo-lock.md)) would make the sync half nearly free.
+  ~~True time-stretch stays out: it needs a granular engine and no dependency is
+  available to supply one.~~ **Superseded** by
+  [time-stretch](time-stretch.md): the rejection held for a *realtime* stretch,
+  which is what [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)
+  budgets, and dissolved once the operation moved **offline** — a hand-written
+  WSOLA / phase vocoder over a stored buffer needs no granular engine on the
+  audio thread and no dependency
+  ([ADR-003](../decisions/adr-003-no-runtime-dependencies.md) intact). ADR-010
+  carries a dated note recording that its scope is the audio thread. What is
+  still open is the *realtime* half: a slot that re-fits itself when the BPM
+  changes (time-stretch.md REQ-16 excludes it).
 - **Per-slot drive** — deliberately not added with the rest of REQ-12's channel: the
   sampler bus already has a distortion, and eight waveshapers is a real idle cost
   ([runtime-performance](runtime-performance.md)) for a duplicate capability.

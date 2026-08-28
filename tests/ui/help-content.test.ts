@@ -131,6 +131,36 @@ describe('help-content seq.render topic', () => {
   });
 });
 
+/**
+ * The two topics that teach time-stretch (time-stretch.md REQ-9/REQ-11).
+ *
+ * In-app copy has no other gate — it is the surface that goes stale silently when
+ * a feature lands, so the claims a user reads are pinned here like any contract.
+ */
+describe('help-content time-stretch copy', () => {
+  it('the sampler topic covers FIT, both modes, and that pitch stays put', () => {
+    const body = bodyOf('sampler');
+    expect(body).toMatch(/FIT/);
+    expect(body).toMatch(/Rhythmic/i);
+    expect(body).toMatch(/Tonal/i);
+    expect(body).toMatch(/sixteenths/i);
+    // The distinction that makes the feature worth having.
+    expect(body).toMatch(/pitch stays/i);
+    // …and its converse, so the two are never confused for each other.
+    expect(body).toMatch(/Shift/);
+    expect(body).toMatch(/Undo/);
+  });
+
+  it('the pitch topic points at the editor for length-without-pitch', () => {
+    const body = bodyOf('sampler.pitch');
+    // It still has to say PITCH is varispeed — that is the knob's whole character.
+    expect(body).toMatch(/length/i);
+    // But it must no longer read as if that were the only option.
+    expect(body).toMatch(/Fit/);
+    expect(body).toMatch(/Shift/);
+  });
+});
+
 /** The header Presets button (onboarding.md REQ-12). */
 describe('help-content presets topic', () => {
   it('separates a preset from a song and covers export/import', () => {

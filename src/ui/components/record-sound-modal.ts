@@ -17,10 +17,15 @@ import {
 } from '../../audio/recorder/buffer-dsp';
 import { confirmDialog } from './dialog';
 import { showToast } from './toast';
-import { renderEffect } from '../../audio/recorder/offline-render';
+import { renderEffect, renderPitchShift } from '../../audio/recorder/offline-render';
+import { fitToFrames, type StretchMode } from '../../audio/recorder/time-stretch';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import { encodeWav, encodeMp3, triggerDownload } from '../../audio/recorder/encode';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
+import {
+  MIN_STRETCH_RATIO, MAX_STRETCH_RATIO, MAX_STRETCH_OUTPUT_FRAMES,
+  MAX_PITCH_SHIFT_SEMITONES,
+} from '../../state/limits';
 
 const FADE_MS = 150;
 const BOOST_FACTOR = 2; // ≈ +6 dB
@@ -83,6 +88,12 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
   let marks: number[] = [];
   /** Re-reads `marks` into the chop row's labels and disabled states. */
   let syncChop: (() => void) | null = null;
+  /** Re-reads the selection into the Fit row's target list, hint and disabled
+   *  states (time-stretch.md REQ-9/REQ-10). */
+  let syncFit: ((repick?: boolean) => void) | null = null;
+  /** Last-rendered Fit target labels, so a meter change rebuilds the list and a
+   *  crop drag does not. */
+  let fitLabels = '';
 
   const stopPreview = (): void => {
     cancelAnimationFrame(playRaf);
@@ -106,6 +117,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     onPlayingChange = null;
     redrawHook = null;
     syncChop = null;
+    syncFit = null;
     resizeObs?.disconnect();
     resizeObs = null;
   };
@@ -339,6 +351,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
           if (which === 'start') cropStart = Math.max(0, Math.min(s, cropEnd - gap));
           else cropEnd = Math.min(sampleLen(), Math.max(s, cropStart + gap));
           redraw();
+          syncFit?.();
         };
         const onUp = (ev: PointerEvent): void => {
           handle.releasePointerCapture(ev.pointerId);
@@ -433,6 +446,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       // swept along — a blanket re-enable would light up Spread with nothing to
       // spread, and an offline effect would be racing the audio it spreads.
       syncChop?.();
+      // Same reasoning for Fit: the target may be out of the stretch limits for
+      // this selection, and a blanket re-enable would offer a fit that is refused.
+      syncFit?.();
     };
 
     const afterMutate = (next: CapturedAudio, action: string, btn?: HTMLButtonElement): void => {
@@ -444,6 +460,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       // that still LOOKS placed is how a chop cuts in the wrong place silently.
       marks = [];
       syncChop?.();
+      syncFit?.(true);
       lastAction = action;
       redraw();
       if (btn) {
@@ -453,6 +470,32 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       if (autoPlay.checked) playSelection();
     };
 
+    /**
+     * Run one destructive edit on the current selection: latch the busy state,
+     * label the button with it, snapshot for undo, then hand the result to
+     * `afterMutate`. Shared by the effect buttons and by the Fit / Shift rows
+     * (time-stretch.md REQ-9) so all of them inherit the same undo, the same busy
+     * latch and the same marks reset instead of reimplementing them.
+     */
+    const runOp = (
+      btn: HTMLButtonElement,
+      label: string,
+      op: (src: CapturedAudio) => CapturedAudio | Promise<CapturedAudio>,
+    ): void => {
+      const cur = working;
+      if (!cur) return;
+      setBusy(true);
+      setButtonLabel(btn, `${label}…`);
+      const base = crop(cur, cropStart, cropEnd);
+      Promise.resolve(op(base))
+        .then((next) => {
+          undoSnapshot = cur;
+          afterMutate(next, `${label} applied`, btn);
+        })
+        .catch(() => { /* keep prior working */ })
+        .finally(() => { setBusy(false); setButtonLabel(btn, label); });
+    };
+
     const apply = (
       label: string,
       op: (src: CapturedAudio) => CapturedAudio | Promise<CapturedAudio>,
@@ -460,20 +503,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       const btn = createButton({
         label,
         testId: `mic-fx-${label.toLowerCase().replace(/\s+/g, '-')}`,
-        onClick: () => {
-          const cur = working;
-          if (!cur) return;
-          setBusy(true);
-          setButtonLabel(btn, `${label}…`);
-          const base = crop(cur, cropStart, cropEnd);
-          Promise.resolve(op(base))
-            .then((next) => {
-              undoSnapshot = cur;
-              afterMutate(next, `${label} applied`, btn);
-            })
-            .catch(() => { /* keep prior working */ })
-            .finally(() => { setBusy(false); setButtonLabel(btn, label); });
-        },
+        onClick: () => runOp(btn, label, op),
       });
       allButtons.push(btn);
       fxRow.appendChild(btn);
@@ -683,6 +713,171 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     };
 
     body.appendChild(chopRow);
+
+    // ---- Fit + Shift (time-stretch.md REQ-9/REQ-10) ----
+    // Targets are sixteenth counts, because that is the unit the clock actually
+    // runs on (ADR-019: a tick IS a sixteenth) and because "a bar" is only a
+    // count of them — one that changes with the meter. Annotating the ones that
+    // land on a bar keeps both readings in one control instead of two.
+    const FIT_TARGETS: readonly number[] = [
+      ...Array.from({ length: 32 }, (_, i) => i + 1), 48, 64,
+    ];
+
+    const srOf = (): number => working?.sampleRate ?? engine.ctx.sampleRate;
+    const selFrames = (): number => Math.max(0, cropEnd - cropStart);
+    /** Frames one target occupies at the current tempo — render-to-sampler.md's
+     *  arithmetic, never a second derivation of what a bar is. */
+    const framesFor = (steps: number): number =>
+      Math.round(steps * engine.clock.sixteenthDuration() * srOf());
+
+    const fitLabel = (steps: number): string => {
+      const bars = steps / Math.max(1, engine.barTicks);
+      if (Number.isInteger(bars)) return `${steps} · ${bars} bar${bars === 1 ? '' : 's'}`;
+      if (bars === 0.5) return `${steps} · ½ bar`;
+      if (bars === 0.25) return `${steps} · ¼ bar`;
+      return `${steps}`;
+    };
+    const stepsFor = (label: string): number =>
+      FIT_TARGETS.find((s) => fitLabel(s) === label) ?? 0;
+
+    /** Whether a target is reachable from this selection within the stretch limits. */
+    const fitOk = (steps: number): boolean => {
+      const from = selFrames();
+      const to = framesFor(steps);
+      if (from <= 0 || to <= 0 || to > MAX_STRETCH_OUTPUT_FRAMES) return false;
+      const r = to / from;
+      return r >= MIN_STRETCH_RATIO && r <= MAX_STRETCH_RATIO;
+    };
+
+    const fitRow = document.createElement('div');
+    fitRow.className = recStyles.fxRow!;
+    fitRow.dataset.testid = 'fit-row';
+    const fitHint = document.createElement('span');
+    fitHint.className = recStyles.hint!;
+    fitHint.dataset.testid = 'fit-hint';
+    fitRow.appendChild(fitHint);
+
+    const targetDd = new Dropdown(FIT_TARGETS.map(fitLabel), fitLabel(16));
+    targetDd.el.dataset.testid = 'fit-target';
+    fitRow.appendChild(targetDd.el);
+
+    const MODE_LABELS = ['Rhythmic', 'Tonal'] as const;
+    const modeDd = new Dropdown([...MODE_LABELS], MODE_LABELS[0]);
+    modeDd.el.dataset.testid = 'fit-mode';
+    modeDd.el.title = 'Rhythmic keeps transients (drums, loops). Tonal is smoother '
+      + 'on sustained sounds and washes drums out.';
+    fitRow.appendChild(modeDd.el);
+
+    const fitMode = (): StretchMode => (modeDd.value === 'Tonal' ? 'tonal' : 'rhythmic');
+
+    const fitBtn = createButton({
+      label: 'Fit',
+      testId: 'fit-apply',
+      onClick: () => {
+        const steps = stepsFor(targetDd.value);
+        if (!steps || !fitOk(steps)) return;
+        const frames = framesFor(steps);
+        const mode = fitMode();
+        runOp(fitBtn, 'Fit', (src) => fitToFrames(src, frames, mode));
+      },
+    });
+    allButtons.push(fitBtn);
+    fitRow.appendChild(fitBtn);
+    body.appendChild(fitRow);
+
+    const shiftRow = document.createElement('div');
+    shiftRow.className = recStyles.fxRow!;
+    shiftRow.dataset.testid = 'shift-row';
+    const shiftHint = document.createElement('span');
+    shiftHint.className = recStyles.hint!;
+    shiftHint.textContent = 'Shift: pitch only, length kept.';
+    shiftRow.appendChild(shiftHint);
+
+    const shiftLabel = (st: number): string => (st > 0 ? `+${st} st` : `${st} st`);
+    const SHIFT_STEPS = Array.from(
+      { length: MAX_PITCH_SHIFT_SEMITONES * 2 + 1 },
+      (_, i) => i - MAX_PITCH_SHIFT_SEMITONES,
+    );
+    const shiftDd = new Dropdown(SHIFT_STEPS.map(shiftLabel), shiftLabel(0));
+    shiftDd.el.dataset.testid = 'shift-amount';
+    shiftRow.appendChild(shiftDd.el);
+
+    const shiftAmount = (): number =>
+      SHIFT_STEPS.find((s) => shiftLabel(s) === shiftDd.value) ?? 0;
+
+    const shiftBtn = createButton({
+      label: 'Shift',
+      testId: 'shift-apply',
+      onClick: () => {
+        const st = shiftAmount();
+        if (st === 0) return;
+        const mode = fitMode();
+        runOp(shiftBtn, 'Shift', (src) => renderPitchShift(src, st, mode));
+      },
+    });
+    allButtons.push(shiftBtn);
+    shiftRow.appendChild(shiftBtn);
+    body.appendChild(shiftRow);
+
+    syncFit = (repick = false): void => {
+      const frames = selFrames();
+      const sr = srOf();
+
+      // The bar annotations move with the meter, so the labels are rebuilt when
+      // they actually change — not every pointermove of a crop handle, which is
+      // where this is called from.
+      const labels = FIT_TARGETS.map(fitLabel);
+      if (labels.join('|') !== fitLabels) {
+        fitLabels = labels.join('|');
+        targetDd.setOptions(labels);
+        repick = true;
+      }
+
+      // REQ-10 — preselect the target nearest what the selection already is, so
+      // the offered action is the one that barely moves the audio. Only on a real
+      // change of material: re-picking under a dragging crop handle would fight
+      // whatever the user had chosen.
+      if (repick && frames > 0) {
+        let best = FIT_TARGETS[0]!;
+        let bestGap = Infinity;
+        for (const s of FIT_TARGETS) {
+          const gap = Math.abs(framesFor(s) - frames);
+          if (gap < bestGap) { bestGap = gap; best = s; }
+        }
+        targetDd.setValue(fitLabel(best));
+      }
+
+      targetDd.setDisabledOptions(FIT_TARGETS.filter((s) => !fitOk(s)).map(fitLabel));
+
+      const steps = stepsFor(targetDd.value);
+      const to = steps ? framesFor(steps) : 0;
+      const ok = steps > 0 && fitOk(steps);
+      if (frames <= 0) {
+        fitHint.textContent = 'Fit: nothing selected.';
+      } else if (!ok) {
+        fitHint.textContent = `Fit: ${(frames / sr).toFixed(2)} s — that target is `
+          + `outside ${MIN_STRETCH_RATIO}x–${MAX_STRETCH_RATIO}x.`;
+      } else {
+        fitHint.textContent = `Fit: ${(frames / sr).toFixed(2)} s → ${(to / sr).toFixed(2)} s `
+          + `· ${(to / frames).toFixed(2)}x`;
+      }
+
+      fitBtn.disabled = busy || !ok;
+      fitBtn.title = ok
+        ? `Retime the selection to ${targetDd.value} at ${Math.round(engine.clock.bpm)} BPM`
+        : frames <= 0
+          ? 'Select some audio first.'
+          : `A ${targetDd.value} target is more than ${MAX_STRETCH_RATIO}x away from this `
+            + `selection (or less than ${MIN_STRETCH_RATIO}x) — pick a closer length.`;
+
+      shiftBtn.disabled = busy || shiftAmount() === 0 || frames <= 0;
+      shiftBtn.title = shiftAmount() === 0
+        ? 'Pick a number of semitones first.'
+        : `Shift the selection by ${shiftDd.value}, keeping its length`;
+    };
+    targetDd.onChange(() => syncFit?.());
+    shiftDd.onChange(() => syncFit?.());
+    syncFit(true);
 
     // Done actions: save/load/close
     const actions = document.createElement('div');
