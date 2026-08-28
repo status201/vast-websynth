@@ -3,7 +3,8 @@
 ```yaml
 id: sample-recorder
 status: implemented
-version: 3   # v3: REQ-7 — the Fit and Shift rows (time-stretch.md)
+version: 4   # v4: REQ-8 — the Scratch section (scratch.md)
+             # v3: REQ-7 — the Fit and Shift rows (time-stretch.md)
              # v2: REQ-6 — a session's RecorderNode is disconnected and its port
              #     handler cleared on dispose; every modal open leaked one
 owner: core
@@ -12,6 +13,7 @@ related:
   - sampler
   - sample-chop            # the chop row this modal hosts
   - time-stretch           # the Fit / Shift rows this modal hosts
+  - scratch                # the Scratch section this modal hosts
   - audio-export
 source:
   - src/ui/components/record-sound-modal.ts
@@ -82,6 +84,15 @@ modal says so.
   Disposal is **idempotent and terminal**: it is reachable from a cancel, a save
   and a re-open, and a double dispose must not throw. A disposed node accepts no
   further `start`/`stop`.
+- **REQ-8** — (v4) **The modal hosts a Scratch section**, below the Shift row and
+  folded away until asked for. It applies through the same `runOp` path for the
+  same reason REQ-7 gives, and it is a *fold* rather than a row because its editor
+  is a 210 px canvas — too much modal to spend on a section most sessions never
+  open. Its behaviour and bounds are [scratch](scratch.md) REQ-15/REQ-21; what
+  this spec owns is that it lives here. Two shared pieces move to serve it: the
+  sixteenth-count arithmetic the Fit row used privately is hoisted above both
+  rows, and `playSelection` splits into a `playClip` that can audition an
+  uncommitted render.
 
 ## Technical design
 

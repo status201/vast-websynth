@@ -300,6 +300,14 @@ audio capture:
     fit-toast · fit-load-failed-toast                 # features/time-stretch.md
     # `fit-toast` is raised by the SLOT-ROW button (sampler-fit-<slot>), not by the
     # modal: inside the modal the one-level undo already covers the edit.
+  scratch-section · scratch-toggle · scratch-body · scratch-graph ·
+    scratch-canvas · scratch-legend · scratch-row · scratch-hint ·
+    scratch-length · scratch-preset · scratch-random · scratch-preview ·
+    scratch-apply                                     # features/scratch.md
+    # The curve's points, its cut bands and its cue are canvas strokes, not
+    # elements — the same rule the chop boundaries above follow. A scratch is
+    # asserted through the buffer it produces (its exact frame count), never
+    # through a handle per breakpoint, which would mint an id per user gesture.
 
 presets:                                            # features/presets.md
   preset-manager · preset-mgr-save · preset-mgr-export-preset ·

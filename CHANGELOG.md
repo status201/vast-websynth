@@ -44,6 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   drums and loops or **Tonal** for pads and sustained sounds.
 - **Shift a sample’s pitch without changing its length** — the converse of the
   slot’s varispeed PITCH knob, ±12 semitones, in the sample editor.
+- **Scratch a sample by drawing the gesture.** The sample editor gains a
+  **Scratch** section: the clip on a grid of sixteenths at your tempo, with the
+  speed of the record drawn underneath it. Drag a point up and the needle runs
+  faster and higher; pull it below the middle line and it runs backwards. The lane
+  above shows the result warping as you drag, so you can see the scratch land on
+  the beat before you hear it, and the thin band on top is the **crossfader** —
+  tap it to cut the sound out under a stroke, which is what turns a wobble into a
+  scratch. Start from a classic (**Baby** is the short–short–long everyone knows,
+  plus transformer, chirp, tear, flare, scribble and stab) or roll a random one.
+  **Preview** hears it without committing, **Scratch** prints it in, and Undo
+  takes it back. The result is exactly one bar — or any count of sixteenths —
+  long.
 
 ### Fixed
 

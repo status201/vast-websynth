@@ -3,7 +3,9 @@
 ```yaml
 id: sampler
 status: implemented
-version: 10  # v10: REQ-16 — a FIT button on every slot row, fitting the clip to
+version: 11  # v11: the editor gains a Scratch section (scratch.md); no new
+             #     sampler REQ - the slot rows are untouched
+             # v10: REQ-16 — a FIT button on every slot row, fitting the clip to
              #     the nearest bar length (time-stretch.md)
              # v9: REQ-14/15 — per-slot choke groups and a mono mode, and a
              #     polyphony cap so a slot can no longer stack without limit
@@ -23,6 +25,7 @@ related:
   - onboarding              # REQ-25: the strip's five info badges
   - sample-chop             # chopping a break across these slots
   - time-stretch            # REQ-16: the FIT button on each slot row
+  - scratch                 # the other offline rewrite of a slot, in the editor
   - step-settings
   - step-grid-editing
   - banks
@@ -568,6 +571,12 @@ Scenario: Filling a slot notifies exactly once
   carries a dated note recording that its scope is the audio thread. What is
   still open is the *realtime* half: a slot that re-fits itself when the BPM
   changes (time-stretch.md REQ-16 excludes it).
+- **Scratching a slot live** — [scratch](scratch.md) prints a drawn turntable
+  gesture into a clip offline, in the editor. Doing it *live* — a hand on a pad
+  bending the slot as it plays — is the same rejection one step further out and
+  it still holds: a per-voice variable-rate reader with anti-aliasing is exactly
+  the per-sample-per-voice cost ADR-010's budget refuses, and it is back on the
+  audio thread where that budget applies.
 - **Per-slot drive** — deliberately not added with the rest of REQ-12's channel: the
   sampler bus already has a distortion, and eight waveshapers is a real idle cost
   ([runtime-performance](runtime-performance.md)) for a duplicate capability.

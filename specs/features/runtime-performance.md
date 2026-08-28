@@ -3,7 +3,8 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 7   # v7: REQ-1 — the time-stretch DSP defers behind the FIT button
+version: 8   # v8: REQ-4 — a folded section counts as off screen (scratch.md)
+             # v7: REQ-1 — the time-stretch DSP defers behind the FIT button
              # v6: REQ-1 — deferring a surface makes its load fallible; the
              #     trigger owes the user a report when the import rejects
              # v5: REQ-2 — a bank of expensive artefacts is built per entry on
@@ -30,6 +31,7 @@ related:
   - transport            # REQ-9 — the worker-timer guarantee it generalises
   - oscillators          # REQ-2 — the PWM duty bank, the worked example
   - lazy-load-failure    # REQ-1 — what a deferred surface says when its load fails
+  - scratch              # REQ-4 — a folded section counts as off screen
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -192,6 +194,12 @@ so a reviewer has something concrete to hold a new feature against.
   `VisibilityGate`) and MUST re-sync once on reveal, so a revealed panel shows the
   current state immediately rather than a stale one. The rule governs **repaints
   only** — see REQ-9 for the loops it must never be applied to.
+
+  A **folded** section counts as off screen. The sample editor's scratch graph
+  ([scratch](scratch.md) REQ-17) re-derives its source peaks from the selection,
+  which a crop drag would otherwise pay for on every pointermove with the section
+  closed; it is gated on the fold and re-synced from the collapse toggle's own
+  change callback, which fires on reveal.
 
 - **REQ-5** — **Automation is not an edit.** A param write made by the machine
   (motion-sequencer automation, a Tape Stop pitch ramp) MUST fire the per-param

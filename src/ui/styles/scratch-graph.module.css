@@ -1,0 +1,47 @@
+/*
+ * The scratch editor's canvas (scratch.md REQ-16). One canvas, four lanes — the
+ * lane geometry lives in the component so the drawing and the hit tests read the
+ * same numbers; this file only owns the frame around it.
+ */
+
+.root {
+  position: relative;
+  width: 100%;
+  margin-top: 12px;
+  /* preventDefault() alone does not stop touch panning (ADR-014 law 6). */
+  touch-action: none;
+}
+
+.canvas {
+  width: 100%;
+  height: 210px;
+  display: block;
+  background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+  border: 1px solid #2a1c10;
+  border-radius: 4px;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The legend sits over the canvas rather than beside it: the lanes are already
+   labelled by their own guide lines, and a column of text outside would cost
+   width the sixteenth grid needs more. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+}
+
+/* The legend's values change in place while a point is dragged — the rate readout
+   counts as the pointer moves — so they take the tabular face (typography.md
+   REQ-3), while the words around them stay on the inherited sans. */
+.legend b {
+  color: var(--text-dim);
+  font-weight: normal;
+  font-family: var(--mono);
+}

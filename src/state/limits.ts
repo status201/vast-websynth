@@ -150,6 +150,41 @@ export const MAX_STRETCH_OUTPUT_FRAMES = 48_000 * 120;
  */
 export const MAX_PITCH_SHIFT_SEMITONES = 12;
 
+/* --------------------------------------------------------------- scratch */
+/*
+ * scratch.md REQ-14. Same reasoning as the stretch bounds above, one step
+ * further out: a scratch curve is *drawn*, so its point count, its rates and its
+ * length are all user numbers that reach an allocation. The output allocation
+ * itself reuses MAX_STRETCH_OUTPUT_FRAMES — it is the same buffer in the same
+ * modal, and a second ceiling for it would be a second thing to keep honest.
+ *
+ * MIN_STRETCH_RATIO / MAX_STRETCH_RATIO deliberately do NOT apply: a scratch's
+ * length comes from a sixteenth count, not from the source, so "a two-second clip
+ * scratched into one bar" is an ordinary request rather than a ratio to refuse.
+ */
+
+/**
+ * Breakpoints one curve may hold. Well past what a hand draws — a busy flare is
+ * a dozen — and low enough that the O(points) normalise/prefix-sum passes stay
+ * invisible next to the per-sample read they set up.
+ */
+export const MAX_SCRATCH_POINTS = 64;
+
+/**
+ * Fastest the platter may be pushed, in playback-rate units, either direction.
+ * Two octaves up is already past what a hand does to a record, and it doubles as
+ * the anti-alias tap ceiling: the box filter takes ceil(|rate|) taps, so this
+ * bounds that inner loop at four (REQ-8).
+ */
+export const MAX_SCRATCH_RATE = 4;
+
+/**
+ * Longest scratch, in sixteenths — four bars in 4/4, the same ceiling the
+ * editor's Fit targets already stop at. Combined with the frame cap above, a
+ * length past this is refused before anything is allocated.
+ */
+export const MAX_SCRATCH_STEPS = 64;
+
 /**
  * Keys a payload may never carry. `PatternStore.restore` does
  * `Object.assign(cell, DEFAULTS, parsedCell)`, and `Object.assign` uses [[Set]] —
