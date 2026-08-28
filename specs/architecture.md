@@ -206,6 +206,20 @@ zipper audibly at anything shorter), `RAMP_SLOW` 50 ms. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
 the call site.
 
+**Never cancel automation without anchoring it.** `cancelScheduledValues(t)`
+removes the in-flight ramp *and* leaves no event at `t`, so the next scheduled
+ramp starts from "the value of the AudioParam" — which Blink reads as the
+automation's computed value but Gecko reads as the last value explicitly
+assigned, snapping the param back and stepping the output. `cancelAndHoldAtTime`
+would pin it natively and Firefox does not implement it, so a cancel must be
+followed by `setValueAtTime(<the value now>, t)` on the same param. A
+*continuous* control avoids the question entirely: `setTargetAtTime` retargets
+from wherever the curve has reached, so it needs no cancel and may be re-issued
+at any rate. `tests/audio/no-unanchored-cancel.test.ts` fails the suite on a
+cancel that pins nothing; the two bugs that taught this are
+[sidechain-ducking](features/sidechain-ducking.md) and
+[performance](features/performance.md) REQ-10.
+
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
 `Set` + `add → return () => delete` pair.

@@ -1,4 +1,5 @@
 import type { ParamBus } from '../../state/params';
+import { RAMP_SMOOTH } from '../param-utils';
 import { SEQ_LENGTH } from '../../state/patterns';
 import { cellIndex, DEFAULT_LANE_RATE } from '../../state/meter';
 import type { TickSubscriber } from './tick-source';
@@ -10,8 +11,8 @@ import type { TickSubscriber } from './tick-source';
  *
  * - Stutter / beat-repeat: loops a short slice of the timeline.
  * - Fill: drum machine plays a roll instead of the pattern.
- * - Filter Drop: momentary lowpass dive on the master `djFilter`.
- * - DJ Filter: manual bipolar sweep on the same node (LP ← 0 → HP).
+ * - Filter Drop: momentary lowpass dive on the master `djLow`.
+ * - DJ Filter: manual bipolar sweep on the same pair (LP ← 0 → HP).
  * - Tape Stop: ramps BPM down + pitch down, then recovers on release.
  */
 const DJ_OPEN_HZ = 20000;
@@ -19,6 +20,30 @@ const DJ_OPEN_HZ = 20000;
 const DJ_HP_REST_HZ = 20;
 /** Resting resonance for both sides. */
 const DJ_REST_Q = 0.7;
+
+/**
+ * The sweep is `detune`, in cents, not `frequency` in Hz (performance.md REQ-10).
+ * Each node's frequency is a fixed reference the Engine sets once; these spans
+ * are how far detune travels to reach the ends of the curve v6 drew with
+ * `Math.pow`. Cents are log-frequency, so a linear approach in cents *is* that
+ * curve — which is what lets the whole path use `setTargetAtTime` and so never
+ * cancel (an unanchored cancel restarts the ramp from the constructed value on
+ * Gecko: the crackle REQ-10 fixes).
+ */
+const DJ_LP_SPAN_CENTS = 1200 * Math.log2(130 / DJ_OPEN_HZ);      // ≈ -8800
+const DJ_HP_SPAN_CENTS = 1200 * Math.log2(4000 / DJ_HP_REST_HZ);  // ≈ +9171
+/** Filter Drop's 160 Hz target on the lowpass side. */
+const DJ_DROP_CENTS = 1200 * Math.log2(160 / DJ_OPEN_HZ);         // ≈ -8368
+/** Resonance at the bottom of a Filter Drop. */
+const DJ_DROP_Q = 9;
+
+/**
+ * Time constants. `setTargetAtTime` reaches ~95% of its target in 3τ, so these
+ * are a third of the ramp durations v6 scheduled. Dialled by ear (ADR-010).
+ */
+const DJ_KNOB_TAU = RAMP_SMOOTH;  // the hand-swept / automated sweep
+const DJ_DROP_TAU = 0.17;         // Filter Drop's dive, ~0.5 s
+const DJ_RESTORE_TAU = 0.12;      // returning to the knob when Drop releases
 
 export class Performance {
   fillActive = false;
@@ -36,6 +61,9 @@ export class Performance {
   private anchor = 0;
 
   private dropActive = false;
+  /** Last commanded (cents, Q) per side, so an unchanged side is not rewritten. */
+  private lastLow: { cents: number; q: number } | null = null;
+  private lastHigh: { cents: number; q: number } | null = null;
   private tapeRaf = 0;
   private tapeActive = false;
 
@@ -97,24 +125,21 @@ export class Performance {
 
   setDrop(on: boolean): void {
     this.dropActive = on;
-    const now = this.ctx.currentTime;
-    const f = this.djLow.frequency;
-    const q = this.djLow.Q;
-    f.cancelScheduledValues(now);
-    q.cancelScheduledValues(now);
     if (on) {
       // REQ-3 — the drop OVERRIDES the knob, so the highpass side is opened back
       // out as the lowpass dives. Leaving it where the knob had it would band-pass
       // the dive instead of replacing it (which is what the single-node version
       // did implicitly, by owning the only filter there was).
-      this.rampSide(this.djHigh, now, 0.5, DJ_HP_REST_HZ, DJ_REST_Q);
-      f.setValueAtTime(Math.max(f.value, 400), now);
-      f.exponentialRampToValueAtTime(160, now + 0.5);
-      q.setValueAtTime(q.value, now);
-      q.linearRampToValueAtTime(9, now + 0.5);
+      //
+      // The dive glides from wherever the filter is (REQ-10). v6 forced it to
+      // start at >=400 Hz, which from a knob already parked at 130 Hz was an
+      // instantaneous jump *up* — the coefficient step REQ-9 exists to abolish —
+      // and read a live `.value` to do it, which Gecko does not keep current.
+      this.side(this.djLow, DJ_DROP_CENTS, DJ_DROP_Q, DJ_DROP_TAU);
+      this.side(this.djHigh, 0, DJ_REST_Q, DJ_DROP_TAU);
     } else {
       // Return to whatever the manual DJ-filter knob currently dictates.
-      this.applyDjFilter(this.bus.get('fx.djfilter'), 0.35);
+      this.applyDjFilter(this.bus.get('fx.djfilter'), DJ_RESTORE_TAU);
     }
   }
 
@@ -122,34 +147,46 @@ export class Performance {
 
   setDjFilter(x: number): void {
     if (this.dropActive) return; // Drop overrides the knob while held
-    this.applyDjFilter(x, 0.04);
+    this.applyDjFilter(x, DJ_KNOB_TAU);
   }
 
   /**
    * Drive both sides of the pair (REQ-9). Neither node's `type` is touched: the
-   * side that is not working is ramped back to transparency instead, so crossing
-   * centre is two continuous frequency ramps rather than a coefficient swap on a
-   * live biquad. Each side's own curve is exactly what it was when this was one
-   * node, so the sweep is unchanged either side of zero.
+   * side that is not working is retargeted to transparency instead, so crossing
+   * centre is two continuous sweeps rather than a coefficient swap on a live
+   * biquad. Each side's own curve is exactly what it was when this was one node,
+   * so the sweep is unchanged either side of zero — the mapping is the same, read
+   * in cents rather than Hz (REQ-10).
    */
-  private applyDjFilter(x: number, smooth: number): void {
-    const now = this.ctx.currentTime;
+  private applyDjFilter(x: number, tau: number): void {
     const lo = -Math.min(0, x); // 0..1 of lowpass
     const hi = Math.max(0, x);  // 0..1 of highpass
     const dead = Math.abs(x) < 0.02;
-    this.rampSide(this.djLow, now, smooth,
-      dead || lo === 0 ? DJ_OPEN_HZ : DJ_OPEN_HZ * Math.pow(130 / DJ_OPEN_HZ, lo),
-      dead ? DJ_REST_Q : DJ_REST_Q + lo * 3);
-    this.rampSide(this.djHigh, now, smooth,
-      dead || hi === 0 ? DJ_HP_REST_HZ : DJ_HP_REST_HZ * Math.pow(4000 / DJ_HP_REST_HZ, hi),
-      dead ? DJ_REST_Q : DJ_REST_Q + hi * 3);
+    this.side(this.djLow, dead ? 0 : lo * DJ_LP_SPAN_CENTS,
+      dead ? DJ_REST_Q : DJ_REST_Q + lo * 3, tau);
+    this.side(this.djHigh, dead ? 0 : hi * DJ_HP_SPAN_CENTS,
+      dead ? DJ_REST_Q : DJ_REST_Q + hi * 3, tau);
   }
 
-  private rampSide(node: BiquadFilterNode, now: number, smooth: number, hz: number, q: number): void {
-    node.frequency.cancelScheduledValues(now);
-    node.Q.cancelScheduledValues(now);
-    node.frequency.exponentialRampToValueAtTime(hz, now + smooth);
-    node.Q.setTargetAtTime(q, now, smooth);
+  /**
+   * Retarget one side. `setTargetAtTime` only (REQ-10): it continues from the
+   * value the previous curve has reached, so it needs no `cancelScheduledValues`
+   * and may be re-issued at any rate — which is the whole fix, since a cancel
+   * that pins nothing restarts the ramp from the constructed value on Gecko.
+   *
+   * Only one side moves per gesture, but `applyDjFilter` has to consider both, so
+   * the last commanded pair is cached and an unchanged side is not written at all
+   * (runtime-performance.md). `dropActive` flips outside this path, so `setDrop`
+   * commands through here too and the cache stays honest.
+   */
+  private side(node: BiquadFilterNode, cents: number, q: number, tau: number): void {
+    const last = node === this.djLow ? this.lastLow : this.lastHigh;
+    if (last && last.cents === cents && last.q === q) return;
+    const now = this.ctx.currentTime;
+    node.detune.setTargetAtTime(cents, now, tau);
+    node.Q.setTargetAtTime(q, now, tau);
+    if (node === this.djLow) this.lastLow = { cents, q };
+    else this.lastHigh = { cents, q };
   }
 
   // ---- Tape Stop (momentary) ----

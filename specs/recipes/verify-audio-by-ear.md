@@ -168,6 +168,28 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   every bin, so per-channel processing happens to agree. Reach for broadband
   material with an independent per-channel component, and confirm the test fails
   against the bug before trusting it.
+- **A browser is part of the graph.** `--browser firefox` renders the same take
+  through Gecko instead of Blink. The two disagree on `AudioParam` automation in
+  ways that are audible and that no unit test can reach: the mock `AudioParam`
+  has a static `value` and no event list, so *no* behavioural test can observe
+  cancel-then-ramp semantics at all. The DJ filter crackled on Firefox alone for
+  two releases because of it — a `cancelScheduledValues` that pinned nothing,
+  which Blink continues from and Gecko restarts from the constructed value
+  ([performance](../features/performance.md) REQ-10). Render both when a change
+  touches automation:
+
+  ```bash
+  npm run bench:audio -- --demo <a song that automates it> --name dj --browser chromium
+  npm run bench:audio -- --demo <a song that automates it> --name dj --browser firefox
+  # -> bench/dj.wav and bench/dj.firefox.wav
+  ```
+
+  Two deltas matter, not one: **firefox vs chromium** exposes the engine
+  disagreement, and **after vs before** on *each* engine proves the fix did not
+  quietly flatten the sound to get there. Needs the browser installed once:
+  `npx playwright install firefox`. `tests/audio/no-unanchored-cancel.test.ts`
+  is the standing guard for the specific defect; the render is how you find the
+  next one.
 - **A take that measures clean can still sound bad.** These metrics catch
   discontinuities and generated energy, not musicality — a process can be
   mathematically smooth and still be something nobody wants to play. That

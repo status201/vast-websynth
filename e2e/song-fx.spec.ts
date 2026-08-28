@@ -5,12 +5,14 @@ import { gotoAndStart, busGet, dragKnobUp } from './helpers';
  * Live DJ FX on the Song panel. The momentary buttons (Fill/Stutter/Drop/Tape
  * Stop) fire on pointerdown and release on pointerup; the DJ filter knob and
  * Tape Stop have observable effects through the dev bridge (the djLow/djHigh
- * frequencies, `master.pitchBend`). Stutter/Fill are verified via their held `on`
+ * detune, `master.pitchBend`). Stutter/Fill are verified via their held `on`
  * class since their effect (step remap / drum roll) isn't directly observable here.
  *
  * The DJ filter is a SERIES lowpass -> highpass pair whose types never change
- * (performance.md REQ-9), so the observable is which side has moved off its
- * resting frequency, not a `.type` string.
+ * (performance.md REQ-9), so the observable is which side has moved off rest,
+ * not a `.type` string. The sweep rides `detune` in cents and each side's
+ * `frequency` is a fixed reference that is never written (REQ-10), so rest is
+ * 0 cents on both — negative is the lowpass working, positive the highpass.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -18,10 +20,13 @@ import { gotoAndStart, busGet, dragKnobUp } from './helpers';
 const djMode = (page: Page) =>
   page.evaluate(() => {
     const e = (window as any).__synth.engine;
-    const lo = e.djLow.frequency.value as number;
-    const hi = e.djHigh.frequency.value as number;
-    if (hi > 25) return 'highpass';
-    if (lo < 19000) return 'lowpass';
+    // Cents off each side's reference frequency. The knob smooths with a time
+    // constant, so the threshold is a comfortable way off zero rather than a
+    // strict sign test — a settling sweep passes through small values.
+    const lo = e.djLow.detune.value as number;
+    const hi = e.djHigh.detune.value as number;
+    if (hi > 100) return 'highpass';
+    if (lo < -100) return 'lowpass';
     return 'open';
   });
 
@@ -31,9 +36,10 @@ test.describe('song panel live FX', () => {
     await page.getByTestId('tab-song').click();
   });
 
-  // Both sides move by ramp, never by a type flip (performance.md REQ-9), so every
-  // assertion here polls: the knob smooths over ~40 ms and Filter Drop over 500 ms.
-  // Reading once immediately after the gesture races the ramp.
+  // Both sides move by retargeting `detune`, never by a type flip (performance.md
+  // REQ-9/REQ-10), so every assertion here polls: `setTargetAtTime` approaches
+  // its target rather than arriving, over ~60 ms for the knob and ~500 ms for
+  // Filter Drop. Reading once immediately after the gesture races the curve.
   test('the DJ filter knob sweeps the master pair into a highpass', async ({ page }) => {
     await dragKnobUp(page, 'knob-fx.djfilter');
     expect(await busGet(page, 'fx.djfilter')).toBeGreaterThan(0);

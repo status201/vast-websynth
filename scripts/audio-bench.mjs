@@ -50,6 +50,16 @@
 //   --set id=value     ParamBus write applied before the take (repeatable)
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
+//   --browser <engine> chromium | firefox                       [default chromium]
+//                      Render through a second Web Audio implementation. Gecko
+//                      and Blink disagree on AudioParam automation in ways that
+//                      are audible and that no unit test can see — the DJ filter
+//                      crackled on Firefox alone for two releases
+//                      (performance.md REQ-10). A take is written to
+//                      bench/<name>.<engine>.<fmt> for anything but chromium, so
+//                      the same --name renders an A/B pair instead of one file
+//                      overwriting the other. Needs the browser installed:
+//                      `npx playwright install firefox`.
 //   --headed           show the browser (debugging)
 //
 // Playwright is already a devDependency and `scripts/generate-icons.mjs` is the
@@ -62,7 +72,7 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium, firefox } from 'playwright';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const benchDir = `${root}bench`;
@@ -92,6 +102,7 @@ const opts = {
   gap: Math.max(0.05, Number(flag('gap', 1))),
   url: flag('url'),
   format: flag('format', 'wav'),
+  browser: flag('browser', 'chromium'),
   headed: argv.includes('--headed'),
   sets: flags('set').filter(Boolean),
   // Export options (audio-export.md REQ-2/REQ-3), --demo mode only. Both
@@ -106,6 +117,12 @@ const opts = {
 
 if (!opts.name) {
   console.error('audio-bench: --name is required (output goes to bench/<name>.wav)');
+  process.exit(1);
+}
+
+const ENGINES = { chromium, firefox };
+if (!ENGINES[opts.browser]) {
+  console.error(`audio-bench: --browser must be one of ${Object.keys(ENGINES).join(' | ')}`);
   process.exit(1);
 }
 
@@ -205,9 +222,14 @@ if (!url) {
 // ------------------------------------------------------------------- take
 
 mkdirSync(benchDir, { recursive: true });
-const outPath = `${benchDir}/${opts.name}.${opts.format}`;
+// Chromium keeps the historical path so an old command still writes the same
+// file; anything else is tagged, which is what makes an A/B one flag apart.
+const suffix = opts.browser === 'chromium' ? '' : `.${opts.browser}`;
+const outPath = `${benchDir}/${opts.name}${suffix}.${opts.format}`;
 
-const browser = await chromium.launch({ headless: !opts.headed });
+// The launch takes no engine-specific arguments, so Firefox needs no extra
+// configuration; a take goes through the app's own RecorderController either way.
+const browser = await ENGINES[opts.browser].launch({ headless: !opts.headed });
 let failure = null;
 try {
   const context = await browser.newContext({ acceptDownloads: true });

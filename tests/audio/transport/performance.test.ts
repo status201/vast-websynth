@@ -61,8 +61,11 @@ describe('Performance.mapStep (stutter)', () => {
   });
 });
 
-const DJ_OPEN_HZ = 20000;
-const DJ_HP_REST_HZ = 20;
+// The sweep rides `detune`, in cents (performance.md REQ-10); 0 is transparent
+// on both sides. These mirror the spans in src/audio/transport/performance.ts.
+const DJ_LP_SPAN_CENTS = 1200 * Math.log2(130 / 20000);  // ~ -8800
+const DJ_HP_SPAN_CENTS = 1200 * Math.log2(4000 / 20);    // ~ +9171
+const DJ_DROP_CENTS = 1200 * Math.log2(160 / 20000);     // ~ -8368
 
 function makePerf() {
   const ctx = makeMockAudioContext();
@@ -85,9 +88,9 @@ function makePerf() {
   return { ctx, clock, bus, djLow, djHigh, perf };
 }
 
-/** Last frequency a side was ramped to, or null if it was never touched. */
-const rampedTo = (node: { frequency: { exponentialRampToValueAtTime: { mock: { calls: unknown[][] } } } }) =>
-  (node.frequency.exponentialRampToValueAtTime.mock.calls.at(-1)?.[0] as number | undefined) ?? null;
+/** Last detune (cents) a side was retargeted to, or null if it was never touched. */
+const targetedTo = (node: { detune: { setTargetAtTime: { mock: { calls: unknown[][] } } } }) =>
+  (node.detune.setTargetAtTime.mock.calls.at(-1)?.[0] as number | undefined) ?? null;
 
 // performance.md REQ-7 — the stutter window is anchored to an ABSOLUTE step, so
 // a playhead jump would otherwise be folded back into the old window.
@@ -139,22 +142,22 @@ describe('Performance.setDjFilter', () => {
   it('rests both sides transparent near zero', () => {
     const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(0);
-    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
-    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
+    expect(targetedTo(djLow)).toBe(0);
+    expect(targetedTo(djHigh)).toBe(0);
   });
 
   it('dives the lowpass side for negative values, leaving the highpass at rest', () => {
     const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(-0.5);
-    expect(rampedTo(djLow)).toBeLessThan(DJ_OPEN_HZ); // swept down from open
-    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);     // untouched, transparent
+    expect(targetedTo(djLow)).toBeCloseTo(DJ_LP_SPAN_CENTS * 0.5); // swept down from open
+    expect(targetedTo(djHigh)).toBe(0);                            // transparent
   });
 
   it('raises the highpass side for positive values, leaving the lowpass open', () => {
     const { perf, djLow, djHigh } = makePerf();
     perf.setDjFilter(0.5);
-    expect(rampedTo(djHigh)).toBeGreaterThan(DJ_HP_REST_HZ);
-    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
+    expect(targetedTo(djHigh)).toBeCloseTo(DJ_HP_SPAN_CENTS * 0.5);
+    expect(targetedTo(djLow)).toBe(0);
   });
 
   /**
@@ -175,24 +178,86 @@ describe('Performance.setDjFilter', () => {
     perf.setDrop(true); // drop now owns the lowpass side
     vi.clearAllMocks();
     perf.setDjFilter(0.8);
-    expect(djLow.frequency.cancelScheduledValues).not.toHaveBeenCalled();
+    expect(djLow.detune.setTargetAtTime).not.toHaveBeenCalled();
+  });
+
+  /**
+   * REQ-10, regression — the Firefox crackle. v6 cancelled both params and
+   * re-issued a scheduled ramp on every write; with the nodes seeded by `.value`
+   * the cancel left NO preceding event, and Gecko restarts such a ramp from the
+   * constructed value rather than the one the automation had reached. At the
+   * motion loop's 60 Hz that is a sawtooth on the master bus.
+   */
+  it('never cancels automation, however often it is written', () => {
+    const { perf, djLow, djHigh } = makePerf();
+    for (let x = -1; x <= 1.0001; x += 0.01) perf.setDjFilter(Number(x.toFixed(3)));
+    for (const node of [djLow, djHigh]) {
+      expect(node.detune.cancelScheduledValues).not.toHaveBeenCalled();
+      expect(node.Q.cancelScheduledValues).not.toHaveBeenCalled();
+      expect(node.frequency.cancelScheduledValues).not.toHaveBeenCalled();
+    }
+  });
+
+  it('sweeps detune and never writes either frequency (REQ-10)', () => {
+    const { perf, djLow, djHigh } = makePerf();
+    for (let x = -1; x <= 1.0001; x += 0.01) perf.setDjFilter(Number(x.toFixed(3)));
+    expect(djLow.detune.setTargetAtTime).toHaveBeenCalled();
+    expect(djHigh.detune.setTargetAtTime).toHaveBeenCalled();
+    for (const node of [djLow, djHigh]) {
+      expect(node.frequency.setTargetAtTime).not.toHaveBeenCalled();
+      expect(node.frequency.setValueAtTime).not.toHaveBeenCalled();
+      expect(node.frequency.exponentialRampToValueAtTime).not.toHaveBeenCalled();
+      expect(node.frequency.linearRampToValueAtTime).not.toHaveBeenCalled();
+    }
+  });
+
+  /**
+   * REQ-10 — only one side moves per gesture, so the resting side must not be
+   * rewritten once per value. v6 drove both on every call, doubling the
+   * automation churn on the bus every voice passes through.
+   */
+  it('does not rewrite a side whose target has not changed', () => {
+    const { perf, djHigh } = makePerf();
+    perf.setDjFilter(0);                       // both sides commanded to rest
+    const afterRest = djHigh.detune.setTargetAtTime.mock.calls.length;
+    for (let i = 1; i <= 20; i++) perf.setDjFilter(-i / 20); // lowpass side only
+    expect(djHigh.detune.setTargetAtTime.mock.calls.length).toBe(afterRest);
   });
 });
 
 describe('Performance.setDrop', () => {
   it('dives the lowpass side on press and restores on release', () => {
-    const { perf, djLow, djHigh } = makePerf();
+    const { perf, bus, djLow, djHigh } = makePerf();
+    // Park the knob in highpass so the drop has to override it. The release reads
+    // the bus back (that is how the Engine drives it), so set both.
+    bus.set('fx.djfilter', 0.5);
+    perf.setDjFilter(0.5);
     perf.setDrop(true);
-    expect(djLow.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(160, expect.any(Number));
-    expect(djLow.Q.linearRampToValueAtTime).toHaveBeenCalledWith(9, expect.any(Number));
+    expect(targetedTo(djLow)).toBeCloseTo(DJ_DROP_CENTS);
+    expect(djLow.Q.setTargetAtTime).toHaveBeenLastCalledWith(9, expect.any(Number), expect.any(Number));
     // REQ-3: the drop overrides the knob, so the highpass side opens back out
     // rather than band-passing the dive.
-    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
+    expect(targetedTo(djHigh)).toBe(0);
 
     vi.clearAllMocks();
-    perf.setDrop(false); // returns to the (default 0) knob position → both transparent
-    expect(rampedTo(djLow)).toBe(DJ_OPEN_HZ);
-    expect(rampedTo(djHigh)).toBe(DJ_HP_REST_HZ);
+    perf.setDrop(false); // returns to the knob position → highpass again
+    expect(targetedTo(djLow)).toBe(0);
+    expect(targetedTo(djHigh)).toBeCloseTo(DJ_HP_SPAN_CENTS * 0.5);
+  });
+
+  // REQ-10 — v6 pinned the dive's start at `Math.max(f.value, 400)`, so from a
+  // knob already parked at 130 Hz it jumped *up* to 400 Hz instantaneously: a
+  // coefficient step, i.e. the click REQ-9 exists to abolish. It also read a
+  // live `.value`, which Gecko does not keep current under automation.
+  it('glides the dive from wherever the filter is, with no jump and no .value read', () => {
+    const { perf, bus, djLow } = makePerf();
+    bus.set('fx.djfilter', -1); // knob already at the bottom of the lowpass sweep
+    perf.setDjFilter(-1);
+    perf.setDrop(true);
+    expect(djLow.frequency.setValueAtTime).not.toHaveBeenCalled();
+    expect(djLow.detune.setValueAtTime).not.toHaveBeenCalled();
+    expect(djLow.detune.cancelScheduledValues).not.toHaveBeenCalled();
+    expect(targetedTo(djLow)).toBeCloseTo(DJ_DROP_CENTS);
   });
 });
 
