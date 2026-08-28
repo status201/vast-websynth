@@ -59,6 +59,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The DJ filter no longer crackles in Firefox.** Sweeping it by hand, or letting
+  a song automate it, broke the whole mix into clicks and stutters — on Firefox
+  only, and only while the value was actually moving. The filter was re-scheduling
+  its sweep on every update in a way Firefox reads differently from Chrome:
+  measured, the cutoff did not move *at all* while it was being written, then
+  jumped whenever the writes paused. It now sweeps by a route both browsers agree
+  on, so it glides identically in each. The curve is unchanged — it sounds like
+  the same filter, it just works everywhere now.
+- **Filter Drop no longer clicks when the DJ filter is already parked low.** The
+  dive was forced to start from a fixed point above where the filter sat, so from
+  a knob already swept down it snapped upwards before diving. It now glides from
+  wherever the filter is.
 - **A mono sample played 3 dB quieter than it should have** once a slot gained a
   pan stage: at centre, stereo passes through untouched but mono is treated as a
   source to be placed, and loses half its power to the law. Slots now hand the

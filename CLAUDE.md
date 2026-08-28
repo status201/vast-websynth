@@ -56,7 +56,10 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
   not by a green suite. `npm run bench:audio` renders through the real engine;
   ADR-010 ranks *musical* first and nothing automated covers it. Two traps (both
   learned the hard way — always A/B a bypassed baseline; mute the lanes you aren't
-  testing) are in `specs/recipes/verify-audio-by-ear.md`.
+  testing) are in `specs/recipes/verify-audio-by-ear.md`. `--browser firefox`
+  renders through Gecko: it and Blink disagree on `AudioParam` automation
+  audibly, and the mock param can't model it, so a change touching automation
+  gets both.
 - Tests: `specs/recipes/write-a-test.md` (Vitest in jsdom + Playwright, the mock
   `AudioContext`, the storage mock, why tests live outside `src/`). There is no
   linter.

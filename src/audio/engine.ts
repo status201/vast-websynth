@@ -166,7 +166,11 @@ export class Engine {
   /**
    * The DJ filter is a SERIES pair, not one node whose type flips (performance.md
    * REQ-9). Each keeps its constructed type forever and rests transparent; only
-   * frequencies ramp, so crossing centre cannot click.
+   * `detune` moves, so crossing centre cannot click.
+   *
+   * The frequencies set below are fixed *references* the sweep is measured from
+   * and are never written again (REQ-10) — `Performance` retargets `detune` in
+   * cents instead, which is log-frequency and so needs only `setTargetAtTime`.
    */
   readonly djLow: BiquadFilterNode;
   readonly djHigh: BiquadFilterNode;
@@ -340,14 +344,14 @@ export class Engine {
     this.drumFx.wire(this.drumBus, this.preMaster);
     this.samplerFx.wire(this.samplerBus, this.preMaster);
 
-    // DJ performance filter — transparent by default, swept live.
+    // DJ performance filter — transparent by default, swept live via detune.
     this.djLow = this.ctx.createBiquadFilter();
     this.djLow.type = 'lowpass';
-    this.djLow.frequency.value = 20000;
+    this.djLow.frequency.value = 20000; // reference only; never written again
     this.djLow.Q.value = 0.7;
     this.djHigh = this.ctx.createBiquadFilter();
     this.djHigh.type = 'highpass';
-    this.djHigh.frequency.value = 20;
+    this.djHigh.frequency.value = 20;   // reference only; never written again
     this.djHigh.Q.value = 0.7;
 
     // SSL-style bus compressor after the DJ filter (sweeps breathe through
