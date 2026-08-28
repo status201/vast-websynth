@@ -5,6 +5,7 @@
  * `buffer-dsp` ops, the `offline-render` effects, and the `encode` pipeline.
  */
 import recStyles from '../styles/record-sound.module.css';
+import modalStyles from '../styles/modal.module.css';
 import type { StudioApi } from '../studio-api';
 import { Modal } from './modal';
 import { createButton, setButtonLabel } from './button';
@@ -25,7 +26,7 @@ import {
   type ScratchCurve, type ScratchPresetName,
 } from '../../audio/recorder/scratch-curve';
 import { ScratchGraph } from './scratch-graph';
-import { createCollapseToggle, type CollapseToggle } from './collapse-toggle';
+import { createCollapseToggle } from './collapse-toggle';
 import { capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
 import { encodeWav, encodeMp3, triggerDownload } from '../../audio/recorder/encode';
 import { SAMPLER_SLOT_COUNT, SAMPLER_SLOT_LABELS } from '../../state/patterns';
@@ -644,6 +645,63 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     );
     picker.el.dataset.testid = 'mic-slot-select';
 
+    /* ---- Editor sections (sample-recorder.md REQ-9) ----
+     * Chop, Fit & Shift and Scratch are one shape: a title on the LEFT, the
+     * shared caret on the RIGHT, and a body the whole header row folds. One
+     * factory rather than three hand-rolled headers, and the header itself is
+     * the About modal's (`modal.module.css` .secFold) — a second lookalike fold
+     * in a second modal is how two idioms start (onboarding.md REQ-17b).
+     */
+    interface FoldSection {
+      /** The whole section — header plus body. Append this to the modal. */
+      readonly wrap: HTMLElement;
+      /** What folds. Append the section's rows to this. */
+      readonly body: HTMLElement;
+    }
+    const foldSection = (title: string, idBase: string, onFold?: () => void): FoldSection => {
+      const wrap = document.createElement('div');
+      wrap.dataset.testid = `${idBase}-section`;
+
+      const head = document.createElement('div');
+      head.className = `${Modal.secClass} ${modalStyles.secFold!}`;
+      head.dataset.testid = `${idBase}-head`;
+
+      const label = document.createElement('span');
+      label.className = modalStyles.secFoldLabel!;
+      label.textContent = title;
+
+      const foldBody = document.createElement('div');
+      foldBody.className = recStyles.foldBody!;
+      foldBody.dataset.testid = `${idBase}-body`;
+
+      const fold = createCollapseToggle(foldBody, `websynth.ui.collapsed.sample-${idBase}`, {
+        // Every section rests closed: the editor's job on open is the waveform
+        // and the trim, and everything below them is something the user comes
+        // looking for.
+        defaultCollapsed: () => true,
+        trigger: head, // the whole row, not the 18 px caret (ADR-014 law 6)
+        onChange: (collapsed) => {
+          head.title = collapsed ? `Show ${title}` : `Hide ${title}`;
+          // Fires once during creation too, before the syncs exist — hence the
+          // optional call at every call site.
+          onFold?.();
+        },
+      });
+      fold.el.dataset.testid = `${idBase}-toggle`;
+      // The component's generic "Collapse panel" would be a lie on a section that
+      // rests closed; `aria-expanded` already carries the direction.
+      fold.el.setAttribute('aria-label', `${title} section`);
+
+      // Title FIRST, caret LAST. `.secFoldLabel` carries `margin-right: auto` and
+      // the caret's own class carries `margin-left: auto`; appended the other way
+      // round, the auto left margin on the FIRST flex child eats all the free
+      // space to its left and drags the title to the right edge with it — which
+      // is exactly how the Scratch title came to read as right-aligned.
+      head.append(label, fold.el);
+      wrap.append(head, foldBody);
+      return { wrap, body: foldBody };
+    };
+
     // ---- Chop (sample-chop.md) ----
     const chopRow = document.createElement('div');
     chopRow.className = recStyles.fxRow!;
@@ -790,7 +848,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
       });
     };
 
-    body.appendChild(chopRow);
+    const chopFold = foldSection('Chop', 'chop', () => syncChop?.());
+    chopFold.body.appendChild(chopRow);
+    body.appendChild(chopFold.wrap);
 
     // ---- Fit + Shift (time-stretch.md REQ-9/REQ-10) ----
     // The sixteenth arithmetic these read lives above the chop row, shared with
@@ -839,7 +899,6 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     });
     allButtons.push(fitBtn);
     fitRow.appendChild(fitBtn);
-    body.appendChild(fitRow);
 
     const shiftRow = document.createElement('div');
     shiftRow.className = recStyles.fxRow!;
@@ -873,25 +932,24 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     });
     allButtons.push(shiftBtn);
     shiftRow.appendChild(shiftBtn);
-    body.appendChild(shiftRow);
+
+    // One fold for both rows: they are the same question asked twice — retime and
+    // keep the pitch, or repitch and keep the time — and two folds would make the
+    // user open both to find out which one they wanted (time-stretch.md REQ-18).
+    const stretchFold = foldSection('Fit & Shift', 'stretch', () => syncFit?.());
+    stretchFold.body.append(fitRow, shiftRow);
+    body.appendChild(stretchFold.wrap);
 
     /* ---- Scratch (scratch.md REQ-15 … REQ-23) ----
      * A section rather than a second modal: it edits the same selection, and it
      * applies through the same `runOp`, so undo, the busy latch and the crop
-     * reset are inherited rather than reimplemented. It is collapsed until asked
-     * for, because a 210 px canvas is a lot of modal to spend on a feature most
-     * sessions never open (runtime-performance.md).
+     * reset are inherited rather than reimplemented. The most expensive of the
+     * three folds — a 210 px canvas plus a 512-column peak scan — and the only
+     * one whose fold state also gates work (runtime-performance.md): `onFold`
+     * re-runs `syncScratch`, which skips the scan while the body is collapsed.
      */
-    const scratchWrap = document.createElement('div');
-    scratchWrap.className = recStyles.scratchSection!;
-    scratchWrap.dataset.testid = 'scratch-section';
-    const scratchHead = document.createElement('div');
-    scratchHead.className = recStyles.scratchHead!;
-    const scratchTitle = document.createElement('span');
-    scratchTitle.textContent = 'Scratch';
-    const scratchBody = document.createElement('div');
-    scratchBody.className = recStyles.scratchBody!;
-    scratchBody.dataset.testid = 'scratch-body';
+    const scratchFold = foldSection('Scratch', 'scratch', () => syncScratch?.());
+    const scratchBody = scratchFold.body;
 
     const scratchRow = document.createElement('div');
     scratchRow.className = recStyles.fxRow!;
@@ -992,18 +1050,9 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
     scratchRow.append(diceBtn, previewBtn, scratchBtn);
 
     scratchBody.append(graph.el, scratchRow);
-    // Closed until asked for: a 210 px canvas is a lot of modal to spend on a
-    // section most sessions never open. The chevron persists that choice like
-    // every other panel in the app — the curve itself is not persisted (REQ-24).
-    const scratchFold: CollapseToggle = createCollapseToggle(
-      scratchBody,
-      'websynth.scratch.open',
-      { defaultCollapsed: () => true, trigger: scratchHead, onChange: () => syncScratch?.() },
-    );
-    scratchFold.el.dataset.testid = 'scratch-toggle';
-    scratchHead.append(scratchFold.el, scratchTitle);
-    scratchWrap.append(scratchHead, scratchBody);
-    body.appendChild(scratchWrap);
+    // The fold persists that choice like every other panel in the app — the curve
+    // itself is not persisted (REQ-24).
+    body.appendChild(scratchFold.wrap);
 
     lenDd.onChange(() => setScratch(scratch));
     presetDd.onChange((v) => {

@@ -62,14 +62,19 @@
   margin-top: 12px;
 }
 
+/* The slot / save row closes the modal, so its rule is SOLID where every section
+   divider above it is dashed — with all three sections folded, a fourth dashed
+   line 22px under the Scratch header read as a section that had lost its title.
+   The extra margin is the other half of the same fix: a different weight still
+   needs room to be seen as different. */
 .actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
-  border-top: 1px dashed rgba(244, 205, 94, 0.18);
-  padding-top: 14px;
+  margin-top: 28px;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 16px;
 }
 
 .slot {
@@ -112,28 +117,14 @@
   animation: flash 0.3s ease-out alternate 2;
 }
 
-/* ---- Scratch section (scratch.md REQ-15) ----
-   A fold rather than a second modal: it edits the same selection through the
-   same undo, and a second surface is what sample-chop.md warns drifts. */
+/* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-9) ----
+   Folds rather than extra modals: each edits the same selection through the same
+   undo, and a second surface is what sample-chop.md warns drifts. The header is
+   the About modal's — `.sec` + `.secFold` + `.secFoldLabel` from
+   modal.module.css, applied in record-sound-modal.ts — so there is one fold
+   idiom per modal and no lookalike to keep in step. Only the body is ours.
 
-.scratchSection {
-  margin-top: 16px;
-  border-top: 1px dashed rgba(244, 205, 94, 0.18);
-  padding-top: 12px;
-}
-
-.scratchHead {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-/* `.collapsed` is a global state class, so it needs :global() here. */
-.scratchBody:global(.collapsed) {
+   `.collapsed` is a global state class, so it needs :global() here. */
+.foldBody:global(.collapsed) {
   display: none;
 }

@@ -39,6 +39,18 @@ async function loadClip(page: Page, slot = 0, name = 'break.wav'): Promise<void>
 }
 
 /**
+ * Open the editor on `slot` and unfold the Fit & Shift section, which rests closed
+ * like every other editor section (sample-recorder.md REQ-9). The fold itself is
+ * asserted by `sample-editor-folds.spec.ts`.
+ */
+async function openStretch(page: Page, slot = 0): Promise<void> {
+  await page.getByTestId(`sampler-edit-${slot}`).click();
+  const row = page.getByTestId('fit-row');
+  if (!(await row.isVisible())) await page.getByTestId('stretch-toggle').click();
+  await expect(row).toBeVisible();
+}
+
+/**
  * time-stretch.md — retiming a clip to a musical length with its pitch intact.
  *
  * The arithmetic and the DSP are unit-tested; what only end-to-end proves is that
@@ -52,8 +64,7 @@ test.describe('time-stretch', () => {
     const before = await slotDuration(page, 0);
     expect(before).toBeCloseTo(1.7, 2);
 
-    await page.getByTestId('sampler-edit-0').click();
-    await expect(page.getByTestId('fit-row')).toBeVisible();
+    await openStretch(page);
 
     // The row preselects the nearest target, which for a 1.7 s clip is 14
     // sixteenths — so picking one bar is a real choice, not the default.
@@ -71,7 +82,7 @@ test.describe('time-stretch', () => {
 
   test('shifts pitch without moving the length (REQ-8)', async ({ page }) => {
     await loadClip(page);
-    await page.getByTestId('sampler-edit-0').click();
+    await openStretch(page);
     await expect(page.getByTestId('shift-row')).toBeVisible();
 
     // Disabled at 0 semitones, and it says why.

@@ -3,7 +3,10 @@
 ```yaml
 id: testids
 status: implemented
-version: 13 # v13: the Fit / Shift rows and the slot-row FIT button
+version: 14 # v14: the Edit Sample modal's three fold headers —
+            #      <chop|stretch|scratch>-section/-head/-toggle/-body
+            #      (sample-recorder.md REQ-9)
+            # v13: the Fit / Shift rows and the slot-row FIT button
             #      (time-stretch.md)
             # v12: lazy-load-failed-toast, the deferred-surface load report
             #      (onboarding.md REQ-24)
@@ -291,16 +294,22 @@ audio capture:
     record-status · record-timer · record-fmt-<wav|mp3>   # features/record-window.md
   mic-record-toggle · mic-play · mic-load · mic-undo · mic-reset · mic-close ·
     mic-save-<wav|mp3> · mic-slot-select · mic-fx-<name>  # features/sample-recorder.md
-  chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
+  chop-section · chop-head · chop-toggle · chop-body ·
+    chop-row · chop-count · chop-equal · chop-detect · chop-spread ·
     chop-toast                                        # features/sample-chop.md
+    # The editor modal's three sections all mint the same four ids —
+    # <base>-section (the wrapper), -head (the clickable title row), -toggle
+    # (the caret button) and -body (what folds). One shape, so a fold test can
+    # be written once and parameterised. # features/sample-recorder.md REQ-9
     # The boundaries themselves are canvas strokes, not elements, so they mint no
     # ids — a chop is asserted through the slots it fills, not through its markers.
-  fit-row · fit-target · fit-mode · fit-apply · fit-hint ·
+  stretch-section · stretch-head · stretch-toggle · stretch-body ·
+    fit-row · fit-target · fit-mode · fit-apply · fit-hint ·
     shift-row · shift-amount · shift-apply ·
     fit-toast · fit-load-failed-toast                 # features/time-stretch.md
     # `fit-toast` is raised by the SLOT-ROW button (sampler-fit-<slot>), not by the
     # modal: inside the modal the one-level undo already covers the edit.
-  scratch-section · scratch-toggle · scratch-body · scratch-graph ·
+  scratch-section · scratch-head · scratch-toggle · scratch-body · scratch-graph ·
     scratch-canvas · scratch-legend · scratch-row · scratch-hint ·
     scratch-length · scratch-preset · scratch-random · scratch-preview ·
     scratch-apply                                     # features/scratch.md
