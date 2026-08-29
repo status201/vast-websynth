@@ -183,9 +183,15 @@ SDD is enforced by `scripts/sdd-guard.mjs`, wired as Claude Code hooks
   commits).
 
 **Exempt automatically** (no spec needed): everything outside `src/` /
-`public/worklets/`, plus `*.md`, `*.css` / `src/ui/styles/**`, `src/vendor/**`,
-and `src/state/demos/**` (demo songs are data drop-ins, not code — see
-`recipes/add-a-demo-song.md`).
+`public/worklets/`, plus `*.md`, `*.css`, any path under a `styles/` directory,
+`src/vendor/**`, and `src/state/demos/**` (demo songs are data drop-ins, not code
+— see `recipes/add-a-demo-song.md`). The demos' two **metadata** files are exempt
+for the same reason and must stay that way: `src/state/demo-notes.json`, the
+hand-written blurbs ([demo-library](features/demo-library.md) REQ-2), and
+`src/state/demos-index.json`, which `npm run clean:demos` generates — gating the
+latter made `add-a-demo-song.md` unfollowable, since the one command that recipe
+requires would trip the `Stop` hook on a change the allowlist already declares
+spec-free.
 
 **Explicit bypass** for a rare trivial *production* change: `touch .sdd-skip`
 (a gitignored sentinel) locally, or put `[skip-sdd]` in a commit message / add the

@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   **Preview** hears it without committing, **Scratch** prints it in, and Undo
   takes it back. The result is exactly one bar — or any count of sixteenths —
   long.
+- **A new demo, "Kutmuziek".** 138 BPM, 16 bars in A minor, across the sequencer,
+  drums and motion lanes. Its sequencer chain plays four bars of each bank while a
+  four-bar transpose cycle (0, −4, +3, −2) runs underneath, so the progression
+  comes from the chain rather than from four separate banks. The arpeggiator is
+  left armed: hold a key while it plays.
 
 ### Fixed
 
@@ -103,6 +108,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The Scratch section's title is no longer stranded at the right edge.** "Scratch"
   sat hard against the far right of its own header, past the caret that opens it,
   which read as a mistake because it was one.
+- **The song format an AI agent is handed is complete again.** The reference the
+  ✨ AI Prompt and the MCP `get_song_format` tool serve describes the full
+  canonical format in an appendix, and that appendix never gained the per-bar
+  **transpose** field added in song format v7 — so an agent writing the full format
+  was told the version was 7 while being shown a v6 shape, and had no way to author
+  a chord progression from one bank. The field and its rules are now documented
+  there, and a test fails the build if a future format addition skips it.
 
 ### Changed
 
@@ -177,7 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Two demos for the new micro-timing and time gignatures features — Gankogui and
+- **Two demos for the new micro-timing and time signatures features — Gankogui and
   Slouch.** *Gankogui* is West-African funk-rock in **12/8**, named for the double
   bell whose seven-stroke pattern it is built on. Three lanes run three different
   cycles against the bar — the kit locked to it, the riff looping every 16 ticks,

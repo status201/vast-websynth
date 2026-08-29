@@ -246,7 +246,10 @@ built `dist/`.
 - **Home**: move the playhead back to bar 1
 - **Shift + Arrow Left/Right**: move the playhead one bar back / forward
 - **F** (hold): drum fill
+- **Shift + R**: open / close the Record window
 - **Esc**: panic (all notes off)
+- **?**: show / hide the info badges — the ⓘ markers that explain a control where
+  it sits, rather than in a manual
 - **Playhead ruler**: the strip above every step grid — click a tick to move the
   playhead there (mid-play it jumps in time; stopped it sets where Play starts).
   The Song tab adds a bar-by-bar scrubber for the whole arrangement, and a
@@ -303,7 +306,9 @@ src/
                      auto-loaded at build time
     perf-mode.ts     performance-mode preference + device-tier detection
     tempo-lock.ts    which knobs can be locked to the grid, and in what unit
-  utils/             dependency-free helpers: zip codec, deflate-raw streams
+  utils/             dependency-free helpers importable from any layer: zip codec,
+                     deflate-raw streams, param tapers, scale/chord theory,
+                     BPM<->note-division math, wake lock
   ui/                hand-built DOM components and panels (incl. song-panel:
                      chains, DJ FX, song I/O). studio-api.ts is the UI's narrow
                      view of the Engine (see specs ADR-009)

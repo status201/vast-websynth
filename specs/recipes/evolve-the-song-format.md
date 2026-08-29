@@ -3,7 +3,10 @@
 ```yaml
 id: evolve-the-song-format
 status: implemented
-version: 4   # v4: rebased on v6 -> v7 (it still walked v4 -> v5); SONG_VERSION and
+version: 5   # v5: step 4b's authoring-guide appendix bullet gains a backstop — the
+             #     v7 bump skipped it and shipped a canonical shape with no
+             #     `seqTranspose`, which every version pin passed
+             # v4: rebased on v6 -> v7 (it still walked v4 -> v5); SONG_VERSION and
              #     KNOWN_SONG_VERSIONS now live in one pure module; llms.txt and the
              #     authoring-docs pin are named in the checklist
 owner: core
@@ -25,11 +28,13 @@ saved songs or demos**. This is the load-bearing backward-compatibility playbook
 ## Background / Why
 
 Users save song files and demos ship as data, so the load path must keep parsing
-older files forever. The format already did this **five** times (`version: 1 → 2`
+older files forever. The format already did this **six** times (`version: 1 → 2`
 added optional sampler fields; `2 → 3` the optional [XY Pad](../features/xy-pad.md)
 `xy` axis assignment; `3 → 4` the optional
 [motion sequencer](../features/motion-sequencer.md) fields; `4 → 5` its
-`motionTracks`; `5 → 6` the [sequencer](../features/sequencer.md)'s `seqTracks`).
+`motionTracks`; `5 → 6` the [sequencer](../features/sequencer.md)'s `seqTracks`;
+`6 → 7` the `seqTranspose` offsets on the seq chain lane,
+[song-mode](../features/song-mode.md) REQ-16).
 The contract: **additive, optional, defaulted** — never required, never repurposed.
 
 ## Steps (going from v6 → v7)
@@ -77,8 +82,10 @@ applyMyNewThing(file.myNewThing ?? DEFAULT_MY_NEW_THING);
 
 ### 4b. Let it survive the compaction boundary + validator + the published docs
 
-Four more places must learn the field or it is silently dropped / rejected / or the
-docs go stale (they fell a version behind **twice** — song-mode.md REQ-2):
+Five more places must learn the field or it is silently dropped / rejected / or the
+docs go stale (they fell a version behind **twice** — song-mode.md REQ-2). The last
+two bullets each record a miss that really happened here, so read them as history
+rather than as caution:
 
 - `compactSongForExport` (`src/state/serialize.ts`) — copy the field through when
   present (it drops unknown keys), else it never reaches disk.
@@ -96,20 +103,28 @@ docs go stale (they fell a version behind **twice** — song-mode.md REQ-2):
   3. the "all versions 1..N still load" sentence;
   4. the closing "expands to the LOWEST canonical version …, not always N".
 
-  This is the step that has actually been missed: the v7 bump updated the bullet and
-  left the table advertising v6, because the backstop below pinned only the bullet.
-  It now pins all four and counts the history list, so a partial edit fails.
+  The v7 bump updated the bullet and left the table advertising v6, because the
+  backstop below pinned only the bullet. It now pins all four and counts the history
+  list, so a partial edit fails.
 
-`src/state/authoring-guide.ts` (which `buildSongPrompt` and the MCP
-`get_song_format` tool both serve) interpolates `SONG_VERSION`, so its version
-literals move on their own — but its TOP-LEVEL SHAPE still needs a
-`// ---- v7 …, OPTIONAL ----` block describing the new field.
+- `src/state/authoring-guide.ts` (which `buildSongPrompt` and the MCP
+  `get_song_format` tool both serve) interpolates `SONG_VERSION`, so its version
+  literals move on their own — **but that is the trap**, not the safety net. Its
+  TOP-LEVEL SHAPE appendix needs its own `// ---- vN …, OPTIONAL ----` block naming
+  the new field, and the descending `"version"` comment above it needs a new leading
+  clause (`N-1 lacks …`). Interpolation makes the number right while the shape
+  underneath it stays a version behind, which reads as *more* trustworthy, not less.
+  This is the bullet the v7 bump actually skipped: `seqTranspose` reached the dialect
+  section and the schema but never the appendix, so `get_song_format` described a
+  "canonical format" missing the entire v7 addition.
 
 **`tests/state/authoring-docs.test.ts` is the backstop for this whole step**: it
 pins the schema enum, the schema description, **all four** `llms.txt` sites and every
-canonical example in the authoring guide to `SONG_VERSION` — and separately asserts
-that the *superseded* version survives nowhere outside the history list. If you skip a
-bullet here, that suite fails — trust it rather than your memory of this list.
+canonical example in the authoring guide to `SONG_VERSION`; separately asserts
+that the *superseded* version survives nowhere outside the history list; and — since
+none of those could see the v7 miss — asserts that **every top-level property the
+published schema declares is named in the appendix**. If you skip a bullet here, that
+suite fails — trust it rather than your memory of this list.
 
 ### 4c. Teach the authoring dialect the new field
 
@@ -167,6 +182,15 @@ Scenario: The published docs never fall behind the constant
   When the suite runs
   Then tests/state/authoring-docs.test.ts fails, naming the stale artifact
 # pinned by: tests/state/authoring-docs.test.ts ('the published canonical version')
+
+Scenario: A new field reaches the authoring guide's canonical appendix
+  Given a new optional field was added to the published song schema
+  And the authoring guide's TOP-LEVEL SHAPE was not given its "---- vN ----" block
+  When the suite runs
+  Then tests/state/authoring-docs.test.ts fails, naming the field the appendix omits
+  And it fails even though every interpolated version literal already reads N
+# pinned by: tests/state/authoring-docs.test.ts
+#            ('names every field of the published schema in its canonical appendix')
 ```
 
 ## Tests & verification

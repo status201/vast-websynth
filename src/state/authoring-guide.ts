@@ -240,7 +240,7 @@ or when editing a file the synth exported. Every grid must be written out to ful
 TOP-LEVEL SHAPE
 {
   "format": "websynth-song",          // literal, required
-  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (5 lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
+  "version": ${SONG_VERSION},                        // ${SONG_VERSION} (6 lacks the seq-chain transpose; 5 also lacks seq tracks 2-4; 4 also lacks the extra motion tracks; 3 also lacks the motion fields; 2 also lacks the XY Pad assignment; 1 also lacks the sampler fields)
   "name": "string",
   "params": { "<id>": number, ... },
   "seqBanks":  SeqStep[${BANK_COUNT}][${SEQ_LENGTH}],          // ${BANK_COUNT} banks, ${SEQ_LENGTH} steps each
@@ -270,7 +270,18 @@ TOP-LEVEL SHAPE
   // ---- v6 sequencer tracks 2-4, OPTIONAL ----
   // Indexed by the REAL track number, so index 0 is always null (track 1 is
   // "seqBanks"). An unused track is null. Tracks 2-4 sound only in poly voicing.
-  "seqTracks": ((SeqStep[${SEQ_LENGTH}] | null)[${SEQ_TRACK_COUNT}])[${BANK_COUNT}]
+  "seqTracks": ((SeqStep[${SEQ_LENGTH}] | null)[${SEQ_TRACK_COUNT}])[${BANK_COUNT}],
+
+  // ---- v7 seq-chain transpose, OPTIONAL ----
+  // One semitone offset per "seqChain" slot, parallel to seqChain.steps, so ONE
+  // bank can carry a whole progression. A sibling of "seqChain" rather than a
+  // field inside it, so chainData keeps its shape and pre-v7 files round-trip
+  // unchanged. Omit it entirely when every offset is 0. Integers -24..24.
+  // It shifts the note the sequencer TRIGGERS (clamped to MIDI 0..127) and never
+  // rewrites the stored bank. Only the seq lane has it — the drum, sampler and
+  // motion chains have no equivalent. In the compact author format above this is
+  // the "A+5" suffix on a chain letter.
+  "seqTranspose": number[]
 }
 
 SeqStep  = { "on": boolean, "note": number /* MIDI 0-127 */, "velocity": number /* 0..1 */, "gate": number /* 0..1 of a step */,

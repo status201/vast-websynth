@@ -24,11 +24,11 @@ The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships
 with the build and needs no host configuration anywhere
 (`specs/features/untrusted-input.md` REQ-10).
 
-Three headers cannot be set that way — `frame-ancestors` / `X-Frame-Options` are
-ignored in `<meta>`, and the others are transport-level — so `dist/_headers`
-carries them in **Netlify / Cloudflare Pages** format, where it is picked up
-automatically. It is an inert text file on every other host, so **if you deploy
-elsewhere, set these yourself**:
+Four more headers cannot ride in that tag — `<meta http-equiv>` carries no header
+but `Content-Security-Policy`, and `frame-ancestors` is ignored even inside that
+one — so `dist/_headers` carries them in **Netlify / Cloudflare Pages** format,
+where it is picked up automatically. It is an inert text file on every other host,
+so **if you deploy elsewhere, set all four yourself**:
 
 ```
 X-Frame-Options: DENY
@@ -58,7 +58,8 @@ add_header Permissions-Policy         "geolocation=(), payment=(), interest-coho
     "headers": [
       { "key": "X-Frame-Options",        "value": "DENY" },
       { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy",        "value": "no-referrer" }
+      { "key": "Referrer-Policy",        "value": "no-referrer" },
+      { "key": "Permissions-Policy",     "value": "geolocation=(), payment=(), interest-cohort=()" }
     ]
   }]
 }
@@ -72,6 +73,7 @@ add_header Permissions-Policy         "geolocation=(), payment=(), interest-coho
 Header always set X-Frame-Options "DENY"
 Header always set X-Content-Type-Options "nosniff"
 Header always set Referrer-Policy "no-referrer"
+Header always set Permissions-Policy "geolocation=(), payment=(), interest-cohort=()"
 ```
 </details>
 
@@ -81,9 +83,11 @@ accepted trade-off for those hosts, not an oversight.
 
 ## Hosting in a subfolder
 
-The AudioWorklets are loaded by **absolute path** (`/worklets/recorder.js`,
-`/worklets/ladder-filter.js`). With the default config they resolve to the
-domain root, so under a subpath they 404 and audio never starts.
+All three AudioWorklets are loaded by **absolute path** —
+`/worklets/ladder-filter.js`, `/worklets/compressor.js` and
+`/worklets/recorder.js`. With the default config they resolve to the domain root,
+so under a subpath they 404. `Engine.init()` awaits all three with no fallback, so
+**any one** of them missing fails the boot and audio never starts.
 
 To host at e.g. `https://example.com/synth/`, set `base` in
 `vite.config.ts`:

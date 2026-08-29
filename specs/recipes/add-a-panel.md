@@ -18,15 +18,22 @@ source:
 
 A repeatable **playbook**, not a feature. A *panel* is a larger UI section
 (`src/ui/panels/*.ts`) that composes many components into one tab of the
-pattern row. The five existing panels (`arp`, `seq`, `drums`, `sampler`, `song`)
-all follow one shape: a `build<Name>Panel(...)` factory returning a root element,
-registered as a `TabContainer` tab in `app.ts`. The concrete worked instance is
+pattern row. The seven existing panels (`arp`, `key`, `seq`, `drums`, `sampler`,
+`motion`, `song` — that is also their tab order) all follow one shape: a
+`build<Name>Panel(...)` factory returning a root element, registered as a
+`TabContainer` tab in `app.ts`. The concrete worked instance is
 [`seq-panel`](../features/sequencer.md) (`src/ui/panels/seq-panel.ts`).
+
+Two files in that directory are **not** pattern-row panels and are not what this
+recipe builds: `lfo-panel.ts` is a synth *faceplate* panel (it pages internally
+via `createPanelTabs` — [panel-tabs](../features/panel-tabs.md)) appended straight
+to `main`, and `step-panel-scaffold.ts` is the shared skeleton the four step-grid
+panels (`seq`, `drums`, `sampler`, `motion`) are built from, not a tab of its own.
 
 ## Background / Why
 
 Panels are the composition layer above `ui/components/`. They read transport and
-pattern state through the narrow [`StudioApi`](../studio-api.ts) facade — **never
+pattern state through the narrow [`StudioApi`](../../src/ui/studio-api.ts) facade — **never
 the concrete `Engine`** ([ADR-009](../decisions/adr-009-ui-depends-on-studio-api-facade.md)) —
 and bind controls to the [`ParamBus`](../architecture.md) like any component. A
 panel becomes visible by being handed to the `TabContainer` in `app.ts`; nothing

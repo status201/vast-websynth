@@ -56,8 +56,8 @@ means a UI control and its audio effect can be reasoned about independently.
 
 ```yaml
 language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess
-build:      Vite                # ^8.2.1   (vite build) + tsc --noEmit
-unit_tests: Vitest              # ^4.1.10  (jsdom env)
+build:      Vite                # ^8.2.2   (vite build) + tsc --noEmit
+unit_tests: Vitest              # ^4.1.11  (jsdom env)
 e2e_tests:  "@playwright/test"  # ^1.62.1  (headless Chromium)
 dom_env:    jsdom               # ^30.0.1  (unit-test DOM)
 runtime_deps: none              # zero — no `dependencies` block in package.json
@@ -182,10 +182,18 @@ Arrangement / Performance:  # src/audio/transport/
 
 ### Shared utilities
 
-Pure, dependency-free helpers under `src/utils/` — importable from **any** layer
-(they must never import from `audio/`, `state/` or `ui/`, so the audio layer can
-use them without dragging in UI code). Each replaced a helper that had been
-copy-pasted across modules.
+Pure, side-effect-free helpers under `src/utils/` — importable from **any** layer.
+Each replaced a helper that had been copy-pasted across modules.
+
+The import rule is **directional, not absolute**: a util may never import from
+`audio/` or `ui/`, so the audio layer can use one without dragging in UI code
+(REQ-1, ADR-001) and neither layer can reach the other through here. It *may*
+import a **pure declaration** from `state/` — `state/limits.ts` (the one place a
+bound is written down, ADR-015) and the `ParamDef` **type** from `state/params.ts`
+— because duplicating either is the drift the single-source rules exist to
+prevent. Three do today: `music.ts` and `zip.ts` take bounds from `limits.ts`,
+`taper.ts` takes `ParamDef` as a type-only import. Nothing here imports a
+`state/` module that *holds* state.
 
 ```yaml
 utils/math.ts:       clamp(v,min,max) · clamp01(v) · midiToHz(note)   # A4 = 69 = 440 Hz
@@ -196,6 +204,14 @@ utils/compression.ts: deflateRaw / inflateRaw                          # zip cod
 utils/zip.ts:        the hand-written zip reader/writer (ADR-003)
 utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
 utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
+utils/music.ts:      scale tables · buildQuantizeTable · diatonicChord · degreeLabel
+                     # features/scale-quantization.md, features/chord-tools.md.
+                     # SCALE_LABELS is APPEND-ONLY — a song stores the index.
+utils/tempo.ts:      DIVISIONS · sweetSpots(bpm) · syncedValue(...) · nearestDivision(...)
+                     # BPM <-> note-division math. Two consumers, which is why it
+                     # is here: the UI's sweet-spot badges (features/tempo-sync-help.md)
+                     # and the audio layer resolving `lfo.sync` (features/lfo.md REQ-8).
+                     # It started under ui/onboarding/, which audio may not import.
 ```
 
 Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
@@ -471,11 +487,33 @@ localStorage:
   websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
   websynth.ui.collapsed.fx      : FX-section collapse state    # ui/app.ts
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
+  websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
+                                                        # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-9)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
+sessionStorage:
+  websynth.session.tab : this tab's id, which mints the `websynth.session.<tab>` key above.
+                         # Deliberately *session* storage — it must die with the tab and
+                         # survive that tab's reload, which is exactly what makes the
+                         # autosave per-tab (state/session-autosave.ts,
+                         # features/session-autosave.md REQ-12)
+indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
+  clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index.
+                        # Binary does not fit localStorage, so the audio half of the
+                        # reload safety net lives here (features/sample-persistence.md).
+                        # Names are NOT stored — `sampleNames` in the autosaved session
+                        # is the single source of truth (REQ-4 there). Restored before
+                        # the UI mounts, and only for slots a restored session names.
 not_persisted:
-  decoded audio buffers  # sampler stores only filenames (sampleNames); reloaded —
-                         # or carried in a project-zip download (features/project-export.md)
+  decoded audio buffers  # only the encoded WAV bytes above are kept; a SongFile itself
+                         # still carries filenames alone (sampleNames), so a *saved song*
+                         # reloads its audio — or travels as a project-zip download
+                         # (features/project-export.md)
 ```
+
+All three stores are wiped together by **Restore to Factory Settings**
+(`state/factory-reset.ts`): `localStorage.clear()` + `sessionStorage.clear()`, then
+an awaited-but-capped IndexedDB wipe, then a reload — the reload is what resets the
+live in-memory state clearing storage cannot (features/factory-reset.md).
 
 The two **named-slot** stores (presets and saved songs) share one implementation,
 `SlotStore` (`src/state/slot-store.ts`): a prefix plus a name index at

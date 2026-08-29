@@ -19,9 +19,11 @@ A change that edits production code (`src/**`, `public/worklets/**`) must
 create/update a spec under `specs/` in the *same* change. `scripts/sdd-guard.mjs`
 enforces this via Claude Code hooks **and** a CI job, so it applies to every agent
 and to direct commits. Exempt: anything outside `src/` + `public/worklets/`, plus
-`*.md`, `*.css`, `src/vendor/**` and `src/state/demos/**`. Bypass a genuinely
-trivial production tweak with `touch .sdd-skip` (local) or `[skip-sdd]` in the
-commit message (CI).
+`*.md`, `*.css`, any path under a `styles/` directory, `src/vendor/**`,
+`src/state/demos/**` and the demos' two metadata files
+(`src/state/demo-notes.json`, `src/state/demos-index.json`). Bypass a genuinely
+trivial production tweak with `touch .sdd-skip` (local), or `[skip-sdd]` in the
+commit message / the `skip-sdd` PR label (CI).
 
 ## Where everything is
 

@@ -1,9 +1,9 @@
 # Response headers (specs/features/untrusted-input.md REQ-10).
 #
 # The CSP itself is a <meta> in index.html so it works on every static host with
-# no config. These three CANNOT be expressed that way — `frame-ancestors` and
-# `X-Frame-Options` are ignored in <meta>, and the other two are transport-level
-# — so they need a real header.
+# no config. These four CANNOT be expressed that way — <meta http-equiv> carries
+# no header but Content-Security-Policy, and `frame-ancestors` is ignored even
+# inside that one — so they each need a real header.
 #
 # This file's format is Netlify / Cloudflare Pages. It is an inert plain-text
 # asset everywhere else, so it costs nothing to ship. DEPLOYMENT.md carries the

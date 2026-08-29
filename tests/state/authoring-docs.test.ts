@@ -153,6 +153,31 @@ describe('the published canonical version', () => {
     // The author dialect stays at its own version 1, untouched by song bumps.
     expect(guide).toContain('"format": "websynth-song-author", "version": 1');
   });
+
+  /**
+   * Pinning the version NUMBER is not enough: the guide interpolates SONG_VERSION,
+   * so its literals move on their own while the shape they head can stay a version
+   * behind — which is exactly what happened at v7. The TOP-LEVEL SHAPE appendix
+   * described fields up to v6 and never gained `seqTranspose`, so `get_song_format`
+   * served agents a "canonical format" that omitted the whole v7 addition, with the
+   * version line above it correctly reading 7 and every test green.
+   *
+   * evolve-the-song-format.md step 4b calls for the `// ---- vN …, OPTIONAL ----`
+   * block; this is the backstop that makes skipping it fail. The published schema is
+   * the reference because it is the one artifact already pinned field-by-field.
+   */
+  it('names every field of the published schema in its canonical appendix (regression)', () => {
+    const bus = new ParamBus();
+    registerDefaults(bus);
+    const guide = buildAuthoringGuide(bus);
+    const schema = JSON.parse(read('schema/websynth-song.schema.json')) as Record<string, any>;
+    // The appendix runs from its heading to the end of the guide.
+    const appendix = guide.slice(guide.indexOf('TOP-LEVEL SHAPE'));
+    expect(appendix).not.toBe('');
+    const missing = Object.keys(schema.properties)
+      .filter((k) => !appendix.includes(`"${k}"`));
+    expect(missing).toEqual([]);
+  });
 });
 
 /**
