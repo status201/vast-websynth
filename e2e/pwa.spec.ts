@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { startAudio } from './helpers';
 
 /**
  * Installed-PWA affordances (specs/features/pwa-install.md) — the slice
@@ -11,7 +12,7 @@ import { test, expect } from '@playwright/test';
  */
 test('fullscreen button toggles; no service worker on the dev server', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tap to start' }).click();
+  await startAudio(page);
 
   // PROD-gated registration: the dev server must never be SW-controlled.
   const controller = await page.evaluate(() => navigator.serviceWorker?.controller ?? null);

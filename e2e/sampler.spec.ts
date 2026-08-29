@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, makeWavBuffer } from './helpers';
+import { gotoAndStart, startAudio, makeWavBuffer } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const slotLoaded = (page: Page, slot: number): Promise<boolean> =>
@@ -60,7 +60,7 @@ test.describe('sampler', () => {
 
     // Same context ⇒ localStorage and IndexedDB both survive.
     await page.reload();
-    await page.getByRole('button', { name: 'Tap to start' }).click();
+    await startAudio(page);
     await page.getByTestId('tab-sampler').click();
 
     await expect(page.getByTestId('sampler-name-0')).toHaveText('beep.wav');

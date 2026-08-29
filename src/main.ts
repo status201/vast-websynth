@@ -30,9 +30,12 @@ declare const __APP_VERSION__: string;
 const SONG_FETCH_TIMEOUT_MS = 15_000;
 
 async function boot() {
-  // Build the synth and mount the full UI immediately. The AudioContext is
-  // created suspended (no sound until a gesture), so everything can render
-  // behind the start modal — audio is unlocked when the user taps it.
+  // Build the synth and mount the full UI immediately. Whether the AudioContext
+  // comes back suspended is the *browser's* call, not ours — an autoplay-permitted
+  // one is rendering from the moment it exists — so the boot does not assume it:
+  // the master bus is seeded silent and only `Engine.resume()` raises it
+  // (audio-lifecycle.md REQ-19). Which of the two start paths runs is decided at
+  // the end of boot from `engine.autoplayAllowed` (REQ-20).
   const bus = new ParamBus();
   // Persisted sampler clips (sample-persistence.md REQ-5): kick the IndexedDB
   // read off FIRST — it needs no AudioContext, so its I/O overlaps the worklet
@@ -219,28 +222,57 @@ async function boot() {
   // restored-clips toast does.
   if (link?.kind === 'data') void applySongLink(link);
 
-  // MIDI is initialized from the start gesture, not at boot: Chrome ≥124
-  // gates all Web MIDI behind a permission prompt, and prompting on page
-  // load (behind the start modal) is hostile to MIDI-less visitors.
-  showStartModal(engine, onboarding, () => {
-    // The resolved access handle feeds the Debug panel's port counts; it stays
-    // "n/a" until here, which is exactly when MIDI first exists.
-    void initMIDI(engine, bus).then((access) => {
-      if (access) setMidiStatsSource(() => ({ inputs: access.inputs.size, outputs: access.outputs.size }));
-    });
+  // Everything the start gesture used to carry beyond unlocking the audio
+  // itself (audio-lifecycle.md REQ-21). `deferPlatform` is the auto-start path:
+  // there is no gesture yet, so the two pieces that genuinely want one wait for
+  // the next real touch instead of demanding a dedicated tap.
+  const onStart = ({ deferPlatform }: { deferPlatform: boolean }): void => {
+    // MIDI is never initialized at boot: Chrome ≥124 gates all Web MIDI behind a
+    // permission prompt, and prompting on page load is hostile to MIDI-less
+    // visitors. The resolved access handle feeds the Debug panel's port counts;
+    // it stays "n/a" until here, which is exactly when MIDI first exists.
+    const platform = (): void => {
+      void initMIDI(engine, bus).then((access) => {
+        if (access) setMidiStatsSource(() => ({ inputs: access.inputs.size, outputs: access.outputs.size }));
+      });
+      // The Android keep-alive wants a gesture too, and an auto-start's own call
+      // was made without one, so it may have been refused. `resume()` is the
+      // door to both platform unlocks and is idempotent on a running context
+      // (audio-lifecycle.md REQ-2 — no dip, no second ctx.resume), so re-running
+      // it from inside a real gesture is all the retry needed.
+      if (deferPlatform) void engine.resume();
+    };
+    if (deferPlatform) engine.onFirstGesture(platform);
+    else platform();
+
     // Tell the user their sampler audio came back from storage rather than the
-    // song file (sample-persistence.md REQ-8). Fired from the start gesture,
-    // not at boot, so the toast appears as the modal fades instead of under it.
+    // song file (sample-persistence.md REQ-8). Deferred off boot only because it
+    // would otherwise have appeared *under* the start modal — with no modal it
+    // has nothing to hide behind, so it runs here either way.
     if (restoredClips.length > 0) {
       showToast({
         message: `Restored ${restoredClips.length} sampler clip${restoredClips.length === 1 ? '' : 's'}`,
         testId: 'clips-restored-toast',
       });
     }
-    // A #songUrl= link needs consent (song-share-link.md REQ-7), and its dialog
-    // would be trapped under the start modal if it were raised at boot.
+    // A #songUrl= link needs consent (song-share-link.md REQ-7); same reason it
+    // waited — its dialog would have been trapped under the start modal.
     if (link?.kind === 'url') void applySongLink(link);
-  });
+  };
+
+  // The start modal exists to buy a user gesture, so it is shown only when the
+  // browser actually demands one (audio-lifecycle.md REQ-20). A context created
+  // `running` means the output stream is already open — audio is unblocked, and
+  // resuming here takes REQ-19's fade, so the start is click-free without it.
+  if (engine.autoplayAllowed) {
+    await engine.resume();
+    onStart({ deferPlatform: true });
+    // First-visit only, and the same 350 ms beat the modal path uses so the
+    // tour's interactive "press a key" step lands on unlocked audio.
+    if (onboarding.shouldAutoLaunch()) setTimeout(() => onboarding.startTour(), 350);
+  } else {
+    showStartModal(engine, onboarding, () => onStart({ deferPlatform: false }));
+  }
 
   // Offline support — PRODUCTION-ONLY: the dev server (and Playwright, which
   // drives it) must never run under a service worker or HMR breaks. The `?v=`

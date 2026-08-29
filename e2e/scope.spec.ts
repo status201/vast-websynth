@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoAndStart } from './helpers';
+import { gotoAndStart, startAudio } from './helpers';
 
 /**
  * The Wave/Spectrum visualizer's Mono/Stereo toggle (specs/features/scope.md).
@@ -217,9 +217,7 @@ test.describe('scope resize', () => {
     expect(await rowHeight(page)).toBe(SCOPE_H_MAX);
 
     await page.reload();
-    const startBtn = page.getByRole('button', { name: 'Tap to start' });
-    await startBtn.click();
-    await expect(startBtn).toBeHidden();
+    await startAudio(page);
 
     expect(await rowHeight(page)).toBe(SCOPE_H_MAX);
     await expect(page.getByTestId('scope-resize-handle'))

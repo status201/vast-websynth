@@ -112,6 +112,14 @@ export class BypassWrapper {
     this.processedIn = ctx.createGain();
     this.processedOut = ctx.createGain();
 
+    // A fresh GainNode defaults to 1, and the wrapper boots BYPASSED — so this
+    // is the value `update()` immediately targets. Seeding it stops the first
+    // ~30 ms of audio running dry+wet (~+6 dB hot) on an effect the boot patch
+    // or the session restore turns on: `update()`'s `setTargetAtTime` only
+    // *approaches* 0, and while the context is suspended it is scheduled at a
+    // frozen `currentTime` so the approach does not begin until audio does.
+    this.wet.gain.value = 0;
+
     this.input.connect(this.dry).connect(this.output);
     this.input.connect(this.processedIn);
     this.processedOut.connect(this.wet).connect(this.output);

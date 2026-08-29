@@ -6,9 +6,17 @@ are `specs/recipes/write-a-test.md`; the **selector catalogue** — every stable
 This file holds only what is specific to running them here.
 
 E2E lives in `e2e/` (outside `src/`, so `tsc` ignores it), config in
-`playwright.config.ts`. It drives the **dev server** in headless Chromium —
-Playwright clicks are trusted gestures, so they unlock the `AudioContext` behind
-"Tap to start".
+`playwright.config.ts`. It drives the **dev server** in headless Chromium.
+
+**Getting past the start gate: always `await startAudio(page)`** (or
+`gotoAndStart`, which calls it). Never click "Tap to start" directly. The modal
+is shown only where the browser demands a gesture (`audio-lifecycle.md` REQ-20),
+and the default project launches with `--autoplay-policy=no-user-gesture-required`
+— so in this suite the context is created **running** and *there is no modal at
+all*. `startAudio` takes whichever gate it is given and returns once the
+`AudioContext` is running. `audio-autostart.spec.ts` is the one spec that asserts
+which gate appears; it covers the blocked branch by overriding `launchOptions.args`
+in its own describe block.
 
 ## Selecting
 

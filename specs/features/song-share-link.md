@@ -81,10 +81,13 @@ the Import button, so canonical files, authoring-dialect files, and (via
   no network, no third party — so it keeps applying at boot, unprompted.
   `#songUrl=` first shows a `confirmDialog` naming the **target origin**;
   declining leaves the hash in place and applies nothing. That prompt is raised
-  **from the start gesture, not at boot**: applying a song is pure state and
-  works behind the start modal, but a *dialog* raised there renders underneath
-  it and cannot be reached — the same reason the restored-clips toast waits
-  (sample-persistence.md REQ-8). The request is then
+  **from the start handler, not from boot's own body**: applying a song is pure
+  state and works behind the start modal, but a *dialog* raised there renders
+  underneath it and cannot be reached — the same reason the restored-clips toast
+  waits (sample-persistence.md REQ-8). **(v6 of audio-lifecycle)** That reason is
+  the modal, not the gesture, so on the auto-start path — where no modal is shown
+  at all ([audio-lifecycle](audio-lifecycle.md) REQ-20/REQ-21) — the prompt is
+  raised immediately. Nothing waits for a tap that is never asked for. The request is then
   `credentials: 'omit'`, `redirect: 'error'`, `mode: 'cors'`, with a timeout, and
   a `Content-Length` over `MAX_SONG_JSON_BYTES` is refused before the body is
   buffered. Without this, one link made any visitor's browser issue an

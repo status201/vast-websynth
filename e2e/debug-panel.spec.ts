@@ -19,8 +19,10 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
   await gotoAndStart(page);
   await openDebug(page);
 
-  // Live rows, against the real context started by "Tap to start".
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running');
+  // Live rows, against the real context. The row appends the autoplay verdict
+  // that decided whether a start modal was shown at all (audio-lifecycle.md
+  // REQ-20) — and this suite runs with autoplay permitted, so it reads `ok`.
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running · autoplay ok');
   await expect(page.getByTestId('debug-transport')).toContainText('stopped');
   await expect(page.getByTestId('debug-storage')).toContainText('keys');
 
@@ -28,15 +30,15 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
   const toggle = page.getByTestId('debug-ctx-toggle');
   await expect(toggle).toHaveText('Suspend');
   await toggle.click();
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended · autoplay ok');
   await expect(toggle).toHaveText('Resume');
   // REQ-15 regression: the statechange re-arm now runs on every platform, so a
   // deliberate suspend has to survive the event its own suspend() fires. If the
   // intent flag were missing this would be back to 'running' immediately.
   await page.waitForTimeout(400);
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended · autoplay ok');
   await toggle.click();
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running · autoplay ok');
 
   // Panic and the test tone must not throw in a real graph.
   await page.getByTestId('debug-panic').click();

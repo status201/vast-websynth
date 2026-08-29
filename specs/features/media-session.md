@@ -159,7 +159,8 @@ the sound: no `ParamBus` param, no `SongFile` field, no `localStorage` key.
 ```gherkin
 Scenario: The session forms on Android at the start gesture
   Given an Android device
-  When Engine.resume() runs from the Tap-to-start handler
+  When Engine.resume() runs from the start handler (Tap-to-start, or the first
+    real gesture after an auto-start — audio-lifecycle.md REQ-21)
   Then a silent looping element is playing, detached from the AudioContext
    And mediaSession.metadata names the app and carries its icons
    And play / pause / stop action handlers are registered

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { sessionDisplay } from './helpers';
+import { sessionDisplay, startAudio } from './helpers';
 
 /**
  * The empty-play hint (specs/features/empty-play-hint.md): pressing Play with
@@ -20,9 +20,7 @@ async function boot(page: Page): Promise<void> {
     }
   });
   await page.goto('/');
-  const startBtn = page.getByRole('button', { name: 'Tap to start' });
-  await startBtn.click();
-  await expect(startBtn).toBeHidden();
+  await startAudio(page);
 }
 
 const playing = (page: Page) =>
@@ -65,9 +63,7 @@ test.describe('empty-play hint', () => {
     // Across a reload the checkbox's localStorage flag still suppresses the
     // modal (nothing re-seeds it here — boot() never writes this key).
     await page.reload();
-    const startBtn = page.getByRole('button', { name: 'Tap to start' });
-    await startBtn.click();
-    await expect(startBtn).toBeHidden();
+    await startAudio(page);
     await page.getByTestId('transport-play').click();
     await expect(page.getByTestId('empty-play-modal')).toHaveCount(0);
     await expect.poll(() => playing(page)).toBe(true);

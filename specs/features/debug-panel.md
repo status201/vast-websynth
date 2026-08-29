@@ -3,7 +3,10 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 10  # v10: the Suspend action goes through Engine.suspendForDebug() so the
+version: 11  # v11: the ctx-state row also names the autoplay verdict — the one
+             #      glance that says whether a start modal was shown at all, and
+             #      why a boot could be audible (audio-lifecycle.md v6 REQ-19/20)
+             # v10: the Suspend action goes through Engine.suspendForDebug() so the
              #      universal statechange re-arm can tell a deliberate suspend from
              #      an OS one, and the ctx-state row shows when a resume is waiting
              #      for a gesture (audio-lifecycle.md v5 REQ-13/REQ-15)
@@ -78,7 +81,10 @@ instead of transcribing it from a phone screen.
   collapsing hides both. Built-in rows: **AudioContext** state
   (`data-testid="debug-ctx-state"`; v10 appends `· awaiting gesture` while
   `engine.audioRecovery.gestureArmed` — the state alone cannot distinguish "the OS
-  took it" from "we asked and were refused"), **Sample rate**, **Latency** (`debug-latency`,
+  took it" from "we asked and were refused"; v11 appends `· autoplay ok` while
+  `engine.autoplayAllowed`, which is both why no start modal was shown
+  ([audio-lifecycle](audio-lifecycle.md) REQ-20) and, on a build without REQ-19,
+  the reason a boot could be heard. Notes join in that order, ` · `-separated), **Sample rate**, **Latency** (`debug-latency`,
   base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm` ·
   sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
   wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
@@ -261,6 +267,12 @@ Scenario: A row reflects live AudioContext state
   When a statechange fires and ctx.state becomes "running"
   Then the AudioContext row updates to "running"
 # pinned by: tests/ui/about.test.ts
+
+Scenario: The row names the autoplay verdict (v11)
+  Given the browser let the context start without a gesture
+  Then the AudioContext row reads "running · autoplay ok"
+   And a browser that demanded the tap leaves the note off entirely
+# pinned by: e2e/debug-panel.spec.ts
 
 Scenario: Clicking the header expands the section
   Given the Debug section is collapsed

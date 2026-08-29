@@ -115,7 +115,11 @@ Scenario: the header's divider does not leak into a modal (REQ-3)
 
 - Unit: `tests/ui/brand.test.ts` (structure + the framing rule), and
   `tests/ui/about.test.ts` (the About card renders it in place of a title/tag).
-- E2E: `e2e/smoke.spec.ts` asserts the header's `G1-J8` after the start modal
-  has left the DOM.
+- E2E: `e2e/smoke.spec.ts` asserts the header's `G1-J8` once the start gate is
+  past — which on an autoplay-permitting browser means no start modal was shown
+  at all ([audio-lifecycle](audio-lifecycle.md) REQ-20), so the header's block is
+  the only one in the DOM either way. The faceplate splash is therefore a
+  first-run-on-a-blocked-browser sight, not a guaranteed one; the header and the
+  About card carry the identity on every load.
 - Typecheck: `npm run typecheck`. Appearance is verified by eye — this spec is
   about a faceplate.

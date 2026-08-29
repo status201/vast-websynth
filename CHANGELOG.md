@@ -16,6 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **"Tap to start" only appears when your browser actually needs it.** The tap was
+  never ours to ask for — it is there to satisfy browsers that refuse to make
+  sound until you have interacted with the page. Where the browser already allows
+  it (which, on a desktop you have opened the app on before, it usually does), the
+  synth now just starts, faded up from silence, and you land on the instrument.
+  Where the browser still insists, the modal is exactly as it was. Nothing is
+  skipped along the way: the MIDI permission prompt and the Android background
+  keep-alive still wait for the first thing you actually touch, rather than
+  demanding a tap of their own.
+
+### Fixed
+
+- **Opening the app could still click, on the machines that had opened it before.**
+  The fade-in added for this only ran when the browser had blocked audio until the
+  tap. Once a browser had decided to trust the site, it started the audio device
+  the instant the page loaded — before the start screen was even up — and the fade
+  was skipped, so the device's own start-up thump came through at full volume. The
+  output now stays silent until it is deliberately faded up, whichever way the app
+  starts.
+- **The first moment of sound could be louder than it should be.** An effect that
+  your saved session had switched on came back with both its dry and wet paths
+  fully open for the first fraction of a second, roughly doubling it, before
+  settling to the mix you had set.
+
 ## [2.11.0] - 2026-08-29
 
 ### Added
