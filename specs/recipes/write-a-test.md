@@ -49,8 +49,11 @@ Run: `npm test` (or `npm run test:watch`).
 
 - Select by **`data-testid`** / text / role — CSS-Module class names are hashed.
   Prefer testids over capitalised button text (case-insensitive collisions).
-- Playwright clicks are trusted gestures, so they unlock the `AudioContext` behind
-  "Tap to start".
+- Get past the start gate with **`startAudio(page)`** (or `gotoAndStart`), never
+  by clicking "Tap to start" yourself: the modal is shown only where the browser
+  demands a gesture, and this suite runs with autoplay permitted, so usually there
+  is no modal at all ([audio-lifecycle](../features/audio-lifecycle.md) REQ-20).
+  Playwright clicks are trusted gestures, so the modal path really does unlock.
 - Assert engine state through the DEV bridge `window.__synth` (e.g.
   `window.__synth.bus.get('filter.cutoff')`).
 - `prompt`/`confirm`: `page.once('dialog', …)`. Downloads:

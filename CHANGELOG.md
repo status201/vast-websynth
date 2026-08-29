@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   was skipped, so the device's own start-up thump came through at full volume. The
   output now stays silent until it is deliberately faded up, whichever way the app
   starts.
+- **The screen could sleep while the synth was playing**, on the machines that
+  now start without asking. Keeping the display awake was triggered by the audio
+  device *changing* state — which never happens when the browser starts it for
+  you, so nothing ever asked for it.
 - **The first moment of sound could be louder than it should be.** An effect that
   your saved session had switched on came back with both its dry and wet paths
   fully open for the first fraction of a second, roughly doubling it, before

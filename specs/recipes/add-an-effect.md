@@ -21,8 +21,11 @@ the [effects](../features/effects.md) pattern.
 ## Background / Why
 
 Every effect owns a fixed `input → DSP → output` graph wired once, and bypass is a
-click-free **dry/wet crossfade** (`BypassWrapper`) — never a reconnect. Reusing
-`BypassWrapper` means you only write the DSP, and bypass/mix come for free.
+click-free **dry/wet crossfade** (`BypassWrapper`) followed by a delayed
+**disconnect** of the processed path, so a bypassed effect costs no audio-thread
+CPU ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)). Extending
+`WrappedEffect` means you only write the DSP: bypass, mix and the two-stage
+teardown come for free.
 
 ## Steps
 
@@ -30,21 +33,20 @@ click-free **dry/wet crossfade** (`BypassWrapper`) — never a reconnect. Reusin
 
 Model it on `delay.ts`:
 
-```ts
-import { BypassWrapper, type Effect } from './effect';
+**Extend `WrappedEffect`** — every shipped effect does. It owns the wrapper,
+publishes `input`/`output`, and routes the drain hooks below to your overrides;
+hand-rolling `implements Effect` around a bare `BypassWrapper` silently opts out
+of them, which is how a stateful effect ends up replaying the last song.
 
-export class MyFx implements Effect {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-  private readonly wrap: BypassWrapper;
-  constructor(private readonly ctx: AudioContext) {
-    this.wrap = new BypassWrapper(ctx, /* initialMix */ 0.5);
-    this.input = this.wrap.input;
-    this.output = this.wrap.output;
+```ts
+import { WrappedEffect, bindBypassMix } from './effect';
+
+export class MyFx extends WrappedEffect {
+  constructor(ctx: AudioContext) {
+    super(ctx, /* initialMix */ 0.5);
     // wire the DSP between the wrapper's processed nodes:
     //   this.wrap.processedIn → <your nodes> → this.wrap.processedOut
   }
-  setBypass(b: boolean): void { this.wrap.setBypass(b); }
   setMix(m: number): void { this.wrap.setMix(m); }
   // + your own setters (setRate, setDepth, …) using setTargetAtTime to avoid zipper noise
 
@@ -56,6 +58,23 @@ export class MyFx implements Effect {
   }
 }
 ```
+
+**Does your DSP remember anything?** A delay line, a convolver, any feedback loop
+— if so it must declare how to empty itself, or re-enabling it replays whatever
+was inside when it was switched off ([effects](../features/effects.md) REQ-2c):
+
+```ts
+  /** Longest the DSP can hold audio: feed it silence for this and it holds none. */
+  protected override drainSeconds(): number { return 2; }
+
+  /** Zero/restore an internal feedback path, or the memory never empties. */
+  protected override quiesce(on: boolean): void {
+    this.fbGain.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.fbGain.gain.setValueAtTime(on ? 0 : this.fb, this.ctx.currentTime);
+  }
+```
+
+A memoryless effect (a shaper, a biquad) overrides neither and takes the default.
 
 ### 2. Add it to a chain — `src/audio/effects/fx-chain.ts`
 
@@ -102,6 +121,12 @@ Scenario: The new effect bypasses cleanly when off
   Given fx.myfx.on is 0
   Then dry = 1, wet = 0 and the effect is inaudible (no click on toggle)
 # pinned by: tests/state/params.test.ts (wiring), e2e/controls.spec.ts
+
+Scenario: Re-enabling it does not replay what it held (REQ-2c)
+  Given the effect was switched off while audio was passing through it
+  When it is switched on again after its drain
+  Then it comes back holding silence, and the wet ramp starts immediately
+# pinned by: tests/audio/effects/bypass.test.ts
 ```
 
 ## Tests & verification

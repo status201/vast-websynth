@@ -173,6 +173,8 @@ so a reviewer has something concrete to hold a new feature against.
   [ADR-018](../decisions/adr-018-audio-graph-memory-is-committed-not-reclaimed.md)
   records that trade — a bypassed effect gives back its CPU
   ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)), not its memory —
+  and gives it back after one bounded **drain**, not instantly, since it has to
+  render itself empty before it can be detached ([effects](effects.md) REQ-2c) —
   and answers any future "free it while it is off" proposal, including the ~30 MB
   of reverb kernels the three FX chains hold from boot.
 

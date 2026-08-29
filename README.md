@@ -76,7 +76,7 @@ Vanilla TypeScript + Vite, zero runtime dependencies.
 - **AI-friendly authoring format**: import also accepts a compact **authoring dialect** (`websynth-song-author`, its own [JSON Schema](public/schema/websynth-song-author.schema.json)) that any LLM can emit in ~40 lines — note names like `"A2"`, drum hit-lists like `"kick": [0,4,8,12]`, chain strings like `"AABA"` — expanded to a full song on import (input-only, never exported); see [`specs/features/song-authoring-dialect.md`](specs/features/song-authoring-dialect.md)
 - **Published parameter list**: every synth parameter — id, range, default, taper and (for choice knobs) its value map — is *generated* from the live registry and shipped as [`/params.md`](public/params.md) and [`/params.json`](public/params.json), so an AI agent can fetch the list without opening the app or running a tool. See **Formats & schemas** below
 - **Generate songs with AI**: the Song panel's **✨ AI Prompt** gives you a ready-to-copy prompt — with a *"Describe your song"* box for your idea — that teaches the compact dialect first (with the full format as an appendix) and links both live schema URLs; paste it into any AI agent and import the song it returns
-- **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song after "Tap to start". `#songUrl=<https url>` loads a hosted song/project file
+- **Share links**: Export → **Copy Link** puts the whole song in a URL (`#song=…`, deflate + base64url in the hash — it never reaches a server); opening the link loads the song as the app starts. `#songUrl=<https url>` loads a hosted song/project file
 - **MCP server**: `scripts/mcp/` ships a zero-dependency [MCP](https://modelcontextprotocol.io) server so agentic AI tools can fetch the live song *and* preset formats, validate/fix, expand, save, and share-link them. It runs locally over stdio, or hosted over HTTP at `https://vast.status201.com/mcp` — add that as a connector and an agent gets the authoring loop with nothing installed — see **MCP server** below
 - **Paste, don't save-then-import**: AI agents answer with JSON in the chat window, so the Song panel has a **Paste** button (and the ✨ AI Prompt modal ends with a paste box) that takes the reply as-is — code fences and surrounding chatter are stripped — and tells you what it recognised before anything is applied. Preset and bank JSON goes in the same box and is routed to the preset importer
 - **Presets**: a 19-sound factory bank — basses (bass, upright, pbass, reese, acid, **ember**), keys (piano, rhodes, b3, bells), ensemble/poly (pad, solina, brass, **vellum**), leads/plucks (basic, lead, pluck, **prism**) and wobble — + user presets saved to `localStorage`. The three bold ones show off the POLY filter (a bass that holds its bottom at screaming resonance, a band-pass pad whose filter type breathes, a high-pass pluck); flip the model switch to LADDER on any of them to hear the difference. Sounds also travel as files: the header's **Preset** button opens a manager to save, export one sound (`<name>.preset.websynth.json`) or a whole **bank** (`<name>.bank.websynth.json` — offering just what you have made or changed, worked out by comparing against the factory sounds), and import either — both have a published JSON Schema ([preset](public/schema/websynth-preset.schema.json), [bank](public/schema/websynth-preset-bank.schema.json)). Importing shows a **review step** first, marking each incoming preset new / identical / clashing, with a keep-both, overwrite or skip choice — nothing is written until you confirm, and your current sound is never touched
@@ -122,8 +122,10 @@ npm run pack:mcp       # mcp-v<version>.zip for deploying it, without a release
 npm run release      # cut a versioned release (see Releasing below)
 ```
 
-Audio starts behind a **"Tap to start"** overlay — browsers require a user
-gesture before an `AudioContext` may produce sound.
+Audio is silent until it is deliberately faded up, and **"Tap to start" appears
+only when your browser needs it** — many require a user gesture before an
+`AudioContext` may make sound, and where yours does not, the synth just starts.
+The MIDI permission prompt still waits for the first thing you touch either way.
 
 ## Formats & schemas
 

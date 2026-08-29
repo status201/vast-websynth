@@ -120,14 +120,20 @@ async function boot() {
   setClipStatsSource(() => clipStore.stats());
 
   // Keep the display awake exactly while the synth can make sound: the wake
-  // lock follows the AudioContext state (running from the Tap-to-start resume;
-  // suspended/interrupted releases it). Platform concern, so it lives here and
+  // lock follows the AudioContext state. Platform concern, so it lives here and
   // not in Engine (pwa-install.md REQ-1).
+  //
+  // `statechange` alone is not enough, and that is the auto-start path's doing: a
+  // context the browser created `running` never changes state, and resuming an
+  // already-running one does not either — so the listener would never fire and
+  // the lock would never be taken on exactly the devices that skip the modal.
+  // Hence the explicit sync below, after the start gate.
   const wake = new WakeLockManager();
-  engine.ctx.addEventListener('statechange', () => {
+  const syncWake = (): void => {
     if (engine.ctx.state === 'running') wake.enable();
     else wake.disable();
-  });
+  };
+  engine.ctx.addEventListener('statechange', syncWake);
   setWakeLockSource(() => ({ supported: wake.supported, held: wake.held }));
 
   // A resume the platform refused leaves the app silent with nothing to look at,
@@ -168,8 +174,8 @@ async function boot() {
 
   // OS-launched song files (installed-PWA file_handlers; Chromium desktop
   // only today). Applying a song is pure state and decodeAudioData works on
-  // a suspended context, so a file arriving before "Tap to start" applies
-  // fine behind the start modal. See pwa-install.md REQ-5.
+  // a suspended context, so a file arriving before the start gate applies fine —
+  // behind the modal where there is one. See pwa-install.md REQ-5.
   if (window.launchQueue) {
     window.launchQueue.setConsumer((params) => {
       void (async () => {
@@ -266,6 +272,7 @@ async function boot() {
   // resuming here takes REQ-19's fade, so the start is click-free without it.
   if (engine.autoplayAllowed) {
     await engine.resume();
+    syncWake(); // no statechange fires on this path — see the wake lock above
     onStart({ deferPlatform: true });
     // First-visit only, and the same 350 ms beat the modal path uses so the
     // tour's interactive "press a key" step lands on unlocked audio.

@@ -15,6 +15,40 @@ async function openDebug(page: import('@playwright/test').Page): Promise<void> {
   await expect(section).not.toHaveClass(/collapsed/);
 }
 
+/**
+ * pwa-install.md REQ-1 — the wake lock must be taken on the auto-start path.
+ *
+ * A regression guard with a specific history: the lock was driven purely off the
+ * AudioContext's `statechange`, which never fires for a context the browser
+ * created already `running` (audio-lifecycle.md REQ-20) — and resuming an
+ * already-running one does not fire it either. So on exactly the devices that
+ * skip the start modal, the screen was free to sleep mid-performance, while the
+ * unit tests for `WakeLockManager` stayed green because nothing ever called it.
+ * This suite runs with autoplay permitted, so it *is* that path.
+ */
+test('the wake lock is requested even when no statechange ever fires', async ({ page }) => {
+  // Count the requests rather than asserting the lock is *held*: headless
+  // Chromium exposes the API but rejects the request (there is no screen to keep
+  // awake), and `WakeLockManager` swallows a rejection by design. Whether the
+  // platform grants it is not ours to test; whether boot asks is exactly ours.
+  await page.addInitScript(() => {
+    (window as unknown as { __wakeAsks: number }).__wakeAsks = 0;
+    const wl = navigator.wakeLock;
+    if (!wl) return;
+    const real = wl.request.bind(wl);
+    wl.request = ((type: WakeLockType) => {
+      (window as unknown as { __wakeAsks: number }).__wakeAsks++;
+      return real(type);
+    }) as typeof wl.request;
+  });
+
+  await gotoAndStart(page);
+
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __wakeAsks: number }).__wakeAsks))
+    .toBeGreaterThan(0);
+});
+
 test('the Debug panel reports live state and acts on it', async ({ page }) => {
   await gotoAndStart(page);
   await openDebug(page);
