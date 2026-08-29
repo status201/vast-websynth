@@ -52,7 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     themselves before they are put away, so switching one on is both clean and
     still instant.
   - changing a drum track's **model** cut its ringing voice dead; it now fades.
-  - changing the **reverb size** severed the tail; the swap is now covered.
+  - changing the **reverb size** severed the tail; the swap is now covered — and
+    covering it has to be done carefully, or loading a song can leave the reverb
+    on the wrong size entirely (see below).
+  - **a demo could load with the wrong reverb size** — two songs asking for 11 %
+    sometimes played with a big room instead, and nudging the size up one percent
+    made it *smaller*. Loading a song sets every control twice (once to its
+    default, once to the song's), and the second of those two writes was checking
+    against a value the first had not finished applying, so it decided nothing
+    had changed and let the default stand.
   - the **drum compressor** thumped the first time anything switched it on,
     because its saturator emits a whisker of DC even for silence and the filter
     that removes it started from a standing start. Silence in, silence out now.

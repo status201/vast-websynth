@@ -213,10 +213,22 @@ subsets, so a song can colour each bus independently.
   *twice* per load (the reset to the default index, then the song's). The swap is
   therefore wrapped in the mute-then-edit idiom `ModMatrix.patch` already uses:
   ramp `wrap.processedOut` to 0 over `RAMP_MEDIUM`, swap on a 40 ms
-  generation-guarded timer, ramp back. The existing buffer-identity guard still
-  makes a no-change write completely free, and `IR_DURATIONS` is coarse enough
-  that sweeping the knob crosses few boundaries. The tail still restarts — that is
-  what changing the size *means*; what goes is the step at the seam.
+  generation-guarded timer, ramp back. `IR_DURATIONS` is coarse enough that
+  sweeping the knob crosses few boundaries. The tail still restarts — that is what
+  changing the size *means*; what goes is the step at the seam.
+
+  **The identity guard compares against the pending target, never against
+  `convolver.buffer`.** Deferring the swap makes the live buffer stale for the
+  whole window, and a song load writes this param *twice in one turn* (REQ-17 of
+  [song-mode](song-mode.md)): the default, then the song's. Guarding on the live
+  buffer, the second write saw the value the first had not applied yet, concluded
+  it was already there and returned **without superseding the pending swap** — so
+  the default landed 40 ms later. Shipped and reported from the field: two demos
+  asking for 11 % played at the 60 % default, and nudging the knob by one percent
+  made the reverb *smaller*, because that write finally did differ from the live
+  buffer. It only bit when the previous song had left the song's own IR in place,
+  which is what made it intermittent. Any deferred edit owes the same rule: the
+  guard reads the intent, not the state the edit has not reached yet.
 
 ## Technical design
 
@@ -308,6 +320,13 @@ Scenario: A bypassed effect stops costing audio-thread CPU (perf, ADR-012)
   Then the wrapper has disconnected input→processedIn
    And after the effect's drainSeconds() it has disconnected processedOut→wet too
 # pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Two size writes in one turn land on the second (v8, REQ-10, regression)
+  Given the reverb holds the small IR and a song load is applying
+  When setSize is called with the default and then with the song's value, in one turn
+  Then the IR that lands after the mute window is the song's, not the default
+   And the reverse pair still moves it, so the guard has not simply gone away
+# pinned by: tests/audio/effects/reverb.test.ts
 
 Scenario: Re-enabling an effect never replays what was frozen in it (v8, REQ-2c)
   Given an effect was bypassed while its delay line held audio

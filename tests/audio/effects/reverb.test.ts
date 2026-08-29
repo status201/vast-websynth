@@ -129,6 +129,44 @@ describe('Reverb IR bank', () => {
     expect(buf()).toBe(atCap);
   });
 
+  /**
+   * The shape a song load makes (song-mode.md REQ-17): `resetDefaults()` writes
+   * the default size, then `restore()` writes the song's — both in one turn,
+   * inside the swap's mute window. Reported from the field: a demo asking for
+   * 11% played at the 60% default, intermittently, and nudging the knob one
+   * percent made the reverb *smaller*.
+   *
+   * The cause was the guard reading `convolver.buffer`, which lags the whole
+   * window: the second write saw the value the first had not applied yet,
+   * concluded it was already there, and returned without superseding the
+   * pending swap — so the default landed. It only bit when the previous song
+   * left the *song's* IR in place, which is what made it intermittent.
+   */
+  it('two writes in one turn land on the second, not the first (regression)', () => {
+    vi.useFakeTimers();
+    const ctx = freshCtx();
+    const r = mk(ctx);
+    const buf = (): AudioBuffer =>
+      (r as unknown as { convolver: ConvolverNode }).convolver.buffer!;
+
+    // Put the convolver on the SMALL IR — the state that used to break it.
+    setSize(r, 0);
+    const small = buf();
+
+    // Now the load: default (0.6 -> the middle IR), then the song's 0.105 ->
+    // the small one again. The net effect must be "unchanged", not "default".
+    r.setSize(0.6);
+    r.setSize(0.105);
+    vi.advanceTimersByTime(200);
+    expect(buf()).toBe(small);
+
+    // And the same pair the other way round still moves it.
+    r.setSize(0.105);
+    r.setSize(1);
+    vi.advanceTimersByTime(200);
+    expect(buf().length).toBeGreaterThan(small.length);
+  });
+
   it('caps do not leak between tiers (cache key includes the duration)', () => {
     const ctx = freshCtx();
     const capped = mk(ctx, 1.5);
