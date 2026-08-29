@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busGet, busSet, clickDemo, dropInDeclaring, otherBpm } from './helpers';
+import { gotoAndStart, startAudio, busGet, busSet, clickDemo, dropInDeclaring, otherBpm } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const drumOn = (page: Page, t: number, s: number): Promise<boolean> =>
@@ -31,7 +31,7 @@ test.describe('session safety net', () => {
 
     // Same context keeps localStorage: boot restores the session silently.
     await page.reload();
-    await page.getByRole('button', { name: 'Tap to start' }).click();
+    await startAudio(page);
     expect(await busGet(page, 'filter.cutoff')).toBe(42);
     expect(await drumOn(page, 0, 3)).toBe(true);
   });

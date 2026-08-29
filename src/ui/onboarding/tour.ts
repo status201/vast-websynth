@@ -225,8 +225,10 @@ export class Tour {
 
     if (step.advanceOn === 'note') {
       // Subscribe synchronously (before resuming audio) so a note fired in the
-      // same tick is never missed. Audio is already unlocked after "Tap to
-      // start", so the resume is only defensive and need not block the listener.
+      // same tick is never missed. The tour only ever runs past the start gate —
+      // tapped, or automatic where the browser never wanted a gesture
+      // (audio-lifecycle.md REQ-20) — so the resume is only defensive and need
+      // not block the listener.
       this.unsubNote = this.ctx.bus.onNote((on) => {
         if (!on) return;
         this.confirmNote();

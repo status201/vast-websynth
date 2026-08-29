@@ -3,8 +3,39 @@ import { fileURLToPath } from 'node:url';
 import { type Page, expect } from '@playwright/test';
 
 /**
- * Navigate to the app and unlock audio via the trusted "Tap to start" click
- * (which resumes the AudioContext). Shared by specs that need a booted app.
+ * Get a booted app past its start gate — whichever gate this browser gets
+ * (audio-lifecycle.md REQ-20). The modal exists only to buy a user gesture, so
+ * it is shown only where the browser demands one: the default Chromium project
+ * launches with `--autoplay-policy=no-user-gesture-required`, so the context is
+ * created running and there is **no modal at all**, while a project without that
+ * flag still gets "Tap to start". Both paths end with the AudioContext running.
+ *
+ * Never assert on the modal from here — `audio-autostart.spec.ts` owns which
+ * path a given browser takes. Every other spec just wants audio unlocked.
+ */
+export async function startAudio(page: Page): Promise<void> {
+  // Boot is async, so neither the button nor a running context exists yet. Wait
+  // for whichever this browser produces rather than for the button alone, which
+  // on the auto-start path would only ever time out.
+  await page.waitForFunction(() =>
+    Boolean(document.querySelector('.start-btn'))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    || (window as any).__synth?.engine.ctx.state === 'running');
+
+  const startBtn = page.getByRole('button', { name: 'Tap to start' });
+  if (await startBtn.count() > 0) {
+    await startBtn.click();
+    await expect(startBtn).toBeHidden();
+  }
+  await expect
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .poll(() => page.evaluate(() => (window as any).__synth.engine.ctx.state as string))
+    .toBe('running');
+}
+
+/**
+ * Navigate to the app and unlock audio (see {@link startAudio}). Shared by
+ * specs that need a booted app.
  */
 export async function gotoAndStart(page: Page): Promise<void> {
   // Suppress the first-visit onboarding tour so its overlay doesn't intercept
@@ -24,9 +55,7 @@ export async function gotoAndStart(page: Page): Promise<void> {
     }
   });
   await page.goto('/');
-  const startBtn = page.getByRole('button', { name: 'Tap to start' });
-  await startBtn.click();
-  await expect(startBtn).toBeHidden();
+  await startAudio(page);
 }
 
 // State reads/writes go through the dev-only `window.__synth` bridge (main.ts).

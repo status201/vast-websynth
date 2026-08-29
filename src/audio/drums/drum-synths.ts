@@ -9,7 +9,12 @@
  * persistent `output` gain, built once in the constructor, is never touched).
  */
 export interface DrumSynth {
-  readonly output: AudioNode;
+  /**
+   * `GainNode`, not `AudioNode`: every implementation already builds one, and a
+   * model swap has to *ramp* it down before disconnecting rather than severing a
+   * ringing tail (drum-machine.md REQ-19).
+   */
+  readonly output: GainNode;
   /** `chokeAt` (step gate < 1) cuts the hit early with a fast fade. */
   trigger(when: number, velocity: number, chokeAt?: number): void;
   setTune(semitones: number): void;

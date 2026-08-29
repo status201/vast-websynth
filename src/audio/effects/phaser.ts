@@ -12,6 +12,9 @@ export class Phaser extends WrappedEffect {
   private readonly lfoDepth: GainNode;
   private readonly feedback: GainNode;
   private readonly fbDelay: DelayNode;
+  /** Last commanded feedback, held across a quiesce so it can be restored. */
+  private fb = 0.4;
+  private quiesced = false;
   private readonly inGain: GainNode;
 
   private depthOct = 1.5;
@@ -71,7 +74,23 @@ export class Phaser extends WrappedEffect {
     this.lfoDepth.gain.setTargetAtTime(this.depthHz(), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setFeedback(f: number): void {
-    this.feedback.gain.setTargetAtTime(Math.max(0, Math.min(0.95, f)), this.ctx.currentTime, RAMP_SMOOTH);
+    // Recorded even while quiesced, so the restore lands on the current knob.
+    this.fb = Math.max(0, Math.min(0.95, f));
+    if (this.quiesced) return;
+    this.feedback.gain.setTargetAtTime(this.fb, this.ctx.currentTime, RAMP_SMOOTH);
+  }
+
+  /**
+   * The allpass chain is memoryless in practice; what holds audio is the 0.05 s
+   * feedback loop, which with feedback zeroed is empty within one pass
+   * (effects.md REQ-2c). 0.1 s is that with room to spare.
+   */
+  protected override drainSeconds(): number { return 0.1; }
+
+  protected override quiesce(on: boolean): void {
+    this.quiesced = on;
+    this.feedback.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.feedback.gain.setValueAtTime(on ? 0 : this.fb, this.ctx.currentTime);
   }
 
   bind(bus: ParamBus, prefix: string): void {

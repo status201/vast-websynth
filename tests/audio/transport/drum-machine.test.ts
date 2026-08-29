@@ -211,16 +211,27 @@ describe('DrumMachine', () => {
 /** Voice models (drum-machine.md REQ-11): swap the voice, keep the channel. */
 describe('DrumMachine voice models', () => {
   it('setTrackModel swaps the voice and rewires it into the same channel head', () => {
-    const { dm } = build();
-    const old = dm.tracks[4]!; // L.Tom slot
-    dm.setTrackTune(4, -5);
-    dm.setTrackDecay(4, 0.24);
-    dm.setTrackModel(4, 8); // Conga
-    const next = dm.tracks[4]!;
-    expect(next).not.toBe(old);
-    expect((old.output as unknown as { disconnect: ReturnType<typeof vi.fn> }).disconnect).toHaveBeenCalled();
-    // The new voice joined the graph (its output connected somewhere)…
-    expect((next.output as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalled();
+    vi.useFakeTimers();
+    try {
+      const { dm } = build();
+      const old = dm.tracks[4]!; // L.Tom slot
+      dm.setTrackTune(4, -5);
+      dm.setTrackDecay(4, 0.24);
+      dm.setTrackModel(4, 8); // Conga
+      const next = dm.tracks[4]!;
+      expect(next).not.toBe(old);
+      // The new voice joined the graph (its output connected somewhere)…
+      expect((next.output as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalled();
+      // …while the old one is ramped down and only detached after the fade
+      // (REQ-19 — it may still be ringing). Pinned in detail in
+      // tests/audio/drums/drum-machine-model.test.ts.
+      const gone = (old.output as unknown as { disconnect: ReturnType<typeof vi.fn> }).disconnect;
+      expect(gone).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(100);
+      expect(gone).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('cached tune/decay are replayed onto the swapped-in voice', () => {

@@ -3,7 +3,10 @@
 ```yaml
 id: architecture
 status: implemented
-version: 6   # v6: the audio graph gains a duck stage on the synth and sampler
+version: 7   # v7: REQ-3 — the context is not created suspended, it is created
+             #     however the BROWSER's autoplay policy says; the graph is
+             #     silent until a deliberate fade either way (audio-lifecycle v6)
+             # v6: the audio graph gains a duck stage on the synth and sampler
              #     chains, keyed by drum hits (sidechain-ducking.md)
              # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-20)
              # v4: UiBridge in the layer contracts; testids/write-a-test delegation
@@ -43,11 +46,20 @@ means a UI control and its audio effect can be reasoned about independently.
   reads them via `bus.subscribe(...)`. No direct UI↔audio calls.
 - **REQ-2** — Every scalar parameter is registered exactly once in
   `registerDefaults()` with `min/max/default` (and optional `taper`/`format`).
-- **REQ-3** — Audio cannot start without a user gesture. The graph *is* built at
-  boot — `boot()` runs `new Engine(bus, …)` + `await engine.init()` before any
-  input — but on an `AudioContext` created **suspended**, so nothing sounds. Only
-  `await engine.resume()` runs inside the "Tap to start" handler in `main.ts`;
-  that call is what the gesture unlocks (see `features/audio-lifecycle.md`).
+- **REQ-3** — **Nothing sounds until `Engine.resume()` deliberately fades it in.**
+  The graph *is* built at boot — `boot()` runs `new Engine(bus, …)` +
+  `await engine.init()` before any input — and it is wired all the way to
+  `ctx.destination` there.
+
+  **(v7) What is NOT guaranteed is that the context is suspended.** That was the
+  standing assumption, stated as fact here and as a comment in `main.ts`, and it
+  is only true where the browser's autoplay policy blocks us: an
+  autoplay-permitted browser returns a context already `running`, so the whole
+  boot renders into an open output stream. The invariant that actually holds is
+  the one the master bus enforces — seeded at 0, raised only by `fadeInMaster()`
+  (`features/audio-lifecycle.md` REQ-19). Whether a **user gesture** is required
+  is therefore the browser's call, not ours, and REQ-20 there reads the answer off
+  the created state to decide if the "Tap to start" modal is shown at all.
 - **REQ-4** — New parameters default to a **no-op** value, so existing
   presets/songs are unaffected (see Conventions).
 - **REQ-5** — Non-scalar state (step grids) lives in `PatternStore`, not the bus.

@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { startAudio } from './helpers';
 
 /**
  * Boot smoke test — the one thing unit tests can't cover: that the real app
- * boots in a browser, unlocks its AudioContext behind the "Tap to start"
- * gesture (Playwright clicks are trusted gestures, so `engine.resume()` runs),
- * loads the two AudioWorklets, and mounts a working UI.
+ * boots in a browser, unlocks its AudioContext at whichever start gate the
+ * browser imposes (audio-lifecycle.md REQ-20), loads the two AudioWorklets,
+ * and mounts a working UI.
  *
  * Selectors are text/role-based only — CSS Modules hash every class name, so
  * the only stable handles are button labels, roles, and the literal global
@@ -32,17 +33,15 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
 
   await page.goto('/');
 
-  // Start modal is up.
-  const startBtn = page.getByRole('button', { name: 'Tap to start' });
-  await expect(startBtn).toBeVisible();
+  // Past whichever start gate this browser imposes — the default project runs
+  // with autoplay permitted, so there is no modal at all (audio-lifecycle.md
+  // REQ-20). `audio-autostart.spec.ts` is what asserts *which* gate; this one
+  // only cares that audio ends up running.
+  await startAudio(page);
 
-  // Trusted click → unlocks audio, modal fades out (gets `.hidden`, then removed).
-  await startBtn.click();
-  await expect(startBtn).toBeHidden();
-
-  // Header mounted. The start modal renders the same brand block (brand.md), so
-  // this is unambiguous only because the backdrop is removed before `toBeHidden`
-  // above resolves — `exact` no longer does that disambiguating on its own.
+  // Header mounted. The start modal, where it is shown, renders the same brand
+  // block (brand.md), so this is unambiguous only because `startAudio` does not
+  // return until that backdrop is gone — `exact` no longer disambiguates alone.
   await expect(page.getByText('G1-J8', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Panic' })).toBeVisible();

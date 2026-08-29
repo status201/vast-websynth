@@ -15,12 +15,48 @@ async function openDebug(page: import('@playwright/test').Page): Promise<void> {
   await expect(section).not.toHaveClass(/collapsed/);
 }
 
+/**
+ * pwa-install.md REQ-1 — the wake lock must be taken on the auto-start path.
+ *
+ * A regression guard with a specific history: the lock was driven purely off the
+ * AudioContext's `statechange`, which never fires for a context the browser
+ * created already `running` (audio-lifecycle.md REQ-20) — and resuming an
+ * already-running one does not fire it either. So on exactly the devices that
+ * skip the start modal, the screen was free to sleep mid-performance, while the
+ * unit tests for `WakeLockManager` stayed green because nothing ever called it.
+ * This suite runs with autoplay permitted, so it *is* that path.
+ */
+test('the wake lock is requested even when no statechange ever fires', async ({ page }) => {
+  // Count the requests rather than asserting the lock is *held*: headless
+  // Chromium exposes the API but rejects the request (there is no screen to keep
+  // awake), and `WakeLockManager` swallows a rejection by design. Whether the
+  // platform grants it is not ours to test; whether boot asks is exactly ours.
+  await page.addInitScript(() => {
+    (window as unknown as { __wakeAsks: number }).__wakeAsks = 0;
+    const wl = navigator.wakeLock;
+    if (!wl) return;
+    const real = wl.request.bind(wl);
+    wl.request = ((type: WakeLockType) => {
+      (window as unknown as { __wakeAsks: number }).__wakeAsks++;
+      return real(type);
+    }) as typeof wl.request;
+  });
+
+  await gotoAndStart(page);
+
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __wakeAsks: number }).__wakeAsks))
+    .toBeGreaterThan(0);
+});
+
 test('the Debug panel reports live state and acts on it', async ({ page }) => {
   await gotoAndStart(page);
   await openDebug(page);
 
-  // Live rows, against the real context started by "Tap to start".
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running');
+  // Live rows, against the real context. The row appends the autoplay verdict
+  // that decided whether a start modal was shown at all (audio-lifecycle.md
+  // REQ-20) — and this suite runs with autoplay permitted, so it reads `ok`.
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running · autoplay ok');
   await expect(page.getByTestId('debug-transport')).toContainText('stopped');
   await expect(page.getByTestId('debug-storage')).toContainText('keys');
 
@@ -28,15 +64,15 @@ test('the Debug panel reports live state and acts on it', async ({ page }) => {
   const toggle = page.getByTestId('debug-ctx-toggle');
   await expect(toggle).toHaveText('Suspend');
   await toggle.click();
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended · autoplay ok');
   await expect(toggle).toHaveText('Resume');
   // REQ-15 regression: the statechange re-arm now runs on every platform, so a
   // deliberate suspend has to survive the event its own suspend() fires. If the
   // intent flag were missing this would be back to 'running' immediately.
   await page.waitForTimeout(400);
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('suspended · autoplay ok');
   await toggle.click();
-  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running');
+  await expect(page.getByTestId('debug-ctx-state')).toHaveText('running · autoplay ok');
 
   // Panic and the test tone must not throw in a real graph.
   await page.getByTestId('debug-panic').click();

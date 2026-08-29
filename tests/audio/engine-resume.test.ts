@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Engine } from '../../src/audio/engine';
 import { makeParam, type MockAudioParam } from './mock-audio-context';
@@ -33,8 +35,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function engineLike(over: { state?: string; volume?: number; ios?: boolean; playing?: boolean } = {}) {
-  const gain: MockAudioParam = makeParam(0.8);
+function engineLike(
+  over: { state?: string; volume?: number; ios?: boolean; playing?: boolean; everRan?: boolean } = {},
+) {
+  // The production seed is 0 (REQ-19) — the master is silent until a fade.
+  const gain: MockAudioParam = makeParam(0);
   const ctx: CtxStub = {
     state: over.state ?? 'suspended',
     currentTime: 12.5, // frozen while suspended — the fade must be scheduled here
@@ -58,7 +63,10 @@ function engineLike(over: { state?: string; volume?: number; ios?: boolean; play
     glitchTimer: null,
     resumeAttempts: 0,
     blocked: false,
-    everRan: false,
+    // REQ-19: an engine that has never run fades in even on a running context,
+    // so every case asserting REQ-2's "leave it alone" says so explicitly.
+    everRan: over.everRan ?? false,
+    autoplayAllowedFlag: false,
     disarmGesture: null,
     resuming: null,
     blockedListeners: new Set<(b: boolean) => void>(),
@@ -125,7 +133,9 @@ describe('Engine.resume fade-in (click-free start)', () => {
   });
 
   it('leaves a RUNNING context alone — no dip, no second resume (REQ-2)', async () => {
-    const { ctx, gain, unlock, resume } = engineLike({ state: 'running' });
+    // `everRan` is the point: REQ-2 is about a resume *during a session*. The
+    // first one on a context created running is REQ-19's job, below.
+    const { ctx, gain, unlock, resume } = engineLike({ state: 'running', everRan: true });
     await resume();
     expect(gain.cancelScheduledValues).not.toHaveBeenCalled();
     expect(gain.setValueAtTime).not.toHaveBeenCalled();
@@ -247,9 +257,110 @@ describe('Engine.resume glitch-mute restore (REQ-16)', () => {
   });
 
   it('still leaves a running context with no outstanding mute completely alone', async () => {
-    const { gain, resume } = engineLike({ state: 'running' });
+    const { gain, resume } = engineLike({ state: 'running', everRan: true });
     await resume();
     expect(gain.setValueAtTime).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The context the browser hands us (audio-lifecycle.md REQ-19/REQ-20). An
+ * autoplay-permitted browser creates the context already `running`, which used
+ * to route the very first `resume()` down REQ-2's "leave it alone" branch — so
+ * the fade that exists to swallow the stream-start transient never ran on
+ * exactly the machines that reported the click.
+ */
+describe('a context created already running (REQ-19/REQ-20)', () => {
+  it('fades in the FIRST time even though the context is running', async () => {
+    const { gain, ctx, resume } = engineLike({ state: 'running', volume: 0.8 });
+    await resume();
+
+    // Not a dip: the master is seeded at 0, so this ramps 0 → target exactly as
+    // a real resume would.
+    expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 12.5);
+    expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8 * 0.8, 12.5 + 0.15);
+    expect(ctx.resume).not.toHaveBeenCalled(); // already running — nothing to resume
+  });
+
+  it('fades only once — the second resume of the session leaves it alone', async () => {
+    const { gain, resume } = engineLike({ state: 'running' });
+    await resume();
+    gain.setValueAtTime.mockClear();
+    await resume();
+    expect(gain.setValueAtTime).not.toHaveBeenCalled();
+  });
+
+  it('does not touch a CLOSED context, however many times it has run', async () => {
+    const { gain, resume } = engineLike({ state: 'closed' });
+    await resume();
+    expect(gain.setValueAtTime).not.toHaveBeenCalled();
+  });
+
+});
+
+/**
+ * The other half of REQ-19 lives in the constructor and in `subscribeParams`,
+ * neither of which the structural stub above can reach — building either needs a
+ * real AudioContext and the whole param table. So they are pinned at the source,
+ * the same technique `no-unanchored-cancel.test.ts` uses for a rule no behavioural
+ * test can see. Both lines are one edit away from silently undoing the fix: a
+ * master seeded at anything but 0, or a `master.volume` write before the first
+ * start, puts the app straight back to rendering at full gain behind the modal.
+ */
+describe('REQ-19 at the source', () => {
+  // From `process.cwd()`, the convention every source-reading suite that ALSO
+  // imports from `src/` uses (`param-wiring.test.ts`, `song-validate.test.ts`):
+  // in such a file Vite rewrites `import.meta.url` to a non-file scheme, which is
+  // why `no-unanchored-cancel.test.ts` can resolve from it and this cannot.
+  const src = readFileSync(resolve(process.cwd(), 'src/audio/engine.ts'), 'utf8');
+
+  it('seeds the master bus silent', () => {
+    expect(src).toMatch(/this\.master\.gain\.value = 0;/);
+    expect(src).not.toMatch(/this\.master\.gain\.value = (?!0;)/);
+  });
+
+  it('gates the master.volume subscription on everRan', () => {
+    const sub = /subscribe\('master\.volume', \(x\) => \{([\s\S]*?)\n {4}\}\);/.exec(src);
+    expect(sub, 'the master.volume subscription moved — re-point this test').not.toBeNull();
+    expect(sub![1]).toMatch(/if \(!this\.everRan\) return;/);
+  });
+});
+
+/**
+ * REQ-21 — the one-shot gesture arming, extracted from `armGestureResume` so the
+ * auto-start path can defer Web MIDI and the Android keep-alive to the next real
+ * touch instead of demanding a dedicated tap. Registered on the real jsdom
+ * `window`, so each case disarms what it armed.
+ */
+describe('Engine.onFirstGesture (REQ-21)', () => {
+  it('runs once on the next gesture and removes every listener', () => {
+    const { engine } = engineLike();
+    const fn = vi.fn();
+    engine.onFirstGesture(fn);
+
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    // A second gesture — of a different type, so `once` alone would not cover it
+    // — must find nothing armed.
+    window.dispatchEvent(new Event('keydown'));
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('can be disarmed before any gesture arrives', () => {
+    const { engine } = engineLike();
+    const fn = vi.fn();
+    engine.onFirstGesture(fn)();
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('disarming twice is harmless', () => {
+    const { engine } = engineLike();
+    const disarm = engine.onFirstGesture(vi.fn());
+    disarm();
+    expect(() => disarm()).not.toThrow();
   });
 });
 

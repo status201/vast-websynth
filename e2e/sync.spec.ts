@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoAndStart, busGet, busSet } from './helpers';
+import { gotoAndStart, startAudio, busGet, busSet } from './helpers';
 
 /** The running sync role, via the dev-only `window.__synth` bridge. */
 const syncActiveMode = (page: Page): Promise<string> =>
@@ -49,7 +49,7 @@ test('Song tab shows the Sync section; mode persists across reload', async ({ pa
 
   // Device-scoped persistence (websynth.midisync): survives a reload.
   await page.reload();
-  await page.getByRole('button', { name: 'Tap to start' }).click();
+  await startAudio(page);
   await page.getByRole('button', { name: 'Song', exact: true }).click();
   await expect(page.getByTestId('sync-mode-slave')).toHaveClass(/\bactive\b/);
 });

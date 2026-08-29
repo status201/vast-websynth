@@ -48,11 +48,19 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
 ## Requirements
 
 - **REQ-1** (wake lock) — The screen wake lock is held **iff the AudioContext
-  is running**: acquired when the context enters `running` (the Tap-to-start
-  resume), released when it suspends/closes. When the OS auto-releases the lock
-  (tab hidden), it is re-acquired on visibility return while still wanted.
-  Unsupported browsers and rejected requests are silent no-ops — the feature
-  never surfaces errors.
+  is running**: acquired when the context enters `running`, released when it
+  suspends/closes. When the OS auto-releases the lock (tab hidden), it is
+  re-acquired on visibility return while still wanted. Unsupported browsers and
+  rejected requests are silent no-ops — the feature never surfaces errors.
+
+  **It cannot be driven by `statechange` alone.** That listener is the mechanism
+  for every *later* transition, but a context the browser created already
+  `running` ([audio-lifecycle](audio-lifecycle.md) REQ-20) never fires one, and
+  resuming an already-running context does not either — so on precisely the
+  devices that skip the start modal the lock would never be taken at all. `main.ts`
+  therefore also syncs the lock explicitly once, straight after the auto-start
+  resume. The modal path needs no such call: there the context really does
+  transition, so the listener covers it.
 - **REQ-2** (fullscreen) — The manifest declares
   `display_override: ["fullscreen", "standalone"]` (installed Android launches
   with no status bar; `display: standalone` remains the fallback). The header
@@ -213,9 +221,18 @@ cache `websynth-<version>`. `install`: `addAll(CORE_ASSETS)` + `skipWaiting()`.
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: wake lock is requested when the app starts itself (REQ-1, regression)
+  Given the browser created the AudioContext already running, so no modal is shown
+   And no statechange will ever fire for it
+  When boot finishes its auto-start resume
+  Then the lock is requested anyway, from the explicit sync
+   And whether the platform grants it is not asserted — a headless browser refuses
+     it, and a refusal is a documented silent no-op
+# pinned by: e2e/debug-panel.spec.ts
+
 Scenario: wake lock follows the AudioContext
   Given a browser with navigator.wakeLock
-  When the AudioContext enters "running" (Tap to start)
+  When the AudioContext enters "running" (the start gate, tapped or automatic)
   Then a screen wake-lock sentinel is acquired
   When the AudioContext suspends
   Then the sentinel is released

@@ -91,7 +91,9 @@ notes played on another tab no longer overwrite its bank.
   octave, or trigger a drum fill. (Same `closest(...)` rule the `contextmenu`
   guard already uses.)
 
-- **REQ-6** — MIDI access is requested only after the "Tap to start" gesture,
+- **REQ-6** — MIDI access is requested only after a **user gesture** — the
+  "Tap to start" click where there is one, and otherwise the first touch anywhere
+  after an auto-start ([audio-lifecycle](audio-lifecycle.md) REQ-21) — and
   never at page load: Chrome ≥124 shows a permission prompt for *all* MIDI
   access (sysex or not), and an unprompted load-time permission dialog is
   hostile to the (majority) MIDI-less visitor. The request passes an explicit

@@ -3,7 +3,11 @@
 ```yaml
 id: audio-lifecycle
 status: implemented
-version: 5   # v5: REQ-13..REQ-18 — recovery. A resume that does not take is
+version: 6   # v6: REQ-19..REQ-21 — the context the browser hands us. A context
+             #     created `running` (autoplay permitted) skipped REQ-1's fade
+             #     entirely, which is the click that was still being reported;
+             #     the same signal says the start gesture is not needed at all
+             # v5: REQ-13..REQ-18 — recovery. A resume that does not take is
              #     retried and then handed to the next gesture (measured: an
              #     Android tablet under battery saving came back silent, and only
              #     the Debug panel could revive it)
@@ -85,6 +89,33 @@ crackle to prevent in the first place. v5 is the recovery half: verify, retry, a
 if the platform really does want a gesture, take the next one the user makes and
 say so.
 
+**4. (v6) The click never went away, because the fade was never reached.** Point 1
+above is written as though `AudioContext.resume()` is what starts the output
+stream. On a browser that *blocks* autoplay it is. On one that permits it —
+Firefox with the site's Autoplay permission on Allow, Chrome with a warm Media
+Engagement Index, i.e. **any machine that has used the app before** —
+`new AudioContext()` comes back already `running`: the stream opens at page load,
+`Engine`'s constructor wires the whole graph to `ctx.destination` with
+`master.gain` at its seeded 0.8, and the boot then builds ~50 nodes, loads three
+worklet modules and writes several hundred params into a live render thread. When
+the tap finally arrives, `runResume()` takes its `!shouldResumeContext(state)`
+branch and returns — REQ-1's fade is *skipped by design* (REQ-2). So the one
+mitigation for the reported symptom never ran on precisely the machines that
+report it. `main.ts` said "The AudioContext is created suspended" as a comment; it
+was an assumption, and nothing checked it. The tell on such a machine is that the
+wake lock never engages either, because it waits on a `statechange` that never
+fires.
+
+The fix is not to suspend the context at boot. **The state the browser created it
+in is the only direct evidence of the autoplay verdict** — and that verdict answers
+a second question the app had been guessing at: whether the "Tap to start" modal is
+needed at all. So v6 keeps the created state, makes the master bus silent until the
+first deliberate fade (REQ-19), and reads the verdict to decide whether a gesture is
+required (REQ-20/REQ-21). A context that is already running is not an inference
+about policy: the stream is open, audio is unblocked, and the only thing a tap
+still buys is the platform work that genuinely wants a gesture — which is deferred
+to the first one the user makes anyway, rather than demanded up front.
+
 ## Requirements
 
 - **REQ-1** — **A start is click-free.** When `Engine.resume()` actually resumes a
@@ -96,12 +127,18 @@ say so.
   first-block settling of the worklets, short enough to be inaudible as a fade after
   a deliberate tap.
 
-- **REQ-2** — **The fade only ever happens on a real resume.** It is gated on the
-  same `shouldResumeContext(ctx.state)` check as `ctx.resume()` itself, so calling
+- **REQ-2** — **The fade never dips live audio.** It is gated on the same
+  `shouldResumeContext(ctx.state)` check as `ctx.resume()` itself, so calling
   `resume()` on an already-running context (the About panel's toggle, the iOS
   re-arm path, `app.ts`'s `resumeAudio`) neither dips nor re-ramps live audio.
   `iosSession.unlock()` still runs unconditionally first (it is the in-gesture
   session-category call — [`ios-audio`](ios-audio.md) REQ-4).
+
+  **Two exceptions, and neither is a dip** — in both the gain is already at 0, so
+  the fade is a ramp *up* from silence exactly as a real resume's is: `glitchMuted`
+  (REQ-16) and, since v6, `!everRan` (REQ-19). The guarantee this requirement
+  actually makes is about *audible* audio, not about the context's state, and
+  gating on the state alone was a proxy that failed for a context created running.
 
 - **REQ-3** — **The ramp is scheduled before the resume is awaited.** `currentTime`
   is frozen while a context is suspended, so scheduling at `t = ctx.currentTime`
@@ -276,6 +313,63 @@ say so.
   back/forward cache can reach a visible, interactive state without a
   `visibilitychange`, and nothing in the app listened for it.
 
+- **REQ-19** (v6) — **Nothing is audible before the first start, whatever state
+  the context was created in.** `master.gain` is **seeded at 0** rather than at
+  0.8, and the `master.volume` subscription does not write it until the engine has
+  run once (`everRan`), so the only thing that can ever raise the master bus is
+  `fadeInMaster()`. Every path into audibility therefore goes through REQ-1's ramp,
+  including the one REQ-2's state gate used to miss — hence the second exception
+  there. `fadeInMaster()` reads `bus.get('master.volume')` at fade time, so the
+  first fade still lands exactly where the knob says, and a volume set before the
+  start is honoured rather than lost.
+
+  **Deliberately not solved by suspending the context at boot.** That would have
+  restored `main.ts`'s assumption at the cost of destroying the evidence REQ-20
+  reads, and it buys nothing audible: with the master at 0 the boot's node
+  construction, worklet loading and param burst are inaudible whether or not the
+  renderer is running. The seeded 0 is an intrinsic `.value =`, which is safe here
+  for the reason [`performance`](performance.md) REQ-10 spells out — the first
+  automation on this param is `fadeInMaster()`'s own anchored `setValueAtTime`.
+
+- **REQ-20** (v6) — **The start gesture is required only when the browser requires
+  it.** `Engine.autoplayAllowed` records whether the context reached `running`
+  without a gesture: read from the state `new AudioContext()` returned, and OR'd in
+  from a `statechange → running` arriving before the decision, since the spec allows
+  that transition to be asynchronous. When it is true, `main.ts` calls `resume()`
+  directly — taking REQ-19's fade, so the start is click-free — and shows **no**
+  start modal; when it is false the modal is shown exactly as before.
+
+  This is an observation, not a policy guess: a running context *is* an open output
+  stream. **No user-agent check** — iOS excludes itself, because Safari never
+  creates a running context without a gesture, so the signal already says "show the
+  modal" there. And a wrong verdict is already survivable: an auto-start is an
+  explicit `resume()`, so it runs the full REQ-13 ladder and ends, at worst, with
+  the gesture fallback armed and REQ-14's toast up — "tap anywhere", which is a
+  better failure than the modal it replaced.
+
+- **REQ-21** (v6) — **What the gesture did beyond unlocking audio is deferred,
+  never dropped.** Three things rode on the start tap that are not about the
+  AudioContext, and each keeps its reason:
+  - **Web MIDI** (`initMIDI`) — Chrome ≥124 prompts for permission, and prompting
+    at page load is hostile to MIDI-less visitors.
+  - **The Android Media Session keep-alive** (`media.unlock()` →
+    `HTMLAudioElement.play()`) — may be refused outside a gesture; it records
+    `blocked: …` rather than throwing, and is safe to call again.
+  - **The iOS session category** (`iosSession.unlock()`) — genuinely gesture-only,
+    and unreachable on the auto-start path by REQ-20.
+
+  On the auto-start path both run from a **one-shot window gesture listener** —
+  `Engine.onFirstGesture(fn)`, the same capture-phase, passive, once-per-type
+  `RESUME_GESTURES` arming REQ-13 already uses, extracted so there is one
+  implementation rather than two. The permission prompt still follows a user
+  action; it simply no longer needs a *dedicated* one. The keep-alive is retried
+  by calling `resume()` again from inside that gesture rather than by exposing
+  `media` to the UI layer: `resume()` is the door to both platform unlocks and is
+  idempotent on a running context (REQ-2), so it is the whole retry.
+  The restored-clips toast and
+  the `#songUrl=` consent dialog were deferred for a different reason — they would
+  have rendered *under* the modal — so with no modal they run at boot.
+
 ## Technical design
 
 ### Contract / public interface
@@ -288,6 +382,8 @@ RESUME_RETRY_MS  = 150               # v5: gap between attempts
 RESUME_RETRIES   = 2                 # v5: retries after the first attempt (3 total)
 Engine.resume(): Promise<void>       # unlock()s (iOS + Android) → (if resuming) fadeInMaster() → ctx.resume()
                                      #   v5: → verify → retry → arm the gesture fallback
+Engine.autoplayAllowed: boolean      # v6, REQ-20: the context reached 'running' with no gesture
+Engine.onFirstGesture(fn): () => void     # v6, REQ-21: one-shot RESUME_GESTURES arming; returns a disarm
 Engine.suspendForDebug(): Promise<void>   # v5: the ONLY suspend that sets deliberateSuspend
 Engine.audioRecovery: AudioRecoveryState  # v5: { blocked, attempts, gestureArmed }
 Engine.onAudioBlocked(fn: (blocked: boolean) => void): () => void   # v5: returns an unsubscribe
@@ -324,12 +420,16 @@ AudioContext.renderCapacity?: AudioRenderCapacity
 ### Layer touchpoints & ordering
 
 ```yaml
+engine ctor:       master.gain.value = 0                     # v6, REQ-19: silent until fadeInMaster
+                   autoplayAllowed = ctx.state === 'running' # v6, REQ-20: the created state IS the verdict
+bus master.volume: everRan or return                         # v6, REQ-19: nothing else raises the master
 re-arm handlers:   everRan or return                        # v5: nothing automatic before the
                    #   first successful resume (REQ-13)
 engine.resume():   deliberateSuspend = false                 # v5: any resume is intent to play
                    iosSession.unlock(); media.unlock()       # sync, inside the gesture
                    #   ios-audio REQ-4 / media-session REQ-2 — each inert off its OS
-                   glitchMuted && ctx.state === 'running' ? fadeInMaster() : —   # v5, REQ-16
+                   (glitchMuted || !everRan) && ctx.state === 'running' ? fadeInMaster() : —
+                   #   v5 REQ-16 (glitchMuted) + v6 REQ-19 (!everRan) — both ramp 0 → target
                    shouldResumeContext(ctx.state) ? fadeInMaster() : return
                    await ctx.resume() raced with RESUME_VERIFY_MS   # v5, REQ-13
                    #   ramp already on the timeline (REQ-3)
@@ -342,7 +442,11 @@ engine.init():     installContextRearm()                     # after the graph +
 watchdog trip:     master.gain → 0 over GLITCH_FADE_S, then ctx.suspend()
                    #   the fade first so the exit is not itself a click (REQ-1's sibling)
                    #   v5: glitchMuted = true; the pending suspend is cancellable (REQ-16)
-main.ts:           the start handler still awaits engine.resume()
+main.ts:           autoplayAllowed ? await resume() + onStart({defer}) : showStartModal(...)
+                   #   v6, REQ-20/21 — the modal is the blocked-browser path only.
+                   #   deferred: initMIDI + media.unlock() via engine.onFirstGesture
+                   #   immediate: the clips toast + the #songUrl= consent dialog
+                   the start handler still awaits engine.resume()
                    #   v5: engine.onAudioBlocked(...) → sticky showToast / dismiss (REQ-14)
 ui (about.ts):     Transport row appends `· <n> dropouts` (debug-panel.md)
                    #   v5: Suspend goes through engine.suspendForDebug(); the ctx-state row
@@ -368,11 +472,32 @@ Scenario: Tap to start does not click
 # pinned by: tests/audio/engine-resume.test.ts
 
 Scenario: Resuming an already-running context does not dip the audio (edge)
-  Given a running AudioContext
+  Given a running AudioContext that has already run once
   When Engine.resume() runs (About-panel toggle, iOS re-arm)
   Then master.gain is left alone entirely
    And ctx.resume() is not called again
 # pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: A context created already running still fades in the first time (v6)
+  Given the browser permitted autoplay, so the context was created running
+   And the engine has never run
+  When Engine.resume() runs
+  Then master.gain is set to 0 and ramped to master.volume² over RESUME_FADE_S
+   And it is NOT a dip, because the master was seeded silent
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: The master stays silent until the first start (v6)
+  Given the engine has never run
+  When master.volume is set (boot patch, session restore, the knob)
+  Then master.gain is not written at all
+   And the first fadeInMaster() ramps to the value the bus holds by then
+# pinned by: tests/audio/engine-resume.test.ts
+
+Scenario: The start modal is shown only when the browser needs it (v6)
+  Given the context was created running
+  Then autoplayAllowed is true, no start modal is shown, and audio starts faded in
+   And given the context was created suspended, the modal is shown as before
+# pinned by: e2e/audio-autostart.spec.ts
 
 Scenario: Android suspends the context while the screen is off
   Given the page is hidden and the OS suspended the context
@@ -461,6 +586,13 @@ Scenario: A context that came back running is not left silent (v5, REQ-16)
    And a resume with no glitch mute outstanding still leaves a running context alone
 # pinned by: tests/audio/engine-resume.test.ts
 
+Scenario: The gesture-only work still happens, just later (v6, REQ-21)
+  Given the app auto-started with no modal
+  Then initMIDI and media.unlock() have NOT run yet
+   And the first pointerdown/keydown/touchend anywhere runs both, once
+   And the restored-clips toast and the #songUrl= consent ran at boot instead
+# pinned by: tests/audio/engine-resume.test.ts (the arming) + e2e/audio-autostart.spec.ts
+
 Scenario: A stopped instrument is never suspended for crackle (v5, REQ-17)
   Given the page is hidden with the transport stopped
   When a window reports the audio clock at 36% of real time
@@ -494,9 +626,17 @@ Scenario: Backgrounded under battery saving and back again (v5, device)
   cases use fake timers, since `RESUME_VERIFY_MS` and `RESUME_RETRY_MS` are waits.
 - `tests/audio/background-watchdog.test.ts` — includes the v5 `isSilent` refusal.
 - `tests/audio/transport/clock.test.ts` — the dropout mechanism (transport.md REQ-9).
+- `e2e/audio-autostart.spec.ts` (v6) — the two start paths. The default Chromium
+  project runs with `--autoplay-policy=no-user-gesture-required`, so it *is* the
+  auto-start path; the blocked path is covered in the same file by a describe block
+  that overrides `launchOptions.args` to drop the flag. `e2e/helpers.ts` starts
+  through the modal only when there is one.
 - By ear on device: the click is a startup transient, so the only real verification
   is opening the app on the phone that clicked ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md),
-  `recipes/verify-audio-by-ear.md`).
+  `recipes/verify-audio-by-ear.md`). **(v6)** On desktop the same check has a tell
+  that needs no ears: with the app open and not yet started, About → Debug shows the
+  context state. `running` there is the bug of REQ-19 and the verdict of REQ-20 at
+  once — and after v6 that machine shows no modal at all.
 
 ## Open questions / future
 

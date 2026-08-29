@@ -83,6 +83,21 @@ export interface StudioApi {
   readonly audioRecovery: AudioRecoveryState;
 
   /**
+   * Whether the browser let the AudioContext start without a user gesture
+   * (audio-lifecycle.md REQ-20). Decides whether the "Tap to start" modal is
+   * shown at all; read by the Debug panel's context row.
+   */
+  readonly autoplayAllowed: boolean;
+
+  /**
+   * Run `fn` once on the next real user gesture anywhere; returns a disarm
+   * (audio-lifecycle.md REQ-21). The auto-start path uses it for the work that
+   * wants a gesture but is not about the AudioContext — Web MIDI's permission
+   * prompt and the Android keep-alive retry.
+   */
+  onFirstGesture(fn: () => void): () => void;
+
+  /**
    * Bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
    * currently resolve it (meter.md REQ-6). Read by the ruler, the `bar.step`
    * readout and the export estimate, so every surface measures a bar exactly

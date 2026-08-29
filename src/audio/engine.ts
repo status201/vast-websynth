@@ -259,6 +259,19 @@ export class Engine {
    * start modal on every load.
    */
   private everRan = false;
+  /**
+   * Whether the context reached `running` without a user gesture — i.e. the
+   * browser's autoplay policy permits us (audio-lifecycle.md REQ-20). Read from
+   * the state `new AudioContext()` returned, re-read at the end of `init()` and
+   * OR'd in from `statechange`, because the spec allows a permitted context to
+   * be created `suspended` and transition asynchronously.
+   *
+   * This is an observation, not a policy guess: a running context is an open
+   * output stream. `main.ts` reads it to decide whether the "Tap to start" modal
+   * is needed at all — and iOS excludes itself, since Safari never creates a
+   * running context without a gesture, so no user-agent check is involved.
+   */
+  private autoplayAllowedFlag = false;
   /** Detach for the armed one-shot gesture listeners; null when nothing is armed. */
   private disarmGesture: (() => void) | null = null;
   /** Serialises `resume()` so a visibilitychange mid-retry cannot start a second run. */
@@ -271,6 +284,10 @@ export class Engine {
     this.xyStore = opts.xy ?? new XyPadStore();
     this.motionFps = opts.motionFps;
     this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
+    // The state we were handed IS the autoplay verdict (REQ-20). Captured here,
+    // before anything can change it, and never by suspending the context —
+    // that would destroy the only direct evidence we get.
+    this.autoplayAllowedFlag = this.ctx.state === 'running';
     // Built here (after ctx) so the silent loop can be routed through the context.
     this.iosSession = new IosAudioSession(this.ctx);
     // The OS's transport controls. The closures reach `this.clock`, which is
@@ -297,7 +314,14 @@ export class Engine {
     this.masterComp = new Compressor(this.ctx, 'vca');
 
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.8;
+    // Seeded SILENT (audio-lifecycle.md REQ-19). An autoplay-permitted browser
+    // hands us a context that is already rendering, so the whole boot — worklet
+    // loading, ~50 node constructions, the boot patch, the session restore —
+    // runs into an open output stream; at 0.8 that arrived as the stream-start
+    // transient at full level, which is the click REQ-1's fade exists to swallow
+    // and which REQ-2's state gate skipped. `fadeInMaster()` is now the only
+    // thing that ever raises this, and it reads `master.volume` at fade time.
+    this.master.gain.value = 0;
 
     // fftSize is perf-tier-dependent (performance-mode.md REQ-12): 256/512/1024 for
     // weak/medium/strong, cutting the always-pulled analyser FFT + per-draw copy cost
@@ -580,6 +604,12 @@ export class Engine {
       isSilent: () => !this.clock.playing,
     });
     this.watchdog.start();
+
+    // Last word on the autoplay verdict (REQ-20). `init()` has awaited three
+    // worklet module loads by now, so an asynchronous transition to `running`
+    // that happened before the `statechange` listener above existed is caught
+    // here. The three reads together cover every ordering the spec permits.
+    if (this.ctx.state === 'running') this.autoplayAllowedFlag = true;
   }
 
   /**
@@ -647,11 +677,16 @@ export class Engine {
     this.media.unlock();
 
     for (let attempt = 0; ; attempt++) {
-      // A context that is already running still needs its gain back if the
-      // watchdog muted it and something else resumed us (REQ-16). This is the
-      // one exception to REQ-2, and it is not a dip: the gain is at 0.
+      // A context that is already running still needs its gain back in two
+      // cases, and neither is a dip — the gain is at 0 either way (REQ-2):
+      //  - the watchdog muted it and something else resumed us (REQ-16);
+      //  - it was created running, so this is the FIRST start and the master is
+      //    still on its seeded silence (REQ-19). Without this the app would come
+      //    up running and silent, which is worse than the click.
       if (!shouldResumeContext(this.ctx.state)) {
-        if (this.glitchMuted) this.fadeInMaster();
+        // `state === 'running'` because the other branch here is `'closed'`,
+        // where there is nothing left to fade into.
+        if (this.glitchMuted || (!this.everRan && this.ctx.state === 'running')) this.fadeInMaster();
         this.onResumeSucceeded();
         return;
       }
@@ -690,21 +725,40 @@ export class Engine {
    */
   private armGestureResume(): void {
     if (this.disarmGesture) return;
-    const opts: AddEventListenerOptions = { capture: true, passive: true, once: true };
-    const onGesture = (): void => {
-      // Disarm before resuming: `once` has already removed the listener that
-      // fired, and the sibling types must go with it whether or not this works.
-      this.disarmGesture?.();
+    this.disarmGesture = this.onFirstGesture(() => {
       this.disarmGesture = null;
       void this.resume();
-    };
-    for (const type of RESUME_GESTURES) window.addEventListener(type, onGesture, opts);
-    this.disarmGesture = () => {
-      for (const type of RESUME_GESTURES) window.removeEventListener(type, onGesture, opts);
-    };
+    });
     if (this.blocked) return;
     this.blocked = true;
     this.notifyBlocked(true);
+  }
+
+  /**
+   * Run `fn` once, on the next real user gesture anywhere in the app; returns a
+   * disarm. Capture-phase so a control that stops propagation cannot swallow it,
+   * passive so it can never delay a scroll or a key, and `once` per type with the
+   * siblings torn down alongside whichever fired.
+   *
+   * Extracted from `armGestureResume` because the auto-start path needs the same
+   * arming for the work that genuinely wants a gesture but is not about the
+   * AudioContext — Web MIDI's permission prompt and the Android keep-alive
+   * (audio-lifecycle.md REQ-21). One implementation, not two.
+   */
+  onFirstGesture(fn: () => void): () => void {
+    const opts: AddEventListenerOptions = { capture: true, passive: true, once: true };
+    let disarmed = false;
+    const onGesture = (): void => {
+      disarm();
+      fn();
+    };
+    const disarm = (): void => {
+      if (disarmed) return;
+      disarmed = true;
+      for (const type of RESUME_GESTURES) window.removeEventListener(type, onGesture, opts);
+    };
+    for (const type of RESUME_GESTURES) window.addEventListener(type, onGesture, opts);
+    return disarm;
   }
 
   private notifyBlocked(blocked: boolean): void {
@@ -723,6 +777,13 @@ export class Engine {
     this.blockedListeners.add(fn);
     return () => { this.blockedListeners.delete(fn); };
   }
+
+  /**
+   * Whether audio is unblocked without a user gesture (audio-lifecycle.md
+   * REQ-20). `main.ts` reads this to decide whether the "Tap to start" modal is
+   * needed; the Debug panel surfaces it on the context row.
+   */
+  get autoplayAllowed(): boolean { return this.autoplayAllowedFlag; }
 
   /** Recovery state for the Debug panel and the toast (REQ-13/REQ-14). */
   get audioRecovery(): AudioRecoveryState {
@@ -800,6 +861,11 @@ export class Engine {
     document.addEventListener('visibilitychange', onForeground);
     window.addEventListener('pageshow', onForeground);
     this.ctx.addEventListener('statechange', () => {
+      // A context the browser was allowed to start may be created `suspended`
+      // and transition asynchronously — that still counts as autoplay permitted
+      // (REQ-20). Only before the first start: after it, `running` says nothing
+      // about policy, it just says we resumed.
+      if (!this.everRan && this.ctx.state === 'running') this.autoplayAllowedFlag = true;
       if (this.deliberateSuspend || !this.everRan) return;
       if (!document.hidden && shouldResumeContext(this.ctx.state)) void this.resume();
     });
@@ -1072,6 +1138,13 @@ export class Engine {
 
     // Master
     bus.subscribe('master.volume', (x) => {
+      // Inert until audio has actually started (audio-lifecycle.md REQ-19). This
+      // subscription fires on registration and again for every boot-patch /
+      // session-restore write, all of which land before the first start — and any
+      // one of them would undo the seeded silence on a context the browser
+      // created running. `fadeInMaster()` reads the bus at fade time, so the
+      // first ramp lands on whatever the knob says by then; nothing is lost.
+      if (!this.everRan) return;
       rampTo(this.master.gain, x * x, this.ctx, RAMP_MEDIUM);
     });
     bus.subscribe('master.pitchBend', (x) => {

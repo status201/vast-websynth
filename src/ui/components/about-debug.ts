@@ -295,9 +295,14 @@ export function buildDebugSection(engine: StudioApi): {
     // ---- every tick: cheap field reads ----
     // `suspended` alone cannot tell "the OS took it" from "we asked and were
     // refused" — the suffix is the difference (audio-lifecycle.md REQ-13).
-    stateVal.textContent = engine.audioRecovery.gestureArmed
-      ? `${engine.ctx.state} · awaiting gesture`
-      : engine.ctx.state;
+    // `autoplay ok` is the verdict that decided whether a start modal was shown
+    // at all (audio-lifecycle.md REQ-20) — and on a machine that reports a click
+    // at boot it is the one-glance confirmation of why (REQ-19).
+    const ctxNotes = [
+      engine.autoplayAllowed ? 'autoplay ok' : null,
+      engine.audioRecovery.gestureArmed ? 'awaiting gesture' : null,
+    ].filter((s) => s !== null);
+    stateVal.textContent = [engine.ctx.state, ...ctxNotes].join(' · ');
     setButtonLabel(ctxToggle, engine.ctx.state === 'running' ? 'Suspend' : 'Resume');
     rateVal.textContent = `${engine.ctx.sampleRate} Hz`;
     const base = engine.ctx.baseLatency;

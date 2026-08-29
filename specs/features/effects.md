@@ -3,7 +3,10 @@
 ```yaml
 id: effects
 status: implemented
-version: 7   # v7: REQ-3/REQ-4 — a ducker joins the synth and sampler chains, last
+version: 8   # v8: REQ-2c — a bypassed effect DRAINS before it disconnects, so
+             #     re-enabling one can never replay the audio frozen inside it
+             #     (ADR-012's accepted risk, discharged — it bit on a demo load)
+             # v7: REQ-3/REQ-4 — a ducker joins the synth and sampler chains, last
              #     in both, so the reverb tail ducks too (sidechain-ducking.md)
              # v6: REQ-9 — the wah/phaser rates and the delay times can be locked
              #     to the tempo (tempo-lock.md); each bind now also watches
@@ -89,6 +92,50 @@ subsets, so a song can colour each bus independently.
   `0.02` at twelve call sites across five effects, which is a tuning constant with
   no name and no single place to change it (ADR-010 calls these dialled by ear, so
   they need to be findable).
+- **REQ-2c** (v8) — **A bypassed effect drains before it disconnects, so
+  re-enabling one can never replay what was frozen inside it.** Disconnecting a
+  subgraph stops the renderer pulling it, which does not clear it: a `DelayNode`'s
+  ring buffer and a `ConvolverNode`'s tail keep the last audio that went through
+  them, indefinitely. Reconnecting resumes from that state, and the crossfade
+  obligingly ramps it up. [ADR-012](../decisions/adr-012-true-bypass-disconnects.md)
+  foresaw this and accepted it "at wet-mix level, under a fresh ramp, **after a
+  deliberate user toggle**" — but a song load issues dozens of bypass toggles that
+  no user made ([song-mode](song-mode.md) REQ-17), and with `fx.delay.feedback` up
+  to 0.95 the remnant recirculates rather than decaying. It was heard as a burst of
+  the *previous* song on clicking a demo, with the transport stopped.
+
+  So the disconnect becomes two stages:
+  - at `DISCONNECT_DELAY_MS` (unchanged), disconnect **only** `input → processedIn`
+    and call `quiesce(true)` — no new signal enters, and an effect with an internal
+    feedback loop zeroes it so its memory can actually empty;
+  - after `drainSeconds()`, disconnect `processedOut → wet`. The subgraph has been
+    rendering silence into itself for that long, so what it holds *is* silence and
+    a later reconnect is clean **and immediate**.
+  - `setBypass(false)` cancels both timers, reconnects whichever edges are down and
+    calls `quiesce(false)` before ramping.
+
+  ADR-012's saving is intact — the DSP costs one bounded drain after a bypass
+  instead of running forever. **Not** the fix ADR-012 sketched ("holding wet at
+  zero for one tail-length after reconnect"): that pays the tail on the way *in*,
+  so switching a delay on would be silent for up to 2 s, which is worse than the
+  bug. Drain on the way out and the user never waits.
+
+  The declarations, following the same "its presence *is* the declaration" idiom
+  as `setMix` in REQ-1 — a stateless effect overrides neither:
+
+  | Effect | `drainSeconds()` | `quiesce(on)` |
+  | --- | --- | --- |
+  | `Delay` | 2 — the `createDelay(2)` buffer; silence in for that long is silence throughout | feedback → 0, restored from the last commanded value |
+  | `Reverb` | `maxIrS` — an FIR convolver is cleared exactly by one IR length of silence | — |
+  | `Phaser` | 0.1 | feedback → 0 (a 0.05 s loop; it decays in ~25 ms regardless) |
+  | others | `DRAIN_DEFAULT_S` = 0.02 | — |
+
+  `quiesce(true)` writes the feedback gain **directly**, not through `RAMP_SMOOTH`:
+  the wet path is already at zero by then, so there is nothing for a step to be
+  heard in, and a ramp would leave feedback still non-zero for the first part of
+  the drain. `setFeedback` keeps recording the commanded value while quiesced so
+  `quiesce(false)` restores what the knob says, not what it said at bypass time.
+
 - **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
   reverb → duck.
   - (v7) The **duck** is last so the reverb tail ducks with everything else,
@@ -159,6 +206,30 @@ subsets, so a song can colour each bus independently.
     the unreachable rows and the `DelayNode`'s own pre-existing 2 s ceiling is
     what holds, so no stored patch changes how it sounds.
 
+- **REQ-10** (v8) — **A reverb size change ducks across the IR swap.**
+  `setSize` assigns `convolver.buffer`, which resets the node's state and severs
+  whatever tail it was ringing — heard when a song load changes the size under a
+  tail that is still sounding ([song-mode](song-mode.md) REQ-17), and it fires
+  *twice* per load (the reset to the default index, then the song's). The swap is
+  therefore wrapped in the mute-then-edit idiom `ModMatrix.patch` already uses:
+  ramp `wrap.processedOut` to 0 over `RAMP_MEDIUM`, swap on a 40 ms
+  generation-guarded timer, ramp back. `IR_DURATIONS` is coarse enough that
+  sweeping the knob crosses few boundaries. The tail still restarts — that is what
+  changing the size *means*; what goes is the step at the seam.
+
+  **The identity guard compares against the pending target, never against
+  `convolver.buffer`.** Deferring the swap makes the live buffer stale for the
+  whole window, and a song load writes this param *twice in one turn* (REQ-17 of
+  [song-mode](song-mode.md)): the default, then the song's. Guarding on the live
+  buffer, the second write saw the value the first had not applied yet, concluded
+  it was already there and returned **without superseding the pending swap** — so
+  the default landed 40 ms later. Shipped and reported from the field: two demos
+  asking for 11 % played at the 60 % default, and nudging the knob by one percent
+  made the reverb *smaller*, because that write finally did differ from the live
+  buffer. It only bit when the previous song had left the song's own IR in place,
+  which is what made it intermittent. Any deferred edit owes the same rule: the
+  guard reads the intent, not the state the edit has not reached yet.
+
 ## Technical design
 
 ### Contract / public interface
@@ -173,8 +244,13 @@ Effect:        # src/audio/effects/effect.ts
 BypassWrapper: # dry/wet crossfade + delayed true-bypass disconnect (ADR-012)
   input / output / dry / wet / processedIn / processedOut: GainNode
   setBypass(b) / setMix(m)
-  # bypassed 150ms -> disconnects input→processedIn and processedOut→wet;
-  # un-bypass reconnects before ramping. DISCONNECT_DELAY_MS = 150.
+  # bypassed 150ms -> disconnects input→processedIn, quiesce(true);
+  #   then after drainSeconds() -> disconnects processedOut→wet (v8, REQ-2c)
+  # un-bypass cancels both timers, reconnects and quiesce(false) before ramping.
+  # DISCONNECT_DELAY_MS = 150; DRAIN_DEFAULT_S = 0.02.
+WrappedEffect:  # the two hooks a stateful effect overrides (v8)
+  protected drainSeconds(): number    # how long silence takes to clear its memory
+  protected quiesce(on: boolean): void  # zero/restore an internal feedback path
 chain(input, fx[], output)  # series-wires input → fx[0] → … → output
 bindBypassMix(bus, prefix, fx)  # the shared `${prefix}.on` → setBypass and
                                 # `${prefix}.mix` → setMix pair (setMix optional:
@@ -241,7 +317,29 @@ Scenario: Drum reverb is off by default so legacy songs/presets are unchanged
 Scenario: A bypassed effect stops costing audio-thread CPU (perf, ADR-012)
   Given an effect is enabled and then bypassed
   When the wet ramp has finished (150 ms)
-  Then the wrapper has disconnected input→processedIn and processedOut→wet
+  Then the wrapper has disconnected input→processedIn
+   And after the effect's drainSeconds() it has disconnected processedOut→wet too
+# pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Two size writes in one turn land on the second (v8, REQ-10, regression)
+  Given the reverb holds the small IR and a song load is applying
+  When setSize is called with the default and then with the song's value, in one turn
+  Then the IR that lands after the mute window is the song's, not the default
+   And the reverse pair still moves it, so the guard has not simply gone away
+# pinned by: tests/audio/effects/reverb.test.ts
+
+Scenario: Re-enabling an effect never replays what was frozen in it (v8, REQ-2c)
+  Given an effect was bypassed while its delay line held audio
+  When it is enabled again after the drain has finished
+  Then the processed path reconnects holding silence, not the old audio
+   And the wet ramp starts immediately — nothing is held back for a tail length
+# pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: A drain in progress is abandoned if the effect comes back (v8, edge)
+  Given an effect was bypassed and its input is already disconnected
+  When it is enabled again before drainSeconds() has elapsed
+  Then both timers are cancelled, both edges are connected, and quiesce is undone
+   And the feedback it was holding at zero returns to what the knob says
 # pinned by: tests/audio/effects/bypass.test.ts
 
 Scenario: Rapid toggle never disconnects mid-ramp (edge)

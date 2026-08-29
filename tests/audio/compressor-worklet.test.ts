@@ -225,6 +225,16 @@ function digest(opts: DigestOpts): number[] {
  * If one fails, you changed what the compressor sounds like: that needs its own
  * spec and an ADR-010 justification, not a tolerance bump.
  *
+ * The four `fet` cases were re-captured once, for compressor.md REQ-8 (priming
+ * the DC blocker from its first sample). Only their **sums** moved, and only by
+ * the start-up transient that change removes: the per-sample picks are identical
+ * bar the last float32 bit, while e.g. "normal ratio" moved by ~285 ≈ the first
+ * output sample times the blocker's 764-sample time constant. Measured on a
+ * SILENT input the old code emitted a 0.02 step (≈ -34 dBFS) decaying over
+ * ~16 ms and the new one emits exact zero — which is the whole point, and is
+ * pinned independently by the case below so a future re-capture cannot quietly
+ * lose it.
+ *
  * Scope, stated precisely because it was measured rather than assumed: the
  * digest observes the **float32 output**, which is what is actually heard. It
  * catches any rewrite that moves an output sample — verified by mutation, e.g.
@@ -281,7 +291,7 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
         -0.07353351265192032, 0.21045339107513428, -0.06745371967554092, 0.07354477792978287,
         0.0860646590590477, 0.13161064684391022, 0.07302452623844147, -0.19132429361343384,
         -0.07081599533557892, 0.21311454474925995, -0.06484775990247726, 0.07604704797267914,
-        9.19884119013932, 7.289752563858201,
+        -276.4357016346439, 286.1361829843954
       ],
     },
     'fet, normal ratio': {
@@ -296,10 +306,10 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
       },
       frozen: [
         0.08376414328813553, 0.14375047385692596, 0.06850366294384003, -0.2451440691947937,
-        -0.08112690597772598, 0.33580783009529114, -0.07616735249757767, 0.07135052978992462,
-        0.0749451071023941, 0.1252935826778412, 0.06196725741028786, -0.20159658789634705,
-        -0.0630139485001564, 0.29149046540260315, -0.059158314019441605, 0.06376595795154572,
-        13.67747118491934, 10.716377030021249,
+        -0.08112690597772598, 0.33580783009529114, -0.07616735994815826, 0.07135052978992462,
+        0.0749451071023941, 0.1252935826778412, 0.061967261135578156, -0.20159658789634705,
+        -0.0630139410495758, 0.29149046540260315, -0.059158314019441605, 0.06376595795154572,
+        -356.4031173734684, 304.2268429755786
       ],
     },
     'vca, mono input falls back to left': {
@@ -325,9 +335,9 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
         monoOut: true,
       },
       frozen: [
-        -0.13391537964344025, 0.36358946561813354, 0.05977761372923851, -0.42541998624801636,
-        0.1460367739200592, 0.2831522226333618, -0.06546472758054733, -0.1560208797454834,
-        9.972385251869127,
+        -0.13394765555858612, 0.3635578751564026, 0.05974666029214859, -0.42545029520988464,
+        0.14600709080696106, 0.2831231653690338, -0.06549319624900818, -0.1560482233762741,
+        -477.57884619986726
       ],
     },
     'vca, k-rate params change mid-stream': {
@@ -359,11 +369,11 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
         blocks: 120,
       },
       frozen: [
-        0.07910051941871643, 0.12114476412534714, 0.0665241926908493, -0.18084296584129333,
-        -0.06825435906648636, 0.1937878131866455, -0.06220619007945061, 0.0687628760933876,
-        0.08196421712636948, 0.1239490658044815, 0.06927033513784409, -0.17815378308296204,
-        -0.06562094390392303, 0.19636662304401398, -0.05968087166547775, 0.07118771225214005,
-        9.061523421416496, 7.211511778668864,
+        0.07910051941871643, 0.12114475667476654, 0.0665241926908493, -0.18084296584129333,
+        -0.06825435906648636, 0.1937878131866455, -0.062206193804740906, 0.0687628760933876,
+        0.08196422457695007, 0.1239490658044815, 0.06927033513784409, -0.17815376818180084,
+        -0.06562093645334244, 0.19636662304401398, -0.059680867940187454, 0.07118771225214005,
+        -480.2805663340878, 479.89261782201356
       ],
     },
   };
@@ -373,4 +383,47 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
       expect(digest(opts)).toEqual(frozen);
     });
   }
+});
+
+/**
+ * compressor.md REQ-8 — silence in, silence out.
+ *
+ * The FET saturator is deliberately asymmetric (`tanh(d·(y + 0.02))/d`), so it
+ * emits ≈ 0.02 for an input of ZERO. The 10 Hz DC blocker under it removes that
+ * in steady state but used to start from zeroed state, so the first sample came
+ * out as the whole pedestal — a -34 dBFS thump, ~16 ms long, every time the
+ * processed path was first connected. That is once per page load, on whichever
+ * demo or preset first switches the drum compressor on (song-mode.md REQ-17).
+ *
+ * A digest of a musical signal cannot see this: the transient is 8 orders below
+ * the picks and only shows up in their sums, where it is indistinguishable from
+ * any other change. Silence is the input that isolates it.
+ */
+describe('the FET path emits nothing for a silent input (REQ-8)', () => {
+  const silentRun = (mode: 'fet' | 'vca', blocks = 40): { peak: number; first: number } => {
+    const proc = new Processor({ processorOptions: { mode } });
+    const params = makeParams();
+    const outL = new Float32Array(BLOCK);
+    const outR = new Float32Array(BLOCK);
+    let peak = 0;
+    let first = 0;
+    for (let b = 0; b < blocks; b++) {
+      proc.process([[new Float32Array(BLOCK), new Float32Array(BLOCK)]], [[outL, outR]], params);
+      if (b === 0) first = outL[0]!;
+      for (let i = 0; i < BLOCK; i++) peak = Math.max(peak, Math.abs(outL[i]!), Math.abs(outR[i]!));
+    }
+    return { peak, first };
+  };
+
+  it('fet: the first block is silent, not the saturator pedestal', () => {
+    const { peak, first } = silentRun('fet');
+    // Exactly zero, not merely small: the pedestal is differenced away rather
+    // than filtered down, so there is nothing left to decay.
+    expect(first).toBe(0);
+    expect(peak).toBe(0);
+  });
+
+  it('vca: unaffected — it has no saturation to bias in the first place', () => {
+    expect(silentRun('vca').peak).toBe(0);
+  });
 });

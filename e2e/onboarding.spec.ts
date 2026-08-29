@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { sessionDisplay, renderedDemoNames } from './helpers';
+import { sessionDisplay, renderedDemoNames, startAudio } from './helpers';
 
 /**
  * The onboarding tour + contextual help. A fresh Playwright context starts with
@@ -11,12 +11,9 @@ import { sessionDisplay, renderedDemoNames } from './helpers';
  * note that auto-advances the interactive "press a key" step.
  */
 
-const startBtn = (page: import('@playwright/test').Page) =>
-  page.getByRole('button', { name: 'Tap to start' });
-
 test('auto-launches on first visit, drives first sound, and never nags again', async ({ page }) => {
   await page.goto('/'); // fresh context → no done-flag → tour auto-launches
-  await startBtn(page).click();
+  await startAudio(page);
 
   const callout = page.getByTestId('tour-callout');
   await expect(callout).toBeVisible(); // step 1 (welcome)
@@ -68,7 +65,7 @@ test('auto-launches on first visit, drives first sound, and never nags again', a
   // The done-flag persists in localStorage, so loading the app again does NOT
   // relaunch the tour.
   await page.goto('/');
-  await startBtn(page).click();
+  await startAudio(page);
   await expect(page.getByTestId('tour-callout')).toBeHidden();
 });
 
@@ -81,7 +78,7 @@ test('the ⓘ button toggles the badges and ? replays the tour', async ({ page }
     }
   });
   await page.goto('/');
-  await startBtn(page).click();
+  await startAudio(page);
   await expect(page.getByTestId('tour-callout')).toBeHidden(); // no auto-launch
 
   // Idle, the ⓘ glyph is an outline ring — a matched pair with the ? beside it.
@@ -241,7 +238,7 @@ test('the ⓘ button is a pure toggle and the ? button never touches the badges'
     }
   });
   await page.goto('/');
-  await startBtn(page).click();
+  await startAudio(page);
 
   const info = page.getByTestId('info-badges');
   await info.click();
@@ -280,7 +277,7 @@ test('the tour showcases the Song tab and ends there, ready to play', async ({ p
     }
   });
   await page.goto('/');
-  await startBtn(page).click();
+  await startAudio(page);
 
   // Replay on demand rather than relying on the auto-launch, so this spec is
   // independent of first-visit ordering.
@@ -336,7 +333,7 @@ test('contextual badges hide when their control scrolls off either edge', async 
   // keeps isCompact/isPhone false, so the layout is unchanged.
   await page.setViewportSize({ width: 1440, height: 600 });
   await page.goto('/');
-  await startBtn(page).click();
+  await startAudio(page);
 
   await page.getByTestId('info-badges').click();
 

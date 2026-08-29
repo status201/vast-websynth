@@ -16,6 +16,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **"Tap to start" only appears when your browser actually needs it.** The tap was
+  never ours to ask for — it is there to satisfy browsers that refuse to make
+  sound until you have interacted with the page. Where the browser already allows
+  it (which, on a desktop you have opened the app on before, it usually does), the
+  synth now just starts, faded up from silence, and you land on the instrument.
+  Where the browser still insists, the modal is exactly as it was. Nothing is
+  skipped along the way: the MIDI permission prompt and the Android background
+  keep-alive still wait for the first thing you actually touch, rather than
+  demanding a tap of their own.
+
+### Fixed
+
+- **Opening the app could still click, on the machines that had opened it before.**
+  The fade-in added for this only ran when the browser had blocked audio until the
+  tap. Once a browser had decided to trust the site, it started the audio device
+  the instant the page loaded — before the start screen was even up — and the fade
+  was skipped, so the device's own start-up thump came through at full volume. The
+  output now stays silent until it is deliberately faded up, whichever way the app
+  starts.
+- **The screen could sleep while the synth was playing**, on the machines that
+  now start without asking. Keeping the display awake was triggered by the audio
+  device *changing* state — which never happens when the browser starts it for
+  you, so nothing ever asked for it.
+- **The first moment of sound could be louder than it should be.** An effect that
+  your saved session had switched on came back with both its dry and wet paths
+  fully open for the first fraction of a second, roughly doubling it, before
+  settling to the mix you had set.
+- **Clicking a demo could click, or spit out a scrap of the song before it — even
+  with the transport stopped.** Loading a song rewrites every control twice, and
+  four of those writes were quietly rearranging the audio graph while something
+  was still ringing. Stopping the transport does not silence a drum: a cymbal
+  carries on for seconds, and a reverb tail longer. All four are fixed at the
+  source rather than papered over, so loading a demo mid-play still doesn't dip:
+  - a switched-off delay or reverb **froze with the last song still inside it**
+    and played that back when the next song switched it on. Effects now empty
+    themselves before they are put away, so switching one on is both clean and
+    still instant.
+  - changing a drum track's **model** cut its ringing voice dead; it now fades.
+  - changing the **reverb size** severed the tail; the swap is now covered — and
+    covering it has to be done carefully, or loading a song can leave the reverb
+    on the wrong size entirely (see below).
+  - **a demo could load with the wrong reverb size** — two songs asking for 11 %
+    sometimes played with a big room instead, and nudging the size up one percent
+    made it *smaller*. Loading a song sets every control twice (once to its
+    default, once to the song's), and the second of those two writes was checking
+    against a value the first had not finished applying, so it decided nothing
+    had changed and let the default stand.
+  - the **drum compressor** thumped the first time anything switched it on,
+    because its saturator emits a whisker of DC even for silence and the filter
+    that removes it started from a standing start. Silence in, silence out now.
+
 ## [2.11.0] - 2026-08-29
 
 ### Added

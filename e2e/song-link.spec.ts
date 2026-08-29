@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
-import { gotoAndStart, busGet, busSet, sessionDisplay } from './helpers';
+import { gotoAndStart, startAudio, busGet, busSet, sessionDisplay } from './helpers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -23,9 +23,7 @@ async function gotoLinkAndStart(page: Page, hash: string): Promise<void> {
     } catch { /* ignore */ }
   });
   await page.goto('/' + hash);
-  const startBtn = page.getByRole('button', { name: 'Tap to start' });
-  await startBtn.click();
-  await expect(startBtn).toBeHidden();
+  await startAudio(page);
 }
 
 test.describe('song share links', () => {

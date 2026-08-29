@@ -68,8 +68,11 @@ carries names only, so songs stay small and shareable).
   existing `.needs-reload` hint. One bad clip never aborts the rest, and never
   blocks boot.
 - **REQ-8** — When ≥1 clip is restored, a [toast](toast.md)
-  (`clips-restored-toast`) says so — fired from the start-modal gesture, not at
-  boot, so it appears as the modal fades instead of underneath it.
+  (`clips-restored-toast`) says so — fired from the start handler rather than
+  boot's own body, so it appears as the modal fades instead of underneath it.
+  The reason is the modal, not the gesture: where no modal is shown at all
+  ([audio-lifecycle](audio-lifecycle.md) REQ-20/REQ-21) the toast is raised
+  straight away, with nothing to hide behind.
 - **REQ-9** — [Factory reset](factory-reset.md) clears this store too, capped by
   a short timeout so a wedged IndexedDB can never block the reload.
 - **REQ-10** — Every storage failure (no IndexedDB, private mode, quota, a

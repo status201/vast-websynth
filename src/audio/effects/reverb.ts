@@ -1,4 +1,5 @@
 import { WrappedEffect, bindBypassMix } from './effect';
+import { rampTo, RAMP_MEDIUM } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
 /** The five selectable tail lengths (seconds), shortest → longest. */
@@ -6,6 +7,14 @@ const IR_DURATIONS = [0.4, 0.8, 1.5, 2.5, 4.0];
 
 /** Index `setSize` starts on — the middle of the bank, and the default `size`. */
 const DEFAULT_IR = 2;
+
+/**
+ * How long the effect's own output is ducked around an IR swap (effects.md
+ * REQ-10) — ~4 time constants of `RAMP_MEDIUM`, the same window `ModMatrix.patch`
+ * mutes for before it rewires, and for the same reason: the gain is inaudible
+ * well before the edit lands.
+ */
+const IR_SWAP_MUTE_MS = 40;
 
 /**
  * Process-wide IR cache (runtime-performance.md REQ-1/REQ-2). An IR is a pure
@@ -42,6 +51,14 @@ export class Reverb extends WrappedEffect {
   private readonly damp: BiquadFilterNode;
   /** Longest tail this instance may use; weak perf tiers shorten it. */
   private readonly maxIrS: number;
+  /** Guards the ducked swap's timer so two size changes settle on the last. */
+  private sizeGen = 0;
+  /**
+   * The IR the convolver should end up holding — assigned up front, not when the
+   * deferred swap lands, so it is what `setSize` compares against. `convolver.buffer`
+   * cannot serve: it lags by the mute window (see setSize).
+   */
+  private targetIr: AudioBuffer;
 
   constructor(ctx: AudioContext, opts?: { maxIrS?: number }) {
     super(ctx, 0.25);
@@ -57,7 +74,8 @@ export class Reverb extends WrappedEffect {
     // (performance-mode.md REQ-11). The cap is part of the cache key, so tiers
     // with different caps never share a buffer.
     this.maxIrS = opts?.maxIrS ?? 4;
-    this.convolver.buffer = this.irAt(DEFAULT_IR);
+    this.targetIr = this.irAt(DEFAULT_IR);
+    this.convolver.buffer = this.targetIr;
 
     this.wrap.processedIn.connect(this.convolver).connect(this.damp).connect(this.wrap.processedOut);
   }
@@ -68,11 +86,46 @@ export class Reverb extends WrappedEffect {
   }
 
   setMix(m: number): void { this.wrap.setMix(m); }
+
+  /**
+   * A convolver is FIR: one IR length of silence in and it holds nothing of what
+   * came before (effects.md REQ-2c). `maxIrS` is this tier's cap, so it bounds
+   * every IR in the bank.
+   */
+  protected override drainSeconds(): number { return this.maxIrS; }
+
+  /**
+   * Assigning `convolver.buffer` resets the node, severing whatever tail it was
+   * ringing — audible when a song load changes the size under a tail still
+   * sounding, and it fires twice per load (effects.md REQ-10). So the swap goes
+   * through the mute-then-edit idiom `ModMatrix.patch` uses: duck this effect's
+   * own output, swap once it is inaudible, ramp back. The identity guard keeps a
+   * no-change write completely free, so a sweep only pays at bank boundaries.
+   */
   setSize(v: number): void {
     const last = IR_DURATIONS.length - 1;
     const idx = Math.max(0, Math.min(last, Math.round(v * last)));
     const buf = this.irAt(idx);
-    if (this.convolver.buffer !== buf) this.convolver.buffer = buf;
+    // Against the PENDING target, never against `convolver.buffer` — which is
+    // stale for the whole mute window and made the guard lie. A song load writes
+    // this param twice in one turn (song-mode.md REQ-17): default, then the
+    // song's. Reading the live buffer, the second write saw the value the first
+    // had not applied yet, concluded "already there", returned without
+    // superseding the pending swap — and the default landed 40 ms later. A demo
+    // asking for 11% played at the 60% default, but only when the previous song
+    // happened to leave the small IR in place, which is what made it intermittent.
+    if (this.targetIr === buf) return;
+    this.targetIr = buf;
+
+    rampTo(this.wrap.processedOut.gain, 0, this.ctx, RAMP_MEDIUM);
+    // `gen` guards the timer: two size changes inside the window settle on the
+    // last, rather than racing to restore a gain the other is still lowering.
+    const gen = ++this.sizeGen;
+    window.setTimeout(() => {
+      if (gen !== this.sizeGen) return;
+      this.convolver.buffer = buf;
+      rampTo(this.wrap.processedOut.gain, 1, this.ctx, RAMP_MEDIUM);
+    }, IR_SWAP_MUTE_MS);
   }
   setDamp(d: number): void {
     // 0 = bright (12 kHz), 1 = dark (1 kHz)
