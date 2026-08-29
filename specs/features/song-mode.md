@@ -3,7 +3,10 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 22  # v22: REQ-12 — one hand-authored built-in, not two: the "Zombie
+version: 23  # v23: REQ-17 — applying a song is click-free. apply()'s double write
+             #      collapses for plain AudioParams but not for the structural
+             #      side effects, and four of those were audible on a demo click
+             # v22: REQ-12 — one hand-authored built-in, not two: the "Zombie
              #      Nation" demo is gone and "I Feel Love" is renamed to "Mordor"
              # v21: step cells carry the optional `micro` notch count — additive,
              #      default 0, dropped when default, so no SongFile version bump
@@ -336,6 +339,34 @@ demos, the load path **must stay backward compatible** as the format grows.
   lower for it. `apply()` defaults it to all-zeros, per REQ-3's
   reset-then-restore contract, so a pre-v7 file plays exactly as written.
 
+- **REQ-17** (applying a song is click-free, v23) — **`apply()` writes every
+  registered param twice, and a structural side effect fires twice with it.**
+  REQ-3's `resetDefaults()` + `restore()` is authoritative and stays: it is what
+  stops the last song leaking into this one. Both passes run in one synchronous
+  turn, so they share a `ctx.currentTime` — which means plain `AudioParam` writes
+  *collapse* (the second `setTargetAtTime` supersedes the first) and the smoothed
+  params cost nothing. **The subscriptions whose side effect is a graph edit do
+  not collapse.** They run twice, unfaded, and "the transport is stopped" does not
+  mean nothing is sounding: stopping the transport stops the *sampler*
+  (`Engine`'s clock `onStop`) and nothing else, so a drum one-shot's own envelope
+  is still running out — a cymbal rings for seconds — and an FX tail longer still.
+
+  So **every structural edit reachable from a param write must be individually
+  click-free** — the load path is not allowed to paper over them, because muting
+  the master across the apply would dip a demo loaded mid-play. The four that
+  existed when this was written, all heard as a click or a burst on a demo click:
+
+  | Edit | Made click-free by |
+  | --- | --- |
+  | `BypassWrapper.reconnect()` replays a frozen delay/convolver | [effects](effects.md) REQ-2c — drain before disconnecting |
+  | `DrumMachine.setTrackModel` disconnects a ringing voice | [drum-machine](drum-machine.md) REQ-19 — ramp, then rewire |
+  | `Reverb.setSize` swaps a live convolver's IR | [effects](effects.md) REQ-10 — duck across the swap |
+  | The FET compressor's first processed block steps | [compressor](compressor.md) REQ-8 — prime the DC blocker |
+
+  A new one is a defect in *its* spec, not here. This requirement exists because
+  no spec said loading a song must be click-free, and four separate edits shipped
+  through the gap.
+
 ## Technical design
 
 ### Contract / public interface
@@ -667,6 +698,17 @@ Scenario: Export is the canonical compact form (round + default-sparse)
     `npm run clean:demos` byte-for-byte so demo drop-ins produce readable git diffs
 # pinned by: tests/state/serialize.test.ts, tests/state/song.test.ts,
 #            e2e/export-project.spec.ts (download formatting)
+
+Scenario: A load's structural edits are each click-free (REQ-17, v23)
+  Given a song is playing and stopped, leaving a drum tail and an FX tail ringing
+  When a demo is loaded, so every param is written twice in one turn
+  Then no graph edit the writes trigger is heard: no severed tail, no burst of the
+    previous song out of a delay line that was frozen while bypassed
+   And the master is NOT muted across the apply — a demo loaded mid-play must not dip
+# pinned by: tests/audio/effects/bypass.test.ts,
+#            tests/audio/drums/drum-machine-model.test.ts,
+#            tests/audio/compressor-worklet.test.ts
+# by ear: specs/recipes/verify-audio-by-ear.md — the only real verification (ADR-010)
 
 Scenario: Loading a song repaints the UI without marking it edited
   Given a per-param subscriber on transport.bpm and a global onChange listener

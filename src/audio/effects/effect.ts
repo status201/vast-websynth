@@ -50,6 +50,14 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
 export const DISCONNECT_DELAY_MS = 150;
 
 /**
+ * How long a stateless effect needs, fed silence, before what it holds *is*
+ * silence — one `RAMP_MEDIUM`-ish settle for a biquad or a gain, no more. An
+ * effect with real memory (a delay line, a convolver) overrides `drainSeconds`;
+ * see effects.md REQ-2c for why the drain happens on the way out.
+ */
+export const DRAIN_DEFAULT_S = 0.02;
+
+/**
  * The shared body of an insert effect: it owns a `BypassWrapper`, publishes the
  * wrapper's `input`/`output` as the `Effect` surface, and delegates `setBypass`.
  * A subclass is then nothing but its own DSP — build the span from
@@ -67,7 +75,10 @@ export abstract class WrappedEffect implements Effect {
   protected readonly wrap: BypassWrapper;
 
   protected constructor(protected readonly ctx: AudioContext, initialMix = 1) {
-    this.wrap = new BypassWrapper(ctx, initialMix);
+    this.wrap = new BypassWrapper(ctx, initialMix, {
+      drainSeconds: () => this.drainSeconds(),
+      quiesce: (on) => this.quiesce(on),
+    });
     this.input = this.wrap.input;
     this.output = this.wrap.output;
   }
@@ -75,8 +86,38 @@ export abstract class WrappedEffect implements Effect {
   setBypass(b: boolean): void {
     this.wrap.setBypass(b);
   }
+
+  /**
+   * How long this effect's DSP must be fed silence before it holds none of the
+   * old audio (effects.md REQ-2c). The wrapper waits this long after cutting the
+   * input before it detaches the output — so a later re-enable resumes a
+   * subgraph full of silence rather than the last song's tail.
+   *
+   * Override only if the effect actually has memory: a delay line's buffer, a
+   * convolver's IR length. Its presence is the declaration, the same way
+   * `setMix`'s is (REQ-1).
+   */
+  protected drainSeconds(): number { return DRAIN_DEFAULT_S; }
+
+  /**
+   * Zero (`true`) or restore (`false`) an internal feedback path for the drain.
+   * Without this a delay at 0.95 feedback recirculates rather than emptying, and
+   * no finite drain would ever clear it. Written directly, not ramped: the wet
+   * path is at zero by the time this runs, so there is nothing to hear a step in.
+   */
+  protected quiesce(_on: boolean): void { /* stateless by default */ }
 }
 
+/**
+ * What the wrapper needs to know about its host's DSP to drain it safely
+ * (effects.md REQ-2c). `WrappedEffect` supplies these from its two overridable
+ * methods, so the wrapper stays ignorant of what is inside the processed path.
+ */
+export interface DrainHooks {
+  drainSeconds(): number;
+  quiesce(on: boolean): void;
+}
+
 /**
  * Helper for bypass-able effects with a dry/wet crossfade.
  * Connect inputs to `inputGate`. The host wires `processedOut` into the
@@ -90,6 +131,13 @@ export abstract class WrappedEffect implements Effect {
  * Un-bypassing reconnects *before* ramping, so it stays click-free. Only the
  * wrapper's own edges are ever touched; splices inside the processed path
  * (e.g. `Compressor.attachWorklet`) are unaffected.
+ *
+ * Those two edges come down in **two stages** (effects.md REQ-2c): dropping both
+ * at once freezes the DSP instead of clearing it, and a delay line or convolver
+ * then replays the audio it was holding the next time the effect is switched on.
+ * So the input edge goes at `DISCONNECT_DELAY_MS`, the effect quiesces any
+ * feedback loop, and the output edge follows only after `drainSeconds()` of
+ * silence has washed through.
  */
 export class BypassWrapper {
   readonly input: GainNode;
@@ -101,10 +149,14 @@ export class BypassWrapper {
 
   private mix = 1;
   private bypassed = true;
+  /** The input edge is cut — no new signal is entering the processed path. */
+  private inputCut = false;
+  /** The output edge is cut too — the subgraph is detached and holds silence. */
   private disconnected = false;
   private disconnectTimer: number | null = null;
+  private drainTimer: number | null = null;
 
-  constructor(ctx: AudioContext, initialMix = 1) {
+  constructor(ctx: AudioContext, initialMix = 1, private readonly hooks?: DrainHooks) {
     this.input = ctx.createGain();
     this.output = ctx.createGain();
     this.dry = ctx.createGain();
@@ -133,7 +185,7 @@ export class BypassWrapper {
     this.bypassed = b;
     if (b) {
       this.update(); // ramp wet → 0 first …
-      this.scheduleDisconnect(); // … disconnect only after it has settled
+      this.scheduleDisconnect(); // … cut the input only after it has settled
     } else {
       this.cancelDisconnect();
       this.reconnect(); // reconnect before any signal is expected
@@ -154,15 +206,37 @@ export class BypassWrapper {
     rampTo(this.wet.gain, wet, ctx, RAMP_MEDIUM);
   }
 
+  /**
+   * Bypass teardown, in two stages (effects.md REQ-2c). Cutting both edges at
+   * once *freezes* the DSP rather than clearing it — the renderer stops pulling
+   * an unreachable subgraph, so a delay line keeps its ring buffer and a
+   * convolver its tail, indefinitely, and re-enabling replays them. So the input
+   * goes first, the effect quiesces any feedback loop, and only once it has been
+   * fed silence for its own `drainSeconds()` does the output edge go too — by
+   * which point what it holds is silence and reconnecting is clean.
+   */
   private scheduleDisconnect(): void {
     if (this.disconnected || this.disconnectTimer !== null) return;
     this.disconnectTimer = window.setTimeout(() => {
       this.disconnectTimer = null;
-      if (!this.bypassed || this.disconnected) return;
+      if (!this.bypassed || this.inputCut) return;
       this.input.disconnect(this.processedIn);
+      this.inputCut = true;
+      // Zero the feedback *now*: a 0.95-feedback delay recirculates forever
+      // otherwise and no finite drain would empty it.
+      this.hooks?.quiesce(true);
+      this.scheduleDrain();
+    }, DISCONNECT_DELAY_MS);
+  }
+
+  private scheduleDrain(): void {
+    const drainMs = Math.max(0, (this.hooks?.drainSeconds() ?? DRAIN_DEFAULT_S)) * 1000;
+    this.drainTimer = window.setTimeout(() => {
+      this.drainTimer = null;
+      if (!this.bypassed || this.disconnected) return;
       this.processedOut.disconnect(this.wet);
       this.disconnected = true;
-    }, DISCONNECT_DELAY_MS);
+    }, drainMs);
   }
 
   private cancelDisconnect(): void {
@@ -170,12 +244,22 @@ export class BypassWrapper {
       clearTimeout(this.disconnectTimer);
       this.disconnectTimer = null;
     }
+    if (this.drainTimer !== null) {
+      clearTimeout(this.drainTimer);
+      this.drainTimer = null;
+    }
   }
 
+  /** Restore whichever edges the two stages had taken down, in wiring order. */
   private reconnect(): void {
-    if (!this.disconnected) return;
-    this.input.connect(this.processedIn);
-    this.processedOut.connect(this.wet);
-    this.disconnected = false;
+    if (this.inputCut) {
+      if (this.disconnected) {
+        this.processedOut.connect(this.wet);
+        this.disconnected = false;
+      }
+      this.input.connect(this.processedIn);
+      this.inputCut = false;
+      this.hooks?.quiesce(false);
+    }
   }
 }

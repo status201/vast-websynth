@@ -55,6 +55,28 @@ sound — accepted, because it is at wet-mix level, under a fresh ramp, after a
 deliberate user toggle. If it ever bites, the fix is holding wet at zero for
 one tail-length after reconnect.
 
+> **Discharged (2026-08-29).** It bit. The clause rested on "after a deliberate
+> user toggle", and that is the premise a **song load** breaks: `Song.apply` is a
+> reset-then-restore of every param, so clicking a demo issues dozens of bypass
+> toggles nobody made ([song-mode](../features/song-mode.md) REQ-17). With
+> `fx.delay.feedback` up to 0.95 the remnant does not decay under the ramp, it
+> recirculates — reported as a burst of the *previous* song on loading a demo,
+> with the transport stopped.
+>
+> The decision above is unchanged: bypass still disconnects, and idle cost is
+> still nil. What changed is *when*. The remedy sketched here — holding wet at
+> zero for a tail-length after reconnect — was **not** taken, because it pays the
+> tail on the way in: switching a delay on would be silent for up to 2 s, worse
+> than the defect. Instead the effect **drains on the way out**: the input edge is
+> cut at `DISCONNECT_DELAY_MS` and the output edge only after the effect's own
+> `drainSeconds()`, with an optional `quiesce()` zeroing an internal feedback loop
+> so the memory can actually empty. By the time the subgraph is detached it holds
+> silence, so reconnecting is clean *and* instant. The cost is one bounded drain
+> per bypass instead of unbounded rendering — the alternative "per-effect
+> enable/disable of inner nodes" rejected below stays rejected: `quiesce` is not a
+> substitute for the disconnect, it is what makes the disconnect safe.
+> See [effects](../features/effects.md) REQ-2c.
+
 ## Alternatives considered
 
 - **Keep the pure crossfade (status quo)** — rejected: pays the full DSP cost

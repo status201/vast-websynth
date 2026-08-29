@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';
 
@@ -25,6 +25,21 @@ const freshCtx = (): MockAudioContext => makeMockAudioContext(nextRate++);
 
 /** How many IRs were generated on this context. */
 const generated = (ctx: MockAudioContext): number => ctx.createBuffer.mock.calls.length;
+
+/**
+ * `setSize` ducks the effect's output, swaps the IR on a 40 ms timer and ramps
+ * back (effects.md REQ-10), so the buffer only lands after that window. Every
+ * assertion on `convolver.buffer` goes through this. Note the IR *generation* is
+ * still synchronous inside `setSize`, so the `generated()` counts below need no
+ * timer at all — which is the point: the duck defers the swap, not the work.
+ */
+const setSize = (r: Reverb, v: number): void => {
+  vi.useFakeTimers();
+  r.setSize(v);
+  vi.advanceTimersByTime(50);
+};
+
+afterEach(() => { vi.useRealTimers(); });
 
 describe('Reverb IR bank', () => {
   it('generates only the default size at construction', () => {
@@ -80,15 +95,15 @@ describe('Reverb IR bank', () => {
     const buf = (): AudioBuffer =>
       (r as unknown as { convolver: ConvolverNode }).convolver.buffer!;
 
-    r.setSize(0);
+    setSize(r, 0);
     const shortest = buf();
-    r.setSize(1);
+    setSize(r, 1);
     const longest = buf();
     expect(longest.length).toBeGreaterThan(shortest.length);
 
-    r.setSize(-5);
+    setSize(r, -5);
     expect(buf()).toBe(shortest);
-    r.setSize(5);
+    setSize(r, 5);
     expect(buf()).toBe(longest);
   });
 
@@ -100,17 +115,17 @@ describe('Reverb IR bank', () => {
     const buf = (): AudioBuffer =>
       (capped as unknown as { convolver: ConvolverNode }).convolver.buffer!;
 
-    capped.setSize(0);
+    setSize(capped, 0);
     const shortest = buf().length;
-    capped.setSize(1);
+    setSize(capped, 1);
     const longest = buf().length;
     expect(shortest).toBeLessThan(longest);
     expect(longest).toBe(Math.floor(ctx.sampleRate * 1.5)); // clamped, not 4 s
 
     // Every size at/over the cap collapses onto the same cached buffer.
-    capped.setSize(0.75);
+    setSize(capped, 0.75);
     const atCap = buf();
-    capped.setSize(1);
+    setSize(capped, 1);
     expect(buf()).toBe(atCap);
   });
 
@@ -121,8 +136,8 @@ describe('Reverb IR bank', () => {
     const buf = (r: Reverb): AudioBuffer =>
       (r as unknown as { convolver: ConvolverNode }).convolver.buffer!;
 
-    capped.setSize(1);
-    full.setSize(1);
+    setSize(capped, 1);
+    setSize(full, 1);
     expect(buf(full).length).toBeGreaterThan(buf(capped).length);
   });
 

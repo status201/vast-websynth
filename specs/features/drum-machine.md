@@ -3,7 +3,10 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 11  # v11: REQ-18 — TUNE reads in semitones; `unit` alone never reached
+version: 12  # v12: REQ-19 — a model swap ramps the outgoing voice down and
+             #      disconnects it later; it used to sever a ringing tail, which
+             #      a song load fires twice per track (song-mode.md REQ-17)
+             # v11: REQ-18 — TUNE reads in semitones; `unit` alone never reached
              #      the readout, so a semitone knob showed "0.00"
              # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
              #      its source stops; the choke group restores on a ramp; a hit
@@ -240,6 +243,32 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   (`public/params.json`, the MCP `get_params`) where it *is* read. The two are
   not alternatives — anything a knob shows needs `format`, whatever `unit` says.
 
+- **REQ-19** (v12) — **Swapping a track's model never severs a ringing voice.**
+  `setTrackModel` replaced the voice by calling `output.disconnect()` on the old
+  one and wiring the new one into the same channel head — an instant cut of
+  whatever the old voice was still sounding. Stopping the transport does not
+  silence a drum hit (only the sampler is stopped), so a cymbal rings for seconds
+  after Stop, and `drum.t{i}.model` is written **twice** by a song load — once to
+  the default, once to the song's ([song-mode](song-mode.md) REQ-17). It was heard
+  as a click on clicking a demo with the transport stopped.
+
+  The swap uses the mute-then-rewire idiom `ModMatrix.patch` already establishes:
+  ramp the outgoing voice's `output.gain` to 0 over `RAMP_MEDIUM`, connect the new
+  voice **immediately** (it is silent until triggered, so the two never overlap
+  audibly), and `disconnect()` the old one from a 40 ms timer — ~4 time constants,
+  by which point it is inaudible.
+
+  **Ungated, unlike `ModMatrix.patch`**, and that difference is load-bearing: the
+  matrix rewires one shared row, so a later change must supersede an earlier one,
+  whereas here every pending timer owns a *different* discarded voice. A
+  generation guard would cancel an earlier voice's teardown and leak it — still
+  connected, for the life of the context — which is exactly what the second
+  scenario below caught when this shipped with one.
+
+  `DrumVoice.output` is declared `GainNode` rather than `AudioNode` for this: every
+  implementation already built one, and the ramp needs the `gain` param.
+  In-flight one-shots keep their own `disposeAfter` teardown, unchanged.
+
 ## Technical design
 
 ### Contract / public interface
@@ -309,7 +338,22 @@ defaults keep existing presets/songs sounding identical.
 
 ## Scenarios (BDD)
 
-```gherkin
+```gherkin
+Scenario: A model swap never severs a ringing voice (v12, REQ-19)
+  Given a track's voice is still sounding after the transport stopped
+  When the track's model is changed
+  Then the outgoing voice's output is ramped to zero, not disconnected in that turn
+   And it is disconnected only after the fade window
+   And the replacement voice is wired in immediately
+# pinned by: tests/audio/drums/drum-machine-model.test.ts
+
+Scenario: Two model swaps in one window each tear down their own voice (v12, edge)
+  Given a model swap is still inside its fade window
+  When the model changes again
+  Then both superseded voices are eventually disconnected
+   And the surviving voice is not
+# pinned by: tests/audio/drums/drum-machine-model.test.ts
+
 Scenario: TUNE reads as semitones, not a bare number (v11, REQ-18, regression)
   Given drum.t0.tune is +7
   When its knob renders its value

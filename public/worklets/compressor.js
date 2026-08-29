@@ -60,6 +60,15 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     this.dcY0 = 0;
     this.dcX1 = 0;
     this.dcY1 = 0;
+    // The blocker's x[n-1] has no meaningful value before the first sample, and
+    // taking it as 0 made the first output a full step: the saturator's `+0.02`
+    // asymmetry means it emits ~0.02 for a SILENT input, so `y[0] - 0` was that
+    // pedestal at ≈ -34 dBFS, decaying over ~16 ms — a thump every time the
+    // processed path was first connected, i.e. the first time the drum
+    // compressor was switched on (compressor.md REQ-8). Priming x[n-1] from the
+    // first sample instead makes the first difference 0 and leaves every
+    // subsequent sample bit-identical.
+    this.dcPrimed = false;
     this.grMax = 0; // meter: max gr in the current window
     this.blockCount = 0;
     this.lastPosted = 0;
@@ -174,6 +183,7 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     let gPrev = this.gPrev;
     let mk = this.mk;
     let grMax = this.grMax;
+    let dcPrimed = this.dcPrimed;
     let dcX0 = this.dcX0;
     let dcY0 = this.dcY0;
     let dcX1 = this.dcX1;
@@ -228,6 +238,13 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
         const d = (1 + gr * 0.05) * (all ? 2 : 1);
         yL = Math.tanh(d * (yL + 0.02)) / d;
         yR = Math.tanh(d * (yR + 0.02)) / d;
+        if (!dcPrimed) {
+          // First sample ever through the saturator: adopt it as x[n-1] so the
+          // pedestal is differenced away rather than emitted (REQ-8).
+          dcPrimed = true;
+          dcX0 = yL;
+          dcX1 = yR;
+        }
         const bL = yL - dcX0 + dcR * dcY0;
         dcX0 = yL;
         dcY0 = bL;
@@ -250,6 +267,7 @@ class HardwareCompressorProcessor extends AudioWorkletProcessor {
     this.grSlow = grSlow;
     this.gPrev = gPrev;
     this.mk = mk;
+    this.dcPrimed = dcPrimed;
     this.dcX0 = dcX0;
     this.dcY0 = dcY0;
     this.dcX1 = dcX1;

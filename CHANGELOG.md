@@ -41,6 +41,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   your saved session had switched on came back with both its dry and wet paths
   fully open for the first fraction of a second, roughly doubling it, before
   settling to the mix you had set.
+- **Clicking a demo could click, or spit out a scrap of the song before it — even
+  with the transport stopped.** Loading a song rewrites every control twice, and
+  four of those writes were quietly rearranging the audio graph while something
+  was still ringing. Stopping the transport does not silence a drum: a cymbal
+  carries on for seconds, and a reverb tail longer. All four are fixed at the
+  source rather than papered over, so loading a demo mid-play still doesn't dip:
+  - a switched-off delay or reverb **froze with the last song still inside it**
+    and played that back when the next song switched it on. Effects now empty
+    themselves before they are put away, so switching one on is both clean and
+    still instant.
+  - changing a drum track's **model** cut its ringing voice dead; it now fades.
+  - changing the **reverb size** severed the tail; the swap is now covered.
+  - the **drum compressor** thumped the first time anything switched it on,
+    because its saturator emits a whisker of DC even for silence and the filter
+    that removes it started from a standing start. Silence in, silence out now.
 
 ## [2.11.0] - 2026-08-29
 

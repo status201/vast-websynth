@@ -56,6 +56,13 @@ const CHOKE_GROUP_FADE = 0.006;
  */
 const CHOKE_GROUP_RESTORE = 0.004;
 
+/**
+ * How long a model swap waits before disconnecting the voice it replaced
+ * (REQ-19) — ~4 time constants of `RAMP_MEDIUM`, the same window
+ * `ModMatrix.patch` mutes for, by which point the outgoing voice is inaudible.
+ */
+const MODEL_SWAP_FADE_MS = 40;
+
 export class DrumMachine {
   readonly tracks: DrumSynth[] = [];
   readonly trackGains: GainNode[] = [];
@@ -201,10 +208,21 @@ export class DrumMachine {
   }
 
   /**
-   * Swap the track's voice algorithm (REQ-11). Only the voice changes: the old
-   * voice's output is disconnected and the new one wired into the same
-   * per-track channel head (`drivePre`); cached tune/decay are replayed.
-   * In-flight one-shots keep their own `disposeAfter` teardown.
+   * Swap the track's voice algorithm (REQ-11). Only the voice changes: the new
+   * one is wired into the same per-track channel head (`drivePre`) and the
+   * cached tune/decay are replayed. In-flight one-shots keep their own
+   * `disposeAfter` teardown.
+   *
+   * The outgoing voice is **ramped down and disconnected later** (REQ-19), never
+   * severed: stopping the transport does not silence a drum hit, so a cymbal is
+   * still ringing seconds after Stop — and a song load writes this param twice
+   * per track (song-mode.md REQ-17), which is how it was heard as a click on
+   * loading a demo with the transport stopped. Same mute-then-rewire idiom as
+   * `ModMatrix.patch` — but ungated, because each pending timer owns its own
+   * discarded voice rather than a shared row.
+   *
+   * The new voice is connected immediately, which is safe because a drum voice
+   * is silent until it is triggered — the two never overlap audibly.
    */
   setTrackModel(track: number, model: number): void {
     const m = Math.round(model);
@@ -212,7 +230,17 @@ export class DrumMachine {
     const drivePre = this.trackDrivePre[track];
     if (!builder || !drivePre || this.trackModels[track] === m) return;
     this.trackModels[track] = m;
-    this.tracks[track]?.output.disconnect();
+
+    const old = this.tracks[track];
+    if (old) {
+      rampTo(old.output.gain, 0, this.ctx, RAMP_MEDIUM);
+      // No generation guard here, deliberately: unlike `ModMatrix.patch`, which
+      // rewires one shared row, every pending timer owns a *different* discarded
+      // voice. Guarding would cancel an earlier voice's teardown and leak it,
+      // still connected, for the life of the context.
+      window.setTimeout(() => old.output.disconnect(), MODEL_SWAP_FADE_MS);
+    }
+
     const voice = builder(this.ctx, this.noise);
     voice.setTune(this.trackTunes[track]!);
     voice.setDecay(this.trackDecays[track]!);
@@ -235,7 +263,11 @@ export class DrumMachine {
     rampTo(pre.gain, 1 + amt * 8, this.ctx, RAMP_MEDIUM);
     const curve = driveCurve(amt);
     if (shaper.curve !== curve) shaper.curve = curve;
-    shaper.oversample = amt > 0 && this.fxOversample ? '2x' : 'none';
+    // Guarded like the curve above it: assigning `oversample` reallocates the
+    // node's resampling buffers even when the value is unchanged, and a song
+    // load writes this param twice per track (song-mode.md REQ-17).
+    const os = amt > 0 && this.fxOversample ? '2x' : 'none';
+    if (shaper.oversample !== os) shaper.oversample = os;
     rampTo(post.gain, 1 / (1 + amt * 1.5), this.ctx, RAMP_MEDIUM);
   }
 

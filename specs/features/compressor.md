@@ -3,7 +3,10 @@
 ```yaml
 id: compressor
 status: implemented
-version: 2      # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
+version: 3      # v3: REQ-8 — the FET path's DC blocker is primed from its first
+                #     sample, so activating the compressor no longer emits the
+                #     saturator's zero-input pedestal as a step (song-mode REQ-17)
+                # v2: coefficients are memoized on their k-rate inputs (REQ-6/7)
 owner: core
 related:
   - architecture
@@ -79,6 +82,34 @@ boundedness) and runs cheaply on the audio thread.
   that differs in the last bit is a sound change under
   `runtime-performance.md` REQ-8. Pinned by frozen-reference vectors that include
   a mid-stream k-rate param change.
+
+- **REQ-8** (v3) — **A silent input produces a silent first block.** The FET
+  saturator is deliberately asymmetric — `tanh(d·(y + 0.02))/d` — which is where
+  its second harmonic comes from, and it means the shaper outputs ≈ `+0.02` for an
+  input of **zero**. The 10 Hz DC blocker below it removes that in steady state,
+  but it starts from zeroed state, so the very first sample came out as a full
+  `0.02` step (≈ −34 dBFS) decaying over ~16 ms — a thump.
+
+  A worklet only runs while its processed path is connected, so this fired the
+  first time the drum compressor was un-bypassed after page load: `fx.drum.comp.on`
+  defaults to 0 and demos ship it at 1, which made *clicking a demo* the trigger,
+  with no prior audio needed ([song-mode](song-mode.md) REQ-17).
+
+  The blocker's state is therefore **primed from the first sample it sees**
+  (`x[0]` taken as the previous input rather than 0) instead of differencing
+  against silence. One boolean, no per-sample cost. Measured on a silent input:
+  the old code emits `0.02` on sample 0 decaying over ~16 ms; the new one emits
+  **exact zero**.
+
+  **This is a real output change and REQ-7's frozen vectors moved for it** — the
+  honest accounting, because "bit-exact or it is a sound change" is the standing
+  rule. What moved is only the transient: across the four `fet` digests the
+  per-sample picks are identical bar the last float32 bit, and the *sums* shift by
+  the transient's own integral (≈ the first output sample × the blocker's
+  764-sample time constant — ~285 for the "normal ratio" case). The vectors were
+  re-captured once, under this requirement, and `tests/audio/compressor-worklet.test.ts`
+  now also pins silence-in-silence-out directly, so a future re-capture cannot
+  quietly lose the fix. `vca` mode has no saturation and is untouched.
 
 ## Technical design
 
