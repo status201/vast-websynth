@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.11.2] - 2026-08-30
+
 ### Fixed
 
 - **Switching the Wah on and off no longer clicks, and it sits at the right
@@ -37,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   changed, and only for the better.
 - **Every effect's bypass fades a little slower** (10 ms to 25 ms), which takes
   the edge off switching any of them in and out.
-
 
 ## [2.11.1] - 2026-08-30
 
@@ -2301,7 +2302,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in-app sample recorder/editor. See the git history prior to this changelog
   for the detailed evolution.
 
-[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.11.1...HEAD
+[Unreleased]: https://github.com/status201/vast-websynth/compare/v2.11.2...HEAD
+[2.11.2]: https://github.com/status201/vast-websynth/compare/v2.11.1...v2.11.2
 [2.11.1]: https://github.com/status201/vast-websynth/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/status201/vast-websynth/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/status201/vast-websynth/compare/v2.9.0...v2.10.0
