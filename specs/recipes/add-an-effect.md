@@ -74,7 +74,26 @@ was inside when it was switched off ([effects](../features/effects.md) REQ-2c):
   }
 ```
 
-A memoryless effect (a shaper, a biquad) overrides neither and takes the default.
+A memoryless effect (a shaper, a gain) overrides neither and takes the default.
+A **biquad is only memoryless at low Q** — its ring-down is roughly `Q / (pi * f0)`,
+so a resonant one (the wah's bandpass, a formant peak) holds audio for longer than
+`DRAIN_DEFAULT_S` and should say so.
+
+**Does switching it on change the level?** Bypass is a crossfade, which keeps the
+samples continuous — it does *not* keep the loudness continuous, and a 16 dB step
+in 20 ms is heard as a click no matter how smooth the waveform is
+([effects](../features/effects.md) REQ-12). Two things to check before you ship:
+
+- If your effect has **no `setMix`**, `initialMix` is 1 and enabling it replaces
+  the dry signal outright. Whatever your DSP does to the level *is* the toggle.
+- A **narrowing** filter throws away most of a broadband signal — a bandpass
+  passes a share proportional to its bandwidth `f0 / Q`. Compensate it inside the
+  processed path (the wah's `makeupFor(q)`), or the effect is both too quiet and
+  a click.
+
+Measure it rather than guessing: hold a note with the transport stopped, toggle
+the effect, and compare short-window RMS either side. `verify-audio-by-ear.md`
+has the method; a few dB is fine, a dozen is a defect.
 
 ### 2. Add it to a chain — `src/audio/effects/fx-chain.ts`
 

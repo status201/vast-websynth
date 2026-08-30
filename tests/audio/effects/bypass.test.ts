@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BypassWrapper, DISCONNECT_DELAY_MS, DRAIN_DEFAULT_S } from '../../../src/audio/effects/effect';
+import { RAMP_BYPASS } from '../../../src/audio/param-utils';
 import { Compressor } from '../../../src/audio/effects/compressor';
 import { Delay } from '../../../src/audio/effects/delay';
 import { Reverb } from '../../../src/audio/effects/reverb';
@@ -50,6 +51,19 @@ describe('BypassWrapper true bypass', () => {
     vi.advanceTimersByTime(DISCONNECT_DELAY_MS);
     vi.advanceTimersByTime(drainMs);
   };
+
+  it('crossfades over RAMP_BYPASS, and disconnects well after it has settled', () => {
+    const { wrap } = build();
+    // effects.md REQ-12: the swap gets its own constant, not RAMP_MEDIUM's 10 ms.
+    const dryRamp = (wrap.dry.gain.setTargetAtTime as unknown as Spy).mock.calls.at(-1)!;
+    const wetRamp = (wrap.wet.gain.setTargetAtTime as unknown as Spy).mock.calls.at(-1)!;
+    expect(dryRamp[2]).toBe(RAMP_BYPASS);
+    expect(wetRamp[2]).toBe(RAMP_BYPASS);
+
+    // ADR-012's margin: the edge must not be cut while wet is still audible.
+    // Ten time constants is e^-10 ~ -87 dB; we ship twelve.
+    expect(DISCONNECT_DELAY_MS / 1000).toBeGreaterThanOrEqual(10 * RAMP_BYPASS);
+  });
 
   it('boots bypassed and cuts the input first, the output only after the drain', () => {
     const { wrap, inDisconnect, outDisconnect, quiesce } = build({ drainSeconds: 2 });

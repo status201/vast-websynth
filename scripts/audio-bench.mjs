@@ -246,10 +246,21 @@ try {
   });
   await page.goto(url);
 
-  // Audio needs a real gesture; the click is trusted under Playwright.
+  // Get past whichever start gate this browser gets (audio-lifecycle.md REQ-20).
+  // The modal exists only to buy a user gesture, so it is shown only where the
+  // browser demands one — and Playwright launches both engines with autoplay
+  // already permitted, so usually there is no modal at all. Waiting for the
+  // button alone times out on that path; wait for either outcome, exactly as
+  // `e2e/helpers.ts` startAudio does.
+  await page.waitForFunction(() =>
+    Boolean(document.querySelector('.start-btn'))
+    || window.__synth?.engine.ctx.state === 'running');
   const start = page.getByRole('button', { name: 'Tap to start' });
-  await start.click();
-  await start.waitFor({ state: 'hidden' });
+  if (await start.count() > 0) {
+    await start.click();
+    await start.waitFor({ state: 'hidden' });
+  }
+  await page.waitForFunction(() => window.__synth?.engine.ctx.state === 'running');
 
   if (opts.project) {
     // The app's OWN import path (song-panel's file input accepts .json and .zip),

@@ -34,8 +34,10 @@ Bypass stays a crossfade for **audibility**, and additionally becomes a
 **delayed graph disconnect** for **cost**:
 
 - `setBypass(true)` ramps wet→0 as before, then after a delay much longer than
-  the ramp (`DISCONNECT_DELAY_MS = 150` ≫ the ~10 ms `RAMP_MEDIUM` time
-  constant) disconnects **only the wrapper's own two edges**:
+  the ramp (`DISCONNECT_DELAY_MS` ≫ the crossfade's time constant — 300 ms
+  against `RAMP_BYPASS`'s 25 ms since effects.md v10, twelve time constants, so
+  wet is at −104 dB when the edge is cut) disconnects **only the wrapper's own
+  two edges**:
   `input → processedIn` and `processedOut → wet`. The processed subgraph
   becomes unreachable from the destination and the renderer stops running it.
 - `setBypass(false)` cancels any pending disconnect, **reconnects both edges
@@ -82,7 +84,9 @@ one tail-length after reconnect.
 - **Keep the pure crossfade (status quo)** — rejected: pays the full DSP cost
   of every effect forever; the dominant idle audio-thread load on mobile.
 - **Disconnect immediately on bypass** — rejected: clicks; the wet ramp needs
-  ~70 ms to fall below audibility.
+  several time constants to fall below audibility (~70 ms at the `RAMP_MEDIUM`
+  this ADR was written against; ~175 ms since effects.md v10 moved the crossfade
+  to `RAMP_BYPASS`, which is why `DISCONNECT_DELAY_MS` moved with it).
 - **Per-effect enable/disable of inner nodes** (e.g. null the convolver
   buffer) — rejected: N bespoke mechanisms instead of one wrapper-level one,
   and some nodes (WaveShaper oversampling) have no "off" switch.
@@ -93,9 +97,17 @@ one tail-length after reconnect.
 ## Consequences
 
 - **Good:** with all FX off, the convolvers, oversampled shapers, phasers,
-  delays and compressor worklets cost zero audio-thread CPU; toggling remains
-  click-free; no per-effect code changes (all effects inherit via
+  delays and compressor worklets cost zero audio-thread CPU; toggling introduces
+  no *discontinuity*; no per-effect code changes (all effects inherit via
   `BypassWrapper`).
+
+  > **"Click-free" was too strong (2026-08-30).** The crossfade keeps the samples
+  > continuous — measured, to the float32 noise floor, on both engines — and this
+  > ADR read that as click-free. It is not the same claim: a crossfade says
+  > nothing about how much *level* moves across it. The wah moved 16-19 dB in
+  > 10-20 ms and was reported as a click with the waveform perfectly intact. The
+  > premise holds for what it actually covers; loudness continuity is a separate
+  > obligation, now [effects](../features/effects.md) REQ-12.
 - **Trade-off:** a bypassed delay/reverb no longer "keeps ringing" internally
   (it never audibly did — wet was 0); LFO-bearing effects (phaser/wah) resume
   at a different LFO phase after re-enable, which is musically irrelevant.

@@ -190,6 +190,30 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   `npx playwright install firefox`. `tests/audio/no-unanchored-cancel.test.ts`
   is the standing guard for the specific defect; the render is how you find the
   next one.
+- **The whole-song burst rate is the wrong instrument for a rare artefact.** It is
+  a *rate*: one discontinuity a second is plainly visible against a sparse take
+  (Around renders at 34 bursts/s) and completely invisible against a dense one
+  (Haçienda renders at 2330/s, so the wah defect of [effects](../features/effects.md)
+  REQ-11 moved it by 26 — noise). When you are chasing something that fires once a
+  cycle or once a toggle, build the smallest graph that contains it, feed it a
+  **sum of sines** — no inherent steps, so every step found is the artefact — and
+  measure the peak single-sample step in a *window*. REQ-11's 10x cliff shows up
+  unmistakably that way and not at all in a song render.
+- **`OfflineAudioContext` cannot see a latency-dependent automation defect,** so
+  do not use one to compare engines on ramp behaviour. An offline render has no
+  output latency and its `currentTime` never trails the render head, which is
+  exactly the condition such a defect needs. Capture live instead — `bench:audio`
+  does, because the app's recorder is a real-time worklet tap
+  ([audio-export](../features/audio-export.md)).
+
+  This was worth establishing: `setTargetAtTime(v, ctx.currentTime, tc)` — the
+  `rampTo` idiom the whole audio layer is built on — was measured live in both
+  engines, headless and headed against a real device, reproducing
+  `BypassWrapper`'s two-gain crossfade exactly. **Gecko and Blink agree
+  sample-for-sample**: the first rendered sample moves 0.2 % of the change, the
+  ideal single-sample step for a 10 ms constant, with zero implied lag on either.
+  So a bypass click is not the crossfade, and `rampTo` needs no scheduling lead.
+  The Gecko trap is `cancelScheduledValues` (above), not `setTargetAtTime`.
 - **A take that measures clean can still sound bad.** These metrics catch
   discontinuities and generated energy, not musicality — a process can be
   mathematically smooth and still be something nobody wants to play. That

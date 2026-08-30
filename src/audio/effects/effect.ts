@@ -1,6 +1,6 @@
 import { clamp01 } from '../../utils/math';
 import type { ParamBus } from '../../state/params';
-import { rampTo, RAMP_MEDIUM } from '../param-utils';
+import { rampTo, RAMP_BYPASS } from '../param-utils';
 
 /**
  * Common interface for all effects. Each effect owns a fixed signal graph
@@ -44,10 +44,12 @@ export function chain(input: AudioNode, fx: Effect[], output: AudioNode): void {
 
 /**
  * How long after bypassing before the processed path is disconnected — must
- * comfortably outlast the RAMP_MEDIUM crossfade (~10 ms time constant, so the
- * wet gain is far below audibility by 150 ms). See ADR-012.
+ * comfortably outlast the `RAMP_BYPASS` crossfade. Twelve of its 25 ms time
+ * constants, so the wet gain is at -104 dB by the time the edge is cut. Moved
+ * from 150 ms along with the crossfade's constant (effects.md REQ-12).
+ * See ADR-012.
  */
-export const DISCONNECT_DELAY_MS = 150;
+export const DISCONNECT_DELAY_MS = 300;
 
 /**
  * How long a stateless effect needs, fed silence, before what it holds *is*
@@ -202,8 +204,8 @@ export class BypassWrapper {
     const wet = this.bypassed ? 0 : this.mix;
     const dry = this.bypassed ? 1 : 1 - this.mix;
     const ctx = this.dry.context as AudioContext;
-    rampTo(this.dry.gain, dry, ctx, RAMP_MEDIUM);
-    rampTo(this.wet.gain, wet, ctx, RAMP_MEDIUM);
+    rampTo(this.dry.gain, dry, ctx, RAMP_BYPASS);
+    rampTo(this.wet.gain, wet, ctx, RAMP_BYPASS);
   }
 
   /**

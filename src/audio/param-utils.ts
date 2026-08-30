@@ -6,6 +6,13 @@ export const RAMP_MEDIUM = 0.01;
  * by hand and audibly zipper at a shorter constant.
  */
 export const RAMP_SMOOTH = 0.02;
+/**
+ * The bypass crossfade's constant (effects.md REQ-2/REQ-12). Longer than
+ * `RAMP_SMOOTH` because a dry/wet *swap* moves far more level than any single
+ * knob does — the wah's is 16-19 dB — and this was `RAMP_MEDIUM`, the shortest
+ * constant here, for the biggest move in the audio layer.
+ */
+export const RAMP_BYPASS = 0.025;
 export const RAMP_SLOW = 0.05;
 
 export function rampTo(

@@ -228,9 +228,11 @@ utils/tempo.ts:      DIVISIONS · sweetSpots(bpm) · syncedValue(...) · nearest
 
 Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
 `AudioParam` write shares: `rampTo(param, value, ctx, tau)` /
-`rampCancelAndSet(...)` over the four named time constants — `RAMP_FAST` 5 ms,
+`rampCancelAndSet(...)` over the five named time constants — `RAMP_FAST` 5 ms,
 `RAMP_MEDIUM` 10 ms, `RAMP_SMOOTH` 20 ms (the insert effects' own controls, which
-zipper audibly at anything shorter), `RAMP_SLOW` 50 ms. These are dialled by ear
+zipper audibly at anything shorter), `RAMP_BYPASS` 25 ms (an effect's whole
+dry/wet swap, which moves far more level than any one knob —
+[effects](features/effects.md) REQ-2), `RAMP_SLOW` 50 ms. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
 the call site.
 

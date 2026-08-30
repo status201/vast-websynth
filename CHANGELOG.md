@@ -16,6 +16,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Switching the Wah on and off no longer clicks, and it sits at the right
+  level.** The Wah was the one effect with no dry/wet control, so turning it on
+  replaced the whole signal with its bandpass — and that bandpass had no output
+  compensation, so the synth dropped by 16-19 dB in about 15 milliseconds and
+  jumped back the same way. Nothing about the waveform was broken, which is why
+  it never showed up in a measurement; it was simply a very large, very fast
+  change in loudness, and that is what you heard as a click. The filter now makes
+  up its own loss, tracking the Q knob, so the Wah comes in at the level it
+  should have had all along and switching it in and out is a change of colour
+  rather than a lurch. The demos that use it have been rebalanced to match.
+- **The Wah's sweep is musical across its whole DEPTH range.** The sweep moved in
+  a fixed number of hertz rather than in octaves, so past about 40 % depth the
+  bottom of each cycle ran into 0 Hz, where the filter stops behaving like a
+  filter and starts ticking once per cycle. It now sweeps in octaves and cannot
+  reach zero however deep you set it. The top of the sweep is exactly where it
+  was, so saved songs keep their brightest point; only the bottom of the sweep
+  changed, and only for the better.
+- **Every effect's bypass fades a little slower** (10 ms to 25 ms), which takes
+  the edge off switching any of them in and out.
+
+
 ## [2.11.1] - 2026-08-30
 
 ### Changed

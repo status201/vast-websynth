@@ -3,7 +3,15 @@
 ```yaml
 id: effects
 status: implemented
-version: 8   # v8: REQ-2c — a bypassed effect DRAINS before it disconnects, so
+version: 10  # v10: REQ-12 — the wah gets makeup gain, and the bypass crossfade
+             #      gets its own RAMP_BYPASS constant: toggling an effect was a
+             #      16-19 dB level step in 10-20 ms — continuous samples, but
+             #      plainly a click, and the wah was simply mixed too quiet
+             # v9: REQ-11 — the wah sweeps in CENTS, not Hz. A linear Hz swing
+             #     around a 622 Hz centre reaches 0 Hz at depth 0.415 and the
+             #     bandpass degenerates there — measured; latent in nine demos
+             #     that stage the wah at 0.4-0.6 for a player to open
+             # v8: REQ-2c — a bypassed effect DRAINS before it disconnects, so
              #     re-enabling one can never replay the audio frozen inside it
              #     (ADR-012's accepted risk, discharged — it bit on a demo load)
              # v7: REQ-3/REQ-4 — a ducker joins the synth and sampler chains, last
@@ -51,7 +59,9 @@ separately.
 
 Each effect owns a fixed `input → DSP → output` graph wired **once** at setup.
 Toggling an effect must never click, so bypass is a **dry/wet crossfade**
-(`BypassWrapper`). Since v3 the crossfade is followed by a **delayed
+(`BypassWrapper`) — which buys sample continuity but not, on its own, *loudness*
+continuity: an effect that changes the level a lot in a few milliseconds clicks
+anyway, which is REQ-12. Since v3 the crossfade is followed by a **delayed
 disconnect** of the processed path (ADR-012): the Web Audio renderer keeps
 computing any subgraph reachable from the destination, so a merely-crossfaded
 convolver/oversampled shaper/compressor still burned audio-thread CPU while
@@ -76,7 +86,10 @@ subsets, so a song can colour each bus independently.
   one-line `setMix` themselves; its presence *is* the declaration.
 - **REQ-2** — (v3, ADR-012) Bypass + mix are a click-free crossfade
   (`BypassWrapper`): wet = `bypassed ? 0 : mix`, dry = `bypassed ? 1 : 1 - mix`,
-  ramped. **In addition**, `DISCONNECT_DELAY_MS` (150 ms ≫ the ramp) after
+  ramped over **`RAMP_BYPASS`** (25 ms, v10 — see REQ-12; it was `RAMP_MEDIUM`,
+  the *shortest* constant in the audio layer, for a swap that moves more level
+  than any single knob does). **In addition**, `DISCONNECT_DELAY_MS` (300 ms, ≫
+  the ramp — twelve time constants, so wet is at −104 dB) after
   bypassing, the wrapper disconnects its own two edges (`input → processedIn`,
   `processedOut → wet`) so the processed DSP stops being rendered; un-bypassing
   cancels any pending disconnect, **reconnects first**, then ramps. The wrapper
@@ -230,6 +243,113 @@ subsets, so a song can colour each bus independently.
   which is what made it intermittent. Any deferred edit owes the same rule: the
   guard reads the intent, not the state the edit has not reached yet.
 
+- **REQ-11** (v9) — **The wah's LFO sweeps its bandpass in cents, not in Hz.**
+  `Wah` modulated `bp.frequency` with a gain of `depth * 1500` **linear Hz**
+  around a centre of `midiToHz(75)` = 622.25 Hz. A linear swing around a fixed
+  centre is not a musical sweep (ADR-005: the same "+200 Hz" is an octave down low
+  and nothing up high) and, worse, it runs off the end of the parameter: at
+  `depth >= 622.25 / 1500 = 0.415` the LFO trough drives the computed
+  `bp.frequency` to zero or below, where the `AudioParam` clamps at 0 and the RBJ
+  bandpass degenerates — `alpha = sin(w0)/2Q = 0`, so the numerator is all zeros
+  over a denominator with a double pole at z = 1.
+
+  Measured through the real graph, a sine-sum source into the real `Wah` +
+  `BypassWrapper`, peak single-sample step in the steady (non-toggling) region:
+
+  ```
+  depth   bp.frequency trough    Blink      Gecko    bursts/s
+  0.35            97 Hz         0.0063     0.0063       0
+  0.40            22 Hz         0.0077     0.0076       0     <- the shipped default
+  0.42            -8 Hz         0.0569     0.0849     1.0     <- clamped at 0
+  0.45           -53 Hz         0.0737     0.0752     1.0
+  0.60          -278 Hz         0.0606     0.0548     1.0
+  ```
+
+  A ~10x jump in discontinuity size, and the burst detector
+  ([verify-audio-by-ear](../recipes/verify-audio-by-ear.md)) goes from silent to
+  firing, the moment the trough crosses zero. Both engines break, and they break
+  *differently* — 0.0569 against 0.0849 at the onset — because a degenerate biquad
+  is exactly where two implementations stop agreeing. Under the cents mapping they
+  match to three decimals at every depth.
+
+  No shipped demo plays the wah over the cliff today: only `Bunk` (0.11) and
+  `Run Away` (0.35) have `fx.wah.on: 1`. It is **latent**, and REQ-8 is why that
+  still matters — nine demos *stage* the wah at 0.4-0.6 with `on: 0` (`apex-twin`
+  and `hacienda_neworder` at 0.6; `Elegy`, `First_Light`, `Maison`, `Night_Rider`,
+  `Slouch`, `Titulaer`, `fat` at 0.4), waiting for a lane or the player's hand to
+  open it, and opening one is what crosses the cliff. `fx.wah.depth` also
+  **defaults to 0.4**, two percent under it, so nudging the knob up on any patch
+  falls off.
+
+  So the LFO drives **`bp.detune`**, in cents, and `bp.frequency` is a fixed
+  reference written once at construction and never again — the same conclusion
+  [performance](performance.md) REQ-10 reached for the DJ filter, for the same
+  reason: cents *are* log-frequency, so a linear swing in cents is the sweep the
+  ear expects, and `frequency * 2^(detune/1200)` can never reach zero.
+
+  The depth mapping is chosen to **leave the top of every existing sweep exactly
+  where it was**, so no stored song changes its brightest point:
+
+  ```
+  depthCents(d) = 1200 * log2(1 + d * 1500 / 622.25)
+  ```
+
+  which is the cents equivalent of the old upward excursion. Only the bottom
+  moves, from a dive toward 0 Hz to the symmetric reflection of the top:
+  at the default 0.4, `22 .. 1222 Hz` becomes `317 .. 1222 Hz`; at Around's 0.18,
+  `352 .. 892 Hz` becomes `434 .. 892 Hz`.
+
+
+- **REQ-12** (v10) — **Toggling an effect must not step the level, and the wah's
+  bandpass carries makeup gain so that it does not.** REQ-2 has claimed since v1
+  that the crossfade means bypass "never clicks". It does prevent a
+  *discontinuity* — measured, the waveform is continuous to the float32 noise
+  floor on both engines — but it says nothing about how much the level moves, or
+  how fast. Measured through the real graph, one held A2, transport stopped, no
+  other effect in the chain:
+
+  ```
+                       enable            bypass
+  wah (Around's Q 3.9)  -13.0 / -15.5 dB  +19.0 / +18.6 dB   in 10-20 ms
+  delay (mix 0.3)        -5.1 /  -1.1 dB   +6.8 /  +5.8 dB
+                        Blink /  Gecko    Blink /  Gecko
+  ```
+
+  A 19 dB jump in 10 ms is heard as a click however smooth the samples are, and
+  it is why the wah is the effect people report: it is the **only** one with no
+  `setMix` (REQ-1), so `initialMix = 1`, `update()` computes `dry = 0`, and
+  enabling it does not blend a wah in — it replaces the entire signal with a
+  Q ≈ 4 bandpass that has no output compensation. Every other insert either
+  blends (phaser 0.5, delay 0.3, reverb 0.25) or is broadband (distortion).
+
+  Two changes, because they fix different halves:
+
+  - **The wah splices a makeup gain** between its bandpass and
+    `wrap.processedOut`. A constant-peak-gain bandpass passes a share of a
+    broadband signal proportional to its bandwidth `f0 / Q`, so the loss goes as
+    `1/sqrt(Q)` and the compensation as **`sqrt(Q)`**. Calibrated against the
+    table above — `2.5 * sqrt(Q)`, which is +14 dB at the default Q of 4 and
+    +5 dB at the minimum of 0.5 — and **capped at ×8 (+18 dB)** so that a
+    high-Q setting with material parked on the centre frequency, where the
+    bandpass is already at unity, cannot run away into the master. It tracks
+    `fx.wah.q` through the existing `setQ`, smoothed with `RAMP_SMOOTH` like any
+    other control (REQ-2b). Exact compensation is impossible — the loss depends
+    on the source spectrum, not only on Q — so this removes the step, it does not
+    guarantee unity.
+  - **The crossfade gets its own time constant**, `RAMP_BYPASS` = 25 ms, instead
+    of borrowing `RAMP_MEDIUM`. 10 ms was the shortest constant in the audio
+    layer, and REQ-2b already argues that a single effect *knob* zippers at
+    anything under 20 ms; a structural dry↔wet swap was getting half of that.
+    `DISCONNECT_DELAY_MS` moves 150 → 300 ms to keep ADR-012's margin: the
+    disconnect must not land while wet is still audible, and twelve time
+    constants puts it at −104 dB.
+
+  The wah is correspondingly louder than it was, which is the correction, not a
+  side effect: an effect that dropped the bus 16 dB when you switched it on was
+  never at the right level. The demos that engage it were rebalanced in the same
+  change ([song-mode](song-mode.md) — demo data rides with the fix that moved it).
+
+
 ## Technical design
 
 ### Contract / public interface
@@ -247,7 +367,7 @@ BypassWrapper: # dry/wet crossfade + delayed true-bypass disconnect (ADR-012)
   # bypassed 150ms -> disconnects input→processedIn, quiesce(true);
   #   then after drainSeconds() -> disconnects processedOut→wet (v8, REQ-2c)
   # un-bypass cancels both timers, reconnects and quiesce(false) before ramping.
-  # DISCONNECT_DELAY_MS = 150; DRAIN_DEFAULT_S = 0.02.
+  # DISCONNECT_DELAY_MS = 300; DRAIN_DEFAULT_S = 0.02.
 WrappedEffect:  # the two hooks a stateful effect overrides (v8)
   protected drainSeconds(): number    # how long silence takes to clear its memory
   protected quiesce(on: boolean): void  # zero/restore an internal feedback path
@@ -352,6 +472,44 @@ Scenario: Compressor attach while bypassed-and-disconnected (edge)
   When the compressor is enabled
   Then the wrapper edges reconnect and the spliced worklet path is intact
 # pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: Enabling the wah does not step the level (v10, REQ-12, regression)
+  Given a held note with the wah bypassed and every other effect off
+  When fx.wah.on goes to 1 and then back to 0
+  Then the bus level moves by a few dB, not the 16-19 dB it moved before makeup
+   And the crossfade takes RAMP_BYPASS, not RAMP_MEDIUM
+# pinned by: tests/audio/effects/wah.test.ts (makeup + constant), bench:audio (the dB)
+
+Scenario: Wah makeup tracks Q and is capped (v10, REQ-12, edge)
+  Given fx.wah.q is swept from its minimum of 0.5 to its maximum of 20
+  Then the makeup gain follows 2.5*sqrt(Q), smoothed with RAMP_SMOOTH
+   And it stops at x8, so a narrow band on the centre frequency cannot run away
+# pinned by: tests/audio/effects/wah.test.ts
+
+Scenario: The disconnect still lands well after the crossfade (v10, REQ-2, edge)
+  Given the bypass ramp is now RAMP_BYPASS
+  Then DISCONNECT_DELAY_MS is at least ten of its time constants
+   And the wrapper still never disconnects while wet is audible
+# pinned by: tests/audio/effects/bypass.test.ts
+
+Scenario: The wah sweep never reaches 0 Hz, at any depth (v9, REQ-11, regression)
+  Given fx.wah.depth is 1 (the widest sweep the param allows)
+  When the LFO is at the bottom of its cycle
+  Then the bandpass centre is 622.25 / 2^(depthCents/1200) Hz, still well above 0
+   And bp.frequency itself is never written after construction — the sweep is detune
+# pinned by: tests/audio/effects/wah.test.ts
+
+Scenario: Raising wah depth past 0.415 no longer steps the output (v9, REQ-11, regression)
+  Given a wah at depth 0.42, where the old linear-Hz swing clamped at 0 Hz
+  Then the sweep is symmetric in octaves about the centre
+   And the peak single-sample step stays at the depth-0.35 level, not 10x it
+# pinned by: tests/audio/effects/wah.test.ts (contract), bench:audio (the number)
+
+Scenario: A stored song keeps the top of its wah sweep (v9, REQ-11, edge)
+  Given a demo shipping fx.wah.depth 0.18
+  Then the sweep still peaks at 892 Hz, as it did with the linear mapping
+   And only the bottom of the sweep moves, from 352 Hz up to 434 Hz
+# pinned by: tests/audio/effects/wah.test.ts
 
 Scenario: Boot builds one IR, not fifteen (REQ-6, perf)
   Given the three FX chains each construct a Reverb on one context
