@@ -30,7 +30,7 @@
     "filter.velAmount": 0,
     "filter.model": 1,
     "filter.shape": 0,
-    "filter.keytrack": 0,
+    "filter.keytrack": 0.5,
     "env.amp.attack": 0.01,
     "env.amp.decay": 0.8,
     "env.amp.sustain": 0.7,
@@ -50,35 +50,45 @@
     "lfo2.dest": 5,
     "lfo2.sync": 2,
     "fx.dist.on": 0,
-    "fx.dist.drive": 0.3,
-    "fx.dist.tone": 3000,
-    "fx.dist.mix": 1,
+    "fx.dist.drive": 0.145,
+    "fx.dist.tone": 2064,
+    "fx.dist.mix": 0.24,
     "fx.wah.on": 0,
     "fx.wah.rate": 2,
-    "fx.wah.depth": 0.4,
-    "fx.wah.q": 4,
+    "fx.wah.depth": 0.23,
+    "fx.wah.q": 2.83,
+    "fx.wah.sync": 7,
     "fx.phaser.on": 0,
     "fx.phaser.rate": 0.5,
-    "fx.phaser.depth": 0.5,
+    "fx.phaser.depth": 0.335,
     "fx.phaser.feedback": 0.4,
     "fx.phaser.mix": 0.5,
+    "fx.phaser.sync": 1,
     "fx.delay.on": 1,
     "fx.delay.time": 0.38,
     "fx.delay.feedback": 0.45,
     "fx.delay.mix": 0.25,
+    "fx.delay.sync": 11,
     "fx.reverb.on": 1,
-    "fx.reverb.size": 0.75,
+    "fx.reverb.size": 0.405,
     "fx.reverb.damp": 0.4,
     "fx.reverb.mix": 0.25,
+    "fx.duck.on": 0,
+    "fx.duck.amount": 0.7,
+    "fx.duck.attack": 0.005,
+    "fx.duck.release": 0.18,
+    "fx.duck.src": 0,
     "fx.drum.phaser.on": 0,
     "fx.drum.phaser.rate": 0.5,
     "fx.drum.phaser.depth": 0.7,
     "fx.drum.phaser.feedback": 0.4,
     "fx.drum.phaser.mix": 0.6,
+    "fx.drum.phaser.sync": 0,
     "fx.drum.delay.on": 0,
     "fx.drum.delay.time": 0.3814,
     "fx.drum.delay.feedback": 0.2005,
     "fx.drum.delay.mix": 0.3,
+    "fx.drum.delay.sync": 0,
     "fx.drum.reverb.on": 1,
     "fx.drum.reverb.size": 0.155,
     "fx.drum.reverb.damp": 0.2,
@@ -88,7 +98,7 @@
     "fx.drum.comp.ratio": 4,
     "fx.drum.comp.attack": 0.0002,
     "fx.drum.comp.release": 0.25,
-    "fx.drum.comp.makeup": 0,
+    "fx.drum.comp.makeup": 1.68,
     "fx.sampler.dist.on": 0,
     "fx.sampler.dist.drive": 0.3,
     "fx.sampler.dist.tone": 3000,
@@ -98,43 +108,52 @@
     "fx.sampler.phaser.depth": 0.7,
     "fx.sampler.phaser.feedback": 0.4,
     "fx.sampler.phaser.mix": 0.5,
+    "fx.sampler.phaser.sync": 0,
     "fx.sampler.delay.on": 0,
     "fx.sampler.delay.time": 0.35,
     "fx.sampler.delay.feedback": 0.4,
     "fx.sampler.delay.mix": 0.3,
+    "fx.sampler.delay.sync": 0,
     "fx.sampler.reverb.on": 0,
     "fx.sampler.reverb.size": 0.6,
     "fx.sampler.reverb.damp": 0.4,
     "fx.sampler.reverb.mix": 0.25,
+    "fx.sampler.duck.on": 0,
+    "fx.sampler.duck.amount": 0.7,
+    "fx.sampler.duck.attack": 0.005,
+    "fx.sampler.duck.release": 0.18,
+    "fx.sampler.duck.src": 0,
     "fx.djfilter": -0.4,
     "fx.master.comp.on": 1,
-    "fx.master.comp.threshold": -19.8,
+    "fx.master.comp.threshold": -21,
     "fx.master.comp.ratio": 1,
     "fx.master.comp.attack": 0.005494,
     "fx.master.comp.release": 4,
-    "fx.master.comp.makeup": 0,
-    "master.volume": 0.8,
+    "fx.master.comp.makeup": 2.28,
+    "master.volume": 1,
     "master.pitchBend": 0,
     "master.modWheel": 0,
-    "keyboard.transpose": -1,
+    "keyboard.transpose": 0,
     "transport.bpm": 118,
     "transport.swing": 0.195,
+    "transport.beats": 4,
+    "transport.beatUnit": 0,
     "arp.on": 1,
     "arp.pattern": 0,
     "arp.rate": 2,
     "arp.octaves": 1,
     "arp.gate": 0.5,
-    "mod.0.src": 5,
-    "mod.0.dst": 0,
-    "mod.0.amt": 1,
-    "mod.1.src": 7,
-    "mod.1.dst": 2,
-    "mod.1.amt": 1,
-    "mod.2.src": 8,
-    "mod.2.dst": 4,
-    "mod.2.amt": 1,
-    "mod.3.src": 2,
-    "mod.3.dst": 1,
+    "mod.0.src": 7,
+    "mod.0.dst": 2,
+    "mod.0.amt": 0.4,
+    "mod.1.src": 8,
+    "mod.1.dst": 4,
+    "mod.1.amt": 0.8,
+    "mod.2.src": 2,
+    "mod.2.dst": 1,
+    "mod.2.amt": -0.63,
+    "mod.3.src": 0,
+    "mod.3.dst": 0,
     "mod.3.amt": -0.6447,
     "mod.4.src": 0,
     "mod.4.dst": 0,
@@ -153,11 +172,15 @@
     "seq.t2.mute": 0,
     "seq.t3.mute": 0,
     "seq.solo": 0,
+    "seq.len": 0,
+    "seq.rate": 2,
     "drum.on": 1,
     "drum.choke": 0,
-    "drum.master": 1,
+    "drum.master": 0.5,
     "drum.mute": 0,
     "drum.solo": 0,
+    "drum.len": 0,
+    "drum.rate": 2,
     "drum.t0.vol": 1,
     "drum.t0.tune": -12,
     "drum.t0.decay": 0.3,
@@ -226,19 +249,119 @@
     "sampler.master": 0.85,
     "sampler.mute": 0,
     "sampler.solo": 0,
+    "sampler.len": 0,
+    "sampler.rate": 2,
     "sampler.t0.mute": 0,
+    "sampler.t0.vol": 1,
+    "sampler.t0.pan": 0,
+    "sampler.t0.tone": 1,
+    "sampler.t0.res": 0,
+    "sampler.t0.pitch": 0,
+    "sampler.t0.start": 0,
+    "sampler.t0.end": 1,
+    "sampler.t0.rev": 0,
+    "sampler.t0.attack": 0,
+    "sampler.t0.decay": 0,
+    "sampler.t0.choke": 0,
+    "sampler.t0.poly": 0,
     "sampler.t1.mute": 0,
+    "sampler.t1.vol": 1,
+    "sampler.t1.pan": 0,
+    "sampler.t1.tone": 1,
+    "sampler.t1.res": 0,
+    "sampler.t1.pitch": 0,
+    "sampler.t1.start": 0,
+    "sampler.t1.end": 1,
+    "sampler.t1.rev": 0,
+    "sampler.t1.attack": 0,
+    "sampler.t1.decay": 0,
+    "sampler.t1.choke": 0,
+    "sampler.t1.poly": 0,
     "sampler.t2.mute": 0,
+    "sampler.t2.vol": 1,
+    "sampler.t2.pan": 0,
+    "sampler.t2.tone": 1,
+    "sampler.t2.res": 0,
+    "sampler.t2.pitch": 0,
+    "sampler.t2.start": 0,
+    "sampler.t2.end": 1,
+    "sampler.t2.rev": 0,
+    "sampler.t2.attack": 0,
+    "sampler.t2.decay": 0,
+    "sampler.t2.choke": 0,
+    "sampler.t2.poly": 0,
     "sampler.t3.mute": 0,
+    "sampler.t3.vol": 1,
+    "sampler.t3.pan": 0,
+    "sampler.t3.tone": 1,
+    "sampler.t3.res": 0,
+    "sampler.t3.pitch": 0,
+    "sampler.t3.start": 0,
+    "sampler.t3.end": 1,
+    "sampler.t3.rev": 0,
+    "sampler.t3.attack": 0,
+    "sampler.t3.decay": 0,
+    "sampler.t3.choke": 0,
+    "sampler.t3.poly": 0,
     "sampler.t4.mute": 0,
+    "sampler.t4.vol": 1,
+    "sampler.t4.pan": 0,
+    "sampler.t4.tone": 1,
+    "sampler.t4.res": 0,
+    "sampler.t4.pitch": 0,
+    "sampler.t4.start": 0,
+    "sampler.t4.end": 1,
+    "sampler.t4.rev": 0,
+    "sampler.t4.attack": 0,
+    "sampler.t4.decay": 0,
+    "sampler.t4.choke": 0,
+    "sampler.t4.poly": 0,
     "sampler.t5.mute": 0,
+    "sampler.t5.vol": 1,
+    "sampler.t5.pan": 0,
+    "sampler.t5.tone": 1,
+    "sampler.t5.res": 0,
+    "sampler.t5.pitch": 0,
+    "sampler.t5.start": 0,
+    "sampler.t5.end": 1,
+    "sampler.t5.rev": 0,
+    "sampler.t5.attack": 0,
+    "sampler.t5.decay": 0,
+    "sampler.t5.choke": 0,
+    "sampler.t5.poly": 0,
     "sampler.t6.mute": 0,
+    "sampler.t6.vol": 1,
+    "sampler.t6.pan": 0,
+    "sampler.t6.tone": 1,
+    "sampler.t6.res": 0,
+    "sampler.t6.pitch": 0,
+    "sampler.t6.start": 0,
+    "sampler.t6.end": 1,
+    "sampler.t6.rev": 0,
+    "sampler.t6.attack": 0,
+    "sampler.t6.decay": 0,
+    "sampler.t6.choke": 0,
+    "sampler.t6.poly": 0,
     "sampler.t7.mute": 0,
+    "sampler.t7.vol": 1,
+    "sampler.t7.pan": 0,
+    "sampler.t7.tone": 1,
+    "sampler.t7.res": 0,
+    "sampler.t7.pitch": 0,
+    "sampler.t7.start": 0,
+    "sampler.t7.end": 1,
+    "sampler.t7.rev": 0,
+    "sampler.t7.attack": 0,
+    "sampler.t7.decay": 0,
+    "sampler.t7.choke": 0,
+    "sampler.t7.poly": 0,
     "motion.on": 1,
     "motion.mute": 0,
     "motion.slide": 1,
     "motion.t0.slide": 1,
-    "motion.t1.slide": 1
+    "motion.t1.slide": 1,
+    "motion.len": 0,
+    "motion.rate": 2
   },
   "seqBanks": [
     [
@@ -4528,17 +4651,12 @@
     null
   ],
   "xy": {
-    "x": "fx.djfilter",
+    "x": "osc2.level",
     "y": "osc2.pulseWidth"
   },
   "motionBanks": [
     [
       {
-        "on": true,
-        "x": 0.25,
-        "y": 0
-      },
-      {
         "on": false
       },
       {
@@ -4581,18 +4699,14 @@
         "on": false
       },
       {
-        "on": true,
-        "x": 0.3,
-        "y": 0
+        "on": false
+      },
+      {
+        "on": false
       }
     ],
     [
       {
-        "on": true,
-        "x": 0.25,
-        "y": 0
-      },
-      {
         "on": false
       },
       {
@@ -4635,9 +4749,10 @@
         "on": false
       },
       {
-        "on": true,
-        "x": 0.5,
-        "y": 0.05
+        "on": false
+      },
+      {
+        "on": false
       }
     ],
     [
@@ -4770,11 +4885,119 @@
   },
   "motionTracks": [
     [
-      null,
+      {
+        "param": "fx.djfilter",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.25
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.3
+          }
+        ]
+      },
       null
     ],
     [
-      null,
+      {
+        "param": "fx.djfilter",
+        "steps": [
+          {
+            "on": true,
+            "v": 0.25
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": false
+          },
+          {
+            "on": true,
+            "v": 0.5
+          }
+        ]
+      },
       null
     ],
     [
