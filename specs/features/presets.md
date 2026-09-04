@@ -3,7 +3,9 @@
 ```yaml
 id: presets
 status: implemented
-version: 9   # v9: the motion sequencer is not part of a sound (REQ-15)
+version: 10  # v10: REQ-16 — the import wizard reports EVERY problem, not the
+             #      first, and the ones it can only warn about are shown too
+             # v9: the motion sequencer is not part of a sound (REQ-15)
              # v8: REQ-2b covers the FX tempo locks — a bank that ENGAGES an
              #     effect must pin its .sync (tempo-lock.md REQ-8)
              # v7: the loaded song's sound is a pinned dropdown entry (REQ-13),
@@ -128,7 +130,9 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   count it will write. Nothing is written until confirm.
 - **REQ-11** — **A malformed or wrong-typed file is refused with a reason**, not
   silently ignored: a non-JSON file, a JSON file with the wrong `format` tag, or a
-  bank whose `presets` map is absent/empty each report what was wrong. Symmetrically,
+  bank whose `presets` map is absent/empty each report what was wrong — *every*
+  reason it found, not the first (REQ-16, which this sentence's singular "a
+  reason" is exactly why nothing caught). Symmetrically,
   dropping a **preset or bank** file on the *song* Import button
   ([song-mode](song-mode.md)) is detected and answered with a pointer to
   Preset ▸ Import rather than a generic "invalid song" — the two file families
@@ -194,6 +198,35 @@ can do with a sound ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1
   the prefix is added ([meter](meter.md) REQ-13). Consequence to expect: a
   previously saved preset that happens to carry `motion.*` keys keeps them in its
   file, and they are now ignored on load rather than applied.
+
+- **REQ-16** (v10) — **The wizard reports every problem, not the first.** The
+  home step's error strip rendered `errors[0]` and dropped the rest before they
+  reached the DOM, so a bank with five malformed presets reported one — the user
+  fixed it, re-imported, met the next, and paid a round trip per problem. The
+  validator collects up to `MAX_ERRORS` (50) and this strip is the **only** place
+  they are ever shown: the paste door raises no dialog of its own
+  ([paste-import](paste-import.md) REQ-7), so it lands here too.
+
+  The strip therefore:
+  - **lists every message**, one row each, inside the *same* bounded scroll box
+    the review step already uses (`.reviewList` metrics) — so nothing is hidden
+    and the home rows below it stay reachable;
+  - opens with a count line naming what happened (`10 errors — nothing was
+    imported`), keeping the `Could not read that file.` fallback for an empty
+    array;
+  - carries a **Copy errors** control (`preset-import-copy`) built from the error
+    array via [`buildFailureReport`](failure-report.md), not scraped from the
+    rows. It reuses `copyText` / `flashCopied` directly rather than
+    [dialog](dialog.md) REQ-9's `copyable`, because this is a `div` inside a
+    `Modal`, not an alert — the mechanism is shared, the `dialog-copy` id is not.
+
+  **Warnings are shown too, on the review step.** `validatePresetPayload` fills a
+  `warnings` array on its `ok: true` branch and nothing rendered it, so a preset
+  that would move the tempo imported without a word. They appear next to the rows
+  the user is deciding about, and they never block Import: a warning says what
+  will not survive the load, not that the file is unusable
+  ([preset-authoring](preset-authoring.md) REQ-8).
+
 ## Technical design
 
 ### Contract / public interface
@@ -293,8 +326,12 @@ main.ts:       autosave restore -> Song.apply -> session.setActiveSong(...)  # s
 modal save:    promptDialog (dialog.md) -> Presets.save -> bus.setBaselines(snap)
                  -> session.setActive(name)      # identical to the pre-v4 path
 modal export:  buildPresetFile / buildBankFile -> Blob -> <a download>
-modal import:  <input type=file> -> parsePresetPayload -> planImport -> review
+modal import:  <input type=file> -> parsePresetPayload(text, bus) -> planImport -> review
                  -> confirm: Presets.save per write, then onPresetsChanged()
+               !ok -> preset-import-errors: count line + a row per message in the
+                      .reviewList scroll box + preset-import-copy   # v10, REQ-16
+               ok  -> preset-import-warnings on the review step, above the actions;
+                      never disables preset-import-confirm
 song-panel:    showImportErrors gains the preset/bank sniff (REQ-11)
 ```
 
@@ -400,6 +437,20 @@ Scenario: A preset file dropped on the song importer points at the right door (R
   Given a .preset.websynth.json chosen via the Song panel's Import button
   Then the dialog says it is a preset file and to use Preset ▸ Import
 # pinned by: tests/state/preset-file.test.ts, e2e/presets.spec.ts
+
+Scenario: Every problem in the file is listed, not just the first (v10, REQ-16)
+  Given a file whose validation produced ten messages
+  When the wizard refuses it
+  Then all ten are rendered as rows and the count line says ten
+  And the tenth is on the clipboard after Copy errors is clicked
+# pinned by: tests/ui/preset-manager-modal.test.ts, e2e/presets.spec.ts
+
+Scenario: A warning is shown where the user decides, and does not block (v10, REQ-16)
+  Given a valid bank carrying a song-level parameter
+  When the wizard reaches its review step
+  Then the warning is visible beside the rows
+  And the Import button is still enabled
+# pinned by: tests/ui/preset-manager-modal.test.ts
 
 Scenario: Importing leaves the live sound alone (REQ-12)
   Given the user has unsaved knob edits

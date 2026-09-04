@@ -101,6 +101,63 @@ test.describe('preset files', () => {
     await expect(page.getByTestId('preset-manager')).toContainText('1 preset: mine-1');
   });
 
+  // presets.md REQ-16. The strip rendered errors[0] and dropped the rest, and it
+  // is the only place they are ever shown — so a bank with five bad presets cost
+  // the user one round trip per problem.
+  test('a refused file lists every problem and copies them all', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await gotoAndStart(page);
+
+    // Ten presets, each with a non-numeric value: ten structural errors.
+    const presets: Record<string, unknown> = {};
+    for (let i = 0; i < 10; i++) presets[`bad ${i}`] = { 'filter.cutoff': `nope-${i}` };
+    await page.getByTestId('preset-save').click();
+    await page.getByTestId('preset-mgr-file').setInputFiles({
+      name: 'broken.bank.websynth.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'websynth-preset-bank', version: 1, name: 'Broken', presets,
+      })),
+    });
+
+    const strip = page.getByTestId('preset-import-errors');
+    await expect(strip).toBeVisible();
+    await expect(strip).toContainText('10 problems');
+    // The first and the tenth are both on screen — that is the whole fix.
+    await expect(strip).toContainText('bad 0');
+    await expect(strip).toContainText('bad 9');
+    // It refused, so it never reached the review step.
+    await expect(page.getByTestId('preset-import-review')).toBeHidden();
+
+    const copy = page.getByTestId('preset-import-copy');
+    await copy.click();
+    await expect(copy).toHaveText('Copied!');
+    const report = await page.evaluate(() => navigator.clipboard.readText());
+    expect(report).toContain('— Preset import failed');
+    expect(report).toContain('10 errors:');
+    expect(report).toContain('file: broken.bank.websynth.json');
+    expect(report).toContain('bad 9');
+  });
+
+  test('an out-of-range value warns on the review step instead of refusing', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('preset-save').click();
+    await page.getByTestId('preset-mgr-file').setInputFiles({
+      name: 'hot.preset.websynth.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        format: 'websynth-preset', version: 1, name: 'e2e-hot',
+        params: { 'filter.cutoff': 9000 },
+      })),
+    });
+
+    // preset-authoring.md REQ-8: the bus clamps, so the file still imports.
+    await expect(page.getByTestId('preset-import-errors')).toBeHidden();
+    await expect(page.getByTestId('preset-import-review')).toBeVisible();
+    await expect(page.getByTestId('preset-import-warnings')).toContainText('filter.cutoff');
+    await expect(page.getByTestId('preset-import-confirm')).toBeEnabled();
+  });
+
   test('importing a bank reviews first, renames clashes, and leaves the live sound alone', async ({ page }) => {
     await gotoAndStart(page);
     const before = await busGet(page, 'filter.cutoff');

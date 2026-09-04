@@ -3,6 +3,7 @@ import {
   buildPresetFile, buildBankFile, parsePresetPayload, describePresetPayload,
   planImport, presetFilename, bankFilename, sameSnapshot,
 } from '../../src/state/preset-file';
+import { ParamBus, registerDefaults } from '../../src/state/params';
 
 /**
  * presets.md REQ-7..REQ-11. Everything here is pure — no Storage mock, no DOM:
@@ -83,6 +84,40 @@ describe('parsePresetPayload (REQ-11)', () => {
     expect(parsePresetPayload('{"format":"websynth-preset","params":{"a":"x"}}').ok).toBe(false);
     expect(parsePresetPayload('{"format":"websynth-preset-bank","presets":{}}').ok).toBe(false);
     expect(parsePresetPayload('{"format":"websynth-preset-bank"}').ok).toBe(false);
+  });
+
+  // preset-authoring.md REQ-8 — the app's door now runs the registry checks, but
+  // only the structural layer decides `ok`. That is the whole safety argument:
+  // nothing that imported before starts being refused.
+  it('given the bus, warns where it used to say nothing', () => {
+    const b = new ParamBus();
+    registerDefaults(b);
+    const text = JSON.stringify(buildPresetFile('hot', { 'filter.cutoff': 9000 }));
+
+    const blind = parsePresetPayload(text);
+    expect(blind.ok).toBe(true);
+    if (blind.ok) expect(blind.warnings).toBeUndefined();
+
+    const seeing = parsePresetPayload(text, b);
+    expect(seeing.ok).toBe(true);
+    if (seeing.ok) expect((seeing.warnings ?? []).join(' ')).toContain('filter.cutoff');
+  });
+
+  it('ok is identical with and without the bus, for every shape', () => {
+    const b = new ParamBus();
+    registerDefaults(b);
+    for (const text of [
+      'not json',
+      '{"format":"nope"}',
+      '{"format":"websynth-song","version":4}',
+      '{"format":"websynth-preset","params":{"a":"x"}}',
+      '{"format":"websynth-preset-bank","presets":{}}',
+      JSON.stringify(buildPresetFile('invented', { 'osc1.shape': 1 })),
+      JSON.stringify(buildPresetFile('hot', { 'filter.cutoff': 9000 })),
+      JSON.stringify(buildBankFile('mine', { one: A, two: B })),
+    ]) {
+      expect(parsePresetPayload(text, b).ok, text).toBe(parsePresetPayload(text).ok);
+    }
   });
 
   it('describePresetPayload sniffs the family for the song importer', () => {

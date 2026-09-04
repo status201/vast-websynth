@@ -290,6 +290,7 @@ specs/
     dropdown.md        ·  shared dropdown component (popover menu, scroll+focus to selection)
     panel-tabs.md      ·  in-title tab strip paging one faceplate panel (LFO 1 / LFO 2)
     dialog.md          ·  shared confirm/prompt/alert dialog (replaces the native ones)
+    failure-report.md  ·  the copyable diagnostic block behind a failed import's Copy button
     toast.md           ·  transient bottom-center notification with one action (Undo)
     lazy-load-failure.md ·  what every deferred surface says when its import() rejects
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)

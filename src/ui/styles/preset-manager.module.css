@@ -112,8 +112,53 @@
 .chipIdentical { color: rgba(255, 255, 255, 0.45); }
 .chipConflict { color: var(--accent); }
 
+/* ---- problem reporting (presets.md REQ-16) ----
+   The count line, then a scroll box built from `.reviewList`'s metrics so the
+   two lists in this modal read as one thing. */
+
 .errors {
-  margin: 4px 0 10px;
+  margin: 4px 0 6px;
   font-size: 12px;
   color: #e2705a;
 }
+
+.errorList { border-color: rgba(226, 112, 90, 0.4); }
+
+.errorRow {
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e2705a;
+  border-bottom: 1px solid rgba(226, 112, 90, 0.16);
+  overflow-wrap: anywhere;
+}
+
+.errorRow:last-child { border-bottom: none; }
+
+/* The copy control sits under the box, right-aligned like a dialog's actions. */
+.errorActions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+}
+
+/* Warnings ride the review step: the import still works, so they are amber
+   rather than red and never disable the confirm button. */
+.warnHead {
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: var(--accent-secondary);
+}
+
+.warnList { border-color: rgba(244, 205, 94, 0.35); }
+
+.warnRow {
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.85;
+  border-bottom: 1px solid rgba(244, 205, 94, 0.16);
+  overflow-wrap: anywhere;
+}
+
+.warnRow:last-child { border-bottom: none; }

@@ -78,6 +78,30 @@ test('pasting a bank routes into the preset import review step', async ({ page }
   await expect(page.getByTestId('preset-select')).toContainText('Pasted Lead');
 });
 
+// The paste door shows no errors of its own (REQ-7/REQ-8), so a bad pasted
+// preset is explained by the wizard's strip or nowhere at all.
+test('a malformed pasted bank lands on the wizard strip with every problem', async ({ page }) => {
+  await gotoAndStart(page);
+  await openSongTab(page);
+
+  const presets: Record<string, unknown> = {};
+  for (let i = 0; i < 5; i++) presets[`bad ${i}`] = { 'filter.cutoff': `nope-${i}` };
+  await page.getByTestId('song-paste').click();
+  await page.getByTestId('paste-input').fill(asReply({
+    format: 'websynth-preset-bank', version: 1, name: 'Broken', presets,
+  }));
+  // The classifier only counts entries, so it happily offers to review them —
+  // the validation that refuses them happens one step later, in the wizard.
+  await expect(page.getByTestId('paste-status')).toContainText('5 sounds');
+  await page.getByTestId('paste-confirm').click();
+
+  const strip = page.getByTestId('preset-import-errors');
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText('5 problems');
+  await expect(strip).toContainText('bad 4');
+  await expect(page.getByTestId('preset-import-review')).toBeHidden();
+});
+
 test('junk is refused with a reason and the confirm stays disabled', async ({ page }) => {
   await gotoAndStart(page);
   await openSongTab(page);

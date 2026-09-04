@@ -3,7 +3,11 @@
 ```yaml
 id: testids
 status: implemented
-version: 14 # v14: the Edit Sample modal's three fold headers —
+version: 16 # v16: the preset import wizard's error strip, its copy button and
+            #      the review step's warnings (presets.md REQ-16)
+            # v15: dialog-copy — an alert's optional "copy the full text"
+            #      button (dialog.md REQ-9)
+            # v14: the Edit Sample modal's three fold headers —
             #      <chop|stretch|scratch>-section/-head/-toggle/-body
             #      (sample-recorder.md REQ-9)
             # v13: the Fit / Shift rows and the slot-row FIT button
@@ -325,10 +329,14 @@ presets:                                            # features/presets.md
   preset-import-review · preset-import-row-<name> ·
     preset-import-policy-<rename|overwrite|skip> · preset-import-confirm ·
     preset-import-back
+  preset-import-errors · preset-import-copy ·
+    preset-import-warnings                          # presets.md REQ-16 (v16)
+                                                    # rows inside carry no ids of
+                                                    # their own — query the container
 
 shared UI:
   dialog-detail · dialog-input · dialog-confirm ·
-    dialog-cancel · dialog-choice-<id>              # features/dialog.md
+    dialog-cancel · dialog-choice-<id> · dialog-copy # features/dialog.md (copy: v15)
   dropdown-filter                                   # features/dropdown.md
   tempolock-<paramId> · tempodiv-<paramId>          # features/tempo-lock.md
   dropdown-lfo.dest · dropdown-lfo2.dest            # features/lfo.md (v9)

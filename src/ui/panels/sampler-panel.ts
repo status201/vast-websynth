@@ -16,6 +16,7 @@ import {
 import { attachGridGestures } from '../components/grid-gestures';
 import type { RecordSoundOptions } from '../components/record-sound-modal';
 import { alertDialog } from '../components/dialog';
+import { buildFailureReportFor } from '../failure-report';
 import { showLazyLoadFailure } from '../components/lazy-load-toast';
 import { StepSettingsEditor, paintTriggerCell } from '../components/step-settings';
 import { audioBufferToCaptured, capturedToAudioBuffer } from '../../audio/recorder/audio-buffer';
@@ -311,7 +312,12 @@ export function buildSamplerPanel(
         engine.sampler.setBuffer(slot, buf);
         engine.patterns.setSampleName(slot, f.name);
       } catch {
-        await alertDialog({ title: 'Load failed', message: 'Unsupported or corrupt audio file.' });
+        await alertDialog({
+          title: 'Load failed',
+          message: 'Unsupported or corrupt audio file.',
+          copyable: buildFailureReportFor('Load failed', 'Unsupported or corrupt audio file.', f.name),
+          copyLabel: 'Copy error',
+        });
       }
       fileInput.value = '';
     });

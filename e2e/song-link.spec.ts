@@ -84,6 +84,51 @@ test.describe('song share links', () => {
     expect(await page.evaluate(() => window.location.hash)).toBe(`#song=${payload}`);
   });
 
+  // song-mode.md REQ-18 / dialog.md REQ-9. The dialog renders the first 8 of up
+  // to 50 validator messages and the rest are written NOWHERE else — no console,
+  // no log — so before the Copy button, dismissing this dialog destroyed them.
+  test('Copy errors puts the whole error list on the clipboard, not the shown 8',
+    async ({ page, context }) => {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // Enough bad fields to overflow the 8 the dialog shows (15 errors).
+      const bad = JSON.stringify({
+        format: 'nope', samplerBanks: 1, samplerChain: 2, sampleNames: 3,
+        xy: 5, motionAssigns: 7, motionTracks: 9, seqTranspose: 'x',
+      });
+      const payload = 'j:' + Buffer.from(bad, 'utf8').toString('base64url');
+      await page.addInitScript(() => {
+        try {
+          localStorage.setItem('websynth.onboarding.done', '1');
+          localStorage.setItem('websynth.perf', 'off');
+        } catch { /* ignore */ }
+      });
+      await page.goto(`/#song=${payload}`);
+
+      await expect(page.getByText('Import failed')).toBeVisible();
+      // The truncation line names the button — a copy affordance nobody notices
+      // does not solve the problem the truncation creates.
+      await expect(page.getByText(/…and \d+ more — use Copy errors/)).toBeVisible();
+
+      // The 9th error is past the cut: on screen it does not exist.
+      const hidden = 'samplerBanks must be an array of 4 banks';
+      await expect(page.getByText(hidden)).toHaveCount(0);
+
+      const copyBtn = page.getByTestId('dialog-copy');
+      await copyBtn.click();
+      await expect(copyBtn).toHaveText('Copied!');
+
+      const report = await page.evaluate(() => navigator.clipboard.readText());
+      expect(report).toContain(hidden);                       // the point of the test
+      expect(report).toContain('format must be "websynth-song"');
+      expect(report).toContain('15 errors:');
+      expect(report).toContain('— Import failed');
+
+      // Copying is an aside, not an answer: the dialog is still up.
+      await expect(page.getByText('Import failed')).toBeVisible();
+      await page.getByTestId('dialog-confirm').click();
+      await expect(page.getByText('Import failed')).toHaveCount(0);
+    });
+
   // untrusted-input.md REQ-7. Before this, a #songUrl= link made any visitor's
   // browser issue an attacker-chosen GET at page load, with no interaction.
   test('a #songUrl= link asks before it fetches, naming the origin', async ({ page }) => {

@@ -190,7 +190,9 @@ at `http://localhost:5173` to work against a dev server.
 
 **Presets**: `get_preset_format` (the sound-only parameter table plus
 sound-design notes), `validate_preset` (invented parameter ids and out-of-range
-values are real errors here, unlike a plain file import), `expand_preset` (a
+values are real errors here, where a file import reports the same findings as
+**warnings** — an author wants the file refused, an importer wants it to load),
+`expand_preset` (a
 sparse authored patch → the complete sound, so nothing leaks in from whatever
 was loaded before) and `save_preset` (writes a `.preset.websynth.json` or, for
 several sounds, a `.bank.websynth.json`). See

@@ -71,6 +71,40 @@ describe('semantic layer (with a bus)', () => {
     expect(res.errors[0]).toContain(`${def.min}..${def.max}`);
   });
 
+  // preset-authoring.md REQ-8 — the same findings, two severities. The MCP
+  // tools want an author's file refused; the app's importer wants it to load,
+  // because the bus clamps a range and ignores an unknown id.
+  it('demotes the registry findings to warnings when the caller asks (REQ-8)', () => {
+    const payload = PRESET({ 'osc1.shape': 1, 'filter.resonance': 99 });
+    const res = validatePresetPayload(payload, bus(), { semantics: 'warning' });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const warned = (res.warnings ?? []).join(' | ');
+    expect(warned).toContain('is not a parameter of this synth');
+    expect(warned).toContain('must be');
+  });
+
+  it('keeps them as errors by default, so the authoring contract is unmoved', () => {
+    const payload = PRESET({ 'osc1.shape': 1, 'filter.resonance': 99 });
+    for (const res of [
+      validatePresetPayload(payload, bus()),
+      validatePresetPayload(payload, bus(), {}),
+      validatePresetPayload(payload, bus(), { semantics: 'error' }),
+    ]) {
+      expect(res.ok).toBe(false);
+      if (res.ok) continue;
+      expect(res.errors.join(' | ')).toContain('is not a parameter of this synth');
+    }
+  });
+
+  it('a structural failure still fails under semantics warning', () => {
+    // Severity moves the registry findings only — a non-numeric value is shape,
+    // and shape alone decides `ok`.
+    const bad = { 'filter.cutoff': 'x' } as unknown as Record<string, number>;
+    const res = validatePresetPayload(PRESET(bad), bus(), { semantics: 'warning' });
+    expect(res.ok).toBe(false);
+  });
+
   it('accepts every pre-v2 lfo.dest index unchanged (lfo.md REQ-3)', () => {
     // The destination list is append-only: growing it to add `pan` must not
     // invalidate — or re-point — any index a saved patch already holds.

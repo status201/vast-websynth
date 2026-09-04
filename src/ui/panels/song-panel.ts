@@ -22,6 +22,9 @@ import {
   buildTransportControls, createTransportWindowLauncher, bindSeekAvailability, transportRowClass,
 } from '../components/transport-controls';
 import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../components/dialog';
+import {
+  buildFailureReport, buildFailureReportFor, failureMessage, isCapped,
+} from '../failure-report';
 import { describePresetPayload, type PresetParse } from '../../state/preset-file';
 import { openPasteImportModal } from '../components/paste-import';
 import { showToast } from '../components/toast';
@@ -300,14 +303,28 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   dropdown.el.dataset.testid = 'song-slot-select';
   const refreshList = () => dropdown.setOptions(Song.list());
 
-  const showImportErrors = (errors: string[]): Promise<void> => {
-    const shown = errors.slice(0, 8);
-    const more = errors.length - shown.length;
-    return alertDialog({
-      title: 'Import failed',
-      message: 'Could not import song:\n• ' + shown.join('\n• ') + (more > 0 ? `\n…and ${more} more` : ''),
-    });
-  };
+  /**
+   * The import rejection dialog. It renders the first 8 messages and summarises
+   * the rest — but the validator collects up to MAX_ERRORS (50) and they are
+   * written nowhere else, so the Copy button gets the **whole array**, and the
+   * truncation line names it (song-mode.md REQ-18, dialog.md REQ-9).
+   */
+  /**
+   * Report a list of parse failures: the first few bulleted, **all** of them on
+   * the clipboard (song-mode.md REQ-18, dialog.md REQ-9). The two callers below
+   * are the app's only multi-error alerts, so the composition lives here rather
+   * than in `failure-report.ts`, which stays pure.
+   */
+  const failureAlert = (
+    title: string, lead: string, errors: string[], file?: string,
+  ): Promise<void> => alertDialog({
+    title,
+    message: failureMessage(lead, errors),
+    copyable: buildFailureReport({ title, file, errors, capped: isCapped(errors) }),
+  });
+
+  const showImportErrors = (errors: string[], file?: string): Promise<void> =>
+    failureAlert('Import failed', 'Could not import song', errors, file);
 
   /**
    * Persist an imported song to its slot — but never *silently* over a
@@ -395,16 +412,30 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
         title: 'Some clips failed',
         message: `The song ${persist ? 'was imported' : 'loaded'}, but these clips `
           + 'could not be decoded:\n• ' + failures.join('\n• '),
+        copyable: buildFailureReport({ title: 'Some clips failed', errors: failures }),
+        copyLabel: failures.length === 1 ? 'Copy error' : 'Copy errors',
       });
     }
   };
+
+  /**
+   * A demo whose file would not parse. Both demo paths used to collapse this to
+   * `errors[0]` before the dialog existed, so the Copy button faithfully copied
+   * the one message that survived — the diagnosis was already gone by then
+   * (song-mode.md REQ-18 v25).
+   */
+  const showDemoFailure = (name: string, errors: string[]): Promise<void> =>
+    failureAlert('Demo failed to load', `Could not load "${name}"`, errors, name);
 
   const loadZipDemo = async (name: string, url: string): Promise<void> => {
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`fetch failed (${resp.status})`);
       const res = await parseProjectZip(new Uint8Array(await resp.arrayBuffer()));
-      if (!res.ok) throw new Error(res.errors[0] ?? 'invalid project zip');
+      if (!res.ok) {
+        await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['invalid project zip']);
+        return;
+      }
       // A demo, not the user's work: no slot is written (REQ-14d), and the
       // dropdown follows the DEMO's name — the button's label is the promise.
       await applyProjectBundle(res, { persist: false, name });
@@ -412,6 +443,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       await alertDialog({
         title: 'Demo failed to load',
         message: `Could not load "${name}": ` + (e as Error).message,
+        copyable: buildFailureReportFor('Demo failed to load', (e as Error).message, name),
+        copyLabel: 'Copy error',
       });
     }
   };
@@ -473,12 +506,17 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       // Same validator the Import button uses, so a corrupt drop-in reports
       // what is actually wrong with it rather than "not a song".
       const res = Song.parse(await resp.text());
-      if (!res.ok) throw new Error(res.errors[0] ?? 'not a valid song file');
+      if (!res.ok) {
+        await showDemoFailure(name, res.errors.length > 0 ? res.errors : ['not a valid song file']);
+        return;
+      }
       applyDemo(name, res.file);
     } catch (e) {
       await alertDialog({
         title: 'Demo failed to load',
         message: `Could not load "${name}": ` + (e as Error).message,
+        copyable: buildFailureReportFor('Demo failed to load', (e as Error).message, name),
+        copyLabel: 'Copy error',
       });
     }
   };
@@ -596,7 +634,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
         });
         return false;
       }
-      await showImportErrors(res.errors);
+      await showImportErrors(res.errors, name);
       return false;
     }
     try {
@@ -606,6 +644,8 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
       await alertDialog({
         title: 'Import failed',
         message: 'Song imported but failed to apply: ' + (e as Error).message,
+        copyable: buildFailureReportFor('Import failed', (e as Error).message, name),
+        copyLabel: 'Copy error',
       });
       return false;
     }
@@ -625,6 +665,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   const pasteRoutes = {
     onSong: importBytes,
     onPresets: (parse: PresetParse) => bridge.openPresetImport(parse),
+    bus, // so a pasted preset is checked against the registry too (REQ-8)
   };
   const pasteBtn = el('button', `${switchStyles.root!} ${styles.ctl!}`, 'Paste') as HTMLButtonElement;
   pasteBtn.dataset.testid = 'song-paste';

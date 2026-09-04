@@ -1,5 +1,6 @@
 import { Modal } from './modal';
 import { createButton } from './button';
+import { copyText, flashCopied } from '../clipboard';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/dialog.module.css';
 
@@ -41,6 +42,18 @@ export interface AlertOptions {
   title: string;
   message: string;
   okLabel?: string;
+  /**
+   * Full text offered behind a `dialog-copy` button beside OK (REQ-9). Omitted
+   * → no button, and the alert keeps its single full-width one.
+   *
+   * This is **passed in, never scraped from `message`**: the point of the button
+   * is that the message is shorter than the truth — the import-error alert shows
+   * eight of up to fifty validator messages, and the rest exist nowhere else
+   * once the dialog closes. Build it with `buildFailureReport`.
+   */
+  copyable?: string;
+  /** Label for that button. Default 'Copy errors'. */
+  copyLabel?: string;
 }
 
 /** One answer in a {@link chooseDialog}. `id` is what the promise resolves to. */
@@ -170,7 +183,13 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
   });
 }
 
-/** Show a message with a single OK button. Resolves when dismissed. */
+/**
+ * Show a message with a single OK button. Resolves when dismissed.
+ *
+ * With `copyable` (REQ-9) it grows a second button that puts the *full* text on
+ * the clipboard — an aside, not an answer: it neither closes the dialog nor
+ * settles the promise, so the user can copy, read on, and then dismiss.
+ */
 export function alertDialog(opts: AlertOptions): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
@@ -183,15 +202,35 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
     const modal = new Modal({ title: opts.title, onClose: () => resolveOnce() });
     modal.body.appendChild(messagePara(opts.message));
 
+    const copyable = opts.copyable;
+    // Without a copy action the alert keeps its one full-width button; with one
+    // it adopts the actions row every other dialog kind already uses.
     const ok = createButton({
       label: opts.okLabel ?? 'OK',
-      className: `${switchStyles.root!} ${Modal.closeBtnClass}`,
+      className: copyable === undefined
+        ? `${switchStyles.root!} ${Modal.closeBtnClass}`
+        : switchStyles.root!,
       testId: 'dialog-confirm',
       onClick: () => { resolveOnce(); modal.close(); },
     });
-    modal.body.appendChild(ok);
+
+    if (copyable === undefined) {
+      modal.body.appendChild(ok);
+    } else {
+      const copyLabel = opts.copyLabel ?? 'Copy errors';
+      const copy: HTMLButtonElement = createButton({
+        label: copyLabel,
+        className: switchStyles.root!,
+        testId: 'dialog-copy',
+        onClick: () => flashCopied(copy, copyLabel, copyText(copyable)),
+      });
+      const row = actionsRow();
+      row.append(copy, ok);
+      modal.body.appendChild(row);
+    }
 
     modal.open();
+    // OK keeps focus either way, so Enter still dismisses (REQ-5).
     ok.focus();
   });
 }

@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A failed import can now be copied out of its dialog.** The "Import failed"
+  window lists the first eight problems with a file and summarises the rest as
+  "…and N more" — but the checker finds up to fifty, and those extra messages
+  were written nowhere else, so closing the window threw away most of what it had
+  just worked out. A **Copy errors** button now puts the *complete* list on the
+  clipboard, together with the app version, the time and the file name, ready to
+  paste into a message or a bug report. The same button appears on the other
+  import failures: a song that would not apply, clips that would not decode, a
+  demo or a shared link that would not load, and an audio file the sampler could
+  not read.
+- **The preset importer now tells you everything that is wrong with a file.** It
+  used to show one problem at a time, so a bank with five bad sounds took five
+  attempts to fix — and the other four messages were never written down anywhere.
+  Every problem is now listed in a scrolling box, with the same **Copy errors**
+  button.
+- **A preset that will not load quite as written now says so instead of going in
+  quietly.** The importer checks each value against the synth it is being loaded
+  into, and warns on the review screen — a setting out of range, a control this
+  version does not have, or a song setting like tempo hiding inside a sound. None
+  of it stops the import: these are notes about what will not survive, not
+  reasons to refuse the file.
+
+### Fixed
+
+- **A demo that fails to load reports every reason, not just the first.** Both
+  demo paths threw away the rest of the list before the message was shown.
+
 ## [2.11.2] - 2026-08-30
 
 ### Fixed

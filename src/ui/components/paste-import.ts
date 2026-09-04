@@ -3,6 +3,7 @@ import { createButton, setButtonLabel } from './button';
 import { readClipboardText } from '../clipboard';
 import { classifyPayload, type PasteClassification } from '../../state/paste-payload';
 import { parsePresetPayload, type PresetParse } from '../../state/preset-file';
+import type { ParamBus } from '../../state/params';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/modal.module.css';
 
@@ -27,6 +28,11 @@ export interface PasteImportOptions {
   onSong: (bytes: Uint8Array, name: string) => Promise<boolean>;
   /** Hand a parsed preset/bank payload to the import wizard. */
   onPresets: (parse: PresetParse) => void;
+  /**
+   * The live registry, so a pasted preset gets the same warnings a chosen file
+   * does (preset-authoring.md REQ-8). Omitted → structural checks only.
+   */
+  bus?: ParamBus;
   /** Successful hand-off — the host closes itself (REQ-8: not called on failure). */
   onDone?: () => void;
   /** Renders a Cancel button beside the confirm (the modal wrapper passes one). */
@@ -143,7 +149,7 @@ export function buildPasteImport(opts: PasteImportOptions): PasteImport {
         // the text so the user can fix a line instead of pasting again.
         if (!ok) return;
       } else {
-        opts.onPresets(parsePresetPayload(c.json));
+        opts.onPresets(parsePresetPayload(c.json, opts.bus));
       }
       opts.onDone?.();
     } finally {

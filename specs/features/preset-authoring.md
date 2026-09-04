@@ -3,7 +3,9 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 2   # v2: REQ-6 — the schemas point at the published /params.* reference
+version: 3   # v3: REQ-8 — the semantic layer's severity is the caller's choice,
+             #     so the app can run those checks without refusing the file
+             # v2: REQ-6 — the schemas point at the published /params.* reference
 owner: tooling
 related:
   - presets
@@ -67,12 +69,13 @@ passes it.
 - **REQ-2** — **Structural layer** — `validatePresetPayload(value)` with no bus
   checks shape only: the `format` tag, `params`/`presets` being maps of finite
   numbers (naming the offending key by path, e.g. `presets["lead"]."osc1.level"`),
-  a non-empty bank, and the wrong-door sentence for a song file. It is exactly
-  what `parsePresetPayload(text)` (JSON-decode + this) reports, so the app's file
-  import is unchanged and stays forward-compatible.
+  a non-empty bank, and the wrong-door sentence for a song file. This layer alone
+  decides `ok` for `parsePresetPayload` (JSON-decode + this), so the app's file
+  import stays forward-compatible however much REQ-8 adds to its warnings.
 - **REQ-3** — **Semantic layer** — `validatePresetPayload(value, bus)`
-  additionally reports, as **errors**: an id absent from the registry, a value
-  outside the def's `[min, max]`, and a fractional value on a *choice* parameter
+  additionally reports, by default as **errors** (REQ-8 lets a caller ask for
+  warnings): an id absent from the registry, a value outside the def's
+  `[min, max]`, and a fractional value on a *choice* parameter
   (one with `labels` — its value is the index, so a fraction lands between two
   settings). It reports, as **warnings** (`ok` stays true): an id for which
   `isPatchParam` is false — legal, since a snapshot captures the whole bus, but
@@ -105,6 +108,26 @@ passes it.
   `save_preset` is local-only, because it writes into the *server's* working
   directory and a shared host has no such directory a caller can reach
   ([mcp-server](mcp-server.md) REQ-10).
+- **REQ-8** *(v3)* — **The semantic layer's severity is the caller's choice.**
+  `validatePresetPayload(value, bus, { semantics })` takes `'error'` (default —
+  REQ-3 unchanged, and what the MCP tools get) or `'warning'`. The app's door,
+  `parsePresetPayload(text, bus)`, asks for `'warning'`.
+
+  The two callers want opposite things and both are right. An **author** is
+  writing the file and wants it refused until it says what they meant. An
+  **importer** already has the file and wants it to load: `ParamBus.set` **clamps**
+  to `[min, max]` and stores an unknown id inertly, with no def and no listeners
+  (`src/state/params.ts`), so an out-of-range or unknown parameter costs the sound
+  some fidelity and nothing else. Refusing the whole bank over it would be a
+  regression, and forward-compatibility depends on it: a preset written by a
+  later build naming a parameter this one lacks must still import.
+
+  This is *added* information, not changed verdicts. The app previously passed no
+  bus at all, so none of these checks ran; `ok` was decided by the structural
+  layer alone (REQ-2) and still is. No file that imports today starts being
+  refused, and none that fails today starts passing — only the warning list grows.
+  Warnings are omitted from the `ok: false` branch: nothing is importing, so what
+  would have been clamped is moot.
 
 ## Technical design
 
@@ -114,7 +137,11 @@ passes it.
 # src/state/preset-validate.ts — PURE (no DOM, no localStorage)
 PRESET_FORMAT: "websynth-preset"
 BANK_FORMAT:   "websynth-preset-bank"
-validatePresetPayload(value: unknown, bus?: ParamBus): PresetParse
+validatePresetPayload(value: unknown, bus?: ParamBus, opts?: PresetValidateOptions): PresetParse
+PresetValidateOptions:
+  semantics?: "error" | "warning"      # v3, REQ-8 — default "error" (REQ-3)
+# internally: one `Sinks` {structural, semantic, songSetting} resolved by the entry
+# point and threaded down, so severity is decided exactly once (REQ-8)
 defaultPatchParams(bus: ParamBus): Snapshot
 expandPresetParams(bus: ParamBus, params: Snapshot): Snapshot
 
@@ -150,9 +177,11 @@ PresetParse:                            # discriminated on ok
 ### Layer touchpoints & ordering
 
 ```yaml
-app file import:   parsePresetPayload(text) -> validatePresetPayload(value)      # NO bus
-paste door:        same (paste-import.md)                                        # NO bus
+app file import:   parsePresetPayload(text, bus) -> validatePresetPayload(
+                     value, bus, { semantics: 'warning' })          # v3, REQ-8
+paste door:        same (paste-import.md)
 MCP tools:         validatePresetPayload(value, bus) -> expandPresetParams(bus,…)
+                     # no opts -> semantics 'error', REQ-3 verbatim
                      -> buildPresetFile / buildBankFile -> presetFilename / bankFilename
 ```
 
@@ -177,8 +206,9 @@ Scenario: An invented parameter id is refused with a bus, accepted without one
   Given a preset naming "osc1.shape"
   When it is validated with the live ParamBus
   Then it fails, saying that is not a parameter of this synth
-  When the same preset is validated with no bus (the app's file import)
+  When the same preset is validated with no bus
   Then it passes, because a newer build may have added it
+  And the app's import passes too — it asks for that finding as a warning (REQ-8)
 # pinned by: tests/state/preset-validate.test.ts
 
 Scenario: An out-of-range value is named with its range
@@ -192,6 +222,19 @@ Scenario: A song setting inside a sound warns instead of failing (edge)
   When it is validated against the bus
   Then it is ok, with a warning that loading it would change the tempo
 # pinned by: tests/state/preset-validate.test.ts, tests/mcp/tools.test.ts
+
+Scenario: The importer is told what the author would be refused for (v3, REQ-8)
+  Given a preset naming an unknown id and an out-of-range value
+  When it is validated with semantics "warning" — what the app's import asks for
+  Then it is ok, and both appear as warnings rather than errors
+  And the same payload with the default severity still fails with them as errors
+# pinned by: tests/state/preset-validate.test.ts
+
+Scenario: Running the registry checks refuses nothing new (v3, REQ-8, regression)
+  Given any payload the app's import accepted with no bus
+  When parsePresetPayload is given the bus
+  Then ok is unchanged — only the warning list grows
+# pinned by: tests/state/preset-file.test.ts
 
 Scenario: A sparse preset expands to a complete, deterministic patch
   Given a preset setting only "filter.cutoff"

@@ -9,6 +9,8 @@ import {
   buildBankFile, buildPresetFile, bankFilename, presetFilename, parsePresetPayload,
   planImport, type ImportPlan, type ImportPolicy, type PresetParse,
 } from '../../state/preset-file';
+import { buildFailureReport, isCapped } from '../failure-report';
+import { copyText, flashCopied } from '../clipboard';
 import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -38,6 +40,20 @@ export interface PresetManagerOptions {
 }
 
 type BankScope = 'modified' | 'all';
+
+/**
+ * Replace a scroll box's contents with one row per message. `textContent`, never
+ * `innerHTML`: every string here is quoted out of a file the user was handed.
+ */
+function fillRows(box: HTMLElement, cls: string, messages: string[]): void {
+  box.innerHTML = '';
+  for (const msg of messages) {
+    const row = document.createElement('div');
+    row.className = cls;
+    row.textContent = msg;
+    box.appendChild(row);
+  }
+}
 
 function download(filename: string, payload: unknown): void {
   const blob = new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' });
@@ -205,18 +221,23 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
       const f = fileInput.files?.[0];
       fileInput.value = '';
       if (!f) return;
-      const parsed = parsePresetPayload(await f.text());
+      // With the bus the registry checks run too — as warnings, so a preset from
+      // a newer build still imports (preset-authoring.md REQ-8).
+      const parsed = parsePresetPayload(await f.text(), opts.bus);
       if (!parsed.ok) {
-        showErrors(parsed.errors);
+        showErrors(parsed.errors, f.name);
         return;
       }
       incoming = parsed.presets;
+      incomingWarnings = parsed.warnings ?? [];
       showReview();
     })();
   });
 
   // ================= step 2: import review =================
   let incoming: Record<string, Snapshot> = {};
+  /** What the parse warned about — shown on the review step, never blocking. */
+  let incomingWarnings: string[] = [];
   let policy: ImportPolicy = 'rename';
 
   const reviewIntro = document.createElement('p');
@@ -255,10 +276,49 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   policyRow.appendChild(policySel);
   review.appendChild(policyRow);
 
+  // ---- the problem strip (REQ-16) ----
+  // A count line, every message in a scroll box built from the review list's
+  // metrics, and a Copy control. It used to be one <div> holding errors[0].
+  const errorBlock = document.createElement('div');
+  errorBlock.dataset.testid = 'preset-import-errors';
+  errorBlock.style.display = 'none';
+
   const errors = document.createElement('div');
   errors.className = styles.errors!;
-  errors.style.display = 'none';
-  home.insertBefore(errors, homeActions);
+  errorBlock.appendChild(errors);
+
+  const errorList = document.createElement('div');
+  errorList.className = `${styles.reviewList!} ${styles.errorList!}`;
+  errorBlock.appendChild(errorList);
+
+  const errorActions = document.createElement('div');
+  errorActions.className = styles.errorActions!;
+  const COPY_LABEL = 'Copy errors';
+  let errorReport = '';
+  const copyErrors: HTMLButtonElement = createButton({
+    label: COPY_LABEL,
+    className: switchStyles.root!,
+    testId: 'preset-import-copy',
+    // Built from the message array, not read back off the rows (REQ-16).
+    onClick: () => flashCopied(copyErrors, COPY_LABEL, copyText(errorReport)),
+  });
+  errorActions.appendChild(copyErrors);
+  errorBlock.appendChild(errorActions);
+  home.insertBefore(errorBlock, homeActions);
+
+  // ---- the warning block (REQ-16) ----
+  // On the review step, beside the rows the user is deciding about. A warning
+  // says what will not survive the load, so it never blocks Import.
+  const warnBlock = document.createElement('div');
+  warnBlock.dataset.testid = 'preset-import-warnings';
+  warnBlock.style.display = 'none';
+  const warnHead = document.createElement('div');
+  warnHead.className = styles.warnHead!;
+  warnBlock.appendChild(warnHead);
+  const warnList = document.createElement('div');
+  warnList.className = `${styles.reviewList!} ${styles.warnList!}`;
+  warnBlock.appendChild(warnList);
+  review.appendChild(warnBlock);
 
   const reviewActions = document.createElement('div');
   reviewActions.className = dialogStyles.actions!;
@@ -324,6 +384,13 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     confirmBtn.textContent = c.writes === 0
       ? 'Nothing to import'
       : `Import ${c.writes} preset${c.writes === 1 ? '' : 's'}`;
+
+    // What the file gets wrong but can still be loaded with (REQ-16). Rendered
+    // here, next to the decision, and never touching confirmBtn.disabled.
+    const w = incomingWarnings;
+    warnBlock.style.display = w.length === 0 ? 'none' : '';
+    warnHead.textContent = `${w.length} ${w.length === 1 ? 'warning' : 'warnings'} — it will import anyway`;
+    fillRows(warnList, styles.warnRow!, w);
   }
 
   function applyImport(): void {
@@ -340,20 +407,35 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     });
   }
 
-  function showErrors(list_: string[]): void {
-    errors.textContent = list_[0] ?? 'Could not read that file.';
-    errors.style.display = '';
+  /**
+   * Report a refused file — **every** message it produced (REQ-16). This strip is
+   * the only place they are ever shown: the paste door raises no dialog of its
+   * own, so its failures land here too.
+   */
+  function showErrors(list_: string[], file?: string): void {
+    const n = list_.length;
+    errors.textContent = n === 0
+      ? 'Could not read that file.'
+      : `${n} ${n === 1 ? 'problem' : 'problems'} — nothing was imported`;
+
+    fillRows(errorList, styles.errorRow!, list_);
+    errorList.style.display = n === 0 ? 'none' : '';
+    errorActions.style.display = n === 0 ? 'none' : '';
+    errorReport = buildFailureReport({
+      title: 'Preset import failed', file, errors: list_, capped: isCapped(list_),
+    });
+    errorBlock.style.display = '';
   }
 
   function showHome(): void {
-    errors.style.display = 'none';
+    errorBlock.style.display = 'none';
     review.style.display = 'none';
     home.style.display = '';
     renderHome();
   }
 
   function showReview(): void {
-    errors.style.display = 'none';
+    errorBlock.style.display = 'none';
     home.style.display = 'none';
     review.style.display = '';
     renderReview();
@@ -365,9 +447,12 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
   if (opts.initialImport) {
     if (opts.initialImport.ok) {
       incoming = opts.initialImport.presets;
+      incomingWarnings = opts.initialImport.warnings ?? [];
       showReview();
     } else {
-      showErrors(opts.initialImport.errors);
+      // The paste door shows no errors of its own (paste-import.md REQ-7), so
+      // this strip is the only place a bad pasted payload is ever explained.
+      showErrors(opts.initialImport.errors, 'pasted text');
     }
   }
   modal.open();

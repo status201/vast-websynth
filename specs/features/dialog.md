@@ -3,13 +3,17 @@
 ```yaml
 id: dialog
 status: implemented
-version: 4   # v4: REQ-6's "one dialog at a time" is now enforced, not assumed
+version: 5   # v5: REQ-9 — an alert may carry a Copy button offering the FULL
+             #     text of what it reports, so a truncated error list is no
+             #     longer destroyed by dismissing the dialog
+             # v4: REQ-6's "one dialog at a time" is now enforced, not assumed
              #     — a closing dialog is reaped when the next one opens
              # v3: REQ-8 — chooseDialog, for a question whose answers are two
              #     positive actions rather than yes/no
 owner: core
 related:
   - architecture
+  - failure-report
   - ../recipes/add-a-modal-dialog.md
 source:
   - src/ui/components/dialog.ts
@@ -60,7 +64,8 @@ backdrop-click-to-close) rather than reinventing it.
   `Modal`, which beats the global panic handler).
 - **REQ-6** — Stable `data-testid`s for E2E (a single dialog is open at a time):
   the affirmative button is `dialog-confirm`, the dismiss button is
-  `dialog-cancel`, the prompt field is `dialog-input`.
+  `dialog-cancel`, the prompt field is `dialog-input`, an alert's optional copy
+  button is `dialog-copy` *(v5)*.
 
   *(v4)* "A single dialog is open at a time" was an **assumption** here, and it
   did not hold. These helpers settle their promise *before* `modal.close()`, so
@@ -91,6 +96,29 @@ backdrop-click-to-close) rather than reinventing it.
   leading dismiss button resolving `null` too, for when the escape hatch should
   be visible rather than keyboard-only. Everything else — settle-once (REQ-2),
   `detail` (REQ-7), Modal composition (REQ-1) — is unchanged.
+- **REQ-9** *(v5)* — **An alert may offer its full text on the clipboard.**
+  `alertDialog`'s optional `copyable?: string` adds a second button
+  (`dialog-copy`, label from `copyLabel?`, default `'Copy errors'`) beside OK,
+  which writes that string via the shared `copyText` / `flashCopied`
+  (`src/ui/clipboard.ts`) — the same helpers Copy Link and Copy report use.
+  Four rules make it worth having:
+  1. **The payload is passed in, never scraped from the rendered message.** The
+     reason the button exists is that the message is *shorter than the truth*:
+     the import-error alert renders 8 of up to 50 validator messages
+     ([song-mode](song-mode.md) REQ-18) and the rest exist nowhere else once the
+     dialog closes. Callers build the string with
+     [`buildFailureReport`](failure-report.md), which sees the whole array.
+  2. **Copying does not close the dialog and does not settle the promise** — it
+     is an aside, not an answer (the rule [song-share-link](song-share-link.md)
+     REQ-5 already sets for Copy Link). The user copies, reads on, then dismisses.
+  3. **Focus stays on `dialog-confirm`**, so Enter still dismisses (REQ-5) and
+     the copy button is reached by Tab.
+  4. **Without `copyable` the alert is unchanged**: one full-width button using
+     `Modal.closeBtnClass`. With it, the layout switches to the shared
+     `.actions` row every other dialog kind already uses. `copyText` resolves
+     `false` rather than throwing on an insecure origin or a denied permission,
+     and `flashCopied` then reads `Press Ctrl+C` — the dialog degrades, never
+     breaks.
 
 ## Technical design
 
@@ -123,6 +151,8 @@ AlertOptions:
   title: string
   message: string
   okLabel?: string             # default 'OK'
+  copyable?: string            # v5 — full text behind a Copy button; omitted -> no button
+  copyLabel?: string           # v5 — default 'Copy errors'
 
 ChooseOptions:                 # v3
   title: string
@@ -152,7 +182,10 @@ resolve:
   settled latch   -> resolveOnce ignores all calls after the first
 focus/keys: after open(), affirmative btn.focus() (confirm/alert/choose) or input.focus()+select()
             (prompt); prompt input keydown Enter -> affirmative path
-alert:      single full-width affirmative button (reuse Modal.closeBtnClass); no cancel btn
+alert:      no copyable -> single full-width affirmative button (reuse Modal.closeBtnClass)
+            copyable    -> shared .actions row [ dialog-copy, dialog-confirm ]   # v5
+            either way: no cancel btn; dialog-confirm keeps focus
+            dialog-copy -> flashCopied(btn, label, copyText(copyable)); NO close, NO resolve
 choose:     cancelValue is null; each choice btn -> resolveOnce(id); modal.close()
             the LAST choice is the affirmative (focused) — order buttons so the
             likelier / least destructive answer sits there
@@ -166,9 +199,10 @@ src/ui/panels/song-panel.ts:
                      skipped when the chain is already just [0] (nothing to lose)
   Song Save       -> promptDialog   (was prompt('Song name:'))
   Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
-  Import errors   -> alertDialog    (was alert(...))
+  Import errors   -> alertDialog + copyable (v5; the full list, not the shown 8)
+  import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-5
 src/ui/app.ts:            Preset Save  -> promptDialog   (was prompt('Preset name:'))
-src/ui/panels/sampler-panel.ts: decode error -> alertDialog (was alert('Unsupported…'))
+src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable (was alert('Unsupported…'))
 src/main.ts:              boot-failure alert() stays NATIVE (app graph never
                           initialised — must not depend on healthy app DOM/CSS)
 ```
@@ -233,6 +267,25 @@ Scenario: The promise settles exactly once
   Given any dialog is open
   When it is confirmed and then closed again
   Then the promise resolves a single time
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: An alert offers its full text on the clipboard (v5, REQ-9)
+  Given an alertDialog opened with a copyable string longer than its message
+  When the user clicks dialog-copy
+  Then the whole copyable string is written to the clipboard, not the message
+  And the button flashes its copied state
+# pinned by: tests/ui/dialog.test.ts, e2e/song-link.spec.ts
+
+Scenario: Copying is an aside, not an answer (v5, REQ-9)
+  Given an alertDialog with a copyable string is open
+  When the user clicks dialog-copy
+  Then the dialog stays open and the promise has not settled
+  And clicking dialog-confirm afterwards still resolves it
+# pinned by: tests/ui/dialog.test.ts
+
+Scenario: An alert without copyable is unchanged (v5, REQ-9)
+  Given an alertDialog opened without a copyable string
+  Then it has one full-width button and no dialog-copy element
 # pinned by: tests/ui/dialog.test.ts
 
 Scenario: Confirm renders an optional italic detail line

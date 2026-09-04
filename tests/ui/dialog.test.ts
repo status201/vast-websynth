@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { confirmDialog, promptDialog, alertDialog, chooseDialog } from '../../src/ui/components/dialog';
 
 const byId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
@@ -102,6 +102,62 @@ describe('dialog', () => {
     expect(card()!.textContent).toContain('line two');
     clickId('dialog-confirm');
     await expect(p).resolves.toBeUndefined();
+  });
+
+  // REQ-9 — an alert may offer the FULL text of what it reports. The button
+  // exists because the message is shorter than the truth: the import-error
+  // alert renders 8 of up to 50 validator messages and the rest are written
+  // nowhere else, so dismissing it used to destroy them.
+  it('alertDialog without copyable has no copy button (REQ-9)', async () => {
+    const p = alertDialog({ title: 'Oops', message: 'short' });
+    expect(byId('dialog-copy')).toBeNull();
+    clickId('dialog-confirm');
+    await p;
+  });
+
+  it('alertDialog copies the whole copyable string, not the message (REQ-9)', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const full = 'every single one of the fifty errors';
+    const p = alertDialog({ title: 'Import failed', message: 'the first 8…', copyable: full });
+
+    clickId('dialog-copy');
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(full));
+    // The label flashes its copied state (flashCopied, via the shared helpers).
+    await vi.waitFor(() => expect(byId('dialog-copy')!.textContent).toContain('Copied!'));
+
+    clickId('dialog-confirm');
+    await p;
+  });
+
+  it('copying is an aside: the dialog stays open and unsettled (REQ-9)', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn(async () => {}) }, configurable: true,
+    });
+    let settled = false;
+    const p = alertDialog({ title: 'Import failed', message: 'x', copyable: 'all of it' })
+      .then(() => { settled = true; });
+
+    clickId('dialog-copy');
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(card()).not.toBeNull();
+
+    clickId('dialog-confirm');
+    await p;
+    expect(settled).toBe(true);
+  });
+
+  it('copyLabel names the copy button, defaulting to "Copy errors" (REQ-9)', async () => {
+    const a = alertDialog({ title: 'x', message: 'y', copyable: 'z' });
+    expect(byId('dialog-copy')!.textContent).toContain('Copy errors');
+    clickId('dialog-confirm');
+    await a;
+
+    const b = alertDialog({ title: 'x', message: 'y', copyable: 'z', copyLabel: 'Copy error' });
+    expect(byId('dialog-copy')!.textContent).toContain('Copy error');
+    clickId('dialog-confirm');
+    await b;
   });
 
   // chooseDialog (REQ-8) — for a question whose answers are two positive

@@ -1,5 +1,6 @@
 import { roundParams } from './serialize';
 import type { Snapshot } from './preset';
+import type { ParamBus } from './params';
 import { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-validate';
 import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
 
@@ -22,7 +23,9 @@ import type { PresetFile, PresetBankFile, PresetParse } from './preset-validate'
  */
 
 export { PRESET_FORMAT, BANK_FORMAT, validatePresetPayload } from './preset-validate';
-export type { PresetFile, PresetBankFile, PresetParse } from './preset-validate';
+export type {
+  PresetFile, PresetBankFile, PresetParse, PresetValidateOptions,
+} from './preset-validate';
 
 export type ImportPolicy = 'rename' | 'overwrite' | 'skip';
 export type ImportStatus = 'new' | 'identical' | 'conflict';
@@ -81,14 +84,21 @@ export function bankFilename(name: string): string {
  * build may carry ids this one has never seen, and `restore` ignores them
  * (see preset-validate.ts).
  */
-export function parsePresetPayload(text: string): PresetParse {
+/**
+ * The app's door onto the validator (preset-authoring.md REQ-8). Given a `bus`
+ * it runs the registry checks too, but asks for them as **warnings**: the bus
+ * clamps an out-of-range value and ignores an unknown id, so the sound still
+ * loads and refusing the file would be a regression. `ok` is decided by the
+ * structural layer, with or without the bus.
+ */
+export function parsePresetPayload(text: string, bus?: ParamBus): PresetParse {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (e) {
     return { ok: false, errors: ['File is not valid JSON: ' + (e as Error).message] };
   }
-  return validatePresetPayload(parsed);
+  return validatePresetPayload(parsed, bus, { semantics: 'warning' });
 }
 
 /** Is this payload a preset/bank file? Used by the *song* importer to hand the

@@ -3,7 +3,12 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 23  # v23: REQ-17 — applying a song is click-free. apply()'s double write
+version: 25  # v25: REQ-18 also covers the two demo-load paths, which collapsed
+             #      their parse errors to errors[0] before the dialog saw them
+             # v24: REQ-18 — a rejected import can be copied in full. The dialog
+             #      still shows 8 of up to 50 messages; the rest used to die
+             #      with it
+             # v23: REQ-17 — applying a song is click-free. apply()'s double write
              #      collapses for plain AudioParams but not for the structural
              #      side effects, and four of those were audible on a demo click
              # v22: REQ-12 — one hand-authored built-in, not two: the "Zombie
@@ -367,6 +372,39 @@ demos, the load path **must stay backward compatible** as the format grows.
   no spec said loading a song must be click-free, and four separate edits shipped
   through the gap.
 
+- **REQ-18** (a rejected import is copyable in full, v24) — REQ-8's field-level
+  messages are worth nothing to a user who cannot get them out of the dialog.
+  The **Import failed** alert renders the **first 8** and summarises the rest as
+  `…and N more` — up to **42 hidden**, since the validator collects `MAX_ERRORS`
+  (50) before it stops walking. Those messages are written nowhere else: no
+  console, no log, no retained state. Dismissing the dialog used to destroy the
+  entire diagnosis.
+
+  So the alert carries a **Copy errors** button ([dialog](dialog.md) REQ-9) whose
+  payload is built from the **error array**, not the rendered paragraph
+  ([failure-report](failure-report.md) REQ-1) — every message, plus the app
+  version, a timestamp and the file name, so the paste stands on its own in a bug
+  report. Two supporting rules:
+  - The truncation line **names the button** (`…and N more — use Copy errors for
+    the full list`). A copy affordance nobody notices does not solve the problem
+    the truncation creates.
+  - When `errors.length` reached `MAX_ERRORS` the report says so, rather than
+    presenting a capped list as a complete one.
+
+  The same affordance covers the *other* import failures — apply-threw,
+  undecodable clips, a demo that would not load, a shared link that would not
+  resolve — since each is equally unrecoverable once dismissed.
+
+  *(v25)* A copy button is only worth what it is handed. Both demo-load paths
+  (the project zip and the JSON drop-in) ran their parse result through
+  `throw new Error(res.errors[0] ?? …)`, discarding `errors[1..]` **before** the
+  dialog existed — so the button faithfully copied the one message that survived.
+  A parse failure now goes to `showDemoFailure(name, errors)`, which shows the
+  first 8 and copies the array, exactly like `showImportErrors`; the surrounding
+  `try/catch` keeps handling genuine exceptions. The rule generalises: a surface
+  that reduces a list to its first element has already lost the diagnosis, and no
+  amount of copying downstream gets it back.
+
 ## Technical design
 
 ### Contract / public interface
@@ -513,8 +551,9 @@ lenient (additive — do NOT require):
 surface:
   fromJSON(text): SongFile | null              # back-compat: returns null on any failure
   parse(text) / parseFile(File): SongValidation # { ok:false, errors:[ "drumBanks[1][3][7].ratchet must be an integer 1..4", ... ] }
-  song-panel Import: shows the first N errors via alertDialog (see dialog.md);
-                     applySong wrapped in try/catch
+  song-panel Import: shows the first 8 errors via alertDialog (see dialog.md),
+                     and hands the WHOLE array to its Copy button   # REQ-18, v24
+                     applySong wrapped in try/catch (that failure copies too)
 ```
 
 Four surfaces feed bytes into that one path (`SongPanel.importBytes`): the
@@ -783,6 +822,21 @@ Scenario: A non-number param is rejected (validation)
   When validateSongFile runs
   Then it returns { ok: false } naming the offending param key
 # pinned by: tests/state/song-validate.test.ts
+
+Scenario: A rejected import copies every error, not the eight shown (v24, REQ-18)
+  Given an import whose validation produced more errors than the dialog renders
+  When the user clicks Copy errors on the Import failed dialog
+  Then the clipboard holds messages the dialog never displayed
+  And the truncation line told the user that button existed
+# pinned by: e2e/song-link.spec.ts, tests/ui/failure-report.test.ts
+
+Scenario: A demo that fails to parse reports every error (v25, REQ-18)
+  Given a demo file whose validation produced several messages
+  When the demo is clicked and the load fails
+  Then the dialog's copy report holds all of them, not only the first
+# not pinned: reaching it needs a failing fetch inside a fully built song panel,
+# which has no unit harness. The reduction it removes is pinned one level down by
+# tests/ui/failure-report.test.ts ("carries every message").
 
 Scenario: Every shipped demo conforms to the validator (schema↔reality)
   Given each built-in and each src/state/demos/*.json drop-in

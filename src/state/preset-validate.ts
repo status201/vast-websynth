@@ -20,7 +20,14 @@ import { MAX_ERRORS, isObject, describeValue, type AddError } from './validate-u
  *   contract: an agent writing a sound wants "osc1.shape is not a parameter"
  *   now, not a silently-clamped patch later.
  *
- * `parsePresetPayload` (preset-file.ts) passes no bus; the MCP tools do.
+ * Both callers pass a bus, and they want opposite severities (REQ-8): the MCP
+ * tools take the semantic findings as **errors** — an author wants the file
+ * refused until it says what they meant — while `parsePresetPayload`
+ * (preset-file.ts) asks for **warnings**, because the importer already has the
+ * file and wants it to load. `ParamBus.set` clamps a range and stores an unknown
+ * id inertly, so those cost the sound fidelity and nothing else; refusing a whole
+ * bank over one is a regression, and forward compatibility depends on not doing
+ * it. `ok` is decided by the structural layer either way.
  */
 
 export const PRESET_FORMAT = 'websynth-preset';
@@ -52,6 +59,29 @@ export type PresetParse =
     }
   | { ok: false; errors: string[] };
 
+/** How a caller wants the findings that need the registry reported (REQ-8). */
+export interface PresetValidateOptions {
+  /**
+   * An unknown id, an out-of-range value, a fractional choice index.
+   * `'error'` (default) refuses the file — the authoring contract the MCP tools
+   * hold agents to. `'warning'` accepts it and says what will not survive — what
+   * the app's importer wants, since the bus clamps and ignores rather than
+   * throwing.
+   */
+  semantics?: 'error' | 'warning';
+}
+
+/**
+ * Where a finding goes. `structural` always refuses the file; `songSetting`
+ * always only warns; `semantic` is whichever of the two the caller asked for
+ * (REQ-8) — which is the only knob, so it is resolved once, by the entry point.
+ */
+interface Sinks {
+  structural: AddError;
+  semantic: AddError;
+  songSetting: AddError;
+}
+
 /**
  * One `{id: number}` map. Returns the snapshot, or null when the value is not
  * even a map. `bus` turns on the semantic layer.
@@ -60,17 +90,16 @@ function checkSnapshot(
   path: string,
   raw: unknown,
   bus: ParamBus | undefined,
-  add: AddError,
-  warn: AddError,
+  sinks: Sinks,
 ): Snapshot | null {
   if (!isObject(raw)) {
-    add(`${path} must be a map of parameter id -> number (got ${describeValue(raw)}).`);
+    sinks.structural(`${path} must be a map of parameter id -> number (got ${describeValue(raw)}).`);
     return null;
   }
   const snap: Snapshot = {};
   for (const [id, value] of Object.entries(raw)) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      add(`${path}."${id}" must be a finite number (got ${describeValue(value)}).`);
+      sinks.structural(`${path}."${id}" must be a finite number (got ${describeValue(value)}).`);
       continue;
     }
     snap[id] = value;
@@ -78,21 +107,21 @@ function checkSnapshot(
 
     const def = bus.def(id);
     if (!def) {
-      add(`${path}."${id}" is not a parameter of this synth.`);
+      sinks.semantic(`${path}."${id}" is not a parameter of this synth.`);
       continue;
     }
     if (value < def.min || value > def.max) {
-      add(`${path}."${id}" must be ${def.min}..${def.max} (got ${value}).`);
+      sinks.semantic(`${path}."${id}" must be ${def.min}..${def.max} (got ${value}).`);
     } else if (def.labels && def.labels.length > 0 && !Number.isInteger(value)) {
       // A choice parameter's value IS the index into its label list; a fraction
       // lands between two settings and behaves like neither.
       const map = def.labels.map((l, i) => `${i}=${l}`).join(' ');
-      add(`${path}."${id}" is a choice parameter — use an integer index (${map}).`);
+      sinks.semantic(`${path}."${id}" is a choice parameter — use an integer index (${map}).`);
     }
     if (!isPatchParam(id)) {
       // Legal (a snapshot captures the whole bus) but rarely intended: loading
       // the preset would also move the tempo / a machine's state.
-      warn(`${path}."${id}" is a song setting, not part of a sound — loading this preset would change it.`);
+      sinks.songSetting(`${path}."${id}" is a song setting, not part of a sound — loading this preset would change it.`);
     }
   }
   return snap;
@@ -104,7 +133,11 @@ function checkSnapshot(
  * `.websynth.json` tail with songs, so a wrong-door mistake is the likely cause
  * and the message should say so.
  */
-export function validatePresetPayload(value: unknown, bus?: ParamBus): PresetParse {
+export function validatePresetPayload(
+  value: unknown,
+  bus?: ParamBus,
+  opts?: PresetValidateOptions,
+): PresetParse {
   if (!isObject(value)) {
     return { ok: false, errors: ['File is not a preset or bank (expected a JSON object).'] };
   }
@@ -112,12 +145,18 @@ export function validatePresetPayload(value: unknown, bus?: ParamBus): PresetPar
   const warnings: string[] = [];
   const add: AddError = (msg) => { if (errors.length < MAX_ERRORS) errors.push(msg); };
   const warn: AddError = (msg) => { if (warnings.length < MAX_ERRORS) warnings.push(msg); };
+  // The one place severity is decided (REQ-8); below here nothing asks again.
+  const sinks: Sinks = {
+    structural: add,
+    semantic: opts?.semantics === 'warning' ? warn : add,
+    songSetting: warn,
+  };
 
   const format = value['format'];
 
   if (format === PRESET_FORMAT) {
     const name = typeof value['name'] === 'string' && value['name'] ? value['name'] : 'preset';
-    const snap = checkSnapshot('params', value['params'], bus, add, warn);
+    const snap = checkSnapshot('params', value['params'], bus, sinks);
     if (!snap) {
       // Keep the pre-existing one-liner for the "no params at all" case; the
       // per-key paths above cover everything more specific.
@@ -133,7 +172,7 @@ export function validatePresetPayload(value: unknown, bus?: ParamBus): PresetPar
     if (!isObject(raw)) return { ok: false, errors: ['Bank file has no `presets` map.'] };
     const presets: Record<string, Snapshot> = {};
     for (const [n, snap] of Object.entries(raw)) {
-      const checked = checkSnapshot(`presets["${n}"]`, snap, bus, add, warn);
+      const checked = checkSnapshot(`presets["${n}"]`, snap, bus, sinks);
       if (checked) presets[n] = checked;
       else if (errors.length >= MAX_ERRORS) break;
     }
