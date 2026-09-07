@@ -128,6 +128,16 @@
     ],
     "blurb": "French house, built around the ducker: the kick keys it, everything else breathes. Two bars of silence, a filter riser, then the drop. Mute the drum lane and the pumping stops with it."
   },
+  "Neon.websynth.json": {
+    "name": "Neon",
+    "bpm": 124,
+    "bars": 12,
+    "uses": [
+      "seq",
+      "drums",
+      "motion"
+    ]
+  },
   "Night_Rider.websynth.json": {
     "name": "Night Rider",
     "bpm": 125,
