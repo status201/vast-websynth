@@ -76,7 +76,7 @@ describe('Presets', () => {
     // (sidechain-ducking.md REQ-6, presets.md REQ-2b).
     it('sets every synth-FX on flag in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
-        for (const fx of ['dist', 'wah', 'phaser', 'delay', 'reverb', 'duck']) {
+        for (const fx of ['eq', 'dist', 'wah', 'phaser', 'delay', 'reverb', 'duck']) {
           expect(snap[`fx.${fx}.on`], `${name}: 'fx.${fx}.on' missing`).toBeTypeOf('number');
         }
       }

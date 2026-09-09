@@ -4,6 +4,7 @@ import { Compressor } from './compressor';
 import { Delay } from './delay';
 import { Distortion } from './distortion';
 import { Ducker } from './ducker';
+import { Equalizer } from './eq';
 import { Phaser } from './phaser';
 import { Reverb } from './reverb';
 import { Wah } from './wah';
@@ -54,7 +55,12 @@ function makeChain<E extends Record<string, Effect>>(
 }
 
 /**
- * Synth voice bus: distortion → wah → phaser → delay → reverb → duck.
+ * Synth voice bus: eq → distortion → wah → phaser → delay → reverb → duck.
+ *
+ * The **EQ heads every chain** (equalizer.md REQ-1): it shapes what the drive
+ * bites on rather than filtering the result, and on this bus it is also the
+ * cheap position — the synth path is 1-channel until the reverb, so ten
+ * 1-channel biquads instead of ten 2-channel ones.
  *
  * The ducker sits **last** so the reverb tail ducks with everything else —
  * that is the sound (sidechain-ducking.md REQ-8).
@@ -62,8 +68,11 @@ function makeChain<E extends Record<string, Effect>>(
 export function createSynthChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker }> {
+): FxChain<{
+  eq: Equalizer; dist: Distortion; wah: Wah; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker;
+}> {
   const fx = {
+    eq: new Equalizer(ctx),
     dist: new Distortion(ctx, opts.dist),
     wah: new Wah(ctx),
     phaser: new Phaser(ctx),
@@ -71,7 +80,8 @@ export function createSynthChain(
     reverb: new Reverb(ctx, opts.reverb),
     duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['dist', 'wah', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
+  return makeChain(fx, ['eq', 'dist', 'wah', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
+    fx.eq.bind(bus, 'fx.eq');
     fx.dist.bind(bus, 'fx.dist');
     fx.wah.bind(bus, 'fx.wah');
     fx.phaser.bind(bus, 'fx.phaser');
@@ -82,20 +92,26 @@ export function createSynthChain(
 }
 
 /**
- * Drum bus: compressor → phaser → delay → reverb. The 1176-style FET
- * compressor sits first so it smashes the dry hits, not the FX wash.
+ * Drum bus: eq → compressor → phaser → delay → reverb. The 1176-style FET
+ * compressor sits first among the *effects* so it smashes the dry hits, not the
+ * FX wash — and the EQ sits ahead of even that, which is the point: a highpass
+ * before the compressor stops the kick pumping the whole kit (equalizer.md
+ * REQ-1). Filtering a compressor's input is a different tool from filtering its
+ * output, and this is the one worth having.
  */
 export function createDrumChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ comp: Compressor; phaser: Phaser; delay: Delay; reverb: Reverb }> {
+): FxChain<{ eq: Equalizer; comp: Compressor; phaser: Phaser; delay: Delay; reverb: Reverb }> {
   const fx = {
+    eq: new Equalizer(ctx),
     comp: new Compressor(ctx, 'fet'),
     phaser: new Phaser(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
   };
-  return makeChain(fx, ['comp', 'phaser', 'delay', 'reverb'], (bus) => {
+  return makeChain(fx, ['eq', 'comp', 'phaser', 'delay', 'reverb'], (bus) => {
+    fx.eq.bind(bus, 'fx.drum.eq');
     fx.phaser.bind(bus, 'fx.drum.phaser');
     fx.delay.bind(bus, 'fx.drum.delay');
     fx.reverb.bind(bus, 'fx.drum.reverb');
@@ -104,19 +120,23 @@ export function createDrumChain(
   });
 }
 
-/** Sampler bus: distortion → phaser → delay → reverb → duck (no wah). */
+/** Sampler bus: eq → distortion → phaser → delay → reverb → duck (no wah). */
 export function createSamplerChain(
   ctx: AudioContext,
   opts: FxChainOpts = {},
-): FxChain<{ dist: Distortion; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker }> {
+): FxChain<{
+  eq: Equalizer; dist: Distortion; phaser: Phaser; delay: Delay; reverb: Reverb; duck: Ducker;
+}> {
   const fx = {
+    eq: new Equalizer(ctx),
     dist: new Distortion(ctx, opts.dist),
     phaser: new Phaser(ctx),
     delay: new Delay(ctx),
     reverb: new Reverb(ctx, opts.reverb),
     duck: new Ducker(ctx),
   };
-  return makeChain(fx, ['dist', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
+  return makeChain(fx, ['eq', 'dist', 'phaser', 'delay', 'reverb', 'duck'], (bus) => {
+    fx.eq.bind(bus, 'fx.sampler.eq');
     fx.dist.bind(bus, 'fx.sampler.dist');
     fx.phaser.bind(bus, 'fx.sampler.phaser');
     fx.delay.bind(bus, 'fx.sampler.delay');

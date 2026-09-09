@@ -18,6 +18,24 @@
   cursor: pointer;
 }
 
+/* The row heading, ahead of the tabs (equalizer.md REQ-9). Wears the tab's own
+   type so the header reads as one line of legend rather than a label bolted
+   onto a control strip — same size, tracking and weight, dimmer, and inert. */
+.title {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px 8px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-secondary);
+  font-weight: 700;
+  font-family: var(--serif);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
 .tab {
   display: inline-flex;
   align-items: center;

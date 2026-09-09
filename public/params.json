@@ -2,7 +2,7 @@
   "format": "websynth-params",
   "version": 1,
   "songVersion": 7,
-  "count": 359,
+  "count": 395,
   "params": [
     {
       "id": "voicing.mode",
@@ -475,6 +475,98 @@
       ]
     },
     {
+      "id": "fx.eq.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": true,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.eq.hp",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "patch": true,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.eq.b0",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b1",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b2",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b3",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b4",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b5",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b6",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.b7",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": true
+    },
+    {
+      "id": "fx.eq.lp",
+      "min": 200,
+      "max": 20000,
+      "default": 20000,
+      "patch": true,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.eq.width",
+      "min": 0.4,
+      "max": 8,
+      "default": 1,
+      "patch": true
+    },
+    {
       "id": "fx.dist.on",
       "min": 0,
       "max": 1,
@@ -796,6 +888,98 @@
       ]
     },
     {
+      "id": "fx.drum.eq.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.drum.eq.hp",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.drum.eq.b0",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b1",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b2",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b3",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b4",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b5",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b6",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.b7",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.drum.eq.lp",
+      "min": 200,
+      "max": 20000,
+      "default": 20000,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.drum.eq.width",
+      "min": 0.4,
+      "max": 8,
+      "default": 1,
+      "patch": false
+    },
+    {
       "id": "fx.drum.phaser.on",
       "min": 0,
       "max": 1,
@@ -1021,6 +1205,98 @@
       "min": 0,
       "max": 24,
       "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.on",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "patch": false,
+      "step": 1,
+      "taper": "discrete",
+      "labels": [
+        "off",
+        "on"
+      ]
+    },
+    {
+      "id": "fx.sampler.eq.hp",
+      "min": 20,
+      "max": 2000,
+      "default": 20,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.sampler.eq.b0",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b1",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b2",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b3",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b4",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b5",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b6",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.b7",
+      "min": -18,
+      "max": 18,
+      "default": 0,
+      "patch": false
+    },
+    {
+      "id": "fx.sampler.eq.lp",
+      "min": 200,
+      "max": 20000,
+      "default": 20000,
+      "patch": false,
+      "taper": "exp"
+    },
+    {
+      "id": "fx.sampler.eq.width",
+      "min": 0.4,
+      "max": 8,
+      "default": 1,
       "patch": false
     },
     {

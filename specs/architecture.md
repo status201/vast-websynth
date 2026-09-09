@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 7   # v7: REQ-3 — the context is not created suspended, it is created
+version: 8   # v8: the audio graph gains a per-lane EQ at the HEAD of all
+             #     three insert chains (equalizer.md); +1 persistence key
+             # v7: REQ-3 — the context is not created suspended, it is created
              #     however the BROWSER's autoplay policy says; the graph is
              #     silent until a deliberate fade either way (audio-lifecycle v6)
              # v6: the audio graph gains a duck stage on the synth and sampler
@@ -407,15 +409,21 @@ back into the engine.
 ### Audio graph (system diagram)
 
 ```
-voices ─→ voiceBus ─→ distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
-            drumBus ─→ drumComp → drumPhaser → drumDelay → drumReverb ─────────────┤
-            samplerBus  (+ sampler dist/phaser/delay/reverb/duck) ────────────────┤
-                                                                                   ▼
+voices ─→ voiceBus ─→ eq → distortion → wah → phaser → delay → reverb → duck → synthPan ─┐
+            drumBus ─→ eq → drumComp → drumPhaser → drumDelay → drumReverb ──────────────┤
+            samplerBus ─→ eq (+ sampler dist/phaser/delay/reverb/duck) ──────────────────┤
+                                                                                         ▼
         preMaster ─→ djLow ─→ djHigh ─→ masterComp ─→ analyser ─→ master ─→ destination
 ```
 
 - The **drum bus and the sampler bus join at `preMaster`**, bypassing the synth FX
   chain.
+- The **eq heads every chain** ([features/equalizer.md](features/equalizer.md)).
+  Head rather than tail on all three: it shapes what the distortion drives and
+  what the drum compressor reacts to, and on the synth bus it is also the cheap
+  position, since that path is 1-channel until the reverb. Ten native biquads
+  per lane, no worklet, and ADR-012 disconnects the lot while it is off — which
+  it is by default.
 - `synthPan` is the synth channel's auto-panner, swept by the LFO's `pan`
   destination and centred (a no-op) otherwise. It is deliberately the **last**
   synth stage so that nothing upstream of it pays for two channels it does not
@@ -500,6 +508,8 @@ localStorage:
   websynth.keyboard.layout : qwerty|azerty|qwertz|dvorak|auto  # state/keyboard-layout.ts — device-scoped, NOT a patch param
   websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
   websynth.ui.collapsed.fx      : FX-section collapse state    # ui/app.ts
+  websynth.ui.collapsed.eq      : EQUALIZER-section collapse state (default folded)
+                                  # ui/components/tabs.ts (features/equalizer.md REQ-9)
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
   websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
                                                         # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-9)

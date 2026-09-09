@@ -85,6 +85,7 @@ npm run bench:audio -- --name solo --demo "Night Rider" --set drum.mute=1 --set 
 | `--url <url>` | drive an already-running server instead of spawning vite |
 | `--format wav\|mp3` | capture format (default `wav`; metrics need `wav`) |
 | `--headed` | show the browser, for debugging |
+| `--channel <name>` | drive an **installed** browser (`chrome` / `msedge`) instead of Playwright's pinned build. Chromium only — Gecko needs Playwright's *patched* Firefox, so a stock install will not do. For machines where the pinned download is unavailable |
 
 **Hearing the sampler needs `--project` or `--sample`, and they answer different
 questions.** A *song* stores only its slots' filenames ([sampler](../features/sampler.md)
@@ -168,6 +169,10 @@ cannot come back silently. The render finds it; the unit test keeps it found.
   every bin, so per-channel processing happens to agree. Reach for broadband
   material with an independent per-channel component, and confirm the test fails
   against the bug before trusting it.
+- **When the pinned browser cannot be downloaded**, `--channel chrome` renders
+  through an installed Chrome. It covers the Blink half only, so a change to
+  `AudioParam` automation still owes a Gecko take before it is signed off — see
+  the next point, which is the reason that matters.
 - **A browser is part of the graph.** `--browser firefox` renders the same take
   through Gecko instead of Blink. The two disagree on `AudioParam` automation in
   ways that are audible and that no unit test can reach: the mock `AudioParam`

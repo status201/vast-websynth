@@ -1,0 +1,128 @@
+/* The EQUALIZER section's pages — specs/features/equalizer.md.
+   The section's chrome (panel box, tab bar, fold caret) is tabs.module.css:
+   this is only what sits inside one lane's page. */
+
+/* Cancels the tab shell's own horizontal padding (tabs.module.css `.content`
+   is `10px 12px`) — passed as TabOptions.pageClass rather than changed there,
+   because that shell is shared with the pattern row (equalizer.md REQ-18).
+   The vertical 10px stays: it is the gap to the tab bar and to the keyboard. */
+.pageShell {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* The page mirrors the scope row above it (REQ-18): one gutter-wide column of
+   controls, then the graph filling the rest.
+
+   The `- 1px` is this section's own left border. The wheels box sits directly in
+   `.bottom` and starts at its content edge; this page sits inside a bordered
+   panel and starts one pixel in — so subtracting it is what puts the graph's
+   left edge on exactly the same x as the scope canvas above. */
+.page {
+  display: grid;
+  grid-template-columns: calc(var(--wheel-col) - 1px) 1fr;
+  gap: 10px;
+  /* `.content` is a flex container (tabs.module.css), so without this the page
+     is sized by its contents and the `1fr` column collapses to whatever the
+     canvas happens to be — which is exactly why the graph shipped ~300px wide
+     while the panel around it was full width. */
+  flex: 1;
+  min-width: 0;
+}
+
+/* Everything that is not the graph, stacked to fit the 130px floor `--scope-h`
+   can take (SCOPE_H_MIN): a 32px switch row, a 32px dropdown and a 58px knob
+   row, with 4px between. Top-aligned, so a taller scope grows the graph and
+   leaves this alone rather than stretching the gaps. */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+/* ON and RESET share a row — together they just fit the column's ~112px. */
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.switchRow > * {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* The Dropdown's own `.toggle` declares `min-width: 120px` — the whole column —
+   so it is reset here rather than in the component: this is the one consumer
+   that is narrower than the control was designed for. `Dropdown.el` carries the
+   global `dropdown` class deliberately, which is what makes this reachable
+   without a component change. Its menu is `position: fixed`, so it escapes the
+   shell's `overflow: auto` and is not clipped by this narrow column. */
+.presetWrap {
+  min-width: 0;
+}
+
+.presetWrap :global(.dropdown) {
+  display: block;
+  min-width: 0;
+}
+
+.presetWrap :global(.dropdown) > button {
+  min-width: 0;
+  width: 100%;
+}
+
+/* HP · LP · WIDTH side by side, where the three wheels are in the row above.
+   Three knobs at size 28 measure 3 x (28 + 8) + 2 x 2 = 112px — the column's
+   usable width, which is what fixes the knob size. */
+.knobs {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The plot's cell. Its height is the scope's, so the grip on the scope's top
+   edge sizes both and the two panels can never be resized out of alignment
+   (REQ-18; scope.md REQ-19 owns the property). The CSS default matches the
+   scope's, so an untouched session renders them equal too.
+
+   The 8px padding is what makes the *screens* line up rather than merely the
+   boxes: `.scopeWrap` insets its canvas by 8px of padding (and `.scopeScreen`
+   by `inset: 8px`), so the dark rectangle a reader actually sees starts 9px
+   inside the scope's panel. Matching that inset here puts the two dark
+   rectangles on the same x — which is the alignment being asked for. No border
+   of its own: the section is already a bordered panel, and the recessed look
+   belongs to the screen below, exactly as it does in the scope. */
+.graphWrap {
+  position: relative;
+  min-width: 0;
+  height: var(--scope-h, 130px);
+  padding: 8px;
+}
+
+/* The screen itself, wearing what `.scopeScreen` + `scope.module.css .root`
+   wear together, so the two read as the same piece of hardware. */
+.graph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #0a0604 0%, #050302 100%);
+  border: 1px solid #2a1c10;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(244, 205, 94, 0.05);
+  cursor: crosshair;
+}
+
+/* No phone override: the scope row keeps its `--wheel-col 1fr` grid at every
+   width, so mirroring it means this does too. At 360px the graph still gets
+   ~230px, exactly as the scope does. */

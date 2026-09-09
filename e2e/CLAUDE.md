@@ -18,6 +18,28 @@ all*. `startAudio` takes whichever gate it is given and returns once the
 which gate appears; it covers the blocked branch by overriding `launchOptions.args`
 in its own describe block.
 
+## When the pinned browser will not download
+
+`npm run e2e` drives Playwright's own pinned Chromium. Where that download is
+blocked — a locked-down network, or an IPv6 route to `storage.googleapis.com`
+that black-holes, which is what the installer's 30 s timeout usually means — use
+the **installed** Chrome instead:
+
+```
+npm run e2e:chrome        # = playwright test --config=pw-chrome.config.ts
+```
+
+`pw-chrome.config.ts` is the repo config with `channel: 'chrome'` layered over
+every project; nothing else changes. It is a **local escape hatch, not the
+contract** — CI runs the pinned build, and a spec that passes only under one of
+them is a spec that has found something. Two known differences to keep in mind:
+real Chrome throttles background tabs where the headless shell does not (which
+`motion.spec.ts` REQ-20 is sensitive to), and it takes the launch flags from
+`playwright.config.ts` unchanged.
+
+There is no Firefox equivalent: Playwright needs its own *patched* Gecko build,
+so a stock Firefox cannot stand in.
+
 ## Selecting
 
 CSS Modules hash every class name, so select by `data-testid`, text or role.

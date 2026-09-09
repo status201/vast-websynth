@@ -64,11 +64,38 @@ function isMentioned(id: string): boolean {
 }
 
 /**
+ * Regex sources matching how a suffix may be *written* in the source: literally,
+ * or with one of its index segments interpolated (`b0` ← `` b${i} ``).
+ *
+ * Split out because a suffix can carry an index of its own — see `boundByPrefix`.
+ */
+function suffixForms(suffix: string, esc: (s: string) => string): string[] {
+  const segs = suffix.split('.');
+  const forms = [segs.map(esc).join('\\.')];
+  segs.forEach((seg, i) => {
+    const m = /^([A-Za-z]*)(\d+)$/.exec(seg);
+    if (!m) return;
+    forms.push(segs
+      .map((s, j) => (j === i ? `${esc(m[1]!)}\\$\\{[^}]+\\}` : esc(s)))
+      .join('\\.'));
+  });
+  return forms;
+}
+
+/**
  * ADR-008's self-wiring: a component is handed a prefix and subscribes its own
  * suffixes off it, so `fx.drum.delay.on` exists in the source only as the prefix
  * `'fx.drum.delay'` (passed to `FxChain.bind`) meeting `` `${prefix}.on` ``
  * (inside `bindBypassMix`). Matching those two halves is what tells this scan the
  * param is genuinely wired rather than merely spelled somewhere.
+ *
+ * The suffix may itself be built from a loop index, which is where the two
+ * mechanisms this file knows about meet: the EQ's `fx.eq.b0` appears in the
+ * source only as `` `${prefix}.b${i}` ``, with the prefix interpolated (ADR-008)
+ * *and* the index interpolated (an indexed family) in the same template. Handling
+ * only one at a time was enough while no param needed both; `suffixForms` is what
+ * makes the pair reachable, and without it a genuinely wired band would be
+ * reported as an orphan.
  */
 function boundByPrefix(id: string, esc: (s: string) => string): boolean {
   const parts = id.split('.');
@@ -76,7 +103,9 @@ function boundByPrefix(id: string, esc: (s: string) => string): boolean {
     const prefix = parts.slice(0, k).join('.');
     const suffix = parts.slice(k).join('.');
     if (!HAYSTACK.includes(`'${prefix}'`) && !HAYSTACK.includes(`\`${prefix}\``)) continue;
-    if (new RegExp(`\\$\\{[^}]+\\}\\.${esc(suffix)}`).test(HAYSTACK)) return true;
+    for (const form of suffixForms(suffix, esc)) {
+      if (new RegExp(`\\$\\{[^}]+\\}\\.${form}`).test(HAYSTACK)) return true;
+    }
   }
   return false;
 }

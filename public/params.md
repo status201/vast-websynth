@@ -65,6 +65,18 @@ Schemas: [`llms.txt`](llms.txt).
 - "lfo2.wave": number  // range 0..3, default 0, step 1, values 0=sine 1=triangle 2=saw 3=square
 - "lfo2.dest": number  // range 0..6, default 0, step 1, values 0=off 1=cutoff 2=pitch 3=amp 4=pulse 5=pan 6=shape
 - "lfo2.sync": number  // range 0..18, default 0, step 1, values 0=free 1=1/1 2=1/1 D 3=1/1 T 4=1/2 5=1/2 D 6=1/2 T 7=1/4 8=1/4 D 9=1/4 T 10=1/8 11=1/8 D 12=1/8 T 13=1/16 14=1/16 D 15=1/16 T 16=1/32 17=1/32 D 18=1/32 T
+- "fx.eq.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.eq.hp": number  // range 20..2000, default 20
+- "fx.eq.b0": number  // range -18..18, default 0
+- "fx.eq.b1": number  // range -18..18, default 0
+- "fx.eq.b2": number  // range -18..18, default 0
+- "fx.eq.b3": number  // range -18..18, default 0
+- "fx.eq.b4": number  // range -18..18, default 0
+- "fx.eq.b5": number  // range -18..18, default 0
+- "fx.eq.b6": number  // range -18..18, default 0
+- "fx.eq.b7": number  // range -18..18, default 0
+- "fx.eq.lp": number  // range 200..20000, default 20000
+- "fx.eq.width": number  // range 0.4..8, default 1
 - "fx.dist.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.dist.drive": number  // range 0..1, default 0.3
 - "fx.dist.tone": number  // range 200..8000, default 3000
@@ -125,6 +137,18 @@ Schemas: [`llms.txt`](llms.txt).
 
 ## Song-only parameters (transport, arpeggiator, sequencer, drums, sampler)
 
+- "fx.drum.eq.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.drum.eq.hp": number  // range 20..2000, default 20
+- "fx.drum.eq.b0": number  // range -18..18, default 0
+- "fx.drum.eq.b1": number  // range -18..18, default 0
+- "fx.drum.eq.b2": number  // range -18..18, default 0
+- "fx.drum.eq.b3": number  // range -18..18, default 0
+- "fx.drum.eq.b4": number  // range -18..18, default 0
+- "fx.drum.eq.b5": number  // range -18..18, default 0
+- "fx.drum.eq.b6": number  // range -18..18, default 0
+- "fx.drum.eq.b7": number  // range -18..18, default 0
+- "fx.drum.eq.lp": number  // range 200..20000, default 20000
+- "fx.drum.eq.width": number  // range 0.4..8, default 1
 - "fx.drum.phaser.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.drum.phaser.rate": number  // range 0.05..5, default 0.5
 - "fx.drum.phaser.depth": number  // range 0..1, default 0.7
@@ -146,6 +170,18 @@ Schemas: [`llms.txt`](llms.txt).
 - "fx.drum.comp.attack": number  // range 0.00002..0.0008, default 0.0002
 - "fx.drum.comp.release": number  // range 0.05..1.1, default 0.25
 - "fx.drum.comp.makeup": number  // range 0..24, default 0
+- "fx.sampler.eq.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
+- "fx.sampler.eq.hp": number  // range 20..2000, default 20
+- "fx.sampler.eq.b0": number  // range -18..18, default 0
+- "fx.sampler.eq.b1": number  // range -18..18, default 0
+- "fx.sampler.eq.b2": number  // range -18..18, default 0
+- "fx.sampler.eq.b3": number  // range -18..18, default 0
+- "fx.sampler.eq.b4": number  // range -18..18, default 0
+- "fx.sampler.eq.b5": number  // range -18..18, default 0
+- "fx.sampler.eq.b6": number  // range -18..18, default 0
+- "fx.sampler.eq.b7": number  // range -18..18, default 0
+- "fx.sampler.eq.lp": number  // range 200..20000, default 20000
+- "fx.sampler.eq.width": number  // range 0.4..8, default 1
 - "fx.sampler.dist.on": number  // range 0..1, default 0, step 1, values 0=off 1=on
 - "fx.sampler.dist.drive": number  // range 0..1, default 0.3
 - "fx.sampler.dist.tone": number  // range 200..8000, default 3000

@@ -235,6 +235,7 @@ specs/
     voicing.md         ·  poly/mono, unison, glide, drift, pitch bend
     # — effects —
     effects.md         ·  distortion/wah/phaser/delay/reverb/duck insert chain
+    equalizer.md       ·  per-lane drawable 8-band EQ + HP/LP, first in each chain
     compressor.md      ·  the FET/VCA worklet compressors (message contract)
     sidechain-ducking.md · trigger-keyed ducker on synth/sampler, keyed by drum hits
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)

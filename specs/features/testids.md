@@ -3,7 +3,13 @@
 ```yaml
 id: testids
 status: implemented
-version: 17 # v17: scope-zones-toggle — the Spectrum-only problem-band overlay
+version: 18 # v18: the EQUALIZER section (equalizer.md REQ-11). Its tabs are
+            #      eq-NAMESPACED — tab-eq-seq, not tab-seq — because the
+            #      pattern row already owns the bare machine ids and a
+            #      TabContainer mints tab-<id>/panel-<id> from whatever it
+            #      is given. Shadowing them would make every machine-tab
+            #      selector ambiguous.
+            # v17: scope-zones-toggle — the Spectrum-only problem-band overlay
             #      (scope.md REQ-29)
             # v16: the preset import wizard's error strip, its copy button and
             #      the review step's warnings (presets.md REQ-16)
@@ -162,6 +168,15 @@ shell (app.ts):
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
   scope-resize-handle                # features/scope.md REQ-19 — drags the panel taller
   scope-zones-toggle                 # features/scope.md REQ-29 — hidden unless Spectrum
+  eq-section                         # features/equalizer.md — the whole folded section
+  tab-eq-<seq|drums|sampler>         # equalizer.md REQ-11 — NOT tab-<lane>: those
+  panel-eq-<seq|drums|sampler>       #   belong to the pattern row (REQ-6)
+  eq-graph-<lane> · eq-canvas-<lane> # the wrapper carries data-eq-curve (REQ-14);
+                                     #   the curve itself is canvas strokes, so the
+                                     #   eight bands mint no ids of their own
+  eq-preset-<lane> · eq-reset-<lane> # equalizer.md REQ-15
+  # Its switches and knobs mint from param ids like every other control
+  # (REQ-1): switch-fx.eq.on, knob-fx.drum.eq.hp, and so on.
   info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
                                             # ids follow function, not glyph order
                                             # (features/responsive-header.md REQ-6)

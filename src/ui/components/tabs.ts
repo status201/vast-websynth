@@ -16,6 +16,27 @@ export interface TabOptions {
   collapsibleStoreKey?: string;
   /** Initial collapsed state when no stored preference exists (see CollapseToggleOptions). */
   collapsedByDefault?: () => boolean;
+  /**
+   * A heading for the whole row, ahead of the tabs (equalizer.md REQ-9). The
+   * pattern row needs none — its seven tabs name themselves and a title would
+   * only repeat them — but a row of *lanes* under one feature does: without it
+   * "SEQUENCER / DRUM MACHINE / SAMPLER" says nothing about what the section is.
+   * Rendered as the bar's FIRST child, which matters: the fold caret carries
+   * `margin-left: auto`, so a title appended after it would be shoved to the
+   * right edge.
+   */
+  title?: string;
+  /**
+   * An extra class on every page shell (equalizer.md REQ-18). The shell carries
+   * `padding: 10px 12px` of its own, which is right for the pattern row and
+   * wrong for a panel whose content has to line up with something outside it —
+   * and the shell is shared, so it cannot be changed for one consumer.
+   *
+   * Deliberately a class rather than a padding option: the component states no
+   * policy about what a page may override, and the metrics stay in the
+   * consumer's own stylesheet where the thing being matched is also written.
+   */
+  pageClass?: string;
 }
 
 export class TabContainer {
@@ -36,6 +57,14 @@ export class TabContainer {
     this.tabBar = document.createElement('div');
     this.tabBar.className = styles.bar!;
     this.el.appendChild(this.tabBar);
+
+    // First child of the bar, before any tab — see TabOptions.title.
+    if (opts?.title) {
+      const title = document.createElement('span');
+      title.className = styles.title!;
+      title.textContent = opts.title;
+      this.tabBar.appendChild(title);
+    }
 
     this.body = document.createElement('div');
     this.body.className = styles.body!;
@@ -70,7 +99,9 @@ export class TabContainer {
       // Wrap content in a shell so visibility toggling doesn't fight the
       // child's own `display` rules.
       const shell = document.createElement('div');
-      shell.className = styles.content!;
+      shell.className = opts?.pageClass
+        ? `${styles.content!} ${opts.pageClass}`
+        : styles.content!;
       shell.dataset.tabId = t.id;
       shell.dataset.testid = `panel-${t.id}`;
       shell.appendChild(t.content);

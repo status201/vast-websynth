@@ -80,6 +80,7 @@ import { buildSamplerPanel } from './panels/sampler-panel';
 import type { MachinePanel } from './panels/step-panel-scaffold';
 import { buildMotionPanel } from './panels/motion-panel';
 import { buildSongPanel } from './panels/song-panel';
+import { buildEqPanel } from './panels/eq-panel';
 import { buildLfoPanel } from './panels/lfo-panel';
 import { createXyPadWindowController } from './components/xy-pad-window';
 import { createModMatrixWindowController } from './components/mod-matrix-window';
@@ -870,6 +871,15 @@ function buildBottom(
   top.appendChild(scopeWrap);
 
   bottom.appendChild(top);
+
+  // The EQUALIZER section, between the scope and the keyboard (equalizer.md
+  // REQ-16). It is an `auto` row of the same grid: `--scope-h` still sizes row 1
+  // alone, so the scope's resize handle is untouched, and an expanded EQ is
+  // absorbed by the keyboard's `minmax(160px, 1fr)` floor — the behaviour
+  // scope.md REQ-19 already describes for a grown scope, now with a second
+  // grower under it. Folded by default, so the resting layout costs only the bar.
+  const eq = buildEqPanel(bus, engine);
+  bottom.appendChild(eq.el);
 
   const kbWrap = document.createElement('div');
   kbWrap.className = styles.keyboardWrap!;

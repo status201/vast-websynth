@@ -544,12 +544,19 @@
 /* Row 1 (wheels | scope) is user-resizable between 130px and 260px via the drag
    handle on the scope's top edge — app.ts writes --scope-h inline. The default
    stays here in CSS, so no stored value (or no storage at all) renders exactly
-   as it always did. Row 2 floors the keyboard at 160px: a growing scope eats the
-   keyboard's slack, stops there, and only then does the page scroll.
+   as it always did. Row 2 is the EQUALIZER section, auto-sized: folded it is
+   just its tab bar, expanded it is as tall as its content (equalizer.md REQ-16).
+   Row 3 floors the keyboard at 160px: a growing scope OR an unfolded EQ eats
+   the keyboard's slack, stops there, and only then does the page scroll.
    See specs/features/scope.md REQ-19. */
 .bottom {
+  /* The left gutter both rows share: the PITCH/OCT/MOD wheels, and the
+     EQUALIZER section's control column, which must be EXACTLY as wide so the
+     graph lines up with the scope (equalizer.md REQ-18). Named here rather than
+     written twice — two literals would be equal only by coincidence. */
+  --wheel-col: 120px;
   display: grid;
-  grid-template-rows: var(--scope-h, 130px) minmax(160px, 1fr);
+  grid-template-rows: var(--scope-h, 130px) auto minmax(160px, 1fr);
   gap: 10px;
   margin: 0 var(--side-margin);
   min-height: 0;
@@ -557,7 +564,7 @@
 
 .bottomTop {
   display: grid;
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: var(--wheel-col) 1fr;
   gap: 10px;
   min-height: 0;
 }

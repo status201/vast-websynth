@@ -163,6 +163,11 @@ machine-status:  # src/ui/machine-status.ts (pure core + bus adapter)
 
 TabContainer:  # src/ui/components/tabs.ts
   Tab { id, label, content, indicator?: boolean }
+  # The lamp and its three states are reused verbatim by the EQUALIZER section
+  # (equalizer.md REQ-10), which is not a machine: there `off` is bypassed,
+  # `muted` is engaged-but-flat and `on` is engaged-and-shaping. Same idea —
+  # enabled, enabled-but-doing-nothing, audible — so the type is shared rather
+  # than copied. It stays inert there too: the switch lives inside the tab.
   reveal(id): void                              # expand-then-activate (REQ-7)
   setIndicator(id, state: MachineState): void   # writes led.dataset.state + aria-label
                                                 # no-op for tabs without `indicator`

@@ -18,6 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **An equalizer for each of the three machines.** A new **EQUALIZER** section
+  sits between the scope and the keyboard — folded away until you want it — with
+  a tab for the **Sequencer**, the **Drum Machine** and the **Sampler**. Each has
+  its own eight-band EQ, off until you switch it on, and the lamp in front of each
+  tab tells you which lanes are doing something. **Draw the shape you want**
+  straight onto the graph; double-tap a band to put it back. **HP** and **LP** are
+  real filters for cutting everything below or above them, and **WIDTH** takes each
+  band from a broad tone shape to a narrow notch for one problem frequency. The
+  presets cover the usual moves — Low Pass, High Pass, Band Pass, Telephone, Hiss
+  Removal, Rumble Cut, Warmth, Presence, Air — plus one per problem band the
+  Spectrum names: **De-Mud**, **De-Box**, **De-Nasal** and **De-Harsh**. The bands
+  sit on the same frequencies and the same scale the Spectrum draws, so a bump you
+  can see there is under the band that fixes it here. The panel lines up under the
+  scope — same control gutter as the PITCH/OCT/MOD wheels, same width, and it grows
+  when you drag the scope taller — so the curve and the spectrum read as one
+  instrument. Each EQ runs at the *front* of its lane, which is what makes a
+  highpass on the drums stop the kick pumping the rest of the kit.
+
 - **The Spectrum now tells you *which* frequency you are looking at.** It reads on
   a **logarithmic** scale from 20 Hz to 20 kHz — every octave the same width, like
   the keyboard — with a ruler along the bottom marked **100, 500, 1k, 5k** and

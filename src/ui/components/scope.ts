@@ -1,4 +1,5 @@
 import styles from '../styles/scope.module.css';
+import { haloText } from './canvas-text';
 
 export type ScopeMode = 'wave' | 'spectrum';
 export type ScopeChannels = 'mono' | 'stereo';
@@ -763,24 +764,6 @@ export class Scope {
     ctx.stroke();
   }
 
-  /**
-   * Every string this component draws goes through here (REQ-30): a dark outline
-   * under the fill, so a label sitting on top of a full-height bar stays readable.
-   * It is an outline rather than a `shadowBlur` — omnidirectional, crisper at
-   * 10px, and it does not reintroduce canvas shadows to a component that dropped
-   * them for cost (REQ-8). Eight short strings a frame is a different order of
-   * expense from shadowing every bar.
-   */
-  private haloText(
-    ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fill: string,
-  ): void {
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.strokeText(text, x, y);
-    ctx.fillStyle = fill;
-    ctx.fillText(text, x, y);
-  }
 
   private drawLabel(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
     ctx.font = LABEL_FONT;
@@ -788,7 +771,7 @@ export class Scope {
     // top-right) sit flush with the canvas corners, so a top-anchored label hides
     // behind them. Same dodge the peak-dB readout makes by centring. (REQ-6)
     ctx.textBaseline = 'bottom';
-    this.haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, 'rgba(244, 205, 94, 0.6)');
+    haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, 'rgba(244, 205, 94, 0.6)');
   }
 
   private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
@@ -942,7 +925,7 @@ export class Scope {
     ctx.textBaseline = 'top';
     for (const z of SPECTRUM_ZONES) {
       const mid = (this.xForFreq(r, z.from, fMax) + this.xForFreq(r, z.to, fMax)) / 2;
-      this.haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, 'rgba(244, 205, 94, 0.75)');
+      haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, 'rgba(244, 205, 94, 0.75)');
     }
     ctx.restore();
   }
@@ -965,7 +948,7 @@ export class Scope {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (const t of ticks) {
-      this.haloText(ctx, t.label, r.x + t.labelX, bottom - 5, 'rgba(244, 205, 94, 0.75)');
+      haloText(ctx, t.label, r.x + t.labelX, bottom - 5, 'rgba(244, 205, 94, 0.75)');
     }
     ctx.restore();
   }
@@ -1003,7 +986,7 @@ export class Scope {
     const left = frac > 0.5;
     ctx.textAlign = left ? 'right' : 'left';
     ctx.textBaseline = 'middle';
-    this.haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, '#f4cd5e');
+    haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, '#f4cd5e');
     ctx.restore();
   }
 
@@ -1028,7 +1011,7 @@ export class Scope {
     // Flip the label below the line when it's hugging the top edge.
     const near = y < r.y + 12;
     ctx.textBaseline = near ? 'top' : 'bottom';
-    this.haloText(ctx, `${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2, color);
+    haloText(ctx, `${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2, color);
     ctx.restore();
   }
 

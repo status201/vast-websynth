@@ -3,7 +3,17 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 13  # v13: the Spectrum gets a LOG frequency axis + a scale (REQ-26..31) —
+version: 15  # v15: REQ-19 -- --scope-h gains a SECOND consumer. The EQUALIZER
+             #      section sizes its graph from it (equalizer.md REQ-18), so
+             #      the grip below resizes two panels, not one. Deliberate:
+             #      two panels meant to read as one grid must not be
+             #      resizable apart. No change to this panel's behaviour.
+             # v14: REQ-30 -- haloText moves to ui/components/canvas-text.ts.
+             #      The EQ graph draws small mono labels over a saturated
+             #      fill for the same reason this does, and a second copy
+             #      would drift the first time either was tuned
+             #      (equalizer.md REQ-13). No behaviour change here.
+             # v13: the Spectrum gets a LOG frequency axis + a scale (REQ-26..31) —
              #      ticks at 100/500/1k/5k/10k, a Zones overlay naming the four
              #      problem bands, a hover cursor readout, and a halo behind every
              #      piece of canvas text so no label vanishes into a bright bar;
@@ -19,6 +29,7 @@ related:
   - audio-lifecycle
 source:
   - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19; v12 is entirely here
+  - src/ui/components/canvas-text.ts  # v14: haloText, hoisted out of this component
   - src/ui/components/resize-handle.ts
   - src/state/scope-height.ts
   - src/audio/engine.ts
@@ -309,7 +320,13 @@ Two consequences worth naming up front, because they are visible:
   `var(--scope-h, 130px)`, so the **default is still expressed in CSS** and the app
   renders identically when nothing has been dragged and when storage is unavailable.
   Because the wheel strips share that row, they resize with the scope — this is a
-  consequence of the row, not separate code. The handle is a **sibling of the canvas**
+  consequence of the row, not separate code.
+  - (v15) The EQUALIZER section's graph reads `--scope-h` too
+    ([equalizer](equalizer.md) REQ-18), so the grip now sizes **two** panels. It
+    is a different row of the same grid and is not part of this one's track — the
+    first track is still `var(--scope-h, 130px)` and this handle still writes only
+    that property. What the EQ borrows is the *number*, so the two panels cannot
+    be resized out of alignment with each other. The handle is a **sibling of the canvas**
   (appended to `.scopeWrap`, like the two corner toggle buttons), so a press on it can
   never reach the canvas `click` listener and reset the peak-hold (REQ-13) — the same
   structural dodge, with no `stopPropagation`. `Scope` itself is **not modified**: the
@@ -419,7 +436,14 @@ Two consequences worth naming up front, because they are visible:
   layouts is much cheaper than paying width everywhere — the other four ticks, the
   bands and the cursor readout all still say where you are.
 - **REQ-30** (v13) — **Every string the component draws gets a dark halo**: a
-  `strokeText` outline under the `fillText`, via one shared helper. This covers the
+  `strokeText` outline under the `fillText`, via one shared helper.
+  - (v14) That helper is `haloText` in `ui/components/canvas-text.ts`, no longer
+    private to this component: the EQ graph ([equalizer](equalizer.md) REQ-13)
+    draws the same small mono labels over the same kind of saturated fill, and
+    a copy would drift the first time either was tuned. It sets `lineWidth`,
+    `lineJoin`, `strokeStyle` and `fillStyle` without restoring them — a
+    `save`/`restore` pair per label was measurable in this loop — so the
+    `textAlign` invariant below is unchanged and still the caller's to keep. This covers the
   new tick, zone and cursor text *and retrofits* the two labels that predate it —
   the `L`/`R` channel tags (REQ-6) and the peak-dB readout (REQ-10) — which sit on
   top of bars bright enough to swallow them. It is an outline rather than a

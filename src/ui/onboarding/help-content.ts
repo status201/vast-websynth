@@ -229,6 +229,7 @@ export type TopicId =
   | 'lfo.rate'
   | 'lfo2.rate'
   | 'fx'
+  | 'fx.eq'
   | 'fx.dist'
   | 'fx.wah'
   | 'fx.wah.rate'
@@ -541,6 +542,15 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>DEPTH</strong> — intensity of the effect.</li>' +
       '<li><strong>FB</strong> — feedback; more makes it more resonant and metallic.</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend; the swirl is strongest around the middle.</li></ul>',
+  },
+  'fx.eq': {
+    title: 'Equalizer',
+    body:
+      '<p>Turns parts of the sound up or down by pitch. <strong>Drag across the graph</strong> to draw the shape you want — each dot is one band. Double-tap a band to reset it.</p>' +
+      '<ul><li><strong>HP</strong> — cuts everything below it. Cleans up rumble, and on the drums it stops the kick pumping the whole kit.</li>' +
+      '<li><strong>LP</strong> — cuts everything above it. Darkens the lane; good for hiss.</li>' +
+      '<li><strong>WIDTH</strong> — how wide each band reaches. Low is gentle tone-shaping, high is a narrow notch for one problem frequency.</li></ul>' +
+      '<p>The shaded stripes are the same four problem areas the Spectrum names — mud, boxy, nasal, harsh — so you can find a trouble spot on the scope and fix it here. The presets cover the usual moves.</p>',
   },
   'fx.delay': {
     title: 'Delay',

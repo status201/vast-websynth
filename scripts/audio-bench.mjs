@@ -51,6 +51,10 @@
 //   --url <url>        drive an already-running server (skips spawning vite)
 //   --format wav|mp3   capture format                                [default wav]
 //   --browser <engine> chromium | firefox                       [default chromium]
+//   --channel <name>   drive an INSTALLED browser instead of Playwright's own
+//                      pinned build (chrome | msedge). Chromium only — Playwright
+//                      needs its patched Firefox, so a stock install will not do.
+//                      Useful where the pinned build cannot be downloaded.
 //                      Render through a second Web Audio implementation. Gecko
 //                      and Blink disagree on AudioParam automation in ways that
 //                      are audible and that no unit test can see — the DJ filter
@@ -103,6 +107,12 @@ const opts = {
   url: flag('url'),
   format: flag('format', 'wav'),
   browser: flag('browser', 'chromium'),
+  // Use an INSTALLED browser instead of Playwright's own build
+  // (`--channel chrome` / `msedge`). Playwright normally drives a pinned
+  // download; where that download is unavailable — a locked-down network, a
+  // fresh dependency bump — this is the way to still get a take. Chromium
+  // only: Playwright needs its *patched* Firefox, so a stock one will not do.
+  channel: flag('channel'),
   headed: argv.includes('--headed'),
   sets: flags('set').filter(Boolean),
   // Export options (audio-export.md REQ-2/REQ-3), --demo mode only. Both
@@ -229,7 +239,10 @@ const outPath = `${benchDir}/${opts.name}${suffix}.${opts.format}`;
 
 // The launch takes no engine-specific arguments, so Firefox needs no extra
 // configuration; a take goes through the app's own RecorderController either way.
-const browser = await ENGINES[opts.browser].launch({ headless: !opts.headed });
+const browser = await ENGINES[opts.browser].launch({
+  headless: !opts.headed,
+  ...(opts.channel ? { channel: opts.channel } : {}),
+});
 let failure = null;
 try {
   const context = await browser.newContext({ acceptDownloads: true });

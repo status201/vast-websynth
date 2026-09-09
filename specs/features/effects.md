@@ -1,9 +1,14 @@
-# Insert effects (distortion · wah · phaser · delay · reverb · duck)
+# Insert effects (eq · distortion · wah · phaser · delay · reverb · duck)
 
 ```yaml
 id: effects
 status: implemented
-version: 10  # v10: REQ-12 — the wah gets makeup gain, and the bypass crossfade
+version: 11  # v11: REQ-3/REQ-4 — an EQ heads all three chains
+             #      (equalizer.md). It is a plain chain member, so nothing
+             #      here changes except the order arrays — but the order is
+             #      the contract, and the drum bus's "compressor first" now
+             #      means "first among the effects after the EQ"
+             # v10: REQ-12 — the wah gets makeup gain, and the bypass crossfade
              #      gets its own RAMP_BYPASS constant: toggling an effect was a
              #      16-19 dB level step in 10-20 ms — continuous samples, but
              #      plainly a click, and the wah was simply mixed too quiet
@@ -34,10 +39,12 @@ related:
   - fx-patch-decoration  # v7: dormant now that six panels divide the grid evenly
   - tempo-lock  # v6: the rate/time knobs' grid lock, shared with the LFO
   - sidechain-ducking    # v7: the sixth chain member (synth + sampler, last)
+  - equalizer            # v11: the member that heads all three chains
 source:
   - src/audio/effects/effect.ts        # Effect + BypassWrapper + bindBypassMix
   - src/audio/effects/fx-chain.ts      # synth/drum/sampler chain factories
   - src/audio/effects/ducker.ts        # v7: the trigger-keyed ducker
+  - src/audio/effects/eq.ts            # v11: the per-lane equalizer
   - src/audio/effects/distortion.ts
   - src/audio/effects/wah.ts
   - src/audio/effects/phaser.ts
@@ -149,16 +156,24 @@ subsets, so a song can colour each bus independently.
   the drain. `setFeedback` keeps recording the commanded value while quiesced so
   `quiesce(false)` restores what the knob says, not what it said at bypass time.
 
-- **REQ-3** — Synth voice bus chain order: distortion → wah → phaser → delay →
-  reverb → duck.
+- **REQ-3** — Synth voice bus chain order: eq → distortion → wah → phaser →
+  delay → reverb → duck.
+  - (v11) The **eq** is first, and is first on every chain
+    ([equalizer](equalizer.md) REQ-1): an EQ ahead of the drive shapes what the
+    drive bites on, and on this bus it is also the cheap position — the synth
+    path is 1-channel until the reverb, so its ten biquads run on one channel.
   - (v7) The **duck** is last so the reverb tail ducks with everything else,
     which is the sound it exists to make. It is the one member that is not a
     self-contained DSP span: its envelope is scheduled from drum-machine hits, so
     its behaviour is specified in
     [sidechain-ducking](sidechain-ducking.md) REQ-8 rather than here.
-- **REQ-4** — Drum bus: [compressor →] phaser → delay → reverb (the compressor
-  sits first so it smashes the dry hits, not the FX wash); sampler bus:
-  distortion → phaser → delay → reverb → duck.
+- **REQ-4** — Drum bus: [eq →] compressor → phaser → delay → reverb (the
+  compressor sits first *among the effects* so it smashes the dry hits, not the
+  FX wash); sampler bus: eq → distortion → phaser → delay → reverb → duck.
+  - (v11) The EQ sits ahead of even the drum compressor, which is the point
+    rather than an accident of ordering: a highpass before the compressor stops
+    the kick pumping the whole kit ([equalizer](equalizer.md) REQ-1). Filtering
+    a compressor's input is a different tool from filtering its output.
   - (v7) The drum bus deliberately has **no** ducker: its own hits are the key, so
     one there could only duck itself
     ([sidechain-ducking](sidechain-ducking.md) REQ-8).

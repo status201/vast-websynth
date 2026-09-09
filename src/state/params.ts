@@ -7,6 +7,11 @@ import { clamp, midiToHz } from '../utils/math';
 import { SYNC_LABELS } from '../utils/tempo';
 import { NOTE_LABELS, SCALE_LABELS, CHORD_LABELS } from '../utils/music';
 import { MOD_ROWS, MOD_SOURCE_LABELS, MOD_DEST_LABELS } from './mod-routing';
+// `eq.ts` imports only the `ParamBus` *type* back from here, so this pair is a
+// type-only cycle and erases at compile time — no runtime import loop.
+import {
+  EQ_BAND_COUNT, EQ_GAIN_MAX, EQ_HP_REF, EQ_LP_REF, EQ_WIDTH_DEFAULT,
+} from './eq';
 
 export type ParamId = string;
 
@@ -326,6 +331,12 @@ export function registerDefaults(bus: ParamBus): void {
     ...lfoParams('lfo'),
     ...lfoParams('lfo2'),
 
+    // ----- FX: Equalizer (first in the chain, so first in the catalogue) -----
+    // Registration order IS the published catalogue's order
+    // (param-catalogue.md REQ-1b), and the convention here is that it mirrors
+    // signal order — so the EQ leads each of the three blocks below.
+    ...eqParams('fx.eq'),
+
     // ----- FX: Distortion -----
     ...distParams('fx.dist'),
 
@@ -349,6 +360,9 @@ export function registerDefaults(bus: ParamBus): void {
     // ----- FX: Duck (last in the chain, so the reverb tail ducks too) -----
     ...duckParams('fx.duck'),
 
+    // ----- Drum FX: Equalizer (ahead of the compressor — equalizer.md REQ-1) -----
+    ...eqParams('fx.drum.eq'),
+
     // ----- Drum FX: Phaser -----
     ...phaserParams('fx.drum.phaser', { depth: 0.7, mix: 0.6 }),
 
@@ -365,6 +379,9 @@ export function registerDefaults(bus: ParamBus): void {
     { id: 'fx.drum.comp.attack', min: 0.00002, max: 0.0008, default: 0.0002, taper: 'exp', format: fmtUs },
     { id: 'fx.drum.comp.release', min: 0.05, max: 1.1, default: 0.25, taper: 'exp', format: fmtMs },
     { id: 'fx.drum.comp.makeup', min: 0, max: 24, default: 0, format: fmtDbRaw },
+
+    // ----- Sampler FX: Equalizer -----
+    ...eqParams('fx.sampler.eq'),
 
     // ----- Sampler FX: Distortion -----
     ...distParams('fx.sampler.dist'),
@@ -629,6 +646,46 @@ function reverbParams(prefix: string): ParamDef[] {
     { id: `${prefix}.size`, min: 0, max: 1, default: 0.6, format: fmtPct },
     { id: `${prefix}.damp`, min: 0, max: 1, default: 0.4, format: fmtPct },
     { id: `${prefix}.mix`, min: 0, max: 1, default: 0.25, format: fmtPct },
+  ];
+}
+
+/**
+ * The per-lane equalizer (equalizer.md REQ-6): a highpass, eight fixed band
+ * gains, a lowpass and one shared WIDTH.
+ *
+ * **Every default is a no-op** — `.on` off, every band at 0 dB, HP at its floor
+ * and LP at its ceiling — so ADR-006 holds at both levels: nothing existing
+ * changes, and the whole ten-filter span stays disconnected (ADR-012).
+ *
+ * The two filters format as `off` at that no-op extreme rather than `20Hz` /
+ * `20.00kHz`: a control that is doing nothing should say so rather than make the
+ * reader work out that it is at the end of its travel (ADR-014 law 5).
+ */
+function eqParams(prefix: string): ParamDef[] {
+  const bands = Array.from({ length: EQ_BAND_COUNT }, (_, i) => ({
+    id: `${prefix}.b${i}`,
+    min: -EQ_GAIN_MAX,
+    max: EQ_GAIN_MAX,
+    default: 0,
+    format: fmtDbRaw,
+  }));
+  return [
+    fxOnParam(prefix),
+    {
+      id: `${prefix}.hp`, min: EQ_HP_REF, max: 2000, default: EQ_HP_REF, taper: 'exp',
+      format: (v) => (v <= EQ_HP_REF + 0.5 ? 'off' : fmtHz(v)),
+    },
+    ...bands,
+    {
+      id: `${prefix}.lp`, min: 200, max: EQ_LP_REF, default: EQ_LP_REF, taper: 'exp',
+      format: (v) => (v >= EQ_LP_REF - 1 ? 'off' : fmtHz(v)),
+    },
+    // Q on the six peaking bands. The shelves ignore it (Web Audio fixes their
+    // slope at S = 1), which is a property of the node, not an omission here.
+    {
+      id: `${prefix}.width`, min: 0.4, max: 8, default: EQ_WIDTH_DEFAULT,
+      format: (v) => v.toFixed(1),
+    },
   ];
 }
 
