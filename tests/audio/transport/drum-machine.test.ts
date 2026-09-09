@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { DrumMachine } from '../../../src/audio/transport/drum-machine';
 import type { Performance } from '../../../src/audio/transport/performance';

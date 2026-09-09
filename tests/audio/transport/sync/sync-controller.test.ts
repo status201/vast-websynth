@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Clock } from '../../../../src/audio/transport/clock';
 import { TimeoutTimer } from '../../../../src/audio/transport/tick-timer';

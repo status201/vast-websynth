@@ -39,10 +39,51 @@ export default defineConfig({
     port: 5173,
   },
   test: {
-    // jsdom for the DOM-coupled component tests; pure-logic suites run
-    // fine under it too. Tests live outside `src/` so `tsc`/`npm run
-    // typecheck` are unaffected (tsconfig include is `src` only).
-    environment: 'jsdom',
-    include: ['tests/**/*.test.ts'],
+    // Tests live outside `src/` so `tsc` / `npm run typecheck` are unaffected
+    // (tsconfig include is `src` only).
+    //
+    // **A DOM is opt-in.** Building a jsdom environment costs ~0.9 s, and it
+    // used to be built for all 197 files — 88% of the suite's tracked time —
+    // when only 108 of them ever touch a `document`. Measured on 2026-09-09:
+    // the 89 DOM-free files ran in 81.5 s under jsdom and 19.9 s under node,
+    // unchanged, and the whole suite went from 163.8 s to ~100 s.
+    //
+    // So `tests/ui/**` gets jsdom by its directory (every file there is a
+    // component test), and everything else gets `node` unless it asks for a
+    // DOM with a `// @vitest-environment jsdom` docblock on line 1 — which 31
+    // files under `tests/audio` and `tests/state` do, mostly for `window`
+    // listeners, `Audio` elements, `navigator` or `localStorage`.
+    //
+    // The default is `node` rather than `jsdom` deliberately: a new DOM test
+    // that forgets the docblock fails immediately on `document is not defined`,
+    // whereas the other way round a new pure test silently costs a second
+    // forever. Loud beats cheap.
+    //
+    // Vitest's own suggestions in that hint — `pool: 'vmThreads'` and
+    // `isolate: false` — were both measured here and both BREAK this suite.
+    // `isolate: false` is the instructive one: `tests/audio/effects/fx-cost.test.ts`
+    // asserts the reverb IR bank is built cold, and that cache is deliberately
+    // process-wide (features/effects.md REQ-6), as are the drive-curve and PWM
+    // wave-table caches. Sharing an environment across files makes every such
+    // cache a cross-file leak. Don't take that trade.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          include: ['tests/ui/**/*.test.ts'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['tests/**/*.test.ts'],
+          exclude: ['tests/ui/**'],
+          environment: 'node',
+        },
+      },
+    ],
   },
 });

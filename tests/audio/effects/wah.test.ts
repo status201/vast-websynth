@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { Wah, makeupFor } from '../../../src/audio/effects/wah';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';

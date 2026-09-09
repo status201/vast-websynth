@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IosAudioSession, shouldResumeContext } from '../../src/audio/ios-audio-session';
 

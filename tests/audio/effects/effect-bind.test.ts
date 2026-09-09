@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ParamBus, registerDefaults } from '../../../src/state/params';
 import { Distortion } from '../../../src/audio/effects/distortion';

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BypassWrapper, DISCONNECT_DELAY_MS, DRAIN_DEFAULT_S } from '../../../src/audio/effects/effect';
 import { RAMP_BYPASS } from '../../../src/audio/param-utils';

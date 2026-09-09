@@ -17,6 +17,7 @@ source:
   - tests/no-shipped-demo-names.test.ts   # enforces the rule below
   - e2e/helpers.ts
   - playwright.config.ts
+  - vite.config.ts                        # test.projects: which files get a DOM
 ```
 
 How to add a unit (Vitest) or E2E (Playwright) test, following the repo's
@@ -28,7 +29,7 @@ Tests live **outside `src/`** (under `tests/` and `e2e/`) so `tsc` ignores them 
 `typecheck`/`build` behaviour is unchanged. Pure logic is tested directly; audio
 graph code is tested against mocks so no real audio runs.
 
-## Unit test (Vitest, jsdom) — `tests/<mirror of src path>.test.ts`
+## Unit test (Vitest) — `tests/<mirror of src path>.test.ts`
 
 - **Pure logic** (params, patterns, song, step-hits, encode, buffer-dsp): import and
   assert directly.
@@ -42,6 +43,39 @@ graph code is tested against mocks so no real audio runs.
   directly (see `tests/audio/compressor-worklet.test.ts`).
 - **DOM components**: build the component in jsdom and assert DOM + `bus`
   interactions (mirror `tests/ui/switch.test.ts`).
+
+### A DOM is opt-in
+
+Building a jsdom environment costs ~0.9 s per file, so a file only gets one if it
+needs one (`vite.config.ts` `test.projects`):
+
+| Where the test lives | Environment |
+| --- | --- |
+| `tests/ui/**` | **jsdom**, automatically — every file there is a component test |
+| anywhere else | **node**, unless it opts in |
+
+To opt in, put the directive on **line 1**:
+
+```ts
+// @vitest-environment jsdom
+```
+
+31 files under `tests/audio` and `tests/state` do — for `window` listeners, an
+`Audio` element, `navigator`, or `localStorage` reached through an import rather
+than written in the test itself. **You do not have to work out which you are**: a
+test that needs a DOM and lacks the directive fails immediately on
+`document is not defined`, which is the whole reason `node` is the default rather
+than `jsdom`. Add the line and move on.
+
+Measured on 2026-09-09: the 89 DOM-free files took 81.5 s under jsdom and 19.9 s
+under node, unchanged; the full suite went 163.8 s -> 109.5 s. Vitest's own hint
+suggests `pool: 'vmThreads'` or `isolate: false` instead — **both break this
+suite**, and `isolate: false` breaks it for a reason worth knowing: sharing one
+environment across files turns every process-wide cache into a cross-file leak,
+and this repo has three by design (the reverb IR bank
+[effects](../features/effects.md) REQ-6, the drive-curve cache, the PWM wave
+tables). `fx-cost.test.ts` catches it, because it asserts the IR bank is built
+cold.
 
 Run: `npm test` (or `npm run test:watch`).
 

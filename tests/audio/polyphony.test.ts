@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Polyphony } from '../../src/audio/polyphony';
 import type { Voice } from '../../src/audio/voice';

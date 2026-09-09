@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { DrumMachine } from '../../../src/audio/transport/drum-machine';
 import { PatternStore } from '../../../src/state/patterns';

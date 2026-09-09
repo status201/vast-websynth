@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { Distortion } from '../../../src/audio/effects/distortion';

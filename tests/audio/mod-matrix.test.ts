@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ModMatrix } from '../../src/audio/mod-matrix';
 import { MOD_SRC, MOD_DST, MOD_ROWS, blockedDests, isPerVoiceSource } from '../../src/state/mod-routing';

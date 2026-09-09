@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { Wah } from '../../src/audio/effects/wah';
 import { Phaser } from '../../src/audio/effects/phaser';

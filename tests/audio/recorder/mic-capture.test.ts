@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openMicSession, MicCaptureError, type MicError } from '../../../src/audio/recorder/mic-capture';
 import { makeMockAudioContext } from '../mock-audio-context';

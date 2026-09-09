@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SessionAutosave, SESSION_KEY } from '../../src/state/session-autosave';
 import { Song, type SongFile } from '../../src/state/song';

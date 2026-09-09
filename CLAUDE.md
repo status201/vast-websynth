@@ -63,9 +63,11 @@ Scripts are in `package.json`. Only the non-obvious ones need saying:
   renders through Gecko: it and Blink disagree on `AudioParam` automation
   audibly, and the mock param can't model it, so a change touching automation
   gets both.
-- Tests: `specs/recipes/write-a-test.md` (Vitest in jsdom + Playwright, the mock
+- Tests: `specs/recipes/write-a-test.md` (Vitest + Playwright, the mock
   `AudioContext`, the storage mock, why tests live outside `src/`). There is no
-  linter.
+  linter. **A DOM is opt-in**: `tests/ui/**` gets jsdom, everything else runs
+  under `node` unless it starts with `// @vitest-environment jsdom`. Forget it
+  and the test says `document is not defined` — that is the intended signal.
 - `npm run release` never touches git/GitHub — it bumps, builds, zips and *prints*
   the publish commands. Arguments, flags and the publish flow: `DEPLOYMENT.md`.
 - `npm run clean:demos` / `check:demos` keep `src/state/demos-index.json` in sync;

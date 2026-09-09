@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Reverb } from '../../../src/audio/effects/reverb';
 import { makeMockAudioContext, type MockAudioContext } from '../mock-audio-context';

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SampleAutosave, type ClipKv, type ClipSource, type StoredClip } from '../../src/state/sample-autosave';
 import { SAMPLER_SLOT_COUNT } from '../../src/state/patterns';

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 import type { TickTimer } from '../../src/audio/transport/tick-timer';

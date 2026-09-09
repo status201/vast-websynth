@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Ducker, envValueAt, DUCK_SRC_ANY } from '../../../src/audio/effects/ducker';
 import { makeMockAudioContext, type MockAudioParam } from '../mock-audio-context';

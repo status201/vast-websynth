@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PwmDriver, PWM_CONTROL_HZ, PWM_RATE_MAX, type PwmVoice } from '../../src/audio/pwm';
 import { PWM_MIN_WIDTH, PWM_MAX_WIDTH } from '../../src/audio/oscillator';
