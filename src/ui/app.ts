@@ -814,6 +814,9 @@ function buildBottom(
     isWave = !isWave;
     scope.setMode(isWave ? 'wave' : 'spectrum');
     toggle.textContent = isWave ? 'Wave' : 'Spectrum';
+    // The problem-band overlay only means anything over a frequency axis, so its
+    // button rides the view rather than sitting on the panel forever (scope REQ-29).
+    zonesToggle.hidden = isWave;
   });
   scopeWrap.appendChild(toggle);
   // Mono/Stereo toggle — orthogonal to Wave/Spectrum. Defaults to Mono.
@@ -828,6 +831,23 @@ function buildBottom(
     chanToggle.textContent = isStereo ? 'Stereo' : 'Mono';
   });
   scopeWrap.appendChild(chanToggle);
+  // Problem-frequency overlay — bottom-right, the one corner free of chrome, which
+  // is also why the spectrum plot reserves a gutter there (scope REQ-29). Hidden
+  // until the view that gives it meaning is on screen; declared BEFORE the
+  // Wave/Spectrum handler above runs, but after that button so tab order still
+  // reads left-to-right, top-to-bottom.
+  const zonesToggle = document.createElement('button');
+  zonesToggle.className = `${switchStyles.root!} ${styles.scopeZonesToggle!}`;
+  zonesToggle.dataset.testid = 'scope-zones-toggle';
+  zonesToggle.textContent = 'Zones';
+  zonesToggle.title = 'Shade the four problem bands — mud, boxy, nasal, harsh';
+  zonesToggle.hidden = true;
+  zonesToggle.addEventListener('click', () => {
+    const on = !scope.zonesOn;
+    scope.setZones(on);
+    zonesToggle.classList.toggle('on', on);
+  });
+  scopeWrap.appendChild(zonesToggle);
   // Resize grip on the panel's top edge. A SIBLING of the canvas, like the two
   // toggles above — that is what keeps a press on it from reaching the canvas
   // click listener and resetting the peak-hold (scope REQ-13/REQ-19). It resizes

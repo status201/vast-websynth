@@ -3,7 +3,11 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 12  # v12: the redraw loop can always be restarted (REQ-22..25) — a device
+version: 13  # v13: the Spectrum gets a LOG frequency axis + a scale (REQ-26..31) —
+             #      ticks at 100/500/1k/5k/10k, a Zones overlay naming the four
+             #      problem bands, a hover cursor readout, and a halo behind every
+             #      piece of canvas text so no label vanishes into a bright bar;
+             # v12: the redraw loop can always be restarted (REQ-22..25) — a device
              #      report of a scope that went black while backgrounded and stayed
              #      black; v4: analyser fftSize perf-tier-dependent; v5: applied LIVE via setFftSize; v6: tiers halved to 256/512/1024; v7: L/R labels bottom-left (clear of the corner buttons); v8: Wave auto-gain (partial normalization) + float time-domain read; v9: dropped a stale "ping-pong delay" from the stereo-sources list — the delay is mono; v10: dropped the phaser and the DJ FX from that same list (neither can create L≠R), and the Background's layout prose now matches REQ-5; v11: a drag handle on the top edge resizes the scope (REQ-19), height persisted as a device-scoped workspace pref (REQ-20) — the first thing about this panel that survives a reload
 owner: status201
@@ -120,6 +124,41 @@ before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
 `min-height`, and `.bottom` floors the keyboard at `minmax(160px, 1fr)`. So a
 growing scope consumes the keyboard's slack first, stops at the keyboard's floor,
 and only then does the page scroll. The keyboard is never squeezed out of reach.
+
+**A spectrum you can read a frequency off (v13).** The Spectrum view had no
+frequency reference of any kind — you could see a bump but not *where* it was, so
+the one job a spectrum analyser is most used for (finding the problem frequency:
+mud 100–200 Hz, boxy 300–500, cheap/nasal 800–1 k, harshness 4–6 k) could not be
+done with it.
+
+Labelling the axis as it stood would not have fixed that, because the axis was
+**linear in FFT bin index** — `used = floor(binCount * 0.6)`, `barW = r.w / used`,
+so the panel spanned 0 → 0.3·sampleRate (≈14.4 kHz at 48 k) evenly. On a 700 px
+mono panel that puts 100/500/1k/5k at ≈5/24/49/243 px: everything below 1 kHz is
+crushed into the leftmost 7 %, the entire mud band is about **five pixels wide**,
+and in stereo the first three labels overlap each other. The scale was not the
+missing piece — the *mapping* was.
+
+So v13 replaces it with a **logarithmic** axis over a fixed 20 Hz – 20 kHz, which
+is what every audio analyser uses and what makes an octave the same width wherever
+it sits. Each named band becomes an area you can point at (mud ≈70 px on that same
+panel, harshness ≈41 px) instead of a rounding error. On top of that mapping sit
+three readouts, in increasing order of how much they get in the way: a permanent
+**tick scale**, an opt-in **Zones** overlay that shades and names the four bands,
+and a **hover cursor** that prints the exact frequency under the pointer.
+
+Two consequences worth naming up front, because they are visible:
+
+- The bass is only as detailed as `fftSize` allows, and `fftSize` is perf-tier
+  state (REQ-2). A log axis *magnifies* that: at fftSize 1024 the bins are 46.9 Hz
+  apart, so the first three of them would cover the display's first third as flat
+  plateaus. The renderer therefore **interpolates** where columns are denser than
+  bins (REQ-27) — without that step a log analyser looks broken, not detailed.
+- Canvas text now has bars behind it in places it never did. Every label the
+  component draws — the new Hz ticks, the existing `L`/`R` (REQ-6) and the existing
+  peak-dB readout (REQ-10) — gets a dark **halo** (REQ-30). Note this is *not* the
+  drop-shadow REQ-8 removed: that was `shadowBlur` on thousands of bar/trace
+  operations, this is an outline on ~8 short strings a frame.
 
 ## Requirements
 
@@ -323,6 +362,84 @@ and only then does the page scroll. The keyboard is never squeezed out of reach.
   `NaN`/`Infinity` is a loop that spins and never draws, which is the same black
   panel by a fourth route.
 
+- **REQ-26** (v13) — **The Spectrum's frequency axis is logarithmic** over a fixed
+  `SPECTRUM_F_MIN`…`SPECTRUM_F_MAX` (20 Hz…20 kHz), replacing the linear
+  bin-index mapping and its `0.6 × binCount` cutoff. The mapping is the pure,
+  canvas-free `freqToFrac(hz)` (and its inverse `fracToFreq`), so it is
+  unit-testable and is the **single** definition every consumer uses — bars, ticks,
+  zones and the hover cursor all read positions from it, and none of them may
+  recompute a position of their own. `SPECTRUM_F_MAX` is clamped to the analyser's
+  Nyquist, so a 44.1 kHz context simply shows a little less at the top rather than
+  addressing bins that do not exist. **Wave view is unaffected** — it is a
+  time-domain trace and has no frequency axis.
+- **REQ-27** (v13) — **Bars are drawn per pixel column, not per bin**, because a
+  log axis maps the two ends of the spectrum in opposite directions: in the treble
+  many bins fall in one column, in the bass one bin spans many columns. A column
+  covering **one or more whole bins** takes the **maximum** over them (a peak must
+  never be averaged away); a column **narrower than a bin** takes a **linear
+  interpolation** between the two neighbouring bins at its centre frequency, which
+  is what turns the bass from three fat plateaus into a curve. The per-column bin
+  boundaries are precomputed into a **cached** `Float32Array` keyed by
+  `(cols, fftSize, sampleRate)` and invalidated in exactly the three places the
+  gradient cache already is — `measure()`, `setFftSize()` and `contextrestored` —
+  so the redraw loop allocates nothing (REQ-16, `runtime-performance` REQ-6). The
+  peak-hold's `maxByte` (REQ-10/11) keeps coming from **raw bins**, never from an
+  interpolated value, so its *meaning* is unchanged by this rewrite. Its **band**
+  does widen: the old cutoff showed 0.6·Nyquist (≈14.4 kHz at 48 k) and the new one
+  runs to `SPECTRUM_F_MAX`, so bright material with 14–20 kHz content can now push
+  the held peak a little higher than it used to. That is the definition holding —
+  "the loudest **visible** bar" — not drifting, but it is a visible difference on
+  the same song and is recorded here rather than left to be re-discovered.
+- **REQ-28** (v13) — **The scale is a permanent bottom ruler**: a short vertical
+  tick at each of `SPECTRUM_TICKS_HZ` (100, 500, 1 k, 5 k, 10 k) rising from the
+  region's bottom edge, with the frequency printed above it (`formatHz`: `100`,
+  `500`, `1k`, `5k`, `10k`). Labels are centred on their tick, clamped to stay
+  inside the plot, and a tick whose label would **collide** with its neighbour on a
+  narrow region is **dropped** — from the middle of the set outwards, so the ends
+  of the scale survive longest. Collision is decided from an **estimated** text
+  width (`TICK_CHAR_W`, 6 px per character at the component's 10 px monospace),
+  never `ctx.measureText`: the lifecycle suite drives a proxy 2D context whose
+  methods all return `undefined`, so a `measureText(...).width` read throws there.
+- **REQ-29** (v13) — **A `Zones` toggle** (`data-testid="scope-zones-toggle"`)
+  shades and names the four problem bands of `SPECTRUM_ZONES` — MUD 100–200,
+  BOXY 300–500, NASAL 800–1000, HARSH 4000–6000 Hz. It is **Spectrum-only**: the
+  button is `hidden` in Wave, where the bands would be meaningless, so the panel
+  gains no permanent fourth control. Bands draw *behind* the bars and their names
+  *in front*, inset from the region top so they clear the two corner overlay
+  buttons; names are dropped on a region too narrow to hold them while the bands
+  themselves stay. Default **off**, and — like every other view mode here — held in
+  memory only (see Persistence).
+  The button sits **bottom-right**, the last corner free of chrome, and the plot
+  **reserves nothing for it** — bars, ruler and peak line all run the full width of
+  the region. The 10 kHz label lands at ≈90 % of the width whatever the panel size,
+  so on a narrow panel (and on a stereo half) it goes **behind** the button. That
+  is deliberate: the first cut of this feature reserved a 64 px gutter on every
+  region to protect that one label, which cost every panel a dead strip and put an
+  80 px hole down the middle of side-by-side stereo. Losing the top label on small
+  layouts is much cheaper than paying width everywhere — the other four ticks, the
+  bands and the cursor readout all still say where you are.
+- **REQ-30** (v13) — **Every string the component draws gets a dark halo**: a
+  `strokeText` outline under the `fillText`, via one shared helper. This covers the
+  new tick, zone and cursor text *and retrofits* the two labels that predate it —
+  the `L`/`R` channel tags (REQ-6) and the peak-dB readout (REQ-10) — which sit on
+  top of bars bright enough to swallow them. It is an outline rather than a
+  `shadowBlur`: omnidirectional, crisper at 10 px, and it does not reintroduce
+  canvas shadows to a component that removed them for cost (REQ-8). The helper must
+  preserve the existing `textAlign` invariant — `drawLabel` sets no alignment and
+  relies on `drawPeak` having `restore()`d its own (REQ-6), so any caller that
+  changes alignment stays inside its own `save()`/`restore()`.
+- **REQ-31** (v13) — **Hovering the Spectrum reads out a frequency**: a thin
+  vertical line at the pointer with `fracToFreq` printed beside it (`437 Hz`), so
+  the scale is a measuring tool rather than five fixed reference points. Three
+  constraints make it free: the listeners are **mode-scoped** (attached on entering
+  Spectrum, detached on leaving and in `destroy()`, per REQ-21's rule); the handler
+  reads `offsetX`/`offsetY`, which are already canvas-relative, so it forces **no
+  layout** the way a `getBoundingClientRect()` would; and it stores two numbers
+  while the existing rAF loop does the drawing. Only `pointerType === 'mouse'`
+  arms it, so a touch drag cannot strand a cursor line on screen. Clicking still
+  resets the peak-hold (REQ-13) — unchanged, but now easier to do by accident while
+  reading the cursor, which is a deliberate acceptance, not an oversight.
+
 ## Technical design
 
 ### Gesture inventory — the resize handle (v11)
@@ -378,6 +495,32 @@ cannot be changed on that screen. (A fixed 96 px box was the first attempt and
 overlapped the Mono/Stereo button by 1 px at 390 px, which would have swallowed that
 button's last pixel column; the shrink-to-fit width is what replaced it.)
 
+### Gesture inventory — the Spectrum canvas (v13)
+
+The canvas itself becomes interactive in v13 (it previously answered only a click),
+so it owes an inventory too. The Zones button is a plain button and does not.
+
+| Gesture | Outcome | Precedent |
+| --- | --- | --- |
+| hover (mouse) | vertical cursor line + the frequency under it (REQ-31) | every DAW analyser; a scope's cursor |
+| click / tap | reset the peak-hold — **unchanged** (REQ-13) | v2 |
+| drag | — nothing; there is no selection or zoom to make | — |
+| long-press | — | — |
+| touch move | — deliberately inert: hover has no touch equivalent, and a stranded cursor line reads as a bug | — |
+| wheel | — the page scrolls here (same call the resize handle makes) | — |
+| right-click | — | — |
+| `Delete` / `⌫` | — nothing to delete | — |
+
+Every row has one outcome and no hidden state, so ADR-014 law 2 holds. The touch
+row is the one real deviation: the readout is genuinely mouse-only. The Zones
+overlay is what carries the same information to a touch device, which is why it is
+a **button** rather than a second hover affordance.
+
+**Discoverability.** The tick scale is always on, so the axis explains itself; the
+`Zones` button appears the moment you switch to Spectrum and names what it does;
+the cursor is the one thing you have to find by moving the mouse, and the `scope`
+help topic says so. No tour step.
+
 ### Contract / public interface
 
 `Scope` (`src/ui/components/scope.ts`):
@@ -392,14 +535,30 @@ interface ScopeOptions { fps?: number; }  // target redraw rate (default 60); se
 class Scope {
   readonly el: HTMLCanvasElement;
   constructor(analysers: ScopeAnalysers, opts?: ScopeOptions);
-  setMode(m: ScopeMode): void;          // wave | spectrum  (unchanged behaviour)
+  setMode(m: ScopeMode): void;          // wave | spectrum  (v13: also binds/unbinds the hover listeners)
   setChannels(c: ScopeChannels): void;  // mono | stereo    (new; stereo needs left+right)
   get channelMode(): ScopeChannels;     // effective layout (mono unless stereo set with both)
   resetPeak(): void;                     // clear the spectrum peak-hold (also bound to canvas click)
   setFps(fps: number): void;             // change the target redraw rate live (perf-mode tier switch)
   setFftSize(fftSize: number): void;     // v5: set all three analysers' fftSize live + reallocate read buffers
+  setZones(on: boolean): void;           // v13: show/hide the problem-band overlay (REQ-29)
+  get zonesOn(): boolean;                // v13
   destroy(): void;
 }
+
+// Pure, exported, canvas-free — the log frequency axis (v13, REQ-26..29):
+const SPECTRUM_F_MIN = 20;        // Hz at the left edge of the plot
+const SPECTRUM_F_MAX = 20000;     // Hz at the right edge, clamped to Nyquist at read time
+const SPECTRUM_TICKS_HZ: readonly number[];   // [100, 500, 1000, 5000, 10000]
+const SPECTRUM_ZONES: readonly SpectrumZone[]; // MUD / BOXY / NASAL / HARSH
+interface SpectrumZone { from: number; to: number; name: string; }
+interface SpectrumTick { hz: number; x: number; label: string; }
+
+function freqToFrac(hz: number, fMax?: number): number;   // log position 0..1, clamped
+function fracToFreq(frac: number, fMax?: number): number; // inverse — the hover readout
+function formatHz(hz: number): string;                    // 100 -> '100', 1000 -> '1k', 437 -> '437 Hz'
+function visibleTicks(regionW: number, fMax?: number): SpectrumTick[]; // collision-pruned
+function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Float32Array;
 
 // Pure, exported, canvas-free — the split geometry (REQ-5):
 interface ScopeRegion { x: number; y: number; w: number; h: number; tag: 'mono' | 'left' | 'right'; label: string; }
@@ -543,6 +702,38 @@ WAVE_GAIN_RISE_TAU: 0.6      # s, gain increasing (quieter signal) — slow
 #   reset each frame). Dataset mirror el.dataset.waveGain (1 dp), Wave-view only.
 ```
 
+Log frequency axis (v13, REQ-26..29) — one mapping, four consumers:
+
+```yaml
+SPECTRUM_F_MIN: 20        # Hz at plot x = 0
+SPECTRUM_F_MAX: 20000     # Hz at the region's right edge; clamped to sampleRate/2 at read time
+SPECTRUM_COL_W: 3         # px per drawn column (the bar loop's step)
+TICK_CHAR_W: 6            # px per char at 10px monospace — the measureText-free estimate
+ZONE_NAME_MIN_W: 300      # px of region width below which zone NAMES drop (bands stay)
+SPECTRUM_TICKS_HZ: [100, 500, 1000, 5000, 10000]
+SPECTRUM_ZONES:
+  - { from:  100, to:  200, name: MUD }
+  - { from:  300, to:  500, name: BOXY }
+  - { from:  800, to: 1000, name: NASAL }
+  - { from: 4000, to: 6000, name: HARSH }
+
+# freqToFrac(hz) = clamp01( log(hz/F_MIN) / log(F_MAX/F_MIN) )
+# fracToFreq(f)  = F_MIN * (F_MAX/F_MIN) ** clamp01(f)          # exact inverse
+#   x = r.x + freqToFrac(hz) * r.w           # the plot IS the region: no gutter
+#
+# Where the ticks land, as a fraction of the region width (F_MAX = 20k):
+#   100 -> 23.3%   500 -> 46.6%   1k -> 56.6%   5k -> 79.9%   10k -> 90.0%
+# and the four bands, on a 636px region:
+#   MUD 148..212 (64px)   BOXY 249..296 (47px)   NASAL 340..360 (21px)   HARSH 488..525 (37px)
+#
+# columnBinEdges(cols, fftSize, sampleRate)[c] = fractional bin index at column c's
+#   left edge = fracToFreq(c/cols) * fftSize / sampleRate ; length cols+1, monotonic.
+#   span = edges[c+1] - edges[c]
+#     span >= 1  -> byte = max over bins floor(edges[c]) .. ceil(edges[c+1])-1   (treble)
+#     span <  1  -> byte = lerp between the two bins around the column centre     (bass)
+#   maxByte for the peak-hold comes from the RAW bins visited, never the lerp.
+```
+
 Panel height (REQ-19/20) — one number, one CSS custom property:
 
 ```yaml
@@ -610,6 +801,20 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   new button and no new `data-testid` (the gain rides the existing `scope-canvas`
   dataset). `clearPeakDataset` becomes `clearDatasetMirror` so the `waveGain` key is
   dropped on the same rare transitions.
+- **`Scope.drawSpectrum` + `buildBottom`** own the frequency axis (v13). Inside the
+  component: the bar loop becomes column-based over `columnBinEdges` (REQ-27), and
+  the region gains a draw order of **midline → zone bands → bars → peak line + dB →
+  ticks → zone names → hover cursor → `L`/`R`** — bands behind the bars, every
+  label in front of them and haloed (REQ-30). `setMode` gains the
+  `pointermove`/`pointerleave` bind/unbind (REQ-31), and `destroy()` removes them
+  unconditionally. In `app.ts` `buildBottom`, a third overlay button
+  (`scope-zones-toggle`) is appended to `.scopeWrap` beside the existing two,
+  starting `hidden`; the existing Wave/Spectrum handler gains one line
+  (`zonesToggle.hidden = isWave`), which is the whole of REQ-29's Spectrum-only
+  rule. **No `engine.ts` or `studio-api.ts` change** — like the peak-hold and the
+  auto-gain before it, this is entirely a rendering feature; the only thing it needs
+  from the audio layer is `analyser.context.sampleRate`, read defensively
+  (`?? 48000`) because the unit suites' analyser stubs carry no `context`.
 - **`ResizeHandle` + `buildBottom`** own the resize (v11), and **nothing else does**.
   `layout.module.css` changes one declaration — `.bottom`'s first grid track becomes
   `var(--scope-h, 130px)`. `buildBottom` reads `readScopeHeight()`, sets `--scope-h`
@@ -626,7 +831,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
 
 | State | Where | Why |
 | --- | --- | --- |
-| Wave/Spectrum, Mono/Stereo, peak-hold, wave gain | in-memory only | *View* state — what you are looking at right now. Not part of a sound or a song, and cheap to re-pick. Every boot starts at **Wave + Mono** with no held peak. |
+| Wave/Spectrum, Mono/Stereo, **Zones**, peak-hold, wave gain | in-memory only | *View* state — what you are looking at right now. Not part of a sound or a song, and cheap to re-pick. Every boot starts at **Wave + Mono + Zones off** with no held peak. |
 | Panel height | `localStorage` `websynth.ui.scope.height` | *Workspace* state — how the instrument is arranged on **this** screen. |
 
 v11 does not soften the original rule, it draws the line the rule was always
@@ -677,6 +882,24 @@ share it:
   │                                 │      ├──────┴──────────────────────────┤
   │                                 │      │   keyboard (1fr, floors at 160) │
   └─────────────────────────────────┘      └─────────────────────────────────┘
+```
+
+The Spectrum region after v13 — the ruler is permanent and runs the full width,
+the shaded bands are the opt-in `Zones` overlay, and the button simply sits on top
+of the far right of the scale where the panel is too narrow to keep them apart:
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│[Mono]                                                      [Spectrum] │
+│            ░MUD░       ░BOXY░    ▓N▓             ░HARSH░              │
+│ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ -6.2 dB ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │
+│        ▁▃▅█▇▅▃▂▁▂▃▂▁ ▁▂▃▂▁      ▏437 Hz   ▁▂▁      ▁▂▃▂▁              │
+│ L      ╵          ╵         ╵           ╵          ╵         [Zones]  │
+│       100        500       1k           5k       10k ↑                │
+└───────────────────────────────────────────────────────────────────────┘
+   20Hz ─────────────── log frequency ──────────────── 20kHz
+                                     ▏= the hover cursor (mouse only)
+        ↑ the one label the button can cover — accepted, see REQ-29
 ```
 
 Web Audio nodes (built-in): `AnalyserNode`, `ChannelSplitterNode`,
@@ -894,6 +1117,99 @@ Scenario: A nonsense frame rate cannot silently stop the drawing (v12, edge)
   Then the target rate falls back to the default instead of never drawing
 # pinned by: tests/ui/scope-lifecycle.test.ts
 
+Scenario: The frequency axis is logarithmic, so every octave gets equal width (v13)
+  Given the log axis helpers
+  When freqToFrac is evaluated across the range
+  Then 20 Hz maps to 0 and 20 kHz maps to 1
+  And 200 Hz sits the same distance from 100 Hz as 2 kHz does from 1 kHz
+  And a frequency outside the range clamps rather than escaping [0,1]
+  And fracToFreq round-trips freqToFrac to within floating-point tolerance
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: The tick labels land where the requested frequencies are (v13, REQ-28)
+  Given a plot 636px wide
+  When visibleTicks is computed
+  Then it returns ticks for 100, 500, 1k, 5k and 10k
+  And each tick's x equals freqToFrac(hz) * the region width
+  And every label stays inside the plot rather than overflowing its edges
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: A narrow region drops crowded ticks instead of overlapping them (v13, edge)
+  Given a plot too narrow to hold all five labels apart
+  When visibleTicks is computed
+  Then colliding ticks are dropped from the middle of the set outwards
+  And the ticks that remain do not overlap each other
+  And the width test uses an estimate, never ctx.measureText
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: Column-to-bin mapping covers the range at every perf tier (v13, REQ-27)
+  Given columnBinEdges for fftSize 256, 512 and 1024
+  Then the edges are monotonically increasing and span F_MIN to the clamped F_MAX
+  And no edge addresses a bin beyond frequencyBinCount
+  And the array is cached, so a second call with the same key allocates nothing new
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: The bass is interpolated and the treble is peak-held (v13, REQ-27)
+  Given a column narrower than one FFT bin
+  Then its level is interpolated between the two neighbouring bins
+  Given a column spanning several bins
+  Then its level is the maximum over them, so a narrow peak is never averaged away
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: The peak-hold is unaffected by the log rewrite (v13, regression)
+  Given the scope is in Spectrum view with signal present
+  Then the held dB still comes from the raw bin maximum, not an interpolated column
+  And dataset.peak still rises toward 0 dB and still clears on click
+# pinned by: tests/ui/scope-axis.test.ts, e2e/scope.spec.ts
+
+Scenario: Zones are Spectrum-only and default off (v13, REQ-29)
+  Given the app has booted in Wave view
+  Then the scope zones toggle is hidden
+  When the user switches to Spectrum
+  Then the toggle is visible and the overlay is off
+  When the user clicks it
+  Then the four problem bands are shown and the canvas reports zones on
+  When the user switches back to Wave
+  Then the toggle is hidden again
+# pinned by: e2e/scope.spec.ts
+
+Scenario: The plot spans the whole region, button or no button (v13, REQ-29)
+  Given any region width
+  When the ruler is laid out
+  Then the ticks run edge to edge, with no width reserved for the Zones button
+  And on a panel narrow enough for the two to meet, the 10k label sits behind it
+  And that is accepted: reserving the width cost every panel a dead strip
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: Hovering the spectrum reads out the frequency under the pointer (v13, REQ-31)
+  Given the scope is in Spectrum view
+  When the mouse moves over the graph
+  Then a cursor line is drawn there and the canvas reports the frequency under it
+  When the pointer leaves
+  Then the readout is cleared
+# pinned by: tests/ui/scope-axis.test.ts, e2e/scope.spec.ts
+
+Scenario: A touch drag never strands a cursor line (v13, edge)
+  Given the scope is in Spectrum view on a touch device
+  When a pointermove of type touch reaches the canvas
+  Then no cursor is recorded and nothing is drawn for it
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: The hover listeners exist only while Spectrum is showing (v13, REQ-31/21)
+  Given the scope is in Wave view
+  Then the canvas holds no pointermove listener
+  When the user switches to Spectrum and back
+  Then the listener is added on entry and removed on exit
+  And destroy() leaves none behind
+# pinned by: tests/ui/scope-axis.test.ts
+
+Scenario: Every drawn label is haloed so a bright bar cannot swallow it (v13, REQ-30)
+  Given a spectrum bar reaching full height behind a label
+  When the tick, zone, cursor, peak-dB and L/R labels are drawn
+  Then each is stroked in a dark outline before it is filled
+  And the alignment a caller changed is restored, so the L/R label still draws left-aligned
+# pinned by: tests/ui/scope-axis.test.ts (stroke order); appearance by eye (ADR-010)
+
 Scenario: The handle holds no global listener at rest (REQ-21)
   Given a mounted resize handle that is not being dragged
   Then it has registered no window pointermove listener
@@ -930,6 +1246,14 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   `Home` resets, `aria-valuenow` follows; `onCommit` fires on release, not per move;
   no `window` `pointermove` listener at rest and none left after release or
   `destroy()` (spied `add/removeEventListener`, as `tests/ui/knob.test.ts` does).
+- Unit: `tests/ui/scope-axis.test.ts` (v13) — the log mapping (`freqToFrac` /
+  `fracToFreq` round-trip, equal-octave spacing, clamping); `formatHz` at its
+  boundaries; `visibleTicks` keeping all
+  five on a wide plot and pruning from the middle on a narrow one, with no
+  `measureText` call; `columnBinEdges` monotonic, in-range and cached across the
+  three perf-tier fftSizes; the max-vs-lerp column rule; and — driven over a
+  recording 2D context like `scope-lifecycle.test.ts` does — the halo stroke order,
+  the mode-scoped hover listeners, and touch pointers being ignored.
 - E2E: `e2e/scope.spec.ts` — default "Mono", toggle to "Stereo" and back,
   orthogonality with Wave/Spectrum, the `analyserL`/`analyserR` data path via
   `window.__synth.engine`, the Spectrum peak readout rising with sound +
@@ -954,9 +1278,17 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   scroll rather than collapsing. Repeat at phone width — the grip must still clear
   both corner buttons. The drag itself must track the pointer without lag or rubber
   banding.
+- **By eye (v13)** — the axis is a *look* and a *claim about where things are*, so
+  the suite cannot verify it. In Spectrum: sweep the filter cutoff and watch the
+  peak of the bars track the ticks (a 440 Hz note must put its fundamental just
+  left of the 500 mark); check the bass reads as a curve and not as three
+  plateaus; check every label survives a full-height bar behind it; turn Zones on
+  and confirm the bands sit where the ear says they do. Then repeat in both stereo
+  layouts and at both ends of the resize handle, and once on the **weak** perf tier
+  (fftSize 256) where the bass is genuinely coarse.
 - Dev-bridge assertions: `window.__synth.engine.analyserL` (DEV only); peak readout
   via the canvas `dataset.peak`/`peakL`/`peakR`; applied wave gain via
-  `dataset.waveGain`.
+  `dataset.waveGain`; (v13) `dataset.zones` and `dataset.cursorHz`.
 
 ## Open questions / future
 
@@ -984,6 +1316,23 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   only by pushing the page into a scroll. A viewport-relative ceiling was rejected as
   a rule you cannot see: the handle would stop at a different place on every screen,
   and "twice as tall" is a promise the user can check.
+- **Bass resolution is bounded by `fftSize`, and the log axis magnifies that**
+  (v13). At the weak tier (256) a bin is 187.5 Hz wide and covers roughly the
+  display's first third, so REQ-27's interpolation draws a smooth ramp where there
+  is no real detail to draw — honest, but not informative. Raising `fftSize` only
+  while in Spectrum would fix it and would fight
+  [performance-mode](performance-mode.md) REQ-12, which owns that number for the
+  whole app; a Spectrum-only override is the open question, not a decided design.
+- **`SPECTRUM_F_MAX` is 20 kHz, so the top of the plot is usually empty** (v13).
+  Little music has content above 16 k, and at a 44.1 kHz sample rate the clamp to
+  Nyquist eats the last stretch anyway. 20 k was chosen because "20 Hz to 20 kHz"
+  is a range the user can check against what they already know, over a tighter
+  `F_MAX` that would read better but explain worse. Revisit if the empty right
+  edge annoys more than the round number helps.
+- **Zones are not persisted**, on the same argument as Wave/Spectrum and
+  Mono/Stereo (see Persistence). If mixing sessions turn out to leave it on
+  permanently, that is the evidence that would move it into the device-scoped
+  workspace family beside the panel height — not before.
 - There is still **no trigger / zero-crossing sync**, so the trace free-runs and
   drifts horizontally. Unrelated to the gain, but the next thing that would make the
   Wave view read like a scope.

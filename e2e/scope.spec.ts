@@ -114,6 +114,64 @@ test.describe('scope mono/stereo', () => {
     expect(await peakDb()).toBeNull();
   });
 
+  test('Zones is Spectrum-only and toggles the overlay (scope.md REQ-29)', async ({ page }) => {
+    await gotoAndStart(page);
+    const mode = page.getByTestId('scope-toggle');
+    const zones = page.getByTestId('scope-zones-toggle');
+    const canvasZones = (): Promise<string | null> =>
+      page.evaluate(() => document.querySelector<HTMLCanvasElement>(
+        '[data-testid="scope-canvas"]',
+      )?.dataset.zones ?? null);
+
+    // Wave: the button is not on the panel at all, and there is nothing to report.
+    await expect(mode).toHaveText('Wave');
+    await expect(zones).toBeHidden();
+    expect(await canvasZones()).toBeNull();
+
+    await mode.click();
+    await expect(mode).toHaveText('Spectrum');
+    await expect(zones).toBeVisible();
+    expect(await canvasZones()).toBe('off');
+
+    await zones.click();
+    expect(await canvasZones()).toBe('on');
+
+    // Back to Wave: hidden again, readout dropped.
+    await mode.click();
+    await expect(zones).toBeHidden();
+    expect(await canvasZones()).toBeNull();
+  });
+
+  test('hovering the Spectrum reads out a frequency (scope.md REQ-31)', async ({ page }) => {
+    await gotoAndStart(page);
+    const mode = page.getByTestId('scope-toggle');
+    const canvas = page.getByTestId('scope-canvas');
+    const cursorHz = (): Promise<number | null> =>
+      page.evaluate(() => {
+        const v = document.querySelector<HTMLCanvasElement>('[data-testid="scope-canvas"]')
+          ?.dataset.cursorHz;
+        return v === undefined || v === '' ? null : parseFloat(v);
+      });
+
+    await mode.click();
+    await expect(mode).toHaveText('Spectrum');
+
+    const box = (await canvas.boundingBox())!;
+    // A quarter of the way across sits low in the audible range on a log axis —
+    // the assertion that would fail outright if the mapping were still linear.
+    await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
+    await page.waitForTimeout(120);
+    const hz = await cursorHz();
+    expect(hz).not.toBeNull();
+    expect(hz!).toBeGreaterThan(20); // SPECTRUM_F_MIN — the left edge of the plot
+    expect(hz!).toBeLessThan(400);   // a linear axis would read several kHz here
+
+    // Leaving the canvas drops the readout.
+    await page.mouse.move(box.x + box.width / 2, box.y - 40);
+    await page.waitForTimeout(120);
+    expect(await cursorHz()).toBeNull();
+  });
+
   test('Wave exposes the applied auto-gain, and Spectrum clears it', async ({ page }) => {
     await gotoAndStart(page);
     const mode = page.getByTestId('scope-toggle');

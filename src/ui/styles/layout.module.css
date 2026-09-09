@@ -619,6 +619,29 @@
   font-size: 10px !important;
 }
 
+/* Problem-band overlay toggle — bottom-right, the only corner with no chrome in
+   either stereo layout (the L/R labels sit bottom-LEFT). The spectrum reserves no
+   width for it: on a narrow panel the button covers the 10k tick label, which is
+   cheaper than costing every panel a dead strip. See specs/features/scope.md REQ-29.
+   `!important` for the same reason .scopeToggle needs it: this class and
+   switch.module.css's .root are both single-class selectors on the same element,
+   so bundle order — not intent — would otherwise decide. */
+.scopeZonesToggle {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 1;
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+  font-size: 10px !important;
+}
+
+/* The button is Spectrum-only. Without this the class's own `position` outranks
+   the UA's `[hidden] { display: none }` and it would show in Wave view too. */
+.scopeZonesToggle[hidden] {
+  display: none !important;
+}
+
 /* Resize grip, top-centre — the only edge of this panel free of chrome, since
    the two toggles above take the corners. It has to thread between them, so the
    width shrinks with the panel instead of overlapping a button: 140px is the two

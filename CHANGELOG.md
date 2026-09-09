@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The Spectrum now tells you *which* frequency you are looking at.** It reads on
+  a **logarithmic** scale from 20 Hz to 20 kHz — every octave the same width, like
+  the keyboard — with a ruler along the bottom marked **100, 500, 1k, 5k** and
+  **10k** Hz. **Hover the graph** with a mouse for the exact frequency under the
+  pointer, and press **Zones** (a new button that appears in Spectrum view) to
+  shade and name the four bands that usually need fixing: **MUD** 100–200 Hz,
+  **BOXY** 300–500, **NASAL** 800 Hz–1 kHz and **HARSH** 4–6 kHz. Previously the
+  display was linear, which squeezed everything below 1 kHz into the leftmost few
+  percent of the panel — the bass was where the problems live and where you could
+  see the least.
+
 - **A failed import can now be copied out of its dialog.** The "Import failed"
   window lists the first eight problems with a file and summarises the rest as
   "…and N more" — but the checker finds up to fifty, and those extra messages
@@ -72,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [2.11.1] - 2026-08-30
 
 ### Changed
+
+- **Every label on the scope now has a dark outline behind it**, so the `L`/`R`
+  channel tags, the max-dB readout and the new frequency ruler stay readable when
+  a full-height bar is right underneath them.
 
 - **"Tap to start" only appears when your browser actually needs it.** The tap was
   never ours to ask for — it is there to satisfy browsers that refuse to make

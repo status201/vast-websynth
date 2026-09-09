@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 16 # v16: the preset import wizard's error strip, its copy button and
+version: 17 # v17: scope-zones-toggle — the Spectrum-only problem-band overlay
+            #      (scope.md REQ-29)
+            # v16: the preset import wizard's error strip, its copy button and
             #      the review step's warnings (presets.md REQ-16)
             # v15: dialog-copy — an alert's optional "copy the full text"
             #      button (dialog.md REQ-9)
@@ -159,6 +161,7 @@ shell (app.ts):
   preset-select · preset-save        # preset-save opens the manager
   scope-toggle · scope-channels-toggle · scope-canvas    # features/scope.md
   scope-resize-handle                # features/scope.md REQ-19 — drags the panel taller
+  scope-zones-toggle                 # features/scope.md REQ-29 — hidden unless Spectrum
   info-badges · about-button · fullscreen   # ⓘ toggles badges, ? opens About;
                                             # ids follow function, not glyph order
                                             # (features/responsive-header.md REQ-6)

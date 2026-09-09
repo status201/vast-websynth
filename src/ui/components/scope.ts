@@ -158,6 +158,170 @@ export function updateWaveGain(gain: number, peak: number, dtSec: number): numbe
   return gain + (target - gain) * (1 - Math.exp(-dtSec / tau));
 }
 
+/**
+ * The Spectrum's **logarithmic** frequency axis (v13, REQ-26..29). The view used
+ * to map bin index linearly across the panel, which put 100/500/1k in the leftmost
+ * 7% and made the whole "mud" band about five pixels wide — you could see a bump
+ * but never say what note it was. A log axis gives every octave the same width, so
+ * the bands people actually hunt for become areas you can point at.
+ */
+
+/** Hz at the left edge of the plot. */
+export const SPECTRUM_F_MIN = 20;
+
+/** Hz at the right edge — clamped to Nyquist at read time (44.1k shows less). */
+export const SPECTRUM_F_MAX = 20000;
+
+/** The face every canvas label uses. Matches --mono in theme.css (typography.md). */
+const LABEL_FONT = '10px ui-monospace, monospace';
+
+/** One step down, for the zone names — they are annotation, not readout. */
+const ZONE_FONT = '9px ui-monospace, monospace';
+
+/** Px per drawn column. The bar loop steps in pixels now, not in bins (REQ-27). */
+export const SPECTRUM_COL_W = 3;
+
+/**
+ * Px per character at the component's 10px monospace — the width *estimate* that
+ * decides tick collisions. Deliberately not `ctx.measureText`: the lifecycle suite
+ * drives a proxy 2D context whose methods all return `undefined`, so reading
+ * `.width` off one throws there. (REQ-28)
+ */
+export const TICK_CHAR_W = 6;
+
+/** Minimum px between two tick labels before the crowded one is dropped. */
+export const TICK_MIN_GAP = 6;
+
+/** Region width below which zone *names* are dropped; the bands themselves stay. */
+export const ZONE_NAME_MIN_W = 300;
+
+/** Px below a region's top edge where zone names sit — clear of the corner buttons. */
+export const ZONE_NAME_TOP = 22;
+
+/** The labelled frequencies on the bottom ruler (REQ-28). */
+export const SPECTRUM_TICKS_HZ: readonly number[] = [100, 500, 1000, 5000, 10000];
+
+/** A named problem band — what the Zones overlay shades (REQ-29). */
+export interface SpectrumZone {
+  from: number;
+  to: number;
+  name: string;
+}
+
+/** The four bands people mix against, in the order they occur. */
+export const SPECTRUM_ZONES: readonly SpectrumZone[] = [
+  { from: 100, to: 200, name: 'MUD' },
+  { from: 300, to: 500, name: 'BOXY' },
+  { from: 800, to: 1000, name: 'NASAL' },
+  { from: 4000, to: 6000, name: 'HARSH' },
+];
+
+/**
+ * Log position of a frequency as a 0..1 fraction of the plot width, clamped. The
+ * **single** definition of where a frequency lives — bars, ticks, zones and the
+ * hover cursor all read from it, so none of them can drift apart. (REQ-26)
+ */
+export function freqToFrac(hz: number, fMax: number = SPECTRUM_F_MAX): number {
+  const frac = Math.log(hz / SPECTRUM_F_MIN) / Math.log(fMax / SPECTRUM_F_MIN);
+  if (!Number.isFinite(frac)) return hz > SPECTRUM_F_MIN ? 1 : 0;
+  return frac < 0 ? 0 : frac > 1 ? 1 : frac;
+}
+
+/** Exact inverse of `freqToFrac` — turns a pointer position into a frequency. */
+export function fracToFreq(frac: number, fMax: number = SPECTRUM_F_MAX): number {
+  const f = Number.isFinite(frac) ? (frac < 0 ? 0 : frac > 1 ? 1 : frac) : 0;
+  return SPECTRUM_F_MIN * Math.pow(fMax / SPECTRUM_F_MIN, f);
+}
+
+/** kHz to one decimal below 10k, whole above — the shared rounding of both labels. */
+function toKilo(hz: number): number {
+  const k = hz / 1000;
+  return k >= 10 ? Math.round(k) : Math.round(k * 10) / 10;
+}
+
+/** Compact ruler label: `100`, `500`, `1k`, `5k`, `10k`. (REQ-28) */
+export function formatHz(hz: number): string {
+  if (!Number.isFinite(hz) || hz < 0) return '';
+  return hz < 1000 ? `${Math.round(hz)}` : `${toKilo(hz)}k`;
+}
+
+/** Spoken form for the hover cursor: `437 Hz`, `1.2 kHz`. (REQ-31) */
+export function formatHzFull(hz: number): string {
+  if (!Number.isFinite(hz) || hz < 0) return '';
+  return hz < 1000 ? `${Math.round(hz)} Hz` : `${toKilo(hz)} kHz`;
+}
+
+/** One entry on the bottom ruler. */
+export interface SpectrumTick {
+  hz: number;
+  /** True position of the tick mark, px from the plot's left edge. */
+  x: number;
+  /** Where the centred label is drawn — clamped so it cannot overflow the plot. */
+  labelX: number;
+  label: string;
+}
+
+/**
+ * The ruler for a given plot width, with crowded entries pruned (REQ-28). Ticks
+ * are accepted in order of **distance from the middle of the set**, so on a panel
+ * too narrow for all five the ends of the scale — the ones that establish the
+ * range — are the last to go. Pure and canvas-free; `Scope` caches the result per
+ * width, because this allocates and the redraw loop must not (REQ-16).
+ */
+export function visibleTicks(regionW: number, fMax: number = SPECTRUM_F_MAX): SpectrumTick[] {
+  const all: SpectrumTick[] = SPECTRUM_TICKS_HZ.map((hz) => {
+    const label = formatHz(hz);
+    const x = freqToFrac(hz, fMax) * regionW;
+    const half = (label.length * TICK_CHAR_W) / 2;
+    const labelX = x < half ? half : x > regionW - half ? regionW - half : x;
+    return { hz, x, labelX, label };
+  });
+  const mid = (all.length - 1) / 2;
+  const order = all
+    .map((_, i) => i)
+    .sort((a, b) => Math.abs(b - mid) - Math.abs(a - mid) || a - b);
+  const kept: SpectrumTick[] = [];
+  for (const i of order) {
+    const t = all[i]!;
+    const half = (t.label.length * TICK_CHAR_W) / 2;
+    let clash = false;
+    for (const k of kept) {
+      const kHalf = (k.label.length * TICK_CHAR_W) / 2;
+      if (Math.abs(k.labelX - t.labelX) < half + kHalf + TICK_MIN_GAP) { clash = true; break; }
+    }
+    if (!clash) kept.push(t);
+  }
+  return kept.sort((a, b) => a.x - b.x);
+}
+
+/**
+ * Fractional bin index at each column's left edge (length `cols + 1`, monotonic).
+ * This is the whole of the log mapping the bar loop needs: a column whose span
+ * covers a whole bin takes the max over those bins, one narrower than a bin
+ * interpolates between its neighbours. (REQ-27)
+ *
+ * Pure, but allocating — `Scope` caches it per `(cols, fftSize, sampleRate)` and
+ * drops the cache exactly where it drops the gradient cache.
+ */
+export function columnBinEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
+  const n = cols > 0 ? Math.floor(cols) : 1;
+  const fMax = Math.min(SPECTRUM_F_MAX, sampleRate / 2);
+  const edges = new Float32Array(n + 1);
+  const perHz = fftSize / sampleRate;
+  for (let c = 0; c <= n; c++) edges[c] = fracToFreq(c / n, fMax) * perHz;
+  return edges;
+}
+
+/**
+ * The analyser's sample rate, defensively. `AnalyserNode.context` is non-optional
+ * in the DOM types but absent on the unit suites' stubs, and an unguarded read
+ * would take both of them down.
+ */
+function sampleRateOf(analyser: AnalyserNode): number {
+  const sr = (analyser as { context?: { sampleRate?: number } }).context?.sampleRate;
+  return typeof sr === 'number' && sr > 0 ? sr : 48000;
+}
+
 export interface ScopeAnalysers {
   /** Mono down-mix (the default view). */
   mono: AnalyserNode;
@@ -222,11 +386,28 @@ export class Scope {
   private cssH = 0;
   /** Spectrum gradients per region box — allocated once, not per frame. */
   private readonly gradCache = new Map<string, CanvasGradient>();
+  /** Column→bin boundaries per (cols, fftSize, sampleRate) — see REQ-27. */
+  private readonly edgeCache = new Map<string, Float32Array>();
+  /** Pruned ruler per (regionW, fMax) — `visibleTicks` allocates, the loop must not. */
+  private readonly tickCache = new Map<string, SpectrumTick[]>();
+  /** Problem-band overlay (REQ-29). Spectrum-only, memory-only, default off. */
+  private zones = false;
+  /** Pointer position in canvas CSS px while hovering the Spectrum; null = none. */
+  private hoverX: number | null = null;
+  private hoverY: number | null = null;
+  /** Whether the hover listeners are currently attached (they are mode-scoped). */
+  private hoverBound = false;
+  /** Cached cursor label + the rounded Hz it was built from (no per-frame string). */
+  private cursorHz = -1;
+  private cursorLabel = '';
+  /** Whether a region actually drew the cursor this frame — see the end of `draw`. */
+  private cursorShown = false;
   private dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private ro: ResizeObserver | null = null;
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
-  private readonly mirrored: { peak: string; peakL: string; peakR: string; waveGain: string } =
-    { peak: '', peakL: '', peakR: '', waveGain: '' };
+  private readonly mirrored: {
+    peak: string; peakL: string; peakR: string; waveGain: string; zones: string; cursorHz: string;
+  } = { peak: '', peakL: '', peakR: '', waveGain: '', zones: '', cursorHz: '' };
   /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
   private lastTs = 0;
   /**
@@ -282,7 +463,20 @@ export class Scope {
     this.mode = m;
     // Leaving Spectrum must drop the held-peak readout; re-entering re-acquires it.
     this.clearDatasetMirror();
+    // The cursor belongs to the Spectrum's frequency axis, so it goes with it —
+    // and its listeners are attached only while that axis is on screen (REQ-31).
+    this.clearHover();
+    if (m === 'spectrum') { this.bindHover(); this.mirrorZones(); } else this.unbindHover();
   }
+
+  /** Show/hide the problem-band overlay. Spectrum-only, memory-only. (REQ-29) */
+  setZones(on: boolean): void {
+    this.zones = on;
+    this.mirrorZones();
+  }
+
+  /** Whether the problem-band overlay is on. */
+  get zonesOn(): boolean { return this.zones; }
 
   /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
   resetPeak(): void {
@@ -326,7 +520,7 @@ export class Scope {
   private readonly onContextRestored = (): void => {
     // The restored context comes back with a blank bitmap of unknown size and
     // no cached gradients; force `measure()` past its unchanged-size check.
-    this.gradCache.clear();
+    this.dropCaches();
     this.bitmapW = 0;
     this.bitmapH = 0;
     this.measure();
@@ -334,6 +528,42 @@ export class Scope {
   };
 
   private readonly onClick = (): void => { this.resetPeak(); };
+
+  /**
+   * Hover cursor (REQ-31). `offsetX/offsetY` are already relative to the canvas's
+   * padding box, so this forces no layout — a `getBoundingClientRect()` here would
+   * be a reflow on every pointer move. Mouse only: hover has no touch equivalent,
+   * and a finger drag that left a cursor line behind reads as a bug.
+   */
+  private readonly onPointerMove = (e: PointerEvent): void => {
+    if (e.pointerType !== 'mouse') return;
+    this.hoverX = e.offsetX;
+    this.hoverY = e.offsetY;
+  };
+
+  private readonly onPointerLeave = (): void => { this.clearHover(); };
+
+  private bindHover(): void {
+    if (this.hoverBound) return;
+    this.el.addEventListener('pointermove', this.onPointerMove);
+    this.el.addEventListener('pointerleave', this.onPointerLeave);
+    this.hoverBound = true;
+  }
+
+  private unbindHover(): void {
+    if (!this.hoverBound) return;
+    this.el.removeEventListener('pointermove', this.onPointerMove);
+    this.el.removeEventListener('pointerleave', this.onPointerLeave);
+    this.hoverBound = false;
+  }
+
+  private clearHover(): void {
+    this.hoverX = null;
+    this.hoverY = null;
+    this.cursorHz = -1;
+    this.cursorLabel = '';
+    this.mirrorCursor('');
+  }
 
   /** The channel feeding a region tag (left/right fall back to mono if absent). */
   private channelFor(tag: ScopeRegion['tag']): Channel {
@@ -351,7 +581,7 @@ export class Scope {
     const w = this.el.clientWidth;
     const h = this.el.clientHeight;
     if (w === 0 || h === 0) return;
-    this.gradCache.clear(); // region boxes moved — cached gradients are stale
+    this.dropCaches(); // region boxes moved — gradients, ruler and bin edges are stale
     this.cssW = w;
     this.cssH = h;
     this.dpr = window.devicePixelRatio || 1;
@@ -390,6 +620,41 @@ export class Scope {
       c.wave = new Float32Array(c.analyser.fftSize);
       c.freq = new Uint8Array(new ArrayBuffer(c.analyser.frequencyBinCount));
     }
+    // The column→bin mapping is keyed on fftSize, so it is now stale (REQ-27).
+    this.dropCaches();
+  }
+
+  /**
+   * Drop everything derived from the canvas box, the fftSize or the sample rate.
+   * The three callers are the three moments any of those can change: a resize, a
+   * perf-tier fftSize switch, and a restored (blank, unsized) canvas context.
+   */
+  private dropCaches(): void {
+    this.gradCache.clear();
+    this.edgeCache.clear();
+    this.tickCache.clear();
+  }
+
+  /** Cached column→bin boundaries — allocating this per frame is the thing REQ-16 forbids. */
+  private binEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
+    const key = `${cols}:${fftSize}:${sampleRate}`;
+    let edges = this.edgeCache.get(key);
+    if (!edges) {
+      edges = columnBinEdges(cols, fftSize, sampleRate);
+      this.edgeCache.set(key, edges);
+    }
+    return edges;
+  }
+
+  /** Cached ruler for a plot width — `visibleTicks` sorts and allocates. */
+  private ticksFor(regionW: number, fMax: number): SpectrumTick[] {
+    const key = `${Math.round(regionW)}:${fMax}`;
+    let ticks = this.tickCache.get(key);
+    if (!ticks) {
+      ticks = visibleTicks(regionW, fMax);
+      this.tickCache.set(key, ticks);
+    }
+    return ticks;
   }
 
   /**
@@ -455,12 +720,22 @@ export class Scope {
       this.mirrorWaveGain();
     }
 
+    this.cursorShown = false;
+
     // One renderer drives every region (DRY): mono = 1 region, stereo = 2.
     for (const region of scopeRegions(this.channels, w, h)) {
       const channel = this.channelFor(region.tag);
       if (this.mode === 'wave') this.drawWave(ctx, channel, region);
       else this.drawSpectrum(ctx, channel, region, dt);
       if (region.label) this.drawLabel(ctx, region);
+    }
+
+    // The pointer can be inside the canvas but outside every region — the stereo
+    // centre gutter — where there is no frequency to report. No region drew a
+    // cursor, so the readout must not keep showing the last one.
+    if (!this.cursorShown && this.mirrored.cursorHz) {
+      this.cursorHz = -1;
+      this.mirrorCursor('');
     }
   }
 
@@ -488,14 +763,32 @@ export class Scope {
     ctx.stroke();
   }
 
+  /**
+   * Every string this component draws goes through here (REQ-30): a dark outline
+   * under the fill, so a label sitting on top of a full-height bar stays readable.
+   * It is an outline rather than a `shadowBlur` — omnidirectional, crisper at
+   * 10px, and it does not reintroduce canvas shadows to a component that dropped
+   * them for cost (REQ-8). Eight short strings a frame is a different order of
+   * expense from shadowing every bar.
+   */
+  private haloText(
+    ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fill: string,
+  ): void {
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
+  }
+
   private drawLabel(ctx: CanvasRenderingContext2D, r: ScopeRegion): void {
-    ctx.fillStyle = 'rgba(244, 205, 94, 0.4)';
-    ctx.font = '10px ui-monospace, monospace';
+    ctx.font = LABEL_FONT;
     // Bottom-left: the corner overlay buttons (Mono/Stereo top-left, Wave/Spectrum
     // top-right) sit flush with the canvas corners, so a top-anchored label hides
     // behind them. Same dodge the peak-dB readout makes by centring. (REQ-6)
     ctx.textBaseline = 'bottom';
-    ctx.fillText(r.label, r.x + 4, r.y + r.h - 4);
+    this.haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, 'rgba(244, 205, 94, 0.6)');
   }
 
   private drawWave(ctx: CanvasRenderingContext2D, channel: Channel, r: ScopeRegion): void {
@@ -536,19 +829,23 @@ export class Scope {
     dtSec: number,
   ): void {
     this.drawMidline(ctx, r);
-    channel.analyser.getByteFrequencyData(channel.freq);
+    const analyser = channel.analyser;
+    analyser.getByteFrequencyData(channel.freq);
     const data = channel.freq;
-    const used = Math.floor(data.length * 0.6);
-    const barW = r.w / used;
-    ctx.fillStyle = this.spectrumGradient(ctx, r);
-    let maxByte = 0;
-    for (let i = 0; i < used; i++) {
-      const b = data[i] ?? 0;
-      if (b > maxByte) maxByte = b;
-      const bh = (b / 255) * (r.h - 2);
-      if (bh < 0.5) continue;
-      ctx.fillRect(r.x + i * barW, r.y + r.h - bh, Math.max(1, barW - 1), bh);
-    }
+    const sampleRate = sampleRateOf(analyser);
+    const fMax = Math.min(SPECTRUM_F_MAX, sampleRate / 2);
+    // The plot is the whole region: no gutter is reserved for the Zones button.
+    // On a panel narrow enough for the two to meet, the top tick label goes behind
+    // the button — a deliberate trade, because reserving the width cost every
+    // region a dead strip (and put an 80px hole down the middle of side-by-side
+    // stereo) to protect one label at one end. (REQ-29)
+    const cols = Math.max(1, Math.floor(r.w / SPECTRUM_COL_W));
+    const edges = this.binEdges(cols, analyser.fftSize, sampleRate);
+
+    // Bands go behind the bars; their names go in front, further down.
+    if (this.zones) this.drawZoneBands(ctx, r, fMax);
+
+    const maxByte = this.drawBars(ctx, r, data, edges, cols);
 
     // Peak-hold: pushed up by the loudest visible bar, held briefly, then falls slowly.
     const next = updatePeak(
@@ -560,6 +857,154 @@ export class Scope {
     channel.peakHoldS = next.holdS;
     this.drawPeak(ctx, r, channel.peakDb);
     this.mirrorPeak(r.tag, channel.peakDb);
+    this.drawTicks(ctx, r, fMax);
+    if (this.zones) this.drawZoneNames(ctx, r, fMax);
+    this.drawCursor(ctx, r, fMax);
+  }
+
+  /**
+   * The bars themselves, and the raw peak byte they were drawn from (REQ-27).
+   * Column-based, not bin-based: a log axis maps the two ends of the spectrum in
+   * opposite directions, so a column covering whole bins takes the **max** over
+   * them (a narrow peak must never be averaged away) while a column narrower than
+   * a bin **interpolates** between its neighbours (otherwise the bottom third is
+   * three flat plateaus, which is what makes a naive log analyser look broken).
+   */
+  private drawBars(
+    ctx: CanvasRenderingContext2D,
+    r: ScopeRegion,
+    data: Uint8Array,
+    edges: Float32Array,
+    cols: number,
+  ): number {
+    ctx.fillStyle = this.spectrumGradient(ctx, r);
+    const nBins = data.length;
+    const colW = r.w / cols;
+    const barW = Math.max(1, colW - 1);
+    const maxH = r.h - 2;
+    let maxByte = 0;
+    for (let c = 0; c < cols; c++) {
+      const b0 = edges[c] ?? 0;
+      const b1 = edges[c + 1] ?? 0;
+      let level: number;
+      if (b1 - b0 >= 1) {
+        const lo = Math.max(0, Math.floor(b0));
+        const hi = Math.min(nBins - 1, Math.ceil(b1) - 1);
+        let m = 0;
+        for (let i = lo; i <= hi; i++) { const b = data[i] ?? 0; if (b > m) m = b; }
+        level = m;
+        if (m > maxByte) maxByte = m;
+      } else {
+        const mid = (b0 + b1) / 2;
+        const i0 = Math.min(nBins - 1, Math.max(0, Math.floor(mid)));
+        const i1 = Math.min(nBins - 1, i0 + 1);
+        const a = data[i0] ?? 0;
+        const b = data[i1] ?? 0;
+        level = a + (b - a) * (mid - i0);
+        // The held peak reads RAW bins, never the interpolation (REQ-27).
+        if (a > maxByte) maxByte = a;
+        if (b > maxByte) maxByte = b;
+      }
+      const bh = (level / 255) * maxH;
+      if (bh < 0.5) continue;
+      ctx.fillRect(r.x + c * colW, r.y + r.h - bh, barW, bh);
+    }
+    return maxByte;
+  }
+
+  /**
+   * Canvas x of a frequency inside a region — the one place a Hz becomes a pixel,
+   * so the bands, their names and anything added later cannot drift apart.
+   */
+  private xForFreq(r: ScopeRegion, hz: number, fMax: number): number {
+    return r.x + freqToFrac(hz, fMax) * r.w;
+  }
+
+  /** The shaded problem bands, behind the bars. (REQ-29) */
+  private drawZoneBands(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
+    ctx.fillStyle = 'rgba(244, 205, 94, 0.08)';
+    for (const z of SPECTRUM_ZONES) {
+      const x0 = this.xForFreq(r, z.from, fMax);
+      ctx.fillRect(x0, r.y, this.xForFreq(r, z.to, fMax) - x0, r.h);
+    }
+  }
+
+  /**
+   * The band names, in front of the bars. Inset from the region top so they clear
+   * the two corner overlay buttons, and dropped entirely on a region too narrow to
+   * hold them — the shading still says where the band is. (REQ-29)
+   */
+  private drawZoneNames(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
+    if (r.w < ZONE_NAME_MIN_W || r.h < ZONE_NAME_TOP + 12) return;
+    ctx.save();
+    ctx.font = ZONE_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (const z of SPECTRUM_ZONES) {
+      const mid = (this.xForFreq(r, z.from, fMax) + this.xForFreq(r, z.to, fMax)) / 2;
+      this.haloText(ctx, z.name, mid, r.y + ZONE_NAME_TOP, 'rgba(244, 205, 94, 0.75)');
+    }
+    ctx.restore();
+  }
+
+  /** The bottom ruler: a short tick per labelled frequency, the label above it. (REQ-28) */
+  private drawTicks(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
+    const ticks = this.ticksFor(r.w, fMax);
+    const bottom = r.y + r.h;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(244, 205, 94, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const t of ticks) {
+      const x = Math.round(r.x + t.x) + 0.5;
+      ctx.moveTo(x, bottom);
+      ctx.lineTo(x, bottom - 4);
+    }
+    ctx.stroke();
+    ctx.font = LABEL_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (const t of ticks) {
+      this.haloText(ctx, t.label, r.x + t.labelX, bottom - 5, 'rgba(244, 205, 94, 0.75)');
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The hover cursor: a line at the pointer and the frequency under it (REQ-31).
+   * Drawn only for the region the pointer is actually in, so in Stereo you read
+   * the channel you are pointing at. The label rides the pointer's own Y and flips
+   * side at the halfway mark, which keeps it clear of the corner chrome without a
+   * fixed anchor that could collide.
+   */
+  private drawCursor(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
+    const hx = this.hoverX;
+    const hy = this.hoverY;
+    if (hx === null || hy === null) return;
+    if (hx < r.x || hx > r.x + r.w || hy < r.y || hy > r.y + r.h) return;
+    const frac = (hx - r.x) / r.w;
+    const hz = fracToFreq(frac, fMax);
+    const rounded = hz < 1000 ? Math.round(hz) : Math.round(hz / 100) * 100;
+    this.cursorShown = true;
+    if (rounded !== this.cursorHz) {
+      this.cursorHz = rounded;
+      this.cursorLabel = formatHzFull(hz);
+      this.mirrorCursor(`${rounded}`);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(244, 205, 94, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const x = Math.round(hx) + 0.5;
+    ctx.moveTo(x, r.y);
+    ctx.lineTo(x, r.y + r.h);
+    ctx.stroke();
+    ctx.font = LABEL_FONT;
+    const left = frac > 0.5;
+    ctx.textAlign = left ? 'right' : 'left';
+    ctx.textBaseline = 'middle';
+    this.haloText(ctx, this.cursorLabel, hx + (left ? -5 : 5), hy, '#f4cd5e');
+    ctx.restore();
   }
 
   /** The dotted max-dB peak-hold line + its dB label for one region. (REQ-10/11) */
@@ -577,14 +1022,13 @@ export class Scope {
     ctx.lineTo(r.x + r.w, y);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = color;
-    ctx.font = '10px ui-monospace, monospace';
+    ctx.font = LABEL_FONT;
     // Centre the value within the region so it can't hide behind the corner buttons.
     ctx.textAlign = 'center';
     // Flip the label below the line when it's hugging the top edge.
     const near = y < r.y + 12;
     ctx.textBaseline = near ? 'top' : 'bottom';
-    ctx.fillText(`${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2);
+    this.haloText(ctx, `${peakDb.toFixed(1)} dB`, r.x + r.w / 2, near ? y + 2 : y - 2, color);
     ctx.restore();
   }
 
@@ -619,14 +1063,36 @@ export class Scope {
    * switch, reset) — never per frame — so it clears unconditionally for correctness.
    */
   private clearDatasetMirror(): void {
-    for (const key of ['peak', 'peakL', 'peakR', 'waveGain'] as const) {
+    for (const key of ['peak', 'peakL', 'peakR', 'waveGain', 'zones', 'cursorHz'] as const) {
       this.mirrored[key] = '';
       delete this.el.dataset[key];
     }
   }
 
+  /** Mirror the overlay state for E2E — Spectrum-only, so cleared in Wave. (REQ-29) */
+  private mirrorZones(): void {
+    const v = this.mode === 'spectrum' ? (this.zones ? 'on' : 'off') : '';
+    if (this.mirrored.zones === v) return;
+    this.mirrored.zones = v;
+    if (v) this.el.dataset.zones = v;
+    else delete this.el.dataset.zones;
+  }
+
+  /**
+   * Mirror the frequency under the cursor. Written only when the rounded value
+   * changes, and only while a mouse is over the graph — so a scope nobody is
+   * pointing at still performs no attribute write at all. (REQ-15/31)
+   */
+  private mirrorCursor(v: string): void {
+    if (this.mirrored.cursorHz === v) return;
+    this.mirrored.cursorHz = v;
+    if (v) this.el.dataset.cursorHz = v;
+    else delete this.el.dataset.cursorHz;
+  }
+
   destroy(): void {
     this.stop();
+    this.unbindHover();
     this.ro?.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pageshow', this.onVisibility);

@@ -1180,6 +1180,16 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<p>A live visualiser of the sound. <strong>Wave</strong> shows the waveform like an ' +
       'oscilloscope (you can see the shape of the tone); <strong>Spectrum</strong> shows the ' +
       'frequency content (bass on the left, treble on the right). Click the button to switch.</p>' +
+      '<p>The <strong>Spectrum</strong> scale is logarithmic — like octaves on the keyboard, so ' +
+      'every octave is the same width — and the ruler along the bottom marks ' +
+      '<strong>100, 500, 1k, 5k</strong> and <strong>10k</strong> Hz. <strong>Hover the graph</strong> ' +
+      'with a mouse to read the exact frequency under the pointer.</p>' +
+      '<p><strong>Zones</strong> shades the four bands that most often need fixing: ' +
+      '<strong>MUD</strong> (100–200 Hz, boomy and thick), <strong>BOXY</strong> (300–500 Hz, ' +
+      'like singing into a carton), <strong>NASAL</strong> (800 Hz–1 kHz, cheap and honky) and ' +
+      '<strong>HARSH</strong> (4–6 kHz, the range that fatigues your ears fastest). Find the ' +
+      'offending band here, then go after it with the filter cutoff, the oscillator mix ' +
+      'or the FX that put it there.</p>' +
       '<p><strong>Wave</strong> auto-ranges like a scope’s volts/div knob, so a quiet song ' +
       'still draws a readable waveform instead of a flat line — a loud one still draws ' +
       'taller, but the height is not a level meter. For actual level, read the ' +
