@@ -35,6 +35,27 @@ function lamp(root: HTMLElement, tabId: string): HTMLElement {
   return [...btn.querySelectorAll('span')].find((s) => s.dataset.state !== undefined)!;
 }
 
+const read = (f: string) => readFileSync(resolve(process.cwd(), f), 'utf8');
+
+/**
+ * The declared value of one property inside one rule. Deliberately string
+ * surgery rather than a built regex: the selectors here are `.page` and
+ * `.pageShell`, `.bottom` and `.bottomTop`, so matching on `<selector> {`
+ * keeps the prefixes apart without any escaping to get wrong.
+ */
+function decl(css: string, selector: string, prop: string): string | null {
+  const at = css.indexOf(`${selector} {`);
+  if (at < 0) return null;
+  const body = css.slice(at, css.indexOf('}', at));
+  for (const line of body.split('\n')) {
+    const i = line.indexOf(':');
+    if (i < 0) continue;
+    if (line.slice(0, i).trim() !== prop) continue;
+    return line.slice(i + 1).replace(';', '').trim();
+  }
+  return null;
+}
+
 beforeEach(() => {
   document.body.innerHTML = '';
   localStorage.clear();
@@ -58,6 +79,17 @@ describe('the section header (REQ-9)', () => {
     const bar = panel.el.firstElementChild!;
     expect(bar.firstElementChild!.tagName).toBe('SPAN');
     expect(bar.lastElementChild!.getAttribute('aria-expanded')).not.toBeNull();
+  });
+
+  it('draws the title in the faceplate white, never in a tab colour', () => {
+    // Same serif, size, weight and caps as the tabs, so colour is the only thing
+    // saying "heading, not control". In the active tab's yellow it read as a
+    // fourth tab that did nothing when clicked.
+    const tabsCss = read('src/ui/styles/tabs.module.css');
+    expect(decl(tabsCss, '.title', 'color')).toBe('var(--text)');
+    // …and no tab state (idle, active, the fold caret's hover) borrows it.
+    expect(tabsCss.match(/(^|[\s;{])color:\s*var\(--text\)/gm), 'only .title').toHaveLength(1);
+    expect(decl(tabsCss, '.title', 'opacity')).toBeNull();
   });
 
   it('is folded on first load, and remembers being opened', () => {
@@ -241,28 +273,8 @@ describe('the bottom grid keeps its shape (REQ-16)', () => {
 });
 
 describe('the page mirrors the scope row (REQ-18)', () => {
-  const read = (f: string) => readFileSync(resolve(process.cwd(), f), 'utf8');
   const layout = read('src/ui/styles/layout.module.css');
   const eqCss = read('src/ui/styles/eq.module.css');
-
-  /**
-   * The declared value of one property inside one rule. Deliberately string
-   * surgery rather than a built regex: the selectors here are `.page` and
-   * `.pageShell`, `.bottom` and `.bottomTop`, so matching on `<selector> {`
-   * keeps the prefixes apart without any escaping to get wrong.
-   */
-  function decl(css: string, selector: string, prop: string): string | null {
-    const at = css.indexOf(`${selector} {`);
-    if (at < 0) return null;
-    const body = css.slice(at, css.indexOf('}', at));
-    for (const line of body.split('\n')) {
-      const i = line.indexOf(':');
-      if (i < 0) continue;
-      if (line.slice(0, i).trim() !== prop) continue;
-      return line.slice(i + 1).replace(';', '').trim();
-    }
-    return null;
-  }
 
   it('takes its gutter from the same custom property the wheels do', () => {
     // The whole point of REQ-18: "exactly as wide as the wheels". Two literal

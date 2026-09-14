@@ -6,6 +6,7 @@ status: implemented
 version: 3   # v3: REQ-4 — the knob is labelled Q, not WIDTH: turning it up
              #     narrows the bands, which the old name said backwards.
              #     REQ-19 — the section's info badges (onboarding.md REQ-26)
+             #     REQ-9 — the row title is drawn white, not in a tab colour
              # v2: REQ-18 — the page mirrors the scope row (one shared
              #     gutter, height from --scope-h). It shipped with the graph
              #     at ~300px and the knobs beside it, aligning with nothing
@@ -219,6 +220,14 @@ curve from bus values so it needs no analyser and runs no animation loop.
   `margin-left: auto` caret appended before the title would drag the title to the
   right edge). `.tab` is already `text-transform: uppercase`, so the tab labels
   render as caps; `.title` matches it.
+
+  (v3) **The title is drawn in the faceplate's white (`--text`), never a tab
+  colour.** It shares the tabs' serif, size, weight and caps, which leaves colour
+  as the only cue separating a heading from a control. It shipped in
+  `--accent-secondary` at 75% opacity, the active tab's yellow, dimmed, and read
+  as a fourth tab that did nothing when clicked
+  ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1: one look, one
+  meaning).
 
   `collapsedByDefault` is `() => true` unconditionally — this is a tool you reach
   for, not a surface you live in.
@@ -637,6 +646,12 @@ Scenario: The header reads EQUALIZER before the three tabs (REQ-9)
   Given the built section
   Then the bar's first child is the title and the tabs follow it
   And the caret is the bar's last child
+# pinned by: tests/ui/eq-panel.test.ts
+
+Scenario: The row title reads as a heading, not a fourth tab (v3, REQ-9)
+  Given the tab bar's stylesheet
+  Then .title is coloured var(--text), undimmed
+  And no tab state shares that colour
 # pinned by: tests/ui/eq-panel.test.ts
 
 Scenario: The tab LED tracks the param and reads muted when flat (REQ-10)
