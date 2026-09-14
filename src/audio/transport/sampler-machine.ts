@@ -138,10 +138,10 @@ export class SamplerMachine {
 
   constructor(
     private readonly ctx: AudioContext,
-    private readonly clock: TickSubscriber,
+    clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
-    private readonly perf: Performance,
+    perf: Performance,
     private readonly samplerBus: GainNode,
   ) {
     this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));

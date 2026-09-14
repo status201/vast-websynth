@@ -5,6 +5,7 @@ import switchStyles from '../styles/switch.module.css';
 import songStyles from '../styles/song-panel.module.css';
 import styles from '../styles/transport-controls.module.css';
 import { UI_ICONS } from './ui-icons';
+import { effectiveLoopRange } from '../../audio/transport/transport-loop';
 
 /**
  * The song-scale transport shared by the Song panel's row and the TRANSPORT
@@ -19,12 +20,14 @@ import { UI_ICONS } from './ui-icons';
 export interface TransportControlsOpts {
   /** Namespaces every testid so two instances coexist. Default `'transport'`. */
   testIdPrefix?: string;
-  /** Song-panel row: drop Play/Stop (it lives in the window). */
-  compact?: boolean;
 }
 
 /** Global state class marking the current bar — as the rulers use. */
 const AT_CLASS = 'playing';
+/** Global state classes for the loop (transport-loop.md REQ-12) — global for the
+ *  same reason as `playing`: E2E has nothing else to select past CSS Modules. */
+const LOOP_CLASS = 'loop';
+const ANCHOR_CLASS = 'loop-anchor';
 
 function djButton(label: string, testid: string): HTMLButtonElement {
   const b = document.createElement('button');
@@ -36,13 +39,13 @@ function djButton(label: string, testid: string): HTMLButtonElement {
 }
 
 /**
- * `[Play/Stop, |◀, bar.step, scrubber]` — or just `[|◀, bar.step, scrubber]`
- * when `compact`.
+ * `[Play/Pause, |◀, bar.step, Loop, scrubber]` — the same set on both surfaces
+ * (transport-window.md REQ-1).
  *
- * Takes the `UiBridge` rather than touching the clock, because Play/Stop must
- * click the *real* header button (transport-window.md REQ-5): that is what
- * carries the empty-play hint and the LED blink state machine, and it is the
- * only way two Play buttons can be guaranteed to agree.
+ * Takes the `UiBridge` because Play must click the *real* header button
+ * (transport-window.md REQ-5): that is what carries the empty-play hint and the
+ * LED blink state machine, and it is the only way the Play buttons can be
+ * guaranteed to agree. Pause goes to the clock — the header's click means Stop.
  *
  * Takes no `ParamBus` for the same reason in the other direction: it owns no
  * params, so it cannot mint a second BPM/SWING knob behind the header's back
@@ -57,25 +60,34 @@ export function buildTransportControls(
   const p = opts.testIdPrefix ?? 'transport';
   const out: HTMLElement[] = [];
 
-  /** Playing: the live step. Stopped: the cue, i.e. where Play will begin. */
+  /** Playing: the live step. Stopped: the cue, i.e. where Play will begin —
+   *  which after a Pause is the resume point (transport.md REQ-12). */
   const position = (): number => (engine.clock.playing ? engine.clock.step : engine.clock.cue);
 
-  if (!opts.compact) {
-    // `-toggle`, not `-play`: the header's own Play button is `transport-play`,
-    // and a default-prefixed instance minting a second one would break every
-    // spec that drives the transport by that id.
-    const play = djButton('Play', `${p}-toggle`);
-    play.addEventListener('click', () => bridge.toggleTransport());
-    const syncPlay = (): void => {
-      const playing = engine.clock.playing;
-      play.classList.toggle('on', playing);
-      play.textContent = playing ? 'Stop' : 'Play';
-    };
-    engine.clock.onStart(syncPlay);
-    engine.clock.onStop(syncPlay);
-    syncPlay();
-    out.push(play);
-  }
+  // `-toggle`, not `-play`: the header's own Play button is `transport-play`,
+  // and a default-prefixed instance minting a second one would break every
+  // spec that drives the transport by that id.
+  const play = djButton('Play', `${p}-toggle`);
+  play.classList.add(styles.playPause!);
+  play.addEventListener('click', () => {
+    // Two outcomes, each named by the label the user just read
+    // (transport-window.md REQ-13): Pause stays here, Play goes via the header.
+    if (engine.clock.playing) engine.clock.pause();
+    else bridge.toggleTransport();
+  });
+  const syncPlay = (): void => {
+    const playing = engine.clock.playing;
+    play.classList.toggle('on', playing);
+    play.textContent = playing ? 'Pause' : 'Play';
+    play.title = playing
+      ? 'Pause — Play continues from here'
+      : engine.clock.paused ? 'Continue from where you paused' : 'Play';
+  };
+  engine.clock.onStart(syncPlay);
+  engine.clock.onStop(syncPlay);
+  engine.clock.onSeek(syncPlay); // a seek cancels a pause, which retitles Play
+  syncPlay();
+  out.push(play);
 
   // Built empty, then drawn: `djButton` sets `textContent`, which would print
   // the SVG source rather than render it.
@@ -90,6 +102,15 @@ export function buildTransportControls(
   readout.className = styles.readout!;
   readout.dataset.testid = `${p}-readout`;
   out.push(readout);
+
+  // Loop sits against the scrubber because that is where its picks land
+  // (transport-window.md REQ-14). Inert while seeking is refused: a wrap is a
+  // seek, so an armable loop that cannot wrap would be a lie (transport-loop.md REQ-6).
+  const loopBtn = djButton('Loop', `${p}-loop`);
+  loopBtn.addEventListener('click', () => {
+    if (engine.canSeek()) engine.loop.toggle();
+  });
+  out.push(loopBtn);
 
   const scrub = document.createElement('div');
   scrub.className = styles.scrub!;
@@ -113,13 +134,60 @@ export function buildTransportControls(
       c.className = styles.bar!;
       c.dataset.testid = `${p}-scrub-${i}`;
       c.textContent = String(i + 1);
-      c.title = `Jump to bar ${i + 1}`;
-      c.addEventListener('click', () => engine.seekTo(bar * engine.barTicks));
+      c.addEventListener('click', () => {
+        // Loop on turns a click into a pick (transport-loop.md REQ-2) — a mode,
+        // so its state is drawn on these very cells by paintLoop, not only on
+        // the button.
+        if (!engine.loop.enabled) engine.seekTo(bar * engine.barTicks);
+        else if (engine.canSeek()) engine.loop.pick(bar);
+      });
       scrub.appendChild(c);
       cells.push(c);
     }
     builtBars = bars;
     litBar = -1;
+    loopKey = '';
+    paintLoop();
+  };
+
+  /** What the loop paint last drew — so the per-bar arrangement notify, which
+   *  also reaches `paintLoop`, costs a string compare when nothing changed. */
+  let loopKey = '';
+
+  /**
+   * Loop button state, the range on the cells, the anchor and every cell's title
+   * (transport-loop.md REQ-1/REQ-2/REQ-12). Runs on a loop change, a rebuild and
+   * an arrangement change (a shorter chain clamps the range, REQ-7) — never per
+   * tick, and a no-op unless what it would draw differs.
+   */
+  const paintLoop = (): void => {
+    const loop = engine.loop;
+    const range = effectiveLoopRange(loop.range, engine.arrangement.songBars());
+    const on = loop.enabled;
+    const key = `${on}|${range?.start}|${range?.end}|${loop.anchor}|${cells.length}`;
+    if (key === loopKey) return;
+    loopKey = key;
+    loopBtn.classList.toggle('on', on);
+    loopBtn.setAttribute('aria-pressed', String(on));
+    const span = range
+      ? range.start === range.end ? `bar ${range.start + 1}` : `bars ${range.start + 1}–${range.end + 1}`
+      : '';
+    loopBtn.title = !on
+      ? range ? `Loop ${span} again` : 'Loop — then click the first and last bar'
+      : range ? `Looping ${span} — click two bars to change, or Loop to stop` : 'Click the first and last bar to loop';
+    scrub.classList.toggle(styles.picking!, on);
+    scrub.classList.toggle(styles.loopIdle!, !on && range !== null);
+
+    const anchor = loop.anchor;
+    cells.forEach((c, i) => {
+      c.classList.toggle(LOOP_CLASS, range !== null && i >= range.start && i <= range.end);
+      c.classList.toggle(ANCHOR_CLASS, on && anchor === i);
+      c.title = !on
+        ? `Jump to bar ${i + 1}`
+        : anchor === null
+          ? `Loop from bar ${i + 1}`
+          : `Loop bars ${Math.min(anchor, i) + 1}–${Math.max(anchor, i) + 1}`;
+    });
   };
 
   /**
@@ -171,6 +239,9 @@ export function buildTransportControls(
   engine.clock.onStart(paint);
   engine.clock.onStop(paint);
   engine.arrangement.onChange(paint);
+  // A chain edit can shorten the song under a range (transport-loop.md REQ-7).
+  engine.arrangement.onChange(paintLoop);
+  engine.loop.onChange(paintLoop);
 
   paint();
   return out;
@@ -194,9 +265,9 @@ export const transportRowClass = styles.row!;
 
 /**
  * The "TRANSPORT" launcher (Song panel). Doubles as the section title and opens
- * a non-modal FloatingWindow carrying the full control set — including the
- * Play/Stop the compact row deliberately drops. Built lazily and kept alive
- * across closes, exactly like the LIVE FX launcher.
+ * a non-modal FloatingWindow carrying the same control set as the row, so it
+ * keeps working on every other tab. Built lazily and kept alive across closes,
+ * exactly like the LIVE FX launcher.
  */
 export function createTransportWindowLauncher(
   engine: StudioApi,

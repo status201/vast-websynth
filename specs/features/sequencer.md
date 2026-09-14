@@ -3,7 +3,9 @@
 ```yaml
 id: sequencer
 status: implemented
-version: 9   # v9: REQ-1 also honours per-step `micro` — and applies it here
+version: 10  # v10: REQ-14's seek release lands at each track's gate end, not
+             #      now — a loop wrap otherwise hangs a tied voice (transport-loop)
+             # v9: REQ-1 also honours per-step `micro` — and applies it here
              #     rather than inside stepHits, so the mono release moves with
              #     the attack (step-settings.md REQ-8)
              # v8: the lane's length + step rate come from the meter (REQ-18)
@@ -139,9 +141,16 @@ and tracks 2–4 start empty and silent.
   ([transport-position](transport-position.md) REQ-4) a note tied at the old
   position would otherwise slur into the new one, or a held note would never be
   released at all. `StepSequencer` therefore subscribes `clock.onSeek` in its
-  constructor and runs the same per-track release `setMuted(true)` uses — keeping
-  `releaseAll`/`releaseTrack` private rather than widening the public surface for
-  one caller.
+  constructor and runs the per-track release — keeping `releaseTrack` private
+  rather than widening the public surface for one caller.
+  (v10) **It releases at each track's own last gate end**, exactly as REQ-15's
+  stop does, not at `now`. A seek can arrive while the last step's note-on is
+  still in the look-ahead; a release at `now` lands *before* that attack and is
+  overwritten by it, leaving the voice hanging. A user's click rarely hits that
+  window, but a [loop](transport-loop.md) wrap is a jump issued from *inside* the
+  drain, straight after the last step was scheduled
+  ([transport](transport.md) REQ-13) — so a tied last step hit it every single
+  wrap. REQ-15's three reasons all carry over unchanged.
 - **REQ-15** (v5) — **A transport stop releases every track's held note.** A tied
   step deliberately schedules **no** `releaseNote` (REQ-2): the release is the
   *next* tick's job. After a stop that tick never comes, so the voice sustained
@@ -328,6 +337,12 @@ Scenario: A tied note does not slur across a transport seek (v4, REQ-14)
   Given a step tied into the next one is currently sounding
   When the playhead is seeked elsewhere
   Then the held note is released and prevTied is cleared on every track
+# pinned by: tests/audio/transport/sequencer.test.ts
+
+Scenario: A seek releases a tie at its gate end, not before its attack (v10, REQ-14, regression)
+  Given a tied step whose note-on is still in the look-ahead (when > now)
+  When onSeek fires — a loop wrap straight after that step was scheduled
+  Then releaseNote is called with that step's gate end, not with `now`
 # pinned by: tests/audio/transport/sequencer.test.ts
 
 Scenario: Stopping the song ends a tied note instead of hanging it (v5, REQ-15, regression)

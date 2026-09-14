@@ -3,7 +3,9 @@
 ```yaml
 id: transport
 status: implemented
-version: 7   # v7: REQ-10 the step counter no longer wraps (bounded at ingress
+version: 8   # v8: REQ-12 pause() — a one-shot resume point the cue reports while
+             #     paused; REQ-13 a step router, which the loop wraps through
+             # v7: REQ-10 the step counter no longer wraps (bounded at ingress
              #     instead), REQ-11 swingOffset is public — both for meter.md
              # v6: REQ-9 bounded catch-up — a stalled wakeup source (backgrounded
              #     phone) recovers as silence, never as a burst of missed steps
@@ -17,6 +19,8 @@ related:
   - performance-mode
   - midi-clock-sync
   - transport-position
+  - transport-window   # v8: the Play/Pause button that calls pause()
+  - transport-loop     # v8: the step router's one consumer
   - untrusted-input
   - audio-lifecycle
   - ../decisions/adr-015-untrusted-input-is-bounded
@@ -183,6 +187,55 @@ untouched.
   ([meter](meter.md) REQ-16). The drain loop computes its offset through the same
   method, so there is one definition of swing, not two.
 
+- **REQ-12** (v8) — **`pause()` stops, and the next `start()` resumes where this
+  run stopped.** Stop → Play returns to the cue (REQ-7), which is the right
+  behaviour for Stop but leaves no way to continue from the middle of a song.
+  `pause()` stops exactly as `stop()` does (same listeners, same `onStop`
+  reactions everywhere) and also records a **resume point**: the step the run
+  would have emitted next. Hardware and DAWs handle it the same way: Elektron's
+  PLAY pauses and resumes while STOP returns, and an MPC has PLAY next to
+  PLAY START.
+  - **The resume point is the first step not yet scheduled** (`_step`), not the
+    step audible at that moment. Steps already inside the look-ahead were handed
+    to the machines at absolute times, and they sound after the pause just as
+    they do after a stop ([transport-position](transport-position.md) REQ-12).
+    Resuming at `_step` therefore plays no step twice and skips none.
+  - **It is used once and cleared by anything that sets a position.** `start()`
+    uses it and clears it. `seek()` clears it, because the user has chosen a new
+    position. `stop()` clears it **even when already stopped**: Stop
+    always means "back to the cue", so Esc/Panic after a pause cancels the
+    resume. Stop → Play after a paused run has resumed therefore still returns
+    to the cue, not to where the pause happened.
+  - **`cue` stays the one public "where Play begins" number.** It returns the
+    resume point while one is set and the seek position otherwise. Every surface
+    that already shows the cue (the rulers' cue ring, the song readout) shows the
+    resume point during a pause without any change. While playing the resume
+    point is always clear, so the ring still marks where Stop → Play returns.
+    The two inputs are private, which keeps transport-position REQ-2's "one
+    position number" true.
+  - `paused` is `true` from a `pause()` until the resume point is cleared.
+    Plain `start()` without a pause still behaves as REQ-5/REQ-7 describe:
+    `_resume` is `null`, so `cue` is the seek position.
+
+- **REQ-13** (v8) — **A step router can redirect the next step, as a jump.**
+  `setStepRouter(fn | null)` installs a function the drain loop consults
+  **after** the counter advances past each emitted step: `fn(next)` returns the
+  step to emit next. Returning `next` changes nothing. Any other value is a
+  **jump**, which differs from a seek in three ways:
+  - it happens **inside the drain**, so the routed step is the very next tick on
+    the unchanged grid. There is no look-ahead leftover and no retrigger, which
+    a seek clicked mid-horizon cannot guarantee
+    ([transport-position](transport-position.md) REQ-12);
+  - the counter moves to `clampStep(result)` and `onSeek` fires synchronously
+    so every relative consumer catches up (transport-position REQ-4), but the
+    **cue does not move**, since the user did not choose that position;
+  - each `onSeek` listener runs in its own `try`, as REQ-8 requires for tick
+    listeners, because a throw here would escape the drain loop the same way.
+    A throwing router counts as "no jump" and is reported once.
+  The clock knows nothing about bars or loops. The router is supplied by
+  [transport-loop](transport-loop.md), which keeps the clock's hot path at one
+  `null` check while nothing is installed.
+
 ## Technical design
 
 ### Contract / public interface
@@ -199,12 +252,21 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
   setSwing(s)          # 0 (straight) .. 1
   swingOffset(step)    # v7: the delay this tick carries; 0 on even steps (REQ-11)
   get cue: number      # v4: where a plain start() begins; 0 until the first seek
+                       # v8: _resume ?? _cue — the resume point while paused (REQ-12)
+  get paused: boolean  # v8: a resume point is set (REQ-12)
   start(fromStep = this.cue) / stop()   # v3: fromStep seeds _step before onStart.
                        # v4: the default is the cue, not the literal 0.
                        # v7: clamped 0..MAX_STEP, not masked (REQ-10)
+                       # v8: start clears _resume; stop clears it even when stopped
+  pause()              # v8: no-op unless playing; _resume = _step, then stop's body
+                       # (onStop fires with `cue` already reading the resume point)
   seek(step)           # v4: _cue = _step = step; nextStepTime UNTOUCHED;
                        # fires onSeek synchronously. Playing or stopped.
                        # v7: clamped 0..MAX_STEP, non-finite refused (REQ-10)
+                       # v8: also clears _resume (REQ-12)
+  setStepRouter(fn: StepRouter | null)  # v8 (REQ-13): consulted after each _step++;
+                       # a different result -> _step = clampStep(it), onSeek fires
+                       # (each listener isolated); _cue, _resume, nextStepTime untouched
   nudge(seconds)       # ±0.05 s future-grid shift (midi-clock-sync phase correction)
   get dropouts: number # v6: stalled-wakeup recoveries this session (REQ-9);
                        # monotonic, never reset — surfaced by debug-panel.md
@@ -212,6 +274,7 @@ Clock:   # src/audio/transport/clock.ts (implements TickSubscriber)
 constants: LOOKAHEAD_MS = 25, SCHEDULE_AHEAD_S = 0.1 (default; perf tier may widen it)
            DROPOUT_S = 0.25, MAX_STEPS_PER_WAKEUP = 16   # v6, REQ-9
 TickListener: (step, when) => void        # tick-source.ts
+StepRouter:   (next: number) => number     # clock.ts, v8 (REQ-13)
 TickTimer:   # src/audio/transport/tick-timer.ts — the wakeup source
   start(cb, intervalMs) / stop()
   WorkerTimer   # setInterval in a Worker (clock-timer-worker.ts, Vite `new URL` bundling)
@@ -239,6 +302,10 @@ engine (subscribeParams): transport.bpm -> clock.setBpm; transport.swing -> cloc
 construction order (engine): new Arrangement(...) BEFORE the machines, so on each
   tick the play banks are settled before the machines read them (see arrangement.md)
 UI: header transport-play button toggles clock.start()/stop()
+    v8: the song transport's Play/Pause calls clock.pause() to pause, and the
+    header button (via UiBridge.toggleTransport) to play — transport-window.md
+v8 step router: installed only by LoopDriver (transport-loop.md), only while a
+  loop is engaged; a jump's onSeek fan-out has the same order as a seek's
 v4 seek fan-out (order guaranteed by the same construction order):
   clock.seek -> Arrangement (play banks settle) -> machines -> the UI ruler
   UI never calls clock.seek directly; it goes through Engine.seekTo, which owns
@@ -351,6 +418,39 @@ Scenario: swingOffset agrees with the times the drain loop emits (v7, REQ-11)
   When a tick fires for an odd step
   Then swingOffset(step) equals the delay that tick's `when` carried
    And it is 0 for an even step at any swing amount
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: Pause resumes from the first unscheduled step (v8, REQ-12)
+  Given a playing clock that has emitted steps 0..4
+  When pause() is called
+  Then playing is false, onStop fired once, paused is true and cue reads 5
+  And the next start() emits step 5 first
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: Stop after a resumed run still returns to the cue (v8, REQ-12)
+  Given the cue is 0, and the clock was paused at 5 and then resumed
+  When stop() and then start() are called
+  Then the first tick is step 0, not 5
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A seek or a stop cancels a pending resume (v8, REQ-12, edge)
+  Given the clock is paused at step 5
+  When seek(12) is called, then start()
+  Then the first tick is step 12
+  And paused at 5 again, stop() while already stopped makes cue read the old cue
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A routed step is a jump on the same grid (v8, REQ-13)
+  Given a playing clock whose router sends 8 to 2
+  When the drain emits step 7
+  Then the next tick is step 2 at exactly one 16th after step 7's grid time
+  And onSeek fired once, while cue and nextStepTime were not re-seeded
+# pinned by: tests/audio/transport/clock.test.ts
+
+Scenario: A throwing router or seek listener cannot wedge the drain (v8, REQ-13, edge)
+  Given a router that throws, or an onSeek listener that throws on a jump
+  When the timer fires
+  Then the step counter still advances and later tick listeners still run
 # pinned by: tests/audio/transport/clock.test.ts
 ```
 

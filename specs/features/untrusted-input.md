@@ -266,7 +266,7 @@ export const MAX_SIGNAL_BYTES: number;      // decodeSignal (WebRTC / QR)
 export const MAX_CHAIN_STEPS: number;       // arrangement chain length
 export const MAX_CHAIN_DEPTH: number;       // expandChain recursion
 export const MAX_PARAM_KEYS: number;        // params map size
-export const MAX_CHAIN_TRANSPOSE: number;   // |semitones| on a chain slot (arrangement REQ-16)
+export const MAX_CHAIN_TRANSPOSE: number;   // |semitones| on a chain slot (arrangement REQ-8)
 export const MAX_MCP_REQUEST_BYTES: number;      // one POST body to the public MCP endpoint
 export const MAX_MCP_REQUESTS_PER_MINUTE: number;// per-IP fixed window        } REQ-14
 export const MAX_MCP_RATE_KEYS: number;          // IPs the limiter may track  }

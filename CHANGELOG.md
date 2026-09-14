@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Pause, and Loop, on the song transport.** The TRANSPORT row on the Song tab
+  now has the same controls as the floating TRANSPORT window. Both have
+  **Play / Pause**: Pause stops where you are, and Play carries on from exactly
+  there. The header's **Stop** still takes you back to where you started (or the
+  last bar you clicked), so you have both. **Loop** repeats part of the song:
+  switch it on, click the first and the last bar you want, and those bars play
+  over and over. Clicking the same bar twice loops just that bar. The jump back
+  happens exactly on the bar line, so the loop has no seam. If you switch Loop on
+  somewhere else in the song, the current bar finishes before playback moves into
+  the loop. While Loop is on, clicking a bar picks it instead of jumping there;
+  the old loop keeps playing until you have picked both bars. Switching Loop off
+  leaves the bars marked, dimmed, so switching it back on loops them again.
+  Loading a song clears the loop. Looping is unavailable while an external clock
+  drives the transport, and an audio export always renders the whole song.
+
 - **Play offline.** A new button in **Help & About**, just above Restore to
   Factory Settings, saves the whole synth on your device: every demo song, every
   dialog and all the help. A progress bar counts the files and megabytes as they
@@ -67,6 +82,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Resuming mid-song no longer sends synced gear back to bar 1.** As MIDI or
+  WiFi sync master, pressing Play from anywhere but the top told every slave to
+  restart from bar 1 while this synth played on from the middle. It now tells
+  them where to continue from.
+- **The Pitch wheel's help names the right keys.** It still said **.** and **/**
+  bend the pitch, long after the up key moved to **'**, the key directly above
+  **/**. It now says **'** bends up and **/** bends down.
+- **A tied sequencer note no longer hangs when the playhead jumps.** Moving the
+  playhead at the moment a tied note was about to start could leave that note
+  sounding. It now ends where its own length says it should.
 - **The Debug panel's sizes and its Unregister button say what is true.** Small
   amounts of storage read as "0.0 MB", and one saved key read "1 keys"; they now
   read in kB below a megabyte ("1 key · 3 kB"). Unregister's confirmation promised

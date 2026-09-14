@@ -257,8 +257,11 @@ built `dist/`.
   it sits, rather than in a manual
 - **Playhead ruler**: the strip above every step grid — click a tick to move the
   playhead there (mid-play it jumps in time; stopped it sets where Play starts).
-  The Song tab adds a bar-by-bar scrubber for the whole arrangement, and a
-  **TRANSPORT** button that floats it over any tab
+  The Song tab adds a bar-by-bar scrubber for the whole arrangement, a
+  **Play / Pause** that continues where you paused (the header's Stop still goes
+  back to the start), a **Loop** — switch it on, click the first and last bar,
+  and the transport repeats them, changing over on the bar line — and a
+  **TRANSPORT** button that floats all of it over any tab
 - **METER** (beside BPM): the song's time signature — every machine follows it.
   Each machine's own **GRID** pair (**LEN** / **RATE**) sits in its header: LEN
   on *BAR* follows the meter, anything else pins a step count and sets that lane
@@ -295,8 +298,8 @@ src/
     compressor/      AudioWorklet wrapper for the 1176/SSL bus compressor
     effects/         eq, distortion, wah, phaser, delay, reverb, ducker, compressor
     drums/           drum synthesis
-    transport/       clock, arpeggiator, sequencer, drum-machine, sampler,
-                     arrangement (chain lanes), performance (live DJ FX),
+    transport/       clock, arpeggiator, sequencer, drum-machine, sampler, motion,
+                     arrangement (chain lanes), transport loop, performance (live DJ FX),
                      sync/ (transport sync core: MIDI + WiFi master/slave)
     recorder/        mic capture, pure sample DSP (chop, time-stretch, scratch), WAV/MP3 encode,
                      AudioWorklet sink (song export + record-a-sound)
@@ -308,7 +311,7 @@ src/
     song.ts          full-song save/load + demo songs
     project.ts       project-zip bundle (song.json + sampler clips) build/parse
     demos/           drop-in *.json SongFiles / *.websynth.zip projects,
-                     auto-loaded at build time
+                     found at build time, fetched when clicked
     perf-mode.ts     performance-mode preference + device-tier detection
     tempo-lock.ts    which knobs can be locked to the grid, and in what unit
   utils/             dependency-free helpers importable from any layer: zip codec,

@@ -137,7 +137,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
    * but leaves `expectFirstBar`, and only a following seek re-arms it, so the
    * incoming chain plays slot 0 for a full bar.
    */
-  const toTop = (): void => { engine.seekTo(0); };
+  const toTop = (): void => {
+    // Clear first: the loop driver cues a stopped transport into an engaged
+    // range, which must not race this seek (song-mode.md REQ-14, v26). A range
+    // names bars of the OUTGOING song (transport-loop.md REQ-10).
+    engine.loop.clear();
+    engine.seekTo(0);
+  };
 
   // ---- Load-undo safety net (session-autosave.md REQ-7/REQ-8) ----
   // Every destructive apply stashes the session it overwrites — the captured
@@ -255,14 +261,13 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
   // ---- Transport (transport-window.md) ----
   // Directly under the four machine lanes, above Live FX: the scrubber is a
   // bar-per-slot view of the chains right above it, so it reads as their ruler.
-  // Deliberately compact — the launcher doubles as the section title and
-  // Play/Stop lives only in the floating window; the point of undocking is to
-  // give this panel's height back, not to duplicate it. BPM and SWING are on
-  // neither surface: they are permanently in the header, and only that copy
-  // knows to disable itself while slaved (transport-window.md REQ-2).
+  // The launcher doubles as the section title; the row carries the same set as
+  // the floating window — Play/Pause and Loop included (transport-window.md
+  // REQ-1, v5). BPM and SWING are on neither surface: they are permanently in
+  // the header, and only that copy knows to disable itself while slaved (REQ-2).
   const transport = el('div', transportRowClass);
   transport.appendChild(createTransportWindowLauncher(engine, bridge));
-  for (const c of buildTransportControls(engine, bridge, { compact: true })) {
+  for (const c of buildTransportControls(engine, bridge)) {
     transport.appendChild(c);
   }
   bindSeekAvailability(engine, transport);

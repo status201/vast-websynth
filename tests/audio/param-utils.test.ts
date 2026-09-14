@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   RAMP_FAST,
   RAMP_MEDIUM,
-  RAMP_SLOW,
+  RAMP_SMOOTH,
+  RAMP_BYPASS,
   rampTo,
-  rampCancelAndSet,
 } from '../../src/audio/param-utils';
 
 function mockAudioParam(): AudioParam {
@@ -28,7 +28,8 @@ describe('param-utils', () => {
   it('exports named time constants', () => {
     expect(RAMP_FAST).toBe(0.005);
     expect(RAMP_MEDIUM).toBe(0.01);
-    expect(RAMP_SLOW).toBe(0.05);
+    expect(RAMP_SMOOTH).toBe(0.02);
+    expect(RAMP_BYPASS).toBe(0.025);
   });
 
   it('rampTo calls setTargetAtTime with the correct args', () => {
@@ -45,11 +46,12 @@ describe('param-utils', () => {
     expect(param.setTargetAtTime).toHaveBeenCalledWith(0.5, 10, 0.005);
   });
 
-  it('rampCancelAndSet cancels scheduled values then ramps', () => {
+  // No cancel-then-ramp helper (architecture.md): rampTo retargets from wherever
+  // the curve has reached, so the smoothing vocabulary never cancels.
+  it('rampTo never cancels scheduled values', () => {
     const ctx = { currentTime: 7 } as AudioContext;
     const param = mockAudioParam();
-    rampCancelAndSet(param, 0.3, ctx, RAMP_SLOW);
-    expect(param.cancelScheduledValues).toHaveBeenCalledWith(7);
-    expect(param.setTargetAtTime).toHaveBeenCalledWith(0.3, 7, 0.05);
+    rampTo(param, 0.3, ctx, RAMP_SMOOTH);
+    expect(param.cancelScheduledValues).not.toHaveBeenCalled();
   });
 });

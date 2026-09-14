@@ -12,16 +12,15 @@ const MP3_RATES = new Set([8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100
 /** CBR bitrate for every MP3 encode — LAME's "high quality" sweet spot (≈ -V2). */
 const MP3_KBPS = 192;
 
-function clampSample(s: number): number {
-  return s < -1 ? -1 : s > 1 ? 1 : s;
-}
-
-/** Write `samples` as little-endian 16-bit PCM starting at byte `offset`. */
-export function floatToPcm16(view: DataView, offset: number, samples: Float32Array): void {
-  for (let i = 0; i < samples.length; i++) {
-    const s = clampSample(samples[i]!);
-    view.setInt16(offset + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
+/**
+ * One float sample as a 16-bit PCM value: clamped to -1..1, then scaled
+ * asymmetrically (-1 -> -32768, 1 -> 32767) so both extremes are reachable. The
+ * one rule the WAV writer and the MP3 encoder's input share; the Int16 storage
+ * truncates toward zero, exactly as the two hand-written copies did.
+ */
+export function pcm16(sample: number): number {
+  const s = sample < -1 ? -1 : sample > 1 ? 1 : sample;
+  return s < 0 ? s * 0x8000 : s * 0x7fff;
 }
 
 function writeStr(view: DataView, offset: number, s: string): void {
@@ -60,10 +59,8 @@ export function encodeWav(left: Float32Array, right: Float32Array, sampleRate: n
   writeWavHeader(view, numSamples, sampleRate, 2);
   let off = 44;
   for (let i = 0; i < numSamples; i++) {
-    const l = clampSample(left[i]!);
-    const r = clampSample(right[i]!);
-    view.setInt16(off, l < 0 ? l * 0x8000 : l * 0x7fff, true);
-    view.setInt16(off + 2, r < 0 ? r * 0x8000 : r * 0x7fff, true);
+    view.setInt16(off, pcm16(left[i]!), true);
+    view.setInt16(off + 2, pcm16(right[i]!), true);
     off += 4;
   }
   return new Blob([buf], { type: 'audio/wav' });
@@ -71,10 +68,7 @@ export function encodeWav(left: Float32Array, right: Float32Array, sampleRate: n
 
 function floatToInt16Array(samples: Float32Array): Int16Array {
   const out = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    const s = clampSample(samples[i]!);
-    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-  }
+  for (let i = 0; i < samples.length; i++) out[i] = pcm16(samples[i]!);
   return out;
 }
 

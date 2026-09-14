@@ -3,7 +3,7 @@ import {
   encodeWav,
   encodeMp3,
   writeWavHeader,
-  floatToPcm16,
+  pcm16,
 } from '../../src/audio/recorder/encode';
 
 function str(view: DataView, offset: number, len: number): string {
@@ -31,14 +31,15 @@ describe('writeWavHeader', () => {
   });
 });
 
-describe('floatToPcm16', () => {
-  it('maps and clamps floats to little-endian Int16', () => {
-    const v = new DataView(new ArrayBuffer(8));
-    floatToPcm16(v, 0, new Float32Array([1, -1, 0, 2 /* clamps to 1 */]));
+describe('pcm16', () => {
+  it('maps and clamps floats to the Int16 range', () => {
+    const v = new DataView(new ArrayBuffer(10));
+    [1, -1, 0, 2 /* clamps to 1 */, -3 /* clamps to -1 */].forEach((s, i) => v.setInt16(i * 2, pcm16(s), true));
     expect(v.getInt16(0, true)).toBe(0x7fff);
     expect(v.getInt16(2, true)).toBe(-0x8000);
     expect(v.getInt16(4, true)).toBe(0);
     expect(v.getInt16(6, true)).toBe(0x7fff);
+    expect(v.getInt16(8, true)).toBe(-0x8000);
   });
 });
 

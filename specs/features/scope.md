@@ -800,7 +800,7 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   and resizes the bitmap (`el.width`/`el.height`) only when it changes, caching the
   CSS size + dpr. `draw()`/`syncSize()` read those cached values — never the live
   layout — so the rAF loop forces no reflow. `mirrorPeak` writes a `dataset` key only
-  when its `toFixed(1)` value changes; `clearPeakDataset` runs on Wave/Mono-Stereo/
+  when its `toFixed(1)` value changes; `clearDatasetMirror` runs on Wave/Mono-Stereo/
   reset transitions (not per frame) and is a no-op when already clear. The observer is
   `disconnect()`ed in `destroy()`. No `ResizeObserver` (jsdom) → measure-on-draw
   fallback. The canvas CSS bezel (radial-gradient background + inset box-shadow) lives

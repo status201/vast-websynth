@@ -15,7 +15,3 @@
 export const LFO_PREFIXES = ['lfo', 'lfo2'] as const;
 
 export type LfoPrefix = (typeof LFO_PREFIXES)[number];
-
-export function otherLfo(p: LfoPrefix): LfoPrefix {
-  return p === 'lfo' ? 'lfo2' : 'lfo';
-}

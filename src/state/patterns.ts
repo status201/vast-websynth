@@ -892,36 +892,6 @@ export class PatternStore {
     for (const l of this.motionBankListeners) l(bank);
   }
 
-  private emitAllSeq(): void {
-    const bank = assertIndex(this.seqBanks, this._seqEdit, 'seqBanks');
-    for (let t = 0; t < bank.length; t++) {
-      const row = assertIndex(bank, t, 'seqTracks');
-      for (let i = 0; i < row.length; i++) {
-        for (const l of this.seqListeners) l(t, i, assertIndex(row, i, 'seqSteps'));
-      }
-    }
-  }
-
-  private emitAllDrum(): void {
-    const bank = assertIndex(this.drumBanks, this._drumEdit, 'drumBanks');
-    for (let t = 0; t < bank.length; t++) {
-      const row = assertIndex(bank, t, 'drumTracks');
-      for (let s = 0; s < row.length; s++) {
-        for (const l of this.drumListeners) l(t, s, assertIndex(row, s, 'drumCells'));
-      }
-    }
-  }
-
-  private emitAllSampler(): void {
-    const bank = assertIndex(this.samplerBanks, this._samplerEdit, 'samplerBanks');
-    for (let t = 0; t < bank.length; t++) {
-      const row = assertIndex(bank, t, 'samplerTracks');
-      for (let s = 0; s < row.length; s++) {
-        for (const l of this.samplerListeners) l(t, s, assertIndex(row, s, 'samplerCells'));
-      }
-    }
-  }
-
   // ---- Serialisation (used by Song save/load) ----
 
   snapshot(): PatternSnapshot {

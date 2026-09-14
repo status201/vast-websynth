@@ -3,7 +3,10 @@
 ```yaml
 id: testids
 status: implemented
-version: 19 # v19: the About card's Play offline section (play-offline.md REQ-1)
+version: 20 # v20: the song transport's Loop button (transport-loop.md REQ-1)
+            #      and the global `loop` / `loop-anchor` cell classes (REQ-12);
+            #      the Song row now carries `transport-toggle` too
+            # v19: the About card's Play offline section (play-offline.md REQ-1)
             #      and its toast (REQ-8)
             # v18: the EQUALIZER section (equalizer.md REQ-11). Its tabs are
             #      eq-NAMESPACED — tab-eq-seq, not tab-seq — because the
@@ -94,7 +97,7 @@ through the shared factories gets a correct, predictable testid for free.
 - **REQ-2** — Structural containers mint from their own id — `tab-<id>` /
   `panel-<id>` (`tabs.ts`) — and reusable multi-instance components namespace
   through a **prefix option** so one component can appear many times without
-  colliding: `BankBar`'s `testidPrefix` (`bank-<lane>-…`), `clearMenu`'s `lane`
+  colliding: `BankBar`'s `testidPrefix` (`bank-<lane>-…`), `createClearMenu`'s `lane`
   (`clear-<lane>-…`), `buildLiveFxControls`' `testIdPrefix` (`perf` on the Song
   tab, `livefx` in the floating window), `buildTransportControls`' `testIdPrefix`
   (`transport` in the Song panel row, `transportw` in the floating window),
@@ -154,7 +157,7 @@ prefix-namespaced components:
                                     <P>-drop · <P>-tapestop
   buildTransportControls({ testIdPrefix: P = 'transport' })
                                  -> <P>-toggle · <P>-tostart · <P>-readout ·
-                                    <P>-scrub · <P>-scrub-<bar>
+                                    <P>-loop · <P>-scrub · <P>-scrub-<bar>
   createPanelTabs({ prefix: P })  -> ptab-<P>-<page> · ppage-<P>-<page>
 ```
 
@@ -304,9 +307,13 @@ song panel — files:
 
 transport row & window:                             # features/transport-window.md
   transport-open · transport-window
-  transport-tostart · transport-readout · transport-scrub · transport-scrub-<bar>
-  transportw-toggle · transportw-tostart · transportw-readout · transportw-scrub ·
-    transportw-scrub-<bar>
+  transport-toggle · transport-tostart · transport-readout · transport-loop ·
+    transport-scrub · transport-scrub-<bar>
+  transportw-toggle · transportw-tostart · transportw-readout · transportw-loop ·
+    transportw-scrub · transportw-scrub-<bar>
+  # scrub cells carry GLOBAL state classes: `playing` (current bar), `loop` (in
+  # the effective loop range), `loop-anchor` (a pending first pick) —
+  # features/transport-loop.md REQ-12
 
 audio capture:
   song-export-audio · song-export-fmt-<wav|mp3> · song-record

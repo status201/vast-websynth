@@ -104,7 +104,7 @@ what a demo owes the shelf.
   conveys nothing and adds noise to every tooltip; the strict test finds nothing
   at all. Neither is a signal, so neither ships. `arp` and `motion` are precise
   and rare — a handful of demos each — which is what makes them worth showing.
-  (Exact counts are deliberately not quoted here: `demoMeta` derives them from
+  (Exact counts are deliberately not quoted here: `demoMetaOf` derives them from
   each song file at runtime, so any number written down rots the next time a demo
   lands. Read them from the shipped corpus.)
   Under-reporting is the right failure: a missing hint costs a discovery, a hint

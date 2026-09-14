@@ -92,14 +92,15 @@ describe('Engine.seekTo guard', () => {
     expect(stub.clock.seek).not.toHaveBeenCalled();
   });
 
-  // midi-clock-sync.md REQ-23 — an unannounced jump leaves every slave behind
-  // by the jump distance for the rest of the session.
-  it('announces the new position (a no-op unless mastering)', () => {
+  // midi-clock-sync.md REQ-23 (v7) / transport-position.md REQ-7 (v6) — slaves
+  // still hear every jump, but from SyncController's `clock.onSeek`, which also
+  // catches loop wraps no click started. A second call here would announce a
+  // user seek twice (pinned in sync-controller.test.ts).
+  it('leaves the announce to clock.onSeek — seekTo does not add its own', () => {
     const { stub, seekTo } = engineLike({ activeMode: 'master' });
-    seekTo(96);
-    expect(stub.sync.announcePosition).toHaveBeenCalledTimes(1);
-    // The announce is unconditional here; SyncController.announcePosition is
-    // what no-ops in the other roles (pinned in sync-controller.test.ts).
+    expect(seekTo(96)).toBe(true);
+    expect(stub.clock.seek).toHaveBeenCalledWith(96);
+    expect(stub.sync.announcePosition).not.toHaveBeenCalled();
   });
 
   it('does not announce when the seek was refused', () => {

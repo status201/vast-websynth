@@ -88,7 +88,17 @@ export class TestClock implements TickSubscriber {
     for (const l of this.seekListeners) l();
   }
 
-  start(fromStep = this.cue): void { this.fireStart(fromStep); }
+  start(fromStep = this.cue): void { this.paused = false; this.fireStart(fromStep); }
   stop(): void { this.fireStop(); }
   seek(step: number): void { this.fireSeek(step); }
+
+  /** Mirrors Clock.pause (transport.md REQ-12): the cue reads the resume point
+   *  before stop listeners run. Stopped, it does nothing. */
+  paused = false;
+  pause(): void {
+    if (!this.playing) return;
+    this.cue = this.step;
+    this.paused = true;
+    this.fireStop();
+  }
 }

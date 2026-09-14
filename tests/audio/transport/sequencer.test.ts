@@ -123,7 +123,31 @@ describe('StepSequencer', () => {
     clock.fireTick(0);
     releaseNote.mockClear();
     clock.fireSeek(64);
-    expect(releaseNote).toHaveBeenCalledWith(60, undefined);
+    // v10: at the step's own gate end (one 16th at 120 BPM), as REQ-15's stop.
+    expect(releaseNote).toHaveBeenCalledWith(60, 0.125);
+  });
+
+  // sequencer.md REQ-14 (v10) / transport-loop.md REQ-9 — a loop wrap jumps from
+  // inside the drain, straight after scheduling the step before it, so that
+  // step's note-on is always still ahead of `now`. A release at `now` precedes
+  // the attack and is overwritten by it: the tied voice hung on every wrap.
+  it('seek-releases a tie at its gate end, never before its pending attack (v10, regression)', () => {
+    const { clock, patterns, arrangement, perf } = makeTransportRig();
+    const releaseNote = vi.fn();
+    const output: SynthOutput = { playNote: vi.fn(), releaseNote };
+
+    const seq = new StepSequencer(output, clock, patterns, arrangement, perf);
+    seq.setEnabled(true);
+    patterns.setSeqStep(0, 15, { on: true, note: 62, velocity: 0.8, gate: 1, tie: true });
+
+    clock.step = 15;
+    clock.fireTick(0.08); // the loop's last step, scheduled 80 ms ahead
+    releaseNote.mockClear();
+    clock.fireSeek(0); // the wrap
+    expect(releaseNote).toHaveBeenCalledTimes(1);
+    const [note, when] = releaseNote.mock.calls[0]!;
+    expect(note).toBe(62);
+    expect(when).toBeCloseTo(0.08 + 0.125, 9); // after the attack, never `undefined`
   });
 
   // sequencer.md REQ-15 — a tie schedules NO release of its own (that is the next

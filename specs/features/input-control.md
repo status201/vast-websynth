@@ -3,7 +3,9 @@
 ```yaml
 id: input-control
 status: implemented
-version: 14  # v14: the keyboard carries a third highlight layer — static musical
+version: 15  # v15: the Pitch wheel help topic names the keys REQ-12 binds — it
+             #      still said `.` five versions after `.` was unbound (REQ-12)
+             # v14: the keyboard carries a third highlight layer — static musical
              #      roles, written as an attribute, outranked by the lit classes
              #      (REQ-14; the behaviour itself is scale-quantization.md REQ-10)
              # v13: the note maps are composed from a positional shape + the
@@ -187,6 +189,11 @@ notes played on another tab no longer overwrite its bank.
     silent alias would keep teaching the arrangement this REQ exists to replace.
   - `'` collides with nothing — it is in neither note row, `keyToMidi` returns
     null for it.
+  - **(v15) The `pitchBend` help topic names the same two keys.** Its copy kept
+    "the `.` and `/` keys bend it too" from v10 until v15 — a binding that no
+    longer existed, taught by the one place a new player reads about the wheel.
+    Nothing gated it, so the topic is now pinned by a test that asserts both keys
+    and the absence of `.`.
   - **(v12) These two are matched on `e.code` (`Quote` / `Slash`), not
     `e.key`** — the only bindings in `installShortcuts` that are. `e.key` answers
     "what character was typed", but this pair is chosen for *where the keys sit*,
@@ -451,6 +458,12 @@ Scenario: A dead-key layout can still bend (v12, REQ-12)
   When the user presses it
   Then master.pitchBend goes to 1 — the branch matches e.code, not e.key
 # pinned by: tests/ui/shortcuts.test.ts
+
+Scenario: The Pitch wheel help names the keys that bend (regression, v15, REQ-12)
+  Given the `pitchBend` help topic
+  Then it names ' for up and / for down
+  And it no longer names the unbound . key
+# pinned by: tests/ui/help-content.test.ts
 
 Scenario: ? toggles the info badges without bending pitch (v8, REQ-9)
   Given no editable field has focus

@@ -7,10 +7,12 @@ import { PatternStore, SEQ_LENGTH } from '../../src/state/patterns';
 import { UiBridge } from '../../src/ui/ui-bridge';
 import { TestClock } from '../audio/transport/test-clock';
 import { Arrangement } from '../../src/audio/transport/arrangement';
+import { TransportLoop } from '../../src/audio/transport/transport-loop';
 import type { StudioApi } from '../../src/ui/studio-api';
 
 function harness(over: { canSeek?: boolean } = {}) {
   const clock = new TestClock();
+  const loop = new TransportLoop();
   const patterns = new PatternStore();
   const arrangement = new Arrangement(patterns, clock);
   const bridge = new UiBridge();
@@ -25,6 +27,7 @@ function harness(over: { canSeek?: boolean } = {}) {
   const api = {
     clock,
     arrangement,
+    loop,
     // 4/4 — what `registerDefaults` resolves the meter params to, so every
     // assertion in this file still describes a 16-tick bar (meter.md REQ-6).
     barTicks: SEQ_LENGTH,
@@ -35,7 +38,7 @@ function harness(over: { canSeek?: boolean } = {}) {
     bankRender: { onState: () => () => {} },
   } as unknown as StudioApi;
 
-  return { clock, arrangement, api, bridge, seekTo, toggleTransport };
+  return { clock, arrangement, loop, api, bridge, seekTo, toggleTransport };
 }
 
 const host = (els: HTMLElement[]): HTMLElement => {
@@ -49,16 +52,14 @@ const scrubCells = (root: HTMLElement): HTMLButtonElement[] =>
   [...root.querySelectorAll('[data-testid="transport-scrub"] button')] as HTMLButtonElement[];
 
 describe('buildTransportControls', () => {
-  it('compact drops Play/Stop; full carries it (REQ-1)', () => {
+  // REQ-1/REQ-4 (v5) — the Song row is no longer compact: same set as the window.
+  it('renders Play/Pause, ⏮, readout, Loop and scrubber, in that order', () => {
     const { api, bridge } = harness();
-    const compact = host(buildTransportControls(api, bridge, { compact: true }));
-    expect(byId(compact, 'transport-toggle')).toBeNull();
-    expect(byId(compact, 'transport-tostart')).toBeTruthy();
-    expect(byId(compact, 'transport-readout')).toBeTruthy();
-    expect(byId(compact, 'transport-scrub')).toBeTruthy();
-
-    const full = host(buildTransportControls(api, bridge));
-    expect(byId(full, 'transport-toggle')).toBeTruthy();
+    const root = host(buildTransportControls(api, bridge));
+    const ids = [...root.children].map((c) => (c as HTMLElement).dataset.testid);
+    expect(ids).toEqual([
+      'transport-toggle', 'transport-tostart', 'transport-readout', 'transport-loop', 'transport-scrub',
+    ]);
   });
 
   // REQ-2 — the header owns BPM/SWING. A copy here would be a second control
@@ -66,8 +67,8 @@ describe('buildTransportControls', () => {
   it('mints no BPM or SWING knob on either surface', () => {
     const { api, bridge } = harness();
     for (const els of [
-      buildTransportControls(api, bridge, { compact: true }),
       buildTransportControls(api, bridge),
+      buildTransportControls(api, bridge, { testIdPrefix: 'transportw' }),
     ]) {
       const root = host(els);
       expect(root.querySelector('[data-testid="knob-transport.bpm"]')).toBeNull();
@@ -91,22 +92,41 @@ describe('buildTransportControls', () => {
     expect(clock.playing).toBe(false); // the bridge owns it — we did not
   });
 
-  it('mirrors the clock state on its Play label (REQ-5)', () => {
+  // REQ-5/REQ-13 (v5) — Pause is the clock's; the header's click means Stop.
+  it('pauses through the clock while playing, never through the bridge', () => {
+    const { api, bridge, clock, toggleTransport } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    const pause = vi.spyOn(clock, 'pause');
+    clock.fireStart();
+    clock.step = 37;
+    (byId(root, 'transport-toggle') as HTMLButtonElement).click();
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(toggleTransport).not.toHaveBeenCalled();
+    expect(clock.playing).toBe(false);
+    // Stopped, the readout shows where Play continues — the resume point (REQ-6).
+    expect(byId(root, 'transport-readout').textContent).toBe('1.06');
+  });
+
+  it('mirrors the clock state on its Play / Pause label (REQ-5)', () => {
     const { api, bridge, clock } = harness();
     const root = host(buildTransportControls(api, bridge));
     const play = byId(root, 'transport-toggle');
     expect(play.textContent).toBe('Play');
     clock.fireStart();
-    expect(play.textContent).toBe('Stop');
+    expect(play.textContent).toBe('Pause');
     expect(play.classList.contains('on')).toBe(true);
-    clock.fireStop();
+    clock.pause();
     expect(play.textContent).toBe('Play');
+    expect(play.title).toMatch(/where you paused/);
+    clock.start(); // resumes, and the pause is spent
+    clock.stop();
+    expect(play.title).not.toMatch(/paused/);
   });
 
   // REQ-6 — the readout and the machine-tab rulers must agree.
   it('reads bar.step, 1-based, and shows the CUE while stopped', () => {
     const { api, bridge, clock, arrangement } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     expect(byId(root, 'transport-readout').textContent).toBe('1.01');
 
     arrangement.setDrumChain([0, 1, 2, 3], true); // bar 3 has to exist to be shown
@@ -124,7 +144,7 @@ describe('buildTransportControls', () => {
   // one-bar song counted 1.01, 2.01, 3.01 … next to a single lit scrubber cell.
   it('wraps the bar at song length — never a bar the song does not have', () => {
     const { api, bridge, clock, arrangement } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     const readout = byId(root, 'transport-readout');
 
     // Nothing enabled: the song is one repeating bar, whatever the step counter says.
@@ -141,7 +161,7 @@ describe('buildTransportControls', () => {
   // REQ-7 — the scrubber is the song, not the bar.
   it('shows one cell per bar of the longest enabled chain', () => {
     const { api, bridge, arrangement } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     expect(scrubCells(root)).toHaveLength(1); // nothing enabled: one repeating bar
 
     arrangement.setDrumChain([0, 1, 2, 3, 0, 1], true);
@@ -153,7 +173,7 @@ describe('buildTransportControls', () => {
 
   it('rebuilds the cells only when the length changes (REQ-7)', () => {
     const { api, bridge, arrangement, clock } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     arrangement.setDrumChain([0, 1, 2], true);
     const before = scrubCells(root);
 
@@ -166,7 +186,7 @@ describe('buildTransportControls', () => {
 
   it('clicking a scrubber cell seeks to the top of that bar (REQ-7)', () => {
     const { api, bridge, arrangement, seekTo } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     arrangement.setSeqChain([0, 0, 1, 0], true);
 
     scrubCells(root)[2]!.click();
@@ -177,7 +197,7 @@ describe('buildTransportControls', () => {
 
   it('lights the current bar and wraps with the chain', () => {
     const { api, bridge, arrangement, clock } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     arrangement.setSeqChain([0, 1, 2], true);
     const lit = () => scrubCells(root).findIndex((c) => c.classList.contains('playing'));
     expect(lit()).toBe(0);
@@ -193,7 +213,7 @@ describe('buildTransportControls', () => {
   // scrollLeft, which jsdom pins at 0) so the arithmetic itself is under test.
   it('scrolls the lit cell back into view, and only on a bar change', () => {
     const { api, bridge, arrangement, clock } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     arrangement.setDrumChain([...Array(40).keys()].map((i) => i % 4), true);
 
     const scrub = byId(root, 'transport-scrub');
@@ -220,7 +240,7 @@ describe('buildTransportControls', () => {
 
   it('⏮ returns to the top (REQ-4)', () => {
     const { api, bridge, clock, seekTo } = harness();
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     clock.fireSeek(SEQ_LENGTH * 7 + 3);
     (byId(root, 'transport-tostart') as HTMLButtonElement).click();
     expect(seekTo).toHaveBeenLastCalledWith(0);
@@ -230,7 +250,7 @@ describe('buildTransportControls', () => {
   // REQ-8 — the one guard, surfaced.
   it('marks the row inert while seeking is refused', () => {
     const { api, bridge, seekTo } = harness({ canSeek: false });
-    const root = host(buildTransportControls(api, bridge, { compact: true }));
+    const root = host(buildTransportControls(api, bridge));
     bindSeekAvailability(api, root);
     expect(root.className).toContain('off');
 
@@ -257,5 +277,111 @@ describe('createTransportWindowLauncher', () => {
 
     b.click(); // toggles closed
     expect(b.classList.contains('on')).toBe(false);
+  });
+});
+
+// transport-loop.md — the Loop button and the scrubber picks.
+describe('transport loop controls', () => {
+  const loopBtn = (root: HTMLElement) => byId(root, 'transport-loop') as HTMLButtonElement;
+
+  // REQ-1 — lit, pressed, and titled by state.
+  it('toggles Loop and mirrors it on the button', () => {
+    const { api, bridge, loop } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    expect(loopBtn(root).getAttribute('aria-pressed')).toBe('false');
+    loopBtn(root).click();
+    expect(loop.enabled).toBe(true);
+    expect(loopBtn(root).classList.contains('on')).toBe(true);
+    expect(loopBtn(root).getAttribute('aria-pressed')).toBe('true');
+    expect(loopBtn(root).title).toMatch(/first and last bar/);
+  });
+
+  // REQ-2 — Loop on turns a click into a pick, and says so on the cells.
+  it('while Loop is on, a scrubber click picks instead of seeking', () => {
+    const { api, bridge, arrangement, loop, seekTo } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setSeqChain([0, 1, 2, 3], true);
+    expect(scrubCells(root)[1]!.title).toBe('Jump to bar 2');
+
+    loopBtn(root).click();
+    expect(scrubCells(root)[1]!.title).toBe('Loop from bar 2');
+    scrubCells(root)[2]!.click();
+    expect(seekTo).not.toHaveBeenCalled();
+    expect(loop.anchor).toBe(2);
+    expect(scrubCells(root)[2]!.classList.contains('loop-anchor')).toBe(true);
+    expect(scrubCells(root)[0]!.title).toBe('Loop bars 1–3');
+
+    scrubCells(root)[1]!.click();
+    expect(loop.range).toEqual({ start: 1, end: 2 });
+    expect(scrubCells(root).map((c) => c.classList.contains('loop'))).toEqual([false, true, true, false]);
+    expect(root.querySelector('.loop-anchor')).toBeNull();
+    expect(loopBtn(root).title).toMatch(/Looping bars 2–3/);
+  });
+
+  // REQ-2 — the old range stays drawn until the second pick replaces it.
+  it('a first pick on a looping range keeps the range drawn', () => {
+    const { api, bridge, arrangement } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setSeqChain([0, 1, 2, 3], true);
+    loopBtn(root).click();
+    scrubCells(root)[1]!.click();
+    scrubCells(root)[2]!.click();
+    scrubCells(root)[3]!.click(); // a new anchor
+    expect(scrubCells(root).map((c) => c.classList.contains('loop'))).toEqual([false, true, true, false]);
+    expect(scrubCells(root)[3]!.classList.contains('loop-anchor')).toBe(true);
+  });
+
+  // REQ-5 — off keeps the range, drawn dimmed; clicks seek again.
+  it('Loop off keeps the range on the cells and restores seeking', () => {
+    const { api, bridge, arrangement, seekTo } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setSeqChain([0, 1, 2, 3], true);
+    loopBtn(root).click();
+    scrubCells(root)[1]!.click();
+    scrubCells(root)[2]!.click();
+    loopBtn(root).click(); // off
+
+    expect(scrubCells(root)[1]!.classList.contains('loop')).toBe(true);
+    const scrub = byId(root, 'transport-scrub');
+    expect(scrub.className).toMatch(/loopIdle/);
+    expect(scrub.className).not.toMatch(/picking/);
+    expect(loopBtn(root).title).toMatch(/Loop bars 2–3 again/);
+    scrubCells(root)[3]!.click();
+    expect(seekTo).toHaveBeenLastCalledWith(SEQ_LENGTH * 3);
+  });
+
+  // REQ-7 — a shorter song clamps what is drawn, not what was picked.
+  it('draws the range clamped to the song length', () => {
+    const { api, bridge, arrangement, loop } = harness();
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setSeqChain([0, 1, 2, 3, 0, 1], true);
+    loop.setEnabled(true);
+    loop.pick(2);
+    loop.pick(5);
+    arrangement.setSeqChain([0, 1, 2, 3], true);
+    expect(scrubCells(root).map((c) => c.classList.contains('loop'))).toEqual([false, false, true, true]);
+    expect(loop.range).toEqual({ start: 2, end: 5 });
+  });
+
+  // REQ-6 — a wrap is a seek; where seeking is refused, so is looping.
+  it('the Loop button and the picks do nothing while seeking is refused', () => {
+    const { api, bridge, arrangement, loop } = harness({ canSeek: false });
+    const root = host(buildTransportControls(api, bridge));
+    arrangement.setSeqChain([0, 1, 2, 3], true);
+    loopBtn(root).click();
+    expect(loop.enabled).toBe(false);
+
+    loop.setEnabled(true); // engaged before the refusal began
+    scrubCells(root)[1]!.click();
+    expect(loop.anchor).toBeNull();
+  });
+
+  it('both surfaces mirror one loop', () => {
+    const { api, bridge, loop } = harness();
+    const row = host(buildTransportControls(api, bridge));
+    const win = host(buildTransportControls(api, bridge, { testIdPrefix: 'transportw' }));
+    loopBtn(row).click();
+    expect(loop.enabled).toBe(true);
+    expect(byId(win, 'transportw-loop').classList.contains('on')).toBe(true);
   });
 });

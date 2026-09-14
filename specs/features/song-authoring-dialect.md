@@ -220,7 +220,7 @@ AuthorMotionTrack: '{param: paramId, steps: [{step: 0..15, v: 0..1}, …]} | nul
 The emitted canonical version (REQ-12):
 
 ```yaml
-chain slot transposed     -> 7   # seqTranspose   (arrangement.md REQ-16)
+chain slot transposed     -> 7   # seqTranspose   (arrangement.md REQ-8)
 seq bank uses tracks 2-4  -> 6   # seqTracks      (sequencer.md REQ-13)
 motionTracks present      -> 5   # motionTracks   (motion-sequencer.md REQ-17)
 motion content present    -> 4   # motionBanks/motionAssigns/motionChain

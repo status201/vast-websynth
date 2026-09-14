@@ -96,6 +96,10 @@ export class SyncController {
     // instead of leaving it latched until the next watchdog wake.
     clock.onStart(() => { this.applyActiveRole(); this.emitStatus(); });
     clock.onStop(() => { this.applyActiveRole(); this.emitStatus(); });
+    // Every jump of the playhead — a user seek via Engine.seekTo, or a loop wrap
+    // routed inside the clock's drain (transport-loop.md REQ-8) — reaches slaves
+    // from here, once. A no-op in any role but master (REQ-23).
+    clock.onSeek(() => this.announcePosition());
   }
 
   /** The persisted *selection* — remembered across disconnects and reloads. */
@@ -164,9 +168,9 @@ export class SyncController {
   }
 
   /**
-   * Tell every peer where the playhead now is (REQ-23). Called after a **local**
-   * seek: slaves count pulses from their own start, so without this they stay
-   * exactly the jump distance behind for the rest of the session.
+   * Tell every peer where the playhead now is (REQ-23). Runs on every local
+   * `clock.onSeek`: slaves count pulses from their own start, so without this
+   * they stay exactly the jump distance behind for the rest of the session.
    *
    * `announceTo` sends `songposition` + `continue` — deliberately not `start`,
    * which REQ-3 makes a slave honour by restarting at bar 0, the one thing a

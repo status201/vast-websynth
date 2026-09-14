@@ -1,6 +1,6 @@
 import type { ParamBus } from '../../state/params';
 import { LFO_DEST_LABELS, WAVE_LABELS } from '../../state/params';
-import { LFO_PREFIXES, otherLfo, type LfoPrefix } from '../../state/lfo-routing';
+import { LFO_PREFIXES, type LfoPrefix } from '../../state/lfo-routing';
 import { PWM_RATE_MAX } from '../../audio/pwm';
 import { Knob } from '../components/knob';
 import { Segmented } from '../components/segmented';

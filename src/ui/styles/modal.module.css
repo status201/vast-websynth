@@ -149,7 +149,7 @@
 }
 
 /* A fixed-height centred box, deliberately not an inline-block with padding:
-   `.glyph` below changes the font size, and with a line-height-driven height an
+   `.iconCap` below changes the font size, and with a line-height-driven height an
    arrow cap came out 2.5px taller than a letter cap sitting next to it. Pinning
    the height means a cap's face and size can vary without moving the box, and
    flex centring puts every label on the same line regardless of face metrics. */

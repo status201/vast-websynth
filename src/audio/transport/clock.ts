@@ -16,6 +16,14 @@ import { MAX_STEP } from '../../state/limits';
  */
 export type { TickListener };
 
+/**
+ * Redirects the step the drain loop emits next (transport.md REQ-13). Given the
+ * step about to be emitted, return it unchanged — or another step, which the
+ * clock then treats as a **jump**. The clock knows nothing about bars or loops;
+ * the loop driver (transport-loop.md) supplies the policy.
+ */
+export type StepRouter = (next: number) => number;
+
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 
@@ -49,7 +57,17 @@ export class Clock implements TickSubscriber {
   private _playing = false;
   private nextStepTime = 0;
   private _step = 0;
+  /** Where the last seek put the playhead — Stop → Play returns here. */
   private _cue = 0;
+  /** A one-shot resume point set by `pause()`, used by the next start and
+   *  cleared by anything that sets a position (transport.md REQ-12). */
+  private _resume: number | null = null;
+  /** Consulted after each emitted step while a loop is engaged (REQ-13). */
+  private router: StepRouter | null = null;
+  /** The router that threw this run, reported once (see `route`). */
+  private routerFaulted = false;
+  /** Seek listeners already reported as throwing from a jump (see `route`). */
+  private readonly faultedSeekListeners = new Set<() => void>();
   private readonly timer: TickTimer;
   private readonly scheduleAheadS: number;
   private readonly listeners = new Set<TickListener>();
@@ -69,8 +87,12 @@ export class Clock implements TickSubscriber {
   get playing(): boolean { return this._playing; }
   get step(): number { return this._step; }
   /** Where a plain `start()` begins. 0 until the first `seek` (transport.md
-   *  REQ-7), so a transport nobody has moved behaves exactly as it always did. */
-  get cue(): number { return this._cue; }
+   *  REQ-7), so a transport nobody has moved behaves exactly as it always did.
+   *  While paused it is the resume point (REQ-12) — so every surface that shows
+   *  "where Play begins" shows the pause without knowing pauses exist. */
+  get cue(): number { return this._resume ?? this._cue; }
+  /** A `pause()` is waiting to be resumed (REQ-12). */
+  get paused(): boolean { return this._resume !== null; }
   /** The tempo the transport is actually running at. Worth reading directly:
    *  a slaved clock is driven by `setBpm` from incoming MIDI pulses and never
    *  touches the bus, so `transport.bpm` can legitimately disagree with this
@@ -134,10 +156,13 @@ export class Clock implements TickSubscriber {
    * is unchanged. Callers that genuinely require step 0 (the recorders, which
    * bound their captures by absolute step number) must pass `0` explicitly.
    */
-  start(fromStep = this._cue): void {
+  start(fromStep = this.cue): void {
     if (this._playing) return;
     this._playing = true;
+    this._resume = null; // a pause resumes once (REQ-12)
     this.faultedListeners.clear(); // a new run reports its faults afresh
+    this.faultedSeekListeners.clear();
+    this.routerFaulted = false;
     this.nextStepTime = this.ctx.currentTime + 0.05;
     this._step = Clock.clampStep(fromStep);
     for (const l of this.startListeners) l();
@@ -158,14 +183,47 @@ export class Clock implements TickSubscriber {
    */
   seek(step: number): void {
     this._cue = this._step = Clock.clampStep(step);
+    this._resume = null; // the user chose a position; it outranks a pause
     for (const l of this.seekListeners) l();
   }
 
+  /**
+   * Stop, and cue the next `start()` at the step this run would have emitted
+   * next (transport.md REQ-12). `_step`, not the audible step: everything before
+   * it was already handed to the machines at absolute times and sounds after the
+   * pause, exactly as after a stop — so resuming here repeats nothing and skips
+   * nothing. Stop listeners fire with `cue` already reading the resume point.
+   */
+  pause(): void {
+    if (!this._playing) return;
+    this._resume = this._step;
+    this.halt();
+  }
+
+  /**
+   * Stop, and forget any pause — Stop always means "back to the cue", even from
+   * an already-paused transport (Esc / Panic after Pause).
+   */
   stop(): void {
+    this._resume = null;
+    this.halt();
+  }
+
+  private halt(): void {
     if (!this._playing) return;
     this._playing = false;
     this.timer.stop();
     for (const l of this.stopListeners) l();
+  }
+
+  /**
+   * Install (or with `null`, remove) the step router (transport.md REQ-13).
+   * Only the loop driver sets one, and only while a loop is engaged, so an
+   * unlooped transport pays a single null check per tick.
+   */
+  setStepRouter(router: StepRouter | null): void {
+    this.router = router;
+    this.routerFaulted = false;
   }
 
   toggle(): void {
@@ -242,8 +300,44 @@ export class Clock implements TickSubscriber {
       // modulo, and a wrap that is not a multiple of every lane length would jump
       // their phase. Bounded at ingress (start/seek) instead.
       this._step++;
+      if (this.router) this.route();
     }
   };
+
+  /**
+   * Ask the router where the step just advanced to should really be
+   * (transport.md REQ-13). A different answer is a **jump**: the counter moves
+   * there on the unchanged grid — so the routed step is the very next tick, with
+   * no look-ahead leftover — and seek listeners re-base every relative consumer.
+   * Unlike `seek()` the cue does not move: nobody chose this position.
+   *
+   * Everything here runs inside the drain loop, so a throw would escape it
+   * exactly as REQ-8 describes for tick listeners. Both the router and each seek
+   * listener are isolated; a throwing router counts as "no jump".
+   */
+  private route(): void {
+    let next: number;
+    try {
+      next = this.router!(this._step);
+    } catch (e) {
+      if (!this.routerFaulted) {
+        this.routerFaulted = true;
+        console.error('Clock: the step router threw and was ignored; the transport continues.', e);
+      }
+      return;
+    }
+    if (next === this._step) return;
+    this._step = Clock.clampStep(next);
+    for (const l of this.seekListeners) {
+      try {
+        l();
+      } catch (e) {
+        if (this.faultedSeekListeners.has(l)) continue;
+        this.faultedSeekListeners.add(l);
+        console.error('Clock: a seek listener threw during a routed jump and was isolated.', e);
+      }
+    }
+  }
 
   /** Report a listener throw **once per listener**, not once per tick: at ~40 Hz
    *  the latter is a console flood that buries the first (and most useful) stack.

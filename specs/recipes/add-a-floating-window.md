@@ -12,7 +12,8 @@ related:
   - add-a-modal-dialog
 source:
   - src/ui/components/floating-window.ts
-  - src/ui/panels/song-panel.ts        # the launcher (worked instance)
+  - src/ui/components/transport-controls.ts   # createTransportWindowLauncher (worked instance)
+  - src/ui/components/xy-pad-window.ts        # a window shared by two launchers
 ```
 
 A repeatable **playbook**, not a feature. `FloatingWindow`
@@ -20,8 +21,8 @@ A repeatable **playbook**, not a feature. `FloatingWindow`
 window: use it whenever a tool must hover over the synth while the instrument
 underneath stays fully interactive. The launcher ceremony (a toggle button that
 lazily builds the window and holds it alive across closes) is the same every
-time. The concrete worked instance is the XY Pad launcher
-(`buildXyPadLauncher` in `src/ui/panels/song-panel.ts`); see
+time. The concrete worked instance is the TRANSPORT launcher
+(`createTransportWindowLauncher` in `src/ui/components/transport-controls.ts`); see
 [`floating-window`](../features/floating-window.md).
 
 ## Background / Why
@@ -41,10 +42,10 @@ Follow [add-a-ui-component](add-a-ui-component.md): a factory/class exposing an
 `el` (and a `destroy()` if it subscribes to the bus). This is the content that
 goes *inside* the window; it knows nothing about the window.
 
-### 2. Add a launcher toggle — `src/ui/panels/<panel>.ts`
+### 2. Add a launcher toggle — beside the component, or in `src/ui/panels/<panel>.ts`
 
-Model it on `buildXyPadLauncher`. Build the window lazily on first open and keep
-the instance so its live state survives close→open:
+Model it on `createTransportWindowLauncher`. Build the window lazily on first
+open and keep the instance so its live state survives close→open:
 
 ```ts
 function buildToolLauncher(bus: ParamBus, store: ToolStore): HTMLButtonElement {
@@ -89,6 +90,14 @@ win.body.appendChild(tool.el);
 starts a window drag (same guard as the ✕ button). The worked instance is the XY
 Pad's gear, which collapses its axis dropdowns — see
 [`xy-pad`](../features/xy-pad.md).
+
+**Optional — more than one launcher.** When two buttons must open the *same*
+window (the XY Pad is launched from the Song panel and from inside LIVE FX), move
+the lazy build into a small controller with `toggle()` / `isOpen()` /
+`onChange()` and give each button a thin view onto it, so every launcher reflects
+the one window's state: `createXyPadWindowController`
+(`src/ui/components/xy-pad-window.ts`) and `xyPadLaunchButton`
+(`src/ui/components/live-fx.ts`).
 
 ### 3. Verify
 

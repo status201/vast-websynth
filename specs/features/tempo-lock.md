@@ -150,7 +150,7 @@ thing, one of them inert.
   `synced(sync, bpm) ?? bus.get(valueId)` and subscribes `valueId`, `syncId` **and
   `transport.bpm`** — so a locked effect tracks a tempo ramp or an incoming MIDI
   clock ([midi-clock-sync](midi-clock-sync.md)) without the user touching
-  anything. `Lfo.bind` and the Wah/Phaser/Delay `bind`s all route through it, so
+  anything. `LFO.bind` and the Wah/Phaser/Delay `bind`s all route through it, so
   "what does synced mean" has exactly one definition. The `apply` callback keeps
   each effect's existing setter and therefore its existing `RAMP_SMOOTH` smoothing
   ([effects](effects.md) REQ-2b) — this feature changes *what* value is applied,

@@ -127,7 +127,7 @@ is that rule's real home; REQ-5 there now references it rather than restating it
 
   Sizing is **`1em`**, so an icon tracks its context's font-size instead of
   pinning a pixel size that is wrong in three of the four contexts. The keycap
-  arrows stay visibly larger than the letter caps beside them — REQ-17's original
+  arrows stay visibly larger than the letter caps beside them — onboarding REQ-17's original
   intent — because the cap sets the font-size, not the icon.
 
 - **REQ-6** — **The rule is pinned by `tests/ui/iconography.test.ts`**, for the
@@ -264,10 +264,10 @@ the `ui-icon` class to be stroked at all outside a header button.
   `collapse-toggle.ts` all import it). It is a frozen string map with no
   behaviour, the same shape as `wave-icons.ts`, so it costs parse time and
   nothing else ([runtime-performance](runtime-performance.md) REQ-1).
-- **Ordering constraint:** `Modal.glyphClass` and `modal.module.css` `.glyph`
-  are removed with the last symbol keycap, not before — they are the superseded
-  mechanism, and leaving them behind invites a future glyph to opt back into the
-  broken path.
+- **Ordering constraint (met):** `Modal.glyphClass` and `modal.module.css`
+  `.glyph` were removed together with the last symbol keycap, not before — they
+  were the superseded mechanism, and leaving them behind would have invited a
+  future glyph to opt back into the broken path. A drawn-glyph cap is `.iconCap`.
 
 ### Persistence
 

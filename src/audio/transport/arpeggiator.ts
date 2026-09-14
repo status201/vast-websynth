@@ -31,7 +31,7 @@ export class Arpeggiator {
 
   constructor(
     private readonly output: SynthOutput,
-    private readonly bus: ParamBus,
+    bus: ParamBus,
     private readonly clock: TickSubscriber,
     private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {

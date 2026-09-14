@@ -3,7 +3,8 @@
 ```yaml
 id: lfo
 status: implemented
-version: 9                  # v9: REQ-9's UI half is SUPERSEDED by tempo-lock.md — the
+version: 10                 # v10: `otherLfo` removed from lfo-routing.ts — nothing called it
+                            # v9: REQ-9's UI half is SUPERSEDED by tempo-lock.md — the
                             #     rate knob carries the lock itself, so the standalone
                             #     sync picker and the dim-in-place are both gone. The
                             #     param, its encoding and the audio behaviour are
@@ -295,7 +296,7 @@ Putting the mod-wheel sum here rather than in a closure inside the private
 
 ```yaml
 LFO_PREFIXES:  ['lfo', 'lfo2']
-otherLfo(p)              -> the other prefix
+# otherLfo(p) — DELETED: it had no caller once blockedDests went
 # blockedDests(mine, theirs) — DELETED with REQ-12 (v8)
 ```
 

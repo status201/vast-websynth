@@ -53,7 +53,7 @@ function setup(persist = false) {
   const transport = new FakeTransport();
   /** Advance the injected wall clock *and* let the watchdog fire. */
   const advance = (ms: number): void => { nowMs += ms; vi.advanceTimersByTime(ms); };
-  return { clock, ctrl, transport, knobBpm, advance };
+  return { clock, ctrl, transport, knobBpm, advance, ctx: ctx as unknown as { currentTime: number } };
 }
 
 let store: Map<string, string>;
@@ -316,17 +316,37 @@ describe('SyncController', () => {
     clock.start();
     transport.sent.length = 0;
 
+    // v7: the seek alone is enough — the controller hears clock.onSeek.
     clock.seek(SEQ_LENGTH_BARS * 2);
-    ctrl.announcePosition();
 
     const types = transport.sent.map((s) => s.msg.type);
-    expect(types).toContain('songposition');
+    expect(types.filter((t) => t === 'songposition')).toHaveLength(1); // once, not twice
     expect(types).toContain('continue');
     // `start` would realign every slave to bar 0 — the one thing a mid-song
     // jump must never do (REQ-3).
     expect(types).not.toContain('start');
     const spp = transport.sent.find((s) => s.msg.type === 'songposition');
     expect(spp && 'beat' in spp.msg ? spp.msg.beat : -1).toBe(clock.step);
+    clock.stop();
+  });
+
+  // transport-loop.md REQ-8 — a loop wrap is a jump no click started, routed
+  // inside the clock's drain (transport.md REQ-13). Slaves must hear it, or they
+  // fall one loop behind per pass.
+  it('a routed loop wrap announces the new position too (v7)', () => {
+    const { clock, ctrl, transport, ctx } = setup();
+    ctrl.addTransport('midi', transport);
+    ctrl.setMode('master');
+    clock.setStepRouter((next) => (next === 4 ? 0 : next));
+    clock.start(); // emits step 0 (and maybe 1) synchronously
+    transport.sent.length = 0;
+
+    for (let i = 0; i < 6; i++) { ctx.currentTime += 0.125; vi.advanceTimersByTime(25); }
+
+    const spp = transport.sent.filter((s) => s.msg.type === 'songposition');
+    expect(spp.length).toBeGreaterThanOrEqual(1);
+    expect(spp[0] && 'beat' in spp[0].msg ? spp[0].msg.beat : -1).toBe(0);
+    expect(transport.sent.map((s) => s.msg.type)).not.toContain('start');
     clock.stop();
   });
 

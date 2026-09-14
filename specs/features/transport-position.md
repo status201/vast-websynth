@@ -3,7 +3,10 @@
 ```yaml
 id: transport-position
 status: implemented
-version: 5  # v5: a tick sits over the step it marks — a panel that widens its
+version: 6  # v6: every clock seek announces itself from SyncController — so a
+            #     loop wrap does too (REQ-7/REQ-8); the sequencer's seek release
+            #     lands at each track's gate end (REQ-4 table)
+            # v5: a tick sits over the step it marks — a panel that widens its
             #     row-label slot must widen the ruler row too (REQ-19)
             # v4: the ruler is the lane's grid, sized by the meter (REQ-18)
             # v3: only an EXPORT blocks a seek — a free manual take no longer
@@ -23,6 +26,7 @@ related:
   - midi-clock-sync
   - onboarding
   - transport-window
+  - transport-loop      # v6: its wraps are seeks without a click
   - audio-export
   - render-to-sampler
   - step-grid-editing
@@ -141,9 +145,16 @@ counter silently desynchronises all four.
   every slave drifts by the jump distance for the rest of the session. It must
   **not** send `start`, which realigns slaves to bar 0
   ([midi-clock-sync](midi-clock-sync.md) REQ-10).
+  (v6) The announce is driven by **`clock.onSeek`**, which `SyncController`
+  subscribes to, rather than being called from `Engine.seekTo`. A
+  [loop](transport-loop.md) wrap is a jump that no click started
+  ([transport](transport.md) REQ-13), and it has to reach slaves the same way.
+  Subscribing once covers every jump and avoids a second call in the loop code
+  that could be forgotten.
 
 - **REQ-8** — **One entry point.** `Engine.seekTo(step): boolean` owns the guard
-  (REQ-6) and the broadcast (REQ-7); `Engine.canSeek(): boolean` reports whether a
+  (REQ-6), and (v6) its accepted seek reaches the broadcast (REQ-7) through
+  `clock.onSeek`; `Engine.canSeek(): boolean` reports whether a
   seek would be accepted. Both are on `StudioApi`, so no UI surface reaches past
   them to `clock.seek` directly.
 
@@ -322,7 +333,7 @@ playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-p
 | Consumer | Position state that breaks | Reaction on `onSeek` |
 | --- | --- | --- |
 | `Arrangement` | `seqPos`/`drumPos`/`samplerPos`/`motionPos` advance `+1` per bar line and are never derived from `clock.step`, so a jump leaves the chain off by (bars jumped − 1) — plus a spurious double-advance when the jump lands exactly on a bar line. | `seekTo(step)`: `laneSeek` per lane, `expectFirstBar = step % SEQ_LENGTH === 0`, `recompute()`, `notify()`. |
-| `StepSequencer` | Per-track `prevTied` / `lastPlayedNote`: a note tied at the old position slurs into the new one, or a held note is never released. | Release every track's held note and clear `prevTied`. Subscribed inside the constructor so `releaseAll` stays private. |
+| `StepSequencer` | Per-track `prevTied` / `lastPlayedNote`: a note tied at the old position slurs into the new one, or a held note is never released. | Release every track's held note **at that track's last gate end** (v6) and clear `prevTied`. Releasing *now* was overwritten by a note-on still in the look-ahead, which hung the voice — deterministically on a loop wrap ([sequencer](sequencer.md) REQ-14). Subscribed inside the constructor so the release stays private. |
 | `MotionMachine` | `prev`/`curr` become non-adjacent, so the frame loop interpolates from a stale anchor for up to `scheduleAheadS` — an audible param glide to the wrong value. | `curr = prev = null` only. **Not** `restoreBaselines()` (REQ-5). |
 | `Performance` | `mapStep` returns `anchor + ((step - anchor) mod n)`, so with stutter engaged a jump is clamped into the *old* window and a backwards jump replays it forever. | Re-anchor to the new step while stutter is on. |
 | `DrumMachine`, `SamplerMachine` | none — stateless per tick. | none. |
@@ -333,7 +344,9 @@ playheadRulerFor(engine, lane, gate?): PlayheadRuler      # src/ui/panels/step-p
 seek fan-out order (guaranteed by construction order, arrangement.md REQ-5):
   Clock.seek -> Arrangement.seekTo (play banks settle) -> machines -> UI ruler
 engine: seekTo() guards on sync.activeMode / recorder capture / bank render,
-        then clock.seek(step), then (master only) sync announce
+        then clock.seek(step)
+sync:   (v6) SyncController subscribes clock.onSeek -> announcePosition (a
+        no-op unless master) — so user seeks AND loop wraps announce, once each
 recorders: recorder-controller.ts and bank-render.ts must call start(0)
         EXPLICITLY — both rely on "start() resets the step to 0", which REQ-2's
         cue default breaks. Silently truncated exports otherwise.

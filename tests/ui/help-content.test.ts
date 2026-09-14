@@ -249,6 +249,17 @@ describe('help-content transport-position topics', () => {
 });
 
 /** The scale/chord badges (onboarding.md REQ-20). */
+// input-control.md REQ-12 (v15, regression) — the topic taught `.` for five
+// versions after the key was unbound; nothing held it to the real binding.
+describe('help-content pitchBend topic', () => {
+  it("names ' (up) and / (down) — never the unbound .", () => {
+    const body = bodyOf('pitchBend');
+    expect(body).toContain("<strong>'</strong>");
+    expect(body).toContain('<strong>/</strong>');
+    expect(body).not.toContain('<strong>.</strong>');
+  });
+});
+
 describe('help-content key & chord topics', () => {
   it('has a `key` topic that leads with the non-destructive promise', () => {
     const t = HELP_TOPICS['key'];

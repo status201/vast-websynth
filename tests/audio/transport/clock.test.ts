@@ -459,3 +459,146 @@ describe('Clock.swingOffset (transport.md REQ-11)', () => {
     expect(clock.swingOffset(1)).toBe(0);
   });
 });
+
+/** A started-able clock on the injected timer, with a hand-driven audio clock. */
+function drivenClock() {
+  vi.useFakeTimers();
+  const ctx = { currentTime: 0 } as { currentTime: number };
+  const clock = new Clock(ctx as unknown as AudioContext, { timer: new TimeoutTimer() });
+  clock.setBpm(120); // one 16th = 0.125 s
+  const ev: Array<{ step: number; when: number }> = [];
+  clock.onTick((step, when) => ev.push({ step, when }));
+  /** One 16th of audio time, then one look-ahead wakeup. */
+  const wake = (n = 1): void => {
+    for (let i = 0; i < n; i++) { ctx.currentTime += 0.125; vi.advanceTimersByTime(25); }
+  };
+  return { ctx, clock, ev, wake };
+}
+
+// transport.md REQ-12 (v8) — Pause is Stop that remembers where it was.
+describe('Clock pause (v8)', () => {
+  it('resumes from the first step not yet scheduled', () => {
+    const { clock, ev, wake } = drivenClock();
+    const stops = vi.fn();
+    clock.onStop(stops);
+    let cueSeenByStop = -1;
+    clock.onStop(() => { cueSeenByStop = clock.cue; });
+
+    clock.start();
+    wake(4);
+    const next = clock.step; // the step the drain would emit next
+    expect(ev.at(-1)!.step).toBe(next - 1);
+
+    clock.pause();
+    expect(clock.playing).toBe(false);
+    expect(stops).toHaveBeenCalledTimes(1);
+    expect(clock.paused).toBe(true);
+    expect(clock.cue).toBe(next);
+    expect(cueSeenByStop).toBe(next); // stop listeners already read the resume point
+
+    ev.length = 0;
+    clock.start();
+    expect(ev[0]!.step).toBe(next); // nothing repeated, nothing skipped
+    expect(clock.paused).toBe(false);
+    clock.stop();
+  });
+
+  it('is a no-op while stopped', () => {
+    const { clock } = drivenClock();
+    const stops = vi.fn();
+    clock.onStop(stops);
+    clock.pause();
+    expect(stops).not.toHaveBeenCalled();
+    expect(clock.paused).toBe(false);
+  });
+
+  it('a resumed run still Stops back to the cue, not the pause', () => {
+    const { clock, ev, wake } = drivenClock();
+    clock.start();
+    wake(4);
+    clock.pause();
+    clock.start(); // resumes mid-way
+    expect(clock.cue).toBe(0); // while playing, the cue is where Stop returns
+    wake(2);
+    clock.stop();
+    ev.length = 0;
+    clock.start();
+    expect(ev[0]!.step).toBe(0);
+    clock.stop();
+  });
+
+  it('a seek, or a stop while already paused, cancels the resume', () => {
+    const { clock, ev, wake } = drivenClock();
+    clock.start();
+    wake(4);
+    clock.pause();
+    clock.seek(12);
+    expect(clock.paused).toBe(false);
+    ev.length = 0;
+    clock.start();
+    expect(ev[0]!.step).toBe(12);
+
+    wake(3);
+    clock.pause();
+    expect(clock.cue).not.toBe(12);
+    clock.stop(); // Esc / Panic after Pause: back to the cue
+    expect(clock.paused).toBe(false);
+    expect(clock.cue).toBe(12);
+  });
+});
+
+// transport.md REQ-13 (v8) — the loop's jump, applied inside the drain.
+describe('Clock step router (v8)', () => {
+  it('a routed step is a jump on the same grid, with onSeek and no cue move', () => {
+    const { clock, ev, wake } = drivenClock();
+    const seeks = vi.fn();
+    clock.onSeek(seeks);
+    clock.setStepRouter((next) => (next === 8 ? 2 : next));
+    clock.start();
+    wake(12);
+    clock.stop();
+
+    const i7 = ev.findIndex((e) => e.step === 7);
+    expect(i7).toBeGreaterThanOrEqual(0);
+    const after = ev[i7 + 1]!;
+    expect(after.step).toBe(2); // 8 was never emitted
+    expect(after.when - ev[i7]!.when).toBeCloseTo(0.125, 9); // same grid, no retrigger
+    expect(ev.some((e) => e.step === 8)).toBe(false);
+    expect(seeks).toHaveBeenCalled();
+    expect(clock.cue).toBe(0);
+  });
+
+  it('an identity router changes nothing and fires no seek', () => {
+    const { clock, ev, wake } = drivenClock();
+    const seeks = vi.fn();
+    clock.onSeek(seeks);
+    clock.setStepRouter((next) => next);
+    clock.start();
+    wake(6);
+    clock.stop();
+    expect(ev.map((e) => e.step)).toEqual([...ev.keys()]);
+    expect(seeks).not.toHaveBeenCalled();
+  });
+
+  it('a throwing router or seek listener cannot wedge the drain', () => {
+    const { clock, ev, wake } = drivenClock();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    clock.setStepRouter(() => { throw new Error('router'); });
+    clock.start();
+    wake(3);
+    expect(ev.map((e) => e.step)).toEqual([...ev.keys()]); // advanced as if unrouted
+    expect(err).toHaveBeenCalledTimes(1); // reported once, not per tick
+
+    const later = vi.fn();
+    clock.onSeek(() => { throw new Error('seek listener'); });
+    clock.onSeek(later);
+    const at = clock.step;
+    clock.setStepRouter((next) => (next === at + 1 ? 0 : next));
+    wake(3);
+    expect(later).toHaveBeenCalled(); // the listener after the thrower still ran
+    expect(clock.playing).toBe(true);
+    expect(ev.some((e) => e.step === 0 && e.when > 0.2)).toBe(true); // the jump landed
+    clock.stop();
+    err.mockRestore();
+  });
+});

@@ -14,7 +14,6 @@ export class Strip {
   private readonly thumb: HTMLElement;
   private unsub: () => void = () => {};
   private dragging = false;
-  private height = 0;
   private lastValue = 0;
   private readonly ro: ResizeObserver;
 
@@ -60,7 +59,6 @@ export class Strip {
   private onDown = (e: PointerEvent): void => {
     e.preventDefault();
     this.dragging = true;
-    this.height = this.el.clientHeight;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);

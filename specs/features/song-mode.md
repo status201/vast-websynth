@@ -3,7 +3,8 @@
 ```yaml
 id: song-mode
 status: implemented
-version: 25  # v25: REQ-18 also covers the two demo-load paths, which collapsed
+version: 26  # v26: REQ-14's reset also clears the transport loop (transport-loop REQ-10)
+             # v25: REQ-18 also covers the two demo-load paths, which collapsed
              #      their parse errors to errors[0] before the dialog saw them
              # v24: REQ-18 — a rejected import can be copied in full. The dialog
              #      still shows 8 of up to 50 messages; the rest used to die
@@ -54,6 +55,7 @@ related:
   - untrusted-input      # REQ-8: a song is an untrusted document; the limits live there
   - transport-position   # REQ-14: the seek contract a load reuses
   - transport-window     # REQ-14: the readout/scrubber a stale position contradicts
+  - transport-loop       # REQ-14: a loop range names bars of the OUTGOING song
   - runtime-performance   # REQ-1: boot pays only for what the user asks for
   - pwa-install           # offline behaviour of the fetched-on-click demos
 source:
@@ -304,6 +306,11 @@ demos, the load path **must stay backward compatible** as the format grows.
       which deliberately does not route through it (it restores the blank
       snapshot directly). Not in `Song.apply`: that is `state/`-layer and holds
       no clock, and pushing one in would move the refusal guard out of `Engine`.
+    - (v26) **It also clears the loop** — `engine.loop.clear()`, *before* the
+      seek. A [loop](transport-loop.md) range is bars of the outgoing song; kept,
+      a demo clicked mid-loop would start trapped in bars that mean nothing to it.
+      Clearing first matters: the loop driver cues a stopped transport into an
+      engaged range (transport-loop REQ-4), which must not race the seek to 0.
 - **REQ-15** (one name, two songs — ask, v17) — A demo's name is not reserved:
   saving your own song as `1979` leaves the **demo button** and the **slot list**
   offering two different songs under one label, and each door silently picked its
@@ -479,7 +486,7 @@ SongFile:
   seqTranspose?: number[]             # per-seq-chain-slot semitone offset, parallel to seqChain.steps.
                                       # A sidecar array rather than a field on ChainData, so ChainData
                                       # keeps its shape and every v1-v6 file round-trips byte-identically.
-                                      # Omitted when every offset is 0 — see arrangement.md REQ-16.
+                                      # Omitted when every offset is 0 — see arrangement.md REQ-8.
 
 ChainData:
   enabled: boolean
@@ -714,6 +721,12 @@ Scenario: New Song returns the playhead to bar 1 (REQ-14, regression)
   Then the readout reads 1.01 — not the bar count remembered from the cleared song,
     which the one-cell scrubber beside it no longer has
 # pinned by: e2e/song.spec.ts
+
+Scenario: Loading a song clears the transport loop (v26, REQ-14)
+  Given Loop is on with a range picked
+  When a demo is loaded
+  Then Loop is off, no range is remembered, and the readout reads 1.01
+# pinned by: e2e/transport-loop.spec.ts
 
 Scenario: A load while seeking is refused still loads (REQ-14, edge)
   Given the song recorder is capturing (seekTo returns false)

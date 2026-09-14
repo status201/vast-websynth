@@ -22,6 +22,8 @@ import { ModMatrix } from './mod-matrix';
 import { MOD_ROWS, MOD_SRC } from '../state/mod-routing';
 import { Performance } from './transport/performance';
 import { SyncController } from './transport/sync/sync-controller';
+import { TransportLoop } from './transport/transport-loop';
+import { LoopDriver } from './transport/loop-driver';
 import { WebRtcSyncTransport } from './webrtc-sync-transport';
 import { RecorderNode } from './recorder/node';
 import { RecorderController } from './recorder/recorder-controller';
@@ -175,6 +177,10 @@ export class Engine {
   bankRender!: BankRenderController;
   sync!: SyncController;
   rtcSync!: WebRtcSyncTransport;
+  /** The Song transport's loop — on/off, range, pending pick (transport-loop.md).
+   *  A model only; `loopDriver` is what bends the clock with it. */
+  readonly loop = new TransportLoop();
+  private loopDriver!: LoopDriver;
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
@@ -561,6 +567,16 @@ export class Engine {
     // objects until the user pairs (webrtc-sync.md). initMIDI adds 'midi' later.
     this.rtcSync = new WebRtcSyncTransport();
     this.sync.addTransport('wifi', this.rtcSync);
+
+    // After sync, the recorder and the bank renderer: a wrap is a seek, refused
+    // by the same `canSeek` those three feed (transport-loop.md REQ-6).
+    this.loopDriver = new LoopDriver({
+      clock: this.clock,
+      loop: this.loop,
+      songBars: () => this.arrangement.songBars(),
+      canSeek: () => this.canSeek(),
+      seekTo: (step) => this.seekTo(step),
+    });
 
     // While slaved, Tape Stop skips its clock-BPM ramp (pitch ramp still sounds)
     // so incoming clock keeps driving the tempo (midi-clock-sync REQ-13).
@@ -983,10 +999,9 @@ export class Engine {
    */
   seekTo(step: number): boolean {
     if (!this.canSeek()) return false;
+    // No announce here: SyncController hears every `clock.onSeek` — this one and
+    // a loop wrap alike — and tells slaves itself (transport-position.md REQ-7).
     this.clock.seek(Math.max(0, Math.round(step)));
-    // Slaves count pulses from their own start, so a silent jump leaves them
-    // permanently behind (midi-clock-sync REQ-23). A no-op unless mastering.
-    this.sync.announcePosition();
     return true;
   }
 
@@ -1015,6 +1030,7 @@ export class Engine {
     this.motion.lane.setBarTicks(ticks);
     this.recorder.setBarTicks(ticks);
     this.bankRender.setBarTicks(ticks);
+    this.loopDriver.setBarTicks(ticks);
     // Peers number bars by their own meter, so a local change has to reach them
     // or the same Song Position means two different bars (meter.md REQ-18).
     this.sync.announceMeter();

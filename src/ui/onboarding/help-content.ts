@@ -192,7 +192,8 @@ const RULER_HELP: HelpTopic = {
     '<p>There are <strong>two marks</strong>. A filled tick is the playhead, moving as the song ' +
     'plays. An <strong>outlined</strong> tick is the <em>cue</em> — where Play begins. So while ' +
     'stopped you see only the outline: that is your start point, and nothing is playing. Stop ' +
-    'and Play again and you return to it.</p>' +
+    'and Play again and you return to it. After a <strong>Pause</strong> on the Song tab, the ' +
+    'outline marks where Play will carry on.</p>' +
     '<p>The readout on the left says where you are. With no chains switched on, your song is ' +
     'one bank looping, so it names that bank — <strong>BANK A</strong> — matching the A/B/C/D ' +
     'buttons. Switch on a <strong>Chain</strong> and it becomes <strong>BAR 3/4</strong> with ' +
@@ -1077,11 +1078,19 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'waiting. ' + g('toStart', 'Back to the start') + ' goes back to the start.</p>' +
       '<p>Each cell lines up with a slot in the chains above, so cell&nbsp;3 and the third chip ' +
       'in a lane are the same bar.</p>' +
-      '<p><strong>TRANSPORT</strong> opens all of this in a floating window — with Play/Stop ' +
-      'as well — that keeps working on every other tab, so you can start, stop and relocate ' +
-      'while designing a sound.</p>' +
-      '<p>Moving the playhead is unavailable while an external clock is driving the transport, ' +
-      'or while a song export or bank render is recording.</p>',
+      '<p><strong>Play / Pause</strong> continues from where you paused. The header\'s ' +
+      '<strong>Stop</strong> is the other half: it goes back to where you started, or to the ' +
+      'last bar you clicked.</p>' +
+      '<p><strong>Loop</strong> repeats a stretch of the song. Switch it on, then click the first ' +
+      'and the last bar you want (the same bar twice loops one bar). While Loop is on, clicking ' +
+      'a bar picks it rather than jumping there. Playback always changes over on a bar line, so ' +
+      'the loop never cuts in mid-bar. Switching Loop off keeps the bars dimmed, ready for next ' +
+      'time; loading a song clears them.</p>' +
+      '<p><strong>TRANSPORT</strong> opens all of this in a floating window that keeps working ' +
+      'on every other tab, so you can start, pause, loop and relocate while designing a ' +
+      'sound.</p>' +
+      '<p>Moving the playhead and looping are unavailable while an external clock is driving ' +
+      'the transport, or while a song export or bank render is recording.</p>',
   },
   song: {
     title: 'Song mode',
@@ -1277,7 +1286,8 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
     body:
       '<p>Drag up or down to bend the pitch of held notes, then release — it springs back to ' +
       'centre, just like the wheel on a hardware synth. Great for expressive lead lines. The ' +
-      '<strong>.</strong> and <strong>/</strong> keys bend it too.</p>',
+      '<strong>\'</strong> key bends it up and <strong>/</strong>, the key below it, bends it ' +
+      'down.</p>',
   },
   transpose: {
     title: 'Octave',

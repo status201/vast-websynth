@@ -3,7 +3,9 @@
 ```yaml
 id: architecture
 status: implemented
-version: 8   # v8: the audio graph gains a per-lane EQ at the HEAD of all
+version: 9   # v9: the smoothing vocabulary is four constants and `rampTo` —
+             #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
+             # v8: the audio graph gains a per-lane EQ at the HEAD of all
              #     three insert chains (equalizer.md); +1 persistence key
              # v7: REQ-3 — the context is not created suspended, it is created
              #     however the BROWSER's autoplay policy says; the graph is
@@ -237,11 +239,12 @@ utils/tempo.ts:      DIVISIONS · sweetSpots(bpm) · syncedValue(...) · nearest
 
 Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
 `AudioParam` write shares: `rampTo(param, value, ctx, tau)` /
-`rampCancelAndSet(...)` over the five named time constants — `RAMP_FAST` 5 ms,
-`RAMP_MEDIUM` 10 ms, `RAMP_SMOOTH` 20 ms (the insert effects' own controls, which
-zipper audibly at anything shorter), `RAMP_BYPASS` 25 ms (an effect's whole
-dry/wet swap, which moves far more level than any one knob —
-[effects](features/effects.md) REQ-2), `RAMP_SLOW` 50 ms. These are dialled by ear
+over four named time constants — `RAMP_FAST` 5 ms, `RAMP_MEDIUM` 10 ms,
+`RAMP_SMOOTH` 20 ms (the insert effects' own controls, which zipper audibly at
+anything shorter) and `RAMP_BYPASS` 25 ms (an effect's whole dry/wet swap, which
+moves far more level than any one knob — [effects](features/effects.md) REQ-2).
+There is deliberately no cancel-then-ramp helper: `rampTo` retargets from wherever
+the curve has reached, so it never needs a cancel. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
 the call site.
 
@@ -566,7 +569,7 @@ Blank step grids likewise have one source: `emptyPatternBanks()`
 (`state/patterns.ts`) returns `BANK_COUNT` banks per machine from the same
 `makeSeqBank`/`makeDrumBank`/`makeSamplerBank`/`makeMotionBank` builders
 `PatternStore` boots with, so "New Song" can never drift from a fresh store.
-(The demo-authoring helpers in `song.ts` — `emptySeq`/`seqFromNotes` — stay
+(The demo-authoring helper in `song.ts` — `seqFromNotes` — stays
 separate on purpose: they use different constants that are already serialized
 into the committed demos and share links.)
 

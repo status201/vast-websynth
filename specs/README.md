@@ -241,10 +241,11 @@ specs/
     fx-group.md        ·  shared header FX-group UI (knobs hide while bypassed)
     fx-patch-decoration.md · unpatched-cable scenery in the empty FX grid cell
     # — transport & sequencing —
-    transport.md       ·  the look-ahead clock
+    transport.md       ·  the look-ahead clock (start / stop / pause, seek, step router)
     meter.md           ·  time signatures + per-lane length/rate (polymeter, polyrhythm)
     transport-position.md · moving the playhead (seek, position ruler, Home/Shift+arrows)
-    transport-window.md · the Song-panel transport row + its floating window
+    transport-window.md · the Song-panel transport row + its floating window (Play/Pause)
+    transport-loop.md  ·  loop a range of bars (Loop button + two scrubber picks, bar-line wrap)
     arpeggiator.md     ·  held-note arp + transport ownership
     sequencer.md       ·  the 16-step synth sequencer
     scale-quantization.md ·  key/scale as a live pitch filter over every note source

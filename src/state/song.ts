@@ -416,10 +416,6 @@ function seqFromNotes(notes: (number | null)[], gate = 0.5, velocity = 0.85): Se
   });
 }
 
-function emptySeq(): SeqStep[] {
-  return seqFromNotes(Array(SEQ_LENGTH).fill(null));
-}
-
 /** rows: map of track index → array of step indices that are ON. */
 function drumFrom(rows: Record<number, number[]>): DrumCell[][] {
   const bank = makeDrumBank();

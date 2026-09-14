@@ -48,6 +48,30 @@ const pulses = (sent: Sent) => sent.filter((s) => s.msg.type === 'pulse');
 const types = (sent: Sent) => sent.map((s) => s.msg.type);
 
 describe('SyncMaster', () => {
+  // midi-clock-sync.md REQ-26 (v7) — `start` restarts every slave at bar 0, so a
+  // master resuming mid-song (Pause -> Play, or a seeked cue) must join them
+  // where it is instead.
+  it('a start from a non-zero step sends songposition + continue, not start (v7)', () => {
+    const { clock, master, sent } = setup();
+    master.enable();
+    clock.seek(52);
+    sent.length = 0;
+    clock.start();
+    const t = types(sent).filter((x) => x !== 'pulse');
+    expect(t).not.toContain('start');
+    expect(t.slice(0, 2)).toEqual(['songposition', 'continue']);
+    const spp = sent.find((s) => s.msg.type === 'songposition');
+    expect(spp && 'beat' in spp.msg ? spp.msg.beat : -1).toBe(52);
+    clock.stop();
+
+    // From the top it is still a plain start — what every existing slave expects.
+    clock.seek(0);
+    sent.length = 0;
+    clock.start();
+    expect(types(sent).filter((x) => x !== 'pulse')[0]).toBe('start');
+    clock.stop();
+  });
+
   it('emits start then 24-PPQN pulses spaced 60000/(bpm*24) ms apart', () => {
     const { clock, master, sent, advance } = setup();
     master.enable();

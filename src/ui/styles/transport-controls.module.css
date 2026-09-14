@@ -23,6 +23,13 @@
   max-width: min(90vw, 880px);
 }
 
+/* Play/Pause (transport-window.md REQ-13): wide enough for "Pause", so the row
+   does not shift sideways every time the label flips. */
+.playPause {
+  min-width: 64px;
+  text-align: center;
+}
+
 /* bar.step. Monospaced, NOT `--serif` (REQ-6): Georgia's figures are
    proportional old-style with no `tnum`, so tabular-nums bought nothing there
    and the counter shifted sideways on every 16th. */
@@ -87,6 +94,43 @@
   border-color: var(--accent-secondary);
   color: #120a04;
   box-shadow: inset 0 0 0 1px rgba(255, 246, 214, 0.45);
+}
+
+/* The loop range (transport-loop.md REQ-12) — a bracket of accent rails top and
+   bottom rather than a fill, so the `playing` segment keeps reading as the
+   playhead when it is inside the loop. Inset shadows, not borders: a border
+   would change the cell's box and shift the timeline. No transition, as above. */
+.bar:global(.loop) {
+  box-shadow: inset 0 3px 0 var(--accent), inset 0 -3px 0 var(--accent);
+  color: var(--accent);
+}
+.bar:global(.loop):global(.playing) {
+  box-shadow: inset 0 3px 0 var(--accent), inset 0 -3px 0 var(--accent),
+    inset 0 0 0 1px rgba(255, 246, 214, 0.45);
+  color: #120a04;
+}
+
+/* Loop on: the cells pick instead of seeking (REQ-2), so the mode is drawn on the
+   target itself — a dashed outline says "choose me", not "go here". */
+.picking .bar { cursor: crosshair; }
+.picking .bar:hover { outline: 1px dashed var(--accent); outline-offset: -3px; }
+
+/* The first pick, waiting for its second. */
+.bar:global(.loop-anchor) {
+  outline: 2px dashed var(--accent);
+  outline-offset: -3px;
+  color: var(--accent);
+}
+
+/* Loop off with a remembered range (REQ-5): the bracket stays, dimmed. */
+.loopIdle .bar:global(.loop) {
+  box-shadow: inset 0 3px 0 rgba(244, 205, 94, 0.3), inset 0 -3px 0 rgba(244, 205, 94, 0.3);
+  color: var(--text-dim);
+}
+.loopIdle .bar:global(.loop):global(.playing) {
+  box-shadow: inset 0 3px 0 rgba(244, 205, 94, 0.3), inset 0 -3px 0 rgba(244, 205, 94, 0.3),
+    inset 0 0 0 1px rgba(255, 246, 214, 0.45);
+  color: #120a04;
 }
 
 /* Seeking refused (slaved, or a capture in flight) — say so rather than

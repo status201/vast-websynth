@@ -3,7 +3,10 @@
 ```yaml
 id: midi-clock-sync
 status: implemented
-version: 6   # v6: MIDI carries no meter — stated, not hidden (REQ-25)
+version: 7   # v7: a local start from a non-zero step joins slaves there instead
+             #     of restarting them at bar 0 (REQ-26); REQ-23's announce is
+             #     driven by clock.onSeek, so a loop wrap announces too
+             # v6: MIDI carries no meter — stated, not hidden (REQ-25)
 owner: core
 related:
   - architecture
@@ -334,6 +337,10 @@ is a transport event, so sync has to have an opinion about it in both roles.
   distance behind for the rest of the session. It deliberately does **not** send
   `start`: REQ-3 makes a slave restart at **bar 0** on `start`, which is the one
   thing a mid-song jump must not do.
+  (v7) "After a local `Clock.seek`" is now literal: `SyncController` subscribes
+  `clock.onSeek` rather than being called from `Engine.seekTo`, so every jump —
+  a user seek *or* a [loop](transport-loop.md) wrap
+  ([transport](transport.md) REQ-13) — announces exactly once.
 - **REQ-24** — **A slave refuses to seek locally.** While `activeMode === 'slave'` the
   remote transport owns the playhead: `Engine.seekTo` returns `false` and
   `canSeek()` is `false`, so every UI surface disables itself rather than fighting
@@ -352,6 +359,24 @@ is a transport event, so sync has to have an opinion about it in both roles.
   is to set the same signature on both devices. Related: `TICK_MEMORY` (16
   recorded grid times) is a look-ahead-sized window, not "one bar" — its comment
   said bar and no longer should.
+
+## v7 — resuming from the middle
+
+- **REQ-26** (v7) — **A local start from a non-zero step joins, it does not
+  restart.** `SyncMaster.onLocalStart` sent `start` unconditionally, and REQ-3
+  makes every slave restart at **bar 0** on `start`. That was already wrong for
+  a start from a seeked cue ([transport](transport.md) REQ-7), and a Pause →
+  Play ([transport](transport.md) REQ-12) makes it the common case: the master
+  resumes at bar 7 while every slave jumps to bar 1. So the start listener reads
+  `clock.step` — seeded before `onStart` fires (transport REQ-5) — and:
+    - step `0` → `start`, byte-identical to v6 (the regression every existing
+      slave relies on);
+    - any other step → `songposition` (`step & 0x3fff`) + `continue`, REQ-10's
+      join primitive. MIDI's own vocabulary is exactly this: Continue resumes
+      from the last Song Position, Start from the top.
+  The REQ-18 flush and the trailing `tempo` are unchanged in both branches. The
+  meter is not re-sent here: it is announced whenever it changes (REQ-25 /
+  [meter](meter.md) REQ-18), so a peer already holds it.
 ## Technical design
 
 ### Contract / public interface
@@ -454,6 +479,9 @@ startSettleBaseMs: 300            # v3: + 12 pulse intervals — post-(re)start 
 reanchorRatio: 0.75               # v3: |phaseErr| beyond this × pulse interval -> re-anchor (REQ-17)
 reanchorMinS: 0.015               # v3: re-anchor floor so jitter spikes can't trigger it
 phaseMissReanchor: 2              # v3: consecutive unmeasurable pulses -> re-anchor (REQ-17)
+phaseAlpha: 0.25                  # phase-error smoothing
+tempoWriteMinDelta: 0.05          # ignore a 'tempo' within this of the last written BPM
+tickMemory: 16                    # recorded grid times (steps) — a look-ahead window, REQ-25
 ```
 
 Master idle-clock + tempo constants (`sync-master.ts`, v2):
@@ -728,6 +756,18 @@ Scenario: A slave refuses a local playhead seek (v5, REQ-24)
   Then it returns false, clock.step is unchanged, and canSeek() is false
   But the local Play button and arp auto-start still work (REQ-3 unchanged)
 # pinned by: tests/audio/engine-seek.test.ts
+
+Scenario: A master resuming mid-song joins slaves there (v7, REQ-26)
+  Given sync mode is master and the clock starts from step 52 (a pause, or a cue)
+  Then songposition (beat 52) and continue are sent — and start is NOT
+  And a start from step 0 still sends start, exactly as before
+# pinned by: tests/audio/transport/sync/sync-master.test.ts
+
+Scenario: Every clock seek announces once — a loop wrap included (v7, REQ-23)
+  Given sync mode is master
+  When clock.onSeek fires, whether from Engine.seekTo or a loop wrap
+  Then announcePosition runs once, and Engine.seekTo does not add a second call
+# pinned by: tests/audio/transport/sync/sync-controller.test.ts, tests/audio/engine-seek.test.ts
 ```
 
 ## Tests & verification

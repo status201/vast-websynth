@@ -3,7 +3,9 @@
 ```yaml
 id: transport-window
 status: implemented
-version: 4  # v4: `bar.step` counts the song's bar, not a fixed 16 (REQ-12)
+version: 5  # v5: Play/Pause on BOTH surfaces (REQ-5/REQ-13) and a Loop button
+            #     (transport-loop.md); `compact` is gone (REQ-1)
+            # v4: `bar.step` counts the song's bar, not a fixed 16 (REQ-12)
             # v3: the readout wraps at song length — it no longer counts bars the
             #     song does not have (REQ-6)
 owner: core
@@ -17,6 +19,7 @@ related:
   - arrangement
   - midi-clock-sync
   - onboarding
+  - transport-loop      # v5: the Loop button + scrubber picks this row carries
 source:
   - src/ui/components/transport-controls.ts   # shared builder + window launcher
   - src/ui/panels/song-panel.ts               # hosts the compact row
@@ -38,12 +41,14 @@ tab. A launcher opens a non-modal [FloatingWindow](floating-window.md) that, lik
 every floating window, mounts on `document.body` and therefore keeps working
 while you edit a patch on the Synth tab.
 
-It differs from LIVE FX in one deliberate way. LIVE FX renders the **same full
-control set** in both places; this one keeps the Song-panel row **compact** — a
-launcher, a return-to-start button, a position readout and the bar scrubber —
-with Play/Stop living only in the window. The Song panel is already the tallest
-tab in the app, and the point of undocking is to give that space back, not to
-duplicate it.
+Until v5 it differed from LIVE FX in one deliberate way: the Song-panel row was
+**compact**, with Play/Stop only in the window, to keep the tallest tab in the app
+short. v5 gives the row the **same full control set** as the window, as LIVE FX
+does. The row gained **Play/Pause** (the one transport verb nothing else on screen
+offers) and **Loop** ([transport-loop](transport-loop.md)), and a row with both,
+sitting right against the chains they act on, is the reason to open the Song tab.
+The row still wraps rather than growing a second strip, so the height cost is
+two buttons' width.
 
 **BPM and SWING are not here, on either surface.** They are permanently in the
 header, they are set once per song rather than performed, and a second pair
@@ -63,13 +68,15 @@ keep in step.
   opts?)` renders the transport control set from one source; `opts.testIdPrefix`
   namespaces every testid so two instances coexist (the Song row uses
   `transport`, the window `transportw`), the same mechanism
-  [live-fx-window](live-fx-window.md) REQ-1 uses. `opts.compact` omits the one
-  control the Song-panel row does not carry: Play/Stop.
+  [live-fx-window](live-fx-window.md) REQ-1 uses. (v5) Both surfaces render the
+  **same** controls. The `opts.compact` flag, which dropped Play/Stop from the
+  Song-panel row, was removed together with the difference it expressed.
 
 - **REQ-2** — **TRANSPORT floating window.** A launcher (`transport-open`)
   toggles a `FloatingWindow` titled **TRANSPORT** (`testId: transport-window`),
-  built lazily on first open and kept alive across closes. Contents in order:
-  Play/Stop, ⏮ return-to-start, the `bar.step` readout, the bar scrubber. It
+  built lazily on first open and kept alive across closes. Contents in order
+  (v5): Play/Pause, ⏮ return-to-start, the `bar.step` readout, Loop, the bar
+  scrubber. It
   takes no `ParamBus` — **neither surface mints a second `transport.bpm` or
   `transport.swing` knob** (see *Background*); the header's are the only ones.
 
@@ -78,20 +85,26 @@ keep in step.
   the LIVE FX launcher (aria-hidden; the button's `aria-label` carries the
   meaning). No separate text label — that is the space this feature gives back.
 
-- **REQ-4** — **Compact Song-panel row**:
-  `[TRANSPORT ❐] [⏮] [bar.step] [bar scrubber]`, placed **directly under the four
+- **REQ-4** — **Song-panel row** (v5: no longer compact):
+  `[TRANSPORT ❐] [Play/Pause] [⏮] [bar.step] [Loop] [bar scrubber]`, placed **directly under the four
   machine lanes and above Live FX**. The scrubber is one cell per chain slot, so
   it reads as a ruler for the chains immediately above it — a bar number in the
   scrubber and a chip in a lane mean the same bar. Sitting it down by Sync (its
   first home) put the position readout at the bottom of the tallest panel in the
   app, several sections away from the only thing that gives it meaning.
 
-- **REQ-5** — **Play/Stop is not a second source of truth.** It routes through
-  `UiBridge.toggleTransport`, which clicks the *real* header button — so it
-  inherits the [empty-play hint](empty-play-hint.md) intercept and the
-  [Play-button blink](play-button-blink.md) state machine for free, and the two
-  buttons can never disagree. It mirrors its own label/`.on` off
-  `clock.onStart`/`onStop`, exactly as the header button does.
+- **REQ-5** — **Play/Pause is not a second source of truth.** (v5: was Play/Stop.)
+  Stopped, a click **plays** through `UiBridge.toggleTransport`, which clicks the
+  *real* header button. That way it gets the
+  [empty-play hint](empty-play-hint.md) intercept and the
+  [Play-button blink](play-button-blink.md) state machine without extra code, and
+  starts from `clock.cue`, which is the resume point after a pause. Playing, a
+  click **pauses** through `clock.pause()` ([transport](transport.md) REQ-12).
+  Pause cannot go through the header, whose click means *stop*, and it needs
+  neither the hint (stops are never intercepted) nor the blink wiring (driven by
+  `onStop`). The label and `.on` follow `clock.onStart`/`onStop`, exactly as the
+  header button's do, so all three buttons always agree about whether the
+  transport is running.
 
 - **REQ-6** — **Position readout.** `bar.step`, 1-based (bar 1 step 1 at the
   top). Playing, it shows the live step; stopped, the **cue** — where Play will
@@ -136,7 +149,9 @@ keep in step.
   its section title, so the badge sits on the row's leading control. Topic
   `transport.song` ([onboarding](onboarding.md) REQ-16): the `bar.step` readout,
   the scrubber's one-cell-per-chain-slot correspondence, what the floating
-  window adds, and the states where seeking is refused (REQ-8).
+  window adds, and the states where seeking is refused (REQ-8). (v5) It also
+  covers Play/Pause against the header's Play/Stop (REQ-13) and Loop
+  ([transport-loop](transport-loop.md) REQ-13).
 
 - **REQ-11** — **The scrubber presents as a timeline, not a row of links.**
   Square cells (no border radius) the height of the buttons beside them, sitting
@@ -159,17 +174,34 @@ keep in step.
   `barTicks` rather than a fixed 16 ([meter](meter.md) REQ-6) — so in 3/4 the
   step half runs 01..12 and bar 2 begins at tick 12. REQ-6's wrap-at-song-length
   rule is unchanged and still applies on top.
+
+- **REQ-13** (v5) — **Pause and Stop are separate verbs, with one of each on
+  screen.** The header keeps **Play/Stop** and the Space bar still toggles it:
+  Stop means "back to the cue". The song transport's button is **Play/Pause**:
+  Pause means "stay here" ([transport](transport.md) REQ-12). Neither button
+  changes meaning with state. Each does one thing when the transport runs and
+  one when it does not (law 2), and each label names what a click will do. After a
+  pause, the readout and the rulers' cue ring show the resume point, since that
+  is `clock.cue` (REQ-6); pressing the header's Play also resumes there. The button
+  is wide enough for "Pause", so the row does not shift when the label changes.
+  Precedent: Elektron's PLAY, which pauses and resumes, sits beside its STOP.
+  The MPC has PLAY and PLAY START.
+
+- **REQ-14** (v5) — **Loop lives on this row.** Between the readout and the
+  scrubber, because its picks land on the scrubber. The button, the picking mode
+  and the range drawn on the cells are specified in
+  [transport-loop](transport-loop.md). This spec owns only where it sits and that
+  both surfaces carry it (REQ-1).
 ## Technical design
 
 ### Contract / public interface
 
 ```yaml
 buildTransportControls(engine, bridge, opts?): HTMLElement[]
-  # opts: { testIdPrefix?: string (default 'transport'), compact?: boolean }
-  # full:    [Play/Stop, ⏮, readout, scrubber]
-  # compact: [⏮, readout, scrubber]
-  # testids: `${p}-toggle`, `${p}-tostart`, `${p}-readout`, `${p}-scrub`,
-  #          `${p}-scrub-<bar>`
+  # opts: { testIdPrefix?: string (default 'transport') }   # v5: no `compact`
+  # [Play/Pause, ⏮, readout, Loop, scrubber]
+  # testids: `${p}-toggle`, `${p}-tostart`, `${p}-readout`, `${p}-loop` (v5),
+  #          `${p}-scrub`, `${p}-scrub-<bar>`
   # NOT `${p}-play`: the header's own Play button is `transport-play`, and a
   # default-prefixed instance would mint a duplicate of it.
   # NO ParamBus: it owns no params, so it cannot duplicate a header knob (REQ-2).
@@ -188,12 +220,15 @@ Arrangement:                                  # src/audio/transport/arrangement.
 
 ```yaml
 song-panel: transport row = createTransportWindowLauncher(engine, bridge)
-  -> buildTransportControls(engine, bridge, { compact: true })
+  -> buildTransportControls(engine, bridge)          # v5: same set as the window
   section order: chain lanes -> TRANSPORT -> Live FX -> Song I/O -> Audio -> Sync
   (REQ-4: it belongs against the chains it scrubs, not against Sync)
 window body: buildTransportControls(engine, bridge, { testIdPrefix:'transportw' })
 play: UiBridge.toggleTransport -> the header button's click (REQ-5) — never
   clock.toggle() directly, or the empty-play hint and the LED blink are bypassed
+pause (v5): clock.pause() — only ever while playing, so it can never stand in
+  for the header's Stop
+loop (v5): StudioApi.loop — see transport-loop.md
 seek: StudioApi.seekTo only (REQ-8)
 repaint: clock.onTick / onSeek / onStart / onStop for the readout + scrubber lit
   class; arrangement.onChange for the scrubber's structure
@@ -217,15 +252,15 @@ Song panel, top down — the transport row sits against the chains it scrubs
   ┌ SEQUENCER ┐ ┌ DRUMS ┐ ┌ SAMPLER ┐ ┌ MOTION ┐
   │ A A B A   │ │ …     │ │ …       │ │ …      │   the four lane cards
   └───────────┘ └───────┘ └─────────┘ └────────┘
-  [TRANSPORT ❐] [⏮] 3.01  ▏1▕2▕3▕4▏               <- this row
-   transport-open  -tostart  -readout  -scrub-<bar>
+  [TRANSPORT ❐] [Play] [⏮] 3.01 [Loop] ▏1▕2▕3▕4▏  <- this row
+   transport-open -toggle -tostart -readout -loop -scrub-<bar>
   [LIVE FX ❐] [DJ FLT] [Fill] [Stutter] …          Live FX, then Song I/O,
                                                     Audio, Sync
 
 FloatingWindow "TRANSPORT"
  ┌──────────────────────────────────────────┐
  │ −  TRANSPORT                            ✕ │
- │ [Stop] [⏮] 3.09 ███████████████████████  │   transportw-*
+ │ [Pause] [⏮] 3.09 [Loop] ██████████████  │   transportw-*
  └──────────────────────────────────────────┘
 
 The scrubber (REQ-11) — square cells the height of the buttons beside them, on a
@@ -239,10 +274,16 @@ near-black bed whose 2px gaps are the dividers. One line; a long song scrolls:
 ## Scenarios (BDD)
 
 ```gherkin
+Scenario: The Song row and the window carry the same controls (v5, REQ-1/REQ-4)
+  Given the Song tab is open
+  Then its transport row carries Play/Pause, ⏮, the readout, Loop and the scrubber
+  And the header's transport-play is still the only element with that testid
+# pinned by: tests/ui/transport-controls.test.ts, e2e/transport-window.spec.ts
+
 Scenario: The launcher opens a floating transport usable off the Song tab
   Given the Song tab is open
   When the user clicks TRANSPORT (transport-open)
-  Then a transport-window appears with Play, ⏮, a readout and a scrubber
+  Then a transport-window appears with Play/Pause, ⏮, a readout, Loop and a scrubber
   And switching to the Synth tab leaves it visible and live
 # pinned by: e2e/transport-window.spec.ts
 
@@ -255,9 +296,26 @@ Scenario: Neither surface duplicates a header knob (REQ-2)
 Scenario: The window's Play button and the header's stay in sync (REQ-5)
   Given the transport is stopped
   When the user clicks the window's Play
-  Then the transport starts and BOTH buttons read Stop
+  Then the transport starts, the window's button reads Pause and the header's Stop
   When the user clicks the header's Stop
   Then both read Play again
+# pinned by: e2e/transport-window.spec.ts
+
+Scenario: Play plays through the header; Pause pauses through the clock (v5, REQ-5)
+  Given the transport is stopped
+  When the user clicks the row's Play
+  Then UiBridge.toggleTransport is called and the clock is not touched directly
+  When the transport is playing and the user clicks Pause
+  Then clock.pause() is called and toggleTransport is not
+# pinned by: tests/ui/transport-controls.test.ts
+
+Scenario: Pause resumes from where playback was (v5, REQ-13)
+  Given a four-bar chain playing from bar 1
+  When the user clicks Pause during bar 3
+  Then the transport stops and the readout still reads bar 3
+  When the user clicks Play
+  Then playback continues from that position, not from bar 1
+  And after the header's Stop, the next Play starts from bar 1 again
 # pinned by: e2e/transport-window.spec.ts
 
 Scenario: The readout shows the cue while stopped (REQ-6)

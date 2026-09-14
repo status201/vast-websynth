@@ -39,7 +39,7 @@ export class Keyboard {
   private _transpose = 0;
   private readonly labelKeys: HTMLElement[] = [];
 
-  constructor(private readonly opts: KeyboardOptions) {
+  constructor(opts: KeyboardOptions) {
     this.bus = opts.bus;
     const startOct = opts.startOctave ?? 3;
     const octaves = opts.octaves ?? 3;

@@ -265,7 +265,7 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   connected, for the life of the context — which is exactly what the second
   scenario below caught when this shipped with one.
 
-  `DrumVoice.output` is declared `GainNode` rather than `AudioNode` for this: every
+  `DrumSynth.output` is declared `GainNode` rather than `AudioNode` for this: every
   implementation already built one, and the ramp needs the `gain` param.
   In-flight one-shots keep their own `disposeAfter` teardown, unchanged.
 

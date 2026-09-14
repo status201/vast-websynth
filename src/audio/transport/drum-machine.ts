@@ -94,7 +94,7 @@ export class DrumMachine {
 
   constructor(
     private readonly ctx: AudioContext,
-    private readonly clock: TickSubscriber,
+    clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
     private readonly perf: Performance,

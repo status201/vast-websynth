@@ -65,10 +65,10 @@ export class StepSequencer {
 
   constructor(
     private readonly output: SynthOutput,
-    private readonly clock: TickSubscriber,
+    clock: TickSubscriber,
     private readonly patterns: PatternStore,
     private readonly arrangement: Arrangement,
-    private readonly perf: Performance,
+    perf: Performance,
     private readonly scale: ScaleQuantizer = new ScaleQuantizer(),
   ) {
     this.lane = new LaneMeter(clock, (s) => perf.mapStep(s));
@@ -77,7 +77,12 @@ export class StepSequencer {
     // only ever describes the *adjacent* step. Left alone, a note tied at the
     // old position slurs into the new one — or never gets released at all
     // (sequencer.md REQ-14).
-    clock.onSeek(() => this.releaseAll());
+    // At each track's gate end, not now — as the stop below. A seek can land
+    // while the last step's note-on is still in the look-ahead, and a loop wrap
+    // always does (it jumps from inside the drain, right after scheduling it):
+    // a release at `now` precedes that attack and is overwritten by it, hanging
+    // a tied voice (sequencer.md REQ-14, transport-loop.md REQ-9).
+    clock.onSeek(() => this.releaseAllAtGateEnd());
     // A tie schedules no release of its own — that is the NEXT tick's job — so a
     // stop stranded the voice until the user reached for Panic (REQ-15). Release
     // at each track's own gate end rather than `now`: the note-on may still be

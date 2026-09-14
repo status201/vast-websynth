@@ -1,6 +1,7 @@
 import type { PatternStore } from '../state/patterns';
 import type { Arrangement } from '../audio/transport/arrangement';
 import type { Clock } from '../audio/transport/clock';
+import type { TransportLoop } from '../audio/transport/transport-loop';
 import type { Performance } from '../audio/transport/performance';
 import type { StepSequencer } from '../audio/transport/sequencer';
 import type { DrumMachine } from '../audio/transport/drum-machine';
@@ -36,6 +37,10 @@ export interface StudioApi {
   readonly arrangement: Arrangement;
   /** Look-ahead transport clock (toggle / playing / onTick / onStart / onStop). */
   readonly clock: Clock;
+  /** The Song transport's loop: Loop on/off, the range, a pending pick
+   *  (transport-loop.md). The wrap's guard lives where the jump happens, in the
+   *  engine's loop driver — the UI only checks `canSeek()` to stay honest. */
+  readonly loop: TransportLoop;
   /** Live DJ/performance FX (fill, stutter, drop, tape stop). */
   readonly perf: Performance;
   /** Step sequencer (onNote / onStep). */
@@ -110,8 +115,8 @@ export interface StudioApi {
   /**
    * Move the playhead to an absolute 16th; `false` when refused (slaved, or a
    * capture is in flight — transport-position.md REQ-6/REQ-8). UI surfaces call
-   * this, never `clock.seek`, so the guard and the sync-master announce live in
-   * exactly one place.
+   * this, never `clock.seek`, so the guard lives in exactly one place (the
+   * sync-master announce follows from `clock.onSeek`).
    */
   seekTo(step: number): boolean;
   /** Whether `seekTo` would be accepted — for disabling controls up front. */

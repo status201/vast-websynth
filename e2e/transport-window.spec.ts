@@ -11,23 +11,35 @@ const setSeqChain = (page: Page, steps: number[]): Promise<void> =>
 
 const SEQ_LENGTH = 16;
 
+/** Record every emitted step, so a test can read where playback (re)started. */
+const recordTicks = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    const w = window as any;
+    w.__ticks = [];
+    if (!w.__tickRecorder) {
+      w.__tickRecorder = w.__synth.engine.clock.onTick((s: number) => { w.__ticks.push(s); });
+    }
+  });
+const ticks = (page: Page): Promise<number[]> =>
+  page.evaluate(() => (window as any).__ticks as number[]);
+
 /**
- * The Song panel's compact transport row and the TRANSPORT floating window
- * (transport-window.md).
+ * The Song panel's transport row and the TRANSPORT floating window
+ * (transport-window.md) — the same control set on both since v5.
  */
 test.describe('TRANSPORT window', () => {
-  test('the Song panel carries a compact transport row', async ({ page }) => {
+  test('the Song panel carries the full transport row (v5)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
 
     await expect(page.getByTestId('transport-open')).toBeVisible();
+    await expect(page.getByTestId('transport-toggle')).toHaveText('Play');
     await expect(page.getByTestId('transport-tostart')).toBeVisible();
     await expect(page.getByTestId('transport-readout')).toHaveText('1.01');
+    await expect(page.getByTestId('transport-loop')).toBeVisible();
     await expect(page.getByTestId('transport-scrub')).toBeVisible();
-    // Play/Stop lives in the window, not here (REQ-4). Note the builder's
-    // toggle is `-toggle`, never `-play`: `transport-play` is the header's own
-    // button, which must stay the one and only holder of that id.
-    await expect(page.getByTestId('transport-toggle')).toHaveCount(0);
+    // The builder's toggle is `-toggle`, never `-play`: `transport-play` is the
+    // header's own button, which must stay the one and only holder of that id.
     await expect(page.getByTestId('transport-play')).toHaveCount(1);
   });
 
@@ -41,6 +53,7 @@ test.describe('TRANSPORT window', () => {
     await expect(win.getByTestId('transportw-toggle')).toBeVisible();
     await expect(win.getByTestId('transportw-tostart')).toBeVisible();
     await expect(win.getByTestId('transportw-readout')).toBeVisible();
+    await expect(win.getByTestId('transportw-loop')).toBeVisible();
     await expect(win.getByTestId('transportw-scrub')).toBeVisible();
     // REQ-2: BPM/SWING are the header's alone. A copy here would be a second
     // control for one param that does not know to disable itself while slaved —
@@ -63,7 +76,8 @@ test.describe('TRANSPORT window', () => {
     const headerPlay = page.getByTestId('transport-play'); // the header's own button
     await winPlay.click();
     await expect.poll(() => playing(page)).toBe(true);
-    await expect(winPlay).toHaveText('Stop');
+    // v5: the song transport pauses; the header still stops (REQ-13).
+    await expect(winPlay).toHaveText('Pause');
     await expect(headerPlay).toHaveText('Stop');
 
     // Stopping from the header must move the window's button too — one
@@ -71,6 +85,45 @@ test.describe('TRANSPORT window', () => {
     await headerPlay.click();
     await expect.poll(() => playing(page)).toBe(false);
     await expect(winPlay).toHaveText('Play');
+  });
+
+  // REQ-13 (v5) / transport.md REQ-12 — Pause stays here; Stop goes back.
+  test('Pause resumes where playback was; the header Stop still returns to the cue', async ({ page }) => {
+    await gotoAndStart(page);
+    await setSeqChain(page, [0, 0, 1, 0]); // four bars
+    await page.getByTestId('tab-song').click();
+    const toggle = page.getByTestId('transport-toggle');
+
+    await toggle.click();
+    await expect.poll(() => playing(page)).toBe(true);
+    await expect(toggle).toHaveText('Pause');
+    await expect.poll(() => clockStep(page), { timeout: 10_000 }).toBeGreaterThan(SEQ_LENGTH + 4);
+
+    await toggle.click();
+    await expect.poll(() => playing(page)).toBe(false);
+    await expect(toggle).toHaveText('Play');
+    const resumeAt = await page.evaluate(() => (window as any).__synth.engine.clock.cue as number);
+    expect(resumeAt).toBeGreaterThan(SEQ_LENGTH + 4);
+    // Stopped, the readout names where Play will continue — not bar 1.
+    const bar = Math.floor(resumeAt / SEQ_LENGTH);
+    const step = resumeAt % SEQ_LENGTH;
+    await expect(page.getByTestId('transport-readout'))
+      .toHaveText(`${(bar % 4) + 1}.${String(step + 1).padStart(2, '0')}`);
+
+    await recordTicks(page);
+    await toggle.click();
+    await expect.poll(async () => (await ticks(page)).length).toBeGreaterThan(0);
+    expect((await ticks(page))[0]).toBe(resumeAt); // nothing repeated, nothing skipped
+
+    // The header's Stop is the other verb: back to the cue (never seeked: bar 1).
+    await page.getByTestId('transport-play').click();
+    await expect.poll(() => playing(page)).toBe(false);
+    await expect(page.getByTestId('transport-readout')).toHaveText('1.01');
+    await recordTicks(page);
+    await toggle.click();
+    await expect.poll(async () => (await ticks(page)).length).toBeGreaterThan(0);
+    expect((await ticks(page))[0]).toBe(0);
+    await page.getByTestId('transport-play').click();
   });
 
   test('the scrubber spans the song and jumps to a bar', async ({ page }) => {

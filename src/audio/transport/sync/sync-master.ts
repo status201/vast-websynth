@@ -132,7 +132,18 @@ export class SyncMaster {
   private onLocalStart = (): void => {
     this.stopIdle();
     this.flush?.(); // drop the queued idle-pulse tail so it can't trail 'start' (REQ-18)
-    this.send({ type: 'start' }); // slaves realign to bar 0 (v1 behaviour)
+    // `clock.step` is seeded before onStart fires (transport.md REQ-5). From the
+    // top, `start` realigns slaves to bar 0 as it always has; from anywhere else
+    // (a Pause → Play, or a seeked cue) `start` would drag every slave back to
+    // bar 0 while we play on mid-song — so join them where we are, with MIDI's
+    // own Song Position + Continue (midi-clock-sync.md REQ-26).
+    const step = this.clock.step;
+    if (step === 0) {
+      this.send({ type: 'start' });
+    } else {
+      this.send({ type: 'songposition', beat: step & SONG_POSITION_MASK });
+      this.send({ type: 'continue' });
+    }
     this.sendTempo();
   };
 
