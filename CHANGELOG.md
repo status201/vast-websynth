@@ -44,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "WIDTH" says. It now carries the standard name the Wah's knob already uses.
   Nothing about the sound changes, and songs, presets and share links saved with
   the old label load exactly as before.
+- **FILTER ENV no longer makes the synth panels taller on wide screens.** Since
+  **VEL** joined **A D S R**, the panel stacked its knobs three rows high, and
+  from 1630px wide that made the whole row of synth panels 42px taller than it
+  needed to be, taking the space from the section below. On those screens A, D, S
+  and R now sit in the corners with VEL in the middle, like the five on a die. The
+  panel is the same height as AMP ENV beside it. Narrower screens keep their
+  layout.
 
 ## [2.12.0] - 2026-09-09
 

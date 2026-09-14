@@ -167,8 +167,10 @@
 /* FILTER ENV, once velocity sensitivity joined A/D/S/R (envelopes.md REQ-5).
    Five items in a 2-column grid would leave a lone knob hanging in column 1, so
    the fifth spans the row and `justify-items: center` centres it: A D / S R /
-   VEL. Deliberate, not ragged. The ≤1280px reflow widens the panel enough for
-   one row of five, where the span must be undone (see the media block below). */
+   VEL. Deliberate, not ragged — and free between 1281 and 1629px, where FILTER
+   and OSC 1 stand taller anyway. Two other shapes, in the media blocks below:
+   a dice-five from 1630px (where that third row would set the faceplate's
+   height), and one row of five on the ≤1280px reflow, where the span is undone. */
 .quint {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -687,10 +689,27 @@
    beside it instead of standing a row taller than the whole faceplate.
    The threshold is set by LABEL ink, not by the dial: a six-character label
    (CUTOFF, KEYTRK) inks ~61px against a 52px knob box, so three columns need
-   ~191px of panel body. Only .hex needs this — .quad's four knobs would want
-   ~2400px to go 4-up, well past any real display. */
+   ~191px of panel body. .quad's four knobs would want ~2400px to go 4-up, well
+   past any real display.
+
+   FILTER ENV (.quint) takes the same step for the opposite reason: its A D /
+   S R / VEL stack is three knob rows, and once FILTER drops to two rows here
+   that third row is the tallest thing on the faceplate (~42px over every
+   neighbour, taken from the section below). Three columns buy a dice-five —
+   A/D/S/R in the corners, VEL in the middle spanning both rows — two rows tall,
+   like AMP ENV beside it. Placed by position, not auto-flow, so the shape
+   cannot depend on rule order and the DOM (Tab) order is untouched. Label ink
+   is no constraint: no two boxes share a column, and VEL shares no label line
+   with a corner. responsive-synth-panels.md REQ-1. */
 @media (min-width: 1630px) {
   .hex { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .quint { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .quint > :nth-child(1) { grid-column: 1; grid-row: 1; } /* A */
+  .quint > :nth-child(2) { grid-column: 3; grid-row: 1; } /* D */
+  .quint > :nth-child(3) { grid-column: 1; grid-row: 2; } /* S */
+  .quint > :nth-child(4) { grid-column: 3; grid-row: 2; } /* R */
+  /* VEL. `.quint`'s align-items: center centres it between the rows. */
+  .quint > *:last-child { grid-column: 2; grid-row: 1 / span 2; }
 }
 
 /* No FX panel is ever narrower than its own knob run — responsive-synth-panels

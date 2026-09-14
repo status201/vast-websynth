@@ -170,16 +170,6 @@
     ],
     "blurb": "The long, slow one: four sequencer tracks through the POLY filter, with motion driving it."
   },
-  "Right.websynth.json": {
-    "name": "Right",
-    "bpm": 120,
-    "bars": 14,
-    "uses": [
-      "seq",
-      "motion"
-    ],
-    "blurb": "No drums anywhere — four sequencer tracks and motion carry the whole piece."
-  },
   "Run_Away.websynth.json": {
     "name": "Run Away",
     "bpm": 125,

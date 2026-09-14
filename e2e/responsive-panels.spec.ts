@@ -35,6 +35,7 @@ interface KnobBox {
   top: number;
   left: number;
   width: number;
+  height: number;
   /** The label's ink extent. `scrollWidth` is the spec's prescribed measure: it
    *  is the overflowing text width when a label bleeds past its box, and the box
    *  width otherwise — an upper bound on the ink either way, never an under-read. */
@@ -58,6 +59,7 @@ async function readKnobs(page: Page, ids: readonly string[]): Promise<KnobBox[]>
         top: el.offsetTop,
         left: el.offsetLeft,
         width: el.offsetWidth,
+        height: el.offsetHeight,
         ink: label.scrollWidth,
         label: label.textContent ?? '',
         rowLeft: row.offsetLeft,
@@ -158,15 +160,62 @@ test.describe('responsive synth panels', () => {
     for (const width of [1281, 1440, 1920, 2560]) {
       expect(await shapeAt(page, width, PANELS.subuni), `SUB/UNI at ${width}px`).toEqual([2, 2]);
       expect(await shapeAt(page, width, PANELS.ampenv), `AMP ENV at ${width}px`).toEqual([2, 2]);
-      // .quint: A D / S R / VEL, the fifth spanning the row on its own.
+    }
+  });
+
+  // REQ-1: FILTER ENV's five knobs take three shapes. The wide one is the point:
+  // a third knob row there stood taller than every neighbour and set the height
+  // of the whole faceplate row, so from 1630px it is a dice-five, two rows tall.
+  test('the 5-knob FILTER ENV panel takes each of its three shapes', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoAndStart(page);
+
+    // Between 1281 and 1629px: A D / S R / VEL, the fifth spanning the row,
+    // centred across it rather than left-ragged.
+    for (const width of [1440, 1629]) {
       expect(await shapeAt(page, width, PANELS.filterenv), `FILTER ENV at ${width}px`).toEqual([2, 2, 1]);
+      const vel = rowsOf(await readKnobs(page, PANELS.filterenv), PANELS.filterenv)[2]![0]!;
+      const rowCentre = vel.rowLeft + vel.rowWidth / 2;
+      expect(Math.abs(vel.left + vel.width / 2 - rowCentre), `${width}px: VEL centred`).toBeLessThanOrEqual(1);
     }
 
-    // The spanning VEL is centred across the row, not left-ragged.
-    const rows = rowsOf(await readKnobs(page, PANELS.filterenv), PANELS.filterenv);
-    const vel = rows[2]![0]!;
-    const rowCentre = vel.rowLeft + vel.rowWidth / 2;
-    expect(Math.abs(vel.left + vel.width / 2 - rowCentre)).toBeLessThanOrEqual(1);
+    // From 1630px: A · D / VEL / S · R. VEL sits between the rows, so grouping by
+    // offsetTop reads it as a middle "row" of one.
+    for (const width of [1630, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      const rows = rowsOf(await readKnobs(page, PANELS.filterenv), PANELS.filterenv);
+      expect(rows.map((r) => r.map((k) => k.id)), `FILTER ENV at ${width}px`).toEqual([
+        ['env.fil.attack', 'env.fil.decay'],
+        ['filter.velAmount'],
+        ['env.fil.sustain', 'env.fil.release'],
+      ]);
+      const [a, d] = rows[0]!;
+      const [vel] = rows[1]!;
+      const [s, r] = rows[2]!;
+
+      const rowCentre = vel!.rowLeft + vel!.rowWidth / 2;
+      expect(Math.abs(vel!.left + vel!.width / 2 - rowCentre), `${width}px: VEL centred across`).toBeLessThanOrEqual(1);
+      const cornersMid = (a!.top + a!.height / 2 + s!.top + s!.height / 2) / 2;
+      expect(Math.abs(vel!.top + vel!.height / 2 - cornersMid), `${width}px: VEL centred between rows`).toBeLessThanOrEqual(1);
+
+      // The corners keep to the outer columns — nothing reaches into VEL's.
+      for (const left of [a!, s!]) {
+        expect(left.left + left.width, `${width}px: ${left.label} clears VEL`).toBeLessThanOrEqual(vel!.left);
+      }
+      for (const right of [d!, r!]) {
+        expect(vel!.left + vel!.width, `${width}px: VEL clears ${right.label}`).toBeLessThanOrEqual(right.left);
+      }
+
+      // The point of the change: no taller than the 2x2 AMP ENV beside it.
+      const span = (boxes: KnobBox[]) =>
+        Math.max(...boxes.map((k) => k.top + k.height)) - Math.min(...boxes.map((k) => k.top));
+      const ampenv = await readKnobs(page, PANELS.ampenv);
+      const filterenv = rows.flat();
+      expect(Math.abs(span(filterenv) - span(ampenv)), `${width}px: FILTER ENV as tall as AMP ENV`).toBeLessThanOrEqual(1);
+    }
+
+    // The reflow: one row of five, the span undone.
+    expect(await shapeAt(page, 1280, PANELS.filterenv)).toEqual([5]);
   });
 
   // REQ-6: FILTER is the one panel with three shapes, and the middle one is a
