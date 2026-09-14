@@ -397,6 +397,31 @@ test.describe('section headings', () => {
     expect(compact.fx!.labelW).toBeGreaterThan(10);
   });
 
+  test('no machine tab wraps its label just above the 992px step (REQ-5 v3)', async ({ page }) => {
+    await gotoAndStart(page);
+    /** Tallest tab in each tabbed bar, and the machine tabs' font size. */
+    const tabs = () => page.evaluate(() => {
+      const tallest = (id: string): number => Math.max(...[
+        ...document.querySelectorAll<HTMLElement>(`[data-testid="${id}"] > :first-child button[data-testid^="tab-"]`),
+      ].map((t) => t.getBoundingClientRect().height));
+      const first = document.querySelector<HTMLElement>('[data-testid="tab-arp"]')!;
+      return { machines: tallest('pattern-row'), eq: tallest('eq-section'), fontSize: getComputedStyle(first).fontSize };
+    });
+
+    // Inside the band that used to wrap (993-1027px measured): a wrapped label
+    // makes that tab ~12px taller than the equalizer's single-line tabs.
+    await page.setViewportSize({ width: 1010, height: 900 });
+    const narrow = await tabs();
+    expect(narrow.machines).toBeLessThanOrEqual(narrow.eq + 1);
+    expect(narrow.fontSize).toBe('10px');
+
+    // …and the full-size type is back where the row has room for it.
+    await page.setViewportSize({ width: 1080, height: 900 });
+    const wide = await tabs();
+    expect(wide.fontSize).toBe('11px');
+    expect(wide.machines).toBeLessThanOrEqual(wide.eq + 1);
+  });
+
   test('a heading dims while its section is folded (REQ-6)', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await gotoAndStart(page);

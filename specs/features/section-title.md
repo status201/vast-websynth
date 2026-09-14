@@ -3,7 +3,9 @@
 ```yaml
 id: section-title
 status: implemented
-version: 2   # v2: FX and MACHINES get new glyphs (the pedal and step grid did not
+version: 3   # v3: the tabs' smaller type starts at 1030px, not 992px, so the MACHINES icon
+             #     cannot push a tab label onto a second line (REQ-5)
+             # v2: FX and MACHINES get new glyphs (the pedal and step grid did not
              #     read at 14px), and a heading dims while its section is folded (REQ-6)
 owner: ui
 related:
@@ -121,6 +123,17 @@ yellow heading reads as a control that does nothing when clicked
   The text is **visually hidden**, not `display: none`, so the heading keeps its
   accessible name. FX and EQUALIZER have room at every width and do not opt in.
 
+  (v3) **The icon alone still costs ~30 px, so the tabs' smaller type starts at
+  1030 px** (`tabs.module.css`; it was 992 px, and the bar's wrap rule stays
+  there).
+  - At full size the row needs ~957 px of bar, and a label wrapped onto a second
+    line (42 px tabs instead of 30 px) across **993–1027 px**, measured
+    2026-09-14, Chromium, Windows.
+  - About 4 px of that band already wrapped before the heading existed.
+  - 1030 covers the whole band. Just above it, at 1031 px, the full-size row has
+    only 4 px to spare, so a platform whose serif runs wider may still wrap a
+    few pixels above 1030. That is the place to look first if one does.
+
 - **REQ-6** (v2) — **A heading dims to `--text-dim` while its section is folded.**
   Open is `--text`; folded is `--text-dim`, icon included, since it draws in
   `currentColor`.
@@ -207,6 +220,12 @@ Scenario: A folded section's heading dims, and brightens when opened (REQ-6)
   Then its heading's colour is --text
   And the FX heading follows its own fold the same way
 # pinned by: tests/ui/section-title.test.ts, e2e/equalizer.spec.ts
+
+Scenario: No machine tab wraps its label just above the 992px step (v3, REQ-5)
+  Given a 1010px-wide viewport, inside the band that used to wrap
+  Then every machine tab is one line tall, the same height as the equalizer's tabs
+  And the tabs use the smaller type, while at 1080px they use the full size
+# pinned by: e2e/equalizer.spec.ts
 
 Scenario: MACHINES shows its word only where it fits (REQ-5)
   Given a 1280px-wide viewport
