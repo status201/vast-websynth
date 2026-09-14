@@ -73,6 +73,16 @@ const ANCHORS: Anchor[] = [
   // compressor is bypassed (fx-group collapse) and help must stay reachable.
   { topic: 'fx.drum.comp', find: () => byTestId('fxgroup-fx.drum.comp') },
   { topic: 'fx.master.comp', find: () => byTestId('fxgroup-fx.master.comp') },
+  // The Equalizer (onboarding.md REQ-26). The section badge pins to the root, as
+  // `fx` does, so it stays reachable while the section is folded. The page badges
+  // are one id per lane: only the visible page's anchor has a box.
+  { topic: 'eq', find: () => byTestId('eq-section') },
+  { topic: 'eq.graph.seq', find: () => byTestId('eq-graph-seq') },
+  { topic: 'eq.knobs.seq', find: () => byHelp('eq.knobs.seq') },
+  { topic: 'eq.graph.drums', find: () => byTestId('eq-graph-drums') },
+  { topic: 'eq.knobs.drums', find: () => byHelp('eq.knobs.drums') },
+  { topic: 'eq.graph.sampler', find: () => byTestId('eq-graph-sampler') },
+  { topic: 'eq.knobs.sampler', find: () => byHelp('eq.knobs.sampler') },
   { topic: 'arp', find: () => byTestId('tab-arp') },
   // Pinned to the tab, like the other machines: an active key silently re-pitches
   // every note, so the explanation has to be reachable from the tab itself.
@@ -229,6 +239,13 @@ export class InfoBadges {
       // switch (onboarding.md REQ-5a). Page 2 needs no entry: revealing it is
       // what collapses page 1, which is what fires this.
       '[data-testid="ppage-lfo-1"]',
+      // The Equalizer's fold and its three page shells (REQ-5a, v27). Neither
+      // gesture reliably resizes the body: unfolding is absorbed by the keyboard
+      // row's slack, and the pages share one height (`--scope-h`), so a lane
+      // switch changes only the two shells trading places — any pair of lanes
+      // can be the two, hence all three.
+      '[data-testid="eq-section"]', '[data-testid="panel-eq-seq"]',
+      '[data-testid="panel-eq-drums"]', '[data-testid="panel-eq-sampler"]',
     ]) {
       const el = document.querySelector(sel);
       if (el) this.ro.observe(el);

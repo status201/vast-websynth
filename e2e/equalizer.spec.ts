@@ -281,6 +281,44 @@ test.describe('EQUALIZER section', () => {
     expect(Math.abs(eq.height - scope.height)).toBeLessThanOrEqual(2);
   });
 
+  /**
+   * onboarding.md REQ-26 + REQ-5a (v27). Neither opening the section (absorbed by
+   * the keyboard row) nor a lane switch (three pages of one height) resizes the
+   * body, so the badges only follow either if the section and its page shells are
+   * observed — without them this fails at the unfold. The tab is therefore
+   * clicked from inside the page: Playwright's own click scrolls its target into
+   * view first, and that scroll would reflow the badges and pass with the bug
+   * present.
+   */
+  test('info badges: the section, then each lane’s graph and knob row', async ({ page }) => {
+    await gotoAndStart(page);
+    await page.getByTestId('info-badges').click();
+
+    // Folded, as it ships — the section badge must already be reachable.
+    await page.getByTestId('eq-section').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('eq-section')).toHaveClass(/collapsed/);
+    await expect(page.getByTestId('info-badge-eq')).toBeVisible();
+    await expect(page.getByTestId('info-badge-eq.graph.seq')).toBeHidden();
+
+    await openLane(page, 'seq');
+    await page.getByTestId('panel-eq-seq').scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('info-badge-eq.graph.seq')).toBeVisible();
+    await expect(page.getByTestId('info-badge-eq.knobs.seq')).toBeVisible();
+    await expect(page.getByTestId('info-badge-eq.graph.drums')).toBeHidden();
+    await expect(page.getByTestId('info-badge-eq.knobs.drums')).toBeHidden();
+
+    await page.getByTestId('tab-eq-drums').evaluate((el) => (el as HTMLElement).click());
+    await expect(page.getByTestId('info-badge-eq.graph.drums')).toBeVisible();
+    await expect(page.getByTestId('info-badge-eq.knobs.drums')).toBeVisible();
+    await expect(page.getByTestId('info-badge-eq.graph.seq')).toBeHidden();
+    await expect(page.getByTestId('info-badge-eq.knobs.seq')).toBeHidden();
+
+    await page.getByTestId('info-badge-eq.graph.drums').click();
+    const modal = page.locator('.modal, [role="dialog"]').first();
+    await expect(modal).toContainText('SIB');
+    await expect(modal).toContainText('sibilance');
+  });
+
   test('every lane keeps its own curve', async ({ page }) => {
     await gotoAndStart(page);
     await setParam(page, 'fx.eq.b1', -10);

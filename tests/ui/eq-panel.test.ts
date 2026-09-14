@@ -145,11 +145,39 @@ describe('testid namespace (REQ-11)', () => {
     }
   });
 
-  it('exposes the HP/LP/WIDTH knobs by their param ids', () => {
+  it('exposes the HP/LP/Q knobs by their param ids', () => {
     const { panel } = build();
     for (const suffix of ['hp', 'lp', 'width']) {
       expect(q(panel.el, `knob-fx.eq.${suffix}`), suffix).not.toBeNull();
     }
+  });
+});
+
+describe('the Q knob and the badge anchors (REQ-4 v3, REQ-19)', () => {
+  it('labels the `.width` knob Q on every lane', () => {
+    // Up is narrower: the value is the peaking Q, so "WIDTH" read backwards.
+    // The id is unchanged — only what the player reads moved.
+    const { panel } = build();
+    for (const p of ['fx.eq', 'fx.drum.eq', 'fx.sampler.eq']) {
+      const knob = q(panel.el, `knob-${p}.width`)!;
+      expect(knob, p).not.toBeNull();
+      const texts = [...knob.querySelectorAll('div')].map((d) => d.textContent?.trim());
+      expect(texts, p).toContain('Q');
+      expect(knob.textContent, p).not.toContain('WIDTH');
+    }
+  });
+
+  it('gives each lane’s knob row its own badge anchor', () => {
+    const { panel } = build();
+    for (const lane of ['seq', 'drums', 'sampler']) {
+      const row = panel.el.querySelector<HTMLElement>(`[data-help="eq.knobs.${lane}"]`);
+      expect(row, lane).not.toBeNull();
+      // Inside that lane's own page, holding its three knobs.
+      expect(row!.closest(`[data-testid="panel-eq-${lane}"]`), lane).not.toBeNull();
+      expect(row!.querySelectorAll('[data-testid^="knob-"]').length, lane).toBe(3);
+    }
+    // The orphan that shipped with the section: an attribute with no anchor.
+    expect(panel.el.querySelector('[data-help="fx.eq"]')).toBeNull();
   });
 });
 

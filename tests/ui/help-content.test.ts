@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { HELP_TOPICS, TOUR_STEPS, DEMO_FOR_TOUR } from '../../src/ui/onboarding/help-content';
+import {
+  HELP_TOPICS, TOUR_STEPS, DEMO_FOR_TOUR, EQ_BAND_ROLES,
+} from '../../src/ui/onboarding/help-content';
 import { iconLabel } from '../../src/ui/components/ui-icons';
 import { demoNames } from '../../src/state/song';
+import { EQ_BANDS } from '../../src/state/eq';
+import { formatHzFull } from '../../src/ui/components/scope';
 
 /** The Clear button as help copy renders it — the caret is an icon, not a `▾`
  *  (iconography.md REQ-1), so the assertions go through the same helper. */
@@ -292,6 +296,94 @@ describe('help-content key & chord topics', () => {
 describe('the tour names a demo that exists', () => {
   it('DEMO_FOR_TOUR is a registered demo', () => {
     expect(demoNames()).toContain(DEMO_FOR_TOUR);
+  });
+});
+
+/**
+ * The Equalizer's badges (onboarding.md REQ-26, equalizer.md REQ-19). The panel
+ * says almost nothing about itself in words: eight abbreviations, a lamp that
+ * looks like a switch, a dropdown that switches the EQ on. This is what a player
+ * reads instead, so its claims are pinned like any other contract.
+ */
+describe('help-content equalizer topics', () => {
+  const LANES = ['seq', 'drums', 'sampler'] as const;
+
+  it('shares ONE graph topic and ONE knobs topic across the three lanes', () => {
+    const graph = HELP_TOPICS['eq.graph.seq'];
+    const knobs = HELP_TOPICS['eq.knobs.seq'];
+    expect(graph).not.toBe(knobs);
+    for (const lane of LANES) {
+      expect(HELP_TOPICS[`eq.graph.${lane}`], lane).toBe(graph);
+      expect(HELP_TOPICS[`eq.knobs.${lane}`], lane).toBe(knobs);
+    }
+  });
+
+  it('decodes every band label, at the frequency the filters use', () => {
+    const body = bodyOf('eq.graph.seq');
+    for (const band of EQ_BANDS) {
+      // A band added or renamed in the table without prose here would render
+      // as "SIB (8 kHz) — ." — a label with nothing behind it.
+      expect(EQ_BAND_ROLES[band.label], band.label).toBeTruthy();
+      expect(body, band.label).toContain(
+        `<strong>${band.label}</strong> (${formatHzFull(band.hz)})`,
+      );
+    }
+    expect(body).toMatch(/sibilance/i);
+    expect(body).toMatch(/presence/i);
+  });
+
+  it('names the graph gestures and how to read the axis', () => {
+    const body = bodyOf('eq.graph.seq');
+    expect(body).toContain('Drag');
+    expect(body).toContain('Shift');
+    expect(body).toContain('Double-tap');
+    expect(body).toMatch(/hover/i);
+    expect(body).toContain('0 dB');
+    expect(body).toContain('5k');
+    expect(body).toContain('Zones');
+  });
+
+  it('the section topic says the lamp only reports, and what Custom and Reset do', () => {
+    const t = HELP_TOPICS['eq'];
+    expect(t.title).toBe('Equalizer');
+    const body = bodyOf('eq');
+    expect(body).toMatch(/only report/);
+    // The three lamp states, in the words a player sees.
+    expect(body).toMatch(/off/);
+    expect(body).toMatch(/flat/);
+    expect(body).toMatch(/shaping/);
+    expect(body).toContain('<strong>on</strong> switch');
+    expect(body).toContain('Custom');
+    expect(body).toContain('Reset');
+    expect(body).toMatch(/switches the EQ on/);
+    expect(body).toMatch(/no undo/);
+    expect(body).toMatch(/preset/);
+    expect(body).toMatch(/song/);
+  });
+
+  it('the knobs topic explains HP, LP and Q, and that Q skips the shelves', () => {
+    const t = HELP_TOPICS['eq.knobs.seq'];
+    expect(t.title).toContain('Q');
+    const body = bodyOf('eq.knobs.seq');
+    expect(body).toContain('<strong>HP</strong>');
+    expect(body).toContain('<strong>LP</strong>');
+    expect(body).toContain('<strong>Q</strong>');
+    expect(body).toMatch(/high-pass/);
+    expect(body).toMatch(/low-pass/);
+    expect(body).toContain('<strong>off</strong>');
+    // Up is narrower — the reason the knob is no longer called WIDTH.
+    expect(body).toMatch(/narrower/);
+    expect(body).toMatch(/shelves/);
+  });
+
+  it('no topic still sends the player to a WIDTH knob on the EQ', () => {
+    for (const id of ['eq', 'eq.graph.seq', 'eq.knobs.seq'] as const) {
+      expect(bodyOf(id), id).not.toContain('WIDTH');
+    }
+  });
+
+  it('the Spectrum topic points at the Equalizer for fixing a zone', () => {
+    expect(bodyOf('scope')).toContain('Equalizer');
   });
 });
 

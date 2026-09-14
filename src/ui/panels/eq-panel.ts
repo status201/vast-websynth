@@ -126,7 +126,6 @@ function buildLanePage(
 
   const controls = document.createElement('div');
   controls.className = styles.controls!;
-  controls.dataset.help = 'fx.eq';
 
   // ON and RESET share the top row; together they just fit the column.
   const switchRow = document.createElement('div');
@@ -174,12 +173,20 @@ function buildLanePage(
   });
   graphs.set(lane.id, graph);
 
-  // HP · LP · WIDTH side by side, where the three wheels sit in the row above.
+  // HP · LP · Q side by side, where the three wheels sit in the row above.
   // Size 28 is not a taste call: three knob roots (`knob-size + 8`) plus two
   // 2px gaps must fit the column's ~112px of usable width.
+  //
+  // The third knob is labelled Q but bound to `.width` (REQ-4 v3): the value IS
+  // the peaking Q, so up means narrower, and "WIDTH" said that backwards. The id
+  // stays because every saved song and preset already names it.
   const knobs = document.createElement('div');
   knobs.className = styles.knobs!;
-  for (const [suffix, label] of [['hp', 'HP'], ['lp', 'LP'], ['width', 'WIDTH']] as const) {
+  // The row, not a knob, anchors the info badge: one topic speaks for all three
+  // (onboarding.md REQ-26), and it must be per lane because only the visible
+  // page's anchor has a box.
+  knobs.dataset.help = `eq.knobs.${lane.key}`;
+  for (const [suffix, label] of [['hp', 'HP'], ['lp', 'LP'], ['width', 'Q']] as const) {
     const knob = new Knob({ bus, paramId: `${lane.prefix}.${suffix}`, label, size: 28 });
     disposers.push(() => knob.destroy());
     knobs.appendChild(knob.el);

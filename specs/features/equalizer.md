@@ -3,7 +3,10 @@
 ```yaml
 id: equalizer
 status: implemented
-version: 2   # v2: REQ-18 — the page mirrors the scope row (one shared
+version: 3   # v3: REQ-4 — the knob is labelled Q, not WIDTH: turning it up
+             #     narrows the bands, which the old name said backwards.
+             #     REQ-19 — the section's info badges (onboarding.md REQ-26)
+             # v2: REQ-18 — the page mirrors the scope row (one shared
              #     gutter, height from --scope-h). It shipped with the graph
              #     at ~300px and the knobs beside it, aligning with nothing
 owner: core
@@ -23,6 +26,7 @@ related:
   - ../decisions/adr-010-musical-stable-cheap-dsp
   - ../decisions/adr-012-true-bypass-disconnects
   - ../decisions/adr-014-dont-make-me-think
+  - onboarding           # REQ-19 — the badges live there (REQ-26)
 source:
   - src/state/eq.ts                    # band table + the response math, shared
   - src/state/eq-presets.ts            # named curves, applied through the bus
@@ -118,7 +122,7 @@ curve from bus values so it needs no analyser and runs no animation loop.
   Fixed centres rather than a movable parametric band, deliberately: *drawing a
   line* is the gesture this feature is for (REQ-12), and a drawn line maps onto a
   fixed grid unambiguously while fitting it to movable bands is a curve-fit with
-  no single answer. Surgical work is served instead by WIDTH (REQ-4), which
+  no single answer. Surgical work is served instead by Q (REQ-4), which
   narrows a band to a notch in place. The table lives once, in `state/eq.ts`, and
   is read by **both** the audio filters and the drawn curve, so the two cannot
   disagree about where a band is.
@@ -147,12 +151,23 @@ curve from bus values so it needs no analyser and runs no animation loop.
   unanchored-cancel defect ([architecture](../architecture.md)) is not avoided by
   care but excluded by construction.
 
-- **REQ-4** — **WIDTH is one knob over all eight bands' `Q`.** It is what makes a
+- **REQ-4** — **One knob, labelled `Q`, over the bands' `Q`.** It is what makes a
   single graphic EQ span broad tone-shaping and surgical repair: at 0.4 the bands
   overlap into a smooth tilt, at 8 one band is a notch. Web Audio's `lowshelf`
-  and `highshelf` ignore `Q` by specification, so WIDTH moves the six peaking
+  and `highshelf` ignore `Q` by specification, so the knob moves the six peaking
   bands only — the shelves keep their fixed slope at every setting. That is a
   property of the node, stated here so it reads as known rather than as a bug.
+
+  (v3) **The label is `Q`; the param id stays `<prefix>.width`.** It shipped
+  labelled WIDTH, which reads backwards: the value *is* Q, so turning it up makes
+  every band **narrower**. A player reaching for "wider" got a notch. `Q` is the
+  term every EQ uses and the one this app already uses for the Wah's peak, so up
+  meaning sharper is what it already says. Only the label changed. The id is
+  written into every preset, song, share link and the published catalogue, so
+  renaming it would be a format change bought for a word no user sees
+  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)'s spirit: an existing
+  file must not change meaning). Inverting the knob's direction was rejected for
+  the same reason.
 
 - **REQ-5** — **Off by default, and a no-op at every default.** `fx.<lane>.eq.on`
   defaults to `0`; every band gain defaults to `0 dB`; HP defaults to its floor
@@ -179,7 +194,7 @@ curve from bus values so it needs no analyser and runs no animation loop.
 
 - **REQ-7** — **The EQ declares a drain longer than the default.**
   `recipes/add-an-effect.md` warns that a biquad is only memoryless at low Q — its
-  ring-down is roughly `Q / (pi * f0)`, which for the 150 Hz band at WIDTH 8 is
+  ring-down is roughly `Q / (pi * f0)`, which for the 150 Hz band at Q 8 is
   ~17 ms *per filter*, compounded down a ten-filter series and past
   `DRAIN_DEFAULT_S` (20 ms). `drainSeconds()` returns `0.12`, so the two-stage
   bypass teardown ([effects](effects.md) REQ-2c) hands back a span holding
@@ -332,6 +347,16 @@ curve from bus values so it needs no analyser and runs no animation loop.
 
   No inner border on the controls: the section is already a bordered panel, and
   the scope row never has to nest one because it has no outer frame.
+
+- **REQ-19** (v3) — **The section explains itself through the info badges.**
+  Three topics, seven badges: `eq` on the section root (reachable while folded),
+  and per lane an `eq.graph.<lane>` badge on the graph and an `eq.knobs.<lane>`
+  badge on the HP · LP · Q row. The row carries
+  `data-help="eq.knobs.<lane>"` for it — the only markup this adds. What they
+  say, where they pin and why the ids are per lane are
+  [onboarding](onboarding.md) REQ-26, which owns them; the band list in the graph
+  topic is generated from `EQ_BANDS` (REQ-2), so the help cannot name a band
+  frequency the filters do not use.
 
 ## Technical design
 
@@ -520,14 +545,14 @@ Scenario: A band gain change is ramped, never cancelled (REQ-3)
   Then it is written with setTargetAtTime and cancelScheduledValues is never called
 # pinned by: tests/audio/effects/eq.test.ts, tests/audio/no-unanchored-cancel.test.ts
 
-Scenario: WIDTH moves the peaking bands only (REQ-4)
+Scenario: Q (`.width`) moves the peaking bands only (REQ-4)
   Given a bound Equalizer
   When width changes
   Then Q is written on the six peaking bands and on neither shelf
 # pinned by: tests/audio/effects/eq.test.ts
 
 Scenario: The drain outlasts the slowest band's ring-down (REQ-7)
-  Given the widest WIDTH and the lowest peaking band
+  Given the highest Q and the lowest peaking band
   Then drainSeconds exceeds Q / (pi * f0) for it
 # pinned by: tests/audio/effects/eq.test.ts
 
@@ -553,9 +578,9 @@ Scenario: A boosted band reads its own gain at its own centre (REQ-14)
   And it falls back toward 0 dB an octave either side
 # pinned by: tests/state/eq.test.ts
 
-Scenario: WIDTH narrows the skirt without moving the peak (REQ-4)
+Scenario: Raising Q narrows the skirt without moving the peak (REQ-4)
   Given one boosted band
-  When width rises
+  When `.width` rises
   Then the response an octave away shrinks while the response at the centre does not
 # pinned by: tests/state/eq.test.ts
 
@@ -627,6 +652,13 @@ Scenario: EQ tab ids never shadow the pattern row's (REQ-11)
   Given the built section
   Then its testids are tab-eq-seq / eq-drums / eq-sampler and panel-eq-*
   And no element mints a bare tab-seq, tab-drums or tab-sampler
+# pinned by: tests/ui/eq-panel.test.ts
+
+Scenario: The sharpness knob reads Q, and its row anchors the badge (v3, REQ-4, REQ-19)
+  Given the built section
+  Then each lane's third knob is bound to <prefix>.width and labelled Q
+  And each lane's knob row carries data-help="eq.knobs.<lane>"
+  And no element still carries the orphaned data-help="fx.eq"
 # pinned by: tests/ui/eq-panel.test.ts
 
 Scenario: Editing away from a preset shows Custom (REQ-15)
