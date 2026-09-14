@@ -18,6 +18,9 @@
   --accent-good: #6fb86a;
   --accent-good-glow: rgba(111, 184, 106, 0.42);
   --accent-bad: #e0403a;
+  /* Red for *text* — error lines, destructive labels. --accent-bad is a fill
+     colour and too dark to read as type on the card. */
+  --text-bad: #ff6a52;
   --accent-bad-glow: rgba(232, 116, 46, 0.5);
   --led-on: #ff3a20;
   --led-off: #2a0a05;

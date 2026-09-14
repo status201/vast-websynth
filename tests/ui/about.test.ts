@@ -124,11 +124,28 @@ async function openModal(btn: HTMLButtonElement): Promise<void> {
  */
 const CARD_TIMEOUT = 30_000;
 
+// The guard above only holds if the *test* may run that long. Left at Vitest's
+// 5 s default, a loaded machine killed the first open at 5 s and the 30 s wait
+// never got its chance — the failures looked like contention because they were,
+// but the guard meant to absorb it was dead. The About graph also grew with
+// Play offline (about-offline → offline-copy, offline-notices, progress-bar), so
+// the first cold open costs more than it did. File-scoped.
+vi.setConfig({ testTimeout: CARD_TIMEOUT + 5_000 });
+
 function waitForCard(): Promise<void> {
   return vi.waitFor(
     () => { expect(document.querySelector('[data-testid="start-tour"]')).toBeTruthy(); },
     { timeout: CARD_TIMEOUT },
   );
+}
+
+/**
+ * The shortcuts key/value grid: the element directly above the Play offline
+ * section (play-offline.md REQ-1), which itself sits above the factory reset.
+ */
+function keysGrid(): HTMLElement {
+  const offline = document.querySelector('[data-testid="play-offline"]') as HTMLElement;
+  return offline.previousElementSibling as HTMLElement;
 }
 
 /** Close any open modal so its refresh interval / capturing keydown listener don't leak. */
@@ -263,7 +280,7 @@ describe('About modal — Debug section', () => {
     expect(clipsClearBtn()?.disabled).toBe(false);
   });
 
-  it('places the factory-reset button between the shortcuts grid and Debug', async () => {
+  it('places Play offline, then the factory-reset button, between the shortcuts grid and Debug', async () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
     await openModal(document.body.firstElementChild as HTMLButtonElement);
@@ -271,8 +288,12 @@ describe('About modal — Debug section', () => {
     const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
     expect(reset).not.toBeNull();
     expect(reset.textContent).toBe('Restore to Factory Settings');
-    // Preceded by the shortcuts key/value grid, followed by the Debug header.
-    expect(reset.previousElementSibling?.textContent).toContain('Play / stop transport');
+    // play-offline.md REQ-1 / factory-reset.md REQ-1 (v4): shortcuts grid →
+    // Play offline → Restore to Factory Settings → Debug header.
+    const offline = reset.previousElementSibling as HTMLElement;
+    expect(offline.dataset.testid).toBe('play-offline');
+    expect(offline.querySelector('[data-testid="play-offline-button"]')?.textContent).toBe('Play offline');
+    expect(offline.previousElementSibling?.textContent).toContain('Play / stop transport');
     expect(reset.nextElementSibling?.textContent).toContain('Debug');
   });
 
@@ -285,6 +306,8 @@ describe('About modal — Debug section', () => {
     // The styled confirm carries the Nintendo exit line, italic via .detail.
     const detail = document.querySelector('[data-testid="dialog-detail"]') as HTMLElement;
     expect(detail.textContent).toBe('“Everything not saved will be lost.”');
+    // factory-reset.md REQ-8 (v5): the message says what happens to an offline copy.
+    expect(detail.previousElementSibling?.textContent).toMatch(/A saved offline copy is downloaded again, fresh\.$/);
 
     (document.querySelector('[data-testid="dialog-confirm"]') as HTMLButtonElement).click();
     await Promise.resolve(); // let the awaited confirmDialog promise settle
@@ -432,7 +455,8 @@ describe('About modal — Debug section', () => {
     localStorage.setItem('websynth.preset.mine', '{"a":1}');
     await openAbout(engine);
 
-    expect(byId('debug-storage').textContent).toMatch(/\d+ keys · [\d.]+ MB/);
+    // debug-panel.md v12: one key reads '1 key', and a few bytes read in kB, not '0.0 MB'.
+    expect(byId('debug-storage').textContent).toMatch(/^1 key · \d+ kB$/);
     expect(byId('debug-latency').textContent).toBe('base 5.0 ms · output 12.0 ms');
     // Unbound late-bound sources read n/a rather than crashing (REQ-5).
     expect(byId('debug-midi').textContent).toBe('n/a');
@@ -525,9 +549,7 @@ describe('About modal — keyboard shortcut list', () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
     await openModal(document.body.firstElementChild as HTMLButtonElement);
-    // The key/value grid is the element preceding the factory-reset button.
-    const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
-    return reset.previousElementSibling as HTMLElement;
+    return keysGrid();
   }
 
   /** Card order is [.., header, layout row, keys, ..] — the picker's row sits
@@ -692,9 +714,7 @@ describe('About modal — the note-row keyboard diagram', () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
     await openModal(document.body.firstElementChild as HTMLButtonElement);
-    const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
-    const keys = reset.previousElementSibling as HTMLElement;
-    return keys.firstElementChild as HTMLElement;
+    return keysGrid().firstElementChild as HTMLElement;
   }
 
   const rankCaps = (rank: Element): Element[] =>
@@ -787,8 +807,7 @@ describe('About modal — the keyboard-layout picker', () => {
     const { engine } = stubEngine();
     document.body.appendChild(createAboutButton(engine, TOUR));
     await openModal(document.body.firstElementChild as HTMLButtonElement);
-    const reset = document.querySelector('[data-testid="factory-reset"]') as HTMLElement;
-    const keys = reset.previousElementSibling as HTMLElement;
+    const keys = keysGrid();
     return {
       keys,
       gear: document.querySelector('[data-testid="shortcuts-layout-gear"]')!,

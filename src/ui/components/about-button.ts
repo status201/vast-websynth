@@ -33,9 +33,9 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     onClick: () => void open(),
   });
 
-  let backdrop: HTMLElement | null = null;
-  let refreshDebug: (() => void) | null = null;
-  let disposeDebug: (() => void) | null = null;
+  // The card, built on the first open and reused after — one reference rather
+  // than a parallel `let` per hook it hands back.
+  let card: ReturnType<typeof import('./about-modal').buildModal> | null = null;
   let closeTimer: number | undefined;
   let refreshTimer: number | undefined;
 
@@ -44,7 +44,7 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
   // stopImmediatePropagation, so yield while any other backdrop is visible.
   const dialogOnTop = (): boolean =>
     [...document.querySelectorAll(`.${Modal.backdropClass}`)]
-      .some((el) => el !== backdrop && !el.classList.contains('hidden'));
+      .some((el) => el !== card?.backdrop && !el.classList.contains('hidden'));
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && !dialogOnTop()) {
@@ -57,24 +57,24 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
 
   // Keep the live Debug readout current only while the modal is open — and,
   // inside it, only while the section is expanded (the hook is a gated tick).
-  const onState = () => refreshDebug?.();
+  const onState = () => card?.refreshDebug();
 
   function close(): void {
-    if (!backdrop) return;
+    if (!card) return;
     window.removeEventListener('keydown', onKey, true);
     engine.ctx.removeEventListener('statechange', onState);
     window.clearInterval(refreshTimer);
     // A test tone still ringing must not outlive the panel (debug-panel REQ-9).
-    disposeDebug?.();
-    backdrop.classList.add('hidden');
-    const el = backdrop;
+    card.disposeDebug();
+    card.backdrop.classList.add('hidden');
+    const el = card.backdrop;
     closeTimer = window.setTimeout(() => el.remove(), 200);
   }
 
   async function open(): Promise<void> {
     window.clearTimeout(closeTimer);
     // Awaited before anything is appended, so the modal never renders a
-    // half-built card (the ai-prompt.ts precedent). The `backdrop` check sits
+    // half-built card (the ai-prompt.ts precedent). The `card` check sits
     // *after* the await deliberately: two fast clicks both reach here, and
     // checking beforehand would let each build its own card.
     //
@@ -90,23 +90,22 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
       showLazyLoadFailure('Help & About', () => void open());
       return;
     }
-    if (!backdrop) {
-      const built = buildModal(close, engine, deps);
-      backdrop = built.backdrop;
-      refreshDebug = built.refreshDebug;
-      disposeDebug = built.disposeDebug;
-    }
+    card ??= buildModal(close, engine, deps);
+    const { backdrop } = card;
     document.body.appendChild(backdrop);
     // Force reflow so the opacity transition runs from the .hidden state.
     void backdrop.offsetWidth;
     backdrop.classList.remove('hidden');
-    refreshDebug?.();
+    card.refreshDebug();
+    // What this device holds offline — once per open, never at boot and never
+    // in the poll below: it reads the cache (play-offline.md REQ-4).
+    card.refreshOffline();
     window.addEventListener('keydown', onKey, true);
     engine.ctx.addEventListener('statechange', onState);
     // Poll while open so values that change without an event (e.g. the silent
     // loop's currentTime advancing) visibly tick. Cleared in close(), and a
     // no-op whenever the Debug section is collapsed.
-    refreshTimer = window.setInterval(() => refreshDebug?.(), 500);
+    refreshTimer = window.setInterval(() => card?.refreshDebug(), 500);
   }
 
   return btn;

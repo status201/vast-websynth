@@ -4,6 +4,7 @@ import type { StepSettings, TriggerCell } from '../../state/patterns';
 import { MICRO_MAX, MICRO_UNITS } from '../../state/limits';
 import { createButton } from './button';
 import type { StepButton } from './step-button';
+import { plural } from '../../utils/format';
 
 /**
  * Per-step settings edit row shared by the sequencer, drum and sampler
@@ -76,7 +77,7 @@ export class StepSettingsEditor {
       b.className = switchStyles.root!;
       b.textContent = String(n);
       b.dataset.testid = `${prefix}-ratchet-${n}`;
-      b.title = `${n} hit${n > 1 ? 's' : ''} per step`;
+      b.title = `${plural(n, 'hit')} per step`;
       b.addEventListener('click', () => set({ ratchet: n }));
       ratchetBtns.push(b);
       ratchetCtrl.appendChild(b);

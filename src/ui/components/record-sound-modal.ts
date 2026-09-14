@@ -35,6 +35,7 @@ import {
   MAX_PITCH_SHIFT_SEMITONES, MAX_SCRATCH_STEPS,
 } from '../../state/limits';
 import { UI_ICONS } from './ui-icons';
+import { plural } from '../../utils/format';
 
 const FADE_MS = 150;
 const BOOST_FACTOR = 2; // ≈ +6 dB
@@ -491,7 +492,7 @@ export function openRecordSoundModal(engine: StudioApi, opts: RecordSoundOptions
 
     const fitLabel = (steps: number): string => {
       const bars = steps / Math.max(1, engine.barTicks);
-      if (Number.isInteger(bars)) return `${steps} · ${bars} bar${bars === 1 ? '' : 's'}`;
+      if (Number.isInteger(bars)) return `${steps} · ${plural(bars, 'bar')}`;
       if (bars === 0.5) return `${steps} · ½ bar`;
       if (bars === 0.25) return `${steps} · ¼ bar`;
       return `${steps}`;

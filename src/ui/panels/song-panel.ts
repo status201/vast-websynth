@@ -71,6 +71,7 @@ import { createRecordWindowLauncher } from '../components/record-window';
 import { encodeSongPayload, buildShareUrl } from '../../state/song-link';
 import { triggerDownload } from '../../audio/recorder/encode';
 import { audioBufferToCaptured } from '../../audio/recorder/audio-buffer';
+import { plural } from '../../utils/format';
 
 /** Demo buttons shown inline; the rest hide behind "All Demos" (song-mode.md REQ-10).
  *  Was 6, which hid most of a growing library; 10 is what fits a desktop row. */
@@ -204,7 +205,7 @@ export function buildSongPanel(bus: ParamBus, engine: StudioApi, session: Preset
     // guard-crying-wolf failure REQ-9 warns about.
     const dead = unresolvedTargets(file);
     const note = dead.length > 0
-      ? ` — ${dead.length} automation target${dead.length > 1 ? 's' : ''} not recognised`
+      ? ` — ${plural(dead.length, 'automation target')} not recognised`
       : '';
     showUndoToast(`${verb} "${file.name}"${note}`, stash);
   };
@@ -1107,7 +1108,7 @@ function buildChainLane(
         c.textContent = semis === 0 ? label : `${label}${semis > 0 ? '+' : ''}${semis}`;
         c.title = semis === 0
           ? `Bank ${label}${DRAG_HINT}`
-          : `Bank ${label}, ${semis > 0 ? 'up' : 'down'} ${Math.abs(semis)} semitone${Math.abs(semis) === 1 ? '' : 's'}${DRAG_HINT}`;
+          : `Bank ${label}, ${semis > 0 ? 'up' : 'down'} ${plural(Math.abs(semis), 'semitone')}${DRAG_HINT}`;
         if (semis !== 0) c.dataset.transposed = 'true';
       }
       c.addEventListener('click', () => { sel = idx === sel ? -1 : idx; renderPlayState(); });

@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Play offline.** A new button in **Help & About**, just above Restore to
+  Factory Settings, saves the whole synth on your device: every demo song, every
+  dialog and all the help. A progress bar counts the files and megabytes as they
+  arrive, and you can cancel. Closing the About card does not stop the download,
+  and a message tells you when it finishes. After that the synth opens and plays
+  with no connection at all, and each new version updates the saved copy on its
+  own. Before this, offline play only covered the parts of the app you had
+  already opened, so a demo you had never clicked would not load.
+  **Restore to Factory Settings** now clears the app's saved files as well, and
+  if you had saved an offline copy it downloads a fresh one straight after the
+  reload. If you're offline at the time, the saved copy is kept, so the app can
+  still open.
+
 - **The Equalizer explains itself.** With the **ⓘ** badges on, the section gets
   one badge on its header and two on every tab. They cover what the panel can't
   say in eight short labels: what **SUB, MUD, BOX, NASAL, PRES, HARSH, SIB** and
@@ -51,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and R now sit in the corners with VEL in the middle, like the five on a die. The
   panel is the same height as AMP ENV beside it. Narrower screens keep their
   layout.
+
+### Fixed
+
+- **The Debug panel's sizes and its Unregister button say what is true.** Small
+  amounts of storage read as "0.0 MB", and one saved key read "1 keys"; they now
+  read in kB below a megabyte ("1 key · 3 kB"). Unregister's confirmation promised
+  to drop the offline cache, which it never did; it now says the saved files stay.
 
 ## [2.12.0] - 2026-09-09
 

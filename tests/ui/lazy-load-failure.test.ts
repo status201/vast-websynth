@@ -42,7 +42,10 @@ vi.mock('../../src/ui/components/about-modal', () => {
   if (h.aboutFails) throw new Error('Failed to fetch dynamically imported module');
   const backdrop = document.createElement('div');
   backdrop.dataset.testid = 'about-card-stub';
-  return { buildModal: () => ({ backdrop, refreshDebug: () => {}, disposeDebug: () => {} }) };
+  return {
+    buildModal: (): ReturnType<typeof import('../../src/ui/components/about-modal').buildModal> =>
+      ({ backdrop, refreshDebug: () => {}, disposeDebug: () => {}, refreshOffline: () => {} }),
+  };
 });
 
 vi.mock('../../src/ui/onboarding/onboarding-impl', () => {

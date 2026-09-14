@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 18 # v18: the EQUALIZER section (equalizer.md REQ-11). Its tabs are
+version: 19 # v19: the About card's Play offline section (play-offline.md REQ-1)
+            #      and its toast (REQ-8)
+            # v18: the EQUALIZER section (equalizer.md REQ-11). Its tabs are
             #      eq-NAMESPACED — tab-eq-seq, not tab-seq — because the
             #      pattern row already owns the bare machine ids and a
             #      TabContainer mints tab-<id>/panel-<id> from whatever it
@@ -378,6 +380,13 @@ shared UI:
                                                     # features/empty-play-hint.md
   perf-settings · perf-status · perf-mode · perf-mode-<tier> · perf-reload ·
     perf-reload-hint                                # features/performance-mode.md
+  play-offline · play-offline-button · play-offline-status · play-offline-progress
+                                                    # About card, above factory-reset
+                                                    # features/play-offline.md
+  play-offline-toast                                # a download that ended behind a
+                                                    #   closed About (play-offline REQ-8),
+                                                    #   or the re-download after a
+                                                    #   factory reset (REQ-12)
   factory-reset                                     # features/factory-reset.md
 
 onboarding:                                         # features/onboarding.md

@@ -130,6 +130,10 @@ export const UI_ICONS = {
   /** ↗ — a Song-tab card jumping to its machine's chain. */
   launch: icon('<path d="M4.5 11.5 L11.5 4.5"/><path d="M6.5 4.5 H11.5 V9.5"/>'),
 
+  /** Download — an arrow landing in a tray: About's Play offline, which saves
+   *  the whole app on the device (play-offline.md REQ-3). */
+  download: icon('<path d="M8 2.5 V9.5"/><path d="M4.8 6.6 L8 9.8 L11.2 6.6"/><path d="M2.5 10.5 V13 H13.5 V10.5"/>'),
+
   // — section headings (section-title.md REQ-3). No character stood in for
   //   these; they are drawn at ~14px, which is what the detail is sized for. —
 

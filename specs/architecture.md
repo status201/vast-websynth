@@ -218,6 +218,13 @@ utils/compression.ts: deflateRaw / inflateRaw                          # zip cod
 utils/zip.ts:        the hand-written zip reader/writer (ADR-003)
 utils/wake-lock.ts:  screen wake lock, follows engine.ctx state
 utils/listeners.ts:  ListenerSet<Args> — add(fn) -> disposer · emit(...args)
+utils/async.ts:      delay(ms, signal?) · withTimeout(p, ms, fallback)   # bounded waits; never reject
+                     # the Engine's resume verify, the factory reset's capped wipes,
+                     # the offline copy's worker poll
+utils/format.ts:     plural(n, noun) · formatBytes(bytes) · megabytes(bytes)
+                     # every count and size the UI spells out ("3 presets", "7.1 MB", "35 kB")
+utils/offline-copy.ts: OfflineCopy state machine + the page/worker cache contract
+                     # features/play-offline.md — platform code like wake-lock.ts, no UI
 utils/music.ts:      scale tables · buildQuantizeTable · diatonicChord · degreeLabel
                      # features/scale-quantization.md, features/chord-tools.md.
                      # SCALE_LABELS is APPEND-ONLY — a song stores the index.
@@ -520,6 +527,10 @@ sessionStorage:
                          # survive that tab's reload, which is exactly what makes the
                          # autosave per-tab (state/session-autosave.ts,
                          # features/session-autosave.md REQ-12)
+  websynth.offline.redownload : "1" — the one intent a factory reset writes back after
+                         # wiping everything, so the offline copy it deleted downloads
+                         # again after the reload; consumed at that boot
+                         # (state/offline-redownload.ts, features/play-offline.md REQ-12)
 indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
   clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index.
                         # Binary does not fit localStorage, so the audio half of the
@@ -537,7 +548,10 @@ not_persisted:
 All three stores are wiped together by **Restore to Factory Settings**
 (`state/factory-reset.ts`): `localStorage.clear()` + `sessionStorage.clear()`, then
 an awaited-but-capped IndexedDB wipe, then a reload — the reload is what resets the
-live in-memory state clearing storage cannot (features/factory-reset.md).
+live in-memory state clearing storage cannot (features/factory-reset.md). The same
+reset also deletes the service worker's `websynth-*` CacheStorage caches — app files
+rather than user data, but a stale cache is exactly what a reset should cure — unless
+the server is unreachable (features/factory-reset.md REQ-8/REQ-9).
 
 The two **named-slot** stores (presets and saved songs) share one implementation,
 `SlotStore` (`src/state/slot-store.ts`): a prefix plus a name index at

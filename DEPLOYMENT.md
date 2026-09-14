@@ -18,6 +18,21 @@ S3, nginx, …). HTTPS is required for the AudioWorklet API and MIDI.
 
 No configuration needed. Serve `dist/` at `https://example.com/`.
 
+## Caching
+
+Files under `dist/assets/` have content hashes in their names and can be cached
+forever. **Three files keep their names across releases and must not be cached
+for long** (`Cache-Control: no-cache` is right for them):
+
+- `/` (`index.html`) — it names the hashed chunks of the current release;
+- `/sw.js` — the browser checks it for updates, and a stale copy keeps an old
+  release in charge;
+- `/offline-manifest.json` — the build's list of every app file, which the About
+  card's **Play offline** downloads and a new service worker reads to refresh a
+  device's offline copy
+  ([play-offline](specs/features/play-offline.md) REQ-2, REQ-7). A stale list
+  belongs to the previous version, so the refresh rejects it and the update waits.
+
 ## Security headers
 
 The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships
@@ -101,6 +116,11 @@ export default defineConfig({
 
 Then rebuild (`npm run build`) and deploy `dist/` into that subfolder. Vite
 rewrites the asset and worklet URLs to `/synth/…` accordingly.
+
+Offline support does **not** follow `base`: the service worker, its precache list
+and **Play offline**'s file list all use root paths (`/sw.js`,
+`/offline-manifest.json`, `/assets/…`), so under a subfolder the app runs but
+cannot be saved for offline play.
 
 ## Hosting the MCP server
 

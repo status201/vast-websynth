@@ -8,6 +8,7 @@
  * DOM or an AudioContext.
  */
 import type { SongFile, ChainData } from './song';
+import { plural } from '../utils/format';
 
 /** A machine that will actually sound when the demo plays. */
 export type DemoMachine = 'seq' | 'drums' | 'sampler' | 'motion';
@@ -121,7 +122,7 @@ const ARMED_LABEL: Record<DemoArmed, string> = {
 export function demoSummary(meta: DemoMeta): string {
   const facts: string[] = [];
   if (meta.bpm > 0) facts.push(`${meta.bpm} BPM`);
-  if (meta.bars > 0) facts.push(`${meta.bars} bar${meta.bars === 1 ? '' : 's'}`);
+  if (meta.bars > 0) facts.push(plural(meta.bars, 'bar'));
   if (meta.uses.length > 0) facts.push(meta.uses.map((m) => MACHINE_LABEL[m]).join(' + '));
   for (const a of meta.armed ?? []) facts.push(ARMED_LABEL[a]);
   const head = facts.join(' · ');

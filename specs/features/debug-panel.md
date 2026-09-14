@@ -3,7 +3,10 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 11  # v11: the ctx-state row also names the autoplay verdict — the one
+version: 12  # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
+             #      "1 keys · 0.0 MB"), and the Unregister confirm says what it
+             #      does — the caches stay (REQ-6)
+             # v11: the ctx-state row also names the autoplay verdict — the one
              #      glance that says whether a start modal was shown at all, and
              #      why a boot could be audible (audio-lifecycle.md v6 REQ-19/20)
              # v10: the Suspend action goes through Engine.suspendForDebug() so the
@@ -94,6 +97,10 @@ instead of transcribing it from a phone screen.
   (`debug-background` — v7, the watchdog's underrun/drift readings while hidden
   and any suspends it made; [audio-lifecycle](audio-lifecycle.md) REQ-12),
   **Local storage** (`debug-storage`, `storageUsage()`).
+  (v12) Every size in the grid goes through the shared `formatBytes`
+  (`utils/format.ts`): one decimal of MB from a megabyte up, whole kB below — a
+  few kilobytes used to read `0.0 MB`, which says "empty" about a store that is
+  not — and counts through `plural`, so one stored key reads `1 key`.
 - **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
   a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
   `statechange` event, **and** on a ~500 ms interval (so values that change without an
@@ -139,6 +146,11 @@ instead of transcribing it from a phone screen.
   `SampleAutosave.clear()` for orphans), **Session autosave ▸ Clear**
   (`debug-session-clear`: `SessionAutosave.clear()` + reload) and
   **Service worker ▸ Unregister** (`debug-sw-unregister`: unregister all + reload).
+  (v12) It does **not** delete the caches — the next registration of the same
+  version reuses them — and its confirm now says so; it used to promise "Drop the
+  offline cache", which the code never did. Deleting the caches is the factory
+  reset's job ([factory-reset](factory-reset.md) REQ-8), which also brings a saved
+  offline copy back.
   Each is the *small hammer* for something that previously needed a factory reset.
 - **REQ-7** — A panel-level **actions block** (`data-testid="debug-actions"`) of
   plain buttons sits under the grid: **Resume/Suspend** (`debug-ctx-toggle`, label

@@ -105,7 +105,10 @@ failing, which is what the rule now prevents.
 - Demos lead the row in **filename** order (drop-ins are sorted, then the built-ins).
 - The song is fetched on click, so it is **not** in the offline cache until it has
   been clicked once (same as the zip demos — see
-  [pwa-install](../features/pwa-install.md)).
+  [pwa-install](../features/pwa-install.md)). A device that saved an offline copy
+  gets it anyway: the build lists every file it writes, so a new demo joins
+  **Play offline** with no step here ([play-offline](../features/play-offline.md)
+  REQ-2).
 - Riffs aim to be *recognisable*, not note-perfect transcriptions.
 - A `.json` demo cannot embed sampler audio — only `sampleNames` persist, so it
   shows the needs-reload hint (see [sampler](../features/sampler.md)). A demo that

@@ -18,6 +18,7 @@ import { SampleAutosave } from '../../state/sample-autosave';
 import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
 import { clipStats, midiStats, wakeState } from '../../state/debug-sources';
+import { formatBytes, plural } from '../../utils/format';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
 import dialogStyles from '../styles/dialog.module.css';
@@ -36,7 +37,6 @@ interface RowAction {
   confirm?: { title: string; message: string; confirmLabel: string };
 }
 
-const MB = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
 /** "3 min ago" / "just now" — enough to tell a stale autosave from a live one. */
 function ago(at: number | null): string {
@@ -181,7 +181,7 @@ export function buildDebugSection(engine: StudioApi): {
     danger: true,
     confirm: {
       title: 'Unregister the service worker',
-      message: 'Drop the offline cache and reload. The app will re-register it on the next visit.',
+      message: 'Unregister the service worker and reload. The app registers it again on this visit; saved files stay cached.',
       confirmLabel: 'Unregister',
     },
     onClick: () => { void unregisterServiceWorkers(); },
@@ -318,7 +318,7 @@ export function buildDebugSection(engine: StudioApi): {
       `${engine.clock.dropouts} dropouts`;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
     const clips = clipStats();
-    clipsVal.textContent = clips ? `${clips.count} · ${MB(clips.bytes)}` : 'n/a';
+    clipsVal.textContent = clips ? `${clips.count} · ${formatBytes(clips.bytes)}` : 'n/a';
     // REQ-8 — an action whose source never bound is disabled, not broken.
     clipsBtn.disabled = clips === undefined;
     const midi = midiStats();
@@ -365,10 +365,10 @@ export function buildDebugSection(engine: StudioApi): {
         `oversample ${p.fxOversample ? 'on' : 'off'}`;
       const session = SessionAutosave.stats();
       sessionVal.textContent = session
-        ? `${MB(session.bytes)} · ${ago(session.savedAt)}`
+        ? `${formatBytes(session.bytes)} · ${ago(session.savedAt)}`
         : 'none';
       const store = storageUsage();
-      storageVal.textContent = `${store.keys} keys · ${MB(store.bytes)}`;
+      storageVal.textContent = `${plural(store.keys, 'key')} · ${formatBytes(store.bytes)}`;
     }
 
     // ---- ~5 s: getRegistrations() is async, so it caches and rewrites ----
@@ -432,7 +432,11 @@ function playTestTone(ctx: AudioContext, onEnded: () => void): () => void {
   };
 }
 
-/** Drop every service-worker registration, then reload into an uncached app. */
+/**
+ * Drop every service-worker registration, then reload. The caches stay: the next
+ * registration of the same version reuses them. Deleting them is the factory
+ * reset's job (factory-reset.md REQ-8), which also brings an offline copy back.
+ */
 async function unregisterServiceWorkers(): Promise<void> {
   try {
     const regs = await navigator.serviceWorker.getRegistrations();

@@ -32,6 +32,7 @@ import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
 import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
 import { BackgroundAudioWatchdog, type WatchdogDiagnostics } from './background-watchdog';
+import { delay, withTimeout } from '../utils/async';
 
 const VOICE_COUNT = 8;
 const PITCH_BEND_RANGE_CENTS = 200;
@@ -75,21 +76,6 @@ export interface AudioRecoveryState {
 
 /** The gestures that count as "the user touched the app" for a forced resume. */
 const RESUME_GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
-
-const delay = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
-
-/**
- * Settle when `p` does or when `ms` elapses, whichever is first, and never
- * reject. A rejected `ctx.resume()` and one that hangs forever are the same
- * event here — both mean "the context is not running yet", and `ctx.state` is
- * the only thing worth asking afterwards.
- */
-function raceTimeout(p: Promise<unknown>, ms: number): Promise<void> {
-  return Promise.race([
-    p.then(() => undefined, () => undefined),
-    delay(ms),
-  ]);
-}
 
 /**
  * Fan one LFO's per-voice outputs into a voice (lfo.md REQ-13). Every target is
@@ -693,7 +679,10 @@ export class Engine {
       this.fadeInMaster();
       // Raced, not awaited: `currentTime` is frozen, so the ramp above is
       // already on the timeline whatever this promise decides to do (REQ-3).
-      await raceTimeout(this.ctx.resume(), RESUME_VERIFY_MS);
+      // A rejected resume() and one that hangs forever are the same event here —
+      // both mean "not running yet", and `ctx.state` is the only thing worth
+      // asking afterwards.
+      await withTimeout(this.ctx.resume(), RESUME_VERIFY_MS, undefined);
       if (!shouldResumeContext(this.ctx.state)) { this.onResumeSucceeded(); return; }
       if (attempt >= RESUME_RETRIES) break;
       await delay(RESUME_RETRY_MS);

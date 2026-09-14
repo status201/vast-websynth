@@ -22,6 +22,8 @@ import { buildFailureReportFor } from './ui/failure-report';
 import { WakeLockManager } from './utils/wake-lock';
 import { showToast, type ToastHandle } from './ui/components/toast';
 import { setClipStatsSource, setMidiStatsSource, setWakeLockSource } from './state/debug-sources';
+import { offlineRedownloadPending } from './state/offline-redownload';
+import { plural } from './utils/format';
 import type { Onboarding } from './ui/onboarding';
 
 // Injected by Vite's `define` (vite.config.ts) — same precedent as about.ts.
@@ -261,7 +263,7 @@ async function boot() {
     // has nothing to hide behind, so it runs here either way.
     if (restoredClips.length > 0) {
       showToast({
-        message: `Restored ${restoredClips.length} sampler clip${restoredClips.length === 1 ? '' : 's'}`,
+        message: `Restored ${plural(restoredClips.length, 'sampler clip')}`,
         testId: 'clips-restored-toast',
       });
     }
@@ -317,10 +319,21 @@ async function boot() {
   // the ? button dead offline, doing nothing at all. Same split, same warm.
   // onboarding.md REQ-24, pwa-install.md REQ-6.
   const warmAbout = () => void import('./ui/components/about-modal').catch(() => {});
+  // A factory reset that deleted a saved offline copy asked for it back
+  // (factory-reset.md REQ-8). One sessionStorage read decides; without the
+  // intent nothing is imported. A failed import leaves the intent in place for
+  // the next boot. play-offline.md REQ-12.
+  const resumeOffline = () => {
+    if (!offlineRedownloadPending()) return;
+    void import('./ui/components/offline-notices')
+      .then((m) => { m.resumeOfflineRedownload(); })
+      .catch(() => {});
+  };
   const warm = () => {
     warmMp3();
     warmOnboarding();
     warmAbout();
+    resumeOffline();
   };
   // requestIdleCallback only reached Safari in 17.4, and we target installed
   // iOS PWAs — fall back to a plain timeout. (A `'x' in window` guard would

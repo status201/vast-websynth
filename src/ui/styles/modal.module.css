@@ -477,7 +477,7 @@
 }
 
 .pasteStatus.pasteOk { color: var(--accent-secondary); }
-.pasteStatus.pasteBad { color: #ff6a52; }
+.pasteStatus.pasteBad { color: var(--text-bad); }
 
 /* On phones the modal is height-capped + scrollable (the base .card); shrink the
    tall textareas so the actions (incl. Close) come into reach with little scroll. */

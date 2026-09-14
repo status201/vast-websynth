@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'node:fs';
+import { offlineManifestPlugin } from './scripts/lib/offline-manifest.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
@@ -10,6 +11,10 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // Writes dist/offline-manifest.json — every file the app can request, for the
+  // About card's Play offline and the worker's release refresh
+  // (specs/features/play-offline.md REQ-2).
+  plugins: [offlineManifestPlugin(pkg.version)],
   build: {
     target: 'es2022',
     sourcemap: true,

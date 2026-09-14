@@ -90,7 +90,9 @@ would drift.
   available. The warm swallows its own error and never reports — it is not a
   gesture, and a toast for something the user did not ask for is noise. REQ-1's
   report covers what the warm cannot: a first visit that lost the network before
-  idle, a purged cache, a flaky fetch.
+  idle, a purged cache, a flaky fetch. The one defence that covers every surface
+  is opt-in — a device that saved an offline copy ([play-offline](play-offline.md))
+  has every chunk — so this report is still the backstop for everyone else.
 
 - **REQ-5** (scope: surfaces, not operations) — This is for `import()`s that
   **open something**. An `import()` in the middle of an operation already has a

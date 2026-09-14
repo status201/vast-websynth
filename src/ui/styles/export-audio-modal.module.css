@@ -51,43 +51,5 @@
   font-variant-numeric: tabular-nums;
 }
 
-.track {
-  height: 8px;
-  border-radius: 4px;
-  background: #0c0905;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  overflow: hidden;
-}
-
-.fill {
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
-  /* The bar advances once per 16th (~8 Hz), so a short ease reads as motion
-     rather than a stutter — and it is the one thing on screen saying the app is
-     still working. Dropped for the indeterminate stripe, which animates itself. */
-  transition: width 0.12s linear;
-}
-
-/* Encoding: lamejs reports no progress, so a filled bar would be a lie. Stripes
-   moving over a full bar say "working, length unknown" without claiming one. */
-.track.indeterminate .fill {
-  transition: none;
-  background-image: repeating-linear-gradient(
-    -45deg,
-    var(--accent) 0 10px,
-    var(--accent-secondary) 10px 20px
-  );
-  background-size: 28px 100%;
-  animation: exportStripes 0.7s linear infinite;
-}
-
-@keyframes exportStripes {
-  from { background-position: 0 0; }
-  to { background-position: 28px 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fill { transition: none; }
-  .track.indeterminate .fill { animation: none; }
-}
+/* The bar itself (.track / .fill / stripes) is the shared progress-bar component
+   (progress-bar.module.css, specs/features/progress-bar.md). */

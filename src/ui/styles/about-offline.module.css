@@ -1,0 +1,25 @@
+/* The About card's Play offline section (specs/features/play-offline.md REQ-1,
+   REQ-3): the action button, a status line, and the shared progress bar. The
+   button keeps Modal.closeBtnClass's 22px top margin, so the section sits in the
+   card's rhythm of full-width actions; the line and bar tuck in under it. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Sans by inheritance (typography.md REQ-2); its counters change several times
+   a second, so the digits hold their width (REQ-3). --text-dim, not -faint: this
+   line is the feature's whole explanation, not a footnote. */
+.status {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.status.ok { color: var(--accent-good); }
+
+.status.bad { color: var(--text-bad); }

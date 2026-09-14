@@ -3,7 +3,10 @@
 ```yaml
 id: pwa-install
 status: implemented
-version: 3   # v3: REQ-6 — /mcp and /healthz are passthrough by path, not by
+version: 4   # v4: REQ-6 — an opt-in full offline copy (play-offline.md): the
+             #     build writes offline-manifest.json, and install refreshes the
+             #     whole copy when an older cache holds its marker
+             # v3: REQ-6 — /mcp and /healthz are passthrough by path, not by
              #     accident (the public MCP endpoint shares this origin)
              # v2: REQ-6 — the About card joins the idle warm set, so the one
              #     surface a stranded visitor reaches for opens offline too
@@ -14,6 +17,7 @@ related:
   - responsive-header
   - project-export
   - mcp-server
+  - play-offline         # the opt-in full copy this worker stores and refreshes
 source:
   - src/utils/wake-lock.ts
   - src/ui/components/fullscreen-button.ts
@@ -106,11 +110,11 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   response has no business in a cache keyed by app version, and the accident
   stops holding the moment that endpoint ever answers a GET with 200.
   Caches are named `websynth-<version>`; `activate` purges every other
-  `websynth-*` cache and claims clients. Guarantee: **offline-ready after the
-  first revisit/reload** (runtime caching, no precache manifest of hashed
-  assets).
-  Because there is no precache manifest, that guarantee only covers chunks the
-  page actually **fetched** while online. The build is not one eager bundle —
+  `websynth-*` cache and claims clients. Default guarantee: **offline-ready
+  after the first revisit/reload** (runtime caching — the build's full file list
+  is only precached when the user asks, see v4 below).
+  Runtime caching covers only the chunks the page actually **fetched** while
+  online. The build is not one eager bundle —
   demo songs, jsQR, the sync-pair modal and the lamejs MP3 encoder are all
   split off. The lazy ones reached from a user gesture (jsQR on QR scan, the
   sync modal on open) are acceptable to miss offline; **lamejs is warmed on
@@ -132,6 +136,16 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
   retries. A warm is prevention, never a guarantee — a first visit that goes
   offline before idle still has nothing cached, which is why the help door also
   *reports* a failed import rather than doing nothing (onboarding.md REQ-24).
+  (v4) **The full guarantee is opt-in**: the About card's **Play offline**
+  ([play-offline](play-offline.md)) downloads every file the build lists in
+  `offline-manifest.json` into this cache and marks it complete with a
+  `/__offline-copy` marker. The `install` handler then keeps that promise across
+  releases: after `CORE_ASSETS`, if an **older** `websynth-*` cache holds the
+  marker, it refreshes the whole copy into the new cache (copying unchanged hashed
+  assets, fetching the rest) and **rejects the install on any failure**, so the
+  old worker and its complete cache stay in charge until a refresh succeeds
+  (play-offline.md REQ-7). A device that never pressed the button installs
+  exactly as before.
 - **REQ-7** (single import parse path) — Sniffing + parsing import bytes
   (`bytes → { file, clips } | errors`) is one pure function
   (`parseSongOrProject`), shared by the song panel's file input, the
@@ -176,9 +190,11 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
 - `UiBridge.importSongBytes(bytes, name): Promise<void>` — no-op field
   rewired by `app.ts` to `songPanel.importBytes` (same pattern as
   `toggleTransport`).
-- `self.__sw = { strategyFor, isHashedAsset, cacheName, CORE_ASSETS }` —
-  the SW's pure decision helpers, exposed for the Vitest stub-globals suite
-  (compressor-worklet precedent).
+- `self.__sw` — the SW's pure helpers and constants, exposed for the Vitest
+  stub-globals suite (compressor-worklet precedent): `strategyFor`,
+  `isHashedAsset`, `isApiPath`, `cacheName`, `CORE_ASSETS`, and (v4) the
+  offline-copy contract `CACHE_PREFIX`, `OFFLINE_MARKER`, `OFFLINE_MANIFEST`,
+  `parseManifest`, `refreshOfflineCopy` ([play-offline](play-offline.md) REQ-10).
 
 ### SW decision table (`strategyFor(url, mode, method)`)
 
@@ -190,7 +206,12 @@ vite-plugin-pwa/workbox), per ADR-003's precedent.
 | any other same-origin GET | `network-first` (`cache.put` on success, cache fallback offline) |
 
 Version: `new URL(self.location.href).searchParams.get('v') ?? 'dev'` →
-cache `websynth-<version>`. `install`: `addAll(CORE_ASSETS)` + `skipWaiting()`.
+cache `websynth-<version>`. (v4) Every lookup matches with `{ ignoreVary: true }`
+— a host's `Vary: Origin` otherwise hides a file saved by a `fetch()` from the
+module script that asks for it ([play-offline](play-offline.md) REQ-11).
+`install`: `addAll(CORE_ASSETS)`, then (v4) the
+offline-copy refresh when an older cache holds the marker
+([play-offline](play-offline.md) REQ-7), then `skipWaiting()`.
 `activate`: delete other `websynth-*` caches + `clients.claim()`.
 
 ### Layer touchpoints & ordering
@@ -212,8 +233,10 @@ cache `websynth-<version>`. `install`: `addAll(CORE_ASSETS)` + `skipWaiting()`.
 ### Persistence
 
 - CacheStorage: `websynth-<version>` (one per active SW version; older ones
-  purged on activate). Deliberately **not** persisted *by the service worker*:
-  no precache manifest of hashed assets (runtime caching only), no IndexedDB,
+  purged on activate). (v4) It may also hold the opt-in full copy and its
+  `/__offline-copy` marker ([play-offline](play-offline.md) — the only way a
+  device gets every file). Deliberately **not** persisted *by the service worker*:
+  no precache of hashed assets unless the user asked for it, no IndexedDB,
   no offline mutation queue. The SW never touches `localStorage`. (The app
   itself does use IndexedDB, for sampler clips — see
   [sample-persistence](sample-persistence.md); the SW is not involved.)
@@ -316,6 +339,8 @@ Scenario: the MCP endpoint is never cached (v3, REQ-6)
 - Typecheck: `npm run typecheck`
 - Manual offline pass: `npm run build && npx vite preview` → load, reload
   (SW takes control + caches), DevTools → Offline → reload: app boots,
+  (v4: for the whole app, press About → **Play offline** first — see
+  [play-offline](play-offline.md) Tests & verification),
   worklets load, Tap-to-start makes sound; **the `?` button opens the About
   card and its tour button starts the tour** (REQ-6's warm set — the only check
   that the warms actually landed in the cache); Application panel shows one
@@ -347,9 +372,11 @@ Scenario: the MCP endpoint is never cached (v3, REQ-6)
 
 ## Open questions / future
 
-- Close the first-visit offline gap without a build step: the install handler
-  could fetch `/`, regex the hashed `/assets/…` URLs out of the HTML, and
-  precache the entry JS/CSS.
+- ~~Close the first-visit offline gap without a build step~~ — resolved in v4
+  the other way: the build writes the file list, and the user asks for the copy
+  ([play-offline](play-offline.md)). Precaching it for *every* visitor is still
+  not done — 7 MB nobody asked for is the boot-cost rule
+  ([runtime-performance](runtime-performance.md) REQ-1) at its worst.
 - Maskable PNG variants (currently only the SVG is maskable).
 - A narrow-form-factor manifest screenshot (the generator's `--screenshot`
   flag) for the mobile install sheet.

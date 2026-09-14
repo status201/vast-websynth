@@ -1,6 +1,7 @@
 import { Modal } from './modal';
 import { Dropdown } from './dropdown';
 import { createButton } from './button';
+import { createProgressBar } from './progress-bar';
 import type { StudioApi } from '../studio-api';
 import { FALLBACK_BARS, MAX_RUNS, type ExportFormat } from '../../audio/recorder/recorder-controller';
 import switchStyles from '../styles/switch.module.css';
@@ -137,17 +138,9 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
 
   // Determinate: the length is known exactly up front, and over minutes "how
   // much longer" is the actual question a spinner refuses to answer.
-  const track = document.createElement('div');
-  track.className = styles.track!;
-  track.dataset.testid = 'export-audio-progress';
-  track.setAttribute('role', 'progressbar');
-  track.setAttribute('aria-valuemin', '0');
-  track.setAttribute('aria-valuemax', '100');
-  const fill = document.createElement('div');
-  fill.className = styles.fill!;
-  track.appendChild(fill);
+  const bar = createProgressBar({ testId: 'export-audio-progress' });
 
-  progress.append(status, track);
+  progress.append(status, bar.el);
   modal.body.appendChild(progress);
 
   // ---- actions ----
@@ -183,9 +176,7 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
     const phase = engine.recorder.phase;
     if (phase === 'encoding') {
       status.textContent = 'Preparing your download…';
-      fill.style.width = '100%';
-      track.classList.add(styles.indeterminate!); // lamejs reports no progress
-      track.removeAttribute('aria-valuenow');
+      bar.setIndeterminate(true); // lamejs reports no progress
       abortBtn.hidden = true;
       return;
     }
@@ -193,8 +184,7 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
     const bars = songBars * runs;
     const at = Math.min(bars, Math.floor(ratio * bars) + 1);
     status.textContent = `Rendering… bar ${at} of ${bars}`;
-    fill.style.width = `${(ratio * 100).toFixed(1)}%`;
-    track.setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+    bar.set(ratio);
   }
 
   function start(): void {
@@ -216,7 +206,7 @@ export function openExportAudioModal(engine: StudioApi, defaultFormat: ExportFor
       // dismiss to acknowledge what they asked for buys nothing.
       running = false;
       status.textContent = 'Done — check your downloads.';
-      track.classList.remove(styles.indeterminate!);
+      bar.setIndeterminate(false);
       doneTimer = window.setTimeout(() => modal.close(), DONE_MS);
     }));
     engine.recorder.exportSong(fmt, { runs, tailBar });

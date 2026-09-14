@@ -1,4 +1,11 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import {
+  OFFLINE_CACHE_PREFIX,
+  OFFLINE_MANIFEST_URL,
+  OFFLINE_MARKER_URL,
+  offlineCacheName,
+} from '../../src/utils/offline-copy';
+import { CASE_VERSION, INVALID_MANIFESTS, VALID_MANIFESTS } from '../fixtures/offline-manifest-cases';
 
 /**
  * Drives the real `public/sw.js` under Node by stubbing the ServiceWorker
@@ -16,6 +23,10 @@ interface SwTestHook {
   isHashedAsset(pathname: string): boolean;
   strategyFor(url: URL, mode: string, method: string, origin: string): string;
   CORE_ASSETS: string[];
+  CACHE_PREFIX: string;
+  OFFLINE_MARKER: string;
+  OFFLINE_MANIFEST: string;
+  parseManifest(raw: unknown, version: string): unknown;
 }
 
 type Listener = (event: unknown) => void;
@@ -35,6 +46,14 @@ const keyOf = (req: unknown): string => {
   const url = typeof req === 'string' ? req : (req as { url: string }).url;
   return url.startsWith('http') ? new URL(url).pathname : url;
 };
+
+/**
+ * A stored entry flagged `vary: true` stands for a response carrying `Vary:
+ * Origin` that was saved by a request without that header — the real cache then
+ * misses unless the lookup passes `ignoreVary` (play-offline.md REQ-11).
+ */
+const hitOf = (entry: unknown, opts?: { ignoreVary?: boolean }): unknown =>
+  entry && (entry as { vary?: boolean }).vary && !opts?.ignoreVary ? undefined : entry;
 
 let cacheStores: Map<string, Map<string, unknown>>;
 let fakeCaches: {
@@ -56,16 +75,16 @@ function resetCaches(names: string[] = []): void {
       put: vi.fn(async (req: unknown, res: unknown) => {
         store.set(keyOf(req), res);
       }),
-      match: vi.fn(async (req: unknown) => store.get(keyOf(req))),
+      match: vi.fn(async (req: unknown, opts?: { ignoreVary?: boolean }) => hitOf(store.get(keyOf(req)), opts)),
     };
   };
   fakeCaches = {
     open: vi.fn(async (n: string) => openStore(n)),
     keys: vi.fn(async () => [...cacheStores.keys()]),
     delete: vi.fn(async (n: string) => cacheStores.delete(n)),
-    match: vi.fn(async (req: unknown) => {
+    match: vi.fn(async (req: unknown, opts?: { ignoreVary?: boolean }) => {
       for (const store of cacheStores.values()) {
-        const hit = store.get(keyOf(req));
+        const hit = hitOf(store.get(keyOf(req)), opts);
         if (hit) return hit;
       }
       return undefined;
@@ -222,6 +241,34 @@ describe('fetch', () => {
     expect(cacheStores.get('websynth-9.9.9')!.get('/site.webmanifest')).toEqual({ cloned: true });
   });
 
+  // play-offline.md REQ-11 (regression). The first real-browser pass saved every
+  // file and still failed its offline boot: the host sent `Vary: Origin`, the
+  // page's fetch() had no Origin header, and the module script asking for the
+  // chunk did — so the lookup missed a file that was sitting in the cache.
+  it('serves a saved hashed asset whose response varies on a header the script request differs in', async () => {
+    resetCaches(['websynth-9.9.9']);
+    cacheStores.get('websynth-9.9.9')!.set('/assets/index-abc.js', { body: 'js', vary: true });
+    const ev = makeFetchEvent(`${ORIGIN}/assets/index-abc.js`, 'cors');
+    listeners['fetch']!(ev);
+    await expect(ev.response()).resolves.toEqual({ body: 'js', vary: true });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a varying cached file, and to a varying "/", while offline', async () => {
+    resetCaches(['websynth-9.9.9']);
+    const store = cacheStores.get('websynth-9.9.9')!;
+    store.set('/worklets/recorder.js', { body: 'worklet', vary: true });
+    store.set('/', { body: 'shell', vary: true });
+
+    const file = makeFetchEvent(`${ORIGIN}/worklets/recorder.js`);
+    listeners['fetch']!(file);
+    await expect(file.response()).resolves.toEqual({ body: 'worklet', vary: true });
+
+    const nav = makeFetchEvent(`${ORIGIN}/some/route`, 'navigate');
+    listeners['fetch']!(nav);
+    await expect(nav.response()).resolves.toEqual({ body: 'shell', vary: true });
+  });
+
   it('does not intercept cross-origin or non-GET requests', () => {
     const cross = makeFetchEvent('https://elsewhere.com/lib.js');
     listeners['fetch']!(cross);
@@ -230,5 +277,117 @@ describe('fetch', () => {
     const post = makeFetchEvent(`${ORIGIN}/api`, 'no-cors', 'POST');
     listeners['fetch']!(post);
     expect(post.respondWith).not.toHaveBeenCalled();
+  });
+});
+
+// ---- the offline copy across releases (play-offline.md REQ-7, REQ-9, REQ-10) ----
+
+describe('page and worker agree (play-offline.md REQ-10)', () => {
+  it('spell the marker, the manifest, the cache prefix and the cache name the same way', () => {
+    expect(sw.OFFLINE_MARKER).toBe(OFFLINE_MARKER_URL);
+    expect(sw.OFFLINE_MANIFEST).toBe(OFFLINE_MANIFEST_URL);
+    // A factory reset deletes by the page's prefix (play-offline.md REQ-12), so a
+    // renamed worker cache would otherwise outlive it.
+    expect(sw.CACHE_PREFIX).toBe(OFFLINE_CACHE_PREFIX);
+    expect(sw.cacheName('https://x/sw.js?v=4.5.6')).toBe(offlineCacheName('4.5.6'));
+  });
+});
+
+describe('parseManifest (play-offline.md REQ-9)', () => {
+  // The same table tests/utils/offline-copy.test.ts runs against the page's parser.
+  it.each(VALID_MANIFESTS)('accepts %s', (_label, raw) => {
+    expect(sw.parseManifest(raw, CASE_VERSION)).not.toBeNull();
+  });
+
+  it.each(INVALID_MANIFESTS)('rejects %s', (_label, raw) => {
+    expect(sw.parseManifest(raw, CASE_VERSION)).toBeNull();
+  });
+});
+
+describe('install refreshes an offline copy (play-offline.md REQ-7)', () => {
+  const OLD = 'websynth-1.0.0';
+  const NEW = 'websynth-9.9.9';
+  const MANIFEST = {
+    version: '9.9.9',
+    files: [
+      { url: '/', bytes: 10 },
+      { url: '/assets/demo-abc.json', bytes: 20 }, // unchanged since 1.0.0
+      { url: '/assets/new-chunk-def.js', bytes: 30 },
+      { url: '/params.json', bytes: 40 },
+    ],
+    totalBytes: 100,
+  };
+
+  /** Serve the manifest and every listed file; `fail` answers 500 instead. */
+  function serve(manifest: unknown = MANIFEST, fail: string | null = null) {
+    const fetchStub = vi.fn(async (url: string) => {
+      if (url === '/offline-manifest.json') return new Response(JSON.stringify(manifest));
+      if (url === fail) return new Response('boom', { status: 500 });
+      return new Response(`fresh ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchStub);
+    return fetchStub;
+  }
+
+  function oldCopy(): void {
+    resetCaches([OLD]);
+    const old = cacheStores.get(OLD)!;
+    old.set('/__offline-copy', { marker: true });
+    // Saved by the page's fetch() under a host that sends Vary (REQ-11).
+    old.set('/assets/demo-abc.json', { body: 'old demo', vary: true });
+  }
+
+  async function install() {
+    fakeSelf.skipWaiting.mockClear();
+    const ev = waitUntil();
+    listeners['install']!(ev);
+    return ev.settled();
+  }
+
+  it('copies unchanged hashed assets, fetches the rest, and writes a new marker', async () => {
+    oldCopy();
+    const fetched = serve();
+    await install();
+
+    const store = cacheStores.get(NEW)!;
+    for (const asset of sw.CORE_ASSETS) expect(store.has(keyOf(asset))).toBe(true);
+    for (const f of MANIFEST.files) expect(store.has(f.url), f.url).toBe(true);
+    // The unchanged demo came from the old cache, not the network.
+    expect(store.get('/assets/demo-abc.json')).toEqual({ body: 'old demo', vary: true });
+    expect(fetched.mock.calls.map((c) => c[0])).not.toContain('/assets/demo-abc.json');
+    expect(fetched.mock.calls.map((c) => c[0])).toEqual(
+      expect.arrayContaining(['/offline-manifest.json', '/', '/assets/new-chunk-def.js', '/params.json']),
+    );
+
+    const marker = await (store.get('/__offline-copy') as Response).json();
+    expect(marker).toMatchObject({ version: '9.9.9', files: MANIFEST.files.map((f) => f.url), totalBytes: 100 });
+    expect(fakeSelf.skipWaiting).toHaveBeenCalled();
+  });
+
+  it('stays core-only when no older cache holds a marker', async () => {
+    resetCaches([OLD]);
+    cacheStores.get(OLD)!.set('/assets/demo-abc.json', { body: 'browsed, not saved' });
+    const fetched = serve();
+    await install();
+    expect(fetched).not.toHaveBeenCalled();
+    expect(cacheStores.get(NEW)!.has('/__offline-copy')).toBe(false);
+    expect(fakeSelf.skipWaiting).toHaveBeenCalled();
+  });
+
+  it('rejects the install when the manifest belongs to another version', async () => {
+    oldCopy();
+    serve({ ...MANIFEST, version: '10.0.0' });
+    await expect(install()).rejects.toThrow(/manifest/);
+    expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
+    // The old worker's copy is untouched: activate (the purge) never ran.
+    expect(cacheStores.get(OLD)!.has('/__offline-copy')).toBe(true);
+  });
+
+  it('rejects the install when a listed file fails', async () => {
+    oldCopy();
+    serve(MANIFEST, '/params.json');
+    await expect(install()).rejects.toThrow(/params\.json/);
+    expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
+    expect(cacheStores.get(NEW)!.has('/__offline-copy')).toBe(false);
   });
 });

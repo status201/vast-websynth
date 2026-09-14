@@ -15,6 +15,7 @@ import switchStyles from '../styles/switch.module.css';
 import segmentedStyles from '../styles/segmented.module.css';
 import dialogStyles from '../styles/dialog.module.css';
 import styles from '../styles/preset-manager.module.css';
+import { plural } from '../../utils/format';
 
 /**
  * The preset manager — `specs/features/presets.md` REQ-9/REQ-10. One door for
@@ -176,7 +177,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     exportBankRow.disabled = names.length === 0;
     scopeNote.textContent = names.length === 0
       ? 'Nothing to export yet — save a sound, or switch to All for the factory set.'
-      : `${names.length} preset${names.length === 1 ? '' : 's'}: ${names.slice(0, 6).join(', ')}${names.length > 6 ? '…' : ''}`;
+      : `${plural(names.length, 'preset')}: ${names.slice(0, 6).join(', ')}${names.length > 6 ? '…' : ''}`;
   }
 
   // ---- actions ----
@@ -378,12 +379,12 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     const parts = [`${c.new} new`];
     if (c.conflict) parts.push(`${c.conflict} clashing`);
     if (c.identical) parts.push(`${c.identical} already identical`);
-    reviewIntro.textContent = `This file holds ${plan.rows.length} preset${plan.rows.length === 1 ? '' : 's'} — ${parts.join(', ')}. Your current sound is not touched.`;
+    reviewIntro.textContent = `This file holds ${plural(plan.rows.length, 'preset')} — ${parts.join(', ')}. Your current sound is not touched.`;
     policyRow.style.display = c.conflict ? '' : 'none';
     confirmBtn.disabled = c.writes === 0;
     confirmBtn.textContent = c.writes === 0
       ? 'Nothing to import'
-      : `Import ${c.writes} preset${c.writes === 1 ? '' : 's'}`;
+      : `Import ${plural(c.writes, 'preset')}`;
 
     // What the file gets wrong but can still be loaded with (REQ-16). Rendered
     // here, next to the decision, and never touching confirmBtn.disabled.
@@ -402,7 +403,7 @@ export function openPresetManagerModal(opts: PresetManagerOptions): void {
     opts.onPresetsChanged();
     modal.close();
     showToast({
-      message: `Imported ${n} preset${n === 1 ? '' : 's'} — pick one from the Preset menu`,
+      message: `Imported ${plural(n, 'preset')} — pick one from the Preset menu`,
       testId: 'preset-toast',
     });
   }

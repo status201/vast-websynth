@@ -294,6 +294,7 @@ specs/
     dialog.md          ·  shared confirm/prompt/alert dialog (replaces the native ones)
     failure-report.md  ·  the copyable diagnostic block behind a failed import's Copy button
     toast.md           ·  transient bottom-center notification with one action (Undo)
+    progress-bar.md    ·  shared determinate/indeterminate progress bar (export, offline download)
     lazy-load-failure.md ·  what every deferred surface says when its import() rejects
     floating-window.md ·  reusable non-modal draggable window (no backdrop/Escape + minimise)
     live-fx-window.md  ·  floating "LIVE FX" window: DJ controls reachable off the Song tab
@@ -320,7 +321,8 @@ specs/
     media-session.md   ·  Android keep-alive: silent loop + MediaSession so the OS sees a player
     pwa-install.md     ·  installed-app experience: wake lock, fullscreen, file handling, offline SW
     debug-panel.md     ·  reusable About-modal Debug section (live runtime readouts)
-    factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + reload)
+    factory-reset.md   ·  About-modal "Restore to Factory Settings" (clear all local data + app caches, reload)
+    play-offline.md    ·  About-modal "Play offline": save every app file on the device, kept current per release
     scope.md           ·  wave/spectrum live visualizer + mono/stereo split
   recipes/             ← repeatable how-tos / playbooks
     _recipe-template.md       ·  copy this to start a new recipe

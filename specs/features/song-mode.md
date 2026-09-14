@@ -245,7 +245,9 @@ demos, the load path **must stay backward compatible** as the format grows.
 
   Offline (see [pwa-install](pwa-install.md)): a demo not yet clicked is not in
   the cache, exactly as for the zip demos — one clicked once is, since the
-  service worker is cache-first for hashed `/assets/*`.
+  service worker is cache-first for hashed `/assets/*` — **unless** the device
+  saved an offline copy, which holds every demo
+  ([play-offline](play-offline.md) REQ-2).
 
   Validation coverage moved rather than vanished: nothing in the app parses a
   drop-in until a user clicks it, so `tests/state/demo-files.ts` eagerly globs

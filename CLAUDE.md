@@ -101,6 +101,7 @@ material keyed by feature name).
 | `src/state/demos/` | `recipes/add-a-demo-song.md` (data drop-in — SDD-exempt) |
 | `src/audio/engine.ts` | `specs/architecture.md`, ADR-008, ADR-009 |
 | context start / background / resume | `features/audio-lifecycle.md`, `features/ios-audio.md`, `features/media-session.md` |
+| `public/sw.js`, the **offline copy** (`utils/offline-copy.ts`, `scripts/lib/offline-manifest.mjs`) | `features/pwa-install.md`, `features/play-offline.md` — every cache lookup passes `{ ignoreVary: true }` (hosts send `Vary: Origin`, and a file saved by `fetch()` then never matches the script request for it); `npm run e2e` runs the dev server, which has no worker, so verify against `vite preview` |
 | `src/audio/effects/` | `features/effects.md`, `recipes/add-an-effect.md`, ADR-012 |
 | the **EQ** — `src/state/eq*.ts`, `effects/eq.ts`, `ui/panels/eq-panel.ts` | `features/equalizer.md` — one band table in `src/state/eq.ts` feeds **both** the filters and the drawn curve, so they cannot disagree. Web Audio reads a biquad's `Q` in **dB** for lowpass/highpass and linearly for peaking; get that wrong and the graph lies convincingly |
 | a **rate / delay-time knob**, or any `*.sync` param | `features/tempo-lock.md` — one table (`src/state/tempo-lock.ts`) decides what is lockable; `Knob` self-wires from it |

@@ -3,7 +3,8 @@
 ```yaml
 id: iconography
 status: implemented
-version: 2   # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
+version: 3   # v3: `download` — the About card's Play offline button (play-offline.md)
+             # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
              #     its span wrapper had silently dropped the icon/text gap (regression)
 owner: ui
 related:
@@ -236,6 +237,7 @@ launch:                        ↗     # song card → chain
 waveBurst:                     —     # FX section heading (section-title.md)
 padMachine:                    —     # MACHINES section heading
 sliders:                        —     # EQUALIZER section heading
+download:                       —     # About → Play offline (play-offline.md)
 ```
 
 ```yaml

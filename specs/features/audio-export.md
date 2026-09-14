@@ -21,6 +21,7 @@ related:
   - record-window        # the manual-capture surface built on REQ-4's phases
   - transport-position   # REQ-6 there: only an EXPORT blocks a seek
   - pwa-install
+  - progress-bar         # REQ-10's bar is the shared component
 source:
   - public/worklets/recorder.js
   - src/audio/recorder/node.ts
@@ -184,10 +185,11 @@ already-slow action, so the fetch is invisible next to the encode itself.
   a dynamic import is not an environment dependency.
   Boot warms the chunk from `main.ts` on `requestIdleCallback` (2 s `setTimeout`
   fallback — Safari only shipped `requestIdleCallback` in 17.4, and this app
-  targets installed iOS PWAs). The warm is what preserves offline parity: the
-  service worker is runtime-cache-only with no precache manifest of hashed
-  assets ([pwa-install](pwa-install.md) REQ-6), so a chunk never fetched while
-  online would be missing offline. A failed warm is swallowed — the real
+  targets installed iOS PWAs). The warm is what preserves offline parity: by
+  default the service worker caches only what a visit fetched
+  ([pwa-install](pwa-install.md) REQ-6) — the full file list is precached only
+  for a device that saved an offline copy ([play-offline](play-offline.md)) — so
+  a chunk never fetched while online would be missing offline. A failed warm is swallowed — the real
   `import()` inside `encodeMp3` retries it.
 - **REQ-8** (format-echoing labels; v5, extended in v7) — A control that leads to
   a file says which format that file will be, re-labelled the moment the format
@@ -227,7 +229,9 @@ already-slow action, so the fetch is invisible next to the encode itself.
     `elapsedSteps`, not `clock.step`: the clock's step wrapped at `& 0xffff`
     until [transport](transport.md) REQ-10, which made the old form unreachable (REQ-2).
     Determinate, not a spinner: the length is known exactly up front, and this is
-    long enough that "how much longer" is the actual question.
+    long enough that "how much longer" is the actual question. The bar is the
+    shared [progress bar](progress-bar.md) (its REQ-1/REQ-2), testid
+    `export-audio-progress`.
   - **`encoding`** — *"Preparing your download…"* (REQ-4's phase). Indeterminate,
     because lamejs reports no progress.
   - **done** — a short confirmation, then the modal closes itself. The browser's

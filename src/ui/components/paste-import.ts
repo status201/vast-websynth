@@ -6,6 +6,7 @@ import { parsePresetPayload, type PresetParse } from '../../state/preset-file';
 import type { ParamBus } from '../../state/params';
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/modal.module.css';
+import { plural } from '../../utils/format';
 
 /**
  * The paste door — `specs/features/paste-import.md`. AI agents answer in chat,
@@ -57,7 +58,7 @@ function describe(c: PasteClassification): string {
     case 'song': return `Song${named} — full format${assumed}`;
     case 'author': return `Song${named} — author dialect${assumed}`;
     case 'preset': return `Preset${named}`;
-    case 'bank': return `Bank${named} — ${c.count ?? 0} sound${c.count === 1 ? '' : 's'}`;
+    case 'bank': return `Bank${named} — ${plural(c.count ?? 0, 'sound')}`;
     default: return c.reason ?? 'That is not websynth JSON.';
   }
 }
@@ -65,7 +66,7 @@ function describe(c: PasteClassification): string {
 function confirmLabel(c: PasteClassification): string {
   if (c.kind === 'song' || c.kind === 'author') return 'Load song';
   const n = c.count ?? 0;
-  return `Review ${n} preset${n === 1 ? '' : 's'}`;
+  return `Review ${plural(n, 'preset')}`;
 }
 
 export function buildPasteImport(opts: PasteImportOptions): PasteImport {
