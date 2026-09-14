@@ -1,0 +1,60 @@
+/* The heading on a full-width faceplate section (section-title.md). One rule for
+   FX, MACHINES and EQUALIZER, so the three cannot disagree. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  /* The left inset every heading shares (REQ-4): the bar gives 6px, this gives
+     10px, so each icon lands on the same x whichever kind of bar it is in. The
+     vertical 8px matches the tabs', which is what makes the bars equal height. */
+  padding: 8px 14px 8px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  /* The faceplate's white, undimmed (REQ-2). A heading and a tab share the serif
+     caps, so colour is what tells them apart — in the active tab's yellow a
+     heading reads as a tab that does nothing when clicked. */
+  color: var(--text);
+  font-weight: 700;
+  font-family: var(--serif);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* REQ-6 — dimmed while its section is folded. `.collapsed` is the global class
+   createCollapseToggle puts on the section itself (TabContainer.el, or
+   .fxSection), and in both the bar is its first child and this heading the bar's:
+   the child combinators reach exactly the folded section's own heading, never
+   one merely somewhere under an unrelated `.collapsed` ancestor. The icon follows
+   through currentColor. No transition — the tab colours beside it have none. */
+:global(.collapsed) > :first-child > .root {
+  color: var(--text-dim);
+}
+
+/* Drawn larger than the 11px text: a 1em glyph is too small to carry even one
+   idea (REQ-3). The svg sizes itself in em, so this is the whole change. */
+.root :global(svg.ui-icon) {
+  font-size: 1.27em;
+}
+
+/* REQ-5 — the pattern row's seven tabs leave no room for the word below this
+   width (measured: ~1057px needed, 1010px available at a 1080px viewport).
+   Visually hidden, never display:none, so the heading keeps its accessible name. */
+@media (max-width: 1140px) {
+  .compact :global(.icon-label) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Only the icon is left, so the gap after it would be dead space. */
+  .compact {
+    padding-right: 6px;
+  }
+}

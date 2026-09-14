@@ -329,3 +329,125 @@ test.describe('EQUALIZER section', () => {
     expect(await param(page, 'fx.eq.b6')).toBe(0);
   });
 });
+
+/**
+ * section-title.md — the one heading FX, MACHINES and EQUALIZER share. It lives
+ * here because the Equalizer's title is where it started; the claims are about
+ * real layout (where the icons land, what overflows), which jsdom cannot give.
+ */
+test.describe('section headings', () => {
+  const SECTIONS = { fx: 'fx', machines: 'pattern-row', eq: 'eq-section' } as const;
+
+  /** For each section's bar: its heading's icon x, text visibility, and the bar's fit. */
+  const headings = (page: Page) => page.evaluate((ids) => {
+    const out: Record<string, {
+      text: string; iconX: number; labelW: number; barH: number; overflow: number;
+    }> = {};
+    for (const [key, id] of Object.entries(ids)) {
+      const bar = document.querySelector(`[data-testid="${id}"]`)!.firstElementChild as HTMLElement;
+      const heading = bar.firstElementChild as HTMLElement;
+      out[key] = {
+        text: heading.textContent ?? '',
+        iconX: heading.querySelector('svg.ui-icon')!.getBoundingClientRect().left,
+        labelW: heading.querySelector('.icon-label')!.getBoundingClientRect().width,
+        barH: bar.getBoundingClientRect().height,
+        overflow: bar.scrollWidth - bar.clientWidth,
+      };
+    }
+    return out;
+  }, SECTIONS);
+
+  test('each section wears its heading, and the icons line up (REQ-1, REQ-4)', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await gotoAndStart(page);
+    const h = await headings(page);
+    expect(h.fx!.text).toBe('FX');
+    expect(h.machines!.text).toBe('Machines');
+    expect(h.eq!.text).toBe('Equalizer');
+
+    expect(Math.abs(h.fx!.iconX - h.machines!.iconX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(h.eq!.iconX - h.machines!.iconX)).toBeLessThanOrEqual(1);
+    // The FX bar carries its own 1px top border; the tab bars sit under their
+    // panel's. Within a pixel is the same bar to the eye.
+    expect(Math.abs(h.fx!.barH - h.machines!.barH)).toBeLessThanOrEqual(1);
+    expect(Math.abs(h.eq!.barH - h.machines!.barH)).toBeLessThanOrEqual(1);
+
+    // Below 992px --side-margin drops to 8px; a literal on the FX section once
+    // left its icon 14px right of the others there.
+    await page.setViewportSize({ width: 900, height: 900 });
+    const narrow = await headings(page);
+    expect(Math.abs(narrow.fx!.iconX - narrow.machines!.iconX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(narrow.eq!.iconX - narrow.machines!.iconX)).toBeLessThanOrEqual(1);
+  });
+
+  test('MACHINES shows its word only where the tabs leave room (REQ-5)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await gotoAndStart(page);
+    const wide = await headings(page);
+    expect(wide.machines!.labelW, 'the word is shown').toBeGreaterThan(40);
+    expect(wide.machines!.overflow, 'and the row still fits').toBe(0);
+
+    await page.setViewportSize({ width: 1140, height: 900 });
+    const compact = await headings(page);
+    // Visually hidden, not removed: the accessible name survives.
+    expect(compact.machines!.labelW).toBeLessThanOrEqual(1);
+    expect(compact.machines!.text).toBe('Machines');
+    // FX and EQUALIZER have room at every width and keep their words.
+    expect(compact.eq!.labelW).toBeGreaterThan(40);
+    expect(compact.fx!.labelW).toBeGreaterThan(10);
+  });
+
+  test('a heading dims while its section is folded (REQ-6)', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await gotoAndStart(page);
+
+    /** The heading's colour, and the two tokens resolved the same way, so the
+     *  comparison survives a theme retune rather than pinning an rgb literal. */
+    const read = (id: string) => page.evaluate((testId) => {
+      const resolve = (v: string): string => {
+        const probe = document.createElement('span');
+        probe.style.color = `var(${v})`;
+        document.body.appendChild(probe);
+        const c = getComputedStyle(probe).color;
+        probe.remove();
+        return c;
+      };
+      const bar = document.querySelector(`[data-testid="${testId}"]`)!.firstElementChild!;
+      return {
+        heading: getComputedStyle(bar.firstElementChild!).color,
+        text: resolve('--text'),
+        dim: resolve('--text-dim'),
+      };
+    }, id);
+
+    // The equalizer ships folded.
+    const folded = await read('eq-section');
+    expect(folded.text, 'the two tokens must differ for this to mean anything').not.toBe(folded.dim);
+    expect(folded.heading).toBe(folded.dim);
+
+    await page.getByTestId('tab-eq-seq').click();
+    expect((await read('eq-section')).heading).toBe(folded.text);
+
+    // FX follows its own fold, not the equalizer's. It ships open above 1280px.
+    const fxOpen = await read('fx');
+    expect(fxOpen.heading).toBe(fxOpen.text);
+    await page.getByTestId('fx').click({ position: { x: 200, y: 10 } });
+    expect((await read('fx')).heading).toBe(fxOpen.dim);
+    expect((await read('eq-section')).heading, 'the equalizer stays open').toBe(fxOpen.text);
+  });
+
+  test('a click on a heading still folds its section', async ({ page }) => {
+    await gotoAndStart(page);
+    const section = page.getByTestId('eq-section');
+    const heading = section.locator('> div').first().locator('> span').first();
+    await heading.scrollIntoViewIfNeeded();
+    const before = await section.evaluate((el) => el.classList.contains('collapsed'));
+    // A raw mouse click at the heading, not `heading.click()`: the heading is
+    // pointer-events:none by design, which Playwright's actionability check
+    // refuses — and the whole point is that the click falls through to the bar.
+    const box = (await heading.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    expect(await section.evaluate((el) => el.classList.contains('collapsed'))).toBe(!before);
+  });
+});
+

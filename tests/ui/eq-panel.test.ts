@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { buildEqPanel } from '../../src/ui/panels/eq-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import type { StudioApi } from '../../src/ui/studio-api';
 import { applyEqPreset } from '../../src/state/eq-presets';
+import { UI_ICONS } from '../../src/ui/components/ui-icons';
+import { readSource as read, cssDecl as decl } from '../css-source';
 
 /**
  * The EQUALIZER section — `specs/features/equalizer.md` REQ-9/REQ-10/REQ-11/REQ-16.
@@ -35,27 +35,6 @@ function lamp(root: HTMLElement, tabId: string): HTMLElement {
   return [...btn.querySelectorAll('span')].find((s) => s.dataset.state !== undefined)!;
 }
 
-const read = (f: string) => readFileSync(resolve(process.cwd(), f), 'utf8');
-
-/**
- * The declared value of one property inside one rule. Deliberately string
- * surgery rather than a built regex: the selectors here are `.page` and
- * `.pageShell`, `.bottom` and `.bottomTop`, so matching on `<selector> {`
- * keeps the prefixes apart without any escaping to get wrong.
- */
-function decl(css: string, selector: string, prop: string): string | null {
-  const at = css.indexOf(`${selector} {`);
-  if (at < 0) return null;
-  const body = css.slice(at, css.indexOf('}', at));
-  for (const line of body.split('\n')) {
-    const i = line.indexOf(':');
-    if (i < 0) continue;
-    if (line.slice(0, i).trim() !== prop) continue;
-    return line.slice(i + 1).replace(';', '').trim();
-  }
-  return null;
-}
-
 beforeEach(() => {
   document.body.innerHTML = '';
   localStorage.clear();
@@ -81,15 +60,15 @@ describe('the section header (REQ-9)', () => {
     expect(bar.lastElementChild!.getAttribute('aria-expanded')).not.toBeNull();
   });
 
-  it('draws the title in the faceplate white, never in a tab colour', () => {
-    // Same serif, size, weight and caps as the tabs, so colour is the only thing
-    // saying "heading, not control". In the active tab's yellow it read as a
-    // fourth tab that did nothing when clicked.
-    const tabsCss = read('src/ui/styles/tabs.module.css');
-    expect(decl(tabsCss, '.title', 'color')).toBe('var(--text)');
-    // …and no tab state (idle, active, the fold caret's hover) borrows it.
-    expect(tabsCss.match(/(^|[\s;{])color:\s*var\(--text\)/gm), 'only .title').toHaveLength(1);
-    expect(decl(tabsCss, '.title', 'opacity')).toBeNull();
+  it('leads the title with the sliders icon (section-title.md REQ-3)', () => {
+    // Colour and type are the shared heading's business and pinned there; what
+    // is this section's own is which glyph it wears.
+    const { panel } = build();
+    const title = panel.el.firstElementChild!.firstElementChild!;
+    // Compared parsed-to-parsed: the DOM re-serialises `<path/>` as `<path></path>`.
+    const expected = document.createElement('span');
+    expected.innerHTML = UI_ICONS.sliders;
+    expect(title.firstElementChild!.outerHTML).toBe(expected.firstElementChild!.outerHTML);
   });
 
   it('is folded on first load, and remembers being opened', () => {
@@ -255,9 +234,7 @@ describe('teardown', () => {
 });
 
 describe('the bottom grid keeps its shape (REQ-16)', () => {
-  const css = readFileSync(
-    resolve(process.cwd(), 'src/ui/styles/layout.module.css'), 'utf8',
-  );
+  const css = read('src/ui/styles/layout.module.css');
 
   it('declares three rows, with --scope-h still sizing only the first', () => {
     // The scope's ResizeHandle writes `--scope-h` on this element; if the EQ row

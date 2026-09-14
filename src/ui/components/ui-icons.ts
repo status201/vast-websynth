@@ -129,6 +129,39 @@ export const UI_ICONS = {
 
   /** ↗ — a Song-tab card jumping to its machine's chain. */
   launch: icon('<path d="M4.5 11.5 L11.5 4.5"/><path d="M6.5 4.5 H11.5 V9.5"/>'),
+
+  // — section headings (section-title.md REQ-3). No character stood in for
+  //   these; they are drawn at ~14px, which is what the detail is sized for. —
+
+  /** FX — one burst of sound on a scope: a flat line in, a run of narrow peaks
+   *  at different heights (the tallest right of centre, after the deepest
+   *  trough), a flat line out. Traced from the user's reference drawing, then
+   *  made taller, with narrower peaks, so they keep ~1px apart at 14px. It replaced
+   *  a stompbox, a hard-clipped sine and a sine with a spike, none of which read
+   *  at this size (section-title.md REQ-3). */
+  waveBurst: icon('<path d="M0.8 8.4 H1.9 C2.2 8.4 2.6 10.78 2.9 10.78 C3.46 10.78 4.22 6.4 4.78 6.4 C5.38 6.4 6.17 11.84 6.77 11.84 C7.55 11.84 8.59 3.03 9.37 3.03 C9.87 3.03 10.53 11.4 11.03 11.4 C11.71 11.4 12.62 6.65 13.3 6.65 C13.6 6.65 14 8.4 14.3 8.4 H15.2"/>'),
+
+  /** MACHINES — a groovebox seen from above: a landscape body, a display and a
+   *  knob across the top, a row of three pads below. The silhouette of the thing
+   *  the row holds. Landscape on purpose: an upright box with a display over a 2x2
+   *  pad block reads as a calculator at 14px, and a step grid read as noise
+   *  (section-title.md REQ-3). */
+  padMachine: icon(
+    '<rect x="0.8" y="3" width="14.4" height="10" rx="1.8"/>' +
+    '<rect class="fill" x="3" y="5" width="5.2" height="2" rx="0.4"/>' +
+    '<circle class="fill" cx="11.9" cy="6" r="1.15"/>' +
+    '<rect class="fill" x="2.9" y="8.7" width="2.6" height="2.3" rx="0.45"/>' +
+    '<rect class="fill" x="6.7" y="8.7" width="2.6" height="2.3" rx="0.45"/>' +
+    '<rect class="fill" x="10.5" y="8.7" width="2.6" height="2.3" rx="0.45"/>',
+  ),
+
+  /** EQUALIZER — three faders, each cap at its own height. */
+  sliders: icon(
+    '<path d="M4 2 V14"/><path d="M8 2 V14"/><path d="M12 2 V14"/>' +
+    '<rect class="fill" x="2.2" y="8.6" width="3.6" height="2.2" rx="0.6"/>' +
+    '<rect class="fill" x="6.2" y="3.6" width="3.6" height="2.2" rx="0.6"/>' +
+    '<rect class="fill" x="10.2" y="6.6" width="3.6" height="2.2" rx="0.6"/>',
+  ),
 } as const;
 
 export type IconName = keyof typeof UI_ICONS;
@@ -178,7 +211,12 @@ export function iconTextEl(
   const label = document.createElement('span');
   label.className = 'icon-label';
   label.textContent = text;
-  const glyph = iconEl(name);
-  wrap.append(...(pos === 'before' ? [glyph, label] : [label, glyph]));
+  // The bare <svg>, not `iconEl`'s <span> around it: base.css spaces the pair
+  // with `svg.ui-icon + .icon-label`, which only matches direct siblings. A
+  // wrapper here silently dropped the gap on every caller (iconography.md v2).
+  wrap.innerHTML = UI_ICONS[name];
+  const glyph = wrap.firstElementChild!;
+  if (pos === 'before') wrap.append(label);
+  else wrap.insertBefore(label, glyph);
   return wrap;
 }

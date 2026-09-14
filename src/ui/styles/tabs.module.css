@@ -18,26 +18,8 @@
   cursor: pointer;
 }
 
-/* The row heading, ahead of the tabs (equalizer.md REQ-9). Wears the tab's own
-   type so the header reads as one line of legend rather than a label bolted
-   onto a control strip — same size, tracking and weight, dimmer, and inert. */
-.title {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 14px 8px 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  /* The faceplate's white, not a tab colour (equalizer.md REQ-9). Same serif,
-     size and caps as the tabs beside it, so colour is the one thing telling a
-     heading from a control: in the active tab's yellow it read as a fourth tab
-     that did nothing when clicked. Undimmed for the same reason. */
-  color: var(--text);
-  font-weight: 700;
-  font-family: var(--serif);
-  white-space: nowrap;
-  pointer-events: none;
-}
+/* The row heading lives in section-title.module.css (section-title.md), shared
+   with the FX bar so no two section headings can disagree. */
 
 .tab {
   display: inline-flex;

@@ -2,6 +2,7 @@ import styles from '../styles/tabs.module.css';
 import { createCollapseToggle } from './collapse-toggle';
 import { ListenerSet } from '../../utils/listeners';
 import type { MachineState } from '../machine-status';
+import { createSectionTitle, type SectionTitleOptions } from './section-title';
 
 export interface Tab {
   id: string;
@@ -17,15 +18,14 @@ export interface TabOptions {
   /** Initial collapsed state when no stored preference exists (see CollapseToggleOptions). */
   collapsedByDefault?: () => boolean;
   /**
-   * A heading for the whole row, ahead of the tabs (equalizer.md REQ-9). The
-   * pattern row needs none — its seven tabs name themselves and a title would
-   * only repeat them — but a row of *lanes* under one feature does: without it
-   * "SEQUENCER / DRUM MACHINE / SAMPLER" says nothing about what the section is.
-   * Rendered as the bar's FIRST child, which matters: the fold caret carries
-   * `margin-left: auto`, so a title appended after it would be shoved to the
-   * right edge.
+   * A heading for the whole row, ahead of the tabs — the shared section title
+   * (section-title.md; equalizer.md REQ-9). Without one a row of tabs says
+   * nothing about what the section is, and beside the FX bar's heading an
+   * untitled row looks unfinished. Rendered as the bar's FIRST child, which
+   * matters: the fold caret carries `margin-left: auto`, so a title appended
+   * after it would be shoved to the right edge.
    */
-  title?: string;
+  title?: SectionTitleOptions;
   /**
    * An extra class on every page shell (equalizer.md REQ-18). The shell carries
    * `padding: 10px 12px` of its own, which is right for the pattern row and
@@ -59,12 +59,7 @@ export class TabContainer {
     this.el.appendChild(this.tabBar);
 
     // First child of the bar, before any tab — see TabOptions.title.
-    if (opts?.title) {
-      const title = document.createElement('span');
-      title.className = styles.title!;
-      title.textContent = opts.title;
-      this.tabBar.appendChild(title);
-    }
+    if (opts?.title) this.tabBar.appendChild(createSectionTitle(opts.title));
 
     this.body = document.createElement('div');
     this.body.className = styles.body!;

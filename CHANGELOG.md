@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The FX, Machines and Equalizer sections now share one heading.** Each bar
+  opens with a white icon and a white title: a burst of waveform for **FX**, a pad
+  machine for the new **MACHINES** heading on the Arpeggiator … Song tabs, and
+  faders for **EQUALIZER**. All three sit on the same left edge, and a heading
+  dims while its section is folded, so you can see which ones are open. The FX title used to be
+  yellow like an active tab, and the machine tabs had no heading at all. On
+  narrower screens the MACHINES row keeps just its icon, so its seven tabs still
+  fit. On tablets and phones the FX section also stops sitting slightly further
+  in than the sections around it.
 - **The EQ's WIDTH knob is now labelled Q.** It always set the filter Q, so
   turning it *up* made every band *narrower*, which is the opposite of what
   "WIDTH" says. It now carries the standard name the Wah's knob already uses.

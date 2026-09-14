@@ -64,7 +64,7 @@ export function buildEqPanel(bus: ParamBus, engine: StudioApi): EqPanel {
   }));
 
   const tabs = new TabContainer(pages, LANES[0]!.id, {
-    title: 'Equalizer',
+    title: { text: 'Equalizer', icon: 'sliders' },
     // Cancels the shell's own horizontal padding, so the graph can reach the
     // same x as the scope canvas above it (REQ-18).
     pageClass: styles.pageShell!,

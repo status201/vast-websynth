@@ -39,10 +39,9 @@ source:
   - src/ui/components/eq-graph.ts      # the drawable curve
   - src/ui/components/canvas-text.ts   # haloText, hoisted out of Scope
   - src/ui/components/scope.ts         # now calls the hoisted haloText
-  - src/ui/components/tabs.ts          # TabOptions.title + .pageClass
+  - src/ui/components/tabs.ts          # TabOptions.title (a section-title) + .pageClass
   - src/ui/app.ts                      # buildBottom mounts it
   - src/ui/styles/eq.module.css
-  - src/ui/styles/tabs.module.css      # .title (the row heading)
   - src/ui/styles/layout.module.css    # the third .bottom row + --wheel-col
 ```
 
@@ -228,6 +227,12 @@ curve from bus values so it needs no analyser and runs no animation loop.
   as a fourth tab that did nothing when clicked
   ([ADR-014](../decisions/adr-014-dont-make-me-think.md) law 1: one look, one
   meaning).
+
+  (v3) That heading is no longer the Equalizer's own. `TabOptions.title` became
+  a [section-title](section-title.md) (`{ text, icon, compact? }`), the one
+  heading the FX bar and the MACHINES row now share. Here it is
+  `{ text: 'Equalizer', icon: 'sliders' }`. Colour, face and left inset are
+  pinned there, not here.
 
   `collapsedByDefault` is `() => true` unconditionally — this is a tool you reach
   for, not a surface you live in.
@@ -416,7 +421,7 @@ class Equalizer extends WrappedEffect
   # protected drainSeconds() -> 0.12                                    (REQ-7)
 
 # src/ui/components/tabs.ts
-TabOptions.title?: string          # REQ-9 — rendered first in `.bar`
+TabOptions.title?: SectionTitleOptions  # REQ-9 — rendered first in `.bar`; a section-title (v3)
 TabOptions.pageClass?: string      # REQ-18 — extra class on every page shell,
                                    #   so a consumer can override the shell's own
                                    #   padding without changing it for every panel
@@ -649,10 +654,10 @@ Scenario: The header reads EQUALIZER before the three tabs (REQ-9)
 # pinned by: tests/ui/eq-panel.test.ts
 
 Scenario: The row title reads as a heading, not a fourth tab (v3, REQ-9)
-  Given the tab bar's stylesheet
-  Then .title is coloured var(--text), undimmed
-  And no tab state shares that colour
-# pinned by: tests/ui/eq-panel.test.ts
+  Given the equalizer's tab bar
+  Then its first child is the shared section title, led by the sliders icon
+  And that heading is var(--text), undimmed, a colour no tab state uses (section-title.md REQ-2)
+# pinned by: tests/ui/eq-panel.test.ts, tests/ui/section-title.test.ts
 
 Scenario: The tab LED tracks the param and reads muted when flat (REQ-10)
   Given a lane whose EQ is off

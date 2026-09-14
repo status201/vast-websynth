@@ -46,10 +46,10 @@ const DISPLAY_TYPE = [
   'seq.module.css .noteDisplay',
   'song-panel.module.css .chip',
   'step-button.module.css .root',
-  // The EQUALIZER row's heading (equalizer.md REQ-9). It is a faceplate legend
-  // in exactly the sense the tab beside it is — it names a section of the
-  // instrument — and wears the same type so the header reads as one line.
-  'tabs.module.css .title',
+  // The heading on the FX, MACHINES and EQUALIZER bars (section-title.md). A
+  // heading, and it names a section of the instrument in the same type as the
+  // tabs beside it — colour, not face, is what tells the two apart (REQ-2).
+  'section-title.module.css .root',
   'tabs.module.css .tab',
   'xy-pad.module.css .fieldLabel',
 ];
