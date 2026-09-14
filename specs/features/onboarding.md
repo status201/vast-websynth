@@ -3,7 +3,10 @@
 ```yaml
 id: onboarding
 status: implemented
-version: 26  # v26: five badges on the Sampler's selected-slot strip, anchored to
+version: 27  # v27: the Equalizer carries seven badges — one section topic plus a
+             #      graph and a knob-row topic per lane — and its page shells
+             #      join the reflow observer list (REQ-26, REQ-5a)
+             # v26: five badges on the Sampler's selected-slot strip, anchored to
              #      cells that outlive a slot change (REQ-25)
              # v25: the help door never fails silently — the About body is warmed
              #      on idle so it opens offline, and a rejected import says so
@@ -60,11 +63,13 @@ related:
   - presets
   - audio-export
   - record-window
+  - equalizer             # REQ-26 — the section its seven badges annotate
   - lazy-load-failure     # REQ-24 — the report every deferred surface shares
 source:
   - src/ui/onboarding/tour.ts
   - src/ui/onboarding/info-badges.ts
   - src/ui/panels/sampler-panel.ts      # the REQ-25 badge cells
+  - src/ui/panels/eq-panel.ts           # the REQ-26 knob-row cells
   - src/ui/onboarding/help-content.ts
   - src/ui/onboarding/help-widgets.ts
   - src/ui/onboarding/index.ts            # the synchronous facade (contract below)
@@ -138,6 +143,19 @@ thing.
   back when the user returns from LFO 2's page. The second page needs no entry:
   its own anchor (`knob-lfo2.rate`) lives inside it, and revealing it is what
   triggers the observer on page 1 collapsing.
+  - (v27) The Equalizer's **`eq-section`** and all three of its page shells
+    (`panel-eq-seq`, `panel-eq-drums`, `panel-eq-sampler`) join the list too.
+    The three pages are the same height — each takes it from `--scope-h`
+    ([equalizer](equalizer.md) REQ-18) — so a lane switch resizes neither the
+    body nor any other observed container; only the two shells trading places
+    change size. **Unfolding does not resize the body either**: an expanded
+    section is absorbed by the keyboard row's slack (equalizer REQ-16), so the
+    page can stay exactly as tall. Without these entries the lane badges never
+    appear when the section is opened, and after a switch the previous lane's
+    stay pinned over a hidden page. All three shells are observed rather than
+    one, because a switch between two lanes need not involve the third. The e2e
+    was checked against the list with these entries removed: it fails at the
+    unfold, before it reaches the switch.
 
 - **REQ-5b** (v23) — **A badge is shown only where it can be reached: hidden when
   its anchor leaves the viewport in *either* direction.** The badges are
@@ -568,6 +586,43 @@ thing.
   pins it **resizes the viewport after the slot change** — asserting visibility
   without that passes with the bug present.
 
+- **REQ-26** (v27) — **The Equalizer carries seven badges over three topics.**
+  The section shipped with a written `fx.eq` topic and a `data-help="fx.eq"`
+  attribute but no anchor, so no badge ever drew — and the copy left out most of
+  what a player cannot read off the panel: eight band abbreviations, a lamp that
+  looks like a switch and is not, a preset list that switches the EQ on, a
+  `Custom` entry that cannot be picked, a RESET that leaves the on/off alone, and
+  a curve with no undo ([equalizer](equalizer.md) REQ-10/REQ-15, its gesture
+  inventory). `fx.eq` is removed; its copy is split across:
+
+  | Topic | Anchor | Covers |
+  | --- | --- | --- |
+  | `eq` | `eq-section`, corner | one EQ per lane and which one saves with the *sound*; the lamp's three states and that it is not a control; ON, presets and `Custom`, RESET; first in the lane; a boost is a level change; no undo |
+  | `eq.graph.<lane>` | `eq-graph-<lane>` | the gestures; how to read the axis, the 0 dB line and the fill; every band label decoded; the zone stripes |
+  | `eq.knobs.<lane>` | `data-help="eq.knobs.<lane>"`, the knob row | HP, LP and Q, including `off` at their ends and that Q skips the two shelves |
+
+  `<lane>` is `seq`, `drums` or `sampler` — the panel's own lane keys, so the
+  anchor ids are the testids the panel already mints.
+
+  - **The section badge pins to the section root**, as the FX rack's `fx` badge
+    does, not to a page. The bar stays on screen while the section is folded —
+    which it is by default — so the one topic that explains what the section
+    *is* stays reachable before the user has opened it.
+  - **The page badges are one id per lane, sharing one `HelpTopic` object per
+    kind** — REQ-16's ruler rule: only the visible page's anchor has a box, so a
+    single shared badge would be reachable on exactly one tab, and three
+    paraphrases of one copy would only drift. Six ids, two objects.
+  - **The band list in `eq.graph.*` is generated from `EQ_BANDS`**, with only the
+    prose authored (`EQ_BAND_ROLES`, keyed by label). The frequencies and order
+    therefore cannot disagree with the filters, which read the same table; a
+    band whose label has no role fails `tests/ui/help-content.test.ts`.
+  - **The knob-row anchor is a persistent row, not a knob**, for REQ-25's
+    reason even though the EQ never rebuilds its knobs today: the topic speaks
+    for three controls, and the row is the thing it describes.
+  - Placement is the default `'corner'` for all three. Anchors that change
+    visibility with a tab switch rely on REQ-5a's observer list, which v27
+    extends for them.
+
 ## Technical design
 
 ### Contract / public interface
@@ -836,6 +891,26 @@ Scenario: The Chord badge decodes the Roman numerals (v20, REQ-22)
   When the user clicks the badge on the Chord control
   Then the modal explains the write across four tracks, the single Undo,
     and that a capital numeral is major and a small one minor
+# pinned by: tests/ui/help-content.test.ts
+
+Scenario: The Equalizer's section badge is reachable while folded (v27, REQ-26)
+  Given the info badges are on and the Equalizer section is folded
+  When the section is scrolled into view
+  Then an `eq` badge sits on the section
+  And its modal says the tab lamps only report, and names Custom and Reset
+# pinned by: tests/ui/help-content.test.ts, e2e/equalizer.spec.ts
+
+Scenario: Each Equalizer lane shows its own graph and knob badges (v27, REQ-26, REQ-5a)
+  Given the info badges are on and the Equalizer is open on the Sequencer lane
+  Then the `eq.graph.seq` and `eq.knobs.seq` badges show and the drums ones do not
+  When the user clicks the Drum Machine tab, with no scroll or resize
+  Then the drums badges show and the seq badges hide
+# pinned by: e2e/equalizer.spec.ts
+
+Scenario: The graph badge decodes every band label (v27, REQ-26)
+  Given the eq.graph topic
+  Then every label in EQ_BANDS appears in it, with that band's frequency
+  And the three lane ids resolve to one HelpTopic object
 # pinned by: tests/ui/help-content.test.ts
 
 Scenario: The Render button says why it takes two bars (v9)

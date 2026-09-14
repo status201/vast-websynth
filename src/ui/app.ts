@@ -28,6 +28,7 @@ import {
 import { Keyboard } from './components/keyboard';
 import { onKeyChange, readKeyState } from './key-roles';
 import { TabContainer } from './components/tabs';
+import { createSectionTitle } from './components/section-title';
 import {
   ARP_TAB, KEY_TAB, MACHINE_IDS, MACHINE_TAB,
   readArpStatus, readKeyStatus, readMachineStatus,
@@ -487,6 +488,9 @@ function buildPatternRow(
     { id: 'motion', label: 'Motion', content: motion.el, indicator: true },
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
+    // `compact`: seven tabs leave no room for the word at <=1140px, so only the
+    // icon stays there (section-title.md REQ-5).
+    title: { text: 'Machines', icon: 'padMachine', compact: true },
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
     collapsedByDefault: isCompact,
   });
@@ -678,10 +682,8 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
 
   const bar = document.createElement('div');
   bar.className = styles.fxSectionBar!;
-  const title = document.createElement('div');
-  title.className = styles.fxSectionTitle!;
-  title.textContent = 'FX';
-  bar.appendChild(title);
+  // The same heading the tabbed sections wear (section-title.md REQ-1).
+  bar.appendChild(createSectionTitle({ text: 'FX', icon: 'waveBurst' }));
   const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
     defaultCollapsed: isCompact,
     trigger: bar, // whole FX bar toggles, not just the chevron

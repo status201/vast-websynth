@@ -4,6 +4,8 @@
 import type { TourStep } from './tour';
 import { UI_ICONS, iconLabel, type IconName } from '../components/ui-icons';
 import type { ParamBus } from '../../state/params';
+import { EQ_BANDS } from '../../state/eq';
+import { formatHzFull } from '../components/scope';
 import {
   renderTempoSync,
   renderFilterCutoff,
@@ -206,6 +208,85 @@ const RULER_HELP: HelpTopic = {
     'tab has a scrubber for the whole arrangement.</p>',
 };
 
+/**
+ * What each EQ band is for, keyed by its label in `EQ_BANDS` (onboarding.md
+ * REQ-26). Only the prose is authored here: the band list below is generated
+ * from the table the filters are built from, so the help cannot give a band a
+ * frequency the audio does not use. A label with no entry fails
+ * `tests/ui/help-content.test.ts`.
+ */
+export const EQ_BAND_ROLES: Readonly<Record<string, string>> = {
+  SUB: 'sub-bass and rumble, the weight you feel more than hear',
+  MUD: 'muddiness: a boomy, thick low end that clouds everything else',
+  BOX: 'boxiness, hollow like singing into a carton',
+  NASAL: 'a nasal, honky tone, like a cheap speaker',
+  PRES: 'presence: attack and clarity, how far forward the lane sits',
+  HARSH: 'harshness, the range that tires your ears fastest',
+  SIB: 'sibilance: hiss, fizz, spitty “s” sounds and sizzling hi-hats',
+  AIR: 'air and sparkle on the very top',
+};
+
+const EQ_BAND_LIST =
+  '<ul>' +
+  EQ_BANDS.map((b) => {
+    const shelf =
+      b.type === 'lowshelf' ? ' A <em>shelf</em>: it raises or lowers everything below it.'
+        : b.type === 'highshelf' ? ' A <em>shelf</em>: it raises or lowers everything above it.'
+          : '';
+    return `<li><strong>${b.label}</strong> (${formatHzFull(b.hz)}) — ` +
+      `${EQ_BAND_ROLES[b.label] ?? ''}.${shelf}</li>`;
+  }).join('') +
+  '</ul>';
+
+/**
+ * The EQ graph (equalizer.md REQ-12, its gesture inventory). One object behind
+ * three lane ids, for the ruler's reason: only the visible page's anchor has a
+ * box, and three paraphrases of one copy would drift.
+ */
+const EQ_GRAPH_HELP: HelpTopic = {
+  title: 'Drawing the EQ curve',
+  body:
+    '<p><strong>Drag across the graph</strong> to draw the shape you want: up turns that part ' +
+    'of the sound up, down turns it down, and every band you sweep across follows your line. ' +
+    'Hold <strong>Shift</strong> while dragging for fine moves. <strong>Double-tap</strong> a ' +
+    'dot to put that band back to 0. With a mouse, <strong>hover</strong> to read the frequency ' +
+    'and level under the pointer. There is no undo for a drawn curve.</p>' +
+    '<p>Bass is on the left and treble on the right, on the same scale as the Spectrum view; ' +
+    'the numbers along the bottom are Hz, and <strong>5k</strong> means 5,000 Hz. The brighter ' +
+    'line across the middle is <strong>0 dB</strong>, no change. The faint lines mark 6 and ' +
+    '12 dB either side. The shading shows what is boosted (above the line) and cut (below it). ' +
+    'A dim dot is a band left at 0.</p>' +
+    '<p><strong>The band names</strong> say what each one is usually for:</p>' +
+    EQ_BAND_LIST +
+    '<p>The faint stripes are the Spectrum’s four <strong>Zones</strong> (MUD, BOXY, NASAL and ' +
+    'HARSH), and a band sits inside each one. Spot a problem on the Spectrum and pull down the ' +
+    'dot above it; the <strong>De-Mud</strong>, <strong>De-Box</strong>, ' +
+    '<strong>De-Nasal</strong> and <strong>De-Harsh</strong> presets do exactly that.</p>',
+};
+
+/** The HP · LP · Q row (equalizer.md REQ-3/REQ-4). One object, three lane ids. */
+const EQ_KNOBS_HELP: HelpTopic = {
+  title: 'HP, LP & Q',
+  body:
+    '<ul>' +
+    '<li><strong>HP</strong>: <em>high-pass</em>. It lets the highs pass and cuts everything ' +
+    '<em>below</em> the frequency you set. Cleans up rumble and low mud, and on the drums it ' +
+    'stops the kick pumping the whole kit through the compressor. Turned fully left it reads ' +
+    '<strong>off</strong>.</li>' +
+    '<li><strong>LP</strong>: <em>low-pass</em>. It lets the lows pass and cuts everything ' +
+    '<em>above</em> it. Darkens the lane and tames hiss. Turned fully right it reads ' +
+    '<strong>off</strong>.</li>' +
+    '<li><strong>Q</strong>: how sharp every band is. Turn it <strong>down</strong> for broad, ' +
+    'gentle tone-shaping where neighbouring bands blend into each other; turn it ' +
+    '<strong>up</strong> to make each band narrower, until it is a notch that removes one ' +
+    'problem frequency and leaves the rest alone. It shapes the six middle bands only: ' +
+    '<strong>SUB</strong> and <strong>AIR</strong> are shelves and ignore it.</li>' +
+    '</ul>' +
+    '<p>Unlike the bands, which stop at 18 dB, HP and LP keep cutting further past their ' +
+    'setting, which is why the <strong>Low Pass</strong>, <strong>High Pass</strong> and ' +
+    '<strong>Band Pass</strong> presets sound like real filters rather than a tilt.</p>',
+};
+
 export type TopicId =
   | 'transport'
   | 'transport.swing'
@@ -229,7 +310,15 @@ export type TopicId =
   | 'lfo.rate'
   | 'lfo2.rate'
   | 'fx'
-  | 'fx.eq'
+  // The Equalizer (onboarding.md REQ-26): the section, then a graph and a knob
+  // row per lane — per lane for the ruler's reason below.
+  | 'eq'
+  | 'eq.graph.seq'
+  | 'eq.graph.drums'
+  | 'eq.graph.sampler'
+  | 'eq.knobs.seq'
+  | 'eq.knobs.drums'
+  | 'eq.knobs.sampler'
   | 'fx.dist'
   | 'fx.wah'
   | 'fx.wah.rate'
@@ -543,15 +632,36 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<li><strong>FB</strong> — feedback; more makes it more resonant and metallic.</li>' +
       '<li><strong>MIX</strong> — wet vs dry blend; the swirl is strongest around the middle.</li></ul>',
   },
-  'fx.eq': {
+  eq: {
     title: 'Equalizer',
     body:
-      '<p>Turns parts of the sound up or down by pitch. <strong>Drag across the graph</strong> to draw the shape you want — each dot is one band. Double-tap a band to reset it.</p>' +
-      '<ul><li><strong>HP</strong> — cuts everything below it. Cleans up rumble, and on the drums it stops the kick pumping the whole kit.</li>' +
-      '<li><strong>LP</strong> — cuts everything above it. Darkens the lane; good for hiss.</li>' +
-      '<li><strong>WIDTH</strong> — how wide each band reaches. Low is gentle tone-shaping, high is a narrow notch for one problem frequency.</li></ul>' +
-      '<p>The shaded stripes are the same four problem areas the Spectrum names — mud, boxy, nasal, harsh — so you can find a trouble spot on the scope and fix it here. The presets cover the usual moves.</p>',
+      '<p>Turns parts of a lane’s sound up or down, from deep bass to top-end sparkle. Each ' +
+      'tab is its own EQ, one for the <strong>Sequencer</strong>, the <strong>Drum ' +
+      'Machine</strong> and the <strong>Sampler</strong>, so you can clean up one lane without ' +
+      'touching the others. The Sequencer’s EQ is part of the synth <em>sound</em> and is saved ' +
+      'with a preset; the drum and sampler EQs belong to the song.</p>' +
+      '<p><strong>The lights on the tabs only report</strong>; clicking one just opens that ' +
+      'tab. Dark means the EQ is off. Dim red means it is on but flat, so it is not changing ' +
+      'anything yet. Bright red means it is shaping the sound. The <strong>on</strong> switch ' +
+      'inside each tab is the only thing that turns it on or off.</p>' +
+      '<ul>' +
+      '<li><strong>Presets</strong>: picking one also switches the EQ on, so you hear it straight ' +
+      'away. Once you change the curve the list says <strong>Custom</strong>. That is a report ' +
+      'of what you have drawn, not a choice you can pick.</li>' +
+      '<li><strong>Reset</strong>: flattens this lane’s curve and opens both filters, but leaves ' +
+      'the EQ switched on or off as it was.</li>' +
+      '</ul>' +
+      '<p>The EQ comes <strong>first</strong> in each lane, before its effects, so it changes what ' +
+      'the distortion bites on and, on the drums, what the compressor reacts to. A boost makes ' +
+      'the lane <strong>louder</strong> on purpose; bring it back down with that lane’s volume. ' +
+      'There is no undo for a drawn curve: double-tap a band or press Reset.</p>',
   },
+  'eq.graph.seq': EQ_GRAPH_HELP,
+  'eq.graph.drums': EQ_GRAPH_HELP,
+  'eq.graph.sampler': EQ_GRAPH_HELP,
+  'eq.knobs.seq': EQ_KNOBS_HELP,
+  'eq.knobs.drums': EQ_KNOBS_HELP,
+  'eq.knobs.sampler': EQ_KNOBS_HELP,
   'fx.delay': {
     title: 'Delay',
     body:
@@ -1198,8 +1308,9 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       '<strong>MUD</strong> (100–200 Hz, boomy and thick), <strong>BOXY</strong> (300–500 Hz, ' +
       'like singing into a carton), <strong>NASAL</strong> (800 Hz–1 kHz, cheap and honky) and ' +
       '<strong>HARSH</strong> (4–6 kHz, the range that fatigues your ears fastest). Find the ' +
-      'offending band here, then go after it with the filter cutoff, the oscillator mix ' +
-      'or the FX that put it there.</p>' +
+      'offending band here, then go after it with the filter cutoff, the oscillator mix, ' +
+      'the FX that put it there, or the <strong>Equalizer</strong> below, which has a band ' +
+      'sitting inside each of these zones.</p>' +
       '<p><strong>Wave</strong> auto-ranges like a scope’s volts/div knob, so a quiet song ' +
       'still draws a readable waveform instead of a flat line — a loud one still draws ' +
       'taller, but the height is not a level meter. For actual level, read the ' +

@@ -455,27 +455,25 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  margin: 0 22px;
+  /* The token every other row uses, not the 22px it is at desktop widths: a
+     literal kept FX 14px further in than MACHINES and EQUALIZER once the token
+     drops to 8px at <=992px, so the three headings' icons stopped lining up
+     (section-title.md REQ-4). */
+  margin: 0 var(--side-margin);
 }
 
 .fxSectionBar {
   display: flex;
   align-items: center;
-  padding: 4px 10px;
+  /* Exactly the tab bar's padding (tabs.module.css .bar), so the section title's
+     icon lands on the same x as the MACHINES and EQUALIZER ones and the title's
+     own vertical padding sets a matching height (section-title.md REQ-4). */
+  padding: 0 10px 0 6px;
   background: linear-gradient(180deg, #0a0604 0%, #16100b 100%);
   border: 1px solid var(--panel-border);
   border-radius: 6px;
   box-shadow: var(--panel-shadow);
   cursor: pointer;
-}
-
-.fxSectionTitle {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--accent-secondary);
-  font-weight: 700;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 
 .fxSection:global(.collapsed) .fxRow { display: none; }

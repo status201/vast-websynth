@@ -3,7 +3,8 @@
 ```yaml
 id: iconography
 status: implemented
-version: 1
+version: 2   # v2: iconTextEl emits the bare svg beside its label, as iconLabel does —
+             #     its span wrapper had silently dropped the icon/text gap (regression)
 owner: ui
 related:
   - architecture
@@ -179,7 +180,12 @@ export function iconTextEl(name: IconName, text: string, pos?: 'before' | 'after
 and is for anything derived — a diagnostics hint, a filename. The split is not
 style: `innerHTML` on a value that came from a peer or a file would make it
 markup ([untrusted-input](untrusted-input.md)). Both emit the same
-`.icon-label` span, so the two look identical.
+`.icon-label` span, so the two look identical — and "identical" is a claim about
+**DOM shape**: the gap comes from `svg.ui-icon + .icon-label` in `base.css`, which
+only matches direct siblings. (v2) `iconTextEl` used to append `iconEl`'s `<span>`
+around the svg, so the rule never matched and every caller — the pairing
+wizard's "Linked" and hint lines, the tour's confirmation — rendered its glyph
+flush against the text. It now emits the bare svg.
 
 `INFO_SHAPE` is exported alongside them — the one drawing `header-icons.ts`
 reuses (REQ-4).
@@ -227,6 +233,9 @@ dice:                          🎲    # drum randomiser
 bulb:                          💡    # wizard hint
 reset:                         ↺     # motion "inherit"
 launch:                        ↗     # song card → chain
+waveBurst:                     —     # FX section heading (section-title.md)
+padMachine:                    —     # MACHINES section heading
+sliders:                        —     # EQUALIZER section heading
 ```
 
 ```yaml
@@ -290,6 +299,12 @@ Scenario: a new Unicode icon fails the suite (REQ-6)
   Given someone sets a control's textContent to a bare "✕"
   Then the iconography drift pin fails until the glyph moves into UI_ICONS
 # pinned by: tests/ui/iconography.test.ts
+
+Scenario: iconTextEl builds the same shape as iconLabel (v2, regression)
+  Given iconTextEl and iconLabel for the same glyph and text, in either position
+  Then both yield an svg.ui-icon and a span.icon-label as direct siblings
+  So base.css's svg.ui-icon + .icon-label gap applies to both
+# pinned by: tests/ui/ui-icons.test.ts
 
 Scenario: the superseded font-swap path is gone (REQ-4, regression)
   Given the About modal's key list

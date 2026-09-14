@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The Equalizer explains itself.** With the **ⓘ** badges on, the section gets
+  one badge on its header and two on every tab. They cover what the panel can't
+  say in eight short labels: what **SUB, MUD, BOX, NASAL, PRES, HARSH, SIB** and
+  **AIR** each mean and the frequency each sits at, how to draw, fine-tune and reset
+  the curve, and how to read the graph. They also explain that a tab's lamp
+  only reports (dim means on but flat), that picking a preset switches the EQ on,
+  what **Custom** means, that **Reset** leaves the on/off alone, and what **HP**,
+  **LP** and **Q** do. The badge on the header works while the section is still
+  folded.
+
+### Changed
+
+- **The FX, Machines and Equalizer sections now share one heading.** Each bar
+  opens with a white icon and a white title: a burst of waveform for **FX**, a pad
+  machine for the new **MACHINES** heading on the Arpeggiator … Song tabs, and
+  faders for **EQUALIZER**. All three sit on the same left edge, and a heading
+  dims while its section is folded, so you can see which ones are open. The FX title used to be
+  yellow like an active tab, and the machine tabs had no heading at all. On
+  narrower screens the MACHINES row keeps just its icon, so its seven tabs still
+  fit. On tablets and phones the FX section also stops sitting slightly further
+  in than the sections around it.
+- **The EQ's WIDTH knob is now labelled Q.** It always set the filter Q, so
+  turning it *up* made every band *narrower*, which is the opposite of what
+  "WIDTH" says. It now carries the standard name the Wah's knob already uses.
+  Nothing about the sound changes, and songs, presets and share links saved with
+  the old label load exactly as before.
+
 ## [2.12.0] - 2026-09-09
 
 ### Added

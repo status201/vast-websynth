@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { buildEqPanel } from '../../src/ui/panels/eq-panel';
 import { ParamBus, registerDefaults } from '../../src/state/params';
 import type { StudioApi } from '../../src/ui/studio-api';
 import { applyEqPreset } from '../../src/state/eq-presets';
+import { UI_ICONS } from '../../src/ui/components/ui-icons';
+import { readSource as read, cssDecl as decl } from '../css-source';
 
 /**
  * The EQUALIZER section — `specs/features/equalizer.md` REQ-9/REQ-10/REQ-11/REQ-16.
@@ -58,6 +58,17 @@ describe('the section header (REQ-9)', () => {
     const bar = panel.el.firstElementChild!;
     expect(bar.firstElementChild!.tagName).toBe('SPAN');
     expect(bar.lastElementChild!.getAttribute('aria-expanded')).not.toBeNull();
+  });
+
+  it('leads the title with the sliders icon (section-title.md REQ-3)', () => {
+    // Colour and type are the shared heading's business and pinned there; what
+    // is this section's own is which glyph it wears.
+    const { panel } = build();
+    const title = panel.el.firstElementChild!.firstElementChild!;
+    // Compared parsed-to-parsed: the DOM re-serialises `<path/>` as `<path></path>`.
+    const expected = document.createElement('span');
+    expected.innerHTML = UI_ICONS.sliders;
+    expect(title.firstElementChild!.outerHTML).toBe(expected.firstElementChild!.outerHTML);
   });
 
   it('is folded on first load, and remembers being opened', () => {
@@ -145,11 +156,39 @@ describe('testid namespace (REQ-11)', () => {
     }
   });
 
-  it('exposes the HP/LP/WIDTH knobs by their param ids', () => {
+  it('exposes the HP/LP/Q knobs by their param ids', () => {
     const { panel } = build();
     for (const suffix of ['hp', 'lp', 'width']) {
       expect(q(panel.el, `knob-fx.eq.${suffix}`), suffix).not.toBeNull();
     }
+  });
+});
+
+describe('the Q knob and the badge anchors (REQ-4 v3, REQ-19)', () => {
+  it('labels the `.width` knob Q on every lane', () => {
+    // Up is narrower: the value is the peaking Q, so "WIDTH" read backwards.
+    // The id is unchanged — only what the player reads moved.
+    const { panel } = build();
+    for (const p of ['fx.eq', 'fx.drum.eq', 'fx.sampler.eq']) {
+      const knob = q(panel.el, `knob-${p}.width`)!;
+      expect(knob, p).not.toBeNull();
+      const texts = [...knob.querySelectorAll('div')].map((d) => d.textContent?.trim());
+      expect(texts, p).toContain('Q');
+      expect(knob.textContent, p).not.toContain('WIDTH');
+    }
+  });
+
+  it('gives each lane’s knob row its own badge anchor', () => {
+    const { panel } = build();
+    for (const lane of ['seq', 'drums', 'sampler']) {
+      const row = panel.el.querySelector<HTMLElement>(`[data-help="eq.knobs.${lane}"]`);
+      expect(row, lane).not.toBeNull();
+      // Inside that lane's own page, holding its three knobs.
+      expect(row!.closest(`[data-testid="panel-eq-${lane}"]`), lane).not.toBeNull();
+      expect(row!.querySelectorAll('[data-testid^="knob-"]').length, lane).toBe(3);
+    }
+    // The orphan that shipped with the section: an attribute with no anchor.
+    expect(panel.el.querySelector('[data-help="fx.eq"]')).toBeNull();
   });
 });
 
@@ -195,9 +234,7 @@ describe('teardown', () => {
 });
 
 describe('the bottom grid keeps its shape (REQ-16)', () => {
-  const css = readFileSync(
-    resolve(process.cwd(), 'src/ui/styles/layout.module.css'), 'utf8',
-  );
+  const css = read('src/ui/styles/layout.module.css');
 
   it('declares three rows, with --scope-h still sizing only the first', () => {
     // The scope's ResizeHandle writes `--scope-h` on this element; if the EQ row
@@ -213,28 +250,8 @@ describe('the bottom grid keeps its shape (REQ-16)', () => {
 });
 
 describe('the page mirrors the scope row (REQ-18)', () => {
-  const read = (f: string) => readFileSync(resolve(process.cwd(), f), 'utf8');
   const layout = read('src/ui/styles/layout.module.css');
   const eqCss = read('src/ui/styles/eq.module.css');
-
-  /**
-   * The declared value of one property inside one rule. Deliberately string
-   * surgery rather than a built regex: the selectors here are `.page` and
-   * `.pageShell`, `.bottom` and `.bottomTop`, so matching on `<selector> {`
-   * keeps the prefixes apart without any escaping to get wrong.
-   */
-  function decl(css: string, selector: string, prop: string): string | null {
-    const at = css.indexOf(`${selector} {`);
-    if (at < 0) return null;
-    const body = css.slice(at, css.indexOf('}', at));
-    for (const line of body.split('\n')) {
-      const i = line.indexOf(':');
-      if (i < 0) continue;
-      if (line.slice(0, i).trim() !== prop) continue;
-      return line.slice(i + 1).replace(';', '').trim();
-    }
-    return null;
-  }
 
   it('takes its gutter from the same custom property the wheels do', () => {
     // The whole point of REQ-18: "exactly as wide as the wheels". Two literal
