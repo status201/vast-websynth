@@ -174,8 +174,8 @@ the song format.
   perHitGain → slotIn → slotTone → slotGain → slotPan → samplerBus
   ```
 
-  - `sampler.t{i}.vol` → `slotGain.gain`; `.pan` → `slotPan.pan`; `.tone` / `.res` →
-    the lowpass `slotTone`'s `frequency` and `Q`. All four are `AudioParam`s written
+  - `sampler.t{i}.vol` → `slotGains[i].gain`; `.pan` → `slotPans[i].pan`; `.tone` / `.res` →
+    the lowpass `slotTones[i]`'s `frequency` and `Q`. All four are `AudioParam`s written
     through `rampTo`, so a knob drag never zippers.
   - `slotIn` is unity and inert today. It exists so REQ-14's group choke has a node to
     cut that is **upstream of the tone filter** — a cut tail must not go on ringing
@@ -188,7 +188,7 @@ the song format.
   - **The panner's input is forced stereo.** At pan 0 a `StereoPannerNode` passes a
     *stereo* input straight through, but applies equal-power gain to a *mono* one —
     so a mono clip would arrive 3 dB down, which is exactly the silent re-voicing
-    ADR-006 exists to prevent. `slotGain` therefore declares
+    ADR-006 exists to prevent. Each of `slotGains` therefore declares
     `channelCount = 2, channelCountMode = 'explicit'`. The up-mix it performs
     (L = R = input, unity) is what the graph did downstream anyway, so stereo
     material is untouched and the filter upstream still runs mono for a mono clip.

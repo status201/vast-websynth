@@ -264,8 +264,8 @@ the `ui-icon` class to be stroked at all outside a header button.
   `collapse-toggle.ts` all import it). It is a frozen string map with no
   behaviour, the same shape as `wave-icons.ts`, so it costs parse time and
   nothing else ([runtime-performance](runtime-performance.md) REQ-1).
-- **Ordering constraint (met):** `Modal.glyphClass` and `modal.module.css`
-  `.glyph` were removed together with the last symbol keycap, not before — they
+- **Ordering constraint (met):** the removed `Modal.glyphClass` and
+  `modal.module.css` `.glyph` went together with the last symbol keycap, not before — they
   were the superseded mechanism, and leaving them behind would have invited a
   future glyph to opt back into the broken path. A drawn-glyph cap is `.iconCap`.
 

@@ -39,7 +39,7 @@ were wrong with it, and they compound:
 2. **It told you nothing.** No elapsed time, no way to tell a running capture from
    a button someone left highlighted. The one affordance that says "this is
    recording" in every other tool — a red dot and a clock — was absent.
-3. **It wrote the file whether you wanted it or not.** `toggleManual` encoded and
+3. **It wrote the file whether you wanted it or not.** The removed `toggleManual` encoded and
    downloaded the moment you stopped, so a fluffed take was already in the
    downloads folder. There was no pause either: a phone call meant one long take
    with a hole in it, or starting over.

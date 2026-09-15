@@ -3,7 +3,8 @@
 ```yaml
 id: architecture
 status: implemented
-version: 9   # v9: the smoothing vocabulary is four constants and `rampTo` —
+version: 10  # v10: typecheck also refuses unused locals and parameters
+             # v9: the smoothing vocabulary is four constants and `rampTo` —
              #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
              # v8: the audio graph gains a per-lane EQ at the HEAD of all
              #     three insert chains (equalizer.md); +1 persistence key
@@ -71,7 +72,7 @@ means a UI control and its audio effect can be reasoned about independently.
 ## Tech stack
 
 ```yaml
-language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess
+language: TypeScript            # ^7.0.2, strict + noUncheckedIndexedAccess + noUnused{Locals,Parameters}
 build:      Vite                # ^8.2.2   (vite build) + tsc --noEmit
 unit_tests: Vitest              # ^4.1.11  (jsdom env)
 e2e_tests:  "@playwright/test"  # ^1.62.1  (headless Chromium)
@@ -620,7 +621,9 @@ into the committed demos and share links.)
   production). Use it for E2E
   state assertions, e.g. `window.__synth.bus.get('filter.cutoff')`.
 - **TypeScript is strict** with `noUncheckedIndexedAccess` — expect `arr[i]!`
-  assertions; match that style. Tests live **outside `src/`** so `tsc` ignores
+  assertions; match that style. `noUnusedLocals` and `noUnusedParameters` are on
+  too, so an unread local, import, private member or stored constructor parameter
+  fails typecheck; a parameter an interface forces on you is named `_x`. Tests live **outside `src/`** so `tsc` ignores
   them. So does this `specs/` folder.
 
 ## Key decisions (ADRs)

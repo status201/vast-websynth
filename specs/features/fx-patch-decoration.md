@@ -73,7 +73,7 @@ and to assistive tech.
     **top**, because a centred `meet` letterboxes on a short cell and the hero
     cable then visibly begins in mid-air instead of entering through the edge.
     The drawing sits in the **right** half of that viewBox and stops well above
-    its foot, so after `xMid` centring the plug hangs off-centre and clear of
+    its foot, so after `xMidYMin` centring the plug hangs off-centre and clear of
     the bay's bottom rim. Composition is therefore steered by where the content
     sits *inside* the viewBox — never by nudging the layer with a transform,
     which would push it out of the bay on a narrow cell.

@@ -109,7 +109,7 @@ so the Song panel can drive momentary controls without reaching into the machine
   construction (20 kHz on `djLow`, 20 Hz on `djHigh`) and never written again;
   the sweep is `detune`, in cents.
 
-  v6 left a defect behind that only Gecko exposes. `rampSide` cancelled both
+  v6 left a defect behind that only Gecko exposes. Its `rampSide` (since removed) cancelled both
   params and re-issued a 40 ms `exponentialRampToValueAtTime` on every write:
 
   ```ts

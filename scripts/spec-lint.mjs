@@ -21,11 +21,17 @@
 // Plus repo-structure checks (drift prevention):
 //   • every spec / ADR / template file is listed in the specs/README.md folder map
 //   • every ADR is listed in the specs/decisions/README.md index
+// Plus cross-reference checks — the prose that points INTO specs and code:
+//   • every `x.md REQ-n` / bare `x REQ-n` citation — in specs, the root docs AND
+//     code/test comments — finds REQ-n declared in x.md (`citationsIn`)
+//   • every backticked code name in specs and docs (`Class.member`, `someFn()`,
+//     `camelCase`) is an identifier the code still has (`staleNamesIn`)
 // `version` not being a positive integer is a warning, not a failure.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { citationsIn, staleNamesIn } from './lib/spec-xref.mjs';
 
 function git(args, cwd) {
   try {
@@ -227,6 +233,66 @@ function unpinnedScenarios(text) {
   return out;
 }
 
+// ---- Cross-reference checks ------------------------------------------------
+//
+// `[x](x.md) … REQ-n` inside a spec was the only citation checked, and it is the
+// minority form: code comments write `transport-position.md REQ-6` or bare
+// `arrangement REQ-4`, and so do many specs. Nothing held those, so a renumbered
+// or misremembered REQ rotted silently — a 2026-09 review found three specs
+// citing the arrangement spec's REQ 16 for the per-slot transpose, which is REQ-8.
+// The same review found specs naming symbols the code had renamed or deleted
+// (`demoMeta`, `clearPeakDataset`, `buildXyPadLauncher`). Both checks are pure
+// text over the checkout, so they stay zero-dep and CI needs no `npm install`.
+// The checks themselves live in scripts/lib/spec-xref.mjs, where
+// tests/scripts/spec-xref.test.ts can prove they fail; this file only finds the
+// text to feed them.
+
+/** Roots whose files count as "the code", for citations and for identifiers. */
+const CODE_ROOTS = ['src/', 'scripts/', 'public/', 'tests/', 'e2e/'];
+const CODE_FILE = /\.(?:ts|mts|js|mjs|cjs|json|css|html)$/;
+/** Root config files whose keys a doc may legitimately name (`noUnusedLocals`). */
+const ROOT_CODE = ['tsconfig.json', 'package.json', 'vite.config.ts', 'playwright.config.ts', 'pw-chrome.config.ts', 'index.html'];
+/** Markdown outside specs/ that cites specs and names code. */
+const ROOT_DOCS = ['CLAUDE.md', 'AGENTS.md', 'DEPLOYMENT.md', 'README.md', 'src/ui/CLAUDE.md', 'e2e/CLAUDE.md'];
+/**
+ * Code whose citations are not claims: vendored and JSON files (their identifiers
+ * still count), and this lint's own test, whose fixtures are wrong citations on
+ * purpose.
+ */
+const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-xref\.test\.ts$/;
+
+/** Demo songs are 4 MB of note data: no identifier a doc could name, and no comments. */
+const NOT_CODE = /^src\/state\/demos\//;
+
+let _codeFiles = null;
+function codeFiles() {
+  if (_codeFiles) return _codeFiles;
+  _codeFiles = repoFiles().filter((f) => !NOT_CODE.test(f)
+    && ((CODE_ROOTS.some((r) => f.startsWith(r)) && CODE_FILE.test(f)) || ROOT_CODE.includes(f)));
+  return _codeFiles;
+}
+
+/** Each file is read once, though both cross-reference passes want it. */
+const _texts = new Map();
+function textOf(f) {
+  let t = _texts.get(f);
+  if (t === undefined) { t = readFileSync(path.join(ROOT, f), 'utf8'); _texts.set(f, t); }
+  return t;
+}
+
+let _identifiers = null;
+/** Every identifier-shaped word in the code — a Set, so a lookup is O(1). */
+function codeIdentifiers() {
+  if (_identifiers) return _identifiers;
+  _identifiers = new Set();
+  for (const f of codeFiles()) {
+    for (const w of textOf(f).split(/[^A-Za-z0-9_$]+/)) {
+      if (w) _identifiers.add(w);
+    }
+  }
+  return _identifiers;
+}
+
 function lint(failExit) {
   const errors = [];
   const warnings = [];
@@ -339,6 +405,27 @@ function lint(failExit) {
     });
   }
 
+  // Cross-references (see `citationsIn` / `staleNamesIn`). Citations are checked
+  // wherever they are written — a code comment's `transport.md REQ-7` is as much
+  // a claim as a spec's. Code names are checked in specs and docs only, and not
+  // in ADRs: a decision record names the alternatives it rejected, which by
+  // design never existed.
+  const knownMd = new Set(repoFiles().filter((f) => f.endsWith('.md')).map((f) => path.posix.basename(f)));
+  const rootDocs = ROOT_DOCS.filter((f) => existsSync(path.join(ROOT, f)));
+  const citing = [
+    ...specs.map(rel),
+    ...rootDocs,
+    ...codeFiles().filter((f) => !NOT_OURS.test(f)),
+  ];
+  for (const f of citing) {
+    const text = textOf(f);
+    for (const msg of citationsIn(text, reqsById, knownMd, f.startsWith('specs/'))) errors.push(`${f}: ${msg}`);
+  }
+  const ids = codeIdentifiers();
+  for (const f of [...specs.map(rel).filter((f) => !f.includes('/decisions/')), ...rootDocs]) {
+    for (const msg of staleNamesIn(textOf(f), ids)) errors.push(`${f}: ${msg}`);
+  }
+
   // Structure: the hand-maintained enumerations must stay complete — this catches
   // the exact drift the lint exists to prevent (a new spec/ADR never indexed).
   const map = folderMapBlock(existsSync(path.join(SPECS, 'README.md'))
@@ -371,7 +458,7 @@ function lint(failExit) {
   if (errors.length) {
     process.stderr.write(`spec-lint FAILED: ${errors.length} error(s):\n` +
       errors.map((e) => `  ✗ ${e}`).join('\n') +
-      `\nFix the spec(s) above, or update the README folder map / decisions index.\n`);
+      `\nFix the spec, doc or comment above, or update the README folder map / decisions index.\n`);
     process.exit(failExit);
   }
   process.stdout.write(`spec-lint: ${specs.length} specs OK.\n`);

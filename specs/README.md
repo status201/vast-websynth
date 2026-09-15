@@ -203,7 +203,18 @@ spec-free.
 > matching the filename, a valid `status`, that `# pinned by:` **and** `source:`
 > paths resolve, that `REQ-n` ids are unique and ascending, that a cross-spec
 > `[x](x.md) … REQ-n` finds that REQ in `x.md`, and that every spec/ADR is listed
-> in this folder map **and** the `decisions/` index. Two things are warnings
+> in this folder map **and** the `decisions/` index. It also checks the prose that
+> points *into* specs and code, wherever it is written: every `x.md REQ-n` or bare
+> `x REQ-n` citation — in a spec, a root doc **or a code/test comment** — must find
+> REQ-n in `x.md` (a lettered part such as `REQ-23a` counts when `REQ-23` exists),
+> and every backticked code name in a spec or doc (`Class.member`, `someFn()`,
+> `camelCase`) must still be an identifier in the code. A line about the past
+> ("was", "removed", "renamed", "v6's"), an `## Open questions` section, a name the
+> document defines as a key in its own fenced block, and ADRs (which name the
+> alternatives they rejected) are exempt; so is a short, commented list of platform
+> names the code deliberately avoids. Those checks live in
+> `scripts/lib/spec-xref.mjs`, and `tests/scripts/spec-xref.test.ts` shows they fail
+> on real drift. Two things are warnings
 > rather than errors: a *gap* in the REQ sequence (a reserved range is plausible,
 > a scrambled list is not), and a `Scenario:` that carries no trailing `#` note
 > at all — neither a `# pinned by:` nor an explicit reason there is none. A spec
