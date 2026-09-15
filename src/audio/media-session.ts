@@ -27,10 +27,38 @@ import { createSilentLoop } from './silent-loop';
 export interface MediaSessionHandlers {
   /** Notification "play": resume the context and start the transport. */
   play(): void;
-  /** Notification "pause": panic — stop the transport, silence every voice. */
+  /** Notification "pause": pause the transport, so play continues from there. */
   pause(): void;
-  /** Notification "stop": same as pause. */
+  /** Notification "stop": panic — stop the transport, silence every voice. */
   stop(): void;
+}
+
+/** The synth's transport as the OS controls see it — structural, so this file
+ *  needs neither the `Clock` nor the `Engine`. */
+export interface MediaTransport {
+  /** Resume the AudioContext (it may have been suspended in the background). */
+  resume(): void | Promise<void>;
+  /** `Clock.start()` — from the cue, which after a pause is the resume point. */
+  start(): void;
+  /** `Clock.pause()` (transport.md REQ-12). */
+  pause(): void;
+  /** `Engine.panic()` — stop and silence every voice. */
+  panic(): void;
+}
+
+/**
+ * The OS button → transport mapping (media-session.md REQ-4). Pause is the real
+ * Pause, not a panic: a lock-screen pause and play continue the song from where
+ * it stopped, like the TRANSPORT row's Play/Pause. Play needs nothing special —
+ * a plain start begins at the cue, and a pause sets the cue. Stop still panics,
+ * so the two buttons keep two meanings. Pure, so it is tested without an Engine.
+ */
+export function transportMediaHandlers(t: MediaTransport): MediaSessionHandlers {
+  return {
+    play: () => { void t.resume(); t.start(); },
+    pause: () => t.pause(),
+    stop: () => t.panic(),
+  };
 }
 
 /** On-device diagnostics, surfaced by the Debug panel (see `debug-panel.md`). */

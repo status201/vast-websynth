@@ -82,6 +82,17 @@
   border-bottom-color: var(--accent);
 }
 
+/* Selected, but folded out of sight (section-title.md REQ-7): the same yellow
+   burning low — no glow, underline dimmed with it — the way the heading beside it
+   dims (REQ-6). A dim YELLOW, never the heading's --text-dim, so it still reads
+   as a tab. Child combinators so only the folded row's own tabs dim, and nothing
+   here touches .led: the lamp reports the machine, not the view. */
+.root:global(.collapsed) > .bar > .tab:global(.active) {
+  color: var(--accent-secondary-dim);
+  text-shadow: none;
+  border-bottom-color: rgba(232, 116, 46, 0.4);
+}
+
 .body {
   flex: 1;
   position: relative;

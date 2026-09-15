@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MediaSessionKeepAlive } from '../../src/audio/media-session';
+import { MediaSessionKeepAlive, transportMediaHandlers } from '../../src/audio/media-session';
 
 /**
  * The Android keep-alive (media-session.md). `active` is `isAndroid()` plus the
@@ -169,5 +169,35 @@ describe('MediaSessionKeepAlive', () => {
     expect(() => keepAlive.unlock()).not.toThrow();
     expect(ms.metadata).toBeNull();       // no metadata…
     expect(keepAlive.diagnostics.handlers).toBe(3); // …but the session still forms
+  });
+});
+
+// REQ-4 (v2) — the OS buttons drive the transport the way the TRANSPORT row does:
+// pause is the real Pause, play continues from it, and only stop panics.
+describe('transportMediaHandlers', () => {
+  function transport() {
+    return { resume: vi.fn(() => Promise.resolve()), start: vi.fn(), pause: vi.fn(), panic: vi.fn() };
+  }
+
+  it('pause pauses the transport — it does not panic', () => {
+    const t = transport();
+    transportMediaHandlers(t).pause();
+    expect(t.pause).toHaveBeenCalledTimes(1);
+    expect(t.panic).not.toHaveBeenCalled();
+  });
+
+  it('play resumes the context, then starts the transport from its cue', () => {
+    const t = transport();
+    transportMediaHandlers(t).play();
+    expect(t.resume).toHaveBeenCalledTimes(1);
+    expect(t.start).toHaveBeenCalledTimes(1);
+    expect(t.resume.mock.invocationCallOrder[0]!).toBeLessThan(t.start.mock.invocationCallOrder[0]!);
+  });
+
+  it('stop still panics, so the two buttons keep two meanings', () => {
+    const t = transport();
+    transportMediaHandlers(t).stop();
+    expect(t.panic).toHaveBeenCalledTimes(1);
+    expect(t.pause).not.toHaveBeenCalled();
   });
 });

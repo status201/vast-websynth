@@ -15,6 +15,10 @@
   --accent-glow: rgba(232, 116, 46, 0.5);
   --accent-secondary: #f4cd5e;
   --accent-secondary-glow: rgba(244, 205, 94, 0.45);
+  /* The active yellow burning low: a tab that is selected but folded out of
+     sight (section-title.md REQ-7). Kept a yellow so it still reads as a tab,
+     never the headings' --text-dim. */
+  --accent-secondary-dim: #9f853d;
   --accent-good: #6fb86a;
   --accent-good-glow: rgba(111, 184, 106, 0.42);
   --accent-bad: #e0403a;

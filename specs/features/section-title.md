@@ -3,14 +3,17 @@
 ```yaml
 id: section-title
 status: implemented
-version: 3   # v3: the tabs' smaller type starts at 1030px, not 992px, so the MACHINES icon
+version: 4   # v4: a folded section's selected tab dims too — the same yellow burning
+             #     low, never the heading's --text-dim; its LED is untouched (REQ-7)
+             # v3: the tabs' smaller type starts at 1030px, not 992px, so the MACHINES icon
              #     cannot push a tab label onto a second line (REQ-5)
              # v2: FX and MACHINES get new glyphs (the pedal and step grid did not
              #     read at 14px), and a heading dims while its section is folded (REQ-6)
 owner: ui
 related:
   - equalizer        # REQ-9 — the first titled TabContainer
-  - machine-status   # the pattern row's tab LEDs, beside which MACHINES now sits
+  - machine-status   # the pattern row's tab LEDs, beside which MACHINES now sits;
+                     # REQ-7 leaves them exactly as they are
   - iconography      # the three glyphs live in UI_ICONS
   - typography       # the heading is display type (REQ-1 there)
   - ../decisions/adr-014-dont-make-me-think
@@ -22,6 +25,8 @@ source:
   - src/ui/app.ts                      # FX bar + the MACHINES row
   - src/ui/panels/eq-panel.ts          # the EQUALIZER row
   - src/ui/styles/layout.module.css    # .fxSectionBar's padding
+  - src/ui/styles/tabs.module.css      # REQ-7: the folded row's selected tab
+  - src/styles/theme.css               # REQ-7: --accent-secondary-dim
 ```
 
 One heading look for the three full-width sections that fold: **FX**,
@@ -151,6 +156,29 @@ yellow heading reads as a control that does nothing when clicked
   - There is no transition: a fold is a one-off state change, and the tab colours
     beside it don't animate either.
 
+- **REQ-7** (v4) — **A folded section's selected tab dims as well.** Folding
+  dimmed the heading (REQ-6) but left the selected tab in the bright yellow, glow
+  and underline that mean *this page is on screen* — a promise a folded row
+  cannot keep. The tab is still selected (unfolding shows that page, and a tab
+  click unfolds straight to it), so it keeps the selected *hue* and loses only the
+  brightness:
+  - **text** `--accent-secondary-dim` — the active yellow burning low — with **no
+    glow**, and the **underline** dimmed to match;
+  - **not `--text-dim`**: that is the heading's dim, and REQ-6 keeps it out of
+    every tab state, because colour is all that tells an icon-less tab from a
+    heading. A dim *yellow* is still unmistakably a tab, and still brighter than
+    its unselected siblings in `--text-faint`, so "selected, but hidden" reads at
+    a glance;
+  - it is the vocabulary the tab **LEDs** already speak: their half-lit state is
+    the same red burning low ([machine-status](machine-status.md) REQ-2). Those
+    LEDs are **untouched** by a fold — no rule reaches `.led` — because they
+    report the machine, not the view, and a folded row is exactly where that
+    report is still wanted;
+  - the rule is `.root:global(.collapsed) > .bar > .tab:global(.active)`: child
+    combinators, for the reason REQ-6 gives, so only the folded row's own tabs
+    dim;
+  - no transition, as REQ-6.
+
 ## Technical design
 
 ### Contract / public interface
@@ -219,6 +247,16 @@ Scenario: A folded section's heading dims, and brightens when opened (REQ-6)
   When the section is unfolded
   Then its heading's colour is --text
   And the FX heading follows its own fold the same way
+# pinned by: tests/ui/section-title.test.ts, e2e/equalizer.spec.ts
+
+Scenario: A folded section's selected tab dims, its LED does not (v4, REQ-7)
+  Given the pattern row is open with a machine tab selected
+  When the row is folded
+  Then that tab's text is --accent-secondary-dim, with no glow
+  And no tab rule uses the heading's --text-dim
+  And every tab LED keeps the colour it had before the fold
+  When the row is unfolded
+  Then the tab is --accent-secondary again
 # pinned by: tests/ui/section-title.test.ts, e2e/equalizer.spec.ts
 
 Scenario: No machine tab wraps its label just above the 992px step (v3, REQ-5)

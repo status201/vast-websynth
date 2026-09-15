@@ -32,7 +32,7 @@ import { PatternStore, DRUM_TRACK_COUNT, SEQ_TRACK_COUNT, MOTION_TRACK_COUNT, SA
 import { barTicks } from '../state/meter';
 import { XyPadStore } from '../state/xy-pad';
 import { IosAudioSession, shouldResumeContext, type IosAudioDiagnostics } from './ios-audio-session';
-import { MediaSessionKeepAlive, type MediaSessionDiagnostics } from './media-session';
+import { MediaSessionKeepAlive, transportMediaHandlers, type MediaSessionDiagnostics } from './media-session';
 import { BackgroundAudioWatchdog, type WatchdogDiagnostics } from './background-watchdog';
 import { delay, withTimeout } from '../utils/async';
 
@@ -284,12 +284,14 @@ export class Engine {
     this.iosSession = new IosAudioSession(this.ctx);
     // The OS's transport controls. The closures reach `this.clock`, which is
     // built at the end of this constructor — they only ever run from a
-    // notification tap, long after (media-session.md REQ-4).
-    this.media = new MediaSessionKeepAlive({
-      play: () => { void this.resume(); this.clock.start(); },
-      pause: () => this.panic(),
-      stop: () => this.panic(),
-    });
+    // notification tap, long after. Pause is the real Pause; only stop panics
+    // (media-session.md REQ-4).
+    this.media = new MediaSessionKeepAlive(transportMediaHandlers({
+      resume: () => this.resume(),
+      start: () => this.clock.start(),
+      pause: () => this.clock.pause(),
+      panic: () => this.panic(),
+    }));
 
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;

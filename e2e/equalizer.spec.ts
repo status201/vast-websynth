@@ -461,6 +461,59 @@ test.describe('section headings', () => {
     expect((await read('eq-section')).heading, 'the equalizer stays open').toBe(fxOpen.text);
   });
 
+  // section-title.md REQ-7 — selected but folded: the yellow burns low, the LEDs don't move.
+  test("a folded row's selected tab dims to the dim yellow and its LEDs stay as they are (REQ-7)", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await gotoAndStart(page);
+    const row = page.getByTestId('pattern-row');
+    await expect(row).not.toHaveClass(/collapsed/); // the pattern row ships open above the compact width
+
+    const read = () => page.evaluate(() => {
+      const resolve = (v: string): string => {
+        const probe = document.createElement('span');
+        probe.style.color = `var(${v})`;
+        document.body.appendChild(probe);
+        const c = getComputedStyle(probe).color;
+        probe.remove();
+        return c;
+      };
+      const bar = document.querySelector('[data-testid="pattern-row"]')!.firstElementChild!;
+      const active = bar.querySelector<HTMLElement>('button.active')!;
+      const leds = [...bar.querySelectorAll<HTMLElement>('button[data-testid^="tab-"] > span:first-child:not(:only-child)')]
+        .map((l) => { const s = getComputedStyle(l); return `${s.backgroundColor}|${s.boxShadow}`; });
+      return {
+        tab: getComputedStyle(active).color,
+        glow: getComputedStyle(active).textShadow,
+        leds,
+        bright: resolve('--accent-secondary'),
+        dim: resolve('--accent-secondary-dim'),
+        headingDim: resolve('--text-dim'),
+      };
+    });
+
+    const open = await read();
+    expect(open.leds.length, 'the machine tabs carry LEDs').toBeGreaterThan(0);
+    expect(open.tab).toBe(open.bright);
+    expect(open.dim, 'the tab dim is not the heading dim').not.toBe(open.headingDim);
+
+    // A raw mouse click at the heading, as the fold test below explains: the
+    // heading is pointer-events:none, and the click falls through to the bar.
+    const foldRow = async (): Promise<void> => {
+      const box = (await row.locator('> div').first().locator('> span').first().boundingBox())!;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    };
+    await foldRow();
+    await expect(row).toHaveClass(/collapsed/);
+    const folded = await read();
+    expect(folded.tab).toBe(open.dim);
+    expect(folded.glow).toBe('none');
+    expect(folded.leds, 'a fold never touches a lamp').toEqual(open.leds);
+
+    await foldRow();
+    await expect(row).not.toHaveClass(/collapsed/);
+    expect((await read()).tab).toBe(open.bright);
+  });
+
   test('a click on a heading still folds its section', async ({ page }) => {
     await gotoAndStart(page);
     const section = page.getByTestId('eq-section');

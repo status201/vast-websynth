@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The phone's Pause button pauses the song.** On Android, the Pause button in
+  the notification and on the lock screen used to stop everything, so pressing
+  Play again started from the top. It now pauses the way the TRANSPORT row's
+  Pause does, and Play carries on from exactly where you paused. Stop still stops.
+- **A folded section's selected tab dims.** When you fold the MACHINES or
+  EQUALIZER row, the selected tab now fades to a darker yellow, as the section's
+  heading fades, instead of staying bright as if its page were on screen. The
+  lamps in the tabs don't change, because they still show which machines are on.
+
 ## [2.13.0] - 2026-09-15
 
 ### Added

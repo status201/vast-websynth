@@ -3,7 +3,8 @@
 ```yaml
 id: media-session
 status: implemented
-version: 1
+version: 2   # v2: the notification's pause is the transport's real Pause — play
+             #     resumes where it paused; only stop panics (REQ-4)
 owner: core
 related:
   - audio-lifecycle
@@ -75,11 +76,22 @@ never touches `ParamBus`, presets or songs.
   missing notification must never cost the synth its audio.
 - **REQ-4** — **The notification's controls work.** `setActionHandler` is
   registered for `play`, `pause` and `stop`: **play** resumes the context and
-  starts the transport, **pause** and **stop** both panic (stop the transport and
-  silence every voice — [`architecture`](../architecture.md) `Engine.panic`). A
-  handler that the browser refuses is skipped without failing the others. Not
-  registering `pause` would leave Android pausing our own keep-alive element,
-  which is the one thing that must not happen.
+  starts the transport, **pause** pauses it, and **stop** panics (stop the
+  transport and silence every voice — [`architecture`](../architecture.md)
+  `Engine.panic`). A handler that the browser refuses is skipped without failing
+  the others. Not registering `pause` would leave Android pausing our own
+  keep-alive element, which is the one thing that must not happen.
+  (v2) **Pause is the transport's real Pause** ([transport](transport.md)
+  REQ-12), not a panic. Until the song transport had a Pause, panic was the
+  nearest thing; now a lock-screen pause and play continue the song from where it
+  stopped, exactly like the TRANSPORT row's Play/Pause
+  ([transport-window](transport-window.md) REQ-13). Play needed no change: a plain
+  `clock.start()` already begins at the cue, which after a pause *is* the resume
+  point. Stop keeps panicking, so the two buttons still mean two different things.
+  A pause with the transport already stopped changes nothing audible — there is
+  no run to pause, and a held key played by hand is the player's to release. The
+  mapping lives in `transportMediaHandlers`, a pure function beside the class, so
+  it is tested without constructing an `Engine`.
 - **REQ-5** — **`playbackState` mirrors the audio session, not the transport.**
   It is set to `'playing'` at unlock and stays there while the transport is
   stopped, because this is an *instrument*: the keyboard makes sound with the
@@ -124,6 +136,11 @@ createSilentLoop(ctx?: AudioContext): { el: HTMLAudioElement; src: MediaElementA
 
 # src/audio/media-session.ts
 MediaSessionDiagnostics: { active, status, playbackState, handlers, paused, currentTime }
+MediaTransport: { resume(): void | Promise<void>; start(): void; pause(): void; panic(): void }
+transportMediaHandlers(t: MediaTransport): MediaSessionHandlers   # v2 (REQ-4)
+  # play  -> void t.resume(); t.start()   (start = from the cue = the resume point)
+  # pause -> t.pause()                    (Clock.pause, transport.md REQ-12)
+  # stop  -> t.panic()
 class MediaSessionKeepAlive:
   constructor(handlers: { play(): void; pause(): void; stop(): void })
   active: boolean                          # isAndroid() && !!navigator.mediaSession
@@ -141,8 +158,8 @@ StudioApi.mediaSession: MediaSessionDiagnostics
 ### Layer touchpoints & ordering
 
 ```yaml
-engine ctor:    this.media = new MediaSessionKeepAlive({ play, pause, stop })
-                # handlers close over this.clock/resume/panic — called long after construction
+engine ctor:    this.media = new MediaSessionKeepAlive(transportMediaHandlers({...}))
+                # the transport closes over this.clock/resume/panic — called long after construction
 engine.resume(): iosSession.unlock(); media.unlock()   # both in-gesture, both no-ops off their OS
 engine.installContextRearm(): on foreground → media.rearm() alongside the context resume
 ui (about.ts):  one row reading engine.mediaSession (panel owned by debug-panel.md)
@@ -167,12 +184,15 @@ Scenario: The session forms on Android at the start gesture
    And playbackState is 'playing'
 # pinned by: tests/audio/media-session.test.ts
 
-Scenario: The notification's pause silences the synth (REQ-4/REQ-5)
-  Given the session is active
+Scenario: The notification's pause pauses the transport (v2, REQ-4/REQ-5)
+  Given the session is active and the transport is playing
   When the OS invokes the 'pause' action
-  Then the transport stops and every voice is silenced
+  Then the transport pauses — it does not panic
    And playbackState becomes 'paused'
    And the keep-alive element keeps playing (the session survives)
+  When the OS then invokes 'play'
+  Then the context is resumed and the transport starts from where it paused
+  And 'stop' still panics
 # pinned by: tests/audio/media-session.test.ts
 
 Scenario: A stopped transport is still a playing session (REQ-5, edge)

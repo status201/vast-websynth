@@ -83,6 +83,22 @@ describe('the heading look (REQ-2)', () => {
     expect(tabsCss).not.toMatch(/(^|[\s;{])color:\s*var\(--text-dim\)/m);
   });
 
+  // REQ-7 (v4) — the folded row's selected tab burns low, in its own hue.
+  it("dims a folded row's selected tab to the dim yellow, and leaves the LEDs alone (REQ-7)", () => {
+    const folded = '.root:global(.collapsed) > .bar > .tab:global(.active)';
+    expect(cssDecl(tabsCss, folded, 'color')).toBe('var(--accent-secondary-dim)');
+    expect(cssDecl(tabsCss, folded, 'text-shadow')).toBe('none');
+    expect(cssDecl(tabsCss, folded, 'border-bottom-color')).not.toBeNull();
+    // Open, it is still the bright yellow.
+    expect(cssDecl(tabsCss, '.tab:global(.active)', 'color')).toBe('var(--accent-secondary)');
+    // No fold rule reaches the lamp: it reports the machine, not the view.
+    expect(tabsCss).not.toMatch(/collapsed[^{]*\.led/);
+    // The token exists, and is a colour of its own rather than an alias of the heading's dim.
+    const theme = readSource('src/styles/theme.css');
+    expect(theme).toMatch(/--accent-secondary-dim:\s*#[0-9a-f]{6};/i);
+    expect(theme).not.toMatch(/--accent-secondary-dim:\s*var\(--text-dim\)/);
+  });
+
   it('is the only heading rule — no bar keeps a title of its own', () => {
     // A leftover per-bar title rule is how the three drifted apart before.
     expect(cssDecl(tabsCss, '.title', 'color')).toBeNull();
