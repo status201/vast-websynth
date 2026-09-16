@@ -345,6 +345,54 @@ export interface ScopeOptions {
 /** Target redraw rate when none is given, and the fallback for a nonsense one. */
 const DEFAULT_FPS = 60;
 
+/**
+ * Liveness (v16, REQ-32..38). v12 made `start()` restartable; it did not make
+ * anything *call* it. Every trigger was an event, and each one bought exactly one
+ * `requestAnimationFrame` — so a renderer that dropped that single callback ended the
+ * panel for the life of the page. These four numbers are the whole supervision.
+ */
+
+/** How often the watchdog looks. Low-frequency, and it returns at once while hidden. */
+export const SCOPE_WATCHDOG_MS = 1000;
+
+/** No rAF callback for this long (visible) means the frame chain is dead. (REQ-33) */
+export const SCOPE_STALL_MS = 1200;
+
+/**
+ * Frames arriving but no paint landing for this long means the layout box is gone,
+ * not the loop. Must clear the weak tier's 15 fps draw interval (67 ms) with room.
+ */
+export const SCOPE_PAINT_STALL_MS = 1500;
+
+/** A `contextrestored` that has not arrived by now is not going to. (REQ-34) */
+export const CONTEXT_RESTORE_MS = 3000;
+
+/**
+ * Minimum gap between two canvas rebuilds. A machine whose GPU process is really
+ * gone answers `isContextLost()` truthfully every time, and without this the ~1 Hz
+ * watchdog would mint a fresh canvas and a fresh bitmap every second for as long as
+ * the page lived — turning a recovery into a leak. Recovery is still automatic when
+ * the GPU comes back; it is only the retry rate that is bounded. (REQ-35)
+ */
+export const REBUILD_MIN_GAP_MS = 5000;
+
+/** What the panel knows about its own liveness — the Debug panel's row. (REQ-38) */
+export interface ScopeHealth {
+  /** A frame arrived recently AND a paint landed recently. */
+  drawing: boolean;
+  frameAgeMs: number;
+  paintAgeMs: number;
+  /** False when `measure()` has never found a non-zero box — nothing to draw into. */
+  hasBox: boolean;
+  contextLost: boolean;
+  /** Times the watchdog or a control restarted a stalled loop. */
+  restarts: number;
+  /** Times the canvas element had to be replaced to escape a lost context. */
+  rebuilds: number;
+  /** Times `contextlost` fired. */
+  losses: number;
+}
+
 /** Min ms between drawn frames for a target fps; 0 = draw every frame. */
 function fpsToInterval(fps: number): number {
   // A non-finite or non-positive rate would give NaN/Infinity here — a loop that
@@ -367,7 +415,14 @@ interface Channel {
 }
 
 export class Scope {
-  readonly el: HTMLCanvasElement;
+  /**
+   * The canvas. Mutable because REQ-35 can replace the element underneath: a 2D
+   * context that is lost cannot be re-acquired — `getContext('2d')` hands back the
+   * same dead one — so a fresh element is the only escape. Callers still see a
+   * read-only `el`.
+   */
+  private canvas: HTMLCanvasElement;
+  get el(): HTMLCanvasElement { return this.canvas; }
   private mode: ScopeMode = 'wave';
   private channels: ScopeChannels = 'mono';
   private rafId = 0;
@@ -376,7 +431,32 @@ export class Scope {
   private frameInterval: number;
   /** rAF timestamp of the last drawn frame; throttles the loop to frameInterval. */
   private lastDrawTs = 0;
-  private readonly ctx: CanvasRenderingContext2D | null;
+  /**
+   * `performance.now()` at the top of the last rAF callback — before the fps
+   * throttle, so it tracks the frame *chain* and not the draw rate. The one thing
+   * `running` could never tell us: that flag latches true over a dead chain (REQ-32).
+   */
+  private lastFrameTs = 0;
+  /**
+   * `performance.now()` after the last `draw()` that returned without throwing.
+   * Proves `syncSize()` passed and nothing threw — NOT that pixels landed. Its job
+   * is to separate a dead chain from a live one drawing into no layout box.
+   */
+  private lastPaintTs = 0;
+  /**
+   * `performance.now()` when `contextlost` fired; **-1** = not waiting on a restore.
+   * Not 0: `performance.now()` is 0 at the document's first instant, and a sentinel
+   * a real reading can collide with is a bug that only shows up on a fast boot.
+   */
+  private lostAt = -1;
+  private restarts = 0;
+  private rebuilds = 0;
+  /** `performance.now()` of the last rebuild; -1 = never. Rate-limits the retry. */
+  private lastRebuildAt = -1;
+  private losses = 0;
+  /** The ~1 Hz supervisor. `window.setInterval` id; 0 = not running. (REQ-33) */
+  private watchdog = 0;
+  private ctx: CanvasRenderingContext2D | null;
   private readonly mono: Channel;
   private readonly left: Channel | null;
   private readonly right: Channel | null;
@@ -408,7 +488,8 @@ export class Scope {
   /** Last value mirrored to each dataset key — lets us skip redundant per-frame writes. */
   private readonly mirrored: {
     peak: string; peakL: string; peakR: string; waveGain: string; zones: string; cursorHz: string;
-  } = { peak: '', peakL: '', peakR: '', waveGain: '', zones: '', cursorHz: '' };
+    rebuilds: string;
+  } = { peak: '', peakL: '', peakR: '', waveGain: '', zones: '', cursorHz: '', rebuilds: '' };
   /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
   private lastTs = 0;
   /**
@@ -426,41 +507,75 @@ export class Scope {
 
   constructor(analysers: ScopeAnalysers, opts: ScopeOptions = {}) {
     this.frameInterval = fpsToInterval(opts.fps ?? DEFAULT_FPS);
-    this.el = document.createElement('canvas');
-    this.el.className = styles.root!;
-    this.el.dataset.testid = 'scope-canvas';
-    this.ctx = this.el.getContext('2d');
+    this.canvas = makeCanvas();
+    this.ctx = this.canvas.getContext('2d');
     this.mono = makeChannel(analysers.mono);
     this.left = analysers.left ? makeChannel(analysers.left) : null;
     this.right = analysers.right ? makeChannel(analysers.right) : null;
     // Pause the redraw loop while the tab is hidden — a backgrounded scope is
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
-    // Clicking the graph resets the Spectrum peak-hold. The listener is on the
-    // canvas itself; the Wave/Spectrum + Mono/Stereo buttons are siblings (not
-    // children) of it, so clicking a button never resets — "anywhere but the
-    // buttons" with no stopPropagation needed. (REQ-13)
-    this.el.addEventListener('click', this.onClick);
-    // A backgrounded tab can have its canvas backing store reclaimed. The
-    // browser only ever restores a lost 2D context if the page asks it to, so
-    // these two are the difference between "blank for a moment" and "blank for
-    // the life of the page" (REQ-24).
-    this.el.addEventListener('contextlost', this.onContextLost);
-    this.el.addEventListener('contextrestored', this.onContextRestored);
     // A bfcache restore can reach a visible page without a visibilitychange
     // (REQ-25) — and it is exactly the path that drops a queued frame.
     window.addEventListener('pageshow', this.onVisibility);
+    // Two more ways back in (REQ-37). A renderer that was frozen and resumed while
+    // already visible fires neither of the two above. `focus` is deliberately NOT
+    // capturing: it does not bubble, so a capturing listener would route every knob
+    // and button in the app through `ensureLive`.
+    window.addEventListener('focus', this.onEnsureLive);
+    // Page Lifecycle; absent from TS's DocumentEventMap and inert off Chromium.
+    document.addEventListener('resume' as 'visibilitychange', this.onEnsureLive);
     // Track the canvas's layout box so the rAF loop never reads clientWidth/Height
     // (a per-frame forced reflow). jsdom (unit tests) has no ResizeObserver — the
     // draw path measures itself in that case (see syncSize).
-    if (typeof ResizeObserver !== 'undefined') {
-      this.ro = new ResizeObserver(() => this.measure());
-      this.ro.observe(this.el);
+    if (typeof ResizeObserver !== 'undefined') this.ro = new ResizeObserver(() => this.measure());
+    this.attachCanvas();
+    // The supervisor (REQ-33). Everything above is an *event*, and v16 exists
+    // because every event in this component turned out to be one-shot.
+    if (typeof window !== 'undefined') {
+      this.watchdog = window.setInterval(this.onWatchdog, SCOPE_WATCHDOG_MS);
     }
     this.start();
   }
 
+  /**
+   * Every registration that belongs to the canvas *element*, in one place. The
+   * constructor, `destroy()` and `rebuildCanvas()` all go through this pair — a
+   * listener added in one of three places and forgotten in the others is the next
+   * bug of exactly this kind. (REQ-35)
+   */
+  private attachCanvas(): void {
+    // Clicking the graph resets the Spectrum peak-hold. The listener is on the
+    // canvas itself; the Wave/Spectrum + Mono/Stereo buttons are siblings (not
+    // children) of it, so clicking a button never resets — "anywhere but the
+    // buttons" with no stopPropagation needed. (REQ-13)
+    this.canvas.addEventListener('click', this.onClick);
+    // A backgrounded tab can have its canvas backing store reclaimed. The
+    // browser only ever restores a lost 2D context if the page asks it to, so
+    // these two are the difference between "blank for a moment" and "blank for
+    // the life of the page" (REQ-24).
+    this.canvas.addEventListener('contextlost', this.onContextLost);
+    this.canvas.addEventListener('contextrestored', this.onContextRestored);
+    this.ro?.observe(this.canvas);
+    // The hover pair is mode-scoped (REQ-31), so it only comes back in Spectrum.
+    // `detachCanvas` cleared `hoverBound` on the way out, which is why this can
+    // just ask for the binding it wants — the two are always called as a pair.
+    if (this.mode === 'spectrum') this.bindHover();
+  }
+
+  private detachCanvas(): void {
+    this.unbindHover();
+    this.ro?.unobserve(this.canvas);
+    this.canvas.removeEventListener('click', this.onClick);
+    this.canvas.removeEventListener('contextlost', this.onContextLost);
+    this.canvas.removeEventListener('contextrestored', this.onContextRestored);
+  }
+
   setMode(m: ScopeMode): void {
+    // Every control is a recovery path (REQ-37). Poking a button is what a user does
+    // to a dead panel, and until v16 it was the one thing that could not help: these
+    // setters write a field the loop was going to read. A no-op when healthy.
+    this.ensureLive();
     this.mode = m;
     // Leaving Spectrum must drop the held-peak readout; re-entering re-acquires it.
     this.clearDatasetMirror();
@@ -472,6 +587,7 @@ export class Scope {
 
   /** Show/hide the problem-band overlay. Spectrum-only, memory-only. (REQ-29) */
   setZones(on: boolean): void {
+    this.ensureLive();   // REQ-37
     this.zones = on;
     this.mirrorZones();
   }
@@ -481,6 +597,7 @@ export class Scope {
 
   /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
   resetPeak(): void {
+    this.ensureLive();   // REQ-37
     for (const c of [this.mono, this.left, this.right]) {
       if (!c) continue;
       c.peakDb = -Infinity;
@@ -491,6 +608,7 @@ export class Scope {
 
   /** Switch mono/stereo. Stereo needs both channel analysers; falls back to mono. */
   setChannels(c: ScopeChannels): void {
+    this.ensureLive();   // REQ-37
     this.channels = c === 'stereo' && this.left && this.right ? 'stereo' : 'mono';
     // The set of active peak keys (peak vs peakL/peakR) changes with the layout.
     this.clearDatasetMirror();
@@ -511,14 +629,22 @@ export class Scope {
 
   /**
    * Without `preventDefault()` here the browser never restores the context and
-   * the panel stays blank forever — the whole of REQ-24 is this one line.
+   * the panel stays blank forever — that one line is REQ-24. What v12 missed is
+   * that `stop()` was then the last thing that ever happened to this panel: a lost
+   * context restores *lazily*, so stopping is how you stop giving the browser any
+   * reason to restore one, and no control could undo it. `lostAt` bounds the wait
+   * (REQ-34) — note this path needs no backgrounding at all, since a GPU-process
+   * crash fires `contextlost` on a visible, foregrounded tab.
    */
   private readonly onContextLost = (e: Event): void => {
     e.preventDefault();
+    this.lostAt = performance.now();
+    this.losses++;
     this.stop();
   };
 
   private readonly onContextRestored = (): void => {
+    this.lostAt = -1;
     // The restored context comes back with a blank bitmap of unknown size and
     // no cached gradients; force `measure()` past its unchanged-size check.
     this.dropCaches();
@@ -529,6 +655,123 @@ export class Scope {
   };
 
   private readonly onClick = (): void => { this.resetPeak(); };
+
+  /** `window` focus and the Page Lifecycle `resume` — see the constructor. (REQ-37) */
+  private readonly onEnsureLive = (): void => { this.ensureLive(); };
+
+  /**
+   * Restart the loop if — and **only** if — it has actually stalled. The guard is
+   * the point: this runs from six controls, a window focus and a page resume, so on
+   * a healthy scope it must force no layout read and re-arm no frame. (REQ-37)
+   */
+  ensureLive(): void {
+    if (document.hidden) return;
+    if (this.contextDead()) { this.rebuildCanvas(); return; }
+    // Still inside the restore window we asked for: REQ-24 says stay stopped, and
+    // restarting would only spend frames on a context whose every method is a no-op.
+    if (this.lostAt >= 0) return;
+    if (this.running && performance.now() - this.lastFrameTs < SCOPE_STALL_MS) return;
+    this.restart();
+  }
+
+  /**
+   * Is the context provably gone? Both signals are free (REQ-36): the browser's own
+   * answer where it has one, and a `contextlost` we acknowledged that was never
+   * answered. Never a pixel read-back — that costs the panel its GPU acceleration to
+   * ask whether it has any, and a lost 2D context makes every method a silent no-op
+   * rather than throwing, so the fill such a probe reads back is the thing under test.
+   */
+  private contextDead(): boolean {
+    const ctx = this.ctx as (CanvasRenderingContext2D & { isContextLost?: () => boolean }) | null;
+    if (!ctx) return false;
+    if (ctx.isContextLost?.() === true) return true;
+    return this.lostAt >= 0 && performance.now() - this.lostAt > CONTEXT_RESTORE_MS;
+  }
+
+  /** Re-measure and re-arm, counting it — the one recovery both callers share. */
+  private restart(): void {
+    this.restarts++;
+    this.measure();
+    this.start();
+  }
+
+  /**
+   * The supervisor (REQ-33). Every *other* way back into this component is an event,
+   * and v16 exists because each of them buys exactly one frame — drop it and the
+   * panel is over. A timer does not have to guess which event the platform sends.
+   */
+  private readonly onWatchdog = (): void => {
+    // While hidden the loop is *meant* to be stopped (performance-mode REQ-6,
+    // runtime-performance REQ-9). First line, so a background tab pays nothing.
+    if (document.hidden) return;
+    if (this.contextDead()) { this.rebuildCanvas(); return; }
+    // Inside the restore window — REQ-24's pause is deliberate, and it is the only
+    // period in which a stopped loop on a visible page is correct.
+    if (this.lostAt >= 0) return;
+    const now = performance.now();
+    if (!this.running || now - this.lastFrameTs > SCOPE_STALL_MS) { this.restart(); return; }
+    // Frames are arriving but nothing is landing: `draw()` is early-returning on
+    // `syncSize()`, i.e. the layout box is gone — that is a measure, never a rebuild.
+    // A panel with genuinely no box has nothing to draw, and `health.hasBox` says so.
+    if (now - this.lastPaintTs > SCOPE_PAINT_STALL_MS) this.measure();
+  };
+
+  /**
+   * Escape a lost context the only way there is: a **new canvas element**.
+   * `getContext('2d')` on a canvas whose context is lost hands back that same dead
+   * context, and `canvas.width = canvas.width` resets the bitmap, not the context.
+   * (REQ-35)
+   */
+  private rebuildCanvas(): void {
+    // Rate-limited: see REBUILD_MIN_GAP_MS. A dead GPU never stops saying so.
+    const now = performance.now();
+    if (this.lastRebuildAt >= 0 && now - this.lastRebuildAt < REBUILD_MIN_GAP_MS) return;
+    const next = makeCanvas();
+    // Take the context FIRST. Never trade a live canvas for one we cannot draw into.
+    const ctx = next.getContext('2d');
+    if (!ctx) return;
+    this.detachCanvas();
+    const old = this.canvas;
+    this.canvas = next;
+    this.ctx = ctx;
+    // `replaceWith` on an unparented node is a silent no-op (the unit suite never
+    // mounts the canvas), so the field swap above stands on its own.
+    if (old.parentNode) old.replaceWith(next);
+    // A fresh element carries none of the attributes, but `mirrored` still holds the
+    // last values — and those are change-only writes (REQ-15), so without this the
+    // replacement would never expose a single readout again.
+    this.clearDatasetMirror();
+    this.dropCaches();
+    this.bitmapW = 0;
+    this.bitmapH = 0;
+    this.lostAt = -1;
+    this.lastRebuildAt = now;
+    this.rebuilds++;
+    this.attachCanvas();
+    this.mirrorRebuilds();
+    this.measure();
+    this.start();
+  }
+
+  /** What the panel knows about its own liveness — the Debug panel's row. (REQ-38) */
+  get health(): ScopeHealth {
+    // Plain subtraction, no "0 means never" sentinel: `start()` seeds both and the
+    // constructor always calls it, so an unseeded field would read as a huge age —
+    // which is the honest answer anyway, and one less special case at t = 0.
+    const now = performance.now();
+    const frameAgeMs = now - this.lastFrameTs;
+    const paintAgeMs = now - this.lastPaintTs;
+    return {
+      drawing: this.running && frameAgeMs < SCOPE_STALL_MS && paintAgeMs < SCOPE_PAINT_STALL_MS,
+      frameAgeMs,
+      paintAgeMs,
+      hasBox: this.cssW > 0 && this.cssH > 0,
+      contextLost: this.contextDead(),
+      restarts: this.restarts,
+      rebuilds: this.rebuilds,
+      losses: this.losses,
+    };
+  }
 
   /**
    * Hover cursor (REQ-31). `offsetX/offsetY` are already relative to the canvas's
@@ -546,15 +789,15 @@ export class Scope {
 
   private bindHover(): void {
     if (this.hoverBound) return;
-    this.el.addEventListener('pointermove', this.onPointerMove);
-    this.el.addEventListener('pointerleave', this.onPointerLeave);
+    this.canvas.addEventListener('pointermove', this.onPointerMove);
+    this.canvas.addEventListener('pointerleave', this.onPointerLeave);
     this.hoverBound = true;
   }
 
   private unbindHover(): void {
     if (!this.hoverBound) return;
-    this.el.removeEventListener('pointermove', this.onPointerMove);
-    this.el.removeEventListener('pointerleave', this.onPointerLeave);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
     this.hoverBound = false;
   }
 
@@ -579,18 +822,26 @@ export class Scope {
    * actual resize), never from the rAF loop. The cached CSS size + dpr feed `draw`.
    */
   private measure(): void {
-    const w = this.el.clientWidth;
-    const h = this.el.clientHeight;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
     if (w === 0 || h === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    const bw = Math.round(w * dpr);
+    const bh = Math.round(h * dpr);
+    // Nothing moved: keep the caches. This is what makes `measure()` cheap enough to
+    // call from a 1 Hz watchdog and from every window focus (REQ-33/37) — otherwise
+    // each call would throw away the gradients, the ruler and the bin edges and make
+    // the next frame rebuild all three. `onContextRestored` zeroes `bitmapW/H` first,
+    // so its forced path still gets through.
+    if (w === this.cssW && h === this.cssH && dpr === this.dpr
+        && bw === this.bitmapW && bh === this.bitmapH) return;
     this.dropCaches(); // region boxes moved — gradients, ruler and bin edges are stale
     this.cssW = w;
     this.cssH = h;
-    this.dpr = window.devicePixelRatio || 1;
-    const bw = Math.round(w * this.dpr);
-    const bh = Math.round(h * this.dpr);
+    this.dpr = dpr;
     if (bw !== this.bitmapW || bh !== this.bitmapH) {
-      this.el.width = bw;
-      this.el.height = bh;
+      this.canvas.width = bw;
+      this.canvas.height = bh;
       this.bitmapW = bw;
       this.bitmapH = bh;
     }
@@ -606,6 +857,7 @@ export class Scope {
   /** Change the target redraw rate live (e.g. a perf-mode tier switch). */
   setFps(fps: number): void {
     // `fpsToInterval` rejects a non-finite or non-positive rate for us.
+    this.ensureLive();   // REQ-37
     this.frameInterval = fpsToInterval(fps);
   }
 
@@ -615,6 +867,7 @@ export class Scope {
    * to it, so reallocate each channel's `wave`/`freq` to match the new size.
    */
   setFftSize(fftSize: number): void {
+    this.ensureLive();   // REQ-37
     for (const c of [this.mono, this.left, this.right]) {
       if (!c) continue;
       c.analyser.fftSize = fftSize;
@@ -670,10 +923,19 @@ export class Scope {
   private start(): void {
     cancelAnimationFrame(this.rafId);
     this.running = true;
+    // Arming counts as a liveness event, so a just-started loop is not "stalled"
+    // before its first frame has had a chance to arrive. If that frame never comes,
+    // SCOPE_STALL_MS later the watchdog says so — which is exactly the grace period
+    // we want, rather than a restart on every tick from construction onward.
+    this.lastFrameTs = performance.now();
+    this.lastPaintTs = this.lastFrameTs;
     // Throttle to frameInterval using the rAF timestamp, not a frame counter — a
     // counter would lock to the display's refresh rate (wrong on 120Hz panels).
     const loop = (now: number) => {
       if (!this.running) return;
+      // Before the throttle, so this tracks the frame CHAIN and not the draw rate —
+      // the watchdog's only evidence that the browser is still delivering (REQ-32).
+      this.lastFrameTs = performance.now();
       // Re-arm BEFORE drawing (REQ-23). A throw in draw() then still reaches the
       // console — an invisible error is how this shipped — but the next frame is
       // already queued, so one bad frame cannot end the loop.
@@ -681,6 +943,9 @@ export class Scope {
       if (now - this.lastDrawTs >= this.frameInterval) {
         this.lastDrawTs = now;
         this.draw();
+        // Only on the way out: a throw leaves this stale, which is exactly the
+        // signal we want. Not evidence of pixels — see REQ-32.
+        this.lastPaintTs = performance.now();
       }
     };
     this.rafId = requestAnimationFrame(loop);
@@ -692,6 +957,8 @@ export class Scope {
     // Forget the last frame time so the first frame after resuming has dt 0 — the
     // peak-hold must not decay across the (possibly long) paused-while-hidden gap.
     this.lastTs = 0;
+    // Same reasoning for the fps throttle: no timestamp survives a stop.
+    this.lastDrawTs = 0;
   }
 
   private draw(): void {
@@ -1026,8 +1293,8 @@ export class Scope {
     const v = Number.isFinite(peakDb) ? peakDb.toFixed(1) : '';
     if (this.mirrored[key] === v) return;
     this.mirrored[key] = v;
-    if (v) this.el.dataset[key] = v;
-    else delete this.el.dataset[key];
+    if (v) this.canvas.dataset[key] = v;
+    else delete this.canvas.dataset[key];
   }
 
   /**
@@ -1038,7 +1305,7 @@ export class Scope {
     const v = this.waveGain.toFixed(1);
     if (this.mirrored.waveGain === v) return;
     this.mirrored.waveGain = v;
-    this.el.dataset.waveGain = v;
+    this.canvas.dataset.waveGain = v;
   }
 
   /**
@@ -1048,8 +1315,20 @@ export class Scope {
   private clearDatasetMirror(): void {
     for (const key of ['peak', 'peakL', 'peakR', 'waveGain', 'zones', 'cursorHz'] as const) {
       this.mirrored[key] = '';
-      delete this.el.dataset[key];
+      delete this.canvas.dataset[key];
     }
+  }
+
+  /**
+   * How many times the canvas had to be replaced (REQ-38). Under the same
+   * change-only-write rule as the readouts above — which here means it is written
+   * essentially never, because a rebuild is a once-in-a-session event at worst.
+   */
+  private mirrorRebuilds(): void {
+    const v = String(this.rebuilds);
+    if (this.mirrored.rebuilds === v) return;
+    this.mirrored.rebuilds = v;
+    this.canvas.dataset.rebuilds = v;
   }
 
   /** Mirror the overlay state for E2E — Spectrum-only, so cleared in Wave. (REQ-29) */
@@ -1057,8 +1336,8 @@ export class Scope {
     const v = this.mode === 'spectrum' ? (this.zones ? 'on' : 'off') : '';
     if (this.mirrored.zones === v) return;
     this.mirrored.zones = v;
-    if (v) this.el.dataset.zones = v;
-    else delete this.el.dataset.zones;
+    if (v) this.canvas.dataset.zones = v;
+    else delete this.canvas.dataset.zones;
   }
 
   /**
@@ -1069,20 +1348,30 @@ export class Scope {
   private mirrorCursor(v: string): void {
     if (this.mirrored.cursorHz === v) return;
     this.mirrored.cursorHz = v;
-    if (v) this.el.dataset.cursorHz = v;
-    else delete this.el.dataset.cursorHz;
+    if (v) this.canvas.dataset.cursorHz = v;
+    else delete this.canvas.dataset.cursorHz;
   }
 
   destroy(): void {
     this.stop();
-    this.unbindHover();
+    // The supervisor outlives a stopped loop by design — it must not outlive the
+    // component (REQ-33).
+    if (this.watchdog) { clearInterval(this.watchdog); this.watchdog = 0; }
+    this.detachCanvas();
     this.ro?.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('pageshow', this.onVisibility);
-    this.el.removeEventListener('click', this.onClick);
-    this.el.removeEventListener('contextlost', this.onContextLost);
-    this.el.removeEventListener('contextrestored', this.onContextRestored);
+    window.removeEventListener('focus', this.onEnsureLive);
+    document.removeEventListener('resume' as 'visibilitychange', this.onEnsureLive);
   }
+}
+
+/** A blank scope canvas. Two callers: the constructor, and REQ-35's rebuild. */
+function makeCanvas(): HTMLCanvasElement {
+  const el = document.createElement('canvas');
+  el.className = styles.root!;
+  el.dataset.testid = 'scope-canvas';
+  return el;
 }
 
 function makeChannel(analyser: AnalyserNode): Channel {

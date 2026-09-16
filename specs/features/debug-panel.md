@@ -3,7 +3,10 @@
 ```yaml
 id: debug-panel
 status: implemented
-version: 12  # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
+version: 13  # v13: a Scope row (debug-scope) reports whether the visualizer is
+             #      actually painting — scope.md REQ-38, a REQ-4 extension, no
+             #      contract change.
+             # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
              #      "1 keys · 0.0 MB"), and the Unregister confirm says what it
              #      does — the caches stay (REQ-6)
              # v11: the ctx-state row also names the autoplay verdict — the one
@@ -129,8 +132,10 @@ instead of transcribing it from a phone screen.
   [`session-autosave`](session-autosave.md) (**Session autosave**, `debug-session`,
   from `SessionAutosave.stats()`), [`pwa-install`](pwa-install.md) (**Service
   worker**, `debug-sw`), [`midi-clock-sync`](midi-clock-sync.md) (**MIDI ports**,
-  `debug-midi`, via `setMidiStatsSource`) and the wake lock (**Wake lock**,
-  `debug-wake`, via `setWakeLockSource`).
+  `debug-midi`, via `setMidiStatsSource`), the wake lock (**Wake lock**,
+  `debug-wake`, via `setWakeLockSource`) and [`scope`](scope.md) (**Scope**,
+  `debug-scope`, via `setScopeStatsSource` — whether the visualizer is painting,
+  and how often it had to recover; scope.md REQ-38).
 - **REQ-5** — A row whose late-bound source is unbound reads **"n/a"** rather
   than blank or a crash, so the panel degrades cleanly in any boot order.
 
@@ -186,7 +191,8 @@ instead of transcribing it from a phone screen.
   (no cache-and-rewrite is needed — only the async SW row needs that):
   - *every tick (~500 ms)* — plain field reads: AudioContext state + the toggle
     label, sample rate, latency, transport, iOS, sampler clips (in-memory
-    bookkeeping), MIDI, wake lock, and the iOS unlock/silent-loop rows, whose
+    bookkeeping), MIDI, wake lock, **Scope** (timestamps and counters the component
+    already holds), and the iOS unlock/silent-loop rows, whose
     advancing `currentTime` is the reason the tick is this fast at all.
   - *~2 s* — everything that walks `localStorage` **synchronously** or is
     near-static: **Local storage** (`storageUsage()` reads *every* `websynth.*`
@@ -221,9 +227,11 @@ AboutDeps { startTour(): void }        # declared here; about-modal imports it t
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
+setScopeStatsSource(fn: () => ScopeHealth): void   # scope.md REQ-38; bound by app.ts
 clipStats(): { count: number; bytes: number } | undefined   # undefined = unbound -> "n/a"
 midiStats(): { inputs: number; outputs: number } | undefined
 wakeState(): { supported: boolean; held: boolean } | undefined
+scopeStats(): ScopeHealth | undefined              # ScopeHealth imported type-only
 
 # src/ui/components/about-modal.ts     — LAZY. buildModal + buildFactoryResetButton.
 buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }

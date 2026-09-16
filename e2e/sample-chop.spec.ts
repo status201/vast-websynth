@@ -32,11 +32,18 @@ async function openEditor(page: Page, slot: number, name = 'break.wav'): Promise
   await unfoldChop(page);
 }
 
-/** Reveal the chop row, whichever way the stored fold left it. */
+/**
+ * Reveal the chop row, whichever way the stored fold left it. Retried as a unit:
+ * reading the visibility and then clicking the toggle is check-then-act, and the
+ * editor is still settling on the second call — a click that lands on a row which
+ * has just opened folds it again, which failed this spec about twice in ten runs.
+ */
 async function unfoldChop(page: Page): Promise<void> {
   const row = page.getByTestId('chop-row');
-  if (!(await row.isVisible())) await page.getByTestId('chop-toggle').click();
-  await expect(row).toBeVisible();
+  await expect(async () => {
+    if (!(await row.isVisible())) await page.getByTestId('chop-toggle').click();
+    await expect(row).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
 }
 
 /**

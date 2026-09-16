@@ -260,6 +260,9 @@ describe('Scope.setChannels (defensive fallback)', () => {
     expect(mono.fftSize).toBe(512);
     expect(left.fftSize).toBe(512);
     expect(right.fftSize).toBe(512);
+
+    // The Scope now holds a watchdog interval; an undestroyed one outlives the test.
+    scope.destroy();
     scope.destroy();
   });
 

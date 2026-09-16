@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   heading fades, instead of staying bright as if its page were on screen. The
   lamps in the tabs don't change, because they still show which machines are on.
 
+### Fixed
+
+- **The scope comes back, whatever stopped it.** After the tab had been in the
+  background, the scope could freeze on its last frame and stay there — and
+  nothing brought it back: Wave/Spectrum, Mono/Stereo and Zones all did nothing,
+  because they only change what the redraw loop was going to draw next. The panel
+  now watches itself about once a second and restarts its own drawing if frames
+  have stopped arriving, so it recovers on its own within about a second without
+  you touching anything. It still pauses completely while the tab is hidden, the
+  way it always has. Three other ways back were added on top: every one of those
+  three buttons now revives a stopped scope, and so does clicking back into the
+  window. If the browser takes the panel's drawing surface away and never gives it
+  back — which used to leave it dead for good, and could happen with the tab in
+  front of you — the scope now replaces the surface itself after a few seconds.
+  The About window's Debug section has a new **Scope** row saying whether the
+  panel is drawing and how often it has had to recover, so a report of this can
+  come with numbers next time.
+
 ## [2.13.0] - 2026-09-15
 
 ### Added

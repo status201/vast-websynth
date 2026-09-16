@@ -10,6 +10,11 @@
 // The idiom is app.ts's live scope knobs: the owner of the state binds a reader,
 // and an unbound reader is `undefined`, which the panel renders as "n/a" — the
 // honest answer in a build where that subsystem never started.
+//
+// `ScopeHealth` is imported TYPE-ONLY, so this leaf still emits no import at
+// runtime and the boot path stays free of the UI layer.
+
+import type { ScopeHealth } from '../ui/components/scope';
 
 /**
  * Bound by `main.ts` to the `SampleAutosave` it owns (sample-persistence.md
@@ -32,6 +37,19 @@ export function setMidiStatsSource(fn: () => { inputs: number; outputs: number }
 }
 export function midiStats(): { inputs: number; outputs: number } | undefined {
   return midiSource?.();
+}
+
+/**
+ * Bound by `app.ts`, which owns the `Scope` (scope.md REQ-38). The one row that
+ * answers "is the panel actually painting?" — this symptom has been reported twice
+ * from devices with no console, and both times there was nothing to read.
+ */
+let scopeSource: (() => ScopeHealth) | null = null;
+export function setScopeStatsSource(fn: () => ScopeHealth): void {
+  scopeSource = fn;
+}
+export function scopeStats(): ScopeHealth | undefined {
+  return scopeSource?.();
 }
 
 /** Bound by `main.ts`, which owns the wake-lock manager. */

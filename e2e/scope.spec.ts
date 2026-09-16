@@ -216,6 +216,67 @@ test.describe('scope mono/stereo', () => {
       .poll(async () => await waveGain(page), { timeout: 2000 })
       .toBeGreaterThanOrEqual(1);
   });
+
+  // scope.md REQ-34/35 — the twin of the case above, and the hole v12 left: here
+  // the restore is deliberately NEVER given. `stop()` was the last thing that ever
+  // happened to the panel, and no control could undo it. Note there is no
+  // visibility change anywhere in this test: the tab is foregrounded throughout,
+  // which is exactly the GPU-process-crash shape.
+  test('a context that is never restored recovers on its own', async ({ page }) => {
+    await gotoAndStart(page);
+    const canvas = page.getByTestId('scope-canvas');
+
+    const prevented = await canvas.evaluate((el) =>
+      !el.dispatchEvent(new Event('contextlost', { cancelable: true })));
+    expect(prevented).toBe(true);
+    // ...and nothing answers it.
+
+    // Clear the dataset mirror the honest way, then watch a live frame put it back.
+    // Worst case is the restore window plus one watchdog period.
+    const mode = page.getByTestId('scope-toggle');
+    await mode.click();
+    await expect(mode).toHaveText('Spectrum');
+    await mode.click();
+    await expect(mode).toHaveText('Wave');
+    await expect
+      .poll(async () => await waveGain(page), { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(1);
+
+    // The escape was a replacement element, in the same slot, still laid out.
+    await expect(page.getByTestId('scope-canvas')).toHaveAttribute('data-rebuilds', '1');
+    const box = await page.getByTestId('scope-canvas').boundingBox();
+    expect(box!.width).toBeGreaterThan(0);
+    expect(box!.height).toBeGreaterThan(0);
+  });
+
+  // scope.md REQ-33 — the only case in the suite that backgrounds the page for
+  // real rather than dispatching a synthetic event at it.
+  test('the scope comes back from a real backgrounding', async ({ page, context }) => {
+    await gotoAndStart(page);
+
+    const mode = page.getByTestId('scope-toggle');
+    await expect(mode).toHaveText('Wave');
+    await expect.poll(async () => await waveGain(page), { timeout: 2000 }).not.toBeNull();
+
+    // A second page in the same context takes the foreground, which is a genuine
+    // visibilitychange for the first — then hand it back.
+    const other = await context.newPage();
+    await other.goto('about:blank');
+    await other.bringToFront();
+    await page.waitForTimeout(1500);
+    await page.bringToFront();
+
+    // Clear the mirror and watch a live frame rewrite it.
+    await mode.click();
+    await expect(mode).toHaveText('Spectrum');
+    await mode.click();
+    await expect(mode).toHaveText('Wave');
+    await expect
+      .poll(async () => await waveGain(page), { timeout: 5000 })
+      .toBeGreaterThanOrEqual(1);
+
+    await other.close();
+  });
 });
 
 /**

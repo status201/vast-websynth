@@ -3,7 +3,9 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 8   # v8: REQ-4 — a folded section counts as off screen (scratch.md)
+version: 9   # v9: REQ-9 — a draw-only loop may hold a visibility-gated,
+             #     low-frequency watchdog to prove it came back (scope.md REQ-33)
+             # v8: REQ-4 — a folded section counts as off screen (scratch.md)
              # v7: REQ-1 — the time-stretch DSP defers behind the FIT button
              # v6: REQ-1 — deferring a surface makes its load fallible; the
              #     trigger owes the user a report when the import rejects
@@ -258,6 +260,14 @@ so a reviewer has something concrete to hold a new feature against.
   Gesture-scoped ramps (Tape Stop, the XY pad's spring-back) are exempt — they last
   well under a second with the user watching.
 
+  (v9) A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
+  proves it is still painting and restarts it if not — `Scope` is again the reference
+  ([`scope.md`](scope.md) REQ-33). "Stop while hidden" is a rule about doing *work*,
+  not about forgetting how to come back: a supervisor that returns on its first line
+  while `document.hidden` does no work either, and stopping without one is how that
+  panel twice ended up dead for the life of the page. The watchdog must be
+  low-frequency (~1 Hz), allocate nothing, read no layout, and die with its component.
+
 - **REQ-10** — **No compositing effect whose cost scales with the viewport may sit on a
   persistent overlay** (v4). A `backdrop-filter` on a full-screen, long-lived element
   makes the compositor re-render the whole viewport every frame for as long as it is
@@ -315,7 +325,7 @@ pass a **pre-bound** closure rather than an inline arrow (REQ-6).
 | REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
 | REQ-7 | `ui/components/knob.ts` |
 | REQ-8 | `public/worklets/*.js` |
-| REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden) |
+| REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden, + a visible-only 1 Hz liveness watchdog) |
 | REQ-10 | `ui/styles/modal.module.css` (`.backdrop`), `ui/styles/tour.module.css` (`.centered`) — pinned repo-wide by `tests/ui/overlay-cost.test.ts` |
 
 The `VisibilityGate` is created by each panel builder and returned on its

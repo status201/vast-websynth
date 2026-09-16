@@ -3,7 +3,9 @@
 ```yaml
 id: testids
 status: implemented
-version: 20 # v20: the song transport's Loop button (transport-loop.md REQ-1)
+version: 21 # v21: debug-scope — the Debug panel's scope-liveness row (scope.md
+            #      REQ-38)
+            # v20: the song transport's Loop button (transport-loop.md REQ-1)
             #      and the global `loop` / `loop-anchor` cell classes (REQ-12);
             #      the Song row now carries `transport-toggle` too
             # v19: the About card's Play offline section (play-offline.md REQ-1)
@@ -406,8 +408,8 @@ onboarding:                                         # features/onboarding.md
 about → debug panel:                                # features/debug-panel.md
   debug-section · debug-actions
   rows:    debug-ctx-state · -latency · -transport · -perf-tier · -sampler-clips ·
-           -session · -storage · -sw · -midi · -wake · -ios-unlock · -ios-loop ·
-           -media-session · -background
+           -session · -storage · -sw · -midi · -wake · -scope · -ios-unlock ·
+           -ios-loop · -media-session · -background
   actions: debug-ctx-toggle · debug-panic · debug-test-tone · debug-copy
   inline:  debug-clips-clear · debug-session-clear · debug-sw-unregister
 ```

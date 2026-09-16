@@ -3,7 +3,13 @@
 ```yaml
 id: scope
 status: implemented          # draft | active | implemented
-version: 15  # v15: REQ-19 -- --scope-h gains a SECOND consumer. The EQUALIZER
+version: 16  # v16: the loop stopped AGAIN (REQ-32..38). v12 made start() restartable
+             #      but left every trigger for it event-driven and ONE-SHOT, and
+             #      left contextlost -> stop() waiting forever. A ~1 Hz watchdog
+             #      now proves the panel is painting, every control is a recovery
+             #      path, and a context that is provably lost is escaped by
+             #      REPLACING the canvas — getContext('2d') cannot re-acquire one.
+             # v15: REQ-19 -- --scope-h gains a SECOND consumer. The EQUALIZER
              #      section sizes its graph from it (equalizer.md REQ-18), so
              #      the grip below resizes two panels, not one. Deliberate:
              #      two panels meant to read as one grid must not be
@@ -27,8 +33,11 @@ related:
   - compressor
   - runtime-performance
   - audio-lifecycle
+  - debug-panel                       # v16: the Scope row that reports this panel's liveness
 source:
-  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19; v12 is entirely here
+  - src/ui/components/scope.ts        # NOT touched by v11 — see REQ-19; v12 and v16 are here
+  - src/state/debug-sources.ts        # v16: setScopeStatsSource — the Debug panel's reader
+  - src/ui/components/about-debug.ts  # v16: the "Scope" row
   - src/ui/components/canvas-text.ts  # v14: haloText, hoisted out of this component
   - src/ui/components/resize-handle.ts
   - src/state/scope-height.ts
@@ -129,6 +138,36 @@ pressure, and a lost 2D context is only ever restored if the page calls
 v12 is four small edits with one theme: **there is no state this component can
 reach from which it cannot start drawing again.** It adds no feature and no
 control; the whole of it is inside `scope.ts`.
+
+**The loop that stopped again (v16).** A second report, this time Chrome on the
+desktop: after the tab had been in the background the scope held a **frozen last
+frame** — the Spectrum bars at the floor and the peak-hold line stopped part-way
+down its decay — and no control brought it back. A retained frame is a different
+diagnosis from v12's black panel: the canvas backing store is intact, the analysers
+are fine (they are created once in the `Engine` constructor and never replaced), and
+the loop simply never ran again.
+
+v12's theme was right and its scope was too narrow. It made `start()` idempotent and
+unconditionally restartable, but left every **trigger** for it event-driven and
+*one-shot*: `start()` queues exactly one `requestAnimationFrame`, and the only things
+that call it are the constructor, `onVisibility` and `onContextRestored`. Drop the
+single callback a `visibilitychange` buys — which is the very thing a frozen renderer
+does, and the failure REQ-22 was written for — and there is no second chance. No
+public method restarts the loop, which is exactly why Wave/Spectrum, Mono/Stereo and
+Zones all read as dead: they set a field the loop was going to read.
+
+The same sweep closes a hole v12 *created*. `onContextLost` calls `preventDefault()`
+and then `stop()`, with no bound on the wait — and a lost context restores lazily, so
+stopping is precisely how you stop giving the browser a reason to restore one. That
+path needs no backgrounding at all: a GPU-process crash fires `contextlost` on a
+visible, foregrounded tab, `stop()` is the last thing that ever happens to the panel,
+and every toggle is inert from then on. Recovering from it means **replacing the
+canvas element**, because `getContext('2d')` on a canvas whose context is lost returns
+that same lost context — there is no way to ask for another one.
+
+v16's theme: **stop enumerating events.** Four routes were named in v12 and a fifth
+turned up anyway. A timer that checks whether pixels are still arriving does not have
+to guess which event the platform will send.
 
 Where the extra space comes from is a question the layout had already answered
 before this feature existed: `.app`'s bottom row is `1fr` under a `100dvh`
@@ -464,6 +503,83 @@ Two consequences worth naming up front, because they are visible:
   resets the peak-hold (REQ-13) — unchanged, but now easier to do by accident while
   reading the cursor, which is a deliberate acceptance, not an oversight.
 
+- **REQ-32** (v16) — **The scope proves it is painting, not merely looping.** Two
+  timestamps: `lastFrameTs`, written at the top of **every** rAF callback before the
+  fps throttle, and `lastPaintTs`, written once `draw()` has returned without
+  throwing. Nothing infers liveness from `running` — v12 already learned that flag
+  latches `true` over a dead chain. `lastPaintTs` proves only that `syncSize()`
+  passed and nothing threw; it is **not** evidence of pixels, and nothing here asks
+  it to be. Its job is to separate a dead frame chain from a live one drawing into
+  no layout box.
+- **REQ-33** (v16) — **A ~1 Hz watchdog restarts a stalled loop.** A
+  `window.setInterval` inside the component checks — and **only while
+  `document.hidden` is false** — whether the last frame is older than
+  `SCOPE_STALL_MS`; if it is, it `measure()`s and `start()`s. Frames arriving while
+  paints are not means the layout box is gone, not the loop: that escalates to
+  `measure()` alone and never to a canvas rebuild, because a panel with no box has
+  nothing to draw and reports `no box` instead. The timer returns on its first line
+  while hidden, so [performance-mode](performance-mode.md) REQ-6 and
+  [runtime-performance](runtime-performance.md) REQ-9's pause-while-hidden rule stay
+  literally true; it allocates nothing, reads no layout, and `destroy()` clears it.
+  The gate reads `document.hidden` rather than `visibilityState` so it agrees with
+  `onVisibility` and stays drivable from one stub in the unit suite.
+- **REQ-34** (v16) — **Waiting for a `contextrestored` is bounded.** `contextlost`
+  still `preventDefault()`s and still stops the loop (REQ-24) — but it now records
+  *when*, and if no `contextrestored` arrives within `CONTEXT_RESTORE_MS` the
+  component stops waiting and recovers itself. v12 left this path with no way out at
+  all: `stop()` was the last thing that happened to the panel, no toggle could undo
+  it, and the wait needs no backgrounding to begin — a GPU-process crash fires
+  `contextlost` on a visible, foregrounded tab. Stopping is also how you stop giving
+  a browser that restores lazily any reason to restore.
+- **REQ-35** (v16) — **A provably lost context is escaped by replacing the canvas,
+  not by asking for another one.** `getContext('2d')` on a canvas whose context is
+  lost returns *that same lost context*, so a fresh `<canvas>` is the only guaranteed
+  escape. The rebuild takes the new context **first** and abandons the swap if that
+  returns `null` — never trade a live canvas for one that cannot be drawn into —
+  then copies the class and `data-testid`, `replaceWith`s in the same DOM slot (which
+  keeps it above `.scopeScreen` and below the three corner buttons — slot order is
+  load-bearing), moves the `click`, `contextlost`/`contextrestored` and mode-scoped
+  hover registrations and the `ResizeObserver`, drops every cache **and every dataset
+  mirror** — REQ-15's change-only write would otherwise leave the replacement's
+  readouts blank for the life of the page — then `measure()`s and `start()`s. When
+  the canvas has no parent (the unit suite) the field is still swapped, because
+  `replaceWith` on an unparented node is a silent no-op. `el` becomes a getter over a
+  mutable field and stays read-only to callers. The rebuild is **rate-limited** to one
+  per `REBUILD_MIN_GAP_MS`: a machine whose GPU process is really gone answers
+  `isContextLost()` truthfully every time it is asked, and an unbounded watchdog would
+  mint a fresh canvas and a fresh bitmap every second for the life of the page —
+  turning the recovery into a leak. Recovery stays automatic when the GPU returns;
+  only the retry rate is bounded.
+- **REQ-36** (v16) — **Detection is free or it does not happen.** A lost context is
+  found by `ctx.isContextLost?.()` and by REQ-34's unanswered `contextlost` —
+  **never by reading pixels back.** `getImageData` forces a GPU→CPU readback with a
+  pipeline flush onto the thread the audio control path shares, and browsers
+  de-accelerate a canvas that is read back often, so the probe would cost the panel
+  its frame rate to ask whether it has one. It is also circular: a lost 2D context
+  makes every method a no-op rather than throwing, so the fill the probe reads back
+  is the very thing under test. Where a browser offers neither signal the scope does
+  not guess — it keeps restarting the loop, which is free, and the Debug row (REQ-38)
+  is what says so.
+- **REQ-37** (v16) — **Every public mutator is a recovery path, and costs nothing
+  when there is nothing to recover.** `setMode`, `setChannels`, `setZones`,
+  `resetPeak`, `setFps` and `setFftSize` each call `ensureLive()`, as do a
+  **non-capturing** `window` `focus` listener and the Page Lifecycle `resume` on
+  `document` — a renderer frozen and resumed while already visible fires neither
+  `visibilitychange` nor `pageshow`. The user's instinct on a dead scope is to poke a
+  button, and that instinct must work. `ensureLive()` returns immediately when frames
+  are arriving and the context is sound, so poking a *healthy* scope forces no layout
+  read and re-arms no frame. The focus listener must not be registered with
+  `capture`: `focus` does not bubble, so a capturing listener would route every knob,
+  button and field in the app through here.
+- **REQ-38** (v16) — **The panel says out loud whether it is drawing.**
+  `Scope.health` reports drawing/stalled, the age of the last frame and paint,
+  whether there is a layout box, whether the context is lost, and the
+  restart/rebuild/loss counters. It reaches the Debug panel through
+  `setScopeStatsSource` ([debug-panel](debug-panel.md) REQ-4/REQ-5) and increments
+  `data-rebuilds` on the canvas — on change only, per REQ-15/16, which here means
+  essentially never. This symptom has now been reported twice from devices with no
+  console and nothing to read; a third report should arrive with numbers.
+
 ## Technical design
 
 ### Gesture inventory — the resize handle (v11)
@@ -557,8 +673,10 @@ interface ScopeAnalysers { mono: AnalyserNode; left?: AnalyserNode; right?: Anal
 interface ScopeOptions { fps?: number; }  // target redraw rate (default 60); see performance-mode
 
 class Scope {
-  readonly el: HTMLCanvasElement;
+  get el(): HTMLCanvasElement;          // v16: a getter — REQ-35 can replace the element underneath
   constructor(analysers: ScopeAnalysers, opts?: ScopeOptions);
+  ensureLive(): void;                   // v16: restart if stalled; a no-op when healthy (REQ-37)
+  get health(): ScopeHealth;            // v16: liveness readout for the Debug panel (REQ-38)
   setMode(m: ScopeMode): void;          // wave | spectrum  (v13: also binds/unbinds the hover listeners)
   setChannels(c: ScopeChannels): void;  // mono | stereo    (new; stereo needs left+right)
   get channelMode(): ScopeChannels;     // effective layout (mono unless stereo set with both)
@@ -569,6 +687,22 @@ class Scope {
   get zonesOn(): boolean;                // v13
   destroy(): void;
 }
+
+// Liveness (v16, REQ-32..38). Four exported ms constants, one record, one reader:
+const SCOPE_WATCHDOG_MS = 1000;    // how often the watchdog looks; gated on document.hidden
+const SCOPE_STALL_MS = 1200;       // no rAF callback for this long => the frame chain is dead
+const SCOPE_PAINT_STALL_MS = 1500; // frames but no paints => no layout box (clears 15fps weak tier)
+const CONTEXT_RESTORE_MS = 3000;   // a contextrestored that has not come by now is not coming
+const REBUILD_MIN_GAP_MS = 5000;   // one canvas rebuild per this, so a dead GPU cannot leak
+interface ScopeHealth {
+  drawing: boolean; frameAgeMs: number; paintAgeMs: number;
+  hasBox: boolean; contextLost: boolean;
+  restarts: number; rebuilds: number; losses: number;
+}
+
+// src/state/debug-sources.ts — the Debug panel's late-bound reader (REQ-38):
+function setScopeStatsSource(fn: () => ScopeHealth): void;
+function scopeStats(): ScopeHealth | undefined;   // undefined => the row reads "n/a"
 
 // Pure, exported, canvas-free — the log frequency axis (v13, REQ-26..29):
 const SPECTRUM_F_MIN = 20;        // Hz at the left edge of the plot
@@ -848,6 +982,20 @@ DOUBLE_TAP_MS: 350     # ms window for the hand-rolled double-tap
   `destroy()` sits wherever `scope.destroy()` does. **No change to `scope.ts`,
   `engine.ts` or `studio-api.ts`** — if an implementation finds itself editing them,
   the approach has drifted (the height reaches `Scope` through REQ-16's observer).
+- **`Scope` + `debug-sources.ts` + `about-debug.ts` + `buildBottom`** own the
+  liveness sweep (v16, REQ-32..38). Almost all of it is inside `scope.ts`: the two
+  timestamps, the watchdog interval, `ensureLive()` in front of the six mutators, the
+  bounded `contextlost` wait and `rebuildCanvas()`. `attachCanvas`/`detachCanvas` are
+  extracted so the constructor, `destroy()` and the rebuild share **one** listener
+  list — a listener added in one of three places and forgotten in the others is the
+  next bug. Outside the component: `debug-sources.ts` gains a fourth late-bound
+  reader in its existing three-line idiom (`setScopeStatsSource`/`scopeStats`), and
+  `about-debug.ts` one `addRow('Scope')` on the *every-tick* tier
+  ([debug-panel](debug-panel.md) REQ-11 — plain field reads). `app.ts` adds a single
+  line beside the live scope knobs it already binds at `buildBottom`'s return:
+  `setScopeStatsSource(() => bottom.scope.health)`. **No `engine.ts` or
+  `studio-api.ts` change** — nothing here needs the audio layer, and the analysers
+  were never the problem (ADR-001/ADR-009 untouched).
 
 ### Persistence
 
@@ -1141,6 +1289,89 @@ Scenario: A nonsense frame rate cannot silently stop the drawing (v12, edge)
   Then the target rate falls back to the default instead of never drawing
 # pinned by: tests/ui/scope-lifecycle.test.ts
 
+Scenario: The watchdog restarts a loop the browser stopped delivering (v16, REQ-33)
+  Given the scope is drawing and the tab is visible
+  When the renderer drops the queued frame with nothing to announce it
+   And more than SCOPE_STALL_MS passes
+  Then the next watchdog tick measures and restarts the loop, and it draws
+   And health.restarts has incremented
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: The watchdog does nothing at all while the tab is hidden (v16, REQ-33)
+  Given the tab is hidden, so the loop is paused
+  When many watchdog ticks pass with the loop stalled
+  Then no frame is queued and nothing is drawn
+   And the pause performance-mode.md REQ-6 requires is untouched
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: The watchdog leaves a healthy loop completely alone (v16, REQ-33/37)
+  Given frames are arriving on time
+  When several watchdog ticks pass
+  Then no frame is cancelled or re-armed and health.restarts is 0
+   And a mutator called on that healthy loop cancels nothing either
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: Frames without paints measure rather than rebuild (v16, REQ-33)
+  Given the loop is ticking but the canvas reports a 0x0 layout box
+  When the paint age passes SCOPE_PAINT_STALL_MS
+  Then the watchdog measures, health.hasBox is false, and the canvas is not replaced
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: The scope stops waiting for a contextrestored that never comes (v16, REQ-34)
+  Given contextlost fired and its default was prevented, stopping the loop
+   And no contextrestored arrives within CONTEXT_RESTORE_MS
+  When the next watchdog tick runs
+  Then the scope recovers itself instead of waiting forever
+   And this needs no visibilitychange, because the page never stopped being visible
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A provably lost context is escaped by replacing the canvas (v16, REQ-35)
+  Given the 2D context reports isContextLost
+  When any control is used, or the watchdog ticks
+  Then a fresh canvas replaces the old one in the same DOM slot
+   And it carries the class, the testid and every listener the old one had
+   And the dataset mirror is cleared, so its readouts appear again
+   And health.rebuilds has incremented
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A GPU that never comes back is retried, not rebuilt every second (v16, REQ-35)
+  Given the context reports itself lost on every ask, as a dead GPU process does
+  When several REBUILD_MIN_GAP_MS pass
+  Then the canvas is replaced at most once per gap, not once per watchdog tick
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A live canvas is never traded for one that cannot be drawn into (v16, REQ-35, edge)
+  Given the context is lost and a rebuild is due
+  When getContext on the replacement returns null
+  Then the swap is abandoned and the existing canvas is kept
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: Every control revives a stalled scope (v16, REQ-37)
+  Given the loop is stalled and the tab is visible
+  When any of setMode, setChannels, setZones, resetPeak, setFps or setFftSize is called
+  Then the loop is live again and draws
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: A window focus and a Page Lifecycle resume both revive it (v16, REQ-37)
+  Given the loop is stalled
+  When window fires focus, or document fires resume
+  Then the loop is live again
+   And a focus on an element inside the app does not reach the handler
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: The watchdog dies with the scope (v16, REQ-33)
+  Given a mounted scope
+  When destroy() is called and the clock runs far past several watchdog periods
+  Then no frame is queued, nothing throws, and no restart is counted
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
+Scenario: The panel reports what it is doing (v16, REQ-38)
+  Given a mounted scope
+  Then health reports drawing, the frame and paint ages, the box and the context
+   And the restart, rebuild and loss counters rise with the events that cause them
+   And data-rebuilds is written only when it increments
+# pinned by: tests/ui/scope-lifecycle.test.ts
+
 Scenario: The frequency axis is logarithmic, so every octave gets equal width (v13)
   Given the log axis helpers
   When freqToFrac is evaluated across the range
@@ -1310,9 +1541,39 @@ Scenario: The handle holds no global listener at rest (REQ-21)
   and confirm the bands sit where the ear says they do. Then repeat in both stereo
   layouts and at both ends of the resize handle, and once on the **weak** perf tier
   (fftSize 256) where the bass is genuinely coarse.
+- Unit: `tests/ui/scope-lifecycle.test.ts` (v16) — the watchdog cases, under
+  `vi.useFakeTimers()` and a stubbed `performance.now`, in their own `describe` (the
+  v12 cases use no timers). They pin: a dropped frame chain restarting with nothing
+  to announce it; the hidden tab staying dark through many ticks; a healthy loop
+  neither cancelled nor re-armed; frames-without-paints measuring rather than
+  rebuilding; an unanswered `contextlost` recovering on its own with no visibility
+  edge; the canvas rebuild carrying class, testid, listeners **and a cleared dataset
+  mirror**; the rebuild abandoned when the replacement's `getContext` returns `null`;
+  each of the six mutators reviving a stalled loop while costing a healthy one
+  nothing; `focus`/`resume` reviving it and an element focus not reaching the
+  handler; `destroy()` taking the interval with it; and the `health` record.
+- E2E: `e2e/scope.spec.ts` (v16) — a `contextlost` that is **never** answered
+  recovering on its own (the twin of the v12 case above it, which does answer it),
+  with `data-rebuilds` reading `1`; and a real backgrounding — a second page brought
+  to the front and back, Playwright's own API rather than a synthetic event — which is
+  the only place in the suite that exercises the actual reported trigger.
 - Dev-bridge assertions: `window.__synth.engine.analyserL` (DEV only); peak readout
   via the canvas `dataset.peak`/`peakL`/`peakR`; applied wave gain via
-  `dataset.waveGain`; (v13) `dataset.zones` and `dataset.cursorHz`.
+  `dataset.waveGain`; (v13) `dataset.zones` and `dataset.cursorHz`; (v16)
+  `dataset.rebuilds`, and the Debug panel's `debug-scope` row.
+- **By eye (v16)** — the bug this closes has now been reported twice and neither
+  report came from a suite. In Firefox and in Chrome, with a demo playing: stub
+  `requestAnimationFrame` away from the console, watch the trace freeze and the
+  `debug-scope` row go to `stalled`, restore it, and confirm the trace comes back
+  **without touching anything** inside about a second. Then dispatch a cancelable
+  `contextlost` on `scope-canvas` and deliberately never answer it: the panel must
+  return within ~4 s with `rebuilds` reading `1` and `scope-canvas` resolving to a
+  *different* element. Repeat the first one and, while it is stalled, click
+  Wave/Spectrum, Mono/Stereo and Zones in turn — each must bring it back on its own
+  (REQ-37). Finally background the tab for a few minutes and return; on Android also
+  under Battery Saver, through the recents switcher, and with a rotation while away.
+  The frame age on return must read *large*, which is what proves the loop really was
+  paused while hidden rather than spinning.
 
 ## Open questions / future
 

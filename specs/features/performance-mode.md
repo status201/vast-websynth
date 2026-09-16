@@ -3,7 +3,10 @@
 ```yaml
 id: performance-mode
 status: implemented
-version: 6   # v6: analyser fftSize halved per tier (256/512/1024)
+version: 7   # v7: REQ-6's pause is now SUPERVISED, not softened — the scope still
+             #     stops dead while hidden, and a ~1 Hz watchdog that returns on its
+             #     first line while hidden makes sure it starts again (scope.md REQ-33)
+             # v6: analyser fftSize halved per tier (256/512/1024)
 owner: core
 related:
   - architecture
@@ -102,7 +105,10 @@ differ only by live-applied scope fps + fftSize).
   the scope frame rate and FFT size immediately (no reload). fps throttling is
   timestamp-based (`now - lastDrawTs >= 1000/fps`; `fps >= 60` means draw every
   frame), correct on high-refresh displays. The scope always pauses its redraw loop
-  while the tab is hidden (`visibilitychange`). Note: the
+  while the tab is hidden (`visibilitychange`) — still true as written, and since
+  [scope](scope.md) REQ-33 it is also *supervised*: a ~1 Hz watchdog returns on its
+  first line while hidden, so it costs a backgrounded tab nothing and exists only to
+  guarantee the loop comes back. Note: the
   [motion sequencer](motion-sequencer.md)'s write loop also throttles to the
   profile `fps`, but it reads it **once at boot** (`EngineOptions.motionFps`) —
   a tier change updates it on reload only (accepted: it is a cost cap, not a

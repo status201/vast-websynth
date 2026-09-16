@@ -17,7 +17,7 @@ import { SessionAutosave } from '../../state/session-autosave';
 import { SampleAutosave } from '../../state/sample-autosave';
 import { storageUsage } from '../../state/slot-store';
 import { SAMPLER_SLOT_COUNT } from '../../state/patterns';
-import { clipStats, midiStats, wakeState } from '../../state/debug-sources';
+import { clipStats, midiStats, scopeStats, wakeState } from '../../state/debug-sources';
 import { formatBytes, plural } from '../../utils/format';
 import type { StudioApi } from '../studio-api';
 import switchStyles from '../styles/switch.module.css';
@@ -46,6 +46,26 @@ function ago(at: number | null): string {
   if (s < 3600) return `${Math.round(s / 60)} min ago`;
   if (s < 86400) return `${Math.round(s / 3600)} h ago`;
   return `${Math.round(s / 86400)} d ago`;
+}
+
+/**
+ * The scope's liveness in one line (scope.md REQ-38). `drawing` is the common case
+ * and reads as such; anything else names what is wrong, because this row exists to
+ * be read back off a device that cannot be attached to a debugger. The counters are
+ * always shown once non-zero — a scope that recovered is still evidence.
+ */
+function formatScopeHealth(h: ReturnType<typeof scopeStats>): string {
+  if (!h) return 'n/a';
+  const state = h.contextLost ? 'ctx lost'
+    : !h.hasBox ? 'no box'
+    : h.drawing ? 'drawing'
+    : `stalled ${(Math.min(h.frameAgeMs, h.paintAgeMs) / 1000).toFixed(1)}s`;
+  const counts = [
+    h.restarts ? `${h.restarts} restarts` : null,
+    h.rebuilds ? `${h.rebuilds} rebuilds` : null,
+    h.losses ? `${h.losses} losses` : null,
+  ].filter((s) => s !== null);
+  return counts.length ? `${state} · ${counts.join(' · ')}` : state;
 }
 
 /**
@@ -191,6 +211,11 @@ export function buildDebugSection(engine: StudioApi): {
   midiVal.dataset.testid = 'debug-midi';
   const wakeVal = addRow('Wake lock');
   wakeVal.dataset.testid = 'debug-wake';
+  // Is the scope actually painting? (scope.md REQ-38) The panel going dead after a
+  // backgrounding has now been reported twice from devices with no console, and
+  // both times there was nothing to read. The counters are the whole point.
+  const scopeVal = addRow('Scope');
+  scopeVal.dataset.testid = 'debug-scope';
   // iOS audio-session diagnostics (owned by ios-audio.md; inert off iOS).
   const unlockVal = addRow('Audio unlock');
   unlockVal.dataset.testid = 'debug-ios-unlock';
@@ -325,6 +350,7 @@ export function buildDebugSection(engine: StudioApi): {
     midiVal.textContent = midi ? `${midi.inputs} in · ${midi.outputs} out` : 'n/a';
     const wake = wakeState();
     wakeVal.textContent = wake ? (wake.supported ? (wake.held ? 'held' : 'released') : 'unsupported') : 'n/a';
+    scopeVal.textContent = formatScopeHealth(scopeStats());
     const ios = engine.iosAudio;
     unlockVal.textContent = ios.status
       + (ios.routed ? ' · routed' : '')

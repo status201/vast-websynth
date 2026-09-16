@@ -50,6 +50,7 @@ import { createOnboarding, type Onboarding } from './onboarding';
 import type { TourCtx } from './onboarding/tour';
 import styles from './styles/layout.module.css';
 import { UI_ICONS } from './components/ui-icons';
+import { setScopeStatsSource } from '../state/debug-sources';
 import { Presets } from '../state/preset';
 import type { PresetManagerOptions } from './components/preset-manager-modal';
 
@@ -163,6 +164,9 @@ export function mountApp(
   const bottom = buildBottom(engine, bus, bridge);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
   setScopeFft = (fftSize) => bottom.scope.setFftSize(fftSize);
+  // Whether the panel is actually painting, for the Debug row (scope.md REQ-38).
+  // Same late-bound idiom as the two knobs above — the owner of the state binds it.
+  setScopeStatsSource(() => bottom.scope.health);
   root.appendChild(bottom.el);
 
   return onboarding;
