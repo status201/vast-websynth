@@ -87,7 +87,7 @@ describe('AI Prompt modal', () => {
     document.body.appendChild(btn);
     btn.click();
     // The click `import()`s the authoring guide before building the modal
-    // (runtime-performance.md REQ-1), so the card lands a microtask later.
+    // (runtime-performance.md REQ-boot-cost-matches-the-request), so the card lands a microtask later.
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     const card = document.querySelector('[role="dialog"]');
     expect(card).not.toBeNull();
@@ -98,7 +98,7 @@ describe('AI Prompt modal', () => {
     expect(card!.className).toContain(modalStyles.cardWide!);
   });
 
-  // paste-import.md REQ-5 — the round trip closes inside this modal: the same
+  // paste-import.md REQ-one-paste-fragment-two-placements — the round trip closes inside this modal: the same
   // paste fragment the Song row's Paste button opens is embedded as step 3.
   it('embeds the paste fragment as step 3, above the Close button', async () => {
     const btn = createAiPromptButton(bus(), routes());
@@ -113,7 +113,7 @@ describe('AI Prompt modal', () => {
     expect(card.lastElementChild!.textContent).toBe('Close');
   });
 
-  // ai-prompt.md REQ-10 — the modal offers the connector, above step 1.
+  // ai-prompt.md REQ-the-modal-offers-the-connector — the modal offers the connector, above step 1.
   it('offers the hosted MCP endpoint, origin-resolved, before step 1', async () => {
     const btn = createAiPromptButton(bus(), routes());
     document.body.appendChild(btn);
@@ -123,11 +123,11 @@ describe('AI Prompt modal', () => {
     const card = document.querySelector('[role="dialog"]')!;
     const url = card.querySelector(`.${modalStyles.aiConnectorUrl!}`);
     expect(url).not.toBeNull();
-    // Resolved like REQ-3's schema URLs, so a fork advertises its own host.
+    // Resolved like REQ-the-prompt-cites-absolute-schema-urls's schema URLs, so a fork advertises its own host.
     expect(url!.textContent).toBe(`${window.location.origin}/mcp`);
 
     // NOT an anchor: the endpoint answers POST only, so a click would render a
-    // 405 JSON body and read as a broken link (mcp-server.md REQ-9b).
+    // 405 JSON body and read as a broken link (mcp-server.md REQ-no-sse-every-response-is-one-json-body).
     expect(card.querySelector('a[href*="/mcp"]')).toBeNull();
     expect(url!.tagName).not.toBe('A');
 
@@ -137,12 +137,12 @@ describe('AI Prompt modal', () => {
   });
 });
 
-// The load-bearing half of REQ-10: the prompt text must NOT carry the pitch.
+// The load-bearing half of REQ-the-modal-offers-the-connector: the prompt text must NOT carry the pitch.
 // buildAuthoringGuide is what the MCP server's get_song_format returns, so a
 // connector line there would advertise the tool to an agent already holding it;
 // and in buildSongPrompt it would cost context on every paste to describe a
 // capability that reader lacks. Both are easy to "helpfully" add later.
-describe('the connector pitch stays out of the prompt (REQ-10)', () => {
+describe('the connector pitch stays out of the prompt (REQ-the-modal-offers-the-connector)', () => {
   it('is absent from buildSongPrompt and buildAuthoringGuide', () => {
     for (const text of [buildSongPrompt(bus(), 'a brief'), buildAuthoringGuide(bus())]) {
       expect(text).not.toMatch(/mcp/i);

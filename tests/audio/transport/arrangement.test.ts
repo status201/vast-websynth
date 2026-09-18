@@ -108,7 +108,7 @@ describe('Arrangement', () => {
     expect(arr.seqPlayBank).toBe(0);
   });
 
-  // arrangement.md REQ-7 — lane positions are counted relatively (+1 per bar
+  // arrangement.md REQ-a-mid-play-seek-re-seeks-every-lane — lane positions are counted relatively (+1 per bar
   // line), so a mid-play playhead jump has to re-base them or every chain stays
   // wrong for the rest of the song.
   it('a mid-play seek re-seeks the lanes to the implied bar (v4)', () => {
@@ -335,7 +335,7 @@ describe('Arrangement', () => {
   });
 });
 
-describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6)', () => {
+describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-motion-has-the-fourth-chain-lane)', () => {
   it('a disabled motion lane follows the motion edit bank', () => {
     const clock = new TestClock();
     const patterns = new PatternStore();
@@ -369,7 +369,7 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
     expect(arr.motionResting).toBe(true);
   });
 
-  describe('neighbour bars (REQ-2b, the motion curve\'s bar-line carry)', () => {
+  describe('neighbour bars (REQ-cross-bank-carry, the motion curve\'s bar-line carry)', () => {
     it('resolves the bars either side of the current slot, wrapping at both ends', () => {
       const clock = new TestClock();
       const arr = new Arrangement(new PatternStore(), clock);
@@ -409,10 +409,10 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
       expect([arr.motionPrevResting, arr.motionNextResting]).toEqual([false, false]);
     });
   });
-  // arrangement.md REQ-8. `transpose` is a SECOND array kept parallel to `steps`,
+  // arrangement.md REQ-a-seq-slot-carries-a-transpose. `transpose` is a SECOND array kept parallel to `steps`,
   // which is only safe while nothing can desynchronize the two — so every write
   // goes through `fitTranspose` rather than trusting its caller.
-  describe('per-slot transpose (REQ-8)', () => {
+  describe('per-slot transpose (REQ-a-seq-slot-carries-a-transpose)', () => {
     const arr = () => new Arrangement(new PatternStore(), new TestClock());
 
     it('exposes the current slot’s offset while the chain runs', () => {
@@ -420,7 +420,7 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
       const a = new Arrangement(new PatternStore(), clock);
       a.setSeqChain([0, 0, 0], true, [0, 5, 7]);
       clock.fireStart();
-      playBar(clock, 0);           // bar 0 consumes expectFirstBar (REQ-4)
+      playBar(clock, 0);           // bar 0 consumes expectFirstBar (REQ-start-seeks-every-lane)
       expect(a.seqTranspose).toBe(0);
       playBar(clock, 1);
       expect(a.seqTranspose).toBe(5);
@@ -478,7 +478,7 @@ describe('Arrangement — motion lane (4th chain lane, motion-sequencer.md REQ-6
   });
 });
 
-describe('Arrangement — meter (meter.md REQ-6)', () => {
+describe('Arrangement — meter (meter.md REQ-bar-ticks-is-the-arrangement-bar-line)', () => {
   /** Fire the ticks of `bar`, then report the slot that bar played. */
   const playMeterBar = (clock: TestClock, arr: Arrangement, bar: number, ticks: number): number => {
     for (let i = bar * ticks; i < (bar + 1) * ticks; i++) clock.fireTick(i);

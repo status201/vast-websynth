@@ -3,7 +3,7 @@
 ```yaml
 id: sample-chop
 status: implemented
-version: 2 # v2: REQ-9 — the chop row lives in a titled fold
+version: 2 # v2: REQ-chop-row-lives-in-a-folded-section — the chop row lives in a titled fold
            # v1: the chop row, equal / detected slices, Spread to slots
 owner: core
 related:
@@ -15,12 +15,12 @@ related:
   - toast
   - untrusted-input
   - dropdown
-  - iconography          # REQ-9's caret is an inline SVG, not a character
+  - iconography          # REQ-chop-row-lives-in-a-folded-section's caret is an inline SVG, not a character
   - testids
 source:
   - src/audio/recorder/buffer-dsp.ts        # sliceEqual / detectOnsets (pure)
   - src/ui/components/record-sound-modal.ts # the chop row, markers, Spread
-  - src/ui/components/collapse-toggle.ts    # REQ-9's fold
+  - src/ui/components/collapse-toggle.ts    # REQ-chop-row-lives-in-a-folded-section's fold
   - src/audio/transport/sampler-machine.ts  # setBuffer — the one fill path
 ```
 
@@ -46,20 +46,21 @@ index (`SamplerStep.slice`), and it was rejected. `SamplerStep` is exactly
 change ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md)) — to buy
 each slice *less* control than the alternative. Slices go to **slots** instead
 (the MPC's "chop to pads"): no format change, no new step field, and every slice
-inherits the whole per-slot channel from [sampler](sampler.md) REQ-12/REQ-13 —
+inherits the whole per-slot channel from [sampler](sampler.md) REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer —
 pitch it, reverse it, filter it, pan it, trim it further — and is sequenced on the
 eight-lane grid that already exists.
 
 ## Requirements
 
-- **REQ-1** — **Slices are real, short buffers, one per slot.** Spreading crops the
-  audio and hands each piece to `SamplerMachine.setBuffer` — the single fill path
-  ([sampler](sampler.md) REQ-6) — so [persistence](sample-persistence.md) and
-  [project export](project-export.md) work with no knowledge of chopping.
-  Deliberately **not** eight slots sharing one buffer with different start/end
-  windows: `SampleAutosave` reconciles by `AudioBuffer` *reference identity*, so
-  sharing would write eight copies of the whole break to IndexedDB and eight full
-  WAVs into a project zip. Real slices total roughly the original's bytes.
+- **REQ-slices-are-real-buffers** — **Slices are real, short buffers, one per
+  slot.** Spreading crops the audio and hands each piece to
+  `SamplerMachine.setBuffer` — the single fill path ([sampler](sampler.md)
+  REQ-set-buffer-is-the-one-door) — so [persistence](sample-persistence.md) and [project
+  export](project-export.md) work with no knowledge of chopping. Deliberately
+  **not** eight slots sharing one buffer with different start/end windows:
+  `SampleAutosave` reconciles by `AudioBuffer` *reference identity*, so sharing
+  would write eight copies of the whole break to IndexedDB and eight full WAVs
+  into a project zip. Real slices total roughly the original's bytes.
 
   Slices then persist like any other slot: device-locally through
   [sample-persistence](sample-persistence.md), and — because a *song* stores only
@@ -67,27 +68,31 @@ eight-lane grid that already exists.
   ([project-export](project-export.md)) — a chopped kit travels intact by
   exporting the **project** rather than the song.
 
-- **REQ-2** — **The chop divides the current selection, not the whole file.** The
-  modal's rule is already "effects apply to the selection"; chopping follows it, so
-  topping and tailing a break before cutting it is the same gesture it always was.
+- **REQ-chop-divides-the-selection** — **The chop divides the current selection,
+  not the whole file.** The modal's rule is already "effects apply to the
+  selection"; chopping follows it, so topping and tailing a break before cutting
+  it is the same gesture it always was.
 
-- **REQ-3** — **Two ways to place the cuts, and the markers are draggable after
-  either.** `sliceEqual(n)` divides the selection evenly — what a clean one-bar
-  loop wants. `detectOnsets` places them at transients — what a live recording
-  wants. Neither is trusted to be right: every boundary can be dragged, because an
-  onset detector that cannot be corrected is worse than no detector.
+- **REQ-two-ways-to-place-the-cuts** — **Two ways to place the cuts, and the
+  markers are draggable after either.** `sliceEqual(n)` divides the selection
+  evenly — what a clean one-bar loop wants. `detectOnsets` places them at
+  transients — what a live recording wants. Neither is trusted to be right:
+  every boundary can be dragged, because an onset detector that cannot be
+  corrected is worse than no detector.
 
-- **REQ-4** — **`detectOnsets` is pure and cheap.** Short-time RMS over a mono
-  mixdown, peaks in the rising edge above a threshold, with a minimum spacing so a
-  snare's body does not register as a second hit. It lives in `buffer-dsp.ts`
-  beside `crop`/`normalize` — [sample-recorder](sample-recorder.md) already
-  requires new edit operations to be pure and `AudioContext`-free, which is what
-  makes this unit-testable against a synthetic click train.
+- **REQ-detect-onsets-is-pure-and-cheap** — **`detectOnsets` is pure and
+  cheap.** Short-time RMS over a mono mixdown, peaks in the rising edge above a
+  threshold, with a minimum spacing so a snare's body does not register as a
+  second hit. It lives in `buffer-dsp.ts` beside `crop`/`normalize` —
+  [sample-recorder](sample-recorder.md) already requires new edit operations to
+  be pure and `AudioContext`-free, which is what makes this unit-testable
+  against a synthetic click train.
 
 
-- **REQ-5** — **No slice is ever spread into a slot that isn't there.** Spreading
-  starts at the picker's slot and fills forward, so from S5 there is room for
-  four. Two things enforce that, and **both are needed**:
+- **REQ-no-slice-spreads-into-a-missing-slot** — **No slice is ever spread into
+  a slot that isn't there.** Spreading starts at the picker's slot and fills
+  forward, so from S5 there is room for four. Two things enforce that, and
+  **both are needed**:
   - the count dropdown lists only counts that fit, so an over-long chop cannot be
     *made* from the current slot; and
   - the picker can still **move after** a chop, so the fit is re-checked whenever
@@ -100,38 +105,40 @@ eight-lane grid that already exists.
   because the user chose that many slices; dropping the tail and merging it into
   the last slice are the same silent edit in different clothes.
 
-- **REQ-6** — **Spreading is confirmed, then reversible.** It overwrites up to
-  eight slots at once, so it asks first ([dialog](dialog.md)) naming what it will
-  replace. Afterwards a [toast](toast.md) offers **Undo**, which restores every
-  overwritten buffer *and* name together — the same contract
-  `samplerSlotClearRow` provides for a single slot, and for the same reason: the
-  pattern-undo stack carries steps only, so an audio mutation has to own its own
-  reversal.
+- **REQ-spreading-is-confirmed-then-reversible** — **Spreading is confirmed,
+  then reversible.** It overwrites up to eight slots at once, so it asks first
+  ([dialog](dialog.md)) naming what it will replace. Afterwards a
+  [toast](toast.md) offers **Undo**, which restores every overwritten buffer
+  *and* name together — the same contract `samplerSlotClearRow` provides for a
+  single slot, and for the same reason: the pattern-undo stack carries steps
+  only, so an audio mutation has to own its own reversal.
 
-- **REQ-7** — **Slices are named for their origin.** `amen-break.wav` chopped four
-  ways gives `amen-break 1/4` … `amen-break 4/4`, so the grid's row labels say
-  what is in them and a saved song's `sampleNames` still describe the material
-  after the audio is gone ([sampler](sampler.md) REQ-4).
+- **REQ-slices-are-named-for-their-origin** — **Slices are named for their
+  origin.** `amen-break.wav` chopped four ways gives `amen-break 1/4` …
+  `amen-break 4/4`, so the grid's row labels say what is in them and a saved
+  song's `sampleNames` still describe the material after the audio is gone
+  ([sampler](sampler.md) REQ-only-sample-filenames-persist).
 
-- **REQ-8** — **A boundary lands at or *before* its onset, never after.** The
-  rising-energy signal peaks one analysis frame *into* the attack — the frame
-  holding a hit's first samples is only partly loud, so the next one shows the
-  bigger jump — and cutting there saws the front off the slice's own transient.
-  `detectOnsets` therefore walks back to the foot of the rise, capped at
-  `ONSET_BACKOFF_FRAMES` so a slow swell cannot drag the cut into the previous
-  slice. The error has to be **signed**: a few ms early costs a slice some lead-in
-  silence, a few ms late costs it its attack, and only one of those is still a
-  chop. A test asserting "within a few ms" passes either way, which is why the
-  ones here assert the direction.
+- **REQ-a-boundary-lands-at-or-before-its-onset** — **A boundary lands at or
+  *before* its onset, never after.** The rising-energy signal peaks one analysis
+  frame *into* the attack — the frame holding a hit's first samples is only
+  partly loud, so the next one shows the bigger jump — and cutting there saws
+  the front off the slice's own transient. `detectOnsets` therefore walks back
+  to the foot of the rise, capped at `ONSET_BACKOFF_FRAMES` so a slow swell
+  cannot drag the cut into the previous slice. The error has to be **signed**: a
+  few ms early costs a slice some lead-in silence, a few ms late costs it its
+  attack, and only one of those is still a chop. A test asserting "within a few
+  ms" passes either way, which is why the ones here assert the direction.
 
-- **REQ-9** — (v2) **The chop row lives inside a folded, titled section** headed
-  `Chop`, alongside the modal's other two — the shape and its rules are
-  [sample-recorder](sample-recorder.md) REQ-9, which owns them for all three. What
-  this spec owns is the consequence: the row is **folded on a first open**, so the
-  chop is something the user goes to rather than something the editor opens with.
+- **REQ-chop-row-lives-in-a-folded-section** — (v2) **The chop row lives inside
+  a folded, titled section** headed `Chop`, alongside the modal's other two —
+  the shape and its rules are [sample-recorder](sample-recorder.md) REQ-every-section-below-the-waveform-folds, which
+  owns them for all three. What this spec owns is the consequence: the row is
+  **folded on a first open**, so the chop is something the user goes to rather
+  than something the editor opens with.
 
   The **boundary markers are not part of the fold**. They are strokes on the
-  waveform this modal already draws (REQ-3), and the waveform is above every
+  waveform this modal already draws (REQ-two-ways-to-place-the-cuts), and the waveform is above every
   section — so a chop laid out and then folded away stays visible and stays
   draggable. Folding the row hides the *controls*, never the cut.
 
@@ -167,7 +174,7 @@ prev: Array<{ slot: number; buffer: AudioBuffer | null; name: string | null }>
 
 ```yaml
 record-sound-modal.ts:
-  chop section (below the cutoff row), a fold — see sample-recorder.md REQ-9:
+  chop section (below the cutoff row), a fold — see sample-recorder.md REQ-every-section-below-the-waveform-folds:
     head `Chop` + caret; body holds the chop row
   chop row: Dropdown(counts) · Detect · Spread to slots
   markers drawn by `redraw`, dragged on the canvas — the hit test checks markers
@@ -189,7 +196,7 @@ destructive edit in this modal already makes.
 ## Visual aids
 
 ```
-editor modal, below the cutoff row — folded on a first open (REQ-9)
+editor modal, below the cutoff row — folded on a first open (REQ-chop-row-lives-in-a-folded-section)
 +-----------------------------------------------------------------+
 | CHOP                                                          v  |
 |.................................................................|
@@ -207,7 +214,7 @@ folded, the boundaries stay on the waveform above it:
 | --- | --- | --- | --- | --- | --- |
 | `chop-head` (the whole title row) | folds / unfolds the section | — | — | — | — |
 | `chop-toggle` (the caret) | the same, and only that | — | — | — | Enter/Space when focused |
-| a boundary marker on the waveform | — | moves the cut (REQ-3) | — | — | — |
+| a boundary marker on the waveform | — | moves the cut (REQ-two-ways-to-place-the-cuts) | — | — | — |
 | `chop-count` | opens the list | — | — | — | inherited from [dropdown](dropdown.md) |
 | `chop-equal` | cuts the selection into equal slices | — | — | — | Enter/Space when focused |
 | `chop-detect` | cuts at detected onsets | — | — | — | Enter/Space when focused |
@@ -225,7 +232,7 @@ interaction one layer down the same canvas.
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: The chop row is folded away until asked for (v2, REQ-9)
+Scenario: The chop row is folded away until asked for (v2, REQ-chop-row-lives-in-a-folded-section)
   Given a slot holding audio
   When the user opens it in the editor for the first time
   Then the Chop header is visible and the chop row is not
@@ -240,38 +247,38 @@ Scenario: Chop a break into four and play the pieces
   And each is named "<base> 1/4" … "<base> 4/4"
 # pinned by: tests/audio/buffer-dsp.test.ts, e2e/sample-chop.spec.ts
 
-Scenario: The chop divides the selection, not the file (REQ-2)
+Scenario: The chop divides the selection, not the file (REQ-chop-divides-the-selection)
   Given the crop handles select the middle half of a recording
   When the user chops it into two
   Then the two slices together are that middle half — the topped and tailed
     audio is not chopped and not spread
 # pinned by: tests/audio/buffer-dsp.test.ts
 
-Scenario: Transient detection finds the hits (REQ-4)
+Scenario: Transient detection finds the hits (REQ-detect-onsets-is-pure-and-cheap)
   Given a click train with four hits at known offsets
   When detectOnsets runs
   Then it returns boundaries at those offsets and not between them
 # pinned by: tests/audio/buffer-dsp.test.ts
 
-Scenario: A boundary never cuts into the attack it marks (REQ-8, regression)
+Scenario: A boundary never cuts into the attack it marks (REQ-a-boundary-lands-at-or-before-its-onset, regression)
   Given a click train with four hits at known offsets
   When detectOnsets runs
   Then every boundary is at or before its hit, within ~25 ms
 # pinned by: tests/audio/buffer-dsp.test.ts
 
-Scenario: A long decay does not register as a second hit (REQ-4, edge)
+Scenario: A long decay does not register as a second hit (REQ-detect-onsets-is-pure-and-cheap, edge)
   Given one hit whose tail rings for half a second
   When detectOnsets runs with the default minimum gap
   Then exactly one onset is reported
 # pinned by: tests/audio/buffer-dsp.test.ts
 
-Scenario: The count offered fits the slots remaining (REQ-5, edge)
+Scenario: The count offered fits the slots remaining (REQ-no-slice-spreads-into-a-missing-slot, edge)
   Given the slot picker is on S7
   When the chop count dropdown is opened
   Then it offers 2 only — never 8, which would drop six slices on the floor
 # pinned by: e2e/sample-chop.spec.ts
 
-Scenario: Moving the picker after a chop refuses rather than truncating (REQ-5, regression)
+Scenario: Moving the picker after a chop refuses rather than truncating (REQ-no-slice-spreads-into-a-missing-slot, regression)
   Given the selection has been chopped into four
   When the slot picker is moved to S6, which has room for three
   Then Spread is disabled and the row says four slices need four slots
@@ -279,13 +286,13 @@ Scenario: Moving the picker after a chop refuses rather than truncating (REQ-5, 
   And moving back to a slot with room re-enables it with all four intact
 # pinned by: e2e/sample-chop.spec.ts
 
-Scenario: Spreading asks first and can be undone (REQ-6)
+Scenario: Spreading asks first and can be undone (REQ-spreading-is-confirmed-then-reversible)
   Given slots 0 and 1 already hold samples
   When the user spreads four slices over them and presses the toast's Undo
   Then both slots hold their previous audio and their previous names again
 # pinned by: e2e/sample-chop.spec.ts
 
-Scenario: Declining the confirmation changes nothing (REQ-6, edge)
+Scenario: Declining the confirmation changes nothing (REQ-spreading-is-confirmed-then-reversible, edge)
   Given a chop is ready to spread
   When the user cancels the confirmation
   Then every slot is untouched and the modal stays open on the same chop
@@ -298,7 +305,7 @@ Scenario: Declining the confirmation changes nothing (REQ-6, edge)
   `detectOnsets` against synthetic material with known onsets.
 - E2E: `e2e/sample-chop.spec.ts` — the chop row, the fitted count, spread, its
   confirmation and its undo. Its `openEditor` helper unfolds the section first
-  (REQ-9); `e2e/sample-editor-folds.spec.ts` is what asserts the fold itself.
+  (REQ-chop-row-lives-in-a-folded-section); `e2e/sample-editor-folds.spec.ts` is what asserts the fold itself.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a chop
   is only right if the slices *start on the hit*. Render one with
   `npm run bench:audio -- --sample <break.wav> --slot 0 --hits 4` and listen for a

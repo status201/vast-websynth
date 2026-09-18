@@ -29,7 +29,7 @@
 
 /* Centered (no-target) steps: a plain full-screen dim, no ring — and no
    `backdrop-filter`, for the reason spelled out on `.backdrop` in
-   modal.module.css (runtime-performance.md REQ-10). This overlay is the same
+   modal.module.css (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces). This overlay is the same
    shape and lifetime, so it carried the same cost. */
 .centered {
   box-shadow: none;
@@ -117,7 +117,7 @@ button.toggleActive:global(.on) {
 
 /* While the badges show, the ⓘ glyph *becomes* a badge: the accent disc and the
    `--bg-deep` ink of `.badge` below, so the control that hides them wears one
-   (onboarding.md REQ-8b). The border/glow above is generic — Fullscreen has it
+   (onboarding.md REQ-the-glyph-inverts-while-badges-show). The border/glow above is generic — Fullscreen has it
    too — which is why colour, not chrome, is what makes this button legible as
    the badges' own switch. Only the ⓘ glyph carries these part hooks
    (`header-icons.ts`), so Fullscreen shares `.toggleActive` without inheriting

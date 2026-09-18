@@ -10,7 +10,7 @@ import { TestClock } from '../audio/transport/test-clock';
 import { installLocalStorageMock, installSessionStorageMock } from '../storage-mock';
 
 /**
- * v8 (REQ-12): the session lives at `websynth.session.<tabId>`, where the id
+ * v8 (REQ-each-tab-autosaves-to-its-own-key): the session lives at `websynth.session.<tabId>`, where the id
  * comes from sessionStorage. Tests read the same place the implementation does
  * rather than being handed a test-only accessor.
  */
@@ -88,7 +88,7 @@ describe('SessionAutosave', () => {
     expect(capture).toHaveBeenCalledTimes(1);
   });
 
-  // runtime-performance.md REQ-5 / motion-sequencer.md REQ-15. Automation writes
+  // runtime-performance.md REQ-automation-is-not-an-edit / motion-sequencer.md REQ-motion-baselines-are-unchanged. Automation writes
   // at frame rate; if they reached `onChange` they would re-arm the debounce
   // faster than it can elapse and the session would never be written at all.
   it('automation writes never re-arm the debounce', () => {
@@ -189,7 +189,7 @@ describe('SessionAutosave', () => {
       expect(SessionAutosave.stats()).toEqual({ bytes: 8, savedAt: null });
     });
 
-    // REQ-13 — stats() is on the Debug panel's poll and the payload is the
+    // REQ-stats-never-parses-the-payload — stats() is on the Debug panel's poll and the payload is the
     // whole session, so the age is scanned out of a prefix, never parsed.
     it('reads the age without parsing the payload', () => {
       const { bus } = build();
@@ -219,13 +219,13 @@ describe('SessionAutosave', () => {
 });
 
 /**
- * REQ-12 (v8), regression. Two tabs used to share one key, so whichever was
+ * REQ-each-tab-autosaves-to-its-own-key (v8), regression. Two tabs used to share one key, so whichever was
  * switched away from flushed its own — often older — session over the other's.
  * Because song-mode makes motion authoritative on apply, a stale session does not
  * merely fail to restore motion, it BLANKS it: params and patterns look fine and
  * the automation is quietly gone. That is what this prevents.
  */
-describe('SessionAutosave per-tab isolation (v8, REQ-12)', () => {
+describe('SessionAutosave per-tab isolation (v8, REQ-each-tab-autosaves-to-its-own-key)', () => {
   let store: Map<string, string>;
 
   beforeEach(() => {

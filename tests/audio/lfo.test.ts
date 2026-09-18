@@ -5,7 +5,9 @@ import { SYNC_LABELS } from '../../src/utils/tempo';
 import { makeMockAudioContext } from './mock-audio-context';
 
 /**
- * The global LFO's destination routing and depth scaling (lfo.md REQ-1..REQ-5).
+ * The global LFO's destination routing and depth scaling —
+ * lfo.md REQ-each-lfo-has-four-controls through
+ * lfo.md REQ-amplitude-destinations-are-smoothed.
  *
  * `rampTo` is `setTargetAtTime`, so a destination's depth is read as the last
  * value that node's gain was targeted at. Only the selected destination is
@@ -63,10 +65,10 @@ describe('LFO destination routing', () => {
     lfo.setDest(3); // amp — ±50% around the tremolo VCA's base 1.0
     expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0.5, pan: 0, shape: 0 });
 
-    lfo.setDest(5); // pan — ±1.0, hard L↔R (REQ-4)
+    lfo.setDest(5); // pan — ±1.0, hard L↔R (REQ-pan-sweeps-a-stereo-panner)
     expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 1, shape: 0 });
 
-    lfo.setDest(6); // shape — ±0.5 of the POLY pole mix (REQ-7)
+    lfo.setDest(6); // shape — ±0.5 of the POLY pole mix (REQ-shape-destination-sweeps-the-pole-mix)
     expect(depths(lfo)).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0.5 });
   });
 
@@ -113,7 +115,7 @@ describe('LFO destination routing', () => {
   });
 });
 
-describe('LFO control-signal smoothing (REQ-5)', () => {
+describe('LFO control-signal smoothing (REQ-amplitude-destinations-are-smoothed)', () => {
   it('smooths only the amplitude-domain destinations', () => {
     const { lfo, osc, smooth } = build();
     const direct = osc.connect.mock.calls.map((c) => c[0]);
@@ -128,8 +130,8 @@ describe('LFO control-signal smoothing (REQ-5)', () => {
     expect(direct).not.toContain(lfo.toShape);
 
     // amp/pan/shape go via the lowpass — a stepped gain is a click, and so is a
-    // stepped filter *coefficient*, which is what shape moves (lfo.md REQ-7).
-    // The matrix tap rides the smoothed path too (mod-matrix.md REQ-8): its route
+    // stepped filter *coefficient*, which is what shape moves (lfo.md REQ-shape-destination-sweeps-the-pole-mix).
+    // The matrix tap rides the smoothed path too (mod-matrix.md REQ-depth-is-in-the-destinations-unit): its route
     // may land on an amplitude destination, and at LFO rates the 200 Hz lowpass
     // costs the frequency-domain ones nothing.
     expect(smoothed).toEqual([lfo.toAmp, lfo.toPan, lfo.toShape, lfo.modTap]);
@@ -169,7 +171,7 @@ describe('LFO rate and waveform', () => {
 });
 
 /**
- * `LFO.bind` — the param wiring each LFO owns (lfo.md REQ-10/REQ-11, ADR-008).
+ * `LFO.bind` — the param wiring each LFO owns (lfo.md REQ-there-are-two-lfos/REQ-the-mod-wheel-feeds-lfo-one-only, ADR-008).
  *
  * This lived as a closure inside the private `Engine.subscribeParams()` until
  * v7, where it was unreachable without a full AudioContext + worklet boot; the
@@ -196,7 +198,7 @@ describe('LFO.bind', () => {
     return osc.frequency.setTargetAtTime.mock.calls.at(-1)?.[0] as number | undefined;
   }
 
-  it('opens LFO 1 with the mod wheel and leaves LFO 2 alone (REQ-11)', () => {
+  it('opens LFO 1 with the mod wheel and leaves LFO 2 alone (REQ-the-mod-wheel-feeds-lfo-one-only)', () => {
     const { bus, one, two } = pair();
     bus.set('lfo.dest', 1);      // cutoff
     bus.set('lfo2.dest', 2);     // pitch
@@ -211,7 +213,7 @@ describe('LFO.bind', () => {
     expect(depth(two.toPitch)).toBeCloseTo(0.4 * 1200, 6);
   });
 
-  it('still clamps the summed LFO 1 amount at full (edge, REQ-2)', () => {
+  it('still clamps the summed LFO 1 amount at full (edge, REQ-mod-wheel-sums-into-lfo-one)', () => {
     const { bus, one } = pair();
     bus.set('lfo.dest', 2);      // pitch
     bus.set('lfo.amount', 0.8);
@@ -219,7 +221,7 @@ describe('LFO.bind', () => {
     expect(depth(one.toPitch)).toBeCloseTo(1200, 6); // not 1.7 * 1200
   });
 
-  it('tempo-locks each LFO independently off transport.bpm (REQ-9, REQ-10)', () => {
+  it('tempo-locks each LFO independently off transport.bpm (REQ-lfo-sync-locks-rate-to-tempo, REQ-there-are-two-lfos)', () => {
     const { bus, oneCtx, twoCtx } = pair();
     bus.set('transport.bpm', 120);
     bus.set('lfo.rate', 7);
@@ -234,7 +236,7 @@ describe('LFO.bind', () => {
     expect(rateOf(oneCtx)).toBeCloseTo(7, 6);
   });
 
-  it('returns to the stored rate when sync goes back to free (REQ-9)', () => {
+  it('returns to the stored rate when sync goes back to free (REQ-lfo-sync-locks-rate-to-tempo)', () => {
     const { bus, twoCtx } = pair();
     bus.set('transport.bpm', 120);
     bus.set('lfo2.rate', 7);
@@ -246,17 +248,17 @@ describe('LFO.bind', () => {
     expect(bus.get('lfo2.rate')).toBe(7);       // never rewritten
   });
 
-  it('leaves both LFOs silent at their defaults (REQ-10, ADR-006)', () => {
+  it('leaves both LFOs silent at their defaults (REQ-there-are-two-lfos, ADR-006)', () => {
     const { one, two } = pair();
     for (const d of [depths(one), depths(two)]) {
       expect(d).toEqual({ pitch: 0, cutoff: 0, amp: 0, pan: 0, shape: 0 });
     }
   });
 
-  it('sums two LFOs pointed at one destination (REQ-13, edge)', () => {
+  it('sums two LFOs pointed at one destination (REQ-duplicated-destinations-sum-and-stay-bounded, edge)', () => {
     const { bus, one, two } = pair();
     bus.set('lfo.dest', 5);      // pan, on both — only a hand-authored file can
-    bus.set('lfo2.dest', 5);     // do this; the panel greys it out (REQ-12)
+    bus.set('lfo2.dest', 5);     // do this; the panel greys it out (REQ-destinations-are-no-longer-exclusive)
     bus.set('lfo.amount', 1);
     bus.set('lfo2.amount', 1);
     // Each contributes its own full ±1; the panner clamps the sum.

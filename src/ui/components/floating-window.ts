@@ -25,7 +25,7 @@ export interface FloatingWindowOptions {
   onClose?: () => void;
   /**
    * Asked before every close; resolving `false` **aborts** it — the window stays
-   * open, `onClose` never fires and `isOpen` never flips (REQ-9). Because the
+   * open, `onClose` never fires and `isOpen` never flips (REQ-a-window-may-veto-its-close). Because the
    * check lives inside `close()`, it guards every door at once: the ✕, the
    * launcher's toggle, a keyboard shortcut. For a window holding unsaved work.
    */
@@ -137,14 +137,14 @@ export class FloatingWindow {
     void this.root.offsetWidth;
     this.root.classList.remove('hidden');
     // Re-clamp a possibly stale position into the current viewport, then keep it
-    // there across resize/orientation changes while open (REQ-8).
+    // there across resize/orientation changes while open (REQ-window-stays-inside-the-viewport).
     this.clampIntoView();
     window.addEventListener('resize', this.onViewportResize);
     window.addEventListener('orientationchange', this.onViewportResize);
   }
 
   /**
-   * Idempotent. With a `confirmClose` (REQ-9) this defers to it and does nothing
+   * Idempotent. With a `confirmClose` (REQ-a-window-may-veto-its-close) this defers to it and does nothing
    * at all when it resolves `false` — so a vetoed close leaves the window
    * byte-for-byte as it was. Stays `void`-returning: every caller fires and
    * forgets, and the veto is the window's business, not theirs.
@@ -177,7 +177,7 @@ export class FloatingWindow {
   private toggleCollapsed(): void {
     this.setCollapsed(!this._collapsed);
     // Restoring re-grows the body (offsetHeight), which could push it past the
-    // bottom edge — re-clamp so a restored window stays in view (REQ-8).
+    // bottom edge — re-clamp so a restored window stays in view (REQ-window-stays-inside-the-viewport).
     if (this._isOpen) this.clampIntoView();
   }
 
@@ -213,7 +213,7 @@ export class FloatingWindow {
   };
 
   /** Store `left`/`top` clamped to the current viewport and write them to the
-   *  root. Shared by drag and by the open/resize re-clamp (REQ-8) so the bounds
+   *  root. Shared by drag and by the open/resize re-clamp (REQ-window-stays-inside-the-viewport) so the bounds
    *  are identical. */
   private applyClampedPos(left: number, top: number): void {
     const maxLeft = Math.max(0, window.innerWidth - this.root.offsetWidth);
@@ -224,7 +224,7 @@ export class FloatingWindow {
     this.root.style.top = `${this.pos.top}px`;
   }
 
-  /** Re-clamp the current position against the live viewport (REQ-8). */
+  /** Re-clamp the current position against the live viewport (REQ-window-stays-inside-the-viewport). */
   private clampIntoView(): void {
     this.applyClampedPos(this.pos.left, this.pos.top);
   }

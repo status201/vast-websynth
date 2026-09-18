@@ -8,7 +8,7 @@ import { SYNC_LABELS } from '../../src/utils/tempo';
 import { makeMockAudioContext, type MockAudioParam } from './mock-audio-context';
 
 /**
- * The wah / phaser / delay tempo lock (tempo-lock.md REQ-7).
+ * The wah / phaser / delay tempo lock (tempo-lock.md REQ-audio-resolves-the-lock-in-one-place).
  *
  * All three go through `bindTempoLocked`, so what is under test is really one
  * mechanism seen from three angles — plus the two quantities it dispatches on
@@ -107,7 +107,7 @@ describe('FX tempo lock', () => {
   });
 
   // The delay is the one param whose range a division can leave: 1/1 at 60 BPM
-  // is 4 s against a registered max of 1.5. The UI greys that row (REQ-6); audio
+  // is 4 s against a registered max of 1.5. The UI greys that row (REQ-the-reverb-ir-bank-is-lazy-and-shared); audio
   // clamps nothing new, so the DelayNode's own pre-existing 2 s ceiling is what
   // holds — and no patch that already stored such a value changes.
   it('does not clamp a division to the registered range', () => {

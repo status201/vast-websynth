@@ -53,7 +53,7 @@ test.describe('meter', () => {
     await expect(page.getByTestId('seq-step-14')).toBeHidden();
   });
 
-  test('the steps past the length are kept, not destroyed (REQ-11)', async ({ page }) => {
+  test('the steps past the length are kept, not destroyed (REQ-cells-beyond-the-length-are-hidden)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
     // Kick step 15 is off by default; switch it on, shorten the lane past it,
@@ -68,7 +68,7 @@ test.describe('meter', () => {
     await expect(page.getByTestId('drum-step-0-15')).toHaveClass(/_on_/);
   });
 
-  test('a lane can be set against the bar on purpose (REQ-10)', async ({ page }) => {
+  test('a lane can be set against the bar on purpose (REQ-each-machine-has-a-loop-length)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
     await busSet(page, 'drum.len', 12);
@@ -92,7 +92,7 @@ test.describe('meter', () => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
     // Closed by default: the machine header cannot afford two inline dropdowns
-    // (responsive-machine-header.md REQ-8).
+    // (responsive-machine-header.md REQ-lane-controls-are-the-second-cluster).
     await expect(page.getByTestId('machine-drum-len')).toBeHidden();
 
     await page.getByTestId('machine-drum-grid').click();
@@ -114,7 +114,7 @@ test.describe('meter', () => {
     }).__synth.engine.seekTo(step), n);
 
     // Tick 13 in 4/4 is step 14 of bar 1. (The BAR stays 1: nothing is chained,
-    // so the song is one repeating bar — transport-position.md REQ-15.)
+    // so the song is one repeating bar — transport-position.md REQ-the-readout-never-invents-bars.)
     await seek(13);
     await expect(page.getByTestId('transport-readout')).toHaveText('1.14');
 

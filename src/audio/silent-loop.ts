@@ -3,7 +3,7 @@ import { encodeWav } from './recorder/encode';
 /**
  * The silent, looping `<audio>` element both platform audio workarounds are
  * built on — extracted so there is one copy of it (see
- * `specs/features/media-session.md` REQ-7).
+ * `specs/features/media-session.md` REQ-one-silent-loop-builder-two-callers).
  *
  * The two callers want the same element for different reasons, and differ in
  * exactly one thing — whether it is routed through the AudioContext:

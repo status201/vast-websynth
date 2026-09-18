@@ -11,7 +11,7 @@
 //   icon-192.png          192×192, opaque #050302 (manifest, purpose "any")
 //   icon-512.png          512×512, opaque #050302 (manifest, purpose "any")
 //
-// See specs/features/pwa-install.md (REQ-3).
+// See specs/features/pwa-install.md (REQ-apple-touch-icon-is-opaque).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

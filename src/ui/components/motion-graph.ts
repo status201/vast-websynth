@@ -5,14 +5,14 @@ import {
 
 /**
  * Pure geometry for the Motion panel's axis-graph overlay
- * (motion-sequencer.md REQ-8) — no DOM, so it is unit-testable like
+ * (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad) — no DOM, so it is unit-testable like
  * `motion-curve.ts`. Coordinates are in the graph SVG's 0–100 viewBox space,
  * y-down (an anchor value of 1 draws at y=0).
  *
  * Dots always sit at the anchor centres — geometry, not the visible anchor
  * marker: the panel strokes each as a circle that the overlay's non-uniform
  * viewBox flattens into a tick on the line, and the round dot a reader sees at an
- * anchor belongs to the pad underneath (motion-sequencer.md REQ-8). The line is
+ * anchor belongs to the pad underneath (motion-sequencer.md REQ-each-motion-step-is-a-mini-xy-pad). The line is
  * mode-aware:
  *   - 'slide' — the anchor-to-anchor polyline (the panel only strokes it when
  *     there are ≥ 2 points, matching the machine's constant-value single-anchor
@@ -24,7 +24,7 @@ import {
  *
  * `carry` holds the up-to-two segments joining the outer anchors to the bar edges
  * (the panel strokes them dashed): what the curve does *across* the bar line, which
- * depends on the neighbouring bars' banks (REQ-2b). Their edge values come from
+ * depends on the neighbouring bars' banks (REQ-cross-bank-carry). Their edge values come from
  * `scalarAt` itself, so the drawing cannot drift from what plays.
  *
  * (v4) The geometry is generic over "a lane of anchorable cells plus a value
@@ -33,7 +33,7 @@ import {
  * implementation.
  *
  * (v16) Every coordinate is a fraction of the **lane's** played length, not the
- * bank's 16 (motion-sequencer.md REQ-24b). `cells` is the same argument
+ * bank's 16 (motion-sequencer.md REQ-the-motion-graph-follows-the-lane). `cells` is the same argument
  * `scalarAt` takes and defaults the same way, so a caller with no meter is
  * unaffected — but the panel has one, and passing it is what keeps the drawing
  * on the grid the pads are drawn on. Before it existed a 9-cell lane squeezed
@@ -58,7 +58,7 @@ function graphPoints<T extends { on: boolean }>(
   const n = cells === undefined ? bank.length : Math.max(1, Math.min(bank.length, cells));
   const dots: Array<[number, number]> = [];
   // Anchors past the lane are skipped, not drawn off the right edge: the curve
-  // cannot see them either (REQ-24), and their cells are dark.
+  // cannot see them either (REQ-the-automation-lane-follows-the-meter), and their cells are dark.
   for (let s = 0; s < n; s++) {
     const step = bank[s]!;
     if (!step.on) continue;
@@ -103,7 +103,7 @@ function graphPoints<T extends { on: boolean }>(
 const getX = (s: MotionStep): number => s.x;
 const getY = (s: MotionStep): number => s.y;
 
-/** The XY row's graph, projected onto one axis (REQ-8); `cells` per REQ-24b. */
+/** The XY row's graph, projected onto one axis (REQ-each-motion-step-is-a-mini-xy-pad); `cells` per REQ-the-motion-graph-follows-the-lane. */
 export function motionGraphPoints(
   bank: readonly MotionStep[],
   view: 'x' | 'y',
@@ -114,7 +114,7 @@ export function motionGraphPoints(
   return graphPoints(bank, view === 'x' ? getX : getY, mode, neighbours, cells);
 }
 
-/** An extra single-param track's graph (REQ-16). */
+/** An extra single-param track's graph (REQ-two-lanes-below-the-xy-lane). */
 export function motionGraphPoints1D(
   steps: readonly MotionTrackStep[],
   mode: MotionMode,

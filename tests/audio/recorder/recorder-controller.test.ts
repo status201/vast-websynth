@@ -21,7 +21,7 @@ const SAMPLE_RATE = 8000; // 120 BPM bar = 2 s = 16000 frames
 /** Duck-typed RecorderNode that counts frames the way the real one does: it
  *  accumulates while "running", and pause/resume gate that without clearing.
  *  `stop`/`pause` are async like the real node, which awaits the worklet's final
- *  batch before the take is complete (audio-export.md REQ-6b). */
+ *  batch before the take is complete (audio-export.md REQ-chunks-are-batched-then-flushed). */
 function fakeNode() {
   const calls: string[] = [];
   let running = false;
@@ -61,7 +61,7 @@ function harness() {
    * Run the transport until the controller stops it, advancing both clocks
    * together in look-ahead-sized wakeups exactly like the real thing. NOT one
    * jump past the window: the drain is bounded, so a grid left far behind
-   * `currentTime` reads as a dropout and emits nothing (transport.md REQ-9).
+   * `currentTime` reads as a dropout and emits nothing (transport.md REQ-the-transport-catch-up-is-bounded).
    */
   const runTransport = (): void => {
     for (let i = 0; i < 40_000 && clock.playing; i++) {
@@ -109,7 +109,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// ---------- Export length (REQ-2) ----------
+// ---------- Export length (REQ-export-song-renders-from-the-top) ----------
 
 describe('RecorderController.exportSong', () => {
   it('renders one pass of the longest enabled chain by default', async () => {
@@ -136,7 +136,7 @@ describe('RecorderController.exportSong', () => {
     expect(steps[steps.length - 1]).toBe(FALLBACK_BARS * SEQ_LENGTH);
   });
 
-  it('multiplies the rendered length by runs (v7, REQ-2)', () => {
+  it('multiplies the rendered length by runs (v7, REQ-export-song-renders-from-the-top)', () => {
     const { ctrl, arrangement, clock, drain } = harness();
     arrangement.setSeqChain([0, 1], true); // 2 bars
     const steps: number[] = [];
@@ -160,7 +160,7 @@ describe('RecorderController.exportSong', () => {
   });
 });
 
-// ---------- The tail (REQ-3) ----------
+// ---------- The tail (REQ-the-capture-keeps-a-tail) ----------
 
 describe('the export tail', () => {
   it('waits TAIL_MS by default — bar-exact, as the audio bench needs', () => {
@@ -197,7 +197,7 @@ describe('the export tail', () => {
   });
 });
 
-// ---------- Manual phases (REQ-4) ----------
+// ---------- Manual phases (REQ-capture-is-a-five-phase-machine) ----------
 
 describe('the manual phase machine', () => {
   it('walks idle → recording → paused → recording → review', async () => {
@@ -225,7 +225,7 @@ describe('the manual phase machine', () => {
     ctrl.startManual();
     expect(clock.playing).toBe(true);
     await ctrl.stopManual();
-    expect(clock.playing).toBe(true); // audio-export.md REQ-4
+    expect(clock.playing).toBe(true); // audio-export.md REQ-capture-is-a-five-phase-machine
   });
 
   // The v6 bug this replaces: stopping downloaded unconditionally, so a fluffed
@@ -259,7 +259,7 @@ describe('the manual phase machine', () => {
     expect(ctrl.capturedSeconds()).toBe(0);
   });
 
-  it('reports 0 once a saved take is written, too (REQ-4 regression)', async () => {
+  it('reports 0 once a saved take is written, too (REQ-capture-is-a-five-phase-machine regression)', async () => {
     const { ctrl, node } = harness();
     ctrl.startManual();
     node.feed(8 * SAMPLE_RATE);
@@ -278,7 +278,7 @@ describe('the manual phase machine', () => {
     expect(ctrl.phase).toBe('idle');
   });
 
-  // REQ-4: pause splices. The paused stretch never enters the buffer, so the
+  // REQ-capture-is-a-five-phase-machine: pause splices. The paused stretch never enters the buffer, so the
   // take is one continuous file and the timer never advances during it.
   it('splices out the paused stretch rather than padding it', async () => {
     const { ctrl, node } = harness();
@@ -298,7 +298,7 @@ describe('the manual phase machine', () => {
   });
 });
 
-// ---------- Progress, cancel and the encoding phase (v7.1, REQ-10) ----------
+// ---------- Progress, cancel and the encoding phase (v7.1, REQ-the-modal-is-the-renders-own-surface) ----------
 
 describe('the in-flight export', () => {
   it('reports progress through the pass', () => {
@@ -379,7 +379,7 @@ describe('the in-flight export', () => {
   });
 });
 
-// ---------- The two predicates (REQ-2/REQ-4) ----------
+// ---------- The two predicates (REQ-export-song-renders-from-the-top/REQ-capture-is-a-five-phase-machine) ----------
 
 describe('the capture predicates', () => {
   it('isCapturing covers recording and paused; isExporting only an export', async () => {

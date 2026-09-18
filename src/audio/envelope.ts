@@ -5,7 +5,7 @@
  * an audio-rate signal in [0, peak]. Route this signal into any AudioParam
  * (amp VCA, filter cutoff, etc.) via `envelope.out.connect(param)`.
  *
- * Scheduling is future-time-safe (envelopes.md REQ-4): the transport schedules
+ * Scheduling is future-time-safe (envelopes.md REQ-envelope-scheduling-is-future-time-safe): the transport schedules
  * a step's attack *and* its gate-end release on the same tick, both up to the
  * look-ahead in the future. Anchoring a phase change at the live param value
  * (`gain.value` — the value *now*) pins a stale snapshot at the scheduled time
@@ -74,7 +74,7 @@ export class Envelope {
   }
 
   /**
-   * Cancel from `t` and pin the value the curve reaches at `t` (REQ-4).
+   * Cancel from `t` and pin the value the curve reaches at `t` (REQ-envelope-scheduling-is-future-time-safe).
    * Returns the effective time (`max(when, now)`).
    */
   private anchor(when: number): number {

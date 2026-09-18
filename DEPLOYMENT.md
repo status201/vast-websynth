@@ -30,14 +30,14 @@ for long** (`Cache-Control: no-cache` is right for them):
 - `/offline-manifest.json` — the build's list of every app file, which the About
   card's **Play offline** downloads and a new service worker reads to refresh a
   device's offline copy
-  ([play-offline](specs/features/play-offline.md) REQ-2, REQ-7). A stale list
+  ([play-offline](specs/features/play-offline.md) REQ-the-build-writes-the-file-list, REQ-the-copy-survives-a-release). A stale list
   belongs to the previous version, so the refresh rejects it and the update waits.
 
 ## Security headers
 
 The **Content-Security-Policy is a `<meta>` tag in `index.html`**, so it ships
 with the build and needs no host configuration anywhere
-(`specs/features/untrusted-input.md` REQ-10).
+(`specs/features/untrusted-input.md` REQ-defence-in-depth-at-delivery).
 
 Four more headers cannot ride in that tag — `<meta http-equiv>` carries no header
 but `Content-Security-Policy`, and `frame-ancestors` is ignored even inside that
@@ -135,7 +135,9 @@ claude mcp add --transport http websynth https://vast.status201.com/mcp
 
 It is **authless and read-only** — eight tools, all pure functions over a public
 document format, no filesystem writes. See
-[mcp-server](specs/features/mcp-server.md) REQ-9/10/11 for the contract and
+[mcp-server](specs/features/mcp-server.md)
+REQ-the-http-transport-is-stateless/REQ-the-remote-profile-is-read-only,
+mcp-server.md REQ-the-public-endpoint-is-bounded-not-authenticated for the contract and
 [ADR-020](specs/decisions/adr-020-remote-mcp-is-authless-and-read-only.md) for
 why those two go together.
 
@@ -177,7 +179,7 @@ are trying to work out what a box is actually running.
 - **No dependencies.** There is no `dependencies` block (ADR-003) — do not run
   `npm install` on the server; there is nothing to install.
 - The zip ships `dist/song-core.mjs` prebuilt. The deployed entry deliberately
-  does *not* self-build ([mcp-server](specs/features/mcp-server.md) REQ-3): a
+  does *not* self-build ([mcp-server](specs/features/mcp-server.md) REQ-local-entries-self-build-the-core): a
   missing bundle fails loudly at boot rather than shelling out to a bundler on
   an unauthenticated request.
 
@@ -220,7 +222,7 @@ are trying to work out what a box is actually running.
      other path keeps being served from `dist/` exactly as before.
    - The trailing `/` on `proxy_pass` strips the `/mcp` prefix, so the app is
      reached at `/`. It accepts the POST on any path
-     ([mcp-server](specs/features/mcp-server.md) REQ-9e), so the mount point is
+     ([mcp-server](specs/features/mcp-server.md) REQ-the-request-path-is-not-matched), so the mount point is
      not baked into the code.
    - **`X-Forwarded-For` is overwritten (`$remote_addr`), not appended.** The
      rate limiter keys on the first hop; appending would let an unauthenticated
@@ -272,7 +274,7 @@ The failure tells you which half is wrong, if you read what produced it:
 | --- | --- |
 | A **Plesk error page** (`<!DOCTYPE html>`, `/error_docs/styles.css`) — 404 or 403 | nginx never proxied: the request was served by the static site. The `location ^~ /mcp` block is missing, wasn't saved, or Plesk rejected the config. Nothing reached Node. |
 | **502 / 504** | The block *is* live and nginx tried, but could not reach the upstream. The Node app is stopped, or the subdomain's certificate/SNI is failing. |
-| **405** with `Allow: POST` | It works. That is our answer — `GET` offers no stream by design (REQ-9b). |
+| **405** with `Allow: POST` | It works. That is our answer — `GET` offers no stream by design (REQ-no-sse-every-response-is-one-json-body). |
 | A JSON-RPC body | It works. |
 
 The distinction that matters: **a Plesk-styled error page is never from us.** This
@@ -364,7 +366,7 @@ one behind; delete the row when you remove it.**
 
 | Shim | Since | Why it exists | Safe to drop when |
 | --- | --- | --- | --- |
-| `websynth.session` read fallback (`state/session-autosave.ts`) | 2.9 | Sessions moved to one key per browser tab ([session-autosave](specs/features/session-autosave.md) REQ-12). The old single key is still read once so an in-progress session survives the upgrade; it is never written. | Anyone who has opened the app since 2.9 has been migrated by their first autosave. Dropping it only costs a user who has not opened it since — their unsaved session, not their saved songs. |
+| `websynth.session` read fallback (`state/session-autosave.ts`) | 2.9 | Sessions moved to one key per browser tab ([session-autosave](specs/features/session-autosave.md) REQ-each-tab-autosaves-to-its-own-key). The old single key is still read once so an in-progress session survives the upgrade; it is never written. | Anyone who has opened the app since 2.9 has been migrated by their first autosave. Dropping it only costs a user who has not opened it since — their unsaved session, not their saved songs. |
 
 Song *file* versions are not on this list: they are additive by design and every
 version from v1 still loads with no migration step (ADR-007), so a major bump is

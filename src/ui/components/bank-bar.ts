@@ -113,7 +113,7 @@ export class BankBar {
   /**
    * Public so a panel can declare editing intent on the user's behalf — arming
    * the sequencer's Step Input turns Follow off so the arrangement can't swap
-   * the edit bank mid-take (sequencer.md REQ-6). Same funnel as a manual bank
+   * the edit bank mid-take (sequencer.md REQ-a-take-is-bank-pinned). Same funnel as a manual bank
    * click, so `onFollowChange` fires either way.
    */
   setFollowing(on: boolean): void {
@@ -134,7 +134,7 @@ export class BankBar {
     const edit = this.opts.getEdit();
     const play = this.opts.getPlay();
     // A resting lane plays no bank, so the red "now-playing" dot misreads — a
-    // root class recolours it amber via CSS (arrangement-rest.md REQ-8). render()
+    // root class recolours it amber via CSS (arrangement-rest.md REQ-resting-bank-bar-marks-itself). render()
     // re-runs on onPlayChange (= arrangement.onChange), which fires when resting flips.
     this.el.classList.toggle('resting', this.opts.resting?.() ?? false);
     this.btns.forEach((b, i) => {

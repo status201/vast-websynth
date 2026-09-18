@@ -14,7 +14,7 @@ import { chordDegrees, diatonicChord, scaleTones } from '../utils/music';
  * Pure: reads the bus, touches no DOM. The palette's other half is the `--key-role-*`
  * tokens in `styles/theme.css`.
  *
- * Spec: `specs/features/scale-quantization.md` REQ-9 / REQ-10.
+ * Spec: `specs/features/scale-quantization.md` REQ-the-key-is-drawn-not-just-named / REQ-the-key-is-shown-where-you-play.
  */
 
 /** Falling precedence: a pitch class wears the first of these that fits. */
@@ -25,7 +25,7 @@ export interface KeyState {
   root: number;
   /** Pitch classes the scale admits — every one of them while chromatic. */
   tones: ReadonlySet<number>;
-  /** The tonic chord of the current voicing (chord-tools.md REQ-1); empty when off. */
+  /** The tonic chord of the current voicing (chord-tools.md REQ-chords-are-stacked-scale-degrees); empty when off. */
   chord: ReadonlySet<number>;
   /** False while `chromatic`, where "in scale" says nothing about any note. */
   active: boolean;
@@ -47,7 +47,7 @@ export function readKeyState(bus: ParamBus): KeyState {
   const active = scale > 0;
 
   // Chromatically every note is admitted, and saying so is what makes choosing a
-  // scale visibly *remove* notes on the map (scale-quantization.md REQ-9).
+  // scale visibly *remove* notes on the map (scale-quantization.md REQ-the-key-is-drawn-not-just-named).
   const tones = active ? new Set(scaleTones(root, scale)) : ALL_PITCH_CLASSES;
 
   // Chord memory has no chord until a key is held, so the tonic stands in — that is

@@ -1,11 +1,11 @@
 // The header's "?" button and the open/close lifecycle of the About modal
 // behind it. Since v15 this is the app's single help door (onboarding.md
-// REQ-20) — the ⓘ button beside it does one thing only, toggle the badges.
+// REQ-about-is-the-single-door-for-help) — the ⓘ button beside it does one thing only, toggle the badges.
 // Hence the ? glyph: the tour and the shortcut list are help, not credits.
 //
 // This module is the *only* part of About on the boot path. The card itself is
 // ~39 kB that most visitors never open, so `open` imports it on the click
-// (runtime-performance.md REQ-1). Keeping the factory here rather than in
+// (runtime-performance.md REQ-boot-cost-matches-the-request). Keeping the factory here rather than in
 // `about-modal.ts` is the point: importing a factory eagerly to reach a lazy
 // body would put the body back in the entry chunk. The Debug section's
 // late-bound row sources live in `state/debug-sources.ts` for the same reason.
@@ -16,7 +16,7 @@ import { showLazyLoadFailure } from './lazy-load-toast';
 import type { StudioApi } from '../studio-api';
 
 /** What the modal needs from the onboarding layer, injected so About never
- *  imports it (onboarding.md REQ-20, the same rule the tour's `TourCtx` follows).
+ *  imports it (onboarding.md REQ-about-is-the-single-door-for-help, the same rule the tour's `TourCtx` follows).
  *  Declared here rather than in `about-modal.ts` so that module can take it
  *  type-only — a value import back would close a cycle at runtime. */
 export interface AboutDeps {
@@ -64,7 +64,7 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     window.removeEventListener('keydown', onKey, true);
     engine.ctx.removeEventListener('statechange', onState);
     window.clearInterval(refreshTimer);
-    // A test tone still ringing must not outlive the panel (debug-panel REQ-9).
+    // A test tone still ringing must not outlive the panel (debug-panel REQ-nothing-an-action-starts-outlives-the-panel).
     card.disposeDebug();
     card.backdrop.classList.add('hidden');
     const el = card.backdrop;
@@ -78,10 +78,10 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     // *after* the await deliberately: two fast clicks both reach here, and
     // checking beforehand would let each build its own card.
     //
-    // The catch is REQ-24: this is the app's single help door, so a rejected
+    // The catch is REQ-the-help-door-never-fails-silently: this is the app's single help door, so a rejected
     // import must say so rather than leave the ? button looking dead. `main.ts`
     // warms this chunk on idle to keep the case rare offline (pwa-install.md
-    // REQ-6), but a first visit that lost the network before idle has nothing
+    // REQ-service-worker-is-registered), but a first visit that lost the network before idle has nothing
     // cached — hence the retry, which is a real one since nothing is memoized.
     let buildModal: typeof import('./about-modal').buildModal;
     try {
@@ -98,7 +98,7 @@ export function createAboutButton(engine: StudioApi, deps: AboutDeps): HTMLButto
     backdrop.classList.remove('hidden');
     card.refreshDebug();
     // What this device holds offline — once per open, never at boot and never
-    // in the poll below: it reads the cache (play-offline.md REQ-4).
+    // in the poll below: it reads the cache (play-offline.md REQ-offline-state-is-checked-when-about-opens).
     card.refreshOffline();
     window.addEventListener('keydown', onKey, true);
     engine.ctx.addEventListener('statechange', onState);

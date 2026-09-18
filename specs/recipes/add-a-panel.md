@@ -107,7 +107,7 @@ npm run e2e         # e2e/controls.spec.ts sees the new tab/panel
   instead of the bare root — and in `buildPatternRow` gate it on
   `tabs.onViewChange(() => { if (!tabs.isVisible('my')) … })`. `isVisible` accounts
   for both the active tab and the row's fold state. The sequencer's Step Input is
-  the worked example ([sequencer](../features/sequencer.md) REQ-5); a panel built
+  the worked example ([sequencer](../features/sequencer.md) REQ-step-input-arms-only-on-screen); a panel built
   *before* the `TabContainer` exists cannot hold a reference to it, so this wiring
   belongs in `app.ts` next to `bridge.showTab`.
 

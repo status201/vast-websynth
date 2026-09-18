@@ -4,7 +4,7 @@
  * the panels' existing PatternStore subscriptions stay the only thing that
  * writes cell visuals, so a stroke cannot desynchronise from a repaint.
  *
- * The inventory (REQ-1/REQ-3/REQ-4), one outcome per gesture, no modes:
+ * The inventory (REQ-tap-toggles-a-step/REQ-hold-to-edit-selects-without-toggling/REQ-drag-paints-steps), one outcome per gesture, no modes:
  *   tap                    toggle `on` + select      (TR-808 and every DAW)
  *   drag                   paint !first.on           (FL Studio, Ableton)
  *   long-press / right-click   select WITHOUT toggling   (Elektron, Push)
@@ -153,7 +153,7 @@ export function attachGridGestures(opts: GridGestureOptions): () => void {
       opts.onSelect(r, c);                      // selection follows every press
       holdTimer = setTimeout(() => {
         holdTimer = undefined;
-        pending = false;                        // hold-to-edit: select only (REQ-3)
+        pending = false;                        // hold-to-edit: select only (REQ-hold-to-edit-selects-without-toggling)
         if (opts.heldClass) {
           cell.classList.add(opts.heldClass);
           heldCell = cell;
@@ -165,7 +165,7 @@ export function attachGridGestures(opts: GridGestureOptions): () => void {
     };
 
     // Desktop alias for hold-to-edit. Never the only route to it — a phone has
-    // no right-click (step-grid-editing.md REQ-3).
+    // no right-click (step-grid-editing.md REQ-hold-to-edit-selects-without-toggling).
     const onContext = (e: MouseEvent): void => {
       e.preventDefault();
       opts.onSelect(r, c);

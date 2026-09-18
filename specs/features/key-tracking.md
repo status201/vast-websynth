@@ -39,28 +39,31 @@ feature is one addition in semitone space.
 
 ## Requirements
 
-- **REQ-1** — `filter.keytrack` is a scalar `[0, 1]`, **default `0`** — a no-op,
-  so every existing preset is unchanged ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)).
-  `1` means one semitone of cutoff per semitone of note (100% tracking).
-- **REQ-2** — The offset is `keytrack * (note - KEY_CENTER)` semitones with
-  `KEY_CENTER = 60`, added to the voice's base cutoff. At `note === KEY_CENTER`
-  the offset is zero at **any** keytrack amount, so turning the knob never moves
-  the sound of a patch played at centre.
-- **REQ-3** — It stays in **semitone space** and is applied to the *base value*
-  of `cutoffNote`, never converted to Hz (ADR-005). The envelope and LFO keep
-  summing into the same `AudioParam` as additive inputs, so all four modulators
-  compose.
-- **REQ-4** — The keytracked value is applied **instantly at `noteOn`**
-  (`setValueAtTime` at the note's start time), not ramped: a glide from the
-  previous note's cutoff would whoop. A change to `filter.cutoff` or
-  `filter.keytrack` while a note is held **ramps** (`rampTo`, `RAMP_FAST`) like
-  any knob drag.
-- **REQ-5** — The result is clamped to the worklet's `cutoffNote` range, so an
-  extreme note × full tracking cannot push the coefficient past Nyquist. (The
-  worklet clamps internally too; this keeps the reported value honest.)
-- **REQ-6** — Changing `filter.keytrack` updates every voice in the pool live
-  (8, or 5 on the `weak` tier — [performance-mode](performance-mode.md)), and a voice
-  holding a note recomputes immediately rather than waiting for the next note.
+- **REQ-keytrack-defaults-to-no-op** — `filter.keytrack` is a scalar `[0, 1]`,
+  **default `0`** — a no-op, so every existing preset is unchanged
+  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)). `1` means one
+  semitone of cutoff per semitone of note (100% tracking).
+- **REQ-keytrack-offset-is-relative-to-key-centre** — The offset is `keytrack *
+  (note - KEY_CENTER)` semitones with `KEY_CENTER = 60`, added to the voice's
+  base cutoff. At `note === KEY_CENTER` the offset is zero at **any** keytrack
+  amount, so turning the knob never moves the sound of a patch played at centre.
+- **REQ-keytrack-stays-in-semitone-space** — It stays in **semitone space** and
+  is applied to the *base value* of `cutoffNote`, never converted to Hz
+  (ADR-005). The envelope and LFO keep summing into the same `AudioParam` as
+  additive inputs, so all four modulators compose.
+- **REQ-keytrack-lands-at-note-on** — The keytracked value is applied
+  **instantly at `noteOn`** (`setValueAtTime` at the note's start time), not
+  ramped: a glide from the previous note's cutoff would whoop. A change to
+  `filter.cutoff` or `filter.keytrack` while a note is held **ramps** (`rampTo`,
+  `RAMP_FAST`) like any knob drag.
+- **REQ-keytrack-is-clamped-to-range** — The result is clamped to the worklet's
+  `cutoffNote` range, so an extreme note × full tracking cannot push the
+  coefficient past Nyquist. (The worklet clamps internally too; this keeps the
+  reported value honest.)
+- **REQ-keytrack-updates-held-voices** — Changing `filter.keytrack` updates
+  every voice in the pool live (8, or 5 on the `weak` tier —
+  [performance-mode](performance-mode.md)), and a voice holding a note
+  recomputes immediately rather than waiting for the next note.
 
 ## Technical design
 
@@ -68,8 +71,8 @@ feature is one addition in semitone space.
 
 ```yaml
 Voice:  # src/audio/voice.ts
-  setFilterCutoff(note)          # stores the base, then re-applies (REQ-6)
-  setFilterKeytrack(amount)      # stores the amount, then re-applies (REQ-6)
+  setFilterCutoff(note)          # stores the base, then re-applies (REQ-keytrack-updates-held-voices)
+  setFilterKeytrack(amount)      # stores the amount, then re-applies (REQ-keytrack-updates-held-voices)
   # internal: the cached base cutoff, the cached amount and the held note number
   #           are the only state; the effective value is derived, never stored.
 ```
@@ -78,7 +81,7 @@ Voice:  # src/audio/voice.ts
 
 ```yaml
 filter.keytrack: { range: 0..1, default: 0, format: fmtPct }
-KEY_CENTER: 60   # the note at which tracking contributes nothing (REQ-2)
+KEY_CENTER: 60   # the note at which tracking contributes nothing (REQ-keytrack-offset-is-relative-to-key-centre)
 ```
 
 ### Layer touchpoints & ordering
@@ -139,7 +142,7 @@ Scenario: An extreme note cannot exceed the cutoff range (edge)
   Given filter.cutoff is 130 and filter.keytrack is 1
   When the highest playable note is triggered
   Then the applied cutoffNote is clamped to the WORKLET's range (CUTOFF_MIN 0 ..
-       CUTOFF_MAX 135), not to filter.cutoff's registered max of 130 — REQ-5
+       CUTOFF_MAX 135), not to filter.cutoff's registered max of 130 — REQ-keytrack-is-clamped-to-range
 # pinned by: tests/audio/voice.test.ts
 ```
 
@@ -157,4 +160,4 @@ Scenario: An extreme note cannot exceed the cutoff range (edge)
   widening the range later is backward-compatible because 0 stays the default.
 - **Velocity → cutoff** was the other modulator ADR-005 anticipated, and it has
   since been built: `filter.velAmount` scales `filEnv.trigger`'s peak
-  (`Voice.noteOn`) — see [envelopes](envelopes.md) REQ-5.
+  (`Voice.noteOn`) — see [envelopes](envelopes.md) REQ-filter-env-follows-velocity.

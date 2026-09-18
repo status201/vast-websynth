@@ -37,7 +37,7 @@ test.describe('arrangement rest slot', () => {
     await page.getByTestId('tab-seq').click();
     await expect(page.getByTestId('rest-overlay-seq')).toBeVisible();
 
-    // REQ-8: the bank bar flags itself resting (a global `.resting` root class)
+    // REQ-resting-bank-bar-marks-itself: the bank bar flags itself resting (a global `.resting` root class)
     // so CSS recolours the play-bank dot amber instead of the red "now-playing"
     // colour — no bank actually plays during a rest. Bank A stays selected.
     await expect(page.locator('.resting [data-testid="bank-seq-0"]')).toHaveCount(1);

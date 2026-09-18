@@ -4,7 +4,7 @@
  * Deliberately **pure and import-free**: `authoring-guide.ts` and the MCP
  * server's Node bundle both need the number, and neither may import `song.ts`,
  * whose `import.meta.glob` demo registration would come along for the ride
- * (song-authoring-dialect.md REQ-10). `song.ts` re-exports `SONG_VERSION`, so
+ * (song-authoring-dialect.md REQ-song-author-is-pure). `song.ts` re-exports `SONG_VERSION`, so
  * every existing importer is unaffected.
  *
  * Why it lives here rather than as a literal at each site: the published docs
@@ -12,7 +12,7 @@
  * guide the MCP `get_song_format` tool serves) advertise the version to external
  * tools, and they fell a version behind twice before
  * `tests/state/authoring-docs.test.ts` pinned them to this constant
- * (song-mode.md REQ-2). See `specs/recipes/evolve-the-song-format.md`.
+ * (song-mode.md REQ-song-file-is-a-versioned-union). See `specs/recipes/evolve-the-song-format.md`.
  */
 
 /** The version `Song.capture()` writes. Bumping the format starts here. */

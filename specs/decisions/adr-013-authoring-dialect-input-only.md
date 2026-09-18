@@ -30,7 +30,7 @@ version: 1` — that `Song.parse` detects and expands into a canonical
 `SongFile` (v3 at the time of this decision; the expander targets the **lowest**
 canonical version that can hold what was authored, so a file using no newer field
 still expands to that same v3 — see
-[`features/song-authoring-dialect`](../features/song-authoring-dialect.md) REQ-12)
+[`features/song-authoring-dialect`](../features/song-authoring-dialect.md) REQ-the-emitted-version-is-the-lowest-that-fits)
 (via `expandAuthorSong` in `src/state/song-author.ts`) *before*
 `validateSongFile` runs. The dialect is a compression of intent: positional note
 lists, drum hit-lists keyed by track name, chain strings like `"AABA"`. Nothing

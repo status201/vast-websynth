@@ -67,7 +67,7 @@
 }
 
 /* A long-press registered: the step is being picked up for editing, NOT
-   toggled (specs/features/step-grid-editing.md REQ-3). The ring is the only
+   toggled (specs/features/step-grid-editing.md REQ-hold-to-edit-selects-without-toggling). The ring is the only
    signal that the hold "took", so it must read at a glance without moving
    layout — hence an outline rather than a border change. */
 .held {

@@ -19,13 +19,13 @@
   /* A bar that advances a few times a second (the export's 16ths, a download's
      files), so a short ease reads as motion rather than a stutter — and it is the
      one thing on screen saying the app is still working. Dropped for the
-     indeterminate stripe, which animates itself (REQ-3). */
+     indeterminate stripe, which animates itself (REQ-fill-eases-unless-reduced-motion). */
   transition: width 0.12s linear;
 }
 
 /* Length unknown (the MP3 encode reports no progress): a filled bar would be a
    lie. Stripes moving over a full bar say "working" without claiming a length
-   (REQ-2). */
+   (REQ-indeterminate-drops-valuenow). */
 .track.indeterminate .fill {
   transition: none;
   background-image: repeating-linear-gradient(

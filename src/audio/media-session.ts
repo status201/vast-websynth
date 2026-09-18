@@ -23,7 +23,7 @@ import { createSilentLoop } from './silent-loop';
  * handler must never cost the synth its audio, so nothing throws out.
  */
 
-/** What the OS's transport controls drive (see media-session.md REQ-4). */
+/** What the OS's transport controls drive (see media-session.md REQ-notification-controls-work). */
 export interface MediaSessionHandlers {
   /** Notification "play": resume the context and start the transport. */
   play(): void;
@@ -40,14 +40,14 @@ export interface MediaTransport {
   resume(): void | Promise<void>;
   /** `Clock.start()` — from the cue, which after a pause is the resume point. */
   start(): void;
-  /** `Clock.pause()` (transport.md REQ-12). */
+  /** `Clock.pause()` (transport.md REQ-pause-resumes-where-it-stopped). */
   pause(): void;
   /** `Engine.panic()` — stop and silence every voice. */
   panic(): void;
 }
 
 /**
- * The OS button → transport mapping (media-session.md REQ-4). Pause is the real
+ * The OS button → transport mapping (media-session.md REQ-notification-controls-work). Pause is the real
  * Pause, not a panic: a lock-screen pause and play continue the song from where
  * it stopped, like the TRANSPORT row's Play/Pause. Play needs nothing special —
  * a plain start begins at the cue, and a pause sets the cue. Stop still panics,
@@ -170,7 +170,7 @@ export class MediaSessionKeepAlive {
   }
 
   /**
-   * Report the *audio session's* state, not the transport's (REQ-5): this is an
+   * Report the *audio session's* state, not the transport's (REQ-playback-state-mirrors-the-session): this is an
    * instrument, so the keyboard makes sound with the transport stopped —
    * 'paused' would be a lie, and Android treats a paused session as a candidate
    * for teardown, which is the failure this class exists to prevent.

@@ -39,7 +39,7 @@ export class SlotStore {
 
   /** The slot names, in insertion order. Empty when absent or corrupt.
    *
-   *  Validated, not cast (untrusted-input.md REQ-8): the parsed value only has
+   *  Validated, not cast (untrusted-input.md REQ-deserialized-state-is-validated-never-cast): the parsed value only has
    *  to be *JSON* to get here, and a non-array — or an array of non-strings —
    *  would reach every caller as a slot name and break the dropdown. Non-string
    *  entries are dropped rather than failing the whole index, so one bad row

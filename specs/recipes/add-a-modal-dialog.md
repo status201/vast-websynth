@@ -6,7 +6,7 @@ status: implemented
 version: 4   # v4: a modal still playing its close fade is reaped the moment
              #     any modal opens — a closed dialog must not outlive its answer
              # v3: the backdrop carries no backdrop-filter
-             #     (runtime-performance.md REQ-10)
+             #     (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces)
 owner: core
 related:
   - architecture
@@ -101,7 +101,7 @@ npm test            # tests/ui/modal.test.ts
   whole viewport every frame — measured at 60 → 34 fps with a demo playing, and
   it applies to every dialog at once because they share `.backdrop`. The dim is
   the whole effect. → [`runtime-performance.md`](../features/runtime-performance.md)
-  REQ-10, pinned by `tests/ui/overlay-cost.test.ts`.
+  REQ-no-viewport-scaled-compositing-on-hot-surfaces, pinned by `tests/ui/overlay-cost.test.ts`.
 - Backdrop-click closes only when the click target *is* the backdrop (not a
   child) — handled by the component. Opt out with `dismissOnBackdrop: false` for
   multi-step flows where a stray click would discard progress; pair it with an

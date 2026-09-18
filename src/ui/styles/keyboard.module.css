@@ -86,7 +86,7 @@
 }
 
 /* ---- the current key, worn by the keys you actually play ----
-   scale-quantization.md REQ-10. Roles arrive as `data-role`, written by
+   scale-quantization.md REQ-the-key-is-shown-where-you-play. Roles arrive as `data-role`, written by
    `Keyboard.setKeyRoles` from the same resolver and the same `--key-role-*` palette the
    KEY tab's map uses. Absent while chromatic, so the default keyboard is untouched.
 

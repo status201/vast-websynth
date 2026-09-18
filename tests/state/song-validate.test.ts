@@ -57,7 +57,7 @@ describe('validateSongFile — accepts', () => {
   });
 
   // Covers the hand-authored built-ins AND every on-disk drop-in. The app fetches
-  // the drop-ins on click rather than bundling them (song-mode.md REQ-11), so they
+  // the drop-ins on click rather than bundling them (song-mode.md REQ-song-lane-titles-navigate), so they
   // come from the test-only eager glob — losing this coverage was the one real
   // risk in making them lazy: nothing else parses them before a user clicks.
   const shipped = { ...DROP_IN_DEMOS, ...DEMO_SONGS };
@@ -67,7 +67,7 @@ describe('validateSongFile — accepts', () => {
     expect(res.ok).toBe(true);
   });
 
-  // untrusted-input.md REQ-12. A warning here is not a validator bug — it means a
+  // untrusted-input.md REQ-an-unresolvable-target-warns. A warning here is not a validator bug — it means a
   // *shipped demo* names an automation target that no longer resolves, so that
   // lane is silently dead in the product. Fail loudly and fix the demo.
   it.each(Object.keys(shipped))('no shipped demo has a dead automation target: %s', (name) => {
@@ -188,7 +188,7 @@ describe('validateSongFile — rejects', () => {
     expectReject(f, 'drumBanks[1][3][7].ratchet');
   });
 
-  // step-settings.md REQ-6 — micro is an INTEGER notch count, not a unit float,
+  // step-settings.md REQ-a-step-carries-a-micro-offset — micro is an INTEGER notch count, not a unit float,
   // and the canonical validator refuses rather than coercing (ADR-013).
   it('an out-of-range drum micro, naming its path', () => {
     const f = clone(captureValid());
@@ -333,13 +333,13 @@ describe('validateSongFile — v4 motion fields', () => {
   });
 });
 
-// untrusted-input.md REQ-12. The bug this closes: MotionMachine.write does
+// untrusted-input.md REQ-an-unresolvable-target-warns. The bug this closes: MotionMachine.write does
 // `const def = this.bus.def(id); if (!def) return;` — so before this, one typo'd
 // id cost an entire automation lane with no error at author time, at import, or
 // anywhere in the UI. It is a *warning* and not a rejection because ADR-007
 // promises a song from a newer build keeps loading, and a target naming a
 // parameter added after this build shipped is exactly that case.
-describe('validateSongFile — unresolvable automation targets warn (REQ-12)', () => {
+describe('validateSongFile — unresolvable automation targets warn (REQ-motion-mute-is-an-ordinary-param)', () => {
   /** The warnings of a song that must still be valid. */
   const warningsOf = (file: unknown): string[] => {
     const res = validateSongFile(file);
@@ -389,7 +389,7 @@ describe('validateSongFile — unresolvable automation targets warn (REQ-12)', (
     const res = validateSongFile(f);
     expect(res.ok).toBe(true);
     // Omitted, not empty: a clean song's result stays deep-equal to its
-    // pre-REQ-12 shape, so nothing downstream can start depending on the key.
+    // pre-REQ-motion-mute-is-an-ordinary-param shape, so nothing downstream can start depending on the key.
     if (res.ok) expect(res.warnings).toBeUndefined();
   });
 

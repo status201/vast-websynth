@@ -89,7 +89,7 @@ has none of these does not exist for the user:
 
 ```yaml
 title:      every interactive element (the tooltip states the gesture, not the noun)
-help badge: ui/onboarding/help-content.ts, for anything non-obvious   # onboarding.md REQ-3
+help badge: ui/onboarding/help-content.ts, for anything non-obvious   # onboarding.md REQ-info-badges-show-per-control-help
 tour step:  ui/onboarding/, only for gestures on the primary path     # add-a-tour-step.md
 ```
 
@@ -132,7 +132,7 @@ npm run e2e         # the gesture on the real panel
   `getBoundingClientRect` when geometry matters.
 - **A mode must die with its context** (law 5) — scope it to panel visibility
   and to `PatternStore.onBulkRestore`, the way `Step Input` does
-  ([sequencer](../features/sequencer.md) REQ-5). A mode that outlives its screen
+  ([sequencer](../features/sequencer.md) REQ-step-input-arms-only-on-screen). A mode that outlives its screen
   is the bug that rule exists to prevent.
 
 ## Scenarios (BDD)

@@ -1,7 +1,7 @@
 import type { TempoQuantity } from '../utils/tempo';
 
 /**
- * Which faceplate params can be locked to the song's grid — tempo-lock.md REQ-1.
+ * Which faceplate params can be locked to the song's grid — tempo-lock.md REQ-one-table-declares-lockable-params.
  *
  * This is the *whole* declaration. A `Knob` looks its own param up here and builds
  * the lock only on a hit, exactly as it already does for modulation via

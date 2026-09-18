@@ -1,11 +1,11 @@
 /**
  * The shared machinery behind every payload validator: the canonical song
  * validator, the authoring dialect's expander, the preset validator and the
- * paste sniffer. See `specs/features/untrusted-input.md` REQ-3 — the limits
+ * paste sniffer. See `specs/features/untrusted-input.md` REQ-the-limits-are-one-module — the limits
  * themselves live in `limits.ts`; this is the plumbing that reports on them.
  *
  * These had a copy each before. `isObject` especially is a security predicate —
- * REQ-5's reserved-key refusal and every shape check stand on it — and four
+ * REQ-reserved-keys-are-refused's reserved-key refusal and every shape check stand on it — and four
  * copies is four chances to drift apart without anyone noticing.
  *
  * Note what is deliberately NOT here: `checkUnit`/`checkRatchet` share a name

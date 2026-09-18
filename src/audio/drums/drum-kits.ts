@@ -9,7 +9,7 @@
 import type { ParamBus } from '../../state/params';
 import { DRUM_TRACK_COUNT } from '../../state/patterns';
 
-/** The per-track scalar params a kit addresses (model swaps the voice — REQ-6). */
+/** The per-track scalar params a kit addresses (model swaps the voice — REQ-a-kit-may-choose-voice-models). */
 export const KIT_PARAMS = ['tune', 'decay', 'tone', 'drive', 'pan', 'vol', 'model'] as const;
 export type KitParam = (typeof KIT_PARAMS)[number];
 /** The subset randomize shuffles — timbre only, never the voice models. */
@@ -59,7 +59,7 @@ export const DRUM_KITS: Record<string, KitDef> = {
     drive: [0.4, 0.3, 0.2, 0.25, 0.35, 0.35, 0.35, 0.3],
     pan: [0, 0, -0.25, 0.25, -0.3, 0, 0.3, -0.15],
   },
-  // A percussion section over the same 8 slots (drum-kits.md REQ-6): kick stays
+  // A percussion section over the same 8 slots (drum-kits.md REQ-a-kit-may-choose-voice-models): kick stays
   // for a foundation; the rest become cowbell / shakers / congas / bongo / clave.
   // Models: 8=Conga 9=Bongo 10=Cowbell 11=Clave 12=Shaker (DRUM_MODEL_LABELS).
   Percussion: {

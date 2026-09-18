@@ -4,7 +4,7 @@ import { InfoBadges } from '../../src/ui/onboarding/info-badges';
 import { ParamBus } from '../../src/state/params';
 
 /**
- * onboarding.md REQ-5b — a badge is shown only where it can be reached. The
+ * onboarding.md REQ-a-badge-shows-only-where-reachable — a badge is shown only where it can be reached. The
  * badges are `position: fixed`, so `position()` re-pins them on every scroll
  * frame and must bound the viewport at BOTH ends. The sticky-header half was
  * there from the start; the below-the-fold half was not, so scrolling a control
@@ -76,7 +76,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('InfoBadges.position visibility (onboarding.md REQ-5b)', () => {
+describe('InfoBadges.position visibility (onboarding.md REQ-a-badge-shows-only-where-reachable)', () => {
   it('shows a badge whose anchor sits between the header and the fold', () => {
     anchor('keyboard', 400);
     show();
@@ -124,7 +124,7 @@ describe('InfoBadges.position visibility (onboarding.md REQ-5b)', () => {
     expect(display('transport')).toBe('');
   });
 
-  it('still hides a zero-size anchor (REQ-5a, no regression)', () => {
+  it('still hides a zero-size anchor (REQ-a-container-must-tell-badges-when-it-hides, no regression)', () => {
     const el = anchor('keyboard', 400);
     place(el, 0, 0, 0);
     show();

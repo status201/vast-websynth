@@ -18,7 +18,7 @@ function parsed(markup: string): string {
   return holder.firstElementChild!.outerHTML;
 }
 
-describe('createSectionTitle (REQ-1, REQ-3)', () => {
+describe('createSectionTitle (REQ-one-component-draws-every-heading, REQ-heading-is-icon-then-text)', () => {
   it('is the icon, then the text', () => {
     const el = createSectionTitle({ text: 'Equalizer', icon: 'sliders' });
     const [glyph, label] = [...el.children];
@@ -43,7 +43,7 @@ describe('createSectionTitle (REQ-1, REQ-3)', () => {
   });
 });
 
-describe('compact (REQ-5)', () => {
+describe('compact (REQ-compact-drops-text-not-icon)', () => {
   it('adds a second class and leaves the text in the DOM', () => {
     const plain = createSectionTitle({ text: 'Machines', icon: 'padMachine' });
     const compact = createSectionTitle({ text: 'Machines', icon: 'padMachine', compact: true });
@@ -62,7 +62,7 @@ describe('compact (REQ-5)', () => {
   });
 });
 
-describe('the heading look (REQ-2)', () => {
+describe('the heading look (REQ-heading-is-white-and-inert)', () => {
   const css = readSource('src/ui/styles/section-title.module.css');
   const tabsCss = readSource('src/ui/styles/tabs.module.css');
   const layoutCss = readSource('src/ui/styles/layout.module.css');
@@ -74,7 +74,7 @@ describe('the heading look (REQ-2)', () => {
     expect(cssDecl(css, '.root', 'font-family')).toBe('var(--serif)');
   });
 
-  it('dims to --text-dim while its own section is folded (REQ-6)', () => {
+  it('dims to --text-dim while its own section is folded (REQ-folded-heading-dims)', () => {
     // Child combinators, not a bare descendant: only the folded section's own
     // heading (section > bar > heading), never one nested under some other fold.
     expect(cssDecl(css, ':global(.collapsed) > :first-child > .root', 'color'))
@@ -83,8 +83,8 @@ describe('the heading look (REQ-2)', () => {
     expect(tabsCss).not.toMatch(/(^|[\s;{])color:\s*var\(--text-dim\)/m);
   });
 
-  // REQ-7 (v4) — the folded row's selected tab burns low, in its own hue.
-  it("dims a folded row's selected tab to the dim yellow, and leaves the LEDs alone (REQ-7)", () => {
+  // REQ-folded-selected-tab-dims (v4) — the folded row's selected tab burns low, in its own hue.
+  it("dims a folded row's selected tab to the dim yellow, and leaves the LEDs alone (REQ-folded-selected-tab-dims)", () => {
     const folded = '.root:global(.collapsed) > .bar > .tab:global(.active)';
     expect(cssDecl(tabsCss, folded, 'color')).toBe('var(--accent-secondary-dim)');
     expect(cssDecl(tabsCss, folded, 'text-shadow')).toBe('none');
@@ -107,12 +107,12 @@ describe('the heading look (REQ-2)', () => {
     expect(tabsCss).not.toMatch(/(^|[\s;{])color:\s*var\(--text\)/m);
   });
 
-  it('gives both kinds of bar the same padding, so the icons line up (REQ-4)', () => {
+  it('gives both kinds of bar the same padding, so the icons line up (REQ-heading-icons-share-one-x)', () => {
     expect(cssDecl(layoutCss, '.fxSectionBar', 'padding'))
       .toBe(cssDecl(tabsCss, '.bar', 'padding'));
   });
 
-  it('insets the FX section by the same token as the tabbed rows (REQ-4)', () => {
+  it('insets the FX section by the same token as the tabbed rows (REQ-heading-icons-share-one-x)', () => {
     // A literal 22px equals the token only on desktop; below 992px it put the FX
     // icon 14px right of the other two.
     expect(cssDecl(layoutCss, '.fxSection', 'margin')).toBe('0 var(--side-margin)');

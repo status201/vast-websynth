@@ -73,7 +73,7 @@ describe('StepButton', () => {
     expect(toggle).not.toHaveBeenCalled();
   });
 
-  // step-settings.md REQ-6 — the nudge has to be visible on the grid, or the
+  // step-settings.md REQ-a-step-carries-a-micro-offset — the nudge has to be visible on the grid, or the
   // state exists only in the edit row (ADR-014 law 5).
   it('setViz writes --sb-micro as a signed fraction of the cell (v3)', () => {
     const sb = new StepButton('C3');

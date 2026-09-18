@@ -1,5 +1,6 @@
 /**
- * Deployed entry for the public websynth MCP server (mcp-server.md REQ-1b/9e).
+ * Deployed entry for the public websynth MCP server (mcp-server.md
+ * REQ-streamable-http-is-one-message-per-post/REQ-the-request-path-is-not-matched).
  *
  * This is the Passenger startup file named in the Plesk Node.js settings, and
  * it is the file the release bundle (`mcp-v<version>.zip`) puts in the
@@ -10,7 +11,7 @@
  * `"type": "module"`, which is what makes this ESM.
  *
  * `selfBuild: false` is the whole difference from `websynth-mcp-http.mjs`
- * (REQ-3): production has no `node_modules`, and a public server that shells
+ * (REQ-local-entries-self-build-the-core): production has no `node_modules`, and a public server that shells
  * out to a bundler on request would be a far worse thing than one that refuses
  * to start. A missing `dist/song-core.mjs` is a deploy that forgot the bundle,
  * and it should say so loudly at boot rather than at the first tool call.

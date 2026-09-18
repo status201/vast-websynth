@@ -16,7 +16,7 @@ const DEMOS_DIR = path.join(process.cwd(), 'src', 'state', 'demos');
 const entries = Object.entries(index as Record<string, DemoMeta>);
 
 describe('demos-index.json', () => {
-  it('covers every demo file on disk, JSON and zip alike (REQ-3)', () => {
+  it('covers every demo file on disk, JSON and zip alike (REQ-zip-demos-are-indexed-too)', () => {
     const onDisk = readdirSync(DEMOS_DIR)
       .filter((f) => f.endsWith('.json') || f.endsWith('.websynth.zip'))
       .sort();
@@ -26,7 +26,7 @@ describe('demos-index.json', () => {
     expect(onDisk.some((f) => f.endsWith('.websynth.zip'))).toBe(true);
   });
 
-  it('is keyed by sorted filenames, so the emitted JSON is byte-stable (REQ-7)', () => {
+  it('is keyed by sorted filenames, so the emitted JSON is byte-stable (REQ-demo-index-shape-is-stable)', () => {
     const keys = Object.keys(index);
     expect(keys).toEqual([...keys].sort());
   });
@@ -41,7 +41,7 @@ describe('demos-index.json', () => {
     expect(Array.isArray(meta.uses)).toBe(true);
     for (const m of meta.uses) expect(['seq', 'drums', 'sampler', 'motion']).toContain(m);
     for (const a of meta.armed ?? []) expect(['arp', 'motion']).toContain(a);
-    // An empty `armed` must be omitted, not written as [] (REQ-7: stable shape).
+    // An empty `armed` must be omitted, not written as [] (REQ-demo-index-shape-is-stable: stable shape).
     if (meta.armed) expect(meta.armed.length).toBeGreaterThan(0);
   });
 
@@ -53,7 +53,7 @@ describe('demos-index.json', () => {
     }
   });
 
-  it('gives every demo in the row a summary — including the built-ins (REQ-6)', () => {
+  it('gives every demo in the row a summary — including the built-ins (REQ-demo-row-says-what-it-knows)', () => {
     // The built-ins are TS literals with no index entry; `demoMetaFor` derives
     // their facts on the spot, so no button in the row can be left mute.
     for (const name of demoNames()) {

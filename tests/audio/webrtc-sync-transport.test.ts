@@ -119,7 +119,7 @@ describe('WebRtcSyncTransport', () => {
     expect(host.ports()).toEqual({ ins: 0, outs: 0 });
   });
 
-  it("'disconnected' is transient — a recovery within the grace window keeps the link (REQ-6)", async () => {
+  it("'disconnected' is transient — a recovery within the grace window keeps the link (REQ-no-subscriber-can-wedge-the-clock)", async () => {
     const { host, rtc } = await linkPair();
     expect(host.linked).toBe(true);
     vi.useFakeTimers();
@@ -132,7 +132,7 @@ describe('WebRtcSyncTransport', () => {
     } finally { vi.useRealTimers(); }
   });
 
-  it("'disconnected' that persists past the grace window tears down (REQ-6)", async () => {
+  it("'disconnected' that persists past the grace window tears down (REQ-no-subscriber-can-wedge-the-clock)", async () => {
     const { host, rtc } = await linkPair();
     vi.useFakeTimers();
     try {
@@ -144,7 +144,7 @@ describe('WebRtcSyncTransport', () => {
   });
 });
 
-// webrtc-sync.md REQ-1 / untrusted-input.md REQ-8. `JSON.parse(data) as Wire`
+// webrtc-sync.md REQ-the-transport-opens-two-channels / untrusted-input.md REQ-deserialized-state-is-validated-never-cast. `JSON.parse(data) as Wire`
 // was a cast, not a check: a peer could send {t:'tempo', bpm:'fast'} straight
 // through to Clock.setBpm, whose clamp returns NaN for NaN and stalls the
 // scheduler. Pairing proves someone scanned a code, not that they are friendly.

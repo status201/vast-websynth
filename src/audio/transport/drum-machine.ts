@@ -13,13 +13,13 @@ import { ListenerSet } from '../../utils/listeners';
 export type DrumStepListener = (step: number) => void;
 /**
  * A hit that actually sounded, at the absolute time it will sound
- * (sidechain-ducking.md REQ-9). Distinct from `DrumStepListener`, which reports
+ * (sidechain-ducking.md REQ-on-hit-reports-only-sounded-hits). Distinct from `DrumStepListener`, which reports
  * a performance-mapped step index with no time and drives the UI playhead.
  */
 export type DrumHitListener = (track: number, when: number, velocity: number) => void;
 
 /**
- * Selectable voice algorithms per track (drum-machine.md REQ-11). Indices 0-7
+ * Selectable voice algorithms per track (drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable). Indices 0-7
  * are the classic voices in track order — a track's default model is its own
  * index, so pre-model songs/presets reproduce the classic kit exactly.
  * The label list lives in state (`DRUM_MODEL_LABELS`); MODEL_BUILDERS below
@@ -42,8 +42,8 @@ const MODEL_BUILDERS: readonly ((ctx: AudioContext, noise: AudioBuffer) => DrumS
 ];
 
 /**
- * The hat choke group (REQ-12), by **model index** into MODEL_BUILDERS above —
- * not by track, since REQ-11 lets any track hold any voice.
+ * The hat choke group (REQ-a-closed-hat-cuts-an-open-hat), by **model index** into MODEL_BUILDERS above —
+ * not by track, since REQ-a-drum-tracks-algorithm-is-selectable lets any track hold any voice.
  */
 const CLOSED_HAT_MODEL = 2;
 const OPEN_HAT_MODEL = 3;
@@ -51,14 +51,14 @@ const OPEN_HAT_MODEL = 3;
 const CHOKE_GROUP_FADE = 0.006;
 
 /**
- * How long the choke group takes to come back up (REQ-16). Short enough that the
+ * How long the choke group takes to come back up (REQ-the-choke-group-restores-on-a-ramp). Short enough that the
  * next open hat is at full level, long enough that returning does not itself step.
  */
 const CHOKE_GROUP_RESTORE = 0.004;
 
 /**
  * How long a model swap waits before disconnecting the voice it replaced
- * (REQ-19) — ~4 time constants of `RAMP_MEDIUM`, the same window
+ * (REQ-swapping-a-model-never-severs-a-voice) — ~4 time constants of `RAMP_MEDIUM`, the same window
  * `ModMatrix.patch` mutes for, by which point the outgoing voice is inaudible.
  */
 const MODEL_SWAP_FADE_MS = 40;
@@ -69,7 +69,7 @@ export class DrumMachine {
   // Per-track channel processors (one entry per track, downstream of the voice).
   private readonly trackTones: BiquadFilterNode[] = [];
   private readonly trackPans: StereoPannerNode[] = [];
-  /** Per-track choke gain, directly after the voice (REQ-12). Normally 1; a
+  /** Per-track choke gain, directly after the voice (REQ-a-closed-hat-cuts-an-open-hat). Normally 1; a
    *  closed hat ramps the open hats' to 0 and straight back. */
   private readonly trackChokes: GainNode[] = [];
   private readonly trackDrivePre: GainNode[] = [];
@@ -85,11 +85,11 @@ export class DrumMachine {
   private enabled = false;
   /** The lane mixer's audibility verdict (mute/solo). See `setLaneAudible`. */
   private laneAudible = true;
-  /** REQ-12. Off by default — switching it on changes how a song sounds. */
+  /** REQ-a-closed-hat-cuts-an-open-hat. Off by default — switching it on changes how a song sounds. */
   private chokeEnabled = false;
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly hitListeners = new ListenerSet<[number, number, number]>();
-  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
 
   constructor(
@@ -105,20 +105,20 @@ export class DrumMachine {
     this.noise = makeNoiseBuffer(this.ctx, 2);
 
     // Track order must match DRUM_TRACKS in patterns.ts; each track boots on
-    // its classic voice (model index = track index, REQ-11).
+    // its classic voice (model index = track index, REQ-a-drum-tracks-algorithm-is-selectable).
     this.tracks = this.trackModels.map((m) => MODEL_BUILDERS[m]!(this.ctx, this.noise));
 
     for (const t of this.tracks) {
       // Per-track channel: voice → choke → drive → tone → volume → pan → drumBus.
       // The voice's own envelope + per-hit gate (chokeRoute) stay upstream and
-      // intact; `choke` is the *group* cut (REQ-12), placed before drive so a
+      // intact; `choke` is the *group* cut (REQ-a-closed-hat-cuts-an-open-hat), placed before drive so a
       // cut tail is never saturated on its way out.
       const choke = this.ctx.createGain();
       const drivePre = this.ctx.createGain();
       const shaper = this.ctx.createWaveShaper();
       shaper.curve = driveCurve(0); // identity at drive 0 (no-op)
       // Oversampling an identity curve is pure waste — setTrackDrive steps it
-      // up to 2x only while actually driven (performance-mode.md REQ-11).
+      // up to 2x only while actually driven (performance-mode.md REQ-weak-tier-reduces-fx-cost).
       shaper.oversample = 'none';
       const drivePost = this.ctx.createGain();
 
@@ -159,14 +159,14 @@ export class DrumMachine {
     return this.stepListeners.add(fn);
   }
 
-  /** Every hit that sounds, as it is scheduled (sidechain-ducking.md REQ-9). */
+  /** Every hit that sounds, as it is scheduled (sidechain-ducking.md REQ-on-hit-reports-only-sounded-hits). */
   onHit(fn: DrumHitListener): () => void {
     return this.hitListeners.add(fn);
   }
 
   /**
    * Whether the drum bus is audible, per the lane mixer's mute/solo verdict
-   * (REQ-13 v8). The machine keeps *playing* while inaudible — that is what
+   * (REQ-every-sounded-hit-is-reported v8). The machine keeps *playing* while inaudible — that is what
    * makes un-mute instant — but stops reporting, because a hit into a silenced
    * bus is not a hit anyone hears.
    */
@@ -208,15 +208,15 @@ export class DrumMachine {
   }
 
   /**
-   * Swap the track's voice algorithm (REQ-11). Only the voice changes: the new
+   * Swap the track's voice algorithm (REQ-a-drum-tracks-algorithm-is-selectable). Only the voice changes: the new
    * one is wired into the same per-track channel head (`drivePre`) and the
    * cached tune/decay are replayed. In-flight one-shots keep their own
    * `disposeAfter` teardown.
    *
-   * The outgoing voice is **ramped down and disconnected later** (REQ-19), never
+   * The outgoing voice is **ramped down and disconnected later** (REQ-swapping-a-model-never-severs-a-voice), never
    * severed: stopping the transport does not silence a drum hit, so a cymbal is
    * still ringing seconds after Stop — and a song load writes this param twice
-   * per track (song-mode.md REQ-17), which is how it was heard as a click on
+   * per track (song-mode.md REQ-applying-a-song-is-click-free), which is how it was heard as a click on
    * loading a demo with the transport stopped. Same mute-then-rewire idiom as
    * `ModMatrix.patch` — but ungated, because each pending timer owns its own
    * discarded voice rather than a shared row.
@@ -265,7 +265,7 @@ export class DrumMachine {
     if (shaper.curve !== curve) shaper.curve = curve;
     // Guarded like the curve above it: assigning `oversample` reallocates the
     // node's resampling buffers even when the value is unchanged, and a song
-    // load writes this param twice per track (song-mode.md REQ-17).
+    // load writes this param twice per track (song-mode.md REQ-applying-a-song-is-click-free).
     const os = amt > 0 && this.fxOversample ? '2x' : 'none';
     if (shaper.oversample !== os) shaper.oversample = os;
     rampTo(post.gain, 1 / (1 + amt * 1.5), this.ctx, RAMP_MEDIUM);
@@ -298,7 +298,7 @@ export class DrumMachine {
       const bank = this.patterns.drumBank(this.arrangement.drumPlayBank);
       forEachActiveHit(bank, idx, at, cellDur, this.muted, (t, h, cell) => {
         this.fire(t, h.t, cell.velocity, chokeAt(cell, h));
-        // A closed hat ends whatever the open hat was doing (REQ-12). Fired from
+        // A closed hat ends whatever the open hat was doing (REQ-a-closed-hat-cuts-an-open-hat). Fired from
         // the hit's own `h.t`, not `at`, so a ratcheted closed hat chokes on
         // every sub-hit exactly as a real one would.
         this.chokeOpenHats(t, h.t);
@@ -307,10 +307,10 @@ export class DrumMachine {
   }
 
   /**
-   * Cut every ringing open hat when a **closed** hat fires (REQ-12).
+   * Cut every ringing open hat when a **closed** hat fires (REQ-a-closed-hat-cuts-an-open-hat).
    *
    * Keyed on the voice **model**, not the track index: models are swappable
-   * (REQ-11), so the group has to follow the sound, not the slot. Off unless
+   * (REQ-a-drum-tracks-algorithm-is-selectable), so the group has to follow the sound, not the slot. Off unless
    * `drum.choke` is on, because turning it on changes how existing songs sound.
    *
    * The gain is ramped down and restored inside the same call, so nothing has to
@@ -328,7 +328,7 @@ export class DrumMachine {
       g.gain.cancelScheduledValues(when);
       g.gain.setValueAtTime(1, when);
       g.gain.linearRampToValueAtTime(0, when + CHOKE_GROUP_FADE);
-      // Back up, but on a RAMP (REQ-16). The cut still belongs to the tail that
+      // Back up, but on a RAMP (REQ-the-choke-group-restores-on-a-ramp). The cut still belongs to the tail that
       // was ringing rather than to the track, so the gain has to return for the
       // next hit — but returning with a bare setValueAtTime moved it 0 -> 1 in a
       // single sample while the open hat was still ringing underneath, which is
@@ -338,14 +338,14 @@ export class DrumMachine {
     }
   }
 
-  /** REQ-12 — `drum.choke`. */
+  /** REQ-a-closed-hat-cuts-an-open-hat — `drum.choke`. */
   setChokeEnabled(on: boolean): void { this.chokeEnabled = on; }
 
   /**
    * Momentary drum fill — snare ramp + tom cascade on the last beat.
    *
    * Written against the lane's own length `n` rather than a hard-coded 16
-   * (meter.md REQ-9), so a fill in 7/8 anchors, rolls and claps on that bar's
+   * (meter.md REQ-the-drum-fill-is-relative-to-its-lane), so a fill in 7/8 anchors, rolls and claps on that bar's
    * own steps instead of landing mid-bar or never. At `n === 16` every branch
    * evaluates exactly as the 16-step original did: the kick anchor was `s % 8`,
    * the roll began at 12, the toms were L/M/H/H and the clap was step 15.

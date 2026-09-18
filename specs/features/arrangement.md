@@ -3,10 +3,10 @@
 ```yaml
 id: arrangement
 status: implemented
-version: 7   # v7: drag a chip to reorder a lane (REQ-11); the chip's three
-             #     facts get three visual channels (REQ-12)
-             # v6: the bar is barTicks, not 16 (REQ-10) — meter.md
-             # v5: per-slot transpose on the seq lane (REQ-8) — SongFile v7
+version: 7   # v7: drag a chip to reorder a lane (REQ-a-chip-is-dragged-to-its-place); the chip's three
+             #     facts get three visual channels (REQ-a-chip-says-three-things-three-ways)
+             # v6: the bar is barTicks, not 16 (REQ-an-arrangement-bar-is-bar-ticks) — meter.md
+             # v5: per-slot transpose on the seq lane (REQ-a-seq-slot-carries-a-transpose) — SongFile v7
 owner: core
 related:
   - architecture
@@ -38,40 +38,48 @@ tick listener settles the play banks first.
 
 ## Requirements
 
-- **REQ-1** — Lanes `seq`/`drum`/`sampler`/`motion`, each `{ enabled, steps: bankIndex[] }`.
-- **REQ-2** — Advance one slot per bar (`step % SEQ_LENGTH === 0`); wrap on the
-  lane length.
-- **REQ-3** — A disabled lane's play bank follows that machine's edit bank.
-- **REQ-4** (v3) — On `clock.onStart`, **seek** each lane to the bar implied by
-  `clock.step` rather than always zeroing: `bar = floor(clock.step /
-  SEQ_LENGTH)`, `pos = enabled && steps.length ? bar % steps.length : 0`, and
-  `expectFirstBar = clock.step % SEQ_LENGTH === 0` (so a bar-aligned start
-  suppresses the first boundary's increment, and a mid-bar start lets the next
-  boundary — genuinely the next bar — increment). The `expectFirstBar` branch in
-  `onTick` no longer re-zeros positions (onStart already set them). With a plain
-  `start()` (`clock.step === 0`) this is **bit-identical to v2**: bar 0, pos 0,
-  first bar plays slot 0. The nonzero case supports MIDI/WiFi clock-sync's
-  Song-Position seek ([midi-clock-sync.md](midi-clock-sync.md) REQ-10). The
-  Arrangement stores its ctor's `clock` to read `clock.step` in `onStart`.
-- **REQ-5** — Constructed before the step machines so play banks are settled before
-  the machines read them on the same tick.
-- **REQ-6** — A chain step may be the `REST` sentinel (an always-empty bar); an
-  enabled lane whose current step is `REST` exposes `*Resting = true` and its machine
-  plays silence for that bar. See [arrangement-rest.md](arrangement-rest.md).
-- **REQ-7** (v4) — **A mid-play seek re-seeks every lane.** REQ-4's body is
-  extracted into `seekTo(step)` and called from **both** `clock.onStart` (as
+- **REQ-a-lane-is-enabled-plus-bank-steps** — Lanes
+  `seq`/`drum`/`sampler`/`motion`, each `{ enabled, steps: bankIndex[] }`.
+- **REQ-a-chain-advances-one-slot-per-bar** — Advance one slot per bar (`step %
+  SEQ_LENGTH === 0`); wrap on the lane length.
+- **REQ-a-disabled-lane-follows-the-edit-bank** — A disabled lane's play bank
+  follows that machine's edit bank.
+- **REQ-start-seeks-every-lane** (v3) — On `clock.onStart`, **seek** each lane
+  to the bar implied by `clock.step` rather than always zeroing: `bar =
+  floor(clock.step / SEQ_LENGTH)`, `pos = enabled && steps.length ? bar %
+  steps.length : 0`, and `expectFirstBar = clock.step % SEQ_LENGTH === 0` (so a
+  bar-aligned start suppresses the first boundary's increment, and a mid-bar
+  start lets the next boundary — genuinely the next bar — increment). The
+  `expectFirstBar` branch in `onTick` no longer re-zeros positions (onStart
+  already set them). With a plain `start()` (`clock.step === 0`) this is
+  **bit-identical to v2**: bar 0, pos 0, first bar plays slot 0. The nonzero
+  case supports MIDI/WiFi clock-sync's Song-Position seek
+  ([midi-clock-sync.md](midi-clock-sync.md) REQ-song-position-pointer-jumps-the-slave). The Arrangement stores its
+  ctor's `clock` to read `clock.step` in `onStart`.
+- **REQ-arrangement-is-built-before-the-machines** — Constructed before the step
+  machines so play banks are settled before the machines read them on the same
+  tick.
+- **REQ-a-chain-step-may-be-a-rest** — A chain step may be the `REST` sentinel
+  (an always-empty bar); an enabled lane whose current step is `REST` exposes
+  `*Resting = true` and its machine plays silence for that bar. See
+  [arrangement-rest.md](arrangement-rest.md).
+- **REQ-a-mid-play-seek-re-seeks-every-lane** (v4) — **A mid-play seek re-seeks
+  every lane.** REQ-start-seeks-every-lane's body is extracted into
+  `seekTo(step)` and called from **both** `clock.onStart` (as
   `seekTo(clock.step)`, unchanged behaviour) and the new `clock.onSeek`
-  ([transport](transport.md) REQ-6). Without it, lane positions — which advance
+  ([transport](transport.md) REQ-seek-moves-a-running-clock). Without it, lane positions — which advance
   `+1` per bar line and are never derived from `clock.step` — end up off by
   (bars jumped − 1), and a seek landing exactly on a bar line double-advances,
   because `expectFirstBar` was not re-armed. The Arrangement subscribes `onSeek`
   in its constructor, so — like `onTick` — it runs before the machines'
-  (REQ-5) and the play banks are settled by the time they read them.
+  (REQ-arrangement-is-built-before-the-machines) and the play banks are settled
+  by the time they read them.
 
-- **REQ-8** (v5) — **A seq-lane slot carries a transpose.** `ChainLane` gains
-  `transpose: number[]`, a **parallel** array of semitone offsets, one per slot,
-  `0` meaning "as written". `seqTranspose` exposes the current slot's offset and
-  the [sequencer](sequencer.md) adds it to every note it triggers (REQ-16 there).
+- **REQ-a-seq-slot-carries-a-transpose** (v5) — **A seq-lane slot carries a
+  transpose.** `ChainLane` gains `transpose: number[]`, a **parallel** array of
+  semitone offsets, one per slot, `0` meaning "as written". `seqTranspose`
+  exposes the current slot's offset and the [sequencer](sequencer.md) adds it to
+  every note it triggers (REQ-16 there).
 
   **Why the format needed this.** A chain slot was a bare bank index, and there
   are four banks of sixteen steps, so **four bars was the entire melodic
@@ -102,33 +110,36 @@ tick listener settles the play banks first.
     than zeroed, so toggling a slot between rest and a bank does not lose the
     transpose the user set.
 
-- **REQ-9** (v5) — **Transposition is applied at trigger, never to stored data.**
-  The offset shifts the note the sequencer *plays*; `PatternStore` is untouched.
-  So switching a slot's transpose can never damage a bank, and turning the chain
-  off returns the bank to sounding exactly as written. The transposed note is
-  clamped to `MIDI_NOTE_MIN..MAX` ([untrusted-input](untrusted-input.md) REQ-4)
-  — a clamp, not a skip, because dropping notes at the edge of the range would
-  make a transposed bar silently lose part of its line.
+- **REQ-transposition-is-applied-at-trigger** (v5) — **Transposition is applied
+  at trigger, never to stored data.** The offset shifts the note the sequencer
+  *plays*; `PatternStore` is untouched. So switching a slot's transpose can
+  never damage a bank, and turning the chain off returns the bank to sounding
+  exactly as written. The transposed note is clamped to `MIDI_NOTE_MIN..MAX`
+  ([untrusted-input](untrusted-input.md) REQ-payload-values-are-bounded) — a clamp, not a skip, because
+  dropping notes at the edge of the range would make a transposed bar silently
+  lose part of its line.
 
-- **REQ-10** (v6) — **A bar is `barTicks`, not 16.** The bar line is
-  `step % barTicks === 0` and a seek resolves `floor(step / barTicks)`, where
-  `barTicks` comes from the meter ([meter](meter.md) REQ-6) and defaults to 16 —
-  so a chain in 4/4 is bit-identical to v5. `setBarTicks` re-bases through the
-  same `seekTo` a playhead jump uses (REQ-7): a meter change moves every bar
+- **REQ-an-arrangement-bar-is-bar-ticks** (v6) — **A bar is `barTicks`, not
+  16.** The bar line is `step % barTicks === 0` and a seek resolves `floor(step
+  / barTicks)`, where `barTicks` comes from the meter ([meter](meter.md) REQ-bar-ticks-is-the-arrangement-bar-line)
+  and defaults to 16 — so a chain in 4/4 is bit-identical to v5. `setBarTicks`
+  re-bases through the same `seekTo` a playhead jump uses
+  (REQ-a-mid-play-seek-re-seeks-every-lane): a meter change moves every bar
   line, and lane positions counted against the old grid are stale the moment it
   does. The four lanes still share one bar grid; per-lane *loop* lengths live on
-  the machines instead ([meter](meter.md) REQ-10), which is what closes the
+  the machines instead ([meter](meter.md) REQ-each-machine-has-a-loop-length), which is what closes the
   "Open questions" note below.
 
-- **REQ-11** (v7) — **A chip is dragged to its place.** Every add button
-  *appends*, so a slot belonging near the front of the chain used to cost one
-  `◀` press per position it had to travel. Dragging a chip and dropping it
-  between two others reorders the lane in one gesture, on all four lanes.
+- **REQ-a-chip-is-dragged-to-its-place** (v7) — **A chip is dragged to its
+  place.** Every add button *appends*, so a slot belonging near the front of the
+  chain used to cost one `◀` press per position it had to travel. Dragging a
+  chip and dropping it between two others reorders the lane in one gesture, on
+  all four lanes.
 
   - The drag **moves** the slot: remove at `from`, insert at `to` (a splice).
     For a one-position move that is the same result `◀`/`▶`'s swap already
     gives, so the two routes cannot disagree and law 2 holds.
-  - The slot's `transpose` travels **with** it, for the reason REQ-8 gives: the
+  - The slot's `transpose` travels **with** it, for the reason REQ-a-seq-slot-carries-a-transpose gives: the
     offset belongs to the slot, not to the position. A drag commits as one
     `set*Chain(steps, enabled, transpose)` call on drop — never one per frame.
   - Selection follows the moved slot, so the chip you dropped is the chip the
@@ -141,12 +152,13 @@ tick listener settles the play banks first.
   - `◀`/`▶` stay. A drag is fast but imprecise; the buttons are the precise
     path, and the only one that works without pointing at a 28 px target.
 
-- **REQ-12** (v7) — **The chip's three facts use three channels.** A chip says
-  three independent things, and until v7 two of them said it the same way:
-  `.sel` and `[data-transposed]` both set `border-color: var(--accent-secondary)`.
-  Same declaration, same specificity, and the transposed rule came later in the
-  file — so a transposed slot looked permanently selected *and* selecting one
-  showed no feedback at all. One channel each instead:
+- **REQ-a-chip-says-three-things-three-ways** (v7) — **The chip's three facts
+  use three channels.** A chip says three independent things, and until v7 two
+  of them said it the same way: `.sel` and `[data-transposed]` both set
+  `border-color: var(--accent-secondary)`. Same declaration, same specificity,
+  and the transposed rule came later in the file — so a transposed slot looked
+  permanently selected *and* selecting one showed no feedback at all. One
+  channel each instead:
 
   | Fact | Nature | Channel |
   | --- | --- | --- |
@@ -191,17 +203,17 @@ the ones left unused.
 
 | Gesture                | Outcome                                          | Precedent |
 | ---------------------- | ------------------------------------------------ | --------- |
-| tap / click            | select / deselect the slot — a press travelling less than the 6 px slop is a tap, so REQ-11's drag does not take this away | existing |
+| tap / click            | select / deselect the slot — a press travelling less than the 6 px slop is a tap, so REQ-a-chip-is-dragged-to-its-place's drag does not take this away | existing |
 | wheel over a chip      | ±1 semitone, **seq lane only**                   | `recipes/design-an-interaction.md`'s own worked example; Elektron per-pattern transpose |
 | double-click a chip    | reset that slot to `+0`                          | knob double-tap resets to the loaded value (README → Controls) |
 | `−` / `+` in the controls row | ±1 semitone on the selected slot; the **touch-reachable** path, since wheel is desktop-only and this app ships as an Android/iOS PWA | the row's existing `◀ ▶ ✕ Clear` idiom |
 | Shift + wheel          | — Shift means **finer** everywhere here (knobs, motion pads) and a semitone is already the finest step; making it mean *coarser* would invert the app's own convention | — |
-| drag a chip            | **reorder the lane** (REQ-11) — lift it, drop it between two others. Reverses this row's v5 `—`, whose stated reason (it would fight selection) the slop threshold removes | DAW arrangement / playlist reorder: Ableton, FL Studio's playlist, Bitwig — and the universal list-reorder idiom outside music software |
+| drag a chip            | **reorder the lane** (REQ-a-chip-is-dragged-to-its-place) — lift it, drop it between two others. Reverses this row's v5 `—`, whose stated reason (it would fight selection) the slop threshold removes | DAW arrangement / playlist reorder: Ableton, FL Studio's playlist, Bitwig — and the universal list-reorder idiom outside music software |
 | long-press / right-click | — nothing left to open; the chip has no third job | — |
 | `Delete` / `⌫`         | — `✕` removes the selected slot. The step grids bind Delete to *clear a step*, a different object; binding it here to a different outcome would break law 2 | — |
 
 Non-seq lanes receive **no** transpose gesture at all — not a disabled control, an
-absent one — because there is nothing for it to do there (REQ-8).
+absent one — because there is nothing for it to do there (REQ-a-seq-slot-carries-a-transpose).
 
 ### Layer touchpoints & ordering
 
@@ -212,8 +224,8 @@ why: Arrangement.clock.onTick runs first -> *PlayBank settled before machines re
 machines read: patterns.seqBank(arrangement.seqPlayBank) etc. each tick
 bank clamp: clampBank -> 0..BANK_COUNT-1
 transpose:   seq only. StepSequencer reads arrangement.seqTranspose at trigger
-             time and shifts the note it plays (sequencer.md REQ-16); the stored
-             SeqStep is never rewritten (REQ-9)
+             time and shifts the note it plays (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose); the stored
+             SeqStep is never rewritten (REQ-transposition-is-applied-at-trigger)
 ui: src/ui/panels/song-panel.ts buildChainLane(...) -> setSeqChain/ setDrumChain/ setSamplerChain
 reorder: src/ui/components/chip-reorder.ts attachChipReorder({ chips, onReorder })
          ONE shared controller for all four lanes (recipes/design-an-interaction.md
@@ -262,26 +274,26 @@ Scenario: A seek onto a bar line does not double-advance (v4, edge)
   And the NEXT bar line advances it by exactly one
 # pinned by: tests/audio/transport/arrangement.test.ts
 
-Scenario: One bank becomes a progression (v5, REQ-8)
+Scenario: One bank becomes a progression (v5, REQ-a-seq-slot-carries-a-transpose)
   Given seqChain = { steps: [0,0,0,0], transpose: [0,5,7,3] } and bank A holds a line
   When the transport plays four bars
   Then bar 1 sounds as written and bars 2-4 sound 5, 7 and 3 semitones higher
-  And bank A's stored notes are unchanged (REQ-9)
+  And bank A's stored notes are unchanged (REQ-transposition-is-applied-at-trigger)
 # pinned by: tests/audio/transport/arrangement.test.ts, tests/audio/transport/sequencer.test.ts
 
-Scenario: transpose is kept the same length as steps (v5, REQ-8, edge)
+Scenario: transpose is kept the same length as steps (v5, REQ-a-seq-slot-carries-a-transpose, edge)
   Given a chain of 4 slots with transposes [0,5,7,3]
   When setSeqChain is called with 2 steps
   Then transpose is [0,5] — truncated, never left longer than steps
   And growing the chain pads with 0, so a new slot is always a no-op
 # pinned by: tests/audio/transport/arrangement.test.ts
 
-Scenario: A transposed note stays inside the MIDI range (v5, REQ-9, edge)
+Scenario: A transposed note stays inside the MIDI range (v5, REQ-transposition-is-applied-at-trigger, edge)
   Given a step at note 120 and a slot transpose of +24
   Then the note sounds at 127, clamped — not dropped, and never out of range
 # pinned by: tests/audio/transport/sequencer.test.ts
 
-Scenario: A note tied across a bar line releases at the pitch it started (v5, REQ-9, edge)
+Scenario: A note tied across a bar line releases at the pitch it started (v5, REQ-transposition-is-applied-at-trigger, edge)
   Given a step tied into the next bar, whose slot transposes differently
   When the bar line passes
   Then the ringing note is released at ITS OWN pitch, leaving no stuck voice
@@ -293,38 +305,38 @@ Scenario: A pre-v7 song loads with every slot at +0 (v5, ADR-007)
   Then every seq slot transposes by 0 and the song sounds exactly as it did
 # pinned by: tests/state/song.test.ts
 
-Scenario: A chip is dragged to a new place in the chain (v7, REQ-11)
+Scenario: A chip is dragged to a new place in the chain (v7, REQ-a-chip-is-dragged-to-its-place)
   Given a chain of A B C D
   When the user drags the D chip and drops it before the B chip
   Then the chain is A D B C, written with ONE setChain call
   And the dropped slot is the selected one
 # pinned by: tests/ui/chip-reorder.test.ts, e2e/chain-reorder.spec.ts
 
-Scenario: A dragged slot keeps its transpose (v7, REQ-11)
+Scenario: A dragged slot keeps its transpose (v7, REQ-a-chip-is-dragged-to-its-place)
   Given a seq chain of A A+5 A+7 and the user drags the A+7 chip to the front
   Then the chain reads A+7 A A+5 — the offset moved WITH the slot, not with the
     position, so the progression is reordered rather than rewritten
 # pinned by: tests/ui/chip-reorder.test.ts, e2e/chain-reorder.spec.ts
 
-Scenario: A press that does not travel is still a tap (v7, REQ-11, edge)
+Scenario: A press that does not travel is still a tap (v7, REQ-a-chip-is-dragged-to-its-place, edge)
   Given a chain chip
   When the pointer goes down and up having moved less than the slop threshold
   Then the slot is selected/deselected exactly as before and no reorder happens
 # pinned by: tests/ui/chip-reorder.test.ts
 
-Scenario: A cancelled or stray drop writes nothing (v7, REQ-11, edge)
+Scenario: A cancelled or stray drop writes nothing (v7, REQ-a-chip-is-dragged-to-its-place, edge)
   Given a drag in progress over a chain lane
   When the pointer is cancelled, or released away from every chip in that lane
   Then the chain is unchanged and no setChain call is made
 # pinned by: tests/ui/chip-reorder.test.ts
 
-Scenario: A drag never reaches another lane (v7, REQ-11, edge)
+Scenario: A drag never reaches another lane (v7, REQ-a-chip-is-dragged-to-its-place, edge)
   Given the Song tab with all four lanes visible
   When a seq chip is dragged over the drum lane's chips and released
   Then neither chain changes — a bank index means a different bank per machine
 # pinned by: tests/ui/chip-reorder.test.ts
 
-Scenario: A transposed chip can still show that it is selected (v7, REQ-12)
+Scenario: A transposed chip can still show that it is selected (v7, REQ-a-chip-says-three-things-three-ways)
   Given a seq chain slot at +5, drawn with the transposed label colour
   When the user taps it
   Then it ALSO shows the selection border — the two facts use different
@@ -335,10 +347,10 @@ Scenario: A transposed chip can still show that it is selected (v7, REQ-12)
 ## Tests & verification
 
 - `tests/audio/transport/arrangement.test.ts`, `tests/audio/transport/sequencer.test.ts`
-  (REQ-8/REQ-9), `tests/state/song-author.test.ts` (the `A+5` grammar),
+  (REQ-a-seq-slot-carries-a-transpose/REQ-transposition-is-applied-at-trigger), `tests/state/song-author.test.ts` (the `A+5` grammar),
   `e2e/song.spec.ts`, `e2e/chain-transpose.spec.ts` (the gesture inventory).
-- `tests/ui/chip-reorder.test.ts` (REQ-11 — one case per new inventory row, in
-  jsdom), `tests/ui/chip-states.test.ts` (REQ-12 — the three channels stay
+- `tests/ui/chip-reorder.test.ts` (REQ-a-chip-is-dragged-to-its-place — one case per new inventory row, in
+  jsdom), `tests/ui/chip-states.test.ts` (REQ-a-chip-says-three-things-three-ways — the three channels stay
   independent), `e2e/chain-reorder.spec.ts` (the drag on the real panel).
 - `npm test` / `npm run e2e`.
 - **By ear** ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)):
@@ -351,15 +363,15 @@ Scenario: A transposed chip can still show that it is selected (v7, REQ-12)
 
 - **Any chain edit restarts that lane at slot 1 while playing.** `set*Chain`
   ends with `<lane>Pos = 0`, so add, `◀`/`▶`, `✕` and now a drag all snap a
-  playing lane back to the top of its chain. That predates REQ-11 and is left
-  alone here, but REQ-11 makes editing-while-playing far more likely, so it is
+  playing lane back to the top of its chain. That predates REQ-a-chip-is-dragged-to-its-place and is left
+  alone here, but REQ-a-chip-is-dragged-to-its-place makes editing-while-playing far more likely, so it is
   now the most visible rough edge in this spec. The fix would be to carry the
   *slot* through the rewrite rather than the index — reordering should move the
   playhead with the bar it is on, exactly as the transpose moves with its slot.
 
 - ~~Lanes share one bar grid (`SEQ_LENGTH`)~~ — they still share one grid, but it
-  is now `barTicks` (REQ-10). Per-lane *phrasing* against that grid is a machine
-  concern, not a chain one: [meter](meter.md) REQ-10 gives each machine its own
+  is now `barTicks` (REQ-an-arrangement-bar-is-bar-ticks). Per-lane *phrasing* against that grid is a machine
+  concern, not a chain one: [meter](meter.md) REQ-each-machine-has-a-loop-length gives each machine its own
   loop length, which is the polymeter the note was reaching for.
 - Per-**bank** or per-chain-slot meter (a song that changes signature mid-song)
   is still open; the advance math would have to integrate bar lengths rather

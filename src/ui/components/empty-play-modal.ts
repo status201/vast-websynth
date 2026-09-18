@@ -13,7 +13,7 @@ import { UI_ICONS } from './ui-icons';
  */
 
 /** localStorage flag: '1' = the user opted out of the hint. Device-scoped
- * (like websynth.perf) — never part of songs/presets (REQ-5). */
+ * (like websynth.perf) — never part of songs/presets (REQ-hint-opt-out-is-device-scoped). */
 export const EMPTY_PLAY_HINT_KEY = 'websynth.hint.emptyplay';
 
 export function emptyPlayHintDismissed(): boolean {
@@ -26,7 +26,7 @@ export function emptyPlayHintDismissed(): boolean {
 
 export interface EmptyPlayModalOptions {
   /** Load a demo and start the transport; called after the modal closes.
-   *  May be async — most demos are fetched on click (song-mode.md REQ-12). */
+   *  May be async — most demos are fetched on click (song-mode.md REQ-drop-in-demos-are-fetched-on-click). */
   onPlayDemo: () => void | Promise<void>;
 }
 
@@ -62,7 +62,7 @@ export function openEmptyPlayModal(opts: EmptyPlayModalOptions): void {
   const footer = document.createElement('div');
   footer.className = styles.footer!;
 
-  // Persisted the moment it is checked, so every close path honours it (REQ-5).
+  // Persisted the moment it is checked, so every close path honours it (REQ-hint-opt-out-is-device-scoped).
   const dismiss = document.createElement('label');
   dismiss.className = styles.dismiss!;
   const box = document.createElement('input');

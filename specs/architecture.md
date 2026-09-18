@@ -8,12 +8,12 @@ version: 10  # v10: typecheck also refuses unused locals and parameters
              #     the unused `rampCancelAndSet` / `RAMP_SLOW` are gone
              # v8: the audio graph gains a per-lane EQ at the HEAD of all
              #     three insert chains (equalizer.md); +1 persistence key
-             # v7: REQ-3 — the context is not created suspended, it is created
+             # v7: REQ-nothing-sounds-until-resume — the context is not created suspended, it is created
              #     however the BROWSER's autoplay policy says; the graph is
              #     silent until a deliberate fade either way (audio-lifecycle v6)
              # v6: the audio graph gains a duck stage on the synth and sampler
              #     chains, keyed by drum hits (sidechain-ducking.md)
-             # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-20)
+             # v5: websynth.ui.scope.height joins the persistence keys (scope.md REQ-the-scope-height-persists)
              # v4: UiBridge in the layer contracts; testids/write-a-test delegation
 owner: core
 related: []
@@ -47,14 +47,16 @@ means a UI control and its audio effect can be reasoned about independently.
 
 ## Requirements (system invariants)
 
-- **REQ-1** — UI components write parameters via `bus.set(...)`; the `Engine`
-  reads them via `bus.subscribe(...)`. No direct UI↔audio calls.
-- **REQ-2** — Every scalar parameter is registered exactly once in
-  `registerDefaults()` with `min/max/default` (and optional `taper`/`format`).
-- **REQ-3** — **Nothing sounds until `Engine.resume()` deliberately fades it in.**
-  The graph *is* built at boot — `boot()` runs `new Engine(bus, …)` +
-  `await engine.init()` before any input — and it is wired all the way to
-  `ctx.destination` there.
+- **REQ-ui-and-audio-never-call-each-other** — UI components write parameters
+  via `bus.set(...)`; the `Engine` reads them via `bus.subscribe(...)`. No
+  direct UI↔audio calls.
+- **REQ-every-param-is-registered-once** — Every scalar parameter is registered
+  exactly once in `registerDefaults()` with `min/max/default` (and optional
+  `taper`/`format`).
+- **REQ-nothing-sounds-until-resume** — **Nothing sounds until `Engine.resume()`
+  deliberately fades it in.** The graph *is* built at boot — `boot()` runs `new
+  Engine(bus, …)` + `await engine.init()` before any input — and it is wired all
+  the way to `ctx.destination` there.
 
   **(v7) What is NOT guaranteed is that the context is suspended.** That was the
   standing assumption, stated as fact here and as a comment in `main.ts`, and it
@@ -62,12 +64,13 @@ means a UI control and its audio effect can be reasoned about independently.
   autoplay-permitted browser returns a context already `running`, so the whole
   boot renders into an open output stream. The invariant that actually holds is
   the one the master bus enforces — seeded at 0, raised only by `fadeInMaster()`
-  (`features/audio-lifecycle.md` REQ-19). Whether a **user gesture** is required
+  (`features/audio-lifecycle.md` REQ-nothing-is-audible-before-the-first-start). Whether a **user gesture** is required
   is therefore the browser's call, not ours, and REQ-20 there reads the answer off
   the created state to decide if the "Tap to start" modal is shown at all.
-- **REQ-4** — New parameters default to a **no-op** value, so existing
-  presets/songs are unaffected (see Conventions).
-- **REQ-5** — Non-scalar state (step grids) lives in `PatternStore`, not the bus.
+- **REQ-new-params-default-to-a-no-op** — New parameters default to a **no-op**
+  value, so existing presets/songs are unaffected (see Conventions).
+- **REQ-pattern-state-lives-outside-the-bus** — Non-scalar state (step grids)
+  lives in `PatternStore`, not the bus.
 
 ## Tech stack
 
@@ -108,7 +111,7 @@ Non-scalar state lives in **`PatternStore`** (`src/state/patterns.ts`).
 
 *Who owns and depends on whom* — module ownership + data-flow direction (distinct
 from the signal-flow **audio graph** below, which is audio routing). The spine is
-the UI/audio separation (REQ-1): the UI writes state, the `Engine` reads it; they
+the UI/audio separation (REQ-ui-and-audio-never-call-each-other): the UI writes state, the `Engine` reads it; they
 never call each other directly.
 
 ```
@@ -204,7 +207,7 @@ Each replaced a helper that had been copy-pasted across modules.
 
 The import rule is **directional, not absolute**: a util may never import from
 `audio/` or `ui/`, so the audio layer can use one without dragging in UI code
-(REQ-1, ADR-001) and neither layer can reach the other through here. It *may*
+(REQ-ui-and-audio-never-call-each-other, ADR-001) and neither layer can reach the other through here. It *may*
 import a **pure declaration** from `state/` — `state/limits.ts` (the one place a
 bound is written down, ADR-015) and the `ParamDef` **type** from `state/params.ts`
 — because duplicating either is the drift the single-source rules exist to
@@ -234,7 +237,7 @@ utils/music.ts:      scale tables · buildQuantizeTable · diatonicChord · degr
 utils/tempo.ts:      DIVISIONS · sweetSpots(bpm) · syncedValue(...) · nearestDivision(...)
                      # BPM <-> note-division math. Two consumers, which is why it
                      # is here: the UI's sweet-spot badges (features/tempo-sync-help.md)
-                     # and the audio layer resolving `lfo.sync` (features/lfo.md REQ-8).
+                     # and the audio layer resolving `lfo.sync` (features/lfo.md REQ-lfo-rate-is-exponentially-tapered).
                      # It started under ui/onboarding/, which audio may not import.
 ```
 
@@ -243,7 +246,7 @@ Audio-side, `audio/param-utils.ts` holds the smoothing vocabulary every
 over four named time constants — `RAMP_FAST` 5 ms, `RAMP_MEDIUM` 10 ms,
 `RAMP_SMOOTH` 20 ms (the insert effects' own controls, which zipper audibly at
 anything shorter) and `RAMP_BYPASS` 25 ms (an effect's whole dry/wet swap, which
-moves far more level than any one knob — [effects](features/effects.md) REQ-2).
+moves far more level than any one knob — [effects](features/effects.md) REQ-bypass-and-mix-are-a-crossfade).
 There is deliberately no cancel-then-ramp helper: `rampTo` retargets from wherever
 the curve has reached, so it never needs a cancel. These are dialled by ear
 under ADR-010, so they are named in one place rather than spelled as literals at
@@ -261,7 +264,7 @@ from wherever the curve has reached, so it needs no cancel and may be re-issued
 at any rate. `tests/audio/no-unanchored-cancel.test.ts` fails the suite on a
 cancel that pins nothing; the two bugs that taught this are
 [sidechain-ducking](features/sidechain-ducking.md) and
-[performance](features/performance.md) REQ-10.
+[performance](features/performance.md) REQ-the-dj-sweep-rides-detune.
 
 `ListenerSet` backs every `onStep`/`onNote`/`onFollowChange` hook (the four
 transport machines and `BankBar`), which had each open-coded the same
@@ -315,7 +318,7 @@ All six insert effects extend **`WrappedEffect`** (`audio/effects/effect.ts`),
 which owns the `BypassWrapper`, publishes its `input`/`output` as the `Effect`
 surface and delegates `setBypass`. A subclass is then only its DSP span plus its
 `bind`; `Compressor` overrides `setBypass` to also clear its GR meter.
-`setMix` stays off the base deliberately — see effects.md REQ-1.
+`setMix` stays off the base deliberately — see effects.md REQ-every-effect-implements-the-interface.
 
 Their **params** come from one factory per shared effect in
 `state/params.ts` (`distParams`, `phaserParams`, `delayParams`, `reverbParams`,
@@ -345,7 +348,7 @@ are where the subtlety lives**, so they're spelled out here.
   the `Engine`'s audio appliers (`subscribeParams` / `Effect.bind`) *and* every
   UI control (`knob`, `switch`, `segmented`, `strip`, `param-dropdown`) register
   here. One channel drives **both** audio and visuals, and neither side knows
-  about the other (REQ-1).
+  about the other (REQ-ui-and-audio-never-call-each-other).
 - `onChange(id, v)` — **global** "an edit happened" signal, meaning *the user
   changed the sound*. Two consumers: `main.ts` → `session.markDirty()` (the active
   preset becomes dirty) and `SessionAutosave` (arms its debounced capture).
@@ -379,7 +382,7 @@ fire and the UI repaints through the *same* `subscribe` channel as a live edit �
 there is **no explicit "repaint the UI" call anywhere**. Only the global
 `onChange` is gated, so loading a song isn't seen as an edit. (`resetDefaults`
 runs first to make the apply *authoritative*: a param absent from the file snaps
-back to its default instead of lingering from the previous patch — see REQ-4 /
+back to its default instead of lingering from the previous patch — see REQ-new-params-default-to-a-no-op /
 [ADR-006](decisions/adr-006-no-op-param-defaults.md).)
 
 **3 — Note trigger**
@@ -409,7 +412,7 @@ letting it reach `onChange` re-armed the session-autosave debounce faster than i
 could ever elapse — the session was never written at all — and marked the patch
 dirty just for pressing Play. Contrast the XY Pad's spring-back ramp, which also
 writes per frame but *is* a user gesture and stays on flow 1. See
-[runtime-performance](features/runtime-performance.md) REQ-5.
+[runtime-performance](features/runtime-performance.md) REQ-automation-is-not-an-edit.
 
 **Ordering that matters**: `Arrangement` is constructed **before** the
 sequencer/drum/sampler/motion machines in `Engine.init()`, so its `clock.onTick`
@@ -446,7 +449,7 @@ voices ─→ voiceBus ─→ eq → distortion → wah → phaser → delay →
   1-channel input convolves to two decorrelated ones. That is generated stereo,
   not a speaker up-mix; a speaker up-mix (L = R) is what the drum panners and the
   2-channel compressors do to a mono input (ADR-010; see
-  [`features/lfo.md`](features/lfo.md) REQ-4). The bank-render tap
+  [`features/lfo.md`](features/lfo.md) REQ-pan-sweeps-a-stereo-panner). The bank-render tap
   ([`features/render-to-sampler.md`](features/render-to-sampler.md)) sits after
   it, so a rendered bank captures the pan movement.
 - The **analyser taps pre-master**, so the scope is independent of the master
@@ -492,7 +495,7 @@ ParamDef:                # the scalar "schema" — src/state/params.ts
   labels?: string[]      # for discrete params
 
 PatternStore step types: # src/state/patterns.ts
-  StepSettings: { velocity, gate, prob, ratchet, tie, micro }   # micro: step-settings.md REQ-6
+  StepSettings: { velocity, gate, prob, ratchet, tie, micro }   # micro: step-settings.md REQ-a-step-carries-a-micro-offset
   SeqStep:     StepSettings + { on, note }
   TriggerCell: StepSettings + { on }   # DrumCell / SamplerStep
 ```
@@ -520,27 +523,27 @@ localStorage:
   websynth.ui.collapsed.pattern : pattern-row collapse state   # ui/app.ts
   websynth.ui.collapsed.fx      : FX-section collapse state    # ui/app.ts
   websynth.ui.collapsed.eq      : EQUALIZER-section collapse state (default folded)
-                                  # ui/components/tabs.ts (features/equalizer.md REQ-9)
+                                  # ui/components/tabs.ts (features/equalizer.md REQ-the-eq-section-is-a-folded-tab-container)
   websynth.ui.collapsed.seqtrack.<t> : per-seq-track fold state # ui/panels/seq-panel.ts — one key per track
   websynth.ui.collapsed.sample-<chop|stretch|scratch> : the Edit Sample modal's three section folds
-                                                        # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-9)
+                                                        # ui/components/record-sound-modal.ts (features/sample-recorder.md REQ-every-section-below-the-waveform-folds)
   websynth.ui.scope.height : scope panel height in px, 130..260 # state/scope-height.ts — device-scoped workspace pref, NOT a patch param
 sessionStorage:
   websynth.session.tab : this tab's id, which mints the `websynth.session.<tab>` key above.
                          # Deliberately *session* storage — it must die with the tab and
                          # survive that tab's reload, which is exactly what makes the
                          # autosave per-tab (state/session-autosave.ts,
-                         # features/session-autosave.md REQ-12)
+                         # features/session-autosave.md REQ-each-tab-autosaves-to-its-own-key)
   websynth.offline.redownload : "1" — the one intent a factory reset writes back after
                          # wiping everything, so the offline copy it deleted downloads
                          # again after the reload; consumed at that boot
-                         # (state/offline-redownload.ts, features/play-offline.md REQ-12)
+                         # (state/offline-redownload.ts, features/play-offline.md REQ-the-copy-is-fetched-again-after-a-reset)
 indexedDB:               # db `websynth`, store `clips` — state/idb-clip-kv.ts
   clips[<slot>]       : one sampler clip as 16-bit WAV bytes, keyed by slot index.
                         # Binary does not fit localStorage, so the audio half of the
                         # reload safety net lives here (features/sample-persistence.md).
                         # Names are NOT stored — `sampleNames` in the autosaved session
-                        # is the single source of truth (REQ-4 there). Restored before
+                        # is the single source of truth (REQ-new-params-default-to-a-no-op there). Restored before
                         # the UI mounts, and only for slots a restored session names.
 not_persisted:
   decoded audio buffers  # only the encoded WAV bytes above are kept; a SongFile itself
@@ -555,7 +558,7 @@ an awaited-but-capped IndexedDB wipe, then a reload — the reload is what reset
 live in-memory state clearing storage cannot (features/factory-reset.md). The same
 reset also deletes the service worker's `websynth-*` CacheStorage caches — app files
 rather than user data, but a stale cache is exactly what a reset should cure — unless
-the server is unreachable (features/factory-reset.md REQ-8/REQ-9).
+the server is unreachable (features/factory-reset.md REQ-reset-redownloads-the-offline-copy/REQ-reset-never-strands-an-offline-device).
 
 The two **named-slot** stores (presets and saved songs) share one implementation,
 `SlotStore` (`src/state/slot-store.ts`): a prefix plus a name index at
@@ -587,7 +590,7 @@ into the committed demos and share links.)
   cost. The multiplier differs per worklet and it is worth being exact about
   which: the **ladder filter** runs once per voice on **one** channel
   (`channelCount: 1`, [`features/ladder-filter.md`](features/ladder-filter.md)
-  REQ-9), so 8-voice polyphony is its whole budget; the **compressors** are two
+  REQ-the-filter-worklet-is-mono), so 8-voice polyphony is its whole budget; the **compressors** are two
   bus instances running 2 channels each. "Academically correct" DSP (ZDF,
   oversampling, thermal models) is declined unless it is *also* cheap and stable. See
   [ADR-010](decisions/adr-010-musical-stable-cheap-dsp.md).
@@ -642,17 +645,17 @@ and stating the rule is what keeps them distinguishable from neglect.
 - [ADR-000](decisions/adr-000-spec-driven-development.md) — Spec-Driven Development
   as the working method (enforced, not optional).
 - [ADR-001](decisions/adr-001-parambus-over-redux.md) — `ParamBus` over a state
-  framework (the scalar single-source-of-truth behind REQ-1/REQ-2).
+  framework (the scalar single-source-of-truth behind REQ-ui-and-audio-never-call-each-other/REQ-every-param-is-registered-once).
 - [ADR-002](decisions/adr-002-audioworklet-compressor.md) — a custom AudioWorklet
   compressor over the native `DynamicsCompressorNode`.
 - [ADR-003](decisions/adr-003-no-runtime-dependencies.md) — zero runtime
   dependencies (vanilla TS + the Web platform; `lamejs`/`qr`/`jsqr` vendored).
 - [ADR-004](decisions/adr-004-patternstore-separate-from-parambus.md) —
-  `PatternStore` separate from `ParamBus` (REQ-5; grids aren't scalars).
+  `PatternStore` separate from `ParamBus` (REQ-pattern-state-lives-outside-the-bus; grids aren't scalars).
 - [ADR-005](decisions/adr-005-cutoff-as-midi-note.md) — filter cutoff as a MIDI
   note number, for semitone-additive modulation.
 - [ADR-006](decisions/adr-006-no-op-param-defaults.md) — no-op defaults for new
-  params (REQ-4; existing presets/songs are unaffected).
+  params (REQ-new-params-default-to-a-no-op; existing presets/songs are unaffected).
 - [ADR-007](decisions/adr-007-songfile-additive-versioning.md) — additive
   `SongFile` versioning (old songs keep loading and sounding the same).
 - [ADR-008](decisions/adr-008-components-self-wire-params.md) — components

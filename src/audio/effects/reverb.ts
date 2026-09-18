@@ -10,14 +10,14 @@ const DEFAULT_IR = 2;
 
 /**
  * How long the effect's own output is ducked around an IR swap (effects.md
- * REQ-10) — ~4 time constants of `RAMP_MEDIUM`, the same window `ModMatrix.patch`
+ * REQ-a-reverb-size-change-ducks) — ~4 time constants of `RAMP_MEDIUM`, the same window `ModMatrix.patch`
  * mutes for before it rewires, and for the same reason: the gain is inaudible
  * well before the edit lands.
  */
 const IR_SWAP_MUTE_MS = 40;
 
 /**
- * Process-wide IR cache (runtime-performance.md REQ-1/REQ-2). An IR is a pure
+ * Process-wide IR cache (runtime-performance.md REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared). An IR is a pure
  * function of (sampleRate, duration) and a `ConvolverNode` only ever *reads* its
  * buffer, so the three chains that each own a Reverb — synth, drum, sampler —
  * share one bank instead of generating identical noise three times over.
@@ -71,7 +71,7 @@ export class Reverb extends WrappedEffect {
 
     // Weak perf tiers cap the IR *durations*, never the bank size, so
     // setSize's 0..1 → index mapping and preset values keep their meaning
-    // (performance-mode.md REQ-11). The cap is part of the cache key, so tiers
+    // (performance-mode.md REQ-weak-tier-reduces-fx-cost). The cap is part of the cache key, so tiers
     // with different caps never share a buffer.
     this.maxIrS = opts?.maxIrS ?? 4;
     this.targetIr = this.irAt(DEFAULT_IR);
@@ -89,7 +89,7 @@ export class Reverb extends WrappedEffect {
 
   /**
    * A convolver is FIR: one IR length of silence in and it holds nothing of what
-   * came before (effects.md REQ-2c). `maxIrS` is this tier's cap, so it bounds
+   * came before (effects.md REQ-a-bypassed-effect-drains-before-disconnect). `maxIrS` is this tier's cap, so it bounds
    * every IR in the bank.
    */
   protected override drainSeconds(): number { return this.maxIrS; }
@@ -97,7 +97,7 @@ export class Reverb extends WrappedEffect {
   /**
    * Assigning `convolver.buffer` resets the node, severing whatever tail it was
    * ringing — audible when a song load changes the size under a tail still
-   * sounding, and it fires twice per load (effects.md REQ-10). So the swap goes
+   * sounding, and it fires twice per load (effects.md REQ-a-reverb-size-change-ducks). So the swap goes
    * through the mute-then-edit idiom `ModMatrix.patch` uses: duck this effect's
    * own output, swap once it is inaudible, ramp back. The identity guard keeps a
    * no-change write completely free, so a sweep only pays at bank boundaries.
@@ -108,7 +108,7 @@ export class Reverb extends WrappedEffect {
     const buf = this.irAt(idx);
     // Against the PENDING target, never against `convolver.buffer` — which is
     // stale for the whole mute window and made the guard lie. A song load writes
-    // this param twice in one turn (song-mode.md REQ-17): default, then the
+    // this param twice in one turn (song-mode.md REQ-applying-a-song-is-click-free): default, then the
     // song's. Reading the live buffer, the second write saw the value the first
     // had not applied yet, concluded "already there", returned without
     // superseding the pending swap — and the default landed 40 ms later. A demo

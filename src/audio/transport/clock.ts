@@ -17,7 +17,7 @@ import { MAX_STEP } from '../../state/limits';
 export type { TickListener };
 
 /**
- * Redirects the step the drain loop emits next (transport.md REQ-13). Given the
+ * Redirects the step the drain loop emits next (transport.md REQ-a-step-router-can-redirect-the-next-step). Given the
  * step about to be emitted, return it unchanged — or another step, which the
  * clock then treats as a **jump**. The clock knows nothing about bars or loops;
  * the loop driver (transport-loop.md) supplies the policy.
@@ -29,7 +29,7 @@ const SCHEDULE_AHEAD_S = 0.1;
 
 /**
  * How far the step grid may fall behind `currentTime` before a wakeup counts as
- * a **dropout** rather than jitter (transport.md REQ-9). The look-ahead horizon
+ * a **dropout** rather than jitter (transport.md REQ-the-transport-catch-up-is-bounded). The look-ahead horizon
  * absorbs ordinary lateness; 0.25 s is well past it — two 16ths at 120 BPM — so
  * anything beyond means the wakeup source itself stalled.
  */
@@ -60,9 +60,9 @@ export class Clock implements TickSubscriber {
   /** Where the last seek put the playhead — Stop → Play returns here. */
   private _cue = 0;
   /** A one-shot resume point set by `pause()`, used by the next start and
-   *  cleared by anything that sets a position (transport.md REQ-12). */
+   *  cleared by anything that sets a position (transport.md REQ-pause-resumes-where-it-stopped). */
   private _resume: number | null = null;
-  /** Consulted after each emitted step while a loop is engaged (REQ-13). */
+  /** Consulted after each emitted step while a loop is engaged (REQ-tape-stop-is-gated-while-slaved). */
   private router: StepRouter | null = null;
   /** The router that threw this run, reported once (see `route`). */
   private routerFaulted = false;
@@ -73,7 +73,7 @@ export class Clock implements TickSubscriber {
   private readonly listeners = new Set<TickListener>();
   /** Listeners already reported as throwing this run (see reportListenerError). */
   private readonly faultedListeners = new Set<TickListener>();
-  /** Stalled-wakeup recoveries this session (REQ-9); read by the Debug panel. */
+  /** Stalled-wakeup recoveries this session (REQ-no-web-midi-degrades-gracefully); read by the Debug panel. */
   private _dropouts = 0;
   private readonly startListeners = new Set<() => void>();
   private readonly stopListeners = new Set<() => void>();
@@ -87,11 +87,11 @@ export class Clock implements TickSubscriber {
   get playing(): boolean { return this._playing; }
   get step(): number { return this._step; }
   /** Where a plain `start()` begins. 0 until the first `seek` (transport.md
-   *  REQ-7), so a transport nobody has moved behaves exactly as it always did.
-   *  While paused it is the resume point (REQ-12) — so every surface that shows
+   *  REQ-the-cue-is-where-start-begins), so a transport nobody has moved behaves exactly as it always did.
+   *  While paused it is the resume point (REQ-an-explicit-tempo-message) — so every surface that shows
    *  "where Play begins" shows the pause without knowing pauses exist. */
   get cue(): number { return this._resume ?? this._cue; }
-  /** A `pause()` is waiting to be resumed (REQ-12). */
+  /** A `pause()` is waiting to be resumed (REQ-an-explicit-tempo-message). */
   get paused(): boolean { return this._resume !== null; }
   /** The tempo the transport is actually running at. Worth reading directly:
    *  a slaved clock is driven by `setBpm` from incoming MIDI pulses and never
@@ -99,14 +99,14 @@ export class Clock implements TickSubscriber {
    *  (midi-clock-sync.md) — which is exactly what the Debug panel shows. */
   get bpm(): number { return this._bpm; }
   /** How often the wakeup source stalled badly enough to drop a horizon
-   *  (transport.md REQ-9). Monotonic for the session — the Debug panel is the
+   *  (transport.md REQ-the-transport-catch-up-is-bounded). Monotonic for the session — the Debug panel is the
    *  only way to see this on the phone where it happens (audio-lifecycle.md). */
   get dropouts(): number { return this._dropouts; }
 
   /** Non-finite is refused before the clamp: `Math.max(20, Math.min(400, NaN))`
    *  is `NaN`, which would make `sixteenth` NaN and stall the scheduler. The
    *  reachable source is a peer — the WiFi sync wire carries `{t:'tempo', bpm}`
-   *  (transport.md REQ-3, untrusted-input.md REQ-8). */
+   *  (transport.md REQ-bpm-and-swing-are-live-settable, untrusted-input.md REQ-deserialized-state-is-validated-never-cast). */
   setBpm(b: number): void {
     if (!Number.isFinite(b)) return;
     this._bpm = Math.max(20, Math.min(400, b));
@@ -120,12 +120,12 @@ export class Clock implements TickSubscriber {
 
   /**
    * The delay this tick carries, in seconds — 0 on an even step, up to half a
-   * 16th on an odd one (transport.md REQ-11).
+   * 16th on an odd one (transport.md REQ-swing-offset-is-public).
    *
    * Public because a lane running coarser than a 16th needs to *undo* it: at
    * 2 ticks per cell a lane only ever fires on even steps, which are never
    * delayed, so it would play dead straight under swung hats. Such a lane
-   * subtracts this and adds the offset its own grid implies (meter.md REQ-16).
+   * subtracts this and adds the offset its own grid implies (meter.md REQ-swing-is-computed-on-the-lanes-grid).
    * The drain loop calls the same method, so swing has one definition, not two.
    */
   swingOffset(step: number): number {
@@ -135,10 +135,10 @@ export class Clock implements TickSubscriber {
   /**
    * A transport position, made safe to store. Non-finite is refused before the
    * clamp — `Math.max(0, Math.min(MAX_STEP, NaN))` is `NaN`, and a NaN step
-   * makes every machine's modulo NaN (untrusted-input.md REQ-6). This replaced
+   * makes every machine's modulo NaN (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock). This replaced
    * the old `& 0xffff` mask, which bounded the counter but folded it, jumping
    * lane phase for any bar length that does not divide 65536 (transport.md
-   * REQ-10).
+   * REQ-the-step-counter-is-bounded-at-ingress).
    */
   private static clampStep(step: number): number {
     if (!Number.isFinite(step)) return 0;
@@ -149,9 +149,9 @@ export class Clock implements TickSubscriber {
    * Start the transport. `fromStep` seeds the step counter *before* start
    * listeners fire, so a subscriber (the Arrangement) can read `clock.step` in
    * `onStart` and seek to the implied bar — used by clock-sync's Song-Position
-   * join (midi-clock-sync REQ-10).
+   * join (midi-clock-sync REQ-song-position-pointer-jumps-the-slave).
    *
-   * The default is the **cue** (transport.md REQ-7), i.e. wherever the user last
+   * The default is the **cue** (transport.md REQ-the-cue-is-where-start-begins), i.e. wherever the user last
    * moved the playhead — 0 until they do, so `start()` on an untouched transport
    * is unchanged. Callers that genuinely require step 0 (the recorders, which
    * bound their captures by absolute step number) must pass `0` explicitly.
@@ -159,7 +159,7 @@ export class Clock implements TickSubscriber {
   start(fromStep = this.cue): void {
     if (this._playing) return;
     this._playing = true;
-    this._resume = null; // a pause resumes once (REQ-12)
+    this._resume = null; // a pause resumes once (REQ-an-explicit-tempo-message)
     this.faultedListeners.clear(); // a new run reports its faults afresh
     this.faultedSeekListeners.clear();
     this.routerFaulted = false;
@@ -171,7 +171,7 @@ export class Clock implements TickSubscriber {
   }
 
   /**
-   * Move the playhead (transport.md REQ-6). Deliberately does **not** touch
+   * Move the playhead (transport.md REQ-seek-moves-a-running-clock). Deliberately does **not** touch
    * `nextStepTime`: the tempo grid is preserved, so a jump mid-play stays in
    * time — it changes *which* step is next, never *when* it sounds. (That is the
    * whole difference from `start()`, which re-origins the grid, and from
@@ -189,7 +189,7 @@ export class Clock implements TickSubscriber {
 
   /**
    * Stop, and cue the next `start()` at the step this run would have emitted
-   * next (transport.md REQ-12). `_step`, not the audible step: everything before
+   * next (transport.md REQ-pause-resumes-where-it-stopped). `_step`, not the audible step: everything before
    * it was already handed to the machines at absolute times and sounds after the
    * pause, exactly as after a stop — so resuming here repeats nothing and skips
    * nothing. Stop listeners fire with `cue` already reading the resume point.
@@ -217,7 +217,7 @@ export class Clock implements TickSubscriber {
   }
 
   /**
-   * Install (or with `null`, remove) the step router (transport.md REQ-13).
+   * Install (or with `null`, remove) the step router (transport.md REQ-a-step-router-can-redirect-the-next-step).
    * Only the loop driver sets one, and only while a loop is engaged, so an
    * unlooped transport pays a single null check per tick.
    */
@@ -266,7 +266,7 @@ export class Clock implements TickSubscriber {
     // gap instead: re-origin the grid exactly as start() does and emit NOTHING
     // this wakeup. While the stall lasts every wakeup lands here, so a frozen
     // renderer is silent; the first healthy one resumes from the step we are on.
-    // See transport.md REQ-9 / audio-lifecycle.md.
+    // See transport.md REQ-the-transport-catch-up-is-bounded / audio-lifecycle.md.
     if (this.nextStepTime < this.ctx.currentTime - DROPOUT_S) {
       this._dropouts++;
       this.nextStepTime = this.ctx.currentTime + 0.05;
@@ -284,7 +284,7 @@ export class Clock implements TickSubscriber {
       // off-beat never crosses the next on-beat.
       const off = this.swingOffset(this._step);
       // Each listener is isolated, and the two lines below run either way
-      // (transport.md REQ-8). A throw used to escape this loop *before* them,
+      // (transport.md REQ-a-subscriber-may-not-wedge-the-transport). A throw used to escape this loop *before* them,
       // leaving _playing true and nextStepTime unmoved — so the timer re-entered
       // the same step every 25 ms forever and every later-registered lane went
       // silent, unrecoverable without a reload. See ADR-015.
@@ -296,7 +296,7 @@ export class Clock implements TickSubscriber {
         }
       }
       this.nextStepTime += sixteenth;
-      // Monotonic and UNWRAPPED (transport.md REQ-10): subscribers do their own
+      // Monotonic and UNWRAPPED (transport.md REQ-the-step-counter-is-bounded-at-ingress): subscribers do their own
       // modulo, and a wrap that is not a multiple of every lane length would jump
       // their phase. Bounded at ingress (start/seek) instead.
       this._step++;
@@ -306,13 +306,13 @@ export class Clock implements TickSubscriber {
 
   /**
    * Ask the router where the step just advanced to should really be
-   * (transport.md REQ-13). A different answer is a **jump**: the counter moves
+   * (transport.md REQ-a-step-router-can-redirect-the-next-step). A different answer is a **jump**: the counter moves
    * there on the unchanged grid — so the routed step is the very next tick, with
    * no look-ahead leftover — and seek listeners re-base every relative consumer.
    * Unlike `seek()` the cue does not move: nobody chose this position.
    *
    * Everything here runs inside the drain loop, so a throw would escape it
-   * exactly as REQ-8 describes for tick listeners. Both the router and each seek
+   * exactly as REQ-a-sync-section-in-the-song-panel describes for tick listeners. Both the router and each seek
    * listener are isolated; a throwing router counts as "no jump".
    */
   private route(): void {

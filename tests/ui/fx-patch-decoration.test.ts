@@ -7,8 +7,8 @@ const farClass = styles.far!;
 /**
  * The unpatched-cable scenery filling the empty FX grid cell
  * (specs/features/fx-patch-decoration.md). It has no behaviour — the contract is
- * that it is inert (REQ-3) and built from the two layers REQ-4 describes.
- * Breakpoint visibility (REQ-1) is CSS, so it is pinned by e2e/fx-patch.spec.ts.
+ * that it is inert (REQ-the-decoration-is-inert) and built from the two layers REQ-two-layers-undistorted-connector describes.
+ * Breakpoint visibility (REQ-decoration-occupies-one-grid-cell) is CSS, so it is pinned by e2e/fx-patch.spec.ts.
  */
 describe('fxPatchDecoration', () => {
   it('is inert: aria-hidden, no pointer events, nothing focusable', () => {
@@ -32,11 +32,11 @@ describe('fxPatchDecoration', () => {
 
     // The plug layer keeps its aspect ratio so the connector stays round, and
     // anchors top so its cable enters through the cell edge — a centred `meet`
-    // would letterbox on a short cell and start the cable in mid-air (REQ-4).
+    // would letterbox on a short cell and start the cable in mid-air (REQ-two-layers-undistorted-connector).
     expect(svgs[1]!.getAttribute('preserveAspectRatio')).toBe('xMidYMin meet');
   });
 
-  it('drops the loom top-to-bottom and never sends a cable right (REQ-9)', () => {
+  it('drops the loom top-to-bottom and never sends a cable right (REQ-the-loom-drops-from-the-top)', () => {
     const cables = fxPatchDecoration().querySelectorAll('svg')[0]!;
     // Sheath + sheen per run, each in its own hue group.
     const groups = [...cables.querySelectorAll('g')];
@@ -63,14 +63,14 @@ describe('fxPatchDecoration', () => {
     expect(fromTop).toBeGreaterThanOrEqual(Math.ceil(groups.length / 2));
   });
 
-  it('colour-codes the bundle across several hues (REQ-9)', () => {
+  it('colour-codes the bundle across several hues (REQ-the-loom-drops-from-the-top)', () => {
     const cables = fxPatchDecoration().querySelectorAll('svg')[0]!;
     const hues = new Set([...cables.querySelectorAll('g')].map((g) => g.getAttribute('class')));
     expect(hues.size).toBeGreaterThanOrEqual(4);
     expect([...hues].join(' ')).not.toContain('undefined');
   });
 
-  it('draws the far rank first so it paints behind the near loom (REQ-9)', () => {
+  it('draws the far rank first so it paints behind the near loom (REQ-the-loom-drops-from-the-top)', () => {
     const cables = fxPatchDecoration().querySelectorAll('svg')[0]!;
     const isFar = [...cables.querySelectorAll('g')].map((g) => g.classList.contains(farClass));
     expect(isFar.filter(Boolean)).toHaveLength(10);

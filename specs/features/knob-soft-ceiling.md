@@ -3,14 +3,14 @@
 ```yaml
 id: knob-soft-ceiling
 status: implemented
-version: 2                      # v2: the dead region is marked, not left bare (REQ-5)
+version: 2                      # v2: the dead region is marked, not left bare (REQ-capped-region-is-marked)
 owner: core
 related:
   - architecture
   - param-reset-baseline        # the gestures this must not disturb
-  - runtime-performance         # REQ-7 repaint guards, preserved here
+  - runtime-performance         # REQ-ceiling-applies-before-repaint-guard repaint guards, preserved here
   - oscillators                 # the first (and currently only) consumer
-  - lfo                         # REQ-8's taper is what forced v2
+  - lfo                         # REQ-ceiling-is-for-inert-upper-travel's taper is what forced v2
   - testids
 source:
   - src/ui/components/knob.ts   # uiMax option + setUiMax + the render clamp
@@ -27,7 +27,7 @@ is deliberately wider than the range the engine acts on.
 
 Some params are registered wider than the engine honours, on purpose. `lfo.rate`
 is `0.05..20 Hz`, but on the PWM path the engine clamps it to `PWM_RATE_MAX = 10`
-([oscillators](oscillators.md) REQ-9) — and narrowing the registered range is not
+([oscillators](oscillators.md) REQ-pwm-rate-is-clamped) — and narrowing the registered range is not
 an option, because `preset-validate` would then reject every saved patch with a
 faster LFO.
 
@@ -43,31 +43,35 @@ supplements prose, it does not replace it.
 
 ## Requirements
 
-- **REQ-1** — A `Knob` accepts an optional **soft ceiling** expressed in *param
-  units* (`10`, meaning 10 Hz — not a fraction, not a percent). Above it the value
-  arc stops filling. Absent by default, so every existing knob renders exactly as
-  before — [ADR-006](../decisions/adr-006-no-op-param-defaults.md)'s no-op-default
+- **REQ-knob-accepts-a-soft-ceiling** — A `Knob` accepts an optional **soft
+  ceiling** expressed in *param units* (`10`, meaning 10 Hz — not a fraction,
+  not a percent). Above it the value arc stops filling. Absent by default, so
+  every existing knob renders exactly as before —
+  [ADR-006](../decisions/adr-006-no-op-param-defaults.md)'s no-op-default
   discipline applied to a UI option.
-- **REQ-2** — The ceiling is **paint only**. Drag, shift-fine-drag, double-tap
-  reset ([param-reset-baseline](param-reset-baseline.md) REQ-6), the pointer
-  line's rotation, the formatted readout and every `bus.set` are untouched. The
-  user can still reach and store 20 Hz, and a preset that holds 20 Hz still loads,
+- **REQ-soft-ceiling-is-paint-only** — The ceiling is **paint only**. Drag,
+  shift-fine-drag, double-tap reset
+  ([param-reset-baseline](param-reset-baseline.md) REQ-double-tap-and-reset-share-one-path), the pointer line's
+  rotation, the formatted readout and every `bus.set` are untouched. The user
+  can still reach and store 20 Hz, and a preset that holds 20 Hz still loads,
   still sounds the same, and still round-trips. Nothing about the param registry
   changes.
-- **REQ-3** — The ceiling is mapped to arc position through `toNorm`
-  (`src/utils/taper.ts`), the same function the value itself goes through, so it
-  lands correctly on `exp` / `power` / `discrete` knobs and not only on linear
-  ones. A ceiling outside `[min, max]` is clamped to the ends; a ceiling at or
-  above `max` is indistinguishable from having none.
-- **REQ-4** — The ceiling is settable after construction (`setUiMax`), so a cap
-  that only applies in *some* states can follow the bus. Passing `null` clears it
-  and restores the full arc. Setting it repaints immediately at the current value
-  rather than waiting for the next param change.
-- **REQ-5** — (v2) The capped region is **marked**: a dim red arc (`--accent-bad`
-  at reduced opacity) spanning ceiling→end of sweep, drawn beneath the value arc.
+- **REQ-ceiling-maps-through-to-norm** — The ceiling is mapped to arc position
+  through `toNorm` (`src/utils/taper.ts`), the same function the value itself
+  goes through, so it lands correctly on `exp` / `power` / `discrete` knobs and
+  not only on linear ones. A ceiling outside `[min, max]` is clamped to the
+  ends; a ceiling at or above `max` is indistinguishable from having none.
+- **REQ-ceiling-is-settable-later** — The ceiling is settable after construction
+  (`setUiMax`), so a cap that only applies in *some* states can follow the bus.
+  Passing `null` clears it and restores the full arc. Setting it repaints
+  immediately at the current value rather than waiting for the next param
+  change.
+- **REQ-capped-region-is-marked** — (v2) The capped region is **marked**: a dim
+  red arc (`--accent-bad` at reduced opacity) spanning ceiling→end of sweep,
+  drawn beneath the value arc.
   - v1 left it as bare track, reasoning that absence reads as inertness. That
     held while the band was ~140° wide. `lfo.rate`'s exponential taper
-    ([lfo](lfo.md) REQ-8) then moved the ceiling from ~50% to ~88% of the sweep
+    ([lfo](lfo.md) REQ-lfo-rate-is-exponentially-tapered) then moved the ceiling from ~50% to ~88% of the sweep
     and shrank the band to ~32°, at which size bare track is simply not noticed —
     the feature stopped doing the one job it exists for. **A positive mark is
     legible at a size absence is not.** This is the general lesson, not a fact
@@ -79,21 +83,22 @@ supplements prose, it does not replace it.
   - The element is created **on demand**, so a knob without a ceiling has no
     extra node and no extra cost — the same lazy pattern as `StepButton`'s
     `.fill` layer.
-- **REQ-6** — While a ceiling is active the knob root carries
-  `data-uimax="<value>"`, removed when cleared. This is an assertable hook for
-  e2e and self-documenting in devtools. Deliberately a data attribute and **not**
-  a new testid — the [testids](testids.md) REQ-1 catalogue is unchanged, and the
-  knob keeps its single `knob-<paramId>` identity.
-- **REQ-7** — The ceiling is applied *before* the `lastDash` repaint guard
-  ([runtime-performance](runtime-performance.md) REQ-7), so a value sweeping
-  around above the ceiling collapses to **zero** DOM writes rather than one per
-  frame. A capped knob is strictly cheaper to automate than an uncapped one, never
-  more expensive.
-- **REQ-8** — A soft ceiling is for a param whose *upper travel* is inert. Where
-  the **whole** control is inert in some state, the existing full-knob
-  `setDisabled` dimming is the right treatment instead (`filter.shape` on the
-  ladder model, [filter-models](filter-models.md) REQ-7). The two are not
-  interchangeable and a knob should not use both to say the same thing.
+- **REQ-ceiling-exposes-a-data-attribute** — While a ceiling is active the knob
+  root carries `data-uimax="<value>"`, removed when cleared. This is an
+  assertable hook for e2e and self-documenting in devtools. Deliberately a data
+  attribute and **not** a new testid — the [testids](testids.md) REQ-param-controls-mint-from-the-param-id catalogue
+  is unchanged, and the knob keeps its single `knob-<paramId>` identity.
+- **REQ-ceiling-applies-before-repaint-guard** — The ceiling is applied *before*
+  the `lastDash` repaint guard ([runtime-performance](runtime-performance.md)
+  REQ-dom-writes-are-guarded-on-what-is-rendered), so a value sweeping around above the ceiling collapses to **zero** DOM
+  writes rather than one per frame. A capped knob is strictly cheaper to
+  automate than an uncapped one, never more expensive.
+- **REQ-ceiling-is-for-inert-upper-travel** — A soft ceiling is for a param
+  whose *upper travel* is inert. Where the **whole** control is inert in some
+  state, the existing full-knob `setDisabled` dimming is the right treatment
+  instead (`filter.shape` on the ladder model, [filter-models](filter-models.md)
+  REQ-shape-is-poly-only). The two are not interchangeable and a knob should not use both to say
+  the same thing.
 
 ## Technical design
 
@@ -109,7 +114,7 @@ KnobOptions:                    # src/ui/components/knob.ts
 
 Knob:
   setUiMax(max: number | null): void   # NEW — set/clear, repaints immediately
-  setDisabled(on: boolean): void       # (existing) whole-control treatment, REQ-8
+  setDisabled(on: boolean): void       # (existing) whole-control treatment, REQ-ceiling-is-for-inert-upper-travel
 ```
 
 The ceiling is held internally as a **normalized** position (`uiMaxNorm`, default
@@ -152,7 +157,7 @@ is a decision rather than an oversight.
 | --- | --- | --- |
 | Drag (vertical) | Sets the value across the **full** registered range, ceiling or not | This knob, unchanged |
 | Shift + drag | Same, fine (600 px full travel) | This knob, unchanged |
-| Double-tap | Reset to baseline (`param-reset-baseline` REQ-6) | This knob, unchanged |
+| Double-tap | Reset to baseline (`param-reset-baseline` REQ-ceiling-exposes-a-data-attribute) | This knob, unchanged |
 | Tap on the dead region | — no snap-to-ceiling, no toast, no resistance | Deliberate: see below |
 | Hover / long-press | — | The panel hint already carries the explanation |
 
@@ -202,42 +207,42 @@ Scenario: The arc stops at the soft ceiling while the value keeps going
   And the pointer line and the "20.00Hz" readout still show the true value
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: A knob with no ceiling is untouched (regression, REQ-1)
+Scenario: A knob with no ceiling is untouched (regression, REQ-knob-accepts-a-soft-ceiling)
   Given a knob on lfo.rate constructed without a soft ceiling
   When the value is set to 20
   Then the value arc is filled to the full sweep
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: The ceiling maps through the param's taper (REQ-3)
+Scenario: The ceiling maps through the param's taper (REQ-ceiling-maps-through-to-norm)
   Given a knob on a power-tapered param with a soft ceiling at its midpoint
   Then the arc caps at the tapered position, not at half the sweep
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: Clearing the ceiling restores the full arc (REQ-4)
+Scenario: Clearing the ceiling restores the full arc (REQ-ceiling-is-settable-later)
   Given a capped knob showing a value above its ceiling
   When setUiMax(null) is called
   Then the arc repaints to the true value without the param changing
   And the dead-region marker is removed from the DOM
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: The dead region is marked, not merely absent (v2, REQ-5)
+Scenario: The dead region is marked, not merely absent (v2, REQ-capped-region-is-marked)
   Given a knob on lfo.rate with a soft ceiling of 10
   Then a .dead arc spans the ceiling to the end of the sweep
   And it is painted beneath the value arc, not over it
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: A knob with no ceiling grows no extra element (v2, REQ-5)
+Scenario: A knob with no ceiling grows no extra element (v2, REQ-capped-region-is-marked)
   Given a knob constructed without a soft ceiling
   Then the dial holds only the track and value circles
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: A capped knob costs nothing to automate (REQ-7, edge)
+Scenario: A capped knob costs nothing to automate (REQ-ceiling-applies-before-repaint-guard, edge)
   Given a knob with a soft ceiling of 10
   When the value moves between two different values that are both above 10
   Then stroke-dasharray is written once, not twice
 # pinned by: tests/ui/knob.test.ts
 
-Scenario: Dragging past the ceiling still sets the real value (REQ-2)
+Scenario: Dragging past the ceiling still sets the real value (REQ-soft-ceiling-is-paint-only)
   Given a capped knob on lfo.rate
   When the user drags to the top of the travel
   Then bus.get('lfo.rate') is 20, not the ceiling
@@ -269,10 +274,10 @@ Scenario: Dragging past the ceiling still sets the real value (REQ-2)
   a tick on the axis, most likely — rather than a reuse of this one. Not built.
 - ~~`lfo.rate` is **linear** over `0.05..20`, which spends half the travel between
   10 and 20 Hz while everything musically useful is crammed into the first ~5%.~~
-  — done: `lfo.rate` is now `taper: 'exp'` ([lfo](lfo.md) REQ-8). The ceiling
+  — done: `lfo.rate` is now `taper: 'exp'` ([lfo](lfo.md) REQ-lfo-rate-is-exponentially-tapered). The ceiling
   consequently sits at ~88% of the sweep rather than ~50%, so the dead region is
   a narrow band at the top of the dial instead of half of it. Note the taper
   change was *not* free the way a param-value change is: motion anchors are
-  stored in taper space, see lfo REQ-8.
+  stored in taper space, see lfo REQ-lfo-rate-is-exponentially-tapered.
 - No consumer yet needs a soft **floor**. If one appears, it is the same clamp on
   the other side plus a dash offset, but do not build it speculatively.

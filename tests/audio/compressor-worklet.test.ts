@@ -209,7 +209,7 @@ function digest(opts: DigestOpts): number[] {
 }
 
 /**
- * REQ-8 pin (`specs/features/runtime-performance.md`): a per-sample DSP speed
+ * REQ-a-silent-input-stays-silent pin (`specs/features/runtime-performance.md`): a per-sample DSP speed
  * rewrite is **bit-exact or it is a sound change**. The tests above assert
  * physics with loose tolerances, which a rounding-level regression slips
  * straight through — these assert the samples themselves.
@@ -225,7 +225,7 @@ function digest(opts: DigestOpts): number[] {
  * If one fails, you changed what the compressor sounds like: that needs its own
  * spec and an ADR-010 justification, not a tolerance bump.
  *
- * The four `fet` cases were re-captured once, for compressor.md REQ-8 (priming
+ * The four `fet` cases were re-captured once, for compressor.md REQ-a-silent-input-stays-silent (priming
  * the DC blocker from its first sample). Only their **sums** moved, and only by
  * the start-up transient that change removes: the per-sample picks are identical
  * bar the last float32 bit, while e.g. "normal ratio" moved by ~285 ≈ the first
@@ -243,10 +243,10 @@ function digest(opts: DigestOpts): number[] {
  * survives the store into the output Float32Array (rewriting the DC blocker's
  * `y - x + r*yPrev` as `y + (r*yPrev - x)` moves nothing here, because the
  * filter is stable and the sub-ULP difference is ~9 orders below float32
- * resolution). That is the intended contract, not a gap: REQ-8 pins identical
+ * resolution). That is the intended contract, not a gap: REQ-a-silent-input-stays-silent pins identical
  * *output*, and a difference that cannot reach the output cannot be heard.
  */
-describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
+describe('hardware-compressor worklet is bit-exact (REQ-a-silent-input-stays-silent)', () => {
   const CASES: Record<string, { opts: DigestOpts; frozen: number[] }> = {
     'vca, steady compression': {
       opts: {
@@ -386,20 +386,20 @@ describe('hardware-compressor worklet is bit-exact (REQ-8)', () => {
 });
 
 /**
- * compressor.md REQ-8 — silence in, silence out.
+ * compressor.md REQ-a-silent-input-stays-silent — silence in, silence out.
  *
  * The FET saturator is deliberately asymmetric (`tanh(d·(y + 0.02))/d`), so it
  * emits ≈ 0.02 for an input of ZERO. The 10 Hz DC blocker under it removes that
  * in steady state but used to start from zeroed state, so the first sample came
  * out as the whole pedestal — a -34 dBFS thump, ~16 ms long, every time the
  * processed path was first connected. That is once per page load, on whichever
- * demo or preset first switches the drum compressor on (song-mode.md REQ-17).
+ * demo or preset first switches the drum compressor on (song-mode.md REQ-applying-a-song-is-click-free).
  *
  * A digest of a musical signal cannot see this: the transient is 8 orders below
  * the picks and only shows up in their sums, where it is indistinguishable from
  * any other change. Silence is the input that isolates it.
  */
-describe('the FET path emits nothing for a silent input (REQ-8)', () => {
+describe('the FET path emits nothing for a silent input (REQ-a-silent-input-stays-silent)', () => {
   const silentRun = (mode: 'fet' | 'vca', blocks = 40): { peak: number; first: number } => {
     const proc = new Processor({ processorOptions: { mode } });
     const params = makeParams();

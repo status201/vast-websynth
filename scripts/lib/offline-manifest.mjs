@@ -1,7 +1,7 @@
 /**
  * The build's own file list — `dist/offline-manifest.json` — which the About
  * card's **Play offline** downloads and the service worker refreshes on a new
- * release (specs/features/play-offline.md REQ-2, REQ-7).
+ * release (specs/features/play-offline.md REQ-the-build-writes-the-file-list, REQ-the-copy-survives-a-release).
  *
  * The app is not one bundle: demo songs are separate files fetched on click and
  * half the dialogs are split chunks, so "everything the app can request" is only

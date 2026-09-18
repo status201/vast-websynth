@@ -14,7 +14,7 @@ type MockBiquad = ReturnType<MockAudioContext['createBiquadFilter']>;
  * The audio half of `specs/features/equalizer.md`.
  *
  * Two of these are stability pins rather than behaviour pins, and they are the
- * reason this file exists at all: the EQ must sweep on `detune` (REQ-3) and must
+ * reason this file exists at all: the EQ must sweep on `detune` (REQ-a-real-highpass-and-lowpass) and must
  * never cancel automation. Both are invisible in Blink and audible in Gecko, so
  * neither would be caught by listening on one browser.
  */
@@ -41,7 +41,7 @@ function build(): {
   return { ctx, eq, bus, hp, lp, bands: made.filter((f) => f !== hp && f !== lp) };
 }
 
-describe('Equalizer — the filter span (REQ-1, REQ-2)', () => {
+describe('Equalizer — the filter span (REQ-one-equalizer-per-lane, REQ-eight-fixed-eq-bands)', () => {
   it('builds a highpass, the eight bands in table order, and a lowpass', () => {
     const { hp, lp, bands } = build();
     expect(hp.type).toBe('highpass');
@@ -64,7 +64,7 @@ describe('Equalizer — the filter span (REQ-1, REQ-2)', () => {
     expect(eq.output).toBeDefined();
   });
 
-  it('declares no makeup gain — a boosted curve is a level change (REQ-8)', () => {
+  it('declares no makeup gain — a boosted curve is a level change (REQ-no-auto-makeup-gain)', () => {
     const { ctx } = build();
     // Six gains is exactly the BypassWrapper's own (input/output/dry/wet/
     // processedIn/processedOut). A seventh would be a trim this effect
@@ -73,7 +73,7 @@ describe('Equalizer — the filter span (REQ-1, REQ-2)', () => {
   });
 });
 
-describe('Equalizer — sweeping in cents (REQ-3)', () => {
+describe('Equalizer — sweeping in cents (REQ-a-real-highpass-and-lowpass)', () => {
   const cents = (hz: number, ref: number) => 1200 * Math.log2(hz / ref);
 
   it('pins hp/lp frequency at construction and never writes it again', () => {
@@ -105,7 +105,7 @@ describe('Equalizer — sweeping in cents (REQ-3)', () => {
   });
 });
 
-describe('Equalizer — parameter writes (REQ-3, REQ-4)', () => {
+describe('Equalizer — parameter writes (REQ-a-real-highpass-and-lowpass, REQ-one-q-knob-over-the-bands)', () => {
   it('ramps a band gain and never cancels automation', () => {
     const { bus, bands } = build();
     bus.set('fx.eq.b3', -9);
@@ -125,7 +125,7 @@ describe('Equalizer — parameter writes (REQ-3, REQ-4)', () => {
     });
   });
 
-  it('moves Q on the peaking bands only — the shelves ignore it (REQ-4)', () => {
+  it('moves Q on the peaking bands only — the shelves ignore it (REQ-one-q-knob-over-the-bands)', () => {
     const { bus, bands } = build();
     bus.set('fx.eq.width', 4);
     bands.forEach((b, i) => {
@@ -138,7 +138,7 @@ describe('Equalizer — parameter writes (REQ-3, REQ-4)', () => {
   });
 });
 
-describe('Equalizer — bypass drain (REQ-7)', () => {
+describe('Equalizer — bypass drain (REQ-the-eq-declares-a-longer-drain)', () => {
   it('drains for longer than the slowest band rings', () => {
     const { eq } = build();
     // `drainSeconds` is protected; read it the way the wrapper does.
@@ -151,7 +151,7 @@ describe('Equalizer — bypass drain (REQ-7)', () => {
   });
 });
 
-describe('Every chain leads with its EQ (REQ-1)', () => {
+describe('Every chain leads with its EQ (REQ-one-equalizer-per-lane)', () => {
   const bus = new ParamBus();
   registerDefaults(bus);
 

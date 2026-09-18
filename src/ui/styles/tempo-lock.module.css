@@ -1,7 +1,7 @@
 /*
  * The tempo lock a Knob grows on a lockable param (tempo-lock.md).
  *
- * The governing constraint is REQ-9: locking must not move anything. Both pieces
+ * The governing constraint is REQ-locking-moves-nothing-on-the-faceplate: locking must not move anything. Both pieces
  * live inside the knob's existing footprint — the glyph flows inline in the label
  * row, the chip fills exactly the box the dial vacates — so a locked group lays
  * out identically to a free one. `.fxKnobs` is a *wrapping* flex row with ~25 px
@@ -11,7 +11,7 @@
 
 /*
  * Out of flow, hanging in the gutter `.hasLock` reserves to the left of the cell
- * (knob.module.css). Absolute rather than inline is the whole fix for REQ-10:
+ * (knob.module.css). Absolute rather than inline is the whole fix for REQ-the-lock-glyph-hangs-out-of-flow:
  * an inline glyph contributes to the label's line box, and at the machine tabs'
  * 30 px cell that pushed the label onto a second line and dropped the dial below
  * its neighbours'. Out of flow it cannot wrap the label at any knob size, so one
@@ -106,7 +106,7 @@
 /*
  * No caret. At the 22 px knobs of the drum and sampler FX rows the chip's whole
  * box is 30 px, and `1/16D` at 8 px mono already spends ~24 px of it — a caret
- * would push the chip past the box and reflow the row (REQ-9). The chip's lit
+ * would push the chip past the box and reflow the row (REQ-locking-moves-nothing-on-the-faceplate). The chip's lit
  * border and its `title` carry the affordance instead.
  */
 .chip :global(.dropdown) > button > span:last-child {

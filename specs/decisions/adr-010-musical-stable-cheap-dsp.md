@@ -88,7 +88,7 @@ How each worklet embodies it:
 
 "Across **8-voice polyphony × 2 channels**" in *Context / Forces* above described
 the budget at the time of writing. It has been stale since
-[ladder-filter](../features/ladder-filter.md) REQ-9 (v3) pinned the filter worklet
+[ladder-filter](../features/ladder-filter.md) REQ-the-filter-worklet-is-mono (v3) pinned the filter worklet
 to **one** channel (`channelCount: 1`, `outputChannelCount: [1]`) — forcing it
 stereo only computed identical samples twice. The real multipliers today: the
 **ladder filter** is one instance per voice at 1 channel; the **compressors** are

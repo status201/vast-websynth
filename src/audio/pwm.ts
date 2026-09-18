@@ -2,28 +2,28 @@ import { LfoDest } from './lfo';
 import { PWM_MAX_WIDTH, PWM_MIN_WIDTH, type Osc } from './oscillator';
 
 /** Control-loop rate. Smoothness is `PWM_CONTROL_HZ / lfoRate` duty updates per
- *  cycle — 240 at 1 Hz, ~24 at the PWM_RATE_MAX cap (oscillators.md REQ-8). */
+ *  cycle — 240 at 1 Hz, ~24 at the PWM_RATE_MAX cap (oscillators.md REQ-set-periodic-wave-is-immediate). */
 export const PWM_CONTROL_HZ = 240;
 
-/** LFO rate ceiling on the PWM path (oscillators.md REQ-9). Above this the duty
+/** LFO rate ceiling on the PWM path (oscillators.md REQ-pwm-rate-is-clamped). Above this the duty
  *  steps audibly; `lfo.rate`'s own registered range is deliberately untouched,
  *  so no saved patch is invalidated. */
 export const PWM_RATE_MAX = 10;
 
 /** Cap on the phase advance one tick may make. A background tab throttles this
- *  timer to ~1 Hz while audio keeps playing (oscillators.md REQ-10); without a
+ *  timer to ~1 Hz while audio keeps playing (oscillators.md REQ-a-background-tab-throttles-pwm); without a
  *  cap the first tick back would jump the duty an arbitrary distance and click.
  *  With it, the sweep effectively freezes and resumes where it left off. */
 const MAX_TICK_S = 4 / PWM_CONTROL_HZ;
 
 /** The pair of oscillators PWM applies to. The sub is deliberately excluded —
- *  PWM on the low anchor muddies the fundamental (oscillators.md REQ-5). */
+ *  PWM on the low anchor muddies the fundamental (oscillators.md REQ-oscillators-have-a-pulse-width). */
 export interface PwmVoice {
   readonly osc1: Osc;
   readonly osc2: Osc;
 }
 
-/** What one LFO contributes to the shared driver (lfo.md REQ-14). */
+/** What one LFO contributes to the shared driver (lfo.md REQ-pulse-is-arbitrated). */
 interface PwmSource {
   pulse: boolean;
   amount: number;
@@ -44,7 +44,8 @@ function shape(wave: number, p: number): number {
 }
 
 /**
- * Pulse-width modulation driver (oscillators.md REQ-6..REQ-10).
+ * Pulse-width modulation driver — oscillators.md REQ-width-swaps-a-precomputed-wave
+ * through oscillators.md REQ-a-background-tab-throttles-pwm.
  *
  * PWM is the one modulation path that is *not* an audio-node connection: a
  * native `OscillatorNode` has no width `AudioParam`, and `setPeriodicWave` is an
@@ -55,7 +56,7 @@ function shape(wave: number, p: number): number {
  * pays nothing. It owns its own interval rather than riding the render loop,
  * because the weak perf tier caps that at 15 fps (runtime-performance.md).
  *
- * There is **one driver and two LFOs** (lfo.md REQ-14), so every LFO-owned
+ * There is **one driver and two LFOs** (lfo.md REQ-pulse-is-arbitrated), so every LFO-owned
  * setter takes a source index and the driver tracks an owner. Without that,
  * the LFO that is *not* doing PWM would stop the sweep of the one that is,
  * simply by moving its own destination — `setDest(cutoff)` would reach `stop()`.
@@ -122,7 +123,7 @@ export class PwmDriver {
    * `bus.restore()` walks a snapshot's own key order, which is JSON insertion
    * order and so not deterministic across hand-authored files. Lowest-index-wins
    * gives the same answer whichever order the two `dest` params arrive in, and
-   * matches the "LFO 1 got there first" reading (lfo.md REQ-14).
+   * matches the "LFO 1 got there first" reading (lfo.md REQ-pulse-is-arbitrated).
    */
   private reown(): void {
     let next: number | null = null;
@@ -175,7 +176,7 @@ export class PwmDriver {
 
   private tick(): void {
     // Only the owner's slot is read, so a non-owner keeping its own rate/wave/
-    // amount up to date costs nothing and changes nothing (lfo.md REQ-14).
+    // amount up to date costs nothing and changes nothing (lfo.md REQ-pulse-is-arbitrated).
     const s = this.owner === null ? undefined : this.srcs[this.owner];
     if (!s) return;
 
@@ -187,7 +188,7 @@ export class PwmDriver {
     // the rate bends the sweep instead of jumping it.
     this.phase = (this.phase + Math.min(s.rate, PWM_RATE_MAX) * dt) % 1;
 
-    // Unipolar and upward from each base (oscillators.md REQ-7): duty `d` and
+    // Unipolar and upward from each base (oscillators.md REQ-pulse-destination-sweeps-unipolar): duty `d` and
     // `1-d` share a magnitude spectrum, so a bipolar sweep through 0.5 would
     // sound like double the LFO rate.
     const u = (shape(s.wave, this.phase) + 1) / 2;

@@ -5,7 +5,7 @@ import type { CapturedAudio } from '../../../src/audio/recorder/node';
 
 /**
  * `renderEffect` — the two edits that need real DSP (filter, octave), rendered
- * through an `OfflineAudioContext` (sample-recorder.md REQ-2). jsdom has no
+ * through an `OfflineAudioContext` (sample-recorder.md REQ-edit-in-captured-audio-space). jsdom has no
  * OfflineAudioContext, so this stubs one that records the graph it was asked to
  * build and hands back a buffer of the requested length.
  *
@@ -222,7 +222,7 @@ describe('renderEffect — what comes back', () => {
 });
 
 // `resample` is the generalisation the two octave effects were always special
-// cases of (time-stretch.md REQ-8) — they are kept because their names are the
+// cases of (time-stretch.md REQ-pitch-shift-keeps-length) — they are kept because their names are the
 // contract the editor's buttons and the tests above are written to.
 describe('renderEffect — resample', () => {
   it('is the octave effects at an arbitrary factor', async () => {

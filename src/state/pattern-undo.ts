@@ -59,7 +59,7 @@ export class PatternUndo {
     for (const m of MACHINES) this.stacks[m].onChange(() => this.emit());
 
     patterns.onMutate((m) => {
-      if (this.applying) return; // undo must never record undo (REQ-8)
+      if (this.applying) return; // undo must never record undo (REQ-undo-ignores-its-own-mutations)
       this.stacks[machineOf(m)].push(m, coalesceKey(m));
     });
     patterns.onBulkRestore(() => this.clearAll());
@@ -98,7 +98,7 @@ export class PatternUndo {
   /**
    * Write an entry's pre-state back through the standard setters. Mutations
    * always target the edit bank, so first navigate the edit bank to the
-   * entry's bank (REQ-5) — the revert is then visible where it happens.
+   * entry's bank (REQ-undo-applies-into-its-own-bank) — the revert is then visible where it happens.
    */
   private apply(entry: PatternMutation): void {
     const p = this.patterns;
@@ -148,7 +148,7 @@ export class PatternUndo {
         entry.before.forEach((s, i) => p.setMotionStep(i, { ...s }));
         p.setMotionAssign(entry.beforeAssign ? { ...entry.beforeAssign } : null);
         // The extra tracks ride in the same entry, so one press restores the
-        // whole bank — anchors, axis override and tracks (REQ-13).
+        // whole bank — anchors, axis override and tracks (REQ-two-extra-tracks-per-bank).
         entry.beforeTracks.forEach((t, ti) => {
           p.setMotionTrackParam(ti, t.param ?? null);
           t.steps.forEach((s, i) => p.setMotionTrackStep(ti, i, { ...s }));

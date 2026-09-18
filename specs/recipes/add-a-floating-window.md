@@ -110,7 +110,7 @@ npm run e2e         # e2e/xy-pad.spec.ts drives the toggle end-to-end
 ## Gotchas
 
 - **Non-modal on purpose.** No backdrop is created and Escape is *not* bound —
-  Escape belongs to the global panic handler (floating-window REQ-4). If you
+  Escape belongs to the global panic handler (floating-window REQ-escape-does-not-close-a-window). If you
   need a dimmed, click-blocking dialog, use [`Modal`](add-a-modal-dialog.md)
   instead.
 - **Reuse the instance.** Build the window once and toggle `open()`/`close()`;

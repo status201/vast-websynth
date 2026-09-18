@@ -7,7 +7,7 @@ import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
 
 /**
  * The KEY tab: the three controls and the one line of prose that says what they
- * currently do (scale-quantization.md, chord-tools.md REQ-8).
+ * currently do (scale-quantization.md, chord-tools.md REQ-chord-tools-require-a-scale).
  *
  * The hint is the whole reason chord memory may sit disabled: a control that
  * quietly does nothing is exactly what ADR-014 exists to prevent, so what it *says*
@@ -35,7 +35,7 @@ function chordOption(el: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe('KEY panel', () => {
-  it('reads keyboard, then the controls, then the hint — in the DOM (REQ-9)', () => {
+  it('reads keyboard, then the controls, then the hint — in the DOM (REQ-the-key-is-drawn-not-just-named)', () => {
     // The order lives in the DOM, not in CSS `order`, so wrapping to a narrow screen
     // preserves it and keyboard traversal matches what is on screen.
     const { el } = build();
@@ -46,7 +46,7 @@ describe('KEY panel', () => {
     expect(found).toEqual(wanted);
   });
 
-  it('keeps the three dropdowns in one wrapper, so they wrap as a unit (REQ-9)', () => {
+  it('keeps the three dropdowns in one wrapper, so they wrap as a unit (REQ-the-key-is-drawn-not-just-named)', () => {
     const { el } = build();
     // dropdown -> its labelled group -> the shared controls wrapper
     const parents = ['key-root', 'key-scale', 'key-chord']
@@ -63,14 +63,14 @@ describe('KEY panel', () => {
     }
   });
 
-  it('disables every chord voicing while chromatic (REQ-8)', () => {
+  it('disables every chord voicing while chromatic (REQ-snap-to-scale-is-the-destructive-opt-in)', () => {
     const { el } = build(); // boots chromatic
     for (const label of CHORD_LABELS.slice(1)) {
       expect(chordOption(el, label).disabled, label).toBe(true);
     }
   });
 
-  it('enables them as soon as a scale is chosen (REQ-8)', () => {
+  it('enables them as soon as a scale is chosen (REQ-snap-to-scale-is-the-destructive-opt-in)', () => {
     const { bus, el } = build();
     bus.set('scale.type', MINOR);
     for (const label of CHORD_LABELS.slice(1)) {
@@ -94,7 +94,7 @@ describe('KEY panel', () => {
     expect(text).toContain('never rewritten');
   });
 
-  it('explains that mono is why chord memory is silent (REQ-7)', () => {
+  it('explains that mono is why chord memory is silent (REQ-the-scale-mapping-is-a-lookup-table)', () => {
     const { bus, el } = build();
     bus.set('scale.type', MINOR);
     bus.set('chord.voicing', TRIAD);
@@ -120,7 +120,7 @@ describe('KEY panel', () => {
 });
 
 /**
- * The two-octave keyboard map (scale-quantization.md REQ-9).
+ * The two-octave keyboard map (scale-quantization.md REQ-the-key-is-drawn-not-just-named).
  *
  * State lives in `data-role`, not a class, so these assertions do not depend on how
  * CSS Modules resolve under Vitest.
@@ -211,7 +211,7 @@ describe('KEY panel — keyboard map', () => {
     for (const k of labelled) expect(k.textContent).toBe('A');
   });
 
-  it('lists the legend in the order of the dropdowns (REQ-9, regression)', () => {
+  it('lists the legend in the order of the dropdowns (REQ-the-key-is-drawn-not-just-named, regression)', () => {
     // The legend sits directly under Root / Scale / Chord memory and a reader pairs
     // them positionally, so it follows dropdown order — not the precedence order the
     // painter resolves in. It used to read root, chord, in scale.
@@ -231,7 +231,7 @@ describe('KEY panel — keyboard map', () => {
     expect(chordSwatch.parentElement!.classList.contains('hidden')).toBe(false);
   });
 
-  it('backs that hide with a rule, so it leaves the layout (REQ-9, regression)', () => {
+  it('backs that hide with a rule, so it leaves the layout (REQ-the-key-is-drawn-not-just-named, regression)', () => {
     // The painter toggles a `hidden` class, but this app has no global
     // `.hidden { display: none }` (see modal.module.css) — so without a rule in the
     // module the hide changed nothing on screen, and the test above passed anyway.

@@ -3,20 +3,20 @@
 ```yaml
 id: drum-machine
 status: implemented
-version: 12  # v12: REQ-19 — a model swap ramps the outgoing voice down and
+version: 12  # v12: REQ-swapping-a-model-never-severs-a-voice — a model swap ramps the outgoing voice down and
              #      disconnects it later; it used to sever a ringing tail, which
-             #      a song load fires twice per track (song-mode.md REQ-17)
-             # v11: REQ-18 — TUNE reads in semitones; `unit` alone never reached
+             #      a song load fires twice per track (song-mode.md REQ-applying-a-song-is-click-free)
+             # v11: REQ-tune-reads-in-semitones — TUNE reads in semitones; `unit` alone never reached
              #      the readout, so a semitone knob showed "0.00"
              # v10: REQ-15/16/17 — a voice envelope must reach TRUE zero before
              #      its source stops; the choke group restores on a ramp; a hit
              #      clamped out of the past carries its choke with it
-             # v9: lane length/rate + a meter-relative fill (REQ-14) — meter.md
-             # v8: REQ-13 — a lane mute (or a solo elsewhere) suppresses the hit
+             # v9: lane length/rate + a meter-relative fill (REQ-drum-lane-follows-the-meter) — meter.md
+             # v8: REQ-every-sounded-hit-is-reported — a lane mute (or a solo elsewhere) suppresses the hit
              #     report too, not just a per-track mute; "reported ⇔ audible"
-             # v7: REQ-13 — onHit reports every hit that sounds, at its scheduled
+             # v7: REQ-every-sounded-hit-is-reported — onHit reports every hit that sounds, at its scheduled
              #     time; the sidechain ducker's trigger (sidechain-ducking.md)
-             # v6: REQ-12 — an optional hat choke group (drum.choke, default off)
+             # v6: REQ-a-closed-hat-cuts-an-open-hat — an optional hat choke group (drum.choke, default off)
              # v5: per-track swappable voice models (drum.t{i}.model) + percussion voices
 owner: core
 related:
@@ -26,7 +26,7 @@ related:
   - banks
   - sampler
   - drum-kits
-  - sidechain-ducking  # v7: the consumer REQ-13's onHit was added for
+  - sidechain-ducking  # v7: the consumer REQ-every-sounded-hit-is-reported's onHit was added for
 source:
   - src/audio/transport/drum-machine.ts
   - src/audio/drums/drum-synths.ts
@@ -57,63 +57,71 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
 
 ## Requirements
 
-- **REQ-1** — 8 fixed tracks: Kick, Snare, Closed Hat, Open Hat, Low/Mid/High Tom,
-  Clap (order matches `DRUM_TRACKS`).
+- **REQ-eight-fixed-drum-tracks** — 8 fixed tracks: Kick, Snare, Closed Hat,
+  Open Hat, Low/Mid/High Tom, Clap (order matches `DRUM_TRACKS`).
 
-- **REQ-2** — Per-track volume / tune (semitones) / decay / tone / drive / pan /
-  mute.
+- **REQ-per-track-drum-params** — Per-track volume / tune (semitones) / decay /
+  tone / drive / pan / mute.
 
-- **REQ-3** — One-shot hits honour velocity/prob/ratchet; gate < 1 chokes the hit
-  early (downstream gain), gate 1 is natural decay, tie rings into the next step.
+- **REQ-hits-honour-velocity-and-ratchet** — One-shot hits honour
+  velocity/prob/ratchet; gate < 1 chokes the hit early (downstream gain), gate 1
+  is natural decay, tie rings into the next step.
 
-- **REQ-4** — Reads `patterns.drumBank(arrangement.drumPlayBank)` each tick.
+- **REQ-the-drums-read-their-play-bank** — Reads
+  `patterns.drumBank(arrangement.drumPlayBank)` each tick.
 
-- **REQ-5** — When `performance.fillActive`, play a roll instead of the pattern.
+- **REQ-fill-plays-a-roll** — When `performance.fillActive`, play a roll instead
+  of the pattern.
 
-- **REQ-6** — `tune` is audible on **every** voice (it shifts the noise/tone
-  filters + oscillators by `2^(tune/12)`), not only Kick/Tom.
+- **REQ-tune-is-audible-on-every-voice** — `tune` is audible on **every** voice
+  (it shifts the noise/tone filters + oscillators by `2^(tune/12)`), not only
+  Kick/Tom.
 
-- **REQ-7** — Tone/drive/pan are applied by a per-track channel inserted between
-  the voice `output` and the drum bus, leaving the voice envelope + choke intact.
-  All three default to a **no-op** (tone open, drive off, pan centre).
+- **REQ-tone-drive-and-pan-are-a-channel** — Tone/drive/pan are applied by a
+  per-track channel inserted between the voice `output` and the drum bus,
+  leaving the voice envelope + choke intact. All three default to a **no-op**
+  (tone open, drive off, pan centre).
 
-- **REQ-8** — The drum panel exposes a **selected-drum tuning strip**
-  (tune/decay/tone/drive/pan/vol knobs + a Reset) driven by the same selection
-  cursor as the per-step editor; clicking a track label selects **and** auditions
-  it. Reset returns that track's params to their registered defaults.
+- **REQ-a-selected-drum-tuning-strip** — The drum panel exposes a
+  **selected-drum tuning strip** (tune/decay/tone/drive/pan/vol knobs + a Reset)
+  driven by the same selection cursor as the per-step editor; clicking a track
+  label selects **and** auditions it. Reset returns that track's params to their
+  registered defaults.
 
-- **REQ-9** — Each one-shot hit's per-hit nodes (oscillators, noise sources,
-  filters, envelope gains, and the choke gain when present) are **disconnected
-  once the hit's source(s) end** — the hit's source `onended` tears them down
-  (the last `onended` for a multi-source voice). Only the persistent per-synth
-  `output` gain, built in the constructor and wired into the track channel once,
-  survives. This bounds the live graph: a long song must not accumulate
-  stopped-but-connected nodes (which crackle/distort the audio over time).
+- **REQ-per-hit-nodes-are-disposable** — Each one-shot hit's per-hit nodes
+  (oscillators, noise sources, filters, envelope gains, and the choke gain when
+  present) are **disconnected once the hit's source(s) end** — the hit's source
+  `onended` tears them down (the last `onended` for a multi-source voice). Only
+  the persistent per-synth `output` gain, built in the constructor and wired
+  into the track channel once, survives. This bounds the live graph: a long song
+  must not accumulate stopped-but-connected nodes (which crackle/distort the
+  audio over time).
 
-- **REQ-10** — The selected-drum tuning strip is **rebuilt only when the selected
-  track changes**, not on every step click (its knobs bind per-track paramIds that
-  depend on the track alone; their displayed values already track the bus via
-  subscription). Each rebuilt `Knob` is `destroy()`ed, and a destroyed Knob leaves
-  **no window pointer listeners** behind — its drag listeners are attached on
-  `pointerdown` and removed on `pointerup`/`destroy()` (the drag-scoped-listener
-  rule in [add-a-ui-component](../recipes/add-a-ui-component.md)). This bounds the
-  main-thread cost of drum editing: repeated step/track clicks must not accumulate
-  dead window listeners or detached DOM, which otherwise starve the audio callback
-  and crackle the audio *over time*.
+- **REQ-the-strip-rebuilds-only-on-selection** — The selected-drum tuning strip
+  is **rebuilt only when the selected track changes**, not on every step click
+  (its knobs bind per-track paramIds that depend on the track alone; their
+  displayed values already track the bus via subscription). Each rebuilt `Knob`
+  is `destroy()`ed, and a destroyed Knob leaves **no window pointer listeners**
+  behind — its drag listeners are attached on `pointerdown` and removed on
+  `pointerup`/`destroy()` (the drag-scoped-listener rule in
+  [add-a-ui-component](../recipes/add-a-ui-component.md)). This bounds the
+  main-thread cost of drum editing: repeated step/track clicks must not
+  accumulate dead window listeners or detached DOM, which otherwise starve the
+  audio callback and crackle the audio *over time*.
 
-- **REQ-11** (v5) — Each track's voice **algorithm is selectable** via a
-  per-track discrete param `drum.t{i}.model`. The model list is the 8 classic
-  voices (Kick, Snare, C.Hat, O.Hat, L/M/H Tom, Clap — indices 0–7, matching
-  the track order) plus the percussion voices **Conga (8), Bongo (9),
-  Cowbell (10), Clave (11), Shaker (12)**. Rules:
+- **REQ-a-drum-tracks-algorithm-is-selectable** (v5) — Each track's voice
+  **algorithm is selectable** via a per-track discrete param `drum.t{i}.model`.
+  The model list is the 8 classic voices (Kick, Snare, C.Hat, O.Hat, L/M/H Tom,
+  Clap — indices 0–7, matching the track order) plus the percussion voices
+  **Conga (8), Bongo (9), Cowbell (10), Clave (11), Shaker (12)**. Rules:
   - The **default is the track's own index**, so a song/preset that omits the
     param (every pre-v5 file) reproduces the classic kit exactly.
   - Switching models swaps only the voice instance: the old voice's `output` is
     disconnected and the new voice wired into the **same** per-track channel
-    (drive→tone→gain→pan, REQ-7); cached tune/decay are replayed onto the new
+    (drive→tone→gain→pan, REQ-tone-drive-and-pan-are-a-channel); cached tune/decay are replayed onto the new
     voice. Tone/drive/pan/vol/mute and the step grid are untouched.
-  - Every model honours the full `DrumSynth` contract: tune (REQ-6), decay,
-    choke (REQ-3), one-shot node teardown (REQ-9).
+  - Every model honours the full `DrumSynth` contract: tune (REQ-tune-is-audible-on-every-voice), decay,
+    choke (REQ-hits-honour-velocity-and-ratchet), one-shot node teardown (REQ-per-hit-nodes-are-disposable).
   - Percussion voices follow ADR-010 (musical, stable, cheap): small one-shot
     graphs, constants dialled by ear.
   - The author dialect's track names (`kick`/`chat`/`ltom`…) keep naming the
@@ -123,16 +131,17 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     (testid `drum-model`), and the grid's row label follows the selected model's
     name (the classic `DRUM_TRACK_LABELS` remain the slot names).
 
-- **REQ-12** (v6) — **A closed hat can cut an open hat.** On a real 808/909 the
-  two hats share one voice, so a closed hat ends whatever the open hat was doing;
-  here every track is independent, so an open hat rang straight through the
-  closed hats on top of it — the one thing that stops a hat pattern from
-  breathing. `drum.choke` (discrete, **default 0 = off**) enables it. Rules:
+- **REQ-a-closed-hat-cuts-an-open-hat** (v6) — **A closed hat can cut an open
+  hat.** On a real 808/909 the two hats share one voice, so a closed hat ends
+  whatever the open hat was doing; here every track is independent, so an open
+  hat rang straight through the closed hats on top of it — the one thing that
+  stops a hat pattern from breathing. `drum.choke` (discrete, **default 0 =
+  off**) enables it. Rules:
   - **Off by default**, because switching it on changes how existing songs sound
     — the one thing [ADR-006](../decisions/adr-006-no-op-param-defaults.md)
     forbids a new param from doing. Every shipped demo is unaffected until
     someone reaches for the switch.
-  - The group is decided by **model, not by track index** (REQ-11 makes models
+  - The group is decided by **model, not by track index** (REQ-a-drum-tracks-algorithm-is-selectable makes models
     swappable): *any* track whose model is `C.Hat` chokes *every* track whose
     model is `O.Hat`. Move an open hat onto track 6 and it still chokes; put a
     cowbell on track 3 and it stops being choked.
@@ -148,19 +157,20 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     this is the hat pair only. A general per-track choke-group matrix is
     deliberately out of scope; see Open questions.
 
-- **REQ-13** (v7) — **Every hit that sounds is reported, as it is scheduled.**
-  `onHit(track, when, velocity)` fires for each hit the machine plays, carrying
-  the absolute `AudioContext` time it will sound. Emitted from one private
-  `fire()` that every trigger path routes through — the pattern sweep, the
-  performance fill and the manual audition — so a hit can neither be reported
-  without sounding nor sound without being reported. Because it fires from inside
-  `forEachActiveHit`, muted lanes and failed probability rolls are already
-  excluded and each ratchet sub-hit is its own emission at its own time.
+- **REQ-every-sounded-hit-is-reported** (v7) — **Every hit that sounds is
+  reported, as it is scheduled.** `onHit(track, when, velocity)` fires for each
+  hit the machine plays, carrying the absolute `AudioContext` time it will
+  sound. Emitted from one private `fire()` that every trigger path routes
+  through — the pattern sweep, the performance fill and the manual audition — so
+  a hit can neither be reported without sounding nor sound without being
+  reported. Because it fires from inside `forEachActiveHit`, muted lanes and
+  failed probability rolls are already excluded and each ratchet sub-hit is its
+  own emission at its own time.
   - This is **not** `onStep`, which carries a performance-mapped step index with
     no time and drives the UI playhead. A consumer that needs to schedule audio
     needs the time, and needs to know what actually sounded rather than what the
     grid says.
-  - Added for [sidechain-ducking](sidechain-ducking.md) REQ-9, which is what
+  - Added for [sidechain-ducking](sidechain-ducking.md) REQ-on-hit-reports-only-sounded-hits, which is what
     keeps that feature from re-deriving mute/probability/ratchet rules — and so
     from drifting out of step with what is heard.
   - **(v8) A silenced lane reports nothing.** *Both* kinds of mute suppress the
@@ -180,27 +190,28 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
     after a report has gone out. A consumer therefore sees at most one look-ahead
     of stale triggers. Deliberate: the alternative is reaching into whatever a
     consumer already scheduled, and every consumer's envelope decays back to rest
-    on its own within a release ([sidechain-ducking](sidechain-ducking.md) REQ-5).
+    on its own within a release ([sidechain-ducking](sidechain-ducking.md) REQ-the-resting-duck-state-is-unity).
 
-- **REQ-14** (v9) — **The lane's length, rate and fill follow the meter.**
-  `drum.len` / `drum.rate` size the played window ([meter](meter.md)
-  REQ-10/REQ-14), and `playFill` is written against that window rather than a
-  hard-coded 16: the kick anchors each half-lane, the L→M→H tom roll takes its
-  last quarter, and the clap accents its **own** last step. At 16 cells every
-  branch evaluates exactly as before (anchors on 0 and 8, roll from 12, clap on
-  15), so a 4/4 fill is unchanged.
+- **REQ-drum-lane-follows-the-meter** (v9) — **The lane's length, rate and fill
+  follow the meter.** `drum.len` / `drum.rate` size the played window
+  ([meter](meter.md) REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate), and `playFill` is written against that
+  window rather than a hard-coded 16: the kick anchors each half-lane, the L→M→H
+  tom roll takes its last quarter, and the clap accents its **own** last step.
+  At 16 cells every branch evaluates exactly as before (anchors on 0 and 8, roll
+  from 12, clap on 15), so a 4/4 fill is unchanged.
 
 
-- **REQ-15** (v10) — **A voice's envelope reaches true zero before its source
-  stops.** `exponentialRampToValueAtTime` cannot reach 0, so every voice lands on
-  a 0.001 floor; stopping the source there truncates the waveform mid-cycle, and a
-  step discontinuity is a click. Each envelope therefore ends with a short linear
-  ramp to **exactly 0** (`TAIL_FADE`), and its source stops at the end of that
-  ramp rather than a fixed 50 ms later. Every source with its own envelope gets
-  its own ramp — the Snare's noise *and* tone, the Conga's skin *and* overtone,
-  the Bongo's head *and* click, the Cowbell's shared bandpass envelope.
+- **REQ-a-voice-envelope-reaches-true-zero** (v10) — **A voice's envelope
+  reaches true zero before its source stops.** `exponentialRampToValueAtTime`
+  cannot reach 0, so every voice lands on a 0.001 floor; stopping the source
+  there truncates the waveform mid-cycle, and a step discontinuity is a click.
+  Each envelope therefore ends with a short linear ramp to **exactly 0**
+  (`TAIL_FADE`), and its source stops at the end of that ramp rather than a
+  fixed 50 ms later. Every source with its own envelope gets its own ramp — the
+  Snare's noise *and* tone, the Conga's skin *and* overtone, the Bongo's head
+  *and* click, the Cowbell's shared bandpass envelope.
 
-  Why it mattered at −60 dBFS: the per-track drive of REQ-7 is
+  Why it mattered at −60 dBFS: the per-track drive of REQ-tone-drive-and-pan-are-a-channel is
   `tanh(k·x)/tanh(k)` with `k = drive × 50`, whose small-signal slope is ≈ `k`.
   At `drive` 0.28 the residual is amplified ~32× (+30 dB) to ≈ −30 dBFS, and on
   the Kick — a 55 Hz sine, where the truncation step is the *only* broadband
@@ -209,48 +220,53 @@ randomize) are layered on top in [drum-kits](drum-kits.md).
   in all ten voices, but only one of them lets you hear it.
 
   Stopping at the end of the ramp instead of `+0.05` also frees each hit's nodes
-  ~45 ms sooner (REQ-9).
+  ~45 ms sooner (REQ-per-hit-nodes-are-disposable).
 
-- **REQ-16** (v10) — **The choke group restores on a ramp, never a step.** REQ-12
-  fades the group gain down over `CHOKE_GROUP_FADE` and must put it back for the
-  next hit. Restoring with a bare `setValueAtTime(1, …)` moves the gain 0 → 1 in
-  a single sample while the open hat it just cut is still ringing — re-exposing
-  that tail instantly, which is the very click the 6 ms down-fade was chosen to
-  avoid. The restore is a short linear ramp. The intent of REQ-12 is unchanged:
-  the cut still belongs to the ringing tail, not to the track.
+- **REQ-the-choke-group-restores-on-a-ramp** (v10) — **The choke group restores
+  on a ramp, never a step.** REQ-a-closed-hat-cuts-an-open-hat fades the group
+  gain down over `CHOKE_GROUP_FADE` and must put it back for the next hit.
+  Restoring with a bare `setValueAtTime(1, …)` moves the gain 0 → 1 in a single
+  sample while the open hat it just cut is still ringing — re-exposing that tail
+  instantly, which is the very click the 6 ms down-fade was chosen to avoid. The
+  restore is a short linear ramp. The intent of
+  REQ-a-closed-hat-cuts-an-open-hat is unchanged: the cut still belongs to the
+  ringing tail, not to the track.
 
-- **REQ-17** (v10) — **A hit clamped out of the past carries its choke with it.**
-  A voice starts at `max(when, currentTime)` because `when` can be in the past —
-  the clock's guaranteed lead is finite and an early micro nudge eats into it
-  ([step-settings](step-settings.md) REQ-9), and the first tick after `start()`
+- **REQ-a-clamped-hit-carries-its-choke** (v10) — **A hit clamped out of the
+  past carries its choke with it.** A voice starts at `max(when, currentTime)`
+  because `when` can be in the past — the clock's guaranteed lead is finite and
+  an early micro nudge eats into it ([step-settings](step-settings.md)
+  REQ-an-early-offset-is-capped-in-seconds), and the first tick after `start()`
   and every dropout re-origin have less lead than `MAX_EARLY_S`. Clamping only
   the start left `chokeAt` behind: the gate collapsed, cutting the hit
   mid-attack, or — when the whole fade was already past — the gain resolved to 0
-  and the hit was **silently dropped**. The choke shifts by the same delta as the
-  start, so the gate keeps its *length*, and a stop time can never precede its
-  own start. [sampler](sampler.md) REQ-11 states the same rule for sampler slots.
+  and the hit was **silently dropped**. The choke shifts by the same delta as
+  the start, so the gate keeps its *length*, and a stop time can never precede
+  its own start. [sampler](sampler.md) REQ-a-slot-starts-from-zero states the
+  same rule for sampler slots.
 
 
 
-- **REQ-18** (v11) — **TUNE reads in semitones.** `drum.t{i}.tune` declared
-  `unit: 'st'` and no `format`, but `formatParam` only ever consults `format` —
-  `unit` reaches nothing that draws — so the knob fell through to the plain
-  numeric branch and read `0.00` for a control whose whole range is `-24..24`
-  **whole** semitones. It now formats through `fmtSemi` (`+7st`, `-12st`), the
-  helper `filter.envAmount` already uses.
+- **REQ-tune-reads-in-semitones** (v11) — **TUNE reads in semitones.**
+  `drum.t{i}.tune` declared `unit: 'st'` and no `format`, but `formatParam` only
+  ever consults `format` — `unit` reaches nothing that draws — so the knob fell
+  through to the plain numeric branch and read `0.00` for a control whose whole
+  range is `-24..24` **whole** semitones. It now formats through `fmtSemi`
+  (`+7st`, `-12st`), the helper `filter.envAmount` already uses.
 
   `unit` stays: it is carried into the generated param catalogue
   (`public/params.json`, the MCP `get_params`) where it *is* read. The two are
   not alternatives — anything a knob shows needs `format`, whatever `unit` says.
 
-- **REQ-19** (v12) — **Swapping a track's model never severs a ringing voice.**
-  `setTrackModel` replaced the voice by calling `output.disconnect()` on the old
-  one and wiring the new one into the same channel head — an instant cut of
-  whatever the old voice was still sounding. Stopping the transport does not
-  silence a drum hit (only the sampler is stopped), so a cymbal rings for seconds
-  after Stop, and `drum.t{i}.model` is written **twice** by a song load — once to
-  the default, once to the song's ([song-mode](song-mode.md) REQ-17). It was heard
-  as a click on clicking a demo with the transport stopped.
+- **REQ-swapping-a-model-never-severs-a-voice** (v12) — **Swapping a track's
+  model never severs a ringing voice.** `setTrackModel` replaced the voice by
+  calling `output.disconnect()` on the old one and wiring the new one into the
+  same channel head — an instant cut of whatever the old voice was still
+  sounding. Stopping the transport does not silence a drum hit (only the sampler
+  is stopped), so a cymbal rings for seconds after Stop, and `drum.t{i}.model`
+  is written **twice** by a song load — once to the default, once to the song's
+  ([song-mode](song-mode.md) REQ-applying-a-song-is-click-free). It was heard as a click on clicking a demo
+  with the transport stopped.
 
   The swap uses the mute-then-rewire idiom `ModMatrix.patch` already establishes:
   ramp the outgoing voice's `output.gain` to 0 over `RAMP_MEDIUM`, connect the new
@@ -279,14 +295,14 @@ DrumMachine:  # src/audio/transport/drum-machine.ts
   setEnabled(on)
   setTrackVolume(i, v) / setTrackTune(i, semis) / setTrackDecay(i, s) / setTrackMute(i, b)
   setTrackTone(i, amt) / setTrackDrive(i, amt) / setTrackPan(i, p)
-  setTrackModel(i, model)              # swap the voice algorithm (REQ-11)
+  setTrackModel(i, model)              # swap the voice algorithm (REQ-a-drum-tracks-algorithm-is-selectable)
   triggerTrack(i, velocity)            # UI audition
   onStep(fn) -> unsubscribe
 DRUM_MODEL_LABELS: string[]  # dropdown labels, index = model value (state/params.ts)
 DrumSynth:    # src/audio/drums/drum-synths.ts
   output: AudioNode
   trigger(when, velocity, chokeAt?)   # chokeAt cuts the hit with a fast fade
-  setTune(semitones)                  # real on all voices (REQ-6)
+  setTune(semitones)                  # real on all voices (REQ-tune-is-audible-on-every-voice)
   setDecay(seconds)
 ```
 
@@ -305,7 +321,7 @@ drum.t{i}.drive: { range: 0..1, default: 0, format: pct }   # 0 = clean (no-op)
 drum.t{i}.pan:   { range: -1..1, default: 0, format: L/C/R } # 0 = centre (no-op)
 drum.t{i}.mute:  { discrete, labels: [on, mute], default: 0 }
 drum.t{i}.model: { range: 0..12, default: i, step: 1, taper: discrete,
-                   labels: DRUM_MODEL_LABELS }   # default = the classic voice (REQ-11)
+                   labels: DRUM_MODEL_LABELS }   # default = the classic voice (REQ-a-drum-tracks-algorithm-is-selectable)
 # step grid: DrumCell[track][step] in PatternStore — see step-settings.md
 ```
 
@@ -317,7 +333,7 @@ engine (subscribeParams):
   drum.t{i}.* -> setTrackVolume/ Tune/ Decay/ Tone/ Drive/ Pan/ Mute/ Model
     (loop runs DRUM_TRACK_COUNT, not a literal 8)
 hit math: stepHits + chokeAt + rollProb (step-hits.ts); choke via chokeRoute (drum-synths.ts)
-graph: voice.output -> choke(gain, REQ-12) -> drive(preGain->waveShaper->postGain)
+graph: voice.output -> choke(gain, REQ-a-closed-hat-cuts-an-open-hat) -> drive(preGain->waveShaper->postGain)
          -> tone(lowpass biquad) -> trackGain -> pan(StereoPanner)
          -> drumBus -> drumComp -> drumPhaser -> drumDelay -> drumReverb -> preMaster
 ui: src/ui/panels/drum-panel.ts (drum-step-<t>-<s> grid + per-track mute +
@@ -339,7 +355,7 @@ defaults keep existing presets/songs sounding identical.
 ## Scenarios (BDD)
 
 ```gherkin
-Scenario: A model swap never severs a ringing voice (v12, REQ-19)
+Scenario: A model swap never severs a ringing voice (v12, REQ-swapping-a-model-never-severs-a-voice)
   Given a track's voice is still sounding after the transport stopped
   When the track's model is changed
   Then the outgoing voice's output is ramped to zero, not disconnected in that turn
@@ -354,33 +370,33 @@ Scenario: Two model swaps in one window each tear down their own voice (v12, edg
    And the surviving voice is not
 # pinned by: tests/audio/drums/drum-machine-model.test.ts
 
-Scenario: TUNE reads as semitones, not a bare number (v11, REQ-18, regression)
+Scenario: TUNE reads as semitones, not a bare number (v11, REQ-tune-reads-in-semitones, regression)
   Given drum.t0.tune is +7
   When its knob renders its value
   Then it reads "+7st" — never "7.00", which is what a unit with no format gives
 # pinned by: tests/ui/format-param.test.ts
 
-Scenario: A voice never stops on a non-zero envelope (v10, REQ-15, regression)
+Scenario: A voice never stops on a non-zero envelope (v10, REQ-a-voice-envelope-reaches-true-zero, regression)
   Given any of the 13 drum voice models
   When it is triggered
   Then its envelope ends with a linear ramp to exactly 0
   And every source stops at or after that ramp completes, never on the 0.001 floor
 # pinned by: tests/audio/drums/drum-synths.test.ts
 
-Scenario: The kick's tail no longer steps (v10, REQ-15, regression)
+Scenario: The kick's tail no longer steps (v10, REQ-a-voice-envelope-reaches-true-zero, regression)
   Given a kick whose track drive amplifies quiet residue ~32x
   When the hit ends
   Then the largest sample-to-sample step is bounded by the 55 Hz sine itself
   And not by the truncation that used to leave a ~0.13 step at -30 dBFS
 # pinned by: tests/audio/drums/drum-synths.test.ts, npm run bench:metrics (by ear, ADR-010)
 
-Scenario: The choke group restores on a ramp (v10, REQ-16, regression)
+Scenario: The choke group restores on a ramp (v10, REQ-the-choke-group-restores-on-a-ramp, regression)
   Given choke is on and a closed hat cuts a ringing open hat
   When the group gain is put back for the next hit
   Then it ramps back to 1 rather than stepping there in one sample
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A hit clamped out of the past keeps its gate length (v10, REQ-17, regression)
+Scenario: A hit clamped out of the past keeps its gate length (v10, REQ-a-clamped-hit-carries-its-choke, regression)
   Given a step whose scheduled time has already passed
   And a gate < 1 that would choke it
   When the voice clamps its start forward to now
@@ -395,19 +411,19 @@ Scenario: A short gate chokes the hit early
   Then a downstream gain ramps to 0 at gateEnd, cutting the tail without retuning the envelope
 # pinned by: tests/audio/drums/drum-synths.test.ts, tests/audio/transport/step-hits.test.ts
 
-Scenario: Tune shifts a noise voice (REQ-6)
+Scenario: Tune shifts a noise voice (REQ-tune-is-audible-on-every-voice)
   Given a snare/hat/clap voice with tune +12
   When it fires
   Then its filter/oscillator frequencies are scaled by 2^(12/12) = 2x vs tune 0
 # pinned by: tests/audio/drums/drum-synths.test.ts
 
-Scenario: A track has its own tone/drive/pan channel (REQ-7)
+Scenario: A track has its own tone/drive/pan channel (REQ-tone-drive-and-pan-are-a-channel)
   Given the drum machine is constructed
   Then each track wires voice.output -> choke -> drive -> tone -> gain -> pan -> drumBus
   And setTrackTone/Drive/Pan adjust that track's channel without touching other tracks
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: Reset restores a track's defaults (REQ-8)
+Scenario: Reset restores a track's defaults (REQ-a-selected-drum-tuning-strip)
   Given track 0's tune/tone/drive/pan have been changed
   When the tuning-strip Reset is pressed
   Then those params return to their registered defaults
@@ -419,88 +435,88 @@ Scenario: Fill plays a roll instead of the pattern (edge)
   Then the drum machine plays a roll rather than the programmed cells
 # pinned by: tests/audio/transport/drum-machine.test.ts, e2e/song-fx.spec.ts
 
-Scenario: Switching a voice model swaps the voice, not the channel (REQ-11)
+Scenario: Switching a voice model swaps the voice, not the channel (REQ-a-drum-tracks-algorithm-is-selectable)
   Given track 4 (L.Tom slot) with a tuned channel (pan/drive set)
   When drum.t4.model is set to Conga
   Then the old voice's output is disconnected, a Conga instance is wired into the
        same channel, cached tune/decay are replayed, and pan/drive are unchanged
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: Old songs keep the classic voices (REQ-11, no-op default)
+Scenario: Old songs keep the classic voices (REQ-a-drum-tracks-algorithm-is-selectable, no-op default)
   Given a song file that never mentions drum.t{i}.model
   When it is applied
   Then every track's model equals its own index (the classic voice)
 # pinned by: tests/state/params.test.ts
 
-Scenario: A hit disconnects its one-shot nodes once it ends (REQ-9, regression)
+Scenario: A hit disconnects its one-shot nodes once it ends (REQ-per-hit-nodes-are-disposable, regression)
   Given a drum voice is triggered
   When the hit's source(s) finish (onended fires; the last one for a multi-source voice)
   Then every per-hit node it created is disconnected, including the choke gain when choked
   And the persistent per-synth output gain is never disconnected
 # pinned by: tests/audio/drums/drum-synths.test.ts
 
-Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-10, regression)
+Scenario: Step clicks don't rebuild the tuning strip or leak listeners (REQ-the-strip-rebuilds-only-on-selection, regression)
   Given the drum tuning strip shows track T's knobs
   When the user clicks steps within track T repeatedly
   Then the tuning knobs are not rebuilt (a rebuild happens only when the selected track changes)
   And a destroyed Knob has removed every window pointer listener it added
 # pinned by: tests/ui/knob.test.ts
-Scenario: A closed hat cuts the open hat once choke is on (v6, REQ-12)
+Scenario: A closed hat cuts the open hat once choke is on (v6, REQ-a-closed-hat-cuts-an-open-hat)
   Given drum.choke is on, with a C.Hat and an O.Hat track
   When the closed hat fires
   Then the open hat's choke gain ramps to 0 and is restored straight after
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: Choke is off by default, so no shipped song changes (v6, REQ-12, ADR-006)
+Scenario: Choke is off by default, so no shipped song changes (v6, REQ-a-closed-hat-cuts-an-open-hat, ADR-006)
   Given drum.choke at its default 0
   When a closed hat fires over a ringing open hat
   Then nothing is choked
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: The group follows the voice model, not the track (v6, REQ-12)
+Scenario: The group follows the voice model, not the track (v6, REQ-a-closed-hat-cuts-an-open-hat)
   Given the O.Hat model has been moved onto another track
   When a closed hat fires
   Then the relocated open hat is choked and the vacated slot is not
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A ratcheted closed hat chokes on every sub-hit (v6, REQ-12, edge)
+Scenario: A ratcheted closed hat chokes on every sub-hit (v6, REQ-a-closed-hat-cuts-an-open-hat, edge)
   Given a closed-hat step with ratchet 3 and choke on
   Then the open hat is cut three times, at each sub-hit's own time
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A hit is reported with its track, scheduled time and velocity (v7, REQ-13)
+Scenario: A hit is reported with its track, scheduled time and velocity (v7, REQ-every-sounded-hit-is-reported)
   Given a listener registered through onHit
   When an active cell plays
   Then it receives the track index, the absolute time the hit sounds and the cell velocity
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A ratcheted step reports one hit per sub-hit (v7, REQ-13)
+Scenario: A ratcheted step reports one hit per sub-hit (v7, REQ-every-sounded-hit-is-reported)
   Given a step with ratchet 4
   When it plays
   Then onHit fires four times, at four distinct ascending times
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A hit that does not sound is not reported (v7, REQ-13, edge)
+Scenario: A hit that does not sound is not reported (v7, REQ-every-sounded-hit-is-reported, edge)
   Given a step on a muted track, or one whose probability roll fails,
         or a machine that is disabled
   When the tick is swept
   Then onHit does not fire
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A lane mute stops the reports too (v8, REQ-13, regression)
+Scenario: A lane mute stops the reports too (v8, REQ-every-sounded-hit-is-reported, regression)
   Given an active drum pattern being reported through onHit
   When the drum LANE is muted, silencing the bus without stopping the pattern
   Then onHit stops firing, so a trigger-keyed effect stops pumping
    And it resumes on un-mute
 # pinned by: tests/audio/transport/drum-machine.test.ts, tests/audio/lane-mixer.test.ts
 
-Scenario: Soloing another lane stops them as well (v8, REQ-13, regression)
+Scenario: Soloing another lane stops them as well (v8, REQ-every-sounded-hit-is-reported, regression)
   Given an active drum pattern being reported through onHit
   When the sequencer lane is soloed, so the drum bus is silenced
   Then onHit stops firing, because audibility — not the mute flag — is the rule
 # pinned by: tests/audio/lane-mixer.test.ts
 
-Scenario: A manual audition is reported too (v7, REQ-13)
+Scenario: A manual audition is reported too (v7, REQ-every-sounded-hit-is-reported)
   Given a listener registered through onHit
   When triggerTrack auditions a pad
   Then onHit fires at the current time, so an auditioned drum drives a ducker
@@ -520,7 +536,7 @@ Scenario: A manual audition is reported too (v7, REQ-13)
 - Track count/order is fixed (`DRUM_TRACK_COUNT`); adding a track touches the
   voice list, `DRUM_TRACK_LABELS`, the per-track params, and the grid UI
   (see `specs/recipes/add-a-drum-voice.md`).
-- Per-track voice models shipped in v5 (REQ-11) with five percussion voices;
+- Per-track voice models shipped in v5 (REQ-a-drum-tracks-algorithm-is-selectable) with five percussion voices;
   further models (e.g. 808 vs 909 kick variants) can extend
   `DRUM_MODEL_LABELS` without another schema change.
 ```

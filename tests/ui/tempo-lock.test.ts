@@ -42,7 +42,7 @@ describe('the lockable-param table', () => {
       expect(b.def(id), id).toBeDefined();
       const sync = b.def(syncIdFor(id));
       expect(sync, syncIdFor(id)).toBeDefined();
-      expect(sync!.default).toBe(0); // free, an exact no-op (REQ-8)
+      expect(sync!.default).toBe(0); // free, an exact no-op (REQ-sync-defaults-to-free)
       expect(sync!.labels).toEqual(SYNC_LABELS);
     }
   });
@@ -50,7 +50,7 @@ describe('the lockable-param table', () => {
   it('labels the chip with the space stripped, one per division', () => {
     expect(DIVISION_LABELS).toHaveLength(DIVISIONS.length);
     expect(DIVISION_LABELS).toContain('1/16D');
-    expect(DIVISION_LABELS).not.toContain('free'); // REQ-5: no `free` row
+    expect(DIVISION_LABELS).not.toContain('free'); // REQ-the-lock-menu-lists-divisions-only: no `free` row
     // The compact label is the registered one minus its space, so a row picked in
     // the menu and the chip it produces cannot say different things.
     expect(DIVISION_LABELS).toEqual(DIVISIONS.map((d) => d.label.replace(' ', '')));
@@ -58,7 +58,7 @@ describe('the lockable-param table', () => {
 });
 
 describe('Knob tempo lock', () => {
-  it('grows nothing on a param that is not lockable (REQ-1)', () => {
+  it('grows nothing on a param that is not lockable (REQ-one-table-declares-lockable-params)', () => {
     const b = bus();
     expect(tempoLockFor('filter.cutoff')).toBeUndefined();
     const k = new Knob({ bus: b, paramId: 'filter.cutoff' });
@@ -67,7 +67,7 @@ describe('Knob tempo lock', () => {
     expect(k.el.querySelectorAll('button')).toHaveLength(0);
   });
 
-  it('locks to the division nearest the current value, without moving it (REQ-4)', () => {
+  it('locks to the division nearest the current value, without moving it (REQ-the-lock-is-a-view-of-sync)', () => {
     const b = bus();
     b.set('transport.bpm', 120);
     b.set('fx.delay.time', 0.26);
@@ -81,7 +81,7 @@ describe('Knob tempo lock', () => {
     expect(b.get('fx.delay.time')).toBe(0.26); // the knob value is untouched
   });
 
-  it('swaps the dial for the chip and derives the readout (REQ-3)', () => {
+  it('swaps the dial for the chip and derives the readout (REQ-locked-the-division-replaces-the-dial)', () => {
     const b = bus();
     b.set('transport.bpm', 120);
     const k = new Knob({ bus: b, paramId: 'fx.delay.time', label: 'TIME' });
@@ -106,7 +106,7 @@ describe('Knob tempo lock', () => {
     expect(readout(k)).toBe('1.00s');
   });
 
-  it('unlocks back to the stored value (REQ-4)', () => {
+  it('unlocks back to the stored value (REQ-the-lock-is-a-view-of-sync)', () => {
     const b = bus();
     b.set('fx.wah.rate', 6.8);
     const k = new Knob({ bus: b, paramId: 'fx.wah.rate', label: 'RATE' });
@@ -122,7 +122,7 @@ describe('Knob tempo lock', () => {
     expect(readout(k)).toBe('6.80Hz');
   });
 
-  it('announces the mode on the button, not just in colour (REQ-2)', () => {
+  it('announces the mode on the button, not just in colour (REQ-the-lock-is-a-note-glyph)', () => {
     const b = bus();
     const k = new Knob({ bus: b, paramId: 'fx.wah.rate', label: 'RATE' });
     const btn = lockBtn(k, 'fx.wah.rate')!;
@@ -138,7 +138,7 @@ describe('Knob tempo lock', () => {
     expect(btn.classList.contains('on')).toBe(true);
   });
 
-  it('sets the division from the menu (REQ-5)', () => {
+  it('sets the division from the menu (REQ-the-lock-menu-lists-divisions-only)', () => {
     const b = bus();
     const k = new Knob({ bus: b, paramId: 'fx.phaser.rate', label: 'RATE' });
     lockBtn(k, 'fx.phaser.rate')!.click();
@@ -150,7 +150,7 @@ describe('Knob tempo lock', () => {
     expect(chipLabel(k, 'fx.phaser.rate')).toBe('1/2');
   });
 
-  it('cannot be set to a greyed division (REQ-6)', () => {
+  it('cannot be set to a greyed division (REQ-an-unreachable-division-is-greyed)', () => {
     const b = bus();
     const k = new Knob({ bus: b, paramId: 'fx.phaser.rate', label: 'RATE' });
     lockBtn(k, 'fx.phaser.rate')!.click();
@@ -165,7 +165,7 @@ describe('Knob tempo lock', () => {
     expect(b.get('fx.phaser.sync')).toBe(before);
   });
 
-  it('offers the 18 divisions and no free row (REQ-5)', () => {
+  it('offers the 18 divisions and no free row (REQ-the-lock-menu-lists-divisions-only)', () => {
     const b = bus();
     const k = new Knob({ bus: b, paramId: 'fx.phaser.rate', label: 'RATE' });
     const labels = options(k, 'fx.phaser.rate').map((o) => o.textContent);
@@ -173,7 +173,7 @@ describe('Knob tempo lock', () => {
     expect(labels).not.toContain('free');
   });
 
-  it('greys a division the tempo puts out of range, without dropping it (REQ-6)', () => {
+  it('greys a division the tempo puts out of range, without dropping it (REQ-an-unreachable-division-is-greyed)', () => {
     const b = bus();
     b.set('transport.bpm', 60); // 1/1 is 4 s; fx.delay.time maxes at 1.5
     const k = new Knob({ bus: b, paramId: 'fx.delay.time', label: 'TIME' });
@@ -184,7 +184,7 @@ describe('Knob tempo lock', () => {
     expect(option(k, 'fx.delay.time', '1/8').disabled).toBe(false);
   });
 
-  it('re-reaches when the tempo changes (REQ-6)', () => {
+  it('re-reaches when the tempo changes (REQ-an-unreachable-division-is-greyed)', () => {
     const b = bus();
     b.set('transport.bpm', 60);
     const k = new Knob({ bus: b, paramId: 'fx.delay.time', label: 'TIME' });
@@ -194,7 +194,7 @@ describe('Knob tempo lock', () => {
     expect(option(k, 'fx.delay.time', '1/2').disabled).toBe(false);
   });
 
-  it('never rewrites the value when a greyed row is the current one (edge, REQ-6)', () => {
+  it('never rewrites the value when a greyed row is the current one (edge, REQ-an-unreachable-division-is-greyed)', () => {
     const b = bus();
     b.set('transport.bpm', 120);
     const whole = SYNC_LABELS.indexOf('1/1');

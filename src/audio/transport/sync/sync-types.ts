@@ -21,7 +21,7 @@ export type SyncMessage =
   | { type: 'stop' }                     // 0xFC
   | { type: 'pulse' }                    // 0xF8, 24 PPQN
   | { type: 'tempo'; bpm: number }       // v2: explicit tempo (no MIDI byte)
-  // v5: the time signature (meter.md REQ-18). Like `tempo` it has no MIDI byte —
+  // v5: the time signature (meter.md REQ-meter-travels-on-the-wifi-wire). Like `tempo` it has no MIDI byte —
   // the real-time message set carries no meter at all — so `MidiSyncTransport`
   // drops it and only the WiFi wire delivers it. Song Position stays correct
   // either way: it counts 16ths, which is meter-neutral; what diverges without
@@ -42,7 +42,7 @@ export interface SyncTransport {
   send(msg: SyncMessage, atMs?: number): void;
   /**
    * Best-effort cancel of scheduled-but-unsent messages (midi-clock-sync
-   * REQ-18). A transport that queues future-timestamped sends (Web MIDI)
+   * REQ-master-flush-is-best-effort). A transport that queues future-timestamped sends (Web MIDI)
    * implements it so the master can drop a stale pulse tail before a
    * start/stop; a transport that sends immediately (WebRTC) omits it.
    */
@@ -64,7 +64,7 @@ export interface SyncStatus {
   /** The user's persisted selection — what the Sync section paints as active. */
   mode: SyncMode;
   /**
-   * v4: the role **actually running** (midi-clock-sync REQ-19). `'off'` while
+   * v4: the role **actually running** (midi-clock-sync REQ-selected-mode-versus-active-role). `'off'` while
    * the selection is *armed* but nothing is connected, so every "are we
    * slaved?" consumer reads this instead of `mode` and a pulled cable hands
    * the tempo back.

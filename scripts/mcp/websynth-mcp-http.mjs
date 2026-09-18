@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Local HTTP entry for the websynth MCP server (mcp-server.md REQ-1b).
+ * Local HTTP entry for the websynth MCP server (mcp-server.md REQ-streamable-http-is-one-message-per-post).
  *
  * The same server the public endpoint runs, with one difference: it self-builds
- * the song-core bundle (REQ-3), so `npm run start:mcp:http` works in a fresh
+ * the song-core bundle (REQ-local-entries-self-build-the-core), so `npm run start:mcp:http` works in a fresh
  * checkout the way the stdio entry does. `app.js` is the deployed twin and does
  * not build.
  *

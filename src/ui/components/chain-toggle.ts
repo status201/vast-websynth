@@ -22,7 +22,7 @@ export interface ChainToggle {
 
 /**
  * The **Chain** on/off button — one implementation behind both the Song tab's
- * lane cards and the machine headers (machine-status.md REQ-9), so the two can
+ * lane cards and the machine headers (machine-status.md REQ-lane-controls-live-on-both-surfaces), so the two can
  * never drift in behaviour, state or looks. It is a switch-styled button rather
  * than a `Switch` because a chain's enabled flag lives on `Arrangement`, not on
  * `ParamBus`: it is part of the song's arrangement, not a scalar param.

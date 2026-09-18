@@ -36,7 +36,7 @@ export const MAX_CHAIN_STEPS = 1024;
 export const MAX_CHAIN_DEPTH = 8;
 
 /**
- * Per-slot arrangement transpose, in semitones (arrangement.md REQ-8).
+ * Per-slot arrangement transpose, in semitones (arrangement.md REQ-a-seq-slot-carries-a-transpose).
  * ±2 octaves — the same span as `drum.t*.tune`, and enough for any progression.
  * Kept modest deliberately: the offset is added to a stored note before the
  * `MIDI_NOTE_MIN/MAX` clamp, so a huge range would just clamp into silence at
@@ -45,11 +45,11 @@ export const MAX_CHAIN_DEPTH = 8;
 export const MAX_CHAIN_TRANSPOSE = 24;
 
 /**
- * Transport position, in 16th-note ticks (transport.md REQ-10).
+ * Transport position, in 16th-note ticks (transport.md REQ-the-step-counter-is-bounded-at-ingress).
  *
  * `Clock._step` used to be masked with `& 0xffff`, which doubled as its bound.
  * That wrap was only phase-safe for bar lengths dividing 65536 — i.e. powers of
- * two — so meter.md REQ-4 had to remove it, and the bound moved here. `2**31` is
+ * two — so meter.md REQ-the-step-counter-must-not-wrap had to remove it, and the bound moved here. `2**31` is
  * ~8.5 years of 16ths at 120 BPM: a guard rail against a hostile `seek`, not a
  * limit any song can reach.
  */
@@ -59,7 +59,7 @@ export const MAX_STEP = 2 ** 31;
 export const MAX_PARAM_KEYS = 512;
 
 /**
- * The public MCP endpoint (untrusted-input.md REQ-14, ADR-020). Everything above
+ * The public MCP endpoint (untrusted-input.md REQ-the-public-endpoint-is-bounded, ADR-020). Everything above
  * is sized *generously* — refusing a real song is the worse failure. These four
  * are sized the other way, and the difference is deliberate: every other surface
  * is reached by a user who chose to open something, while
@@ -72,7 +72,7 @@ export const MAX_PARAM_KEYS = 512;
  * One `POST /mcp` body. An eighth of {@link MAX_SONG_JSON_BYTES}: a public
  * endpoint pays CPU for everything it parses, and no authored song is near
  * either number. Enforced against a *running* count while the socket is read,
- * per REQ-2 — a cap applied after buffering has already spent the memory.
+ * per REQ-a-curve-carries-rate-not-position — a cap applied after buffering has already spent the memory.
  */
 export const MAX_MCP_REQUEST_BYTES = 1024 * 1024;
 
@@ -97,7 +97,7 @@ export const MIDI_NOTE_MIN = 0;
 export const MIDI_NOTE_MAX = 127;
 
 /**
- * Per-step micro-timing resolution: notches per **cell** (step-settings.md REQ-6).
+ * Per-step micro-timing resolution: notches per **cell** (step-settings.md REQ-a-step-carries-a-micro-offset).
  * 24 makes a 1/384 note at the default lane rate — the same grid Elektron's Micro
  * Timing uses — and, unlike 16, puts the triplet positions exactly on a notch
  * (`8/24` is a third of a cell).
@@ -106,17 +106,17 @@ export const MICRO_UNITS = 24;
 
 /**
  * The bound on `micro`, in notches: half a cell either way (step-settings.md
- * REQ-7). Chosen because it is exactly the point at which a fully-late step and
+ * REQ-micro-range-is-half-a-cell). Chosen because it is exactly the point at which a fully-late step and
  * the fully-early step after it *meet* rather than **cross** — which is what keeps
  * the ducker's `when < onset` guard and the sequencer's mono release ordering
  * correct with no extra machinery. It is the same bound, for the same reason, that
- * swing uses to stop an off-beat crossing the next on-beat (transport.md REQ-11).
+ * swing uses to stop an off-beat crossing the next on-beat (transport.md REQ-swing-offset-is-public).
  */
 export const MICRO_MAX = 12;
 
 /* ------------------------------------------------------- sample time-stretch */
 /*
- * time-stretch.md REQ-7. These bound a *local* edit rather than a payload, and
+ * time-stretch.md REQ-the-stretch-ratio-is-bounded. These bound a *local* edit rather than a payload, and
  * they are here anyway for the reason ADR-015 gives: a stretch ratio reaches a
  * length calculation and then an allocation, and the buffer it is applied to did
  * arrive from outside (a dropped file, a project zip, a restored IndexedDB clip).
@@ -152,7 +152,7 @@ export const MAX_PITCH_SHIFT_SEMITONES = 12;
 
 /* --------------------------------------------------------------- scratch */
 /*
- * scratch.md REQ-14. Same reasoning as the stretch bounds above, one step
+ * scratch.md REQ-scratch-bounds-live-in-limits. Same reasoning as the stretch bounds above, one step
  * further out: a scratch curve is *drawn*, so its point count, its rates and its
  * length are all user numbers that reach an allocation. The output allocation
  * itself reuses MAX_STRETCH_OUTPUT_FRAMES — it is the same buffer in the same
@@ -174,7 +174,7 @@ export const MAX_SCRATCH_POINTS = 64;
  * Fastest the platter may be pushed, in playback-rate units, either direction.
  * Two octaves up is already past what a hand does to a record, and it doubles as
  * the anti-alias tap ceiling: the box filter takes ceil(|rate|) taps, so this
- * bounds that inner loop at four (REQ-8).
+ * bounds that inner loop at four (REQ-fast-reads-are-box-averaged).
  */
 export const MAX_SCRATCH_RATE = 4;
 

@@ -6,12 +6,12 @@ import { PulseBpmEstimator } from './bpm-estimator';
  * Slave role: follow a remote transport arriving as `SyncMessage`s.
  *
  * - 'start' (re)starts the local clock **from step 0** — a restart even if
- *   already playing, so bars realign (REQ-3). 'songposition' records a pending
- *   beat and 'continue' starts **from that beat** (REQ-10) — a slave joining
+ *   already playing, so bars realign (REQ-slave-restarts-from-zero-on-start). 'songposition' records a pending
+ *   beat and 'continue' starts **from that beat** (REQ-song-position-pointer-jumps-the-slave) — a slave joining
  *   mid-song lands on the right bar instead of restarting at 0.
  * - 'stop' stops it.
  * - 'pulse' (24 PPQN) feeds tempo estimation and phase correction. After a
- *   (re)start, pulses are ignored for a settle window (REQ-16): a
+ *   (re)start, pulses are ignored for a settle window (REQ-a-post-start-settle-window): a
  *   scheduled-send transport (Web MIDI) can reorder, so a stale in-flight
  *   tail may trail the start/continue; the first post-settle pulse re-anchors
  *   the counter from arrival time.
@@ -20,18 +20,18 @@ import { PulseBpmEstimator } from './bpm-estimator';
  *   wins), falling back to pulse estimation automatically when tempo messages
  *   stop (a MIDI-only master, which never sends 'tempo').
  *
- * Tempo is written via `clock.setBpm()` directly, never the bus (REQ-4): the
+ * Tempo is written via `clock.setBpm()` directly, never the bus (REQ-slave-follows-tempo-from-pulses): the
  * bus clamps 40..240, bus writes get baked into saved songs, and the
  * `transport.bpm` subscription would loop. Phase drift is corrected with
- * bounded `clock.nudge()` calls (REQ-5) — the local grid's tick times are
+ * bounded `clock.nudge()` calls (REQ-phase-correction-uses-nudge) — the local grid's tick times are
  * recorded per step, each 12th pulse is matched to its step's grid time
  * (offset by the join `startStep`), and the EMA-smoothed error is nudged away
  * at most once per beat. An error past ~a pulse interval means the numbering
  * is skewed (reordered/stale/lost pulses) — the counter re-anchors from
- * arrival time instead of chasing it (REQ-17).
+ * arrival time instead of chasing it (REQ-sync-phase-re-anchor).
  *
  * On pulse silence > STALL_S while playing, the slave keeps playing at the
- * last tempo and reports `stalled` (REQ-6) — a USB hiccup must not kill a
+ * last tempo and reports `stalled` (REQ-a-stalled-pulse-stream-is-tolerated) — a USB hiccup must not kill a
  * performance; a 'stop' still stops it.
  *
  * All tuning constants live in the block below for field adjustment (USB MIDI
@@ -50,7 +50,7 @@ const PHASE_ALPHA = 0.25;        // phase-error smoothing
 const REANCHOR_RATIO = 0.75;     // |phaseErr| beyond this × pulse interval -> re-anchor
 const REANCHOR_MIN_S = 0.015;    // re-anchor floor so delivery-jitter spikes can't trigger it
 const PHASE_MISS_REANCHOR = 2;   // consecutive unmeasurable pulses -> re-anchor
-const START_SETTLE_BASE_MS = 300; // + 12 pulse intervals: post-(re)start pulse-ignore span (REQ-16)
+const START_SETTLE_BASE_MS = 300; // + 12 pulse intervals: post-(re)start pulse-ignore span (REQ-a-post-start-settle-window)
 const STALL_S = 1.0;             // pulse silence -> stalled
 const TICK_MEMORY = 16;          // recorded grid times (steps)
 const TEMPO_MSG_FRESH_MS = 2500; // while a 'tempo' msg is this fresh, suppress pulse-estimate writes
@@ -62,10 +62,10 @@ export interface SyncSlaveOptions {
   /** performance.now()-domain ms -> AudioContext seconds. */
   toAudioTime: (perfMs: number) => number;
   /**
-   * Adopt the master's time signature (meter.md REQ-18). Injected rather than
+   * Adopt the master's time signature (meter.md REQ-meter-travels-on-the-wifi-wire). Injected rather than
    * writing the bus here: the meter is two `ParamBus` scalars, and the audio
    * layer reaching for the bus would invert the dependency the whole app is
-   * built on (architecture REQ-1). Omitted in tests that don't exercise it.
+   * built on (architecture REQ-ui-and-audio-never-call-each-other). Omitted in tests that don't exercise it.
    */
   setMeter?: (beats: number, unit: number) => void;
 }
@@ -157,7 +157,7 @@ export class SyncSlave {
   }
 
   /** (Re)start the local clock from `fromStep`; the clock seeds its step before
-   *  onStart so the Arrangement seeks to the right bar (midi-clock-sync REQ-10). */
+   *  onStart so the Arrangement seeks to the right bar (midi-clock-sync REQ-song-position-pointer-jumps-the-slave). */
   private restart(fromStep: number, atMs: number): void {
     if (this.clock.playing) this.clock.stop();
     this.resetFollowState(fromStep);
@@ -165,8 +165,8 @@ export class SyncSlave {
     // timestamps arrive *after* this message. Ignore the whole possible
     // in-flight span (idle horizon / look-ahead + one 12-pulse batch, in
     // current-tempo terms) rather than trying to tell streams apart —
-    // burst-jitter makes per-pulse filtering unreliable (REQ-16). The first
-    // pulse after the settle re-anchors the counter (REQ-17).
+    // burst-jitter makes per-pulse filtering unreliable (REQ-a-post-start-settle-window). The first
+    // pulse after the settle re-anchors the counter (REQ-sync-phase-re-anchor).
     this.settleUntilMs = atMs + START_SETTLE_BASE_MS + 2000 * this.clock.sixteenthDuration();
     this.needsAnchor = true;
     this.clock.start(fromStep);
@@ -189,19 +189,19 @@ export class SyncSlave {
     // is alive.
     this.lastPulseAudioT = this.opts.toAudioTime(receivedAtMs);
     this.setStalled(false);
-    // Post-(re)start settle (REQ-16): a reordered stale tail may trail the
+    // Post-(re)start settle (REQ-a-post-start-settle-window): a reordered stale tail may trail the
     // start/continue — drop the whole span so it can neither spike the
     // estimator nor skew the pulse counter.
     if (this.clock.playing && receivedAtMs < this.settleUntilMs) return;
     // The estimator is fed otherwise — even while stopped — so hardware
     // masters that send continuous clock warm the tempo before the first
-    // start (REQ-4).
+    // start (REQ-slave-follows-tempo-from-pulses).
     this.estimator.addPulse(receivedAtMs);
     this.maybeWriteBpm(receivedAtMs);
     if (!this.clock.playing) return;
     if (this.needsAnchor) {
       // An unknown number of run pulses fell inside the settle — derive the
-      // counter from arrival time before measuring anything (REQ-17).
+      // counter from arrival time before measuring anything (REQ-sync-phase-re-anchor).
       if (this.reanchor(receivedAtMs, this.clock.sixteenthDuration() / 6)) this.needsAnchor = false;
       return;
     }
@@ -230,7 +230,7 @@ export class SyncSlave {
    * arrival − local grid time; positive = master runs late relative to us, so
    * future steps shift later.
    *
-   * Re-anchor (midi-clock-sync REQ-17): a healthy corrector never sees errors
+   * Re-anchor (midi-clock-sync REQ-sync-phase-re-anchor): a healthy corrector never sees errors
    * beyond delivery jitter, so a smoothed error past ~a pulse interval means
    * the numbering itself is skewed (stale in-flight pulses reordered past a
    * Start, or lost pulses). Chasing it with ±10 ms nudges would *hold* the
@@ -246,7 +246,7 @@ export class SyncSlave {
     if (!rec) {
       // The look-ahead guarantees a tick precedes its own pulse, so persistent
       // misses mean the mapped step lies beyond the look-ahead — a skew too
-      // large to even measure. Re-anchor instead of going silent (REQ-17).
+      // large to even measure. Re-anchor instead of going silent (REQ-sync-phase-re-anchor).
       if (this.tickTimes.length > 0 && ++this.phaseMisses >= PHASE_MISS_REANCHOR) {
         this.reanchor(receivedAtMs, pulseS);
       }
@@ -278,7 +278,7 @@ export class SyncSlave {
       if (nearest === null || Math.abs(t - rec.when) < Math.abs(t - nearest.when)) nearest = rec;
     }
     if (!nearest) return false;
-    // The clock's step counter no longer wraps (transport.md REQ-10), so a
+    // The clock's step counter no longer wraps (transport.md REQ-the-step-counter-is-bounded-at-ingress), so a
     // backwards delta is simply negative — it used to have to be recovered from
     // a 16-bit fold by testing against 0x8000.
     const stepDelta = nearest.step - this.startStep;

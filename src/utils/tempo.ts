@@ -5,9 +5,9 @@
 // them: the UI's "sweet spots" info badges recommend a delay time (seconds) or
 // an LFO/phaser/wah rate (Hz) that lines up with the current tempo
 // (tempo-sync-help.md, advisory — those knobs stay free-valued), and the **audio
-// layer** resolves `lfo.sync` to a real rate (lfo.md REQ-8). It started under
+// layer** resolves `lfo.sync` to a real rate (lfo.md REQ-lfo-rate-is-exponentially-tapered). It started under
 // `src/ui/onboarding/`, which the audio layer may not import from
-// (architecture REQ-1, ADR-001) — the move is what let the LFO use it at all.
+// (architecture REQ-ui-and-audio-never-call-each-other, ADR-001) — the move is what let the LFO use it at all.
 
 /** A musical note division expressed in quarter-note beats. */
 export interface Division {
@@ -86,7 +86,7 @@ export function sweetSpotsInRange(
 export { midiToHz as noteToHz } from './math';
 
 /**
- * The `lfo.sync` value map (lfo.md REQ-9): index 0 is **free-running** — the
+ * The `lfo.sync` value map (lfo.md REQ-lfo-sync-locks-rate-to-tempo): index 0 is **free-running** — the
  * default, and an exact no-op — then one entry per division, in `DIVISIONS`
  * order. Append-only: an index here is a stored value in every preset, song and
  * share link, so reordering silently rewrites saved patches (the same rule
@@ -100,11 +100,11 @@ export const SYNC_LABELS: string[] = ['free', ...DIVISIONS.map((d) => d.label)];
  * knob's own value.
  *
  * Guards a non-finite or non-positive BPM: `Clock.setBpm` already rejects those
- * (untrusted-input.md REQ-6), but this is reached from a param subscription that
+ * (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), but this is reached from a param subscription that
  * a song payload can drive directly, and `1/0` would reach an `AudioParam`.
  *
  * This is the root of both quantities — `syncedRateHz` is its reciprocal — so a
- * guard added here cannot be missed by one of them (tempo-lock.md REQ-7).
+ * guard added here cannot be missed by one of them (tempo-lock.md REQ-audio-resolves-the-lock-in-one-place).
  */
 export function syncedTimeSec(syncIndex: number, bpm: number): number | null {
   const i = Math.round(syncIndex);
@@ -142,10 +142,10 @@ const QUARTER_SYNC_INDEX = Math.max(1, DIVISIONS.findIndex((d) => d.label === '1
 /**
  * The `SYNC_LABELS` index (1..18) of the division closest to `value` at `bpm` —
  * what engaging a tempo lock picks, so that locking does not jump the sound
- * (tempo-lock.md REQ-4).
+ * (tempo-lock.md REQ-the-lock-is-a-view-of-sync).
  *
  * Compared in **log space**: both quantities are perceived multiplicatively (a
- * rate is heard in octaves — lfo.md REQ-8), so 1/8 is nearer to 1/4 than 1/1 is
+ * rate is heard in octaves — lfo.md REQ-lfo-rate-is-exponentially-tapered), so 1/8 is nearer to 1/4 than 1/1 is
  * even though the linear gaps say the opposite. Never returns 0: the caller is
  * asking which division to lock to, and `free` is not one.
  */

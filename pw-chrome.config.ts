@@ -13,7 +13,7 @@
  * which is the one the suite is written against; a spec that passes under only
  * one of the two has found a real difference rather than a flake. The known ones:
  * real Chrome throttles background tabs where the headless shell does not (which
- * `motion.spec.ts` REQ-20 exercises), and parallelism costs more, so prefer
+ * `motion.spec.ts` REQ-the-motion-frame-loop-is-visibility-independent exercises), and parallelism costs more, so prefer
  * `E2E_WORKERS=1` here.
  *
  * There is no Firefox equivalent — Playwright drives a *patched* Gecko build, so

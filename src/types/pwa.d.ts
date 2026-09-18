@@ -27,7 +27,7 @@ interface Navigator {
  * AudioRenderCapacity — Chrome 115+. The audio thread's own report card;
  * `underrunRatio` is the fraction of render quanta that missed their deadline,
  * which is the crackle itself rather than a proxy for it. See
- * `specs/features/audio-lifecycle.md` REQ-10.
+ * `specs/features/audio-lifecycle.md` REQ-the-trip-is-measured-never-inferred.
  */
 interface AudioRenderCapacityEvent extends Event {
   readonly timestamp: number;

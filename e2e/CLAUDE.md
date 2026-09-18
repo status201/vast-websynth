@@ -10,7 +10,7 @@ E2E lives in `e2e/` (outside `src/`, so `tsc` ignores it), config in
 
 **Getting past the start gate: always `await startAudio(page)`** (or
 `gotoAndStart`, which calls it). Never click "Tap to start" directly. The modal
-is shown only where the browser demands a gesture (`audio-lifecycle.md` REQ-20),
+is shown only where the browser demands a gesture (`audio-lifecycle.md` REQ-the-gesture-is-required-only-when-required),
 and the default project launches with `--autoplay-policy=no-user-gesture-required`
 — so in this suite the context is created **running** and *there is no modal at
 all*. `startAudio` takes whichever gate it is given and returns once the
@@ -34,7 +34,7 @@ every project; nothing else changes. It is a **local escape hatch, not the
 contract** — CI runs the pinned build, and a spec that passes only under one of
 them is a spec that has found something. Two known differences to keep in mind:
 real Chrome throttles background tabs where the headless shell does not (which
-`motion.spec.ts` REQ-20 is sensitive to), and it takes the launch flags from
+`motion.spec.ts` REQ-the-motion-frame-loop-is-visibility-independent is sensitive to), and it takes the launch flags from
 `playwright.config.ts` unchanged.
 
 There is no Firefox equivalent: Playwright needs its own *patched* Gecko build,

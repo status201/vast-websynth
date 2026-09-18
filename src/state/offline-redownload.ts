@@ -1,7 +1,7 @@
 /**
  * The one intent a factory reset writes back after wiping everything: "this
  * device had an offline copy — download it again" (specs/features/factory-reset.md
- * REQ-8, play-offline.md REQ-12).
+ * REQ-reset-redownloads-the-offline-copy, play-offline.md REQ-the-copy-is-fetched-again-after-a-reset).
  *
  * `sessionStorage`, not `localStorage`: the intent must survive exactly the
  * reload the reset triggers and die with the tab. A key this small is also what

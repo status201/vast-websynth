@@ -8,7 +8,7 @@
  * itself averages a beat's worth of jitter), then EMA-smooth successive window
  * readings so tempo changes glide instead of stepping.
  *
- * Deliberately NOT interval-gated (midi-clock-sync REQ-16): real Web MIDI
+ * Deliberately NOT interval-gated (midi-clock-sync REQ-a-post-start-settle-window): real Web MIDI
  * delivery is bursty (pulses bunch on the event loop), and a "too close to
  * the last pulse" duplicate heuristic mistakes burst-followers for duplicates
  * and biases the tempo low. The window-*span* math is burst-immune — bunching

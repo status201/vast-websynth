@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * The start gate (audio-lifecycle.md REQ-19/REQ-20/REQ-21).
+ * The start gate (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required/REQ-post-gesture-work-is-deferred).
  *
  * "Tap to start" exists to buy a user gesture, so it is shown only where the
  * browser demands one. Which branch runs is decided from the state the
@@ -47,7 +47,7 @@ const quietBoot = (page: import('@playwright/test').Page): Promise<void> =>
 const startBtn = (page: import('@playwright/test').Page) =>
   page.getByRole('button', { name: 'Tap to start' });
 
-test.describe('autoplay permitted — no modal (REQ-20)', () => {
+test.describe('autoplay permitted — no modal (REQ-the-gesture-is-required-only-when-required)', () => {
   test('starts itself, with audio running and no gesture', async ({ page }) => {
     await quietBoot(page);
     await page.goto('/');
@@ -62,7 +62,7 @@ test.describe('autoplay permitted — no modal (REQ-20)', () => {
     await expect(page.getByRole('button', { name: 'Panic' })).toBeVisible();
   });
 
-  test('the master is faded up from silence, not switched on (REQ-19)', async ({ page }) => {
+  test('the master is faded up from silence, not switched on (REQ-nothing-is-audible-before-the-first-start)', async ({ page }) => {
     await quietBoot(page);
     await page.goto('/');
     await expect.poll(() => ctxState(page)).toBe('running');

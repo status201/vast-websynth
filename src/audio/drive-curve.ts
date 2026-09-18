@@ -23,7 +23,7 @@ import { clamp01 } from '../utils/math';
  * per-track drive want different ones (only the drum's is anchored at a true
  * identity, so drive 0 is an exact no-op). This module owns the caching only.
  *
- * See specs/features/runtime-performance.md REQ-2 / specs/features/effects.md.
+ * See specs/features/runtime-performance.md REQ-immutable-artefacts-are-shared / specs/features/effects.md.
  */
 
 /**

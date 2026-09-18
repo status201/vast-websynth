@@ -1,5 +1,5 @@
 /**
- * Pure WebRTC pairing diagnostics (webrtc-sync.md REQ-11) — no DOM, no RTC, so
+ * Pure WebRTC pairing diagnostics (webrtc-sync.md REQ-every-sync-attempt-is-recorded) — no DOM, no RTC, so
  * it is unit-testable directly. `WebRtcSyncTransport` accumulates a
  * `WebRtcDiagnostics` snapshot from the peer's ICE/candidate events + `getStats`
  * and the pair modal renders it in the debug panel; `summarizeDiagnostics` turns

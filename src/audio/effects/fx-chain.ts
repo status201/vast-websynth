@@ -57,13 +57,13 @@ function makeChain<E extends Record<string, Effect>>(
 /**
  * Synth voice bus: eq → distortion → wah → phaser → delay → reverb → duck.
  *
- * The **EQ heads every chain** (equalizer.md REQ-1): it shapes what the drive
+ * The **EQ heads every chain** (equalizer.md REQ-one-equalizer-per-lane): it shapes what the drive
  * bites on rather than filtering the result, and on this bus it is also the
  * cheap position — the synth path is 1-channel until the reverb, so ten
  * 1-channel biquads instead of ten 2-channel ones.
  *
  * The ducker sits **last** so the reverb tail ducks with everything else —
- * that is the sound (sidechain-ducking.md REQ-8).
+ * that is the sound (sidechain-ducking.md REQ-the-ducker-is-last-in-the-chain).
  */
 export function createSynthChain(
   ctx: AudioContext,
@@ -96,7 +96,7 @@ export function createSynthChain(
  * compressor sits first among the *effects* so it smashes the dry hits, not the
  * FX wash — and the EQ sits ahead of even that, which is the point: a highpass
  * before the compressor stops the kick pumping the whole kit (equalizer.md
- * REQ-1). Filtering a compressor's input is a different tool from filtering its
+ * REQ-one-equalizer-per-lane). Filtering a compressor's input is a different tool from filtering its
  * output, and this is the one worth having.
  */
 export function createDrumChain(

@@ -2,13 +2,13 @@ import { showToast } from './toast';
 
 /**
  * The report a deferred surface owes the user when its `import()` rejects
- * (onboarding.md REQ-24, runtime-performance.md REQ-1).
+ * (onboarding.md REQ-the-help-door-never-fails-silently, runtime-performance.md REQ-boot-cost-matches-the-request).
  *
  * Splitting a surface out of the entry chunk buys boot time and costs
  * reliability: a static import cannot fail once the app is running, an
  * `import()` can — the honest case being an offline revisit whose chunk was
  * never fetched while online, because the service worker caches only what the
- * page actually requested (pwa-install.md REQ-6). Left unhandled, the click
+ * page actually requested (pwa-install.md REQ-service-worker-is-registered). Left unhandled, the click
  * handler's `void open()` swallows the rejection and the control simply does
  * nothing, which reads as a broken app rather than a missing download.
  *

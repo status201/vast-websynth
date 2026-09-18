@@ -14,7 +14,7 @@ import { StubOfflineCopy } from '../fixtures/offline-fakes';
 
 /**
  * The offline-copy toasts and the re-download a factory reset asks for
- * (specs/features/play-offline.md REQ-8, REQ-12). The toast module is mocked so
+ * (specs/features/play-offline.md REQ-offline-feedback-while-about-is-closed, REQ-the-copy-is-fetched-again-after-a-reset). The toast module is mocked so
  * a test can count raises, not just read the one toast the single-slot host
  * keeps.
  */
@@ -35,7 +35,7 @@ beforeEach(() => {
   session = installSessionStorageMock();
 });
 
-describe('the re-download intent (factory-reset.md REQ-8)', () => {
+describe('the re-download intent (factory-reset.md REQ-reset-redownloads-the-offline-copy)', () => {
   it('is requested, read without being consumed, then taken once', () => {
     expect(offlineRedownloadPending()).toBe(false);
     requestOfflineRedownload();
@@ -58,7 +58,7 @@ describe('the re-download intent (factory-reset.md REQ-8)', () => {
   });
 });
 
-describe('resumeOfflineRedownload (REQ-12)', () => {
+describe('resumeOfflineRedownload (REQ-the-copy-is-fetched-again-after-a-reset)', () => {
   it('consumes the intent before starting, says so, and reports the end', () => {
     requestOfflineRedownload();
     const copy = new StubOfflineCopy();
@@ -84,7 +84,7 @@ describe('resumeOfflineRedownload (REQ-12)', () => {
   });
 });
 
-describe('watchOfflineRuns (REQ-8)', () => {
+describe('watchOfflineRuns (REQ-offline-feedback-while-about-is-closed)', () => {
   it('announces one run once, with the resumed watcher and a hidden About section on one copy', () => {
     const copy = new StubOfflineCopy();
     requestOfflineRedownload();

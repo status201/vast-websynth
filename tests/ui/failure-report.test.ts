@@ -9,7 +9,7 @@ import {
 describe('failure report', () => {
   const many = Array.from({ length: 50 }, (_, i) => `field${i} is wrong`);
 
-  it('carries every message, not the truncated view (REQ-1)', () => {
+  it('carries every message, not the truncated view (REQ-report-carries-every-message)', () => {
     const report = buildFailureReport({ title: 'Import failed', errors: many, capped: true });
     for (const e of many) expect(report).toContain(e);
     // The dialog renders 8; the 9th and the 50th are the ones that used to die
@@ -19,7 +19,7 @@ describe('failure report', () => {
     expect(report.match(/^• /gm)).toHaveLength(50);
   });
 
-  it('opens with a header that identifies the failure (REQ-2)', () => {
+  it('opens with a header that identifies the failure (REQ-report-opens-with-a-context-header)', () => {
     const lines = buildFailureReport({
       title: 'Import failed', file: 'night-drive.json', errors: ['nope'],
     }).split('\n');
@@ -28,13 +28,13 @@ describe('failure report', () => {
     expect(lines[2]).toBe('file: night-drive.json');
   });
 
-  it('omits the file line when there is no file (REQ-2)', () => {
+  it('omits the file line when there is no file (REQ-report-opens-with-a-context-header)', () => {
     const report = buildFailureReport({ title: 'Import failed', errors: ['nope'] });
     expect(report).not.toContain('file:');
     expect(report.split('\n')[2]).toBe('1 error:');
   });
 
-  it('admits when the validator stopped early, and counts honestly (REQ-3)', () => {
+  it('admits when the validator stopped early, and counts honestly (REQ-count-line-admits-the-cap)', () => {
     expect(buildFailureReport({ title: 'x', errors: many, capped: true }))
       .toContain('50 errors (validator cap reached):');
     // Without the flag it must not claim a cap it does not know about.
@@ -42,13 +42,13 @@ describe('failure report', () => {
     expect(buildFailureReport({ title: 'x', errors: ['one'] })).toContain('1 error:');
   });
 
-  it('is pure formatting — same inputs, same string bar the timestamp (REQ-4)', () => {
+  it('is pure formatting — same inputs, same string bar the timestamp (REQ-report-builders-are-pure)', () => {
     const drop = (s: string) => s.split('\n').filter((_, i) => i !== 1).join('\n');
     const opts = { title: 'Load failed', file: 'kick.wav', errors: ['a', 'b'] };
     expect(drop(buildFailureReport(opts))).toBe(drop(buildFailureReport(opts)));
   });
 
-  // REQ-6 — the alert's own text. One implementation, because a second copy of
+  // REQ-truncated-message-is-built-here — the alert's own text. One implementation, because a second copy of
   // the "use Copy errors" line drifts and then points at a button by a name it
   // no longer has.
   it('failureMessage bullets the first 8 and names Copy for the rest', () => {
@@ -65,7 +65,7 @@ describe('failure report', () => {
     expect(failureMessage('x', many.slice(0, 8))).not.toContain('and 0 more');
   });
 
-  it('isCapped is the validator budget, derived in one place (REQ-3)', () => {
+  it('isCapped is the validator budget, derived in one place (REQ-count-line-admits-the-cap)', () => {
     expect(isCapped(many)).toBe(true);           // exactly MAX_ERRORS
     expect(isCapped(many.slice(0, 49))).toBe(false);
     expect(isCapped([])).toBe(false);

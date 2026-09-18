@@ -140,7 +140,7 @@ export function createLiveFxWindowLauncher(
  * The MOD launcher — the mod matrix's door, and the sibling of `xyPadLaunchButton`
  * above. Both live here so they wear the same faceplate button, and both take a
  * shared controller so every door toggles the SAME window rather than spawning a
- * second (specs/features/mod-matrix.md, floating-window.md REQ-2).
+ * second (specs/features/mod-matrix.md, floating-window.md REQ-floating-window-reopens).
  *
  * It sits in this row because the row is where *assignable controller* launchers
  * already live: the XY Pad beside it is itself a modulation controller whose

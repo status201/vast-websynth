@@ -34,7 +34,7 @@ added optional sampler fields; `2 → 3` the optional [XY Pad](../features/xy-pa
 [motion sequencer](../features/motion-sequencer.md) fields; `4 → 5` its
 `motionTracks`; `5 → 6` the [sequencer](../features/sequencer.md)'s `seqTracks`;
 `6 → 7` the `seqTranspose` offsets on the seq chain lane,
-[song-mode](../features/song-mode.md) REQ-16).
+[song-mode](../features/song-mode.md) REQ-song-file-v7-adds-slot-transpose).
 The contract: **additive, optional, defaulted** — never required, never repurposed.
 
 ## Steps (going from v6 → v7)
@@ -83,7 +83,7 @@ applyMyNewThing(file.myNewThing ?? DEFAULT_MY_NEW_THING);
 ### 4b. Let it survive the compaction boundary + validator + the published docs
 
 Five more places must learn the field or it is silently dropped / rejected / or the
-docs go stale (they fell a version behind **twice** — song-mode.md REQ-2). The last
+docs go stale (they fell a version behind **twice** — song-mode.md REQ-song-file-is-a-versioned-union). The last
 two bullets each record a miss that really happened here, so read them as history
 rather than as caution:
 

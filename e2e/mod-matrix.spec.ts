@@ -62,7 +62,7 @@ test.describe('mod matrix', () => {
     await expect(pan).toBeEnabled();
   });
 
-  test('both LFOs can now hold one destination (REQ-10)', async ({ page }) => {
+  test('both LFOs can now hold one destination (REQ-two-rows-may-share-a-destination)', async ({ page }) => {
     await gotoAndStart(page);
     await openMatrix(page);
     await busSet(page, 'lfo.dest', 1);       // cutoff
@@ -71,11 +71,11 @@ test.describe('mod matrix', () => {
     await expect(dst.locator('button').filter({ hasText: /^cutoff$/i })).toBeEnabled();
   });
 
-  test('the MOD launcher carries an info badge (onboarding REQ-21)', async ({ page }) => {
+  test('the MOD launcher carries an info badge (onboarding REQ-the-mod-launcher-carries-a-badge)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
     // The badge sits on its anchor, so the anchor has to be on screen — badges hide
-    // with the control they annotate (onboarding.md REQ-5a).
+    // with the control they annotate (onboarding.md REQ-a-container-must-tell-badges-when-it-hides).
     await page.getByTestId('perf-mod').scrollIntoViewIfNeeded();
     await page.getByTestId('info-badges').click();
 

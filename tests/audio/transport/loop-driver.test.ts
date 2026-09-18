@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe('LoopDriver', () => {
-  // REQ-2/REQ-3 — the loop in action, as the clock emits it.
+  // REQ-with-loop-on-a-click-picks-a-bar/REQ-the-loop-wraps-only-on-a-bar-line — the loop in action, as the clock emits it.
   it('two picks loop the bars between them, on the same tempo grid', () => {
     const { clock, ev, wake, engage } = rig();
     clock.seek(16); // start inside bars 2–3
@@ -65,7 +65,7 @@ describe('LoopDriver', () => {
     expect(ev.every((e) => e.step >= 16 && e.step < 48)).toBe(true);
   });
 
-  // REQ-3 — outside the range, it finishes the bar and only then goes in.
+  // REQ-the-loop-wraps-only-on-a-bar-line — outside the range, it finishes the bar and only then goes in.
   it('engaged while playing outside the range, it enters at the next bar line', () => {
     const { clock, ev, wake, engage } = rig();
     clock.start();
@@ -83,7 +83,7 @@ describe('LoopDriver', () => {
   it('from past the range, it plays to the bar line and then jumps back', () => {
     const { clock, ev, wake, engage } = rig({ songBars: 6 });
     engage(1, 2);
-    clock.seek(53); // after picking: REQ-4 moved the cue, the user moves it again
+    clock.seek(53); // after picking: REQ-turning-loop-on-moves-the-cue moved the cue, the user moves it again
     clock.start();
     wake(14);
     clock.stop();
@@ -92,7 +92,7 @@ describe('LoopDriver', () => {
     expect(steps[11]).toBe(16);
   });
 
-  // REQ-3 — the cue is the user's.
+  // REQ-the-loop-wraps-only-on-a-bar-line — the cue is the user's.
   it('a wrap does not move the cue', () => {
     const { clock, wake, engage } = rig();
     engage(0, 0); // one-bar loop at bar 1; the cue (0) is already inside it
@@ -104,7 +104,7 @@ describe('LoopDriver', () => {
     expect(clock.cue).toBe(0);
   });
 
-  // REQ-4 — Play should start inside the loop.
+  // REQ-turning-loop-on-moves-the-cue — Play should start inside the loop.
   it('engaging while stopped cues the loop start, unless the cue is already inside', () => {
     const { clock, seekTo, engage, loop } = rig();
     engage(2, 3);
@@ -127,7 +127,7 @@ describe('LoopDriver', () => {
     expect(clock.cue).toBe(0);
   });
 
-  // REQ-6 — an export or a slaved clock plays through an engaged loop.
+  // REQ-a-loop-that-cannot-jump-does-not — an export or a slaved clock plays through an engaged loop.
   it('a refused loop never jumps, and cannot cue', () => {
     const { clock, ev, wake, engage, seekTo, state } = rig();
     state.canSeek = false;
@@ -140,7 +140,7 @@ describe('LoopDriver', () => {
     expect(ev.map((e) => e.step)).toEqual([...ev.keys()]); // straight through
   });
 
-  // REQ-7 — a shortened song clamps the loop it plays.
+  // REQ-the-loop-range-is-limited-to-the-song — a shortened song clamps the loop it plays.
   it('wraps at the clamped range when the song is shorter than the pick', () => {
     const { clock, ev, wake, engage, state } = rig({ songBars: 6 });
     clock.seek(32);
@@ -154,7 +154,7 @@ describe('LoopDriver', () => {
     expect(steps[steps.indexOf(47) + 1]).toBe(32);
   });
 
-  // REQ-11 — the bar is pushed from Engine.applyMeter.
+  // REQ-loop-bars-are-the-songs-bars — the bar is pushed from Engine.applyMeter.
   it('measures bars with the pushed barTicks', () => {
     const { clock, ev, wake, engage, driver } = rig();
     driver.setBarTicks(12);
@@ -168,7 +168,7 @@ describe('LoopDriver', () => {
     expect(steps[steps.indexOf(23) + 1]).toBe(12);
   });
 
-  // REQ-14 — no router unless engaged.
+  // REQ-loop-costs-nothing-unless-engaged — no router unless engaged.
   it('installs the router only while engaged', () => {
     const { loop, setStepRouter } = rig();
     const last = (): unknown => setStepRouter.mock.calls.at(-1)?.[0];

@@ -4,7 +4,7 @@ import { DROP_IN_DEMOS } from './demo-files';
 import { SCALE_LABELS, CHORD_LABELS } from '../../src/utils/music';
 
 /**
- * The back-compat half of scale-quantization.md REQ-1 and chord-tools.md REQ-5.
+ * The back-compat half of scale-quantization.md REQ-the-key-is-two-inert-params and chord-tools.md REQ-chord-memory-is-diatonic.
  *
  * These params ride in the ordinary `params` bag, so nothing about the song format
  * changed — which is only safe because every default is a true no-op. That is the
@@ -17,7 +17,7 @@ function freshBus(): ParamBus {
   return bus;
 }
 
-describe('key params are inert by default (REQ-1)', () => {
+describe('key params are inert by default (REQ-the-key-is-two-inert-params)', () => {
   it('defaults to chromatic, C, and no chord memory', () => {
     const bus = freshBus();
     expect(bus.get('scale.type')).toBe(0);
@@ -40,7 +40,7 @@ describe('key params are inert by default (REQ-1)', () => {
   });
 });
 
-describe('songs written before the key existed (REQ-1, back-compat)', () => {
+describe('songs written before the key existed (REQ-the-key-is-two-inert-params, back-compat)', () => {
   // Picked by kind, not by name: every shipped demo predates this feature, so all
   // of them are the fixture. A demo added later that *does* set a key would simply
   // be skipped rather than making this test wrong.

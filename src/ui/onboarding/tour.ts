@@ -23,7 +23,7 @@ export interface TourCtx {
   toggleTransport: () => void;
   /** Load a demo song by name (does NOT start the transport). */
   /** Load a demo song. Async — all but the built-in are fetched on click
-   *  (song-mode.md REQ-12), so a step that acts on the loaded song must await. */
+   *  (song-mode.md REQ-drop-in-demos-are-fetched-on-click), so a step that acts on the loaded song must await. */
   applyDemo: (name: string) => Promise<void>;
   /** Resume the AudioContext (idempotent) — needed before the note step. */
   resumeAudio: () => Promise<void>;
@@ -227,7 +227,7 @@ export class Tour {
       // Subscribe synchronously (before resuming audio) so a note fired in the
       // same tick is never missed. The tour only ever runs past the start gate —
       // tapped, or automatic where the browser never wanted a gesture
-      // (audio-lifecycle.md REQ-20) — so the resume is only defensive and need
+      // (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required) — so the resume is only defensive and need
       // not block the listener.
       this.unsubNote = this.ctx.bus.onNote((on) => {
         if (!on) return;

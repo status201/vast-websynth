@@ -3,9 +3,9 @@
 ```yaml
 id: preset-authoring
 status: implemented
-version: 3   # v3: REQ-8 — the semantic layer's severity is the caller's choice,
+version: 3   # v3: REQ-semantic-severity-is-the-callers-choice — the semantic layer's severity is the caller's choice,
              #     so the app can run those checks without refusing the file
-             # v2: REQ-6 — the schemas point at the published /params.* reference
+             # v2: REQ-preset-schemas-are-published — the schemas point at the published /params.* reference
 owner: tooling
 related:
   - presets
@@ -49,7 +49,7 @@ author *against*. Three things were missing, and each is a different kind of gap
 3. **No completeness rule.** A preset's params map is sparse. Loading a 10-line
    authored patch leaves every unmentioned parameter wherever the *previous*
    sound left it — the exact non-determinism the factory presets avoid by always
-   writing the full sound ([presets](presets.md) REQ-2b). An agent cannot be
+   writing the full sound ([presets](presets.md) REQ-a-factory-preset-sets-the-full-sound). An agent cannot be
    asked to hand-write 60 parameters, so the expansion has to happen for it.
 
 The split between the two validation layers is the load-bearing decision here.
@@ -61,57 +61,67 @@ passes it.
 
 ## Requirements
 
-- **REQ-1** — The preset file format (`PRESET_FORMAT`/`BANK_FORMAT`, `PresetFile`,
-  `PresetBankFile`, `PresetParse`) and its validator live in the pure
-  `src/state/preset-validate.ts`. `preset-file.ts` (build/filenames/`planImport`)
-  **re-exports** them, so it remains the one door for preset files and no caller
-  changed. Dependencies run one way: `preset-file` → `preset-validate`.
-- **REQ-2** — **Structural layer** — `validatePresetPayload(value)` with no bus
-  checks shape only: the `format` tag, `params`/`presets` being maps of finite
-  numbers (naming the offending key by path, e.g. `presets["lead"]."osc1.level"`),
-  a non-empty bank, and the wrong-door sentence for a song file. This layer alone
-  decides `ok` for `parsePresetPayload` (JSON-decode + this), so the app's file
-  import stays forward-compatible however much REQ-8 adds to its warnings.
-- **REQ-3** — **Semantic layer** — `validatePresetPayload(value, bus)`
-  additionally reports, by default as **errors** (REQ-8 lets a caller ask for
-  warnings): an id absent from the registry, a value outside the def's
-  `[min, max]`, and a fractional value on a *choice* parameter
-  (one with `labels` — its value is the index, so a fraction lands between two
-  settings). It reports, as **warnings** (`ok` stays true): an id for which
-  `isPatchParam` is false — legal, since a snapshot captures the whole bus, but
-  it means loading the sound also moves the song's tempo or a machine's state.
-- **REQ-4** — **Expansion.** `defaultPatchParams(bus)` is every *patch* parameter
-  at its registered default; `expandPresetParams(bus, params)` layers the
-  authored values over it. Song-level ids are **not** filled in — expanding must
-  never invent a tempo — but one the author wrote explicitly is preserved (REQ-3
-  already warned about it).
-- **REQ-5** — **The guide** — `buildPresetGuide(bus, origin?)` in the pure
-  `authoring-guide.ts`: OUTPUT RULES (one JSON object; a preset is a sound;
-  `params` is sparse and gets completed on import), a QUICKSTART preset that is
-  valid as written, both file shapes, SOUND DESIGN NOTES (cutoff is a MIDI note;
-  the envelope shapes that make a pluck vs a pad; mono/glide; unison/drift/sub;
-  **every FX has an `.on` flag**; acid/reese/rhodes recipes), and the live PARAMS
-  table. Both the song and preset guides render that table through the shared
-  `paramTable(bus, filter?)`; the preset guide passes `isPatchParam`, so a sound's
-  table lists only a sound's parameters.
-- **REQ-6** — Both formats are **published** as draft 2020-12 JSON Schemas under
-  `public/schema/` and named in `public/llms.txt`. Like the song schemas they
-  describe the *shape* and deliberately do **not** enumerate parameter ids, which
-  grow with the synth — they point at the **generated** parameter reference
-  instead (`/params.json`, `/params.md` — [param-catalogue](param-catalogue.md)),
-  which is the same registry rendered rather than a second copy of it. Drift is
-  pinned by `tests/state/authoring-docs.test.ts`.
-- **REQ-7** — Four MCP tools (see [mcp-server](mcp-server.md) REQ-5b) serve this:
-  `get_preset_format`, `validate_preset`, `expand_preset`, `save_preset`. A failed
-  validation is a **successful** call carrying the errors — the same rule the song
-  tools follow. Three of the four are also on the **public** endpoint;
-  `save_preset` is local-only, because it writes into the *server's* working
-  directory and a shared host has no such directory a caller can reach
-  ([mcp-server](mcp-server.md) REQ-10).
-- **REQ-8** *(v3)* — **The semantic layer's severity is the caller's choice.**
-  `validatePresetPayload(value, bus, { semantics })` takes `'error'` (default —
-  REQ-3 unchanged, and what the MCP tools get) or `'warning'`. The app's door,
-  `parsePresetPayload(text, bus)`, asks for `'warning'`.
+- **REQ-preset-file-format** — The preset file format
+  (`PRESET_FORMAT`/`BANK_FORMAT`, `PresetFile`, `PresetBankFile`, `PresetParse`)
+  and its validator live in the pure `src/state/preset-validate.ts`.
+  `preset-file.ts` (build/filenames/`planImport`) **re-exports** them, so it
+  remains the one door for preset files and no caller changed. Dependencies run
+  one way: `preset-file` → `preset-validate`.
+- **REQ-structural-validation-needs-no-bus** — **Structural layer** —
+  `validatePresetPayload(value)` with no bus checks shape only: the `format`
+  tag, `params`/`presets` being maps of finite numbers (naming the offending key
+  by path, e.g. `presets["lead"]."osc1.level"`), a non-empty bank, and the
+  wrong-door sentence for a song file. This layer alone decides `ok` for
+  `parsePresetPayload` (JSON-decode + this), so the app's file import stays
+  forward-compatible however much REQ-semantic-severity-is-the-callers-choice
+  adds to its warnings.
+- **REQ-semantic-validation-needs-the-bus** — **Semantic layer** —
+  `validatePresetPayload(value, bus)` additionally reports, by default as
+  **errors** (REQ-semantic-severity-is-the-callers-choice lets a caller ask for
+  warnings): an id absent from the registry, a value outside the def's `[min,
+  max]`, and a fractional value on a *choice* parameter (one with `labels` — its
+  value is the index, so a fraction lands between two settings). It reports, as
+  **warnings** (`ok` stays true): an id for which `isPatchParam` is false —
+  legal, since a snapshot captures the whole bus, but it means loading the sound
+  also moves the song's tempo or a machine's state.
+- **REQ-expansion-fills-every-patch-param** — **Expansion.**
+  `defaultPatchParams(bus)` is every *patch* parameter at its registered
+  default; `expandPresetParams(bus, params)` layers the authored values over it.
+  Song-level ids are **not** filled in — expanding must never invent a tempo —
+  but one the author wrote explicitly is preserved
+  (REQ-semantic-validation-needs-the-bus already warned about it).
+- **REQ-preset-guide-is-generated** — **The guide** — `buildPresetGuide(bus,
+  origin?)` in the pure `authoring-guide.ts`: OUTPUT RULES (one JSON object; a
+  preset is a sound; `params` is sparse and gets completed on import), a
+  QUICKSTART preset that is valid as written, both file shapes, SOUND DESIGN
+  NOTES (cutoff is a MIDI note; the envelope shapes that make a pluck vs a pad;
+  mono/glide; unison/drift/sub; **every FX has an `.on` flag**;
+  acid/reese/rhodes recipes), and the live PARAMS table. Both the song and
+  preset guides render that table through the shared `paramTable(bus, filter?)`;
+  the preset guide passes `isPatchParam`, so a sound's table lists only a
+  sound's parameters.
+- **REQ-preset-schemas-are-published** — Both formats are **published** as draft
+  2020-12 JSON Schemas under `public/schema/` and named in `public/llms.txt`.
+  Like the song schemas they describe the *shape* and deliberately do **not**
+  enumerate parameter ids, which grow with the synth — they point at the
+  **generated** parameter reference instead (`/params.json`, `/params.md` —
+  [param-catalogue](param-catalogue.md)), which is the same registry rendered
+  rather than a second copy of it. Drift is pinned by
+  `tests/state/authoring-docs.test.ts`.
+- **REQ-mcp-serves-preset-tools** — Four MCP tools (see
+  [mcp-server](mcp-server.md) REQ-four-preset-tools) serve this: `get_preset_format`,
+  `validate_preset`, `expand_preset`, `save_preset`. A failed validation is a
+  **successful** call carrying the errors — the same rule the song tools follow.
+  Three of the four are also on the **public** endpoint; `save_preset` is
+  local-only, because it writes into the *server's* working directory and a
+  shared host has no such directory a caller can reach
+  ([mcp-server](mcp-server.md) REQ-the-remote-profile-is-read-only).
+- **REQ-semantic-severity-is-the-callers-choice** *(v3)* — **The semantic
+  layer's severity is the caller's choice.** `validatePresetPayload(value, bus,
+  { semantics })` takes `'error'` (default —
+  REQ-semantic-validation-needs-the-bus unchanged, and what the MCP tools get)
+  or `'warning'`. The app's door, `parsePresetPayload(text, bus)`, asks for
+  `'warning'`.
 
   The two callers want opposite things and both are right. An **author** is
   writing the file and wants it refused until it says what they meant. An
@@ -124,7 +134,7 @@ passes it.
 
   This is *added* information, not changed verdicts. The app previously passed no
   bus at all, so none of these checks ran; `ok` was decided by the structural
-  layer alone (REQ-2) and still is. No file that imports today starts being
+  layer alone (REQ-structural-validation-needs-no-bus) and still is. No file that imports today starts being
   refused, and none that fails today starts passing — only the warning list grows.
   Warnings are omitted from the `ok: false` branch: nothing is importing, so what
   would have been clamped is moot.
@@ -139,9 +149,9 @@ PRESET_FORMAT: "websynth-preset"
 BANK_FORMAT:   "websynth-preset-bank"
 validatePresetPayload(value: unknown, bus?: ParamBus, opts?: PresetValidateOptions): PresetParse
 PresetValidateOptions:
-  semantics?: "error" | "warning"      # v3, REQ-8 — default "error" (REQ-3)
+  semantics?: "error" | "warning"      # v3, REQ-semantic-severity-is-the-callers-choice — default "error" (REQ-semantic-validation-needs-the-bus)
 # internally: one `Sinks` {structural, semantic, songSetting} resolved by the entry
-# point and threaded down, so severity is decided exactly once (REQ-8)
+# point and threaded down, so severity is decided exactly once (REQ-semantic-severity-is-the-callers-choice)
 defaultPatchParams(bus: ParamBus): Snapshot
 expandPresetParams(bus: ParamBus, params: Snapshot): Snapshot
 
@@ -178,10 +188,10 @@ PresetParse:                            # discriminated on ok
 
 ```yaml
 app file import:   parsePresetPayload(text, bus) -> validatePresetPayload(
-                     value, bus, { semantics: 'warning' })          # v3, REQ-8
+                     value, bus, { semantics: 'warning' })          # v3, REQ-semantic-severity-is-the-callers-choice
 paste door:        same (paste-import.md)
 MCP tools:         validatePresetPayload(value, bus) -> expandPresetParams(bus,…)
-                     # no opts -> semantics 'error', REQ-3 verbatim
+                     # no opts -> semantics 'error', REQ-semantic-validation-needs-the-bus verbatim
                      -> buildPresetFile / buildBankFile -> presetFilename / bankFilename
 ```
 
@@ -208,7 +218,7 @@ Scenario: An invented parameter id is refused with a bus, accepted without one
   Then it fails, saying that is not a parameter of this synth
   When the same preset is validated with no bus
   Then it passes, because a newer build may have added it
-  And the app's import passes too — it asks for that finding as a warning (REQ-8)
+  And the app's import passes too — it asks for that finding as a warning (REQ-semantic-severity-is-the-callers-choice)
 # pinned by: tests/state/preset-validate.test.ts
 
 Scenario: An out-of-range value is named with its range
@@ -223,14 +233,14 @@ Scenario: A song setting inside a sound warns instead of failing (edge)
   Then it is ok, with a warning that loading it would change the tempo
 # pinned by: tests/state/preset-validate.test.ts, tests/mcp/tools.test.ts
 
-Scenario: The importer is told what the author would be refused for (v3, REQ-8)
+Scenario: The importer is told what the author would be refused for (v3, REQ-semantic-severity-is-the-callers-choice)
   Given a preset naming an unknown id and an out-of-range value
   When it is validated with semantics "warning" — what the app's import asks for
   Then it is ok, and both appear as warnings rather than errors
   And the same payload with the default severity still fails with them as errors
 # pinned by: tests/state/preset-validate.test.ts
 
-Scenario: Running the registry checks refuses nothing new (v3, REQ-8, regression)
+Scenario: Running the registry checks refuses nothing new (v3, REQ-semantic-severity-is-the-callers-choice, regression)
   Given any payload the app's import accepted with no bus
   When parsePresetPayload is given the bus
   Then ok is unchanged — only the warning list grows

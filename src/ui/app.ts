@@ -56,7 +56,7 @@ import type { PresetManagerOptions } from './components/preset-manager-modal';
 
 /**
  * The preset manager loads on the click that opens it (runtime-performance.md
- * REQ-1) — both the header button and the `openPresetImport` bridge hook, so a
+ * REQ-boot-cost-matches-the-request) — both the header button and the `openPresetImport` bridge hook, so a
  * dropped preset file pulls it in exactly like the button does.
  *
  * Only the import is guarded: a rejection means the chunk is missing and the
@@ -120,9 +120,9 @@ export function mountApp(
   // Default loads a demo without UI sync; replaced by the Song panel's own
   // loader (which also syncs the slot dropdown) once buildPatternRow runs.
   // Only the built-in is reachable here — the drop-in and zip demos are
-  // fetched on click and so are inherently async (song-mode.md REQ-11) — but
+  // fetched on click and so are inherently async (song-mode.md REQ-song-lane-titles-navigate) — but
   // this fallback is replaced a few lines below and never actually used.
-  // The real unknown-name fallback lives in `resolveDemoName` (REQ-12, v18),
+  // The real unknown-name fallback lives in `resolveDemoName` (REQ-a-taller-bar-pins-the-peak, v18),
   // which `SongPanel.loadDemo` applies to every caller including the tour.
   let songLoadDemo: (name: string) => Promise<void> = async (name) => {
     const file = DEMO_SONGS[name] ?? Object.values(DEMO_SONGS)[0];
@@ -158,13 +158,13 @@ export function mountApp(
   const patternRow = buildPatternRow(engine, bus, session, xy, bridge, patternUndo);
   songLoadDemo = patternRow.loadDemo;
   // OS-launched song files (installed-PWA file_handlers) flow through the
-  // same import path as the Song panel's Import button (pwa-install.md REQ-7).
+  // same import path as the Song panel's Import button (pwa-install.md REQ-one-import-parse-path).
   bridge.importSongBytes = patternRow.importSongBytes;
   root.appendChild(patternRow.el);
   const bottom = buildBottom(engine, bus, bridge);
   setScopeFps = (fps) => bottom.scope.setFps(fps);
   setScopeFft = (fftSize) => bottom.scope.setFftSize(fftSize);
-  // Whether the panel is actually painting, for the Debug row (scope.md REQ-38).
+  // Whether the panel is actually painting, for the Debug row (scope.md REQ-the-panel-says-whether-it-is-drawing).
   // Same late-bound idiom as the two knobs above — the owner of the state binds it.
   setScopeStatsSource(() => bottom.scope.health);
   root.appendChild(bottom.el);
@@ -173,7 +173,7 @@ export function mountApp(
 }
 
 /** The faceplate panel shell now lives in `components/panel.ts`, so a tabbed
- *  panel can share it (panel-tabs.md REQ-8). Same signature, same call sites. */
+ *  panel can share it (panel-tabs.md REQ-panel-and-tabbed-panel-share-a-box). Same signature, same call sites. */
 const panel = createPanel;
 
 function buildHeader(
@@ -185,7 +185,7 @@ function buildHeader(
   el.dataset.testid = 'app-header';
 
   // Brand block (brand.md) — shared with the About and start modals. Only the
-  // divider rule to its right is the header's own (brand.md REQ-3).
+  // divider rule to its right is the header's own (brand.md REQ-brand-block-carries-no-framing).
   const brand = createBrand();
   brand.classList.add(styles.headerBrand!);
   el.appendChild(brand);
@@ -214,7 +214,7 @@ function buildHeader(
 
   /**
    * The preset list, with the loaded song's sound pinned on top (presets.md
-   * REQ-13). A stored preset of the same name drops out while the song is
+   * REQ-a-songs-sound-is-a-selectable-entry). A stored preset of the same name drops out while the song is
    * loaded, so one label never renders twice and the pinned sound wins.
    */
   const presetOptions = (): string[] => {
@@ -230,8 +230,8 @@ function buildHeader(
   /**
    * Rebuild the options, then re-assert the label.
    *
-   * The order is the requirement (presets.md REQ-14): `setOptions` falls back to
-   * the first option when the current value is absent (dropdown.md REQ-2/REQ-12),
+   * The order is the requirement (presets.md REQ-rebuilding-options-never-relabels): `setOptions` falls back to
+   * the first option when the current value is absent (dropdown.md REQ-selecting-an-option-closes-the-menu/REQ-set-options-never-strands-the-value),
    * and the displayed value here is often absent — a song name, or a dirty
    * "Ember *". Without the re-assert, a preset *import* — which changes no sound
    * at all — silently relabelled the header to "acid".
@@ -266,7 +266,7 @@ function buildHeader(
   });
 
   // One door for everything you can do with a sound — save, export a preset or
-  // a bank, import (presets.md REQ-9). The header stays a single button.
+  // a bank, import (presets.md REQ-one-door-for-saving). The header stays a single button.
   const saveBtn = createButton({
     label: 'Presets — save, export, import',
     icon: HEADER_ICONS.save,
@@ -281,7 +281,7 @@ function buildHeader(
 
   // The paste door lives in the Song panel but preset imports belong to this
   // manager (and must refresh the dropdown above) — so they meet on the bridge
-  // (paste-import.md REQ-7).
+  // (paste-import.md REQ-paste-confirm-routes-by-kind).
   bridge.openPresetImport = (parse) => void openPresetManagerModal({
     bus,
     session,
@@ -304,7 +304,7 @@ function buildHeader(
     createPerfSettingsButton({ onTierPreview: previewScopeTier }),
   );
   // ⓘ then ? — one toggles the badges, the other opens Help & About, and each
-  // does only that (onboarding.md REQ-8/REQ-20).
+  // does only that (onboarding.md REQ-the-info-button-is-a-toggle/REQ-about-is-the-single-door-for-help).
   presetGroup.appendChild(
     createInfoBadgesButton({
       toggle: onboarding.toggleInfoBadges,
@@ -315,7 +315,7 @@ function buildHeader(
   presetGroup.appendChild(
     createAboutButton(engine, { startTour: onboarding.startTour }),
   );
-  // The `?` key's route to the badges (input-control.md REQ-9) — here rather
+  // The `?` key's route to the badges (input-control.md REQ-question-mark-toggles-the-badges) — here rather
   // than in shortcuts.ts, which must not import the onboarding layer.
   bridge.toggleInfoBadges = onboarding.toggleInfoBadges;
   // Last in the row; absent (null) where the Fullscreen API is missing — iPhone Safari.
@@ -345,7 +345,7 @@ function buildHeader(
     testId: 'transport-play',
     onClick: () => {
       // Starting an all-silent transport helps nobody — explain instead
-      // (empty-play-hint.md REQ-1). Stops are never intercepted, nor is a
+      // (empty-play-hint.md REQ-play-on-empty-shows-the-hint). Stops are never intercepted, nor is a
       // sync master/slave (an empty clock legitimately drives external gear).
       if (!engine.clock.playing
         && !emptyPlayHintDismissed()
@@ -353,7 +353,7 @@ function buildHeader(
         && !anythingToPlay((id) => bus.get(id), engine.patterns, engine.arrangement, engine.sampler.buffers)) {
         openEmptyPlayModal({
           // Awaited: all but the built-in demo are fetched (song-mode.md
-          // REQ-12), and the re-entry below re-runs the has-anything-to-play
+          // REQ-drop-in-demos-are-fetched-on-click), and the re-entry below re-runs the has-anything-to-play
           // check — clicking Play before the song lands just reopens this modal.
           onPlayDemo: async () => {
             const names = demoNames();
@@ -407,7 +407,7 @@ function buildHeader(
     cueArmed = true;
     refreshIdleBlink();
   };
-  // Turning a step machine on is silent until Play, so it cues too (REQ-3).
+  // Turning a step machine on is silent until Play, so it cues too (REQ-studio-api-exposes-both-channels).
   // Listening on the bus catches every surface (panel switch, song apply,
   // author-dialect auto-enable). The arp is excluded: it auto-starts the
   // transport on a held key, so there is no silent dead-end.
@@ -419,9 +419,9 @@ function buildHeader(
   bridge.toggleTransport = () => playBtn.click();
   transport.appendChild(playBtn);
   // Capture the BPM knob so it can dim + refuse input while slaved — the tempo
-  // is then driven by the sync master (midi-clock-sync REQ-14). Keyed on the
+  // is then driven by the sync master (midi-clock-sync REQ-the-bpm-knob-shows-slaved). Keyed on the
   // *running* role, so a selected-but-disconnected Slave leaves the knob live
-  // instead of freezing it at a vanished master's tempo (REQ-19/REQ-22).
+  // instead of freezing it at a vanished master's tempo (REQ-a-scope-resize-handle/REQ-the-redraw-loop-can-always-restart).
   const bpmKnob = new Knob({ bus, paramId: 'transport.bpm', label: 'BPM' });
   const applySlaved = (s: SyncStatus): void => {
     const slaved = s.activeMode === 'slave';
@@ -437,7 +437,7 @@ function buildHeader(
   transport.appendChild(bpmKnob.el);
   transport.appendChild(new Knob({ bus, paramId: 'transport.swing', label: 'SWING' }).el);
   // Beside BPM and SWING, because a meter is the third thing that defines the
-  // grid everything else is written against (meter.md REQ-5).
+  // grid everything else is written against (meter.md REQ-meter-is-two-bus-scalars).
   transport.appendChild(new MeterPicker(bus).el);
 
   el.appendChild(transport);
@@ -474,7 +474,7 @@ function buildPatternRow(
   const effectiveXy = createEffectiveXy(xy, engine.patterns, engine.arrangement, bus);
   const xyWin = createXyPadWindowController(bus, xy, effectiveXy);
   // One controller for the whole app, like `xyWin`: every launcher must toggle the
-  // SAME window, never spawn a second (mod-matrix.md, floating-window.md REQ-2).
+  // SAME window, never spawn a second (mod-matrix.md, floating-window.md REQ-floating-window-reopens).
   const modWin = createModMatrixWindowController(bus);
   const song = buildSongPanel(bus, engine, session, xy, bridge, xyWin, modWin);
   // Hoisted out of the tabs array: the panel is built before the TabContainer
@@ -493,7 +493,7 @@ function buildPatternRow(
     { id: 'song', label: 'Song', content: song.el },
   ], 'arp', {
     // `compact`: seven tabs leave no room for the word at <=1140px, so only the
-    // icon stays there (section-title.md REQ-5).
+    // icon stays there (section-title.md REQ-compact-drops-text-not-icon).
     title: { text: 'Machines', icon: 'padMachine', compact: true },
     collapsibleStoreKey: 'websynth.ui.collapsed.pattern',
     collapsedByDefault: isCompact,
@@ -502,7 +502,7 @@ function buildPatternRow(
   tabs.el.dataset.testid = 'pattern-row';
 
   // Ctrl/Cmd+Z routes to the machine behind the active tab (pattern-undo.md
-  // REQ-10). Arp/Song (and empty stacks) return false so the key falls through.
+  // REQ-ctrl-z-undoes-the-active-machine). Arp/Song (and empty stacks) return false so the key falls through.
   const TAB_MACHINE: Record<string, UndoMachine> = {
     seq: 'seq', drums: 'drum', sampler: 'sampler', motion: 'motion',
   };
@@ -514,8 +514,8 @@ function buildPatternRow(
   };
 
   // Delete/Backspace clears the selected step of the machine behind the active
-  // tab (step-grid-editing.md REQ-5) — the same routing shape as Ctrl+Z above.
-  // Motion is absent on purpose: it has no selection cursor (REQ-9).
+  // tab (step-grid-editing.md REQ-delete-clears-the-selected-step) — the same routing shape as Ctrl+Z above.
+  // Motion is absent on purpose: it has no selection cursor (REQ-stereo-on-a-mono-scope-falls-back).
   const TAB_PANEL: Record<string, MachinePanel> = { seq, drums, sampler };
   bridge.clearSelectedStep = () => {
     const panel = TAB_PANEL[tabs.activeId];
@@ -525,7 +525,7 @@ function buildPatternRow(
   };
 
   // Step Input is armed only while its own grid is on screen (sequencer.md
-  // REQ-5): switching tabs or folding the row disarms it, so notes played
+  // REQ-step-input-arms-only-on-screen): switching tabs or folding the row disarms it, so notes played
   // elsewhere — held chords on the Arpeggiator tab, say — can never overwrite
   // the sequencer bank behind the user's back.
   tabs.onViewChange(() => { if (!tabs.isVisible('seq')) seq.disarmStepInput(); });
@@ -535,7 +535,7 @@ function buildPatternRow(
   // graph every bar) against DOM nobody can see. `isVisible` is false for the
   // whole row when it is folded too, so a collapsed pattern row costs nothing.
   // Each gate replays the current state on reveal — see VisibilityGate.
-  // (runtime-performance.md REQ-4)
+  // (runtime-performance.md REQ-no-work-for-offscreen-dom)
   const gated: Array<[string, { gate: { set(v: boolean): void } }]> = [
     ['seq', seq], ['drums', drums], ['sampler', sampler], ['motion', motion],
   ];
@@ -545,10 +545,10 @@ function buildPatternRow(
   tabs.onViewChange(syncGates);
   syncGates(); // the panels were built before the tabs existed
 
-  // The Song panel's lane titles navigate here (machine-status.md REQ-5).
+  // The Song panel's lane titles navigate here (machine-status.md REQ-lane-titles-navigate).
   bridge.showTab = (id) => tabs.reveal(id);
 
-  // Machine status LEDs (machine-status.md REQ-1/REQ-2). `subscribe` fires
+  // Machine status LEDs (machine-status.md REQ-machine-state-has-one-source-of-truth/REQ-a-machine-has-three-states). `subscribe` fires
   // immediately with the current value, so this also paints the initial state.
   subscribeMachineStatus(bus, () => {
     const status = readMachineStatus(bus);
@@ -556,7 +556,7 @@ function buildPatternRow(
   });
   // The arp is not a machine — no lane, so no mute or solo — but whether it is
   // armed changes what the keyboard does, which is worth reading at a glance
-  // mid-performance (machine-status.md REQ-10).
+  // mid-performance (machine-status.md REQ-the-arpeggiator-tab-has-a-lamp).
   subscribeArpStatus(bus, () => tabs.setIndicator(ARP_TAB, readArpStatus(bus)));
   // Same reasoning for the key: an active scale silently re-pitches every note, so
   // "is anything re-pitching me?" must be answerable without opening the tab.
@@ -623,7 +623,7 @@ function buildMain(bus: ParamBus): HTMLElement {
       new Knob({ bus, paramId: 'filter.keytrack', label: 'KEYTRK' }).el,
     ], styles.hex!));
     // SHAPE belongs to POLY — the ladder's saturated taps cannot make a clean
-    // high-pass, so the worklet ignores it there (filter-models.md REQ-7). Dim
+    // high-pass, so the worklet ignores it there (filter-models.md REQ-shape-is-poly-only). Dim
     // rather than hide: the control keeps its place, so the switch reads as
     // "this model has more to offer", not as a jumping layout (ADR-014).
     bus.subscribe('filter.model', (m) => shape.setDisabled(Math.round(m) === 0));
@@ -640,7 +640,7 @@ function buildMain(bus: ParamBus): HTMLElement {
 
   main.appendChild(panel('FILTER ENV', (b) => {
     // VEL sits with the filter envelope, not on the FILTER panel, because it
-    // scales *this* envelope's depth (envelopes.md REQ-5) — the same pairing
+    // scales *this* envelope's depth (envelopes.md REQ-filter-env-follows-velocity) — the same pairing
     // hardware uses. At its default 0 it does nothing, so the panel reads
     // exactly as it did until someone reaches for it.
     b.appendChild(row([
@@ -653,7 +653,7 @@ function buildMain(bus: ParamBus): HTMLElement {
   }, 'filterenv'));
 
   // Two LFOs behind a tab strip, so the pair costs one grid column, not two
-  // (lfo.md REQ-15). Its own module — see the note there.
+  // (lfo.md REQ-the-two-lfos-share-one-panel). Its own module — see the note there.
   main.appendChild(buildLfoPanel(bus));
 
   return main;
@@ -663,7 +663,7 @@ const SQUARE_WAVE = WAVE_LABELS.indexOf('square');
 
 /**
  * The pulse-width knob, shown only while that oscillator is on `square` —
- * width is meaningless for the other waveforms (oscillators.md REQ-5).
+ * width is meaningless for the other waveforms (oscillators.md REQ-oscillators-have-a-pulse-width).
  *
  * It gets its own row rather than joining the 3-knob `.spread` row above: a
  * fourth knob there would flex-wrap 3+1, which is the exact layout `.quad`
@@ -686,7 +686,7 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
 
   const bar = document.createElement('div');
   bar.className = styles.fxSectionBar!;
-  // The same heading the tabbed sections wear (section-title.md REQ-1).
+  // The same heading the tabbed sections wear (section-title.md REQ-one-component-draws-every-heading).
   bar.appendChild(createSectionTitle({ text: 'FX', icon: 'waveBurst' }));
   const collapse = createCollapseToggle(section, 'websynth.ui.collapsed.fx', {
     defaultCollapsed: isCompact,
@@ -730,7 +730,7 @@ function buildFx(bus: ParamBus): { el: HTMLElement; expand: () => void } {
   ], 'fx.reverb'));
 
   // Last in the rack because it is last in the chain (sidechain-ducking.md
-  // REQ-8/REQ-10): SRC is a discrete knob over the drum lanes + Any, the same
+  // REQ-the-ducker-is-last-in-the-chain/REQ-ducking-adds-no-new-gesture): SRC is a discrete knob over the drum lanes + Any, the same
   // shape as the drum compressor's RATIO.
   fx.appendChild(fxPanel('Duck', bus, 'fx.duck.on', [
     { id: 'fx.duck.amount', label: 'AMT' },
@@ -787,7 +787,7 @@ function buildBottom(
   // Read once here; the ResizeHandle below writes it onto `bottom` in its
   // constructor — which happens before this subtree is mounted, so a taller
   // scope is there from the first paint rather than jumping into place
-  // (scope REQ-20). The CSS default covers "nothing stored".
+  // (scope REQ-the-scope-height-persists). The CSS default covers "nothing stored".
   const scopeHeight = readScopeHeight();
 
   const top = document.createElement('div');
@@ -803,7 +803,7 @@ function buildBottom(
   const scopeWrap = document.createElement('div');
   scopeWrap.className = styles.scopeWrap!;
   // Static CRT screen underlay (gradient + inset vignette) behind the transparent
-  // canvas, so the 60fps redraw never re-rasters the decoration. (scope REQ-16)
+  // canvas, so the 60fps redraw never re-rasters the decoration. (scope REQ-no-per-frame-layout-read)
   const scopeScreen = document.createElement('div');
   scopeScreen.className = styles.scopeScreen!;
   scopeWrap.appendChild(scopeScreen);
@@ -822,7 +822,7 @@ function buildBottom(
     scope.setMode(isWave ? 'wave' : 'spectrum');
     toggle.textContent = isWave ? 'Wave' : 'Spectrum';
     // The problem-band overlay only means anything over a frequency axis, so its
-    // button rides the view rather than sitting on the panel forever (scope REQ-29).
+    // button rides the view rather than sitting on the panel forever (scope REQ-a-zones-toggle).
     zonesToggle.hidden = isWave;
   });
   scopeWrap.appendChild(toggle);
@@ -839,7 +839,7 @@ function buildBottom(
   });
   scopeWrap.appendChild(chanToggle);
   // Problem-frequency overlay — bottom-right, the one corner free of chrome, which
-  // is also why the spectrum plot reserves a gutter there (scope REQ-29). Hidden
+  // is also why the spectrum plot reserves a gutter there (scope REQ-a-zones-toggle). Hidden
   // until the view that gives it meaning is on screen; declared BEFORE the
   // Wave/Spectrum handler above runs, but after that button so tab order still
   // reads left-to-right, top-to-bottom.
@@ -857,7 +857,7 @@ function buildBottom(
   scopeWrap.appendChild(zonesToggle);
   // Resize grip on the panel's top edge. A SIBLING of the canvas, like the two
   // toggles above — that is what keeps a press on it from reaching the canvas
-  // click listener and resetting the peak-hold (scope REQ-13/REQ-19). It resizes
+  // click listener and resetting the peak-hold (scope REQ-clicking-the-graph-resets-the-peak/REQ-a-scope-resize-handle). It resizes
   // the shared grid row, so the PITCH/OCT/MOD strips grow with the scope.
   const scopeResize = new ResizeHandle({
     target: bottom,
@@ -879,10 +879,10 @@ function buildBottom(
   bottom.appendChild(top);
 
   // The EQUALIZER section, between the scope and the keyboard (equalizer.md
-  // REQ-16). It is an `auto` row of the same grid: `--scope-h` still sizes row 1
+  // REQ-the-eq-is-a-third-bottom-row). It is an `auto` row of the same grid: `--scope-h` still sizes row 1
   // alone, so the scope's resize handle is untouched, and an expanded EQ is
   // absorbed by the keyboard's `minmax(160px, 1fr)` floor — the behaviour
-  // scope.md REQ-19 already describes for a grown scope, now with a second
+  // scope.md REQ-a-scope-resize-handle already describes for a grown scope, now with a second
   // grower under it. Folded by default, so the resting layout costs only the bar.
   const eq = buildEqPanel(bus, engine);
   bottom.appendChild(eq.el);
@@ -903,12 +903,12 @@ function buildBottom(
 
   // Visual-only: reflect computer-keyboard input on the on-screen keys. The note
   // itself is fired once by installShortcuts (bus.noteOn); highlighting here must
-  // not also touch the bus or a single key double-fires. See input-control.md REQ-2.
+  // not also touch the bus or a single key double-fires. See input-control.md REQ-a-key-emits-exactly-one-note-on.
   bridge.pressKey = (n) => keyboard.highlight(n, true);
   bridge.releaseKey = (n) => keyboard.highlight(n, false);
 
   // Wear the current key, so which notes are in play is legible from where the fingers
-  // already are rather than only on the KEY tab (scale-quantization.md REQ-10). Wired
+  // already are rather than only on the KEY tab (scale-quantization.md REQ-the-key-is-shown-where-you-play). Wired
   // here, not inside Keyboard, so the component stays free of music theory. Chromatic
   // passes `null`: a restriction that restricts nothing is not worth drawing.
   onKeyChange(bus, () => {

@@ -3,7 +3,7 @@ import { Osc, PWM_BANK_SIZE, PWM_MIN_WIDTH, PWM_MAX_WIDTH } from '../../src/audi
 import { makeMockAudioContext } from './mock-audio-context';
 
 /**
- * Pulse-width modulation on the oscillator (oscillators.md REQ-5, REQ-6).
+ * Pulse-width modulation on the oscillator (oscillators.md REQ-oscillators-have-a-pulse-width, REQ-width-swaps-a-precomputed-wave).
  *
  * The duty bank is `PeriodicWave`s swapped onto the *live* node, so the two
  * things worth pinning are: the default stays the native square (an exact
@@ -34,7 +34,7 @@ function build() {
 }
 
 describe('Osc pulse width', () => {
-  it('defaults to the native square — an exact no-op (REQ-5)', () => {
+  it('defaults to the native square — an exact no-op (REQ-oscillators-have-a-pulse-width)', () => {
     const { osc, node } = build();
     osc.setWave(SQUARE);
     expect(node.type).toBe('square');
@@ -75,7 +75,7 @@ describe('Osc pulse width', () => {
     osc.setWave(SQUARE);
     for (let i = 1; i <= 20; i++) osc.setPulseWidth(0.5 + i * 0.02);
     expect(node.setPeriodicWave.mock.calls.length).toBeGreaterThan(1);
-    // One oscillator for the lifetime of the Osc — phase is preserved (REQ-6).
+    // One oscillator for the lifetime of the Osc — phase is preserved (REQ-width-swaps-a-precomputed-wave).
     expect(ctx.createOscillator).toHaveBeenCalledTimes(1);
   });
 
@@ -112,7 +112,7 @@ function sweepWholeRange(osc: Osc): void {
 }
 
 describe('the duty bank', () => {
-  it('builds one wave for one width, not the bank (REQ-6b)', () => {
+  it('builds one wave for one width, not the bank (REQ-a-wave-bank-entry-is-built-on-first-use)', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
     osc.setPulseWidth(0.7);
@@ -121,7 +121,7 @@ describe('the duty bank', () => {
     expect(waves.length).toBe(1);
   });
 
-  it('costs nothing to hold a width (REQ-6b)', () => {
+  it('costs nothing to hold a width (REQ-a-wave-bank-entry-is-built-on-first-use)', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
     osc.setPulseWidth(0.7);
@@ -130,7 +130,7 @@ describe('the duty bank', () => {
     expect(waves.length).toBe(1);
   });
 
-  it('reuses an entry when a width is revisited (REQ-6b)', () => {
+  it('reuses an entry when a width is revisited (REQ-a-wave-bank-entry-is-built-on-first-use)', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
     for (const w of [0.6, 0.7, 0.8]) osc.setPulseWidth(w);
@@ -140,7 +140,7 @@ describe('the duty bank', () => {
     expect(waves.length).toBe(3); // memoized, not rebuilt
   });
 
-  it('never builds an entry no width selected (REQ-6b)', () => {
+  it('never builds an entry no width selected (REQ-a-wave-bank-entry-is-built-on-first-use)', () => {
     const { osc, waves } = build();
     osc.setWave(SQUARE);
     // A patch that only ever uses the lower half of the duty range.

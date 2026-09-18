@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { memoizeDriveCurve, DRIVE_CURVE_STEPS } from '../../src/audio/drive-curve';
 
 /**
- * Bucketed WaveShaper curve caching (runtime-performance.md REQ-2). Drive knobs
+ * Bucketed WaveShaper curve caching (runtime-performance.md REQ-immutable-artefacts-are-shared). Drive knobs
  * are dragged, and a fresh table per bus tick is ~120 allocations a second plus
  * the same number of `tanh` sweeps, on the thread the transport schedules from.
  */

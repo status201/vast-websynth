@@ -20,7 +20,7 @@ export interface KeyboardOptions {
 }
 
 /** A key currently carrying one of the lit classes, remembered as the ELEMENT it
- *  was resolved to (input-control.md REQ-10) — `count` because two of the four
+ *  was resolved to (input-control.md REQ-a-lit-key-is-remembered-as-an-element) — `count` because two of the four
  *  sequencer tracks can sound the same note with different gates. */
 interface LitKey {
   el: HTMLElement;
@@ -31,7 +31,7 @@ export class Keyboard {
   readonly el: HTMLElement;
   private readonly keys: Map<number, HTMLElement> = new Map(); // midi → element
   /** pointerId → the element's own note and the (transposed) note it sounded.
-   *  Both, because OCT may move between press and release (REQ-11). */
+   *  Both, because OCT may move between press and release (REQ-a-note-off-names-the-pressed-note). */
   private readonly activeByPointer: Map<number, { key: number; sounding: number }> = new Map();
   private readonly litActive: Map<number, LitKey> = new Map();
   private readonly litSeq: Map<number, LitKey> = new Map();
@@ -99,7 +99,7 @@ export class Keyboard {
 
     // Moving OCT re-points the note→element mapping under everything currently
     // lit or held. Nothing needs clearing: lit keys remember their element and
-    // pointer holds remember the note they sounded (REQ-10/REQ-11), so every
+    // pointer holds remember the note they sounded (REQ-a-lit-key-is-remembered-as-an-element/REQ-a-note-off-names-the-pressed-note), so every
     // pending release still lands on what it took. Only the labels move.
     opts.bus.subscribe('keyboard.transpose', (v) => {
       this._transpose = Math.round(v);
@@ -113,7 +113,7 @@ export class Keyboard {
 
   /**
    * The key that *sounds* `note` — the one resolver behind both highlight APIs
-   * (input-control.md REQ-10). An element sounds `note + transpose * 12`, so the
+   * (input-control.md REQ-a-lit-key-is-remembered-as-an-element). An element sounds `note + transpose * 12`, so the
    * inverse is the lookup. Callers must resolve **once**, when lighting up, and
    * remember the element: OCT is free to move before the light-off is due.
    */
@@ -155,7 +155,7 @@ export class Keyboard {
   }
 
   /** Press the key element `note`, remembering the note it actually sounded so the
-   *  release names that one even if OCT moved meanwhile (REQ-11). */
+   *  release names that one even if OCT moved meanwhile (REQ-a-note-off-names-the-pressed-note). */
   private pressKey(pointerId: number, note: number): void {
     const sounding = this.tr(note);
     this.activeByPointer.set(pointerId, { key: note, sounding });
@@ -198,7 +198,7 @@ export class Keyboard {
    * the on-screen keyboard repaints in lock-step with computer-keyboard / MIDI
    * input. It must NOT touch the bus: the note-on/off itself is owned by the
    * input source (`installShortcuts` for the computer keyboard), so highlighting
-   * here would double-fire the note funnel. See input-control.md REQ-2.
+   * here would double-fire the note funnel. See input-control.md REQ-a-key-emits-exactly-one-note-on.
    */
   highlight(note: number, on: boolean): void {
     this.setLit(this.litActive, 'active', note, on);
@@ -220,11 +220,11 @@ export class Keyboard {
 
   /**
    * Mark every key with the musical role its pitch class plays in the current key —
-   * the third highlight layer, and the only *static* one (input-control.md REQ-14,
-   * scale-quantization.md REQ-10). `null` clears, which is what chromatic gets.
+   * the third highlight layer, and the only *static* one (input-control.md REQ-a-third-highlight-layer,
+   * scale-quantization.md REQ-the-key-is-shown-where-you-play). `null` clears, which is what chromatic gets.
    *
    * Deliberately **not** routed through `setLit`: the two lit states are transient and
-   * refcounted and must remember the element they lit (REQ-10/REQ-11), while a role is
+   * refcounted and must remember the element they lit (REQ-a-lit-key-is-remembered-as-an-element/REQ-a-note-off-names-the-pressed-note), while a role is
    * a standing property that is rewritten wholesale. Separate channels — an attribute
    * here, classes there — so a sweep of the board can never strand a held note's light.
    *
@@ -237,9 +237,9 @@ export class Keyboard {
       // `out` is written as *no* attribute, where the KEY tab's map draws it as a
       // fourth state. On a keyboard you can press, an out-of-scale key is not out of
       // play — it still sounds, quantized onto the nearest tone — so marking it would
-      // claim otherwise (REQ-10).
+      // claim otherwise (REQ-a-lit-key-is-remembered-as-an-element).
       const next = role === 'out' ? '' : role;
-      // Guard each write on what is already rendered (runtime-performance.md REQ-7).
+      // Guard each write on what is already rendered (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered).
       if ((el.dataset.role ?? '') === next) continue;
       if (next) el.dataset.role = next;
       else delete el.dataset.role;

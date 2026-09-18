@@ -6,7 +6,7 @@ import { MAX_CHAIN_STEPS } from '../../state/limits';
  * itself is `routeLoopStep`, a pure function, and `LoopDriver` is what puts the
  * two in front of the clock.
  *
- * Nothing here is persisted (REQ-15): like the cue, a loop is where you are
+ * Nothing here is persisted (REQ-the-loop-is-never-saved): like the cue, a loop is where you are
  * working right now, not part of the song.
  */
 
@@ -16,7 +16,7 @@ export interface LoopRange {
   readonly end: number;
 }
 
-/** A bar index made safe to store (REQ-7): non-finite refused, clamped. */
+/** A bar index made safe to store (REQ-the-loop-range-is-limited-to-the-song): non-finite refused, clamped. */
 function clampBar(bar: number): number | null {
   if (!Number.isFinite(bar)) return null;
   return Math.max(0, Math.min(MAX_CHAIN_STEPS - 1, Math.floor(bar)));
@@ -29,14 +29,14 @@ export class TransportLoop {
   private readonly listeners = new Set<() => void>();
 
   get enabled(): boolean { return this._enabled; }
-  /** The range as picked — never shortened by the song (REQ-7). */
+  /** The range as picked — never shortened by the song (REQ-the-loop-range-is-limited-to-the-song). */
   get range(): LoopRange | null { return this._range; }
-  /** The first pick, waiting for its second (REQ-2). */
+  /** The first pick, waiting for its second (REQ-with-loop-on-a-click-picks-a-bar). */
   get anchor(): number | null { return this._anchor; }
   /** On, with something to loop — the only state in which the transport wraps. */
   get engaged(): boolean { return this._enabled && this._range !== null; }
 
-  /** Off keeps the range and drops a half-made pick (REQ-5). */
+  /** Off keeps the range and drops a half-made pick (REQ-turning-loop-off-keeps-the-range). */
   setEnabled(on: boolean): void {
     if (on === this._enabled) return;
     this._enabled = on;
@@ -47,7 +47,7 @@ export class TransportLoop {
   toggle(): void { this.setEnabled(!this._enabled); }
 
   /**
-   * One scrubber click while Loop is on (REQ-2). The first sets the anchor; the
+   * One scrubber click while Loop is on (REQ-with-loop-on-a-click-picks-a-bar). The first sets the anchor; the
    * second sets the range between the two, in either order. The old range stays
    * in force until then, so re-picking never interrupts the loop.
    */
@@ -64,7 +64,7 @@ export class TransportLoop {
     this.notify();
   }
 
-  /** Forget everything — a loaded song's bars are not this song's (REQ-10). */
+  /** Forget everything — a loaded song's bars are not this song's (REQ-loading-a-song-clears-the-loop). */
   clear(): void {
     if (!this._enabled && this._range === null && this._anchor === null) return;
     this._enabled = false;
@@ -84,7 +84,7 @@ export class TransportLoop {
 }
 
 /**
- * The range the song can actually play (REQ-7): clamped to its bars — `0` means
+ * The range the song can actually play (REQ-the-loop-range-is-limited-to-the-song): clamped to its bars — `0` means
  * no chain lane is enabled, which is one repeating bar, as the scrubber draws it.
  * The stored range is left alone, so lengthening the chain again restores it.
  */
@@ -95,10 +95,10 @@ export function effectiveLoopRange(range: LoopRange | null, songBars: number): L
 }
 
 /**
- * The wrap rule (REQ-3): only a bar line decides. Inside the range, keep going;
+ * The wrap rule (REQ-the-loop-wraps-only-on-a-bar-line): only a bar line decides. Inside the range, keep going;
  * at its end — or anywhere outside it — go to its first step. So a loop engaged
  * mid-song finishes the bar it is in and then enters, and never cuts in mid-bar.
- * `barTicks` is the song's bar, not 16 (REQ-11).
+ * `barTicks` is the song's bar, not 16 (REQ-loop-bars-are-the-songs-bars).
  */
 export function routeLoopStep(next: number, range: LoopRange | null, barTicks: number): number {
   if (!range || barTicks <= 0 || next % barTicks !== 0) return next;

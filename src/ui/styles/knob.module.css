@@ -66,7 +66,7 @@
 
 /*
  * Travel above a soft ceiling — the part of the sweep the engine does not act on
- * (knob-soft-ceiling.md REQ-5). Marked rather than left bare: once lfo.rate went
+ * (knob-soft-ceiling.md REQ-capped-region-is-marked). Marked rather than left bare: once lfo.rate went
  * exponential the dead band shrank to ~32°, and at that size an absent arc is
  * not noticed. Red because it means "blocked" (`.track` already covers "not yet
  * reached"), dimmed because it is a statement of range, not an error.
@@ -90,7 +90,7 @@
 }
 
 /*
- * A knob carrying a tempo lock (tempo-lock.md REQ-10). The glyph hangs to the
+ * A knob carrying a tempo lock (tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). The glyph hangs to the
  * LEFT of the cell, out of flow, rather than flowing inline before the label,
  * because the machine tabs run 22 px knobs — a 30 px cell, where glyph + "RATE"
  * does not fit on one line. Inline, it wrapped: the label took two lines, the
@@ -118,7 +118,7 @@
 }
 
 /*
- * Tempo-locked (tempo-lock.md REQ-3): the division chip takes the dial's place.
+ * Tempo-locked (tempo-lock.md REQ-locked-the-division-replaces-the-dial): the division chip takes the dial's place.
  * Hidden, not dimmed — a dimmed dial still accepts the double-tap reset, and a
  * reset you cannot hear is exactly the invisible-state defect ADR-014 law 2
  * names. With the dial gone there is no gesture to have the wrong outcome.
@@ -137,7 +137,7 @@
 }
 
 /*
- * How far modulation can move this knob (mod-matrix.md REQ-8): a band drawn from
+ * How far modulation can move this knob (mod-matrix.md REQ-depth-is-in-the-destinations-unit): a band drawn from
  * `value - depth` to `value + depth`, behind the value arc.
  *
  * Deliberately dimmer and thinner than `.value` — the value is what you set, the
@@ -152,7 +152,7 @@
 }
 
 /*
- * Where a main-thread-knowable source currently has the knob (mod-matrix.md REQ-11).
+ * Where a main-thread-knowable source currently has the knob (mod-matrix.md REQ-a-modulated-knob-shows-its-reach).
  * Today that is the mod wheel — the one source a player is holding, and the one whose
  * live value costs nothing to read.
  *
@@ -168,7 +168,7 @@
 }
 
 /*
- * Direction of the modulation band and its tick (mod-matrix.md REQ-13): green is up,
+ * Direction of the modulation band and its tick (mod-matrix.md REQ-the-bands-direction-has-a-colour): green is up,
  * yellow is down.
  *
  * Only the INNER band is coloured. A knob's own value needs no colour — its pointer

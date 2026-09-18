@@ -10,9 +10,9 @@ export interface PanelPageSpec {
 }
 
 export interface TabbedPanelOptions {
-  /** Testid namespace for the strip (panel-tabs.md REQ-3). */
+  /** Testid namespace for the strip (panel-tabs.md REQ-panel-tab-testids-are-prefixed). */
   prefix: string;
-  /** Help topic id — lands on the tab row, never on a tab (REQ-7). */
+  /** Help topic id — lands on the tab row, never on a tab (REQ-data-help-sits-on-the-tab-row). */
   help?: string;
   pages: PanelPageSpec[];
 }
@@ -57,15 +57,15 @@ export function createPanel(
 
 /**
  * A faceplate panel whose body is paged by tabs — the answer to "this needs
- * another panel" on a grid with no columns left (panel-tabs.md, lfo.md REQ-15).
+ * another panel" on a grid with no columns left (panel-tabs.md, lfo.md REQ-the-two-lfos-share-one-panel).
  *
  * The strip **replaces** the title rather than sitting beside it: each tab
  * names its own page, so a separate heading would only repeat them, and the row
  * keeps a plain panel's header height so a tabbed panel still lines up with its
- * untabbed neighbours (panel-tabs.md REQ-9).
+ * untabbed neighbours (panel-tabs.md REQ-the-strip-replaces-the-title).
  *
  * `data-help` therefore lands on the tab row — still not on a tab button, so the
- * ⓘ badge neither moves nor disappears when the page changes (REQ-7).
+ * ⓘ badge neither moves nor disappears when the page changes (REQ-data-help-sits-on-the-tab-row).
  *
  * Each page's `build` runs before the strip activates, so the first paint sees a
  * fully built stack.

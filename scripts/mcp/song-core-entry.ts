@@ -1,6 +1,6 @@
 /**
  * Entry for the MCP server's Node bundle of the *pure* song core
- * (mcp-server.md REQ-4). Built by `npm run build:mcp` (or the server's
+ * (mcp-server.md REQ-song-core-entry-exports-only-pure-code). Built by `npm run build:mcp` (or the server's
  * self-build) into `scripts/mcp/dist/song-core.mjs` via Vite lib mode, because
  * `src/**` can't run under plain Node (extensionless TS imports).
  *
@@ -19,7 +19,7 @@ export { compactSongForExport } from '../../src/state/serialize';
 export { buildAuthoringGuide, buildSongPrompt, buildPresetGuide } from '../../src/state/authoring-guide';
 export { ParamBus, registerDefaults } from '../../src/state/params';
 // The structured parameter catalogue `get_params` serves — the same registry the
-// guides render as prose, minus the prose (param-catalogue.md REQ-8).
+// guides render as prose, minus the prose (param-catalogue.md REQ-mcp-serves-the-catalogue).
 export { buildParamCatalog, PARAMS_FORMAT } from '../../src/state/param-catalog';
 export type { ParamCatalog, ParamCatalogEntry } from '../../src/state/param-catalog';
 // Presets are the other half of what the synth stores (preset-authoring.md).
@@ -46,10 +46,10 @@ export {
   DRUM_TRACK_COUNT,
   SAMPLER_SLOT_COUNT,
 } from '../../src/state/patterns';
-// The public endpoint's bounds (mcp-server.md REQ-11, untrusted-input.md REQ-14).
+// The public endpoint's bounds (mcp-server.md REQ-the-public-endpoint-is-bounded-not-authenticated, untrusted-input.md REQ-the-public-endpoint-is-bounded).
 // `http.mjs` is plain .mjs and cannot import the TS module, so it reads them from
 // here — which is what keeps `src/state/limits.ts` the single place a bound is
-// written down (untrusted-input.md REQ-3) rather than the place it is written
+// written down (untrusted-input.md REQ-the-limits-are-one-module) rather than the place it is written
 // down twice.
 export {
   MAX_MCP_REQUEST_BYTES,

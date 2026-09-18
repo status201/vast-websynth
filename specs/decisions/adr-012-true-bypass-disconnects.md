@@ -17,7 +17,7 @@ related:
 ## Context / Forces
 
 `BypassWrapper` originally kept the processed path **permanently connected** and
-realised bypass purely as a dry/wet crossfade (effects.md REQ-2 v2 said
+realised bypass purely as a dry/wet crossfade (effects.md REQ-bypass-and-mix-are-a-crossfade v2 said
 "rather than a graph reconnect" explicitly). That is click-free, but the Web
 Audio renderer keeps pulling any subgraph that is reachable from the
 destination — so every bypassed effect still ran its full DSP. With all FX
@@ -60,7 +60,7 @@ one tail-length after reconnect.
 > **Discharged (2026-08-29).** It bit. The clause rested on "after a deliberate
 > user toggle", and that is the premise a **song load** breaks: `Song.apply` is a
 > reset-then-restore of every param, so clicking a demo issues dozens of bypass
-> toggles nobody made ([song-mode](../features/song-mode.md) REQ-17). With
+> toggles nobody made ([song-mode](../features/song-mode.md) REQ-applying-a-song-is-click-free). With
 > `fx.delay.feedback` up to 0.95 the remnant does not decay under the ramp, it
 > recirculates — reported as a burst of the *previous* song on loading a demo,
 > with the transport stopped.
@@ -77,7 +77,7 @@ one tail-length after reconnect.
 > per bypass instead of unbounded rendering — the alternative "per-effect
 > enable/disable of inner nodes" rejected below stays rejected: `quiesce` is not a
 > substitute for the disconnect, it is what makes the disconnect safe.
-> See [effects](../features/effects.md) REQ-2c.
+> See [effects](../features/effects.md) REQ-a-bypassed-effect-drains-before-disconnect.
 
 ## Alternatives considered
 
@@ -107,9 +107,9 @@ one tail-length after reconnect.
   > nothing about how much *level* moves across it. The wah moved 16-19 dB in
   > 10-20 ms and was reported as a click with the waveform perfectly intact. The
   > premise holds for what it actually covers; loudness continuity is a separate
-  > obligation, now [effects](../features/effects.md) REQ-12.
+  > obligation, now [effects](../features/effects.md) REQ-toggling-an-effect-must-not-step-the-level.
 - **Trade-off:** a bypassed delay/reverb no longer "keeps ringing" internally
   (it never audibly did — wet was 0); LFO-bearing effects (phaser/wah) resume
   at a different LFO phase after re-enable, which is musically irrelevant.
-- effects.md REQ-2 is rewritten by this ADR (v3); the "no graph reconnect"
+- effects.md REQ-bypass-and-mix-are-a-crossfade is rewritten by this ADR (v3); the "no graph reconnect"
   wording of v2 is superseded.

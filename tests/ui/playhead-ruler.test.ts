@@ -11,14 +11,14 @@ import { barTicks } from '../../src/state/meter';
 
 /**
  * The ruler reads the *clock* rather than a machine's `onStep` — that is the
- * whole point of it (transport-position.md REQ-9) — plus `seekTo`/`canSeek`, the
+ * whole point of it (transport-position.md REQ-a-position-ruler-above-every-grid) — plus `seekTo`/`canSeek`, the
  * three low-frequency hooks that decide whether seeking is allowed, and (v2) the
- * arrangement + play-bank accessors behind the readout (REQ-15).
+ * arrangement + play-bank accessors behind the readout (REQ-the-readout-never-invents-bars).
  */
 function harness(over: { canSeek?: boolean; bars?: number; bank?: number } = {}) {
   const clock = new TestClock();
   // A real bus: the ruler reads the meter params off it to size its strip
-  // (meter.md REQ-8/REQ-11), and the registered defaults are 4/4 — so every
+  // (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden), and the registered defaults are 4/4 — so every
   // pre-meter assertion in this file still describes a 16-tick bar.
   const bus = new ParamBus();
   registerDefaults(bus);
@@ -68,7 +68,7 @@ const ticks = (el: HTMLElement): HTMLButtonElement[] =>
 /** Index of the tick carrying the live-playhead class, or -1. */
 const litIndex = (el: HTMLElement): number =>
   ticks(el).findIndex((t) => t.classList.contains(AT_CLASS));
-/** Index of the tick carrying the cue class, or -1 (v2, REQ-14). */
+/** Index of the tick carrying the cue class, or -1 (v2, REQ-the-cue-and-the-playhead-are-two-marks). */
 const cueIndex = (el: HTMLElement): number =>
   ticks(el).findIndex((t) => t.classList.contains(CUE_CLASS));
 
@@ -106,7 +106,7 @@ describe('PlayheadRuler', () => {
     expect(litIndex(ruler.cellsEl)).toBe(6);
   });
 
-  // --- The two marks (v2, REQ-14) ---
+  // --- The two marks (v2, REQ-the-cue-and-the-playhead-are-two-marks) ---
   it('shows a cue and NO playhead while stopped', () => {
     const { clock, api, bus, hooks } = harness();
     const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
@@ -157,7 +157,7 @@ describe('PlayheadRuler', () => {
     expect(seekTo).toHaveBeenLastCalledWith(SEQ_LENGTH * 3 + 7);
   });
 
-  // --- Mode-aware readout (v2, REQ-15) ---
+  // --- Mode-aware readout (v2, REQ-the-readout-never-invents-bars) ---
   it('names the bank while no chain is enabled, with no stepper', () => {
     const { api, bus, hooks, set } = harness({ bars: 0, bank: 1 });
     const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
@@ -188,7 +188,7 @@ describe('PlayheadRuler', () => {
     expect(navOf(ruler, 'next').hidden).toBe(true);
   });
 
-  // --- Bar stepper (v2, REQ-16) ---
+  // --- Bar stepper (v2, REQ-a-bar-stepper-only-where-bars-exist) ---
   it('steps a bar while preserving the 16th', () => {
     const { clock, api, bus, seekTo, hooks } = harness({ bars: 4 });
     const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
@@ -221,7 +221,7 @@ describe('PlayheadRuler', () => {
     expect(labelOf(ruler, 'sampler').textContent).toBe('Bank A');
   });
 
-  // --- Refusal honesty (v2, REQ-17) ---
+  // --- Refusal honesty (v2, REQ-a-refused-seek-says-so) ---
   it('marks itself inert when seeking is refused, and stops promising a move', () => {
     const { api, bus, hooks } = harness({ canSeek: false, bars: 4 });
     const ruler = buildPlayheadRuler(api, bus, 'drum', undefined, hooks);
@@ -242,7 +242,7 @@ describe('PlayheadRuler', () => {
     expect(ticks(ruler.cellsEl)[15]!.title).toContain('beat 4');
   });
 
-  // transport-position.md REQ-10 — same contract as the grid playhead.
+  // transport-position.md REQ-the-ruler-costs-nothing-off-screen — same contract as the grid playhead.
   it('does no work while hidden, and re-syncs to the live step on reveal', () => {
     const { clock, api, bus, hooks } = harness();
     const gate = new VisibilityGate();

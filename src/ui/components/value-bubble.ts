@@ -3,7 +3,7 @@ import styles from '../styles/value-bubble.module.css';
 /**
  * A transient value readout pinned above the control under the pointer, for
  * gestures whose target is too small to carry its own label — the motion
- * sequencer's 16-per-lane pads (motion-sequencer.md REQ-22).
+ * sequencer's 16-per-lane pads (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering).
  *
  * Deliberately **not** a hover tooltip: it exists only while a gesture is
  * running, and disappears on release. The always-visible half of that
@@ -13,7 +13,7 @@ import styles from '../styles/value-bubble.module.css';
  *
  * One element, reused: `show` runs per `pointermove`, so it re-appends and
  * repositions rather than rebuilding, and only writes `textContent` when the
- * string actually changed (`specs/features/runtime-performance.md` REQ-6).
+ * string actually changed (`specs/features/runtime-performance.md` REQ-no-allocation-in-a-hot-loop).
  */
 
 /** Gap between the anchor and the bubble, and the viewport edge keep-out. */

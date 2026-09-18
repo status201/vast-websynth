@@ -3,13 +3,13 @@ import { createInfoBadgesButton, type InfoBadgesDeps } from '../../src/ui/compon
 import tourStyles from '../../src/ui/styles/tour.module.css';
 
 /**
- * The ⓘ button's gesture inventory (specs/features/onboarding.md REQ-8/REQ-19).
+ * The ⓘ button's gesture inventory (specs/features/onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory).
  * One gesture, one outcome: a click toggles the badges in either state, and the
  * three gestures v13 bolted onto the old Help button are gone — a modifier-click
  * or a long press is now just a click. Those are the `—` rows of the inventory,
  * asserted here so they cannot quietly grow a second meaning again.
  */
-describe('Info badges button (onboarding.md REQ-8/REQ-19)', () => {
+describe('Info badges button (onboarding.md REQ-the-info-button-is-a-toggle/REQ-the-info-button-gesture-inventory)', () => {
   let active = false;
   let deps: InfoBadgesDeps;
   let toggle: ReturnType<typeof vi.fn>;
@@ -62,12 +62,12 @@ describe('Info badges button (onboarding.md REQ-8/REQ-19)', () => {
     expect(btn.querySelector('svg.hdr-icon')).not.toBeNull();
   });
 
-  // REQ-8b: while the badges show, the glyph takes their colours — an accent
+  // REQ-the-glyph-inverts-while-badges-show: while the badges show, the glyph takes their colours — an accent
   // disc with `--bg-deep` ink. The colours themselves live in tour.module.css
   // (jsdom does not resolve CSS Modules, so e2e pins the computed fill); what
   // is pinned here is the half that lives in the markup: the three part hooks
   // those rules hang off, without which the active state silently does nothing.
-  it('the ⓘ glyph exposes the part hooks the active state recolours (REQ-8b)', () => {
+  it('the ⓘ glyph exposes the part hooks the active state recolours (REQ-the-glyph-inverts-while-badges-show)', () => {
     const svg = mount().querySelector('svg.hdr-icon')!;
     expect(svg.querySelector('.disc')).not.toBeNull();
     expect(svg.querySelector('.stem')).not.toBeNull();
@@ -109,7 +109,7 @@ describe('Info badges button (onboarding.md REQ-8/REQ-19)', () => {
     expect(btn.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('a modifier-click is just a click — the v13 gesture is gone (REQ-19)', () => {
+  it('a modifier-click is just a click — the v13 gesture is gone (REQ-the-info-button-gesture-inventory)', () => {
     const btn = mount();
     click(btn, { shiftKey: true });
     click(btn, { ctrlKey: true });

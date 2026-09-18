@@ -1,5 +1,5 @@
 /**
- * Drag-to-reorder for a row of chips — `specs/features/arrangement.md` REQ-11.
+ * Drag-to-reorder for a row of chips — `specs/features/arrangement.md` REQ-a-chip-is-dragged-to-its-place.
  *
  * Wired once here rather than per lane (`recipes/design-an-interaction.md`
  * step 3): all four chain lanes come out of the same `buildChainLane`, and a
@@ -176,7 +176,7 @@ export function attachChipReorder(opts: ChipReorderOptions): () => void {
   const onCancel = (e: PointerEvent): void => {
     if (pointerId === null || idOf(e) !== pointerId) return;
     detachDrag();
-    reset(); // a cancelled pointer writes nothing (REQ-11)
+    reset(); // a cancelled pointer writes nothing (REQ-a-chip-is-dragged-to-its-place)
   };
 
   function detachDrag(): void {

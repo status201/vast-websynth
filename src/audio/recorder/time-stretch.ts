@@ -12,7 +12,7 @@
  * a button press, with the calling surface disabled, so `cheap` ranks far lower
  * here; ADR-010 carries a dated note saying so. `stable` is not relaxed: every
  * entry point below is total, and the output length is bounded before it is
- * allocated (REQ-6/REQ-7).
+ * allocated (REQ-every-stretch-entry-point-is-total/REQ-the-stretch-ratio-is-bounded).
  *
  * Two algorithms, because one does not cover the material:
  *
@@ -78,7 +78,7 @@ function monoMix(a: CapturedAudio, len: number): Float32Array {
  * Plain linear resample to an exact length. Used only for clips too short to
  * analyse ({@link MIN_ANALYSIS_FRAMES}) — a few milliseconds of audio is a click,
  * it has no pitch to preserve, and returning the wrong *length* there would break
- * REQ-3 for every caller to work around.
+ * REQ-fit-to-frames-is-the-primary-entry for every caller to work around.
  */
 function resampleLinear(a: CapturedAudio, len: number, out: number): CapturedAudio {
   const map = (src: Float32Array): Float32Array => {
@@ -115,7 +115,7 @@ function ncc(ref: Float32Array, refPos: number, cand: Float32Array, pos: number,
 }
 
 /**
- * WSOLA (REQ-2, REQ-5).
+ * WSOLA (REQ-two-stretch-modes, REQ-both-algorithms-decide-from-the-mid).
  *
  * The similarity search runs **once, on a mono mixdown**, and the winning offset
  * is applied to both channels. Searching each channel independently would splice
@@ -193,7 +193,7 @@ function wsola(a: CapturedAudio, len: number, out: number): CapturedAudio {
 }
 
 /**
- * Phase vocoder (REQ-2), with identity phase locking.
+ * Phase vocoder (REQ-two-stretch-modes), with identity phase locking.
  *
  * Per bin: measure how far the phase actually advanced over the analysis hop,
  * subtract the advance that bin would have made on its own, wrap the remainder
@@ -213,7 +213,7 @@ function wsola(a: CapturedAudio, len: number, out: number): CapturedAudio {
  * locking). It is one extra pass over the bins, and ADR-010 puts *musical* first.
  *
  * **The phase is derived once, from the mid (L+R), and applied to both channels as
- * the same rotation** — REQ-5, the rule WSOLA follows for the same reason. Running
+ * the same rotation** — REQ-both-algorithms-decide-from-the-mid, the rule WSOLA follows for the same reason. Running
  * the integration per channel is the obvious shape and it silently decorrelates
  * them: each channel drifts to its own phase, the stereo image smears, and the two
  * cancel when anything sums them. It costs nothing per channel and it is invisible
@@ -343,13 +343,13 @@ function vocoder(a: CapturedAudio, len: number, out: number): CapturedAudio {
 }
 
 /**
- * Retime `a` to exactly `targetFrames` (REQ-3) — the primary entry.
+ * Retime `a` to exactly `targetFrames` (REQ-fit-to-frames-is-the-primary-entry) — the primary entry.
  *
  * Takes the target directly rather than a ratio, because a ratio rounds: a clip
  * one or two frames off the bar is the whole failure this feature exists to
  * prevent.
  *
- * Total by contract (REQ-6): a non-finite or non-positive target, an empty
+ * Total by contract (REQ-every-stretch-entry-point-is-total): a non-finite or non-positive target, an empty
  * buffer, a target past `MAX_STRETCH_OUTPUT_FRAMES`, or a ratio outside
  * `MIN_STRETCH_RATIO..MAX_STRETCH_RATIO` all return a clone. The bound is checked
  * **before** anything is allocated — a ratio alone does not bound an allocation
@@ -364,7 +364,7 @@ export function fitToFrames(
   if (len === 0) return cloneCaptured(a);
 
   // Non-finite first: the app-wide `max(min, min(max, v))` idiom returns NaN for
-  // NaN (untrusted-input.md REQ-6), so clamping would let it straight through.
+  // NaN (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), so clamping would let it straight through.
   if (!Number.isFinite(targetFrames)) return cloneCaptured(a);
   const out = Math.round(targetFrames);
   if (out <= 0 || out > MAX_STRETCH_OUTPUT_FRAMES) return cloneCaptured(a);
@@ -372,7 +372,7 @@ export function fitToFrames(
   const ratio = out / len;
   if (ratio < MIN_STRETCH_RATIO || ratio > MAX_STRETCH_RATIO) return cloneCaptured(a);
 
-  // REQ-4 — a ratio of 1 runs no analysis at all. A claim about the code path,
+  // REQ-a-ratio-of-one-does-no-analysis — a ratio of 1 runs no analysis at all. A claim about the code path,
   // not about the value, and pinned by a test.
   if (out === len) return cloneCaptured(a);
 

@@ -83,7 +83,7 @@ export class Phaser extends WrappedEffect {
   /**
    * The allpass chain is memoryless in practice; what holds audio is the 0.05 s
    * feedback loop, which with feedback zeroed is empty within one pass
-   * (effects.md REQ-2c). 0.1 s is that with room to spare.
+   * (effects.md REQ-a-bypassed-effect-drains-before-disconnect). 0.1 s is that with room to spare.
    */
   protected override drainSeconds(): number { return 0.1; }
 

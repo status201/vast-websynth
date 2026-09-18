@@ -14,14 +14,14 @@ import { plural } from '../../utils/format';
  * to disk first".
  *
  * This module classifies and **routes**; it never validates or applies anything
- * itself (REQ-7). A song goes through `SongPanel.importBytes` — the same path the
+ * itself (REQ-paste-confirm-routes-by-kind). A song goes through `SongPanel.importBytes` — the same path the
  * file input uses, so error dialogs, the undo toast and the Play cue come free —
  * and a preset/bank goes into the preset manager's existing review step.
  *
  * `buildPasteImport` is a *fragment* rather than only a modal because it has two
  * homes: inline as step 3 of the ✨ AI Prompt modal (where the JSON actually
  * arrives) and inside `openPasteImportModal` behind the Song row's Paste button
- * (REQ-5). One implementation, two placements.
+ * (REQ-one-paste-fragment-two-placements). One implementation, two placements.
  */
 
 export interface PasteImportOptions {
@@ -31,10 +31,10 @@ export interface PasteImportOptions {
   onPresets: (parse: PresetParse) => void;
   /**
    * The live registry, so a pasted preset gets the same warnings a chosen file
-   * does (preset-authoring.md REQ-8). Omitted → structural checks only.
+   * does (preset-authoring.md REQ-semantic-severity-is-the-callers-choice). Omitted → structural checks only.
    */
   bus?: ParamBus;
-  /** Successful hand-off — the host closes itself (REQ-8: not called on failure). */
+  /** Successful hand-off — the host closes itself (REQ-a-refused-load-leaves-the-text: not called on failure). */
   onDone?: () => void;
   /** Renders a Cancel button beside the confirm (the modal wrapper passes one). */
   onCancel?: () => void;
@@ -146,7 +146,7 @@ export function buildPasteImport(opts: PasteImportOptions): PasteImport {
     try {
       if (c.kind === 'song' || c.kind === 'author') {
         const ok = await opts.onSong(new TextEncoder().encode(c.json), 'pasted-song.json');
-        // REQ-8 — the import path has already shown its own error dialog; keep
+        // REQ-a-refused-load-leaves-the-text — the import path has already shown its own error dialog; keep
         // the text so the user can fix a line instead of pasting again.
         if (!ok) return;
       } else {
@@ -166,7 +166,7 @@ export function buildPasteImport(opts: PasteImportOptions): PasteImport {
   return { el, focus: () => ta.focus() };
 }
 
-/** The fragment behind the Song row's Paste button (REQ-5). */
+/** The fragment behind the Song row's Paste button (REQ-one-paste-fragment-two-placements). */
 export function openPasteImportModal(opts: PasteImportOptions): void {
   const modal = new Modal({
     title: 'Paste song or preset JSON',

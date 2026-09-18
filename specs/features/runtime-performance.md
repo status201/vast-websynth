@@ -3,23 +3,23 @@
 ```yaml
 id: runtime-performance
 status: implemented
-version: 9   # v9: REQ-9 — a draw-only loop may hold a visibility-gated,
-             #     low-frequency watchdog to prove it came back (scope.md REQ-33)
-             # v8: REQ-4 — a folded section counts as off screen (scratch.md)
-             # v7: REQ-1 — the time-stretch DSP defers behind the FIT button
-             # v6: REQ-1 — deferring a surface makes its load fallible; the
+version: 9   # v9: REQ-visibility-gating-is-for-pixels-not-sound — a draw-only loop may hold a visibility-gated,
+             #     low-frequency watchdog to prove it came back (scope.md REQ-a-watchdog-restarts-a-stalled-loop)
+             # v8: REQ-no-work-for-offscreen-dom — a folded section counts as off screen (scratch.md)
+             # v7: REQ-boot-cost-matches-the-request — the time-stretch DSP defers behind the FIT button
+             # v6: REQ-boot-cost-matches-the-request — deferring a surface makes its load fallible; the
              #     trigger owes the user a report when the import rejects
-             # v5: REQ-2 — a bank of expensive artefacts is built per entry on
+             # v5: REQ-immutable-artefacts-are-shared — a bank of expensive artefacts is built per entry on
              #     first use, not whole; the PWM duty bank charged every patch
              #     ~86 MB of native memory for the one wave it actually used
-             # v4: REQ-10 — no viewport-scaled compositing effect on a persistent
+             # v4: REQ-no-viewport-scaled-compositing-on-hot-surfaces — no viewport-scaled compositing effect on a persistent
              #     overlay; the modal backdrop's blur cost a third of the frame
              #     rate whenever any dialog was open
-             # v3: REQ-1 — the onboarding layer and the Help & About modal load
+             # v3: REQ-boot-cost-matches-the-request — the onboarding layer and the Help & About modal load
              #     on demand; the eager button factory and the late-bound Debug
              #     setters split out so nothing drags the bodies back in
-             # v2: visibility gating is for pixels, not for sound (REQ-9);
-             #     REQ-4 scoped explicitly to repaints
+             # v2: visibility gating is for pixels, not for sound (REQ-visibility-gating-is-for-pixels-not-sound);
+             #     REQ-no-work-for-offscreen-dom scoped explicitly to repaints
 owner: core
 related:
   - architecture
@@ -30,10 +30,10 @@ related:
   - session-autosave
   - step-settings
   - song-mode
-  - transport            # REQ-9 — the worker-timer guarantee it generalises
-  - oscillators          # REQ-2 — the PWM duty bank, the worked example
-  - lazy-load-failure    # REQ-1 — what a deferred surface says when its load fails
-  - scratch              # REQ-4 — a folded section counts as off screen
+  - transport            # REQ-visibility-gating-is-for-pixels-not-sound — the worker-timer guarantee it generalises
+  - oscillators          # REQ-immutable-artefacts-are-shared — the PWM duty bank, the worked example
+  - lazy-load-failure    # REQ-boot-cost-matches-the-request — what a deferred surface says when its load fails
+  - scratch              # REQ-no-work-for-offscreen-dom — a folded section counts as off screen
 source:
   - src/state/params.ts
   - src/state/song.ts
@@ -41,25 +41,25 @@ source:
   - src/audio/effects/reverb.ts
   - src/audio/effects/distortion.ts
   - src/audio/drive-curve.ts
-  - src/audio/oscillator.ts                 # REQ-2 — the PWM duty bank, per-entry
+  - src/audio/oscillator.ts                 # REQ-immutable-artefacts-are-shared — the PWM duty bank, per-entry
   - src/audio/transport/drum-machine.ts
   - src/audio/transport/motion-machine.ts
   - src/audio/transport/motion-curve.ts
   - src/audio/transport/performance.ts
-  - src/audio/transport/tick-timer.ts        # the worker-backed wakeup REQ-9 mandates
+  - src/audio/transport/tick-timer.ts        # the worker-backed wakeup REQ-visibility-gating-is-for-pixels-not-sound mandates
   - src/ui/components/knob.ts
   - src/ui/components/step-settings.ts
   - src/ui/panels/step-panel-scaffold.ts
   - src/ui/app.ts
-  - src/main.ts                             # REQ-1 — the idle warms (lamejs,
+  - src/main.ts                             # REQ-boot-cost-matches-the-request — the idle warms (lamejs,
                                             #         onboarding, About)
-  - src/ui/onboarding/index.ts              # REQ-1 — the synchronous facade
-  - src/ui/onboarding/onboarding-impl.ts    # REQ-1 — the lazy body behind it
-  - src/ui/components/about-button.ts       # REQ-1 — eager factory, lazy modal body
-  - src/state/debug-sources.ts              # REQ-1 — late-bound rows, so main.ts
+  - src/ui/onboarding/index.ts              # REQ-boot-cost-matches-the-request — the synchronous facade
+  - src/ui/onboarding/onboarding-impl.ts    # REQ-boot-cost-matches-the-request — the lazy body behind it
+  - src/ui/components/about-button.ts       # REQ-boot-cost-matches-the-request — eager factory, lazy modal body
+  - src/state/debug-sources.ts              # REQ-boot-cost-matches-the-request — late-bound rows, so main.ts
                                             #         never imports the modal
-  - src/ui/styles/modal.module.css          # REQ-10 — the shared .backdrop
-  - src/ui/styles/tour.module.css           # REQ-10 — the tour's centred steps
+  - src/ui/styles/modal.module.css          # REQ-no-viewport-scaled-compositing-on-hot-surfaces — the shared .backdrop
+  - src/ui/styles/tour.module.css           # REQ-no-viewport-scaled-compositing-on-hot-surfaces — the tour's centred steps
   - scripts/clean-demos.ts
   - public/worklets/ladder-filter.js
 ```
@@ -86,11 +86,12 @@ so a reviewer has something concrete to hold a new feature against.
 
 ## Requirements
 
-- **REQ-1** — **Boot cost is proportional to what the user asked for.** Nothing whose size
-  scales with *content* may be downloaded, parsed or generated eagerly at boot when the
-  user will use at most one of it. Demo songs are fetched on click
-  ([`song-mode.md`](song-mode.md)); reverb IRs are generated on first use of a size
-  ([`effects.md`](effects.md)). Applies to bundle payload and to synchronous CPU alike.
+- **REQ-boot-cost-matches-the-request** — **Boot cost is proportional to what
+  the user asked for.** Nothing whose size scales with *content* may be
+  downloaded, parsed or generated eagerly at boot when the user will use at most
+  one of it. Demo songs are fetched on click ([`song-mode.md`](song-mode.md));
+  reverb IRs are generated on first use of a size ([`effects.md`](effects.md)).
+  Applies to bundle payload and to synchronous CPU alike.
 
   **A surface reached only by a deliberate click is loaded by that click.** A modal the
   player may never open still costs every visitor its parse time when it is imported
@@ -99,7 +100,7 @@ so a reviewer has something concrete to hold a new feature against.
   preset manager, the audio-export dialog, the WiFi pair modal (which also defers
   `jsqr`), the MP3 encoder (`lamejs`), the authoring-guide prompt text behind the
   AI Prompt button, the time-stretch DSP behind a slot row's FIT button
-  ([time-stretch](time-stretch.md) REQ-11), and the Help & About modal. The onboarding layer — the tour, the
+  ([time-stretch](time-stretch.md) REQ-the-slot-fit-button-is-a-quick-fit), and the Help & About modal. The onboarding layer — the tour, the
   info badges and the ~54 kB of help copy they read — loads on the first `startTour()`
   or badge toggle, behind the synchronous `Onboarding` facade so no caller learns that
   it is lazy.
@@ -125,7 +126,7 @@ so a reviewer has something concrete to hold a new feature against.
   `main.ts` calls at boot move to `state/debug-sources.ts`. **Both** edges had to go —
   cutting only the button would have left `main.ts` holding the modal in the entry
   chunk. A deferred surface the user can reach *offline* is warmed on idle
-  ([`pwa-install.md`](pwa-install.md) REQ-6).
+  ([`pwa-install.md`](pwa-install.md) REQ-service-worker-is-registered).
 
   **Deferring makes a surface's load fallible, and that cost is the trigger's to pay**
   (v6). A static import cannot fail after boot; an `import()` can, and the default —
@@ -141,10 +142,11 @@ so a reviewer has something concrete to hold a new feature against.
   threshold, and the warning firing is the signal that something joined the boot path
   that should not have.
 
-- **REQ-2** — **Expensive immutable artefacts are shared, not rebuilt per instance.** An
-  artefact that is a pure function of its inputs and immutable in use (an
-  `AudioBuffer` handed to a `ConvolverNode`, a `WaveShaperNode` curve) is cached by
-  those inputs and shared across every consumer. The three FX chains share one IR bank.
+- **REQ-immutable-artefacts-are-shared** — **Expensive immutable artefacts are
+  shared, not rebuilt per instance.** An artefact that is a pure function of its
+  inputs and immutable in use (an `AudioBuffer` handed to a `ConvolverNode`, a
+  `WaveShaperNode` curve) is cached by those inputs and shared across every
+  consumer. The three FX chains share one IR bank.
 
   **Sharing is half the rule; the other half is *when*** (v5). Where such artefacts
   form a **bank** — a set indexed by a discrete control — the entry is built **on
@@ -154,7 +156,7 @@ so a reviewer has something concrete to hold a new feature against.
 
   A bank built eagerly charges every patch for the whole index space, and the bill
   scales with the *resolution* of a control rather than with what the player
-  touched. The PWM duty bank ([`oscillators.md`](oscillators.md) REQ-6b) is the
+  touched. The PWM duty bank ([`oscillators.md`](oscillators.md) REQ-a-wave-bank-entry-is-built-on-first-use) is the
   worked example: 128 `PeriodicWave`s at ~670 KB of native memory each cost **~86 MB
   in one synchronous burst** the first time any width left `0.5` — for a patch that
   typically needs *one* of them.
@@ -164,8 +166,8 @@ so a reviewer has something concrete to hold a new feature against.
     internal FFT state and decoded `AudioBuffer`s are **native**, so they never
     appear in a JS heap snapshot and the JS heap does not move. A tab's total
     memory is the only place they show.
-  - It is not reachable by the other rules here. REQ-1 governs the boot path and
-    REQ-6 governs loops; a bank built lazily-but-wholly on a mid-session gesture
+  - It is not reachable by the other rules here. REQ-boot-cost-matches-the-request governs the boot path and
+    REQ-no-allocation-in-a-hot-loop governs loops; a bank built lazily-but-wholly on a mid-session gesture
     is outside both, and was the gap this rule now closes.
 
   **Building lazily is the whole of the rule — nothing is released again.** Once a
@@ -176,7 +178,7 @@ so a reviewer has something concrete to hold a new feature against.
   records that trade — a bypassed effect gives back its CPU
   ([ADR-012](../decisions/adr-012-true-bypass-disconnects.md)), not its memory —
   and gives it back after one bounded **drain**, not instantly, since it has to
-  render itself empty before it can be detached ([effects](effects.md) REQ-2c) —
+  render itself empty before it can be detached ([effects](effects.md) REQ-a-bypassed-effect-drains-before-disconnect) —
   and answers any future "free it while it is off" proposal, including the ~30 MB
   of reverb kernels the three FX chains hold from boot.
 
@@ -185,37 +187,43 @@ so a reviewer has something concrete to hold a new feature against.
   (28–205 MB spread for identical work). Isolated micro-benchmarks — one node
   type, one page — are the instrument; ablation on the running app is not.
 
-- **REQ-3** — **Global input listeners exist only for the duration of a gesture.** A
-  component MUST NOT hold a `window`/`document` `pointermove` listener at rest. Attach
-  on `pointerdown`, detach on `pointerup`/`pointercancel` and in `destroy()`.
-  `Knob.onPointerDown`/`detachDragListeners` is the reference implementation; see
-  [`add-a-ui-component.md`](../recipes/add-a-ui-component.md). Low-frequency global
-  listeners (`keydown`, `click`, `visibilitychange`, `resize`) are exempt.
+- **REQ-global-listeners-live-only-for-a-gesture** — **Global input listeners
+  exist only for the duration of a gesture.** A component MUST NOT hold a
+  `window`/`document` `pointermove` listener at rest. Attach on `pointerdown`,
+  detach on `pointerup`/`pointercancel` and in `destroy()`.
+  `Knob.onPointerDown`/`detachDragListeners` is the reference implementation;
+  see [`add-a-ui-component.md`](../recipes/add-a-ui-component.md). Low-frequency
+  global listeners (`keydown`, `click`, `visibilitychange`, `resize`) are
+  exempt.
 
-- **REQ-4** — **No work for DOM that is not on screen.** `TabContainer` hides inactive
-  panels with a class, so they stay live and subscribed. Any per-tick or per-bar repaint
-  MUST be gated on visibility (`TabContainer.isVisible` via the panel's
-  `VisibilityGate`) and MUST re-sync once on reveal, so a revealed panel shows the
-  current state immediately rather than a stale one. The rule governs **repaints
-  only** — see REQ-9 for the loops it must never be applied to.
+- **REQ-no-work-for-offscreen-dom** — **No work for DOM that is not on screen.**
+  `TabContainer` hides inactive panels with a class, so they stay live and
+  subscribed. Any per-tick or per-bar repaint MUST be gated on visibility
+  (`TabContainer.isVisible` via the panel's `VisibilityGate`) and MUST re-sync
+  once on reveal, so a revealed panel shows the current state immediately rather
+  than a stale one. The rule governs **repaints only** — see
+  REQ-visibility-gating-is-for-pixels-not-sound for the loops it must never be
+  applied to.
 
   A **folded** section counts as off screen. The sample editor's scratch graph
-  ([scratch](scratch.md) REQ-17) re-derives its source peaks from the selection,
+  ([scratch](scratch.md) REQ-the-preview-lane-remaps-cached-peaks) re-derives its source peaks from the selection,
   which a crop drag would otherwise pay for on every pointermove with the section
   closed; it is gated on the fold and re-synced from the collapse toggle's own
   change callback, which fires on reveal.
 
-- **REQ-5** — **Automation is not an edit.** A param write made by the machine
-  (motion-sequencer automation, a Tape Stop pitch ramp) MUST fire the per-param
-  listeners — knobs and the XY pad still track it — but MUST NOT reach
-  `ParamBus.onChange`. That signal means "the user changed the sound", and it drives
-  the autosave debounce and the preset dirty marker. A user gesture that happens to
-  animate (the XY pad's spring-back) is an edit and stays on the normal path.
+- **REQ-automation-is-not-an-edit** — **Automation is not an edit.** A param
+  write made by the machine (motion-sequencer automation, a Tape Stop pitch
+  ramp) MUST fire the per-param listeners — knobs and the XY pad still track it
+  — but MUST NOT reach `ParamBus.onChange`. That signal means "the user changed
+  the sound", and it drives the autosave debounce and the preset dirty marker. A
+  user gesture that happens to animate (the XY pad's spring-back) is an edit and
+  stays on the normal path.
 
-- **REQ-6** — **No allocation in a per-frame or per-sample loop.** Loops that run at frame
-  rate (`MotionMachine.frame`) or sample rate (worklet `process`) allocate nothing per
-  iteration: hoist derived values out, cache pure derivations keyed by the state that
-  produces them, and invalidate from the store's existing change streams.
+- **REQ-no-allocation-in-a-hot-loop** — **No allocation in a per-frame or
+  per-sample loop.** Loops that run at frame rate (`MotionMachine.frame`) or
+  sample rate (worklet `process`) allocate nothing per iteration: hoist derived
+  values out, cache pure derivations keyed by the state that produces them, and
+  invalidate from the store's existing change streams.
 
   Where a helper's natural signature is to *return* a small record, the frame path gets
   a **fill-a-caller's-holder twin** beside it rather than a rewrite of the shared one:
@@ -233,47 +241,53 @@ so a reviewer has something concrete to hold a new feature against.
   push a shared mutable buffer through the one piece of hit math the sequencer, drum
   machine and sampler are required to agree on.
 
-- **REQ-7** — **DOM writes are guarded on the rendered representation.** A repaint driven
-  by a continuous value compares what it is about to *write* (a rounded angle, a
-  formatted string) against the last written value and skips the unchanged ones —
-  guarding each write independently so the DOM never lags the latest value.
-  `Scope.mirrorPeak` and `StepButton.setViz` are the reference implementations.
+- **REQ-dom-writes-are-guarded-on-what-is-rendered** — **DOM writes are guarded
+  on the rendered representation.** A repaint driven by a continuous value
+  compares what it is about to *write* (a rounded angle, a formatted string)
+  against the last written value and skips the unchanged ones — guarding each
+  write independently so the DOM never lags the latest value. `Scope.mirrorPeak`
+  and `StepButton.setViz` are the reference implementations.
 
-- **REQ-8** — **A worklet optimisation is bit-exact or it is a sound change.** Rewrites of
-  per-sample DSP for speed MUST produce identical output for identical input (same
-  operands, same order) and be pinned by an equivalence test. Anything that alters the
-  output is a sound change and needs its own spec + ADR-010 justification.
+- **REQ-a-worklet-optimisation-is-bit-exact** — **A worklet optimisation is
+  bit-exact or it is a sound change.** Rewrites of per-sample DSP for speed MUST
+  produce identical output for identical input (same operands, same order) and
+  be pinned by an equivalence test. Anything that alters the output is a sound
+  change and needs its own spec + ADR-010 justification.
 
-- **REQ-9** — **Visibility gating is for pixels, not for sound** (v2). A loop that only
-  *draws* SHOULD stop while the document is hidden (`Scope` is the reference: it
-  pauses its redraw on `visibilitychange`). A loop that changes **what is heard** MUST
-  NOT — and therefore MUST NOT be driven by `requestAnimationFrame` alone, because
-  browsers suspend rAF entirely for a hidden document. Such a loop drives itself from
-  the worker-backed `TickTimer` (`audio/transport/tick-timer.ts`) while
-  `document.hidden`, at the same rate it uses when visible; rAF may drive it only
-  while visible, for the vsync alignment the knobs get for free. This is the same
-  guarantee [`transport.md`](transport.md) REQ-4 gives the clock, generalised: the
-  transport survived backgrounding while the motion sequencer — the one machine on a
-  bare rAF loop — froze mid-sweep and left its params stuck until the tab came back.
-  Deactivating on hide is doubly wrong for an automation loop: it would also have to
-  decide what to do with the values it wrote, and restoring them is an audible jump.
-  Gesture-scoped ramps (Tape Stop, the XY pad's spring-back) are exempt — they last
-  well under a second with the user watching.
+- **REQ-visibility-gating-is-for-pixels-not-sound** — **Visibility gating is for
+  pixels, not for sound** (v2). A loop that only *draws* SHOULD stop while the
+  document is hidden (`Scope` is the reference: it pauses its redraw on
+  `visibilitychange`). A loop that changes **what is heard** MUST NOT — and
+  therefore MUST NOT be driven by `requestAnimationFrame` alone, because
+  browsers suspend rAF entirely for a hidden document. Such a loop drives itself
+  from the worker-backed `TickTimer` (`audio/transport/tick-timer.ts`) while
+  `document.hidden`, at the same rate it uses when visible; rAF may drive it
+  only while visible, for the vsync alignment the knobs get for free. This is
+  the same guarantee [`transport.md`](transport.md) REQ-the-wakeup-timer-is-off-the-main-thread gives the clock,
+  generalised: the transport survived backgrounding while the motion sequencer —
+  the one machine on a bare rAF loop — froze mid-sweep and left its params stuck
+  until the tab came back. Deactivating on hide is doubly wrong for an
+  automation loop: it would also have to decide what to do with the values it
+  wrote, and restoring them is an audible jump. Gesture-scoped ramps (Tape Stop,
+  the XY pad's spring-back) are exempt — they last well under a second with the
+  user watching.
 
   (v9) A draw-only loop MAY hold a **low-frequency, visibility-gated watchdog** that
   proves it is still painting and restarts it if not — `Scope` is again the reference
-  ([`scope.md`](scope.md) REQ-33). "Stop while hidden" is a rule about doing *work*,
+  ([`scope.md`](scope.md) REQ-a-watchdog-restarts-a-stalled-loop). "Stop while hidden" is a rule about doing *work*,
   not about forgetting how to come back: a supervisor that returns on its first line
   while `document.hidden` does no work either, and stopping without one is how that
   panel twice ended up dead for the life of the page. The watchdog must be
   low-frequency (~1 Hz), allocate nothing, read no layout, and die with its component.
 
-- **REQ-10** — **No compositing effect whose cost scales with the viewport may sit on a
-  persistent overlay** (v4). A `backdrop-filter` on a full-screen, long-lived element
-  makes the compositor re-render the whole viewport every frame for as long as it is
-  mounted. Unlike every other rule here, that cost is **independent of what the overlay
-  contains and of whether anything beneath it changed** — so it cannot be gated away by
-  REQ-4's visibility rule or reduced by making the overlay's own contents cheaper.
+- **REQ-no-viewport-scaled-compositing-on-hot-surfaces** — **No compositing
+  effect whose cost scales with the viewport may sit on a persistent overlay**
+  (v4). A `backdrop-filter` on a full-screen, long-lived element makes the
+  compositor re-render the whole viewport every frame for as long as it is
+  mounted. Unlike every other rule here, that cost is **independent of what the
+  overlay contains and of whether anything beneath it changed** — so it cannot
+  be gated away by REQ-no-work-for-offscreen-dom's visibility rule or reduced by
+  making the overlay's own contents cheaper.
 
   Measured on the shared modal backdrop, with a demo playing: **60 → 34 fps** under GPU
   compositing (103 of 138 frames over the 24 ms budget) and **60 → 4.5 fps** under
@@ -285,7 +299,7 @@ so a reviewer has something concrete to hold a new feature against.
   modals and the start screen, with a second copy on the tour's centred steps — so the
   whole instrument ran at a third of its frame rate whenever any dialog was open, which
   is when the Debug panel's own cost gates (see [`debug-panel.md`](debug-panel.md)
-  REQ-3/REQ-11) were being carefully paid for elsewhere in the same modal.
+  REQ-debug-refreshes-while-expanded/REQ-debug-refresh-is-tiered-by-row-cost) were being carefully paid for elsewhere in the same modal.
 
   The dim alone (`rgba(8, 6, 3, 0.82)`) is what separates the card from the faceplate;
   a 2 px blur behind 82 % opacity was buying almost no visible difference for that
@@ -297,10 +311,10 @@ so a reviewer has something concrete to hold a new feature against.
 ### Contract / public interface
 
 ```ts
-// state/params.ts — REQ-5. Per-param listeners still fire; onChange does not.
+// state/params.ts — REQ-automation-is-not-an-edit. Per-param listeners still fire; onChange does not.
 ParamBus.withoutChangeSignal(fn: () => void): void
 
-// ui/panels/step-panel-scaffold.ts — REQ-4. One per machine panel.
+// ui/panels/step-panel-scaffold.ts — REQ-no-work-for-offscreen-dom. One per machine panel.
 class VisibilityGate {
   readonly shown: boolean;
   set(visible: boolean): void;     // driven by TabContainer.onViewChange
@@ -311,22 +325,22 @@ class VisibilityGate {
 `withoutChangeSignal` re-entrantly brackets the existing `suppressChange` counter that
 `ParamBus.restore`/`resetDefaults` already use for bulk applies — the same idea ("this
 is not a user edit"), now reachable by the audio layer. Callers on a per-frame path
-pass a **pre-bound** closure rather than an inline arrow (REQ-6).
+pass a **pre-bound** closure rather than an inline arrow (REQ-no-allocation-in-a-hot-loop).
 
 ### Layer touchpoints & ordering
 
 | Rule | Enforced at |
 |---|---|
-| REQ-1 | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
-| REQ-2 | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
-| REQ-3 | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
-| REQ-4 | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
-| REQ-5 | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
-| REQ-6 | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
-| REQ-7 | `ui/components/knob.ts` |
-| REQ-8 | `public/worklets/*.js` |
-| REQ-9 | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden, + a visible-only 1 Hz liveness watchdog) |
-| REQ-10 | `ui/styles/modal.module.css` (`.backdrop`), `ui/styles/tour.module.css` (`.centered`) — pinned repo-wide by `tests/ui/overlay-cost.test.ts` |
+| REQ-boot-cost-matches-the-request | `state/song.ts` (`?url` demo glob + build-time index), `audio/effects/reverb.ts`, `ui/onboarding/index.ts` (facade → `onboarding-impl.ts`), `ui/components/about-button.ts` (→ `about-modal.ts`), `state/debug-sources.ts`, `main.ts` (idle warms); the rejection report is `lazy-load-failure.md` |
+| REQ-immutable-artefacts-are-shared | `audio/effects/reverb.ts` (IR bank), `audio/effects/distortion.ts` + `audio/transport/drum-machine.ts` (drive curves), `audio/oscillator.ts` (the PWM duty bank — per entry, v5) |
+| REQ-global-listeners-live-only-for-a-gesture | `ui/components/step-settings.ts`, `knob.ts`, `strip.ts`, `floating-window.ts` |
+| REQ-no-work-for-offscreen-dom | `ui/panels/step-panel-scaffold.ts` (`wirePlayhead`), the four machine panels, `ui/app.ts` |
+| REQ-automation-is-not-an-edit | `state/params.ts`, `audio/transport/motion-machine.ts`, `audio/transport/performance.ts` |
+| REQ-no-allocation-in-a-hot-loop | `audio/transport/motion-machine.ts`, `audio/transport/motion-curve.ts` (`valueAtInto`), `state/xy-effective.ts` (`motionAxesInto`/`motionAxesMatch`), `state/xy-pad.ts` (`readAssignInto`) |
+| REQ-dom-writes-are-guarded-on-what-is-rendered | `ui/components/knob.ts` |
+| REQ-a-worklet-optimisation-is-bit-exact | `public/worklets/*.js` |
+| REQ-visibility-gating-is-for-pixels-not-sound | `audio/transport/motion-machine.ts` (worker timer while hidden), `ui/components/scope.ts` (pauses while hidden, + a visible-only 1 Hz liveness watchdog) |
+| REQ-no-viewport-scaled-compositing-on-hot-surfaces | `ui/styles/modal.module.css` (`.backdrop`), `ui/styles/tour.module.css` (`.centered`) — pinned repo-wide by `tests/ui/overlay-cost.test.ts` |
 
 The `VisibilityGate` is created by each panel builder and returned on its
 `MachinePanel`; `buildPatternRow` wires every gate from one `tabs.onViewChange`, which
@@ -369,14 +383,14 @@ Scenario: the reverb IR bank is shared and lazily built
   Then that IR is generated once and reused by every reverb thereafter
 # pinned by: tests/audio/effects/reverb.test.ts
 
-Scenario: a bank of artefacts is built per entry, not whole (REQ-2, v5, regression)
+Scenario: a bank of artefacts is built per entry, not whole (REQ-immutable-artefacts-are-shared, v5, regression)
   Given no pulse width has been used yet
   When one width is selected
   Then exactly one PeriodicWave is built, not the whole duty bank
   # 128 entries x ~670 KB of native memory is ~86 MB, invisible to a heap snapshot
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
-Scenario: an audio-affecting loop survives a hidden document (REQ-9, regression)
+Scenario: an audio-affecting loop survives a hidden document (REQ-visibility-gating-is-for-pixels-not-sound, regression)
   Given the motion sequencer is enabled with anchors and the transport is playing
   When the document becomes hidden and rAF stops being delivered
   Then the loop is driven by the worker-backed timer at the same perf-tier fps
@@ -406,7 +420,7 @@ Scenario: opening About twice while the body loads builds one modal
   Then one backdrop is created and appended
 # pinned by: tests/ui/about.test.ts
 
-Scenario: a deferred surface whose import rejects reports instead of doing nothing (v6, REQ-1)
+Scenario: a deferred surface whose import rejects reports instead of doing nothing (v6, REQ-boot-cost-matches-the-request)
   Given a trigger whose import() rejects (offline, chunk never cached)
   When the user activates it
   Then a toast names the surface and offers Retry
@@ -414,7 +428,7 @@ Scenario: a deferred surface whose import rejects reports instead of doing nothi
 # pinned by: tests/ui/lazy-load-failure.test.ts
 #            (behaviour spec'd in full at lazy-load-failure.md)
 
-Scenario: an open dialog does not cost the app its frame rate (REQ-10, regression)
+Scenario: an open dialog does not cost the app its frame rate (REQ-no-viewport-scaled-compositing-on-hot-surfaces, regression)
   Given the transport is playing
   When the About modal — or any other Modal, the tour's centred step, or the
     start screen — is open over the faceplate
@@ -433,19 +447,19 @@ Scenario: a worklet speed rewrite changes no samples
 
 - Unit: `tests/state/session-autosave.test.ts`, `tests/audio/ladder-filter-worklet.test.ts`,
   `tests/audio/effects/reverb.test.ts`, `tests/ui/step-settings.test.ts`,
-  `tests/audio/transport/motion-machine.test.ts` (REQ-9's driver swap),
-  `tests/ui/onboarding-facade.test.ts` + `tests/ui/about.test.ts` (REQ-1's lazy
-  surfaces), `tests/ui/overlay-cost.test.ts` (REQ-10's drift pin) — `npm test`
+  `tests/audio/transport/motion-machine.test.ts` (REQ-visibility-gating-is-for-pixels-not-sound's driver swap),
+  `tests/ui/onboarding-facade.test.ts` + `tests/ui/about.test.ts` (REQ-boot-cost-matches-the-request's lazy
+  surfaces), `tests/ui/overlay-cost.test.ts` (REQ-no-viewport-scaled-compositing-on-hot-surfaces's drift pin) — `npm test`
 - E2E: `e2e/session.spec.ts`, `e2e/motion.spec.ts`, `e2e/patterns.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
-- Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-1 metric.
-  Nothing in CI runs it, so REQ-1 regressions are caught only by a human reading the
+- Boot payload: `npm run build` — the entry + `demos` chunk sizes are the REQ-boot-cost-matches-the-request metric.
+  Nothing in CI runs it, so REQ-boot-cost-matches-the-request regressions are caught only by a human reading the
   500 kB warning; that is how the onboarding layer stayed eager for a release after
   this spec said it was lazy. A `dist/assets/index-*.js` that grows without a
   deliberate reason is the signal to re-check what joined the boot path.
-- Profiling: a DevTools Performance trace of boot (REQ-1/REQ-2) and a 10 s trace of a
-  motion-heavy demo playing (REQ-5/REQ-6/REQ-7 — watch the GC sawtooth).
-- REQ-10 is a *frame-rate* rule that its unit test can only pin by proxy (the absence
+- Profiling: a DevTools Performance trace of boot (REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared) and a 10 s trace of a
+  motion-heavy demo playing (REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop/REQ-dom-writes-are-guarded-on-what-is-rendered — watch the GC sawtooth).
+- REQ-no-viewport-scaled-compositing-on-hot-surfaces is a *frame-rate* rule that its unit test can only pin by proxy (the absence
   of the declaration). To measure it for real, sample `requestAnimationFrame` deltas
   over a few seconds with a demo playing, first with nothing open and then with a
   dialog open, and compare the count of frames over 24 ms. Run it **headed** —
@@ -454,11 +468,11 @@ Scenario: a worklet speed rewrite changes no samples
 
 ## Open questions / future
 
-- REQ-1 has no automated gate either — CI never runs `npm run build`, so the entry
+- REQ-boot-cost-matches-the-request has no automated gate either — CI never runs `npm run build`, so the entry
   chunk can grow silently between releases. A `scripts/check-bundle.mjs` asserting a
   ceiling on `dist/assets/index-*.js`, plus a CI `build` job, would make the 500 kB
   rule self-enforcing instead of a thing a reviewer has to remember.
-- REQ-3 has no automated repo-wide gate; a lint rule banning constructor-scope
+- REQ-global-listeners-live-only-for-a-gesture has no automated repo-wide gate; a lint rule banning constructor-scope
   `window.addEventListener('pointermove', …)` would make it self-enforcing.
 - The oscillators of a fully idle voice still run (only the ladder filter is
   idle-gated). Gating them would need a per-voice start/stop model — worth measuring

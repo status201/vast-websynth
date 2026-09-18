@@ -1,5 +1,5 @@
 /**
- * One table of offline-manifest validation cases (play-offline.md REQ-9), run
+ * One table of offline-manifest validation cases (play-offline.md REQ-the-manifest-is-same-origin-build-output), run
  * against both readers of the file: the page's `parseOfflineManifest`
  * (tests/utils/offline-copy.test.ts) and the worker's `parseManifest`
  * (tests/pwa/sw.test.ts). `sw.js` sits outside the bundle and cannot import the

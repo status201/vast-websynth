@@ -3,7 +3,7 @@ import { anythingToPlay } from '../../../src/audio/transport/anything-to-play';
 import { PatternStore, REST } from '../../../src/state/patterns';
 import type { ChainLane } from '../../../src/audio/transport/arrangement';
 
-/** empty-play-hint.md REQ-2 — the pure "would starting the transport sound?" rule. */
+/** empty-play-hint.md REQ-anything-to-play-is-pure — the pure "would starting the transport sound?" rule. */
 
 const lane = (enabled = false, steps: number[] = [0]): ChainLane => ({ enabled, steps });
 

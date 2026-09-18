@@ -20,11 +20,11 @@ import { compactSongForExport } from './serialize';
 
 /**
  * The pre-v8 single key. Still READ as a restore candidate so an existing
- * session survives the upgrade; never written again (REQ-12).
+ * session survives the upgrade; never written again (REQ-each-tab-autosaves-to-its-own-key).
  */
 export const SESSION_KEY = 'websynth.session';
 
-/** Per-tab session keys: `websynth.session.<tabId>` (REQ-12). */
+/** Per-tab session keys: `websynth.session.<tabId>` (REQ-each-tab-autosaves-to-its-own-key). */
 const SESSION_PREFIX = 'websynth.session.';
 
 /** Where a tab remembers its own id. sessionStorage is per-tab by definition. */
@@ -51,7 +51,7 @@ interface SessionPayload {
  *
  * With storage unavailable every tab answers `'0'`, which collapses back to one
  * shared key: the old last-writer-wins behaviour, degraded rather than broken
- * (REQ-11's posture).
+ * (REQ-autosave-storage-failures-are-silent's posture).
  */
 function tabId(): string {
   try {
@@ -94,7 +94,7 @@ function removeKey(key: string): void {
 export class SessionAutosave {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly debounceMs: number;
-  /** This tab's own key - the only one this instance ever writes (REQ-12). */
+  /** This tab's own key - the only one this instance ever writes (REQ-each-tab-autosaves-to-its-own-key). */
   private readonly key = SESSION_PREFIX + tabId();
 
   constructor(
@@ -180,7 +180,7 @@ export class SessionAutosave {
       localStorage.setItem(this.key, json);
     } catch {
       // Out of room. Keeping other tabs' sessions must never cost us our OWN
-      // (REQ-12): drop them and try once more before standing down per REQ-11.
+      // (REQ-each-tab-autosaves-to-its-own-key): drop them and try once more before standing down per REQ-autosave-storage-failures-are-silent.
       for (const { key } of storedSessions()) if (key !== this.key) removeKey(key);
       try {
         localStorage.setItem(this.key, json);
@@ -207,7 +207,7 @@ export class SessionAutosave {
   static load(): SongFile | null {
     // This tab's own session first, so a reload lands exactly where it was; then
     // the most recent of anyone else's, which is what keeps "tab close loses
-    // nothing" true once the tab that did the work is gone (REQ-12).
+    // nothing" true once the tab that did the work is gone (REQ-each-tab-autosaves-to-its-own-key).
     const own = SESSION_PREFIX + tabId();
     const rest = storedSessions().map((e) => e.key).filter((k) => k !== own);
     for (const key of [own, ...rest]) {
@@ -228,7 +228,7 @@ export class SessionAutosave {
    * Debug panel (debug-panel.md), which also offers to clear it: an autosave
    * the app chokes on is otherwise only escapable via a full factory reset.
    *
-   * Deliberately **parse-free** (REQ-13): this is on a poll, and the payload is
+   * Deliberately **parse-free** (REQ-stats-never-parses-the-payload): this is on a poll, and the payload is
    * the whole session — megabytes once samples are in play — so parsing it to
    * recover one number is out of all proportion to the answer.
    */

@@ -1,7 +1,7 @@
 import type { TickSubscriber, TickListener } from '../../../src/audio/transport/tick-source';
 import { MAX_STEP } from '../../../src/state/limits';
 
-/** Mirrors the real `Clock`'s ingress bound (transport.md REQ-10): clamped, not
+/** Mirrors the real `Clock`'s ingress bound (transport.md REQ-the-step-counter-is-bounded-at-ingress): clamped, not
  *  masked, so a lane length that does not divide a power of two keeps its phase. */
 function clampStep(step: number): number {
   if (!Number.isFinite(step)) return 0;
@@ -51,7 +51,7 @@ export class TestClock implements TickSubscriber {
     this.bpm = Math.max(20, Math.min(400, bpm));
   }
 
-  /** Settable so a test can drive lane-relative swing (meter.md REQ-16) without
+  /** Settable so a test can drive lane-relative swing (meter.md REQ-swing-is-computed-on-the-lanes-grid) without
    *  reimplementing the real Clock's grid. */
   swing = 0;
 
@@ -72,7 +72,7 @@ export class TestClock implements TickSubscriber {
 
   fireStart(fromStep = 0): void {
     this.playing = true;
-    this.step = clampStep(fromStep); // mirrors Clock.start(fromStep) (transport.md REQ-5/REQ-10)
+    this.step = clampStep(fromStep); // mirrors Clock.start(fromStep) (transport.md REQ-start-seeds-the-step/REQ-the-step-counter-is-bounded-at-ingress)
     for (const l of this.startListeners) l();
   }
 
@@ -82,7 +82,7 @@ export class TestClock implements TickSubscriber {
   }
 
   /** Mirrors Clock.seek: moves the step + cue, leaves the grid alone
-   *  (transport.md REQ-6/REQ-7). */
+   *  (transport.md REQ-seek-moves-a-running-clock/REQ-the-cue-is-where-start-begins). */
   fireSeek(step: number): void {
     this.cue = this.step = clampStep(step);
     for (const l of this.seekListeners) l();
@@ -92,7 +92,7 @@ export class TestClock implements TickSubscriber {
   stop(): void { this.fireStop(); }
   seek(step: number): void { this.fireSeek(step); }
 
-  /** Mirrors Clock.pause (transport.md REQ-12): the cue reads the resume point
+  /** Mirrors Clock.pause (transport.md REQ-pause-resumes-where-it-stopped): the cue reads the resume point
    *  before stop listeners run. Stopped, it does nothing. */
   paused = false;
   pause(): void {

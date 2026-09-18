@@ -16,14 +16,16 @@
 //   • `id` present and equal to the filename (without .md)
 //   • a valid `status` — ADR lifecycle under decisions/, else feature lifecycle
 //   • every root-anchored `# pinned by:` path resolves (literal exists; glob ≥1)
+//   • REQ ids are well-formed and unique, and a NEW one is a slug — numbers are
+//     frozen per spec by lib/req-legacy.mjs (ADR-021)
 //   • every gherkin `Scenario:` carries a trailing `#` note — a pin, or an
 //     explicit reason there is none (warning)
 // Plus repo-structure checks (drift prevention):
 //   • every spec / ADR / template file is listed in the specs/README.md folder map
 //   • every ADR is listed in the specs/decisions/README.md index
 // Plus cross-reference checks — the prose that points INTO specs and code:
-//   • every `x.md REQ-n` / bare `x REQ-n` citation — in specs, the root docs AND
-//     code/test comments — finds REQ-n declared in x.md (`citationsIn`)
+//   • every `x.md REQ-<id>` / bare `x REQ-<id>` citation — in specs, the root docs
+//     AND code/test comments — finds that id declared in x.md (`citationsIn`)
 //   • every backticked code name in specs and docs (`Class.member`, `someFn()`,
 //     `camelCase`) is an identifier the code still has (`staleNamesIn`)
 // `version` not being a positive integer is a warning, not a failure.
@@ -31,7 +33,10 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { citationsIn, staleNamesIn } from './lib/spec-xref.mjs';
+import { citationsIn, hasReq, staleNamesIn } from './lib/spec-xref.mjs';
+import { globToRegExp } from './lib/glob.mjs';
+import { checkSpecReqs, declaredReqs, duplicateSlugs } from './lib/spec-reqs.mjs';
+import { legacyCeiling } from './lib/req-legacy.mjs';
 
 function git(args, cwd) {
   try {
@@ -70,23 +75,6 @@ function repoFiles() {
   if (_repoFiles) return _repoFiles;
   _repoFiles = walk(ROOT).map(rel);
   return _repoFiles;
-}
-
-function globToRegExp(glob) {
-  let re = '';
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === '*') {
-      if (glob[i + 1] === '*') { re += '.*'; i++; } else { re += '[^/]*'; }
-    } else if (c === '?') {
-      re += '[^/]';
-    } else if ('.+^${}()|[]\\'.includes(c)) {
-      re += '\\' + c;
-    } else {
-      re += c;
-    }
-  }
-  return new RegExp('^' + re + '$');
 }
 
 /** First ```yaml fenced block's body, or null. */
@@ -156,43 +144,6 @@ function sourcePaths(block) {
   return out;
 }
 
-/** Headings that end the requirements region — everything after is not a REQ list. */
-const AFTER_REQS = /^## (Technical design|Visual aids|Scenarios|Tests & verification|Open questions)/;
-
-/**
- * `REQ-<n><suffix>` ids declared between `## Requirements` and the first
- * design/scenario/test heading, in document order. The window deliberately spans
- * intermediate `##` sections: a spec that grew in versioned rounds
- * (`midi-clock-sync.md`'s "## v2 additions", "## v3 fix — …") keeps declaring
- * REQs under them, and those are declarations like any other.
- *
- * Only a top-level `- **REQ-n**` bullet declares one — a prose bullet that merely
- * *starts* with a REQ reference does not, which is why the bold must close right
- * after the id.
- */
-function declaredReqs(text) {
-  const lines = text.split(/\r?\n/);
-  let start = -1;
-  let end = lines.length;
-  for (let i = 0; i < lines.length; i++) {
-    if (start < 0) { if (/^## Requirements/.test(lines[i])) start = i; }
-    else if (AFTER_REQS.test(lines[i])) { end = i; break; }
-  }
-  if (start < 0) return [];
-  const out = [];
-  for (let i = start + 1; i < end; i++) {
-    const m = lines[i].match(/^- \*\*REQ-(\d+[a-z]*)\*\*/);
-    if (m) out.push({ tag: m[1], line: i + 1 });
-  }
-  return out;
-}
-
-/** Sort key for a REQ tag: `5` < `5a` < `5b` < `6`. */
-function reqKey(tag) {
-  const m = tag.match(/^(\d+)([a-z]*)$/);
-  return [Number(m[1]), m[2]];
-}
-
 /**
  * Scenarios inside a ```gherkin block that carry no trailing `#` comment at all.
  *
@@ -235,11 +186,11 @@ function unpinnedScenarios(text) {
 
 // ---- Cross-reference checks ------------------------------------------------
 //
-// `[x](x.md) … REQ-n` inside a spec was the only citation checked, and it is the
-// minority form: code comments write `transport-position.md REQ-6` or bare
-// `arrangement REQ-4`, and so do many specs. Nothing held those, so a renumbered
+// `[x](x.md) … REQ-<id>` inside a spec was the only citation checked, and it is the
+// minority form: code comments write `transport-position.md REQ-seeking-is-refused-in-three-states` or bare
+// `arrangement REQ-start-seeks-every-lane`, and so do many specs. Nothing held those, so a renumbered
 // or misremembered REQ rotted silently — a 2026-09 review found three specs
-// citing the arrangement spec's REQ 16 for the per-slot transpose, which is REQ-8.
+// citing the arrangement spec's REQ 16 for the per-slot transpose, which is REQ-a-seq-slot-carries-a-transpose.
 // The same review found specs naming symbols the code had renamed or deleted
 // (`demoMeta`, `clearPeakDataset`, `buildXyPadLauncher`). Both checks are pure
 // text over the checkout, so they stay zero-dep and CI needs no `npm install`.
@@ -256,10 +207,18 @@ const ROOT_CODE = ['tsconfig.json', 'package.json', 'vite.config.ts', 'playwrigh
 const ROOT_DOCS = ['CLAUDE.md', 'AGENTS.md', 'DEPLOYMENT.md', 'README.md', 'src/ui/CLAUDE.md', 'e2e/CLAUDE.md'];
 /**
  * Code whose citations are not claims: vendored and JSON files (their identifiers
- * still count), and this lint's own test, whose fixtures are wrong citations on
- * purpose.
+ * still count), and this lint's own tests, whose fixtures are wrong citations and
+ * refused ids on purpose.
  */
-const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-xref\.test\.ts$/;
+const NOT_OURS = /^src\/vendor\/|\.json$|^tests\/scripts\/spec-(?:xref|reqs)\.test\.ts$/;
+
+/**
+ * Prose that names ids on purpose which no spec declares — so the bare-slug check
+ * is not run over it. An ADR names the alternative it rejected (the same reason
+ * `staleNamesIn` skips ADRs), and the spec tooling has to spell example ids to
+ * document the grammar it enforces.
+ */
+const NAMES_IDS_BY_EXAMPLE = /\/decisions\/|^scripts\/(?:spec-lint|req-migrate)\.mjs$|^scripts\/lib\/(?:spec-reqs|spec-xref|req-legacy)\.mjs$/;
 
 /** Demo songs are 4 MB of note data: no identifier a doc could name, and no comments. */
 const NOT_CODE = /^src\/state\/demos\//;
@@ -302,12 +261,22 @@ function lint(failExit) {
     return base !== 'README.md' && !base.startsWith('_');
   });
 
-  // Cross-spec `REQ-n` references are checked against this, so it must be built
+  // Cross-spec `REQ-<id>` references are checked against this, so it must be built
   // before the per-spec pass.
+  const declaredBySpec = new Map();
   const reqsById = new Map();
   for (const file of specs) {
-    reqsById.set(path.basename(file, '.md'),
-      new Set(declaredReqs(readFileSync(file, 'utf8')).map((r) => r.tag)));
+    const specId = path.basename(file, '.md');
+    const reqs = declaredReqs(readFileSync(file, 'utf8'));
+    declaredBySpec.set(specId, reqs);
+    reqsById.set(specId, new Set(reqs.map((r) => r.tag)));
+  }
+
+  // A slug names one requirement repo-wide, which is the property a number never
+  // had and the reason a citation of a slug can resolve on its own.
+  const fileOf = new Map(specs.map((f) => [path.basename(f, '.md'), rel(f)]));
+  for (const { specId, message } of duplicateSlugs(declaredBySpec)) {
+    errors.push(`${fileOf.get(specId)}: ${message}`);
   }
 
   for (const file of specs) {
@@ -363,30 +332,13 @@ function lint(failExit) {
       }
     }
 
-    // REQ ids: unique, and in ascending order so the list reads 1,2,3. They are
-    // stable cross-spec identifiers, so a REQ inserted later is APPENDED and the
-    // bullet moved into place — never renumbered.
-    const reqs = declaredReqs(text);
-    const seen = new Map();
-    for (const { tag, line } of reqs) {
-      if (seen.has(tag)) err(`duplicate \`REQ-${tag}\` (line ${line}; first at line ${seen.get(tag)})`);
-      else seen.set(tag, line);
-    }
-    for (let i = 1; i < reqs.length; i++) {
-      const [pn, ps] = reqKey(reqs[i - 1].tag);
-      const [cn, cs] = reqKey(reqs[i].tag);
-      if (cn < pn || (cn === pn && cs < ps)) {
-        err(`\`REQ-${reqs[i].tag}\` (line ${reqs[i].line}) is out of order — it follows \`REQ-${reqs[i - 1].tag}\``);
-        break; // one report per spec; the whole list needs re-sorting anyway
-      }
-    }
-    // A gap is only a warning: a reserved range is plausible, a scrambled list is not.
-    const nums = [...new Set(reqs.map((r) => reqKey(r.tag)[0]))];
-    if (nums.length) {
-      const missing = [];
-      for (let n = 1; n <= Math.max(...nums); n++) if (!nums.includes(n)) missing.push(n);
-      if (missing.length) warn(`gap in the REQ sequence: no REQ-${missing.join(', REQ-')}`);
-    }
+    // REQ ids — the grammar, uniqueness within the spec, the legacy numbers' order
+    // and density, and the freeze that makes a NEW number an error. The rules live
+    // in lib/spec-reqs.mjs, where tests can show each one refusing what it exists
+    // to refuse; the ceiling comes from lib/req-legacy.mjs.
+    const reqReport = checkSpecReqs(text, legacyCeiling(expectedId));
+    reqReport.errors.forEach(err);
+    reqReport.warnings.forEach(warn);
 
     // Every scenario says how it is held — a test, or an explicit reason there
     // is none. See `unpinnedScenarios` for why this is a warning.
@@ -394,19 +346,21 @@ function lint(failExit) {
       warn(`line ${line}: scenario "${name}" names no \`# pinned by:\` test and gives no reason`);
     }
 
-    // A cross-spec `[x](x.md) … REQ-n` must actually find REQ-n in x.md — this is
-    // what rots when a REQ is renumbered and its referrers are not.
+    // A cross-spec `[x](x.md) … REQ-<id>` must actually find that id in x.md — this
+    // is what rots when a REQ is renamed and its referrers are not. `hasReq`, not a
+    // bare lookup, so a lettered part resolves here exactly as it does everywhere
+    // else a citation is checked.
     text.split(/\r?\n/).forEach((line, i) => {
-      for (const m of line.matchAll(/\]\(([a-z0-9-]+)\.md(?:#[^)]*)?\)[^.]{0,60}?REQ-(\d+[a-z]*)/g)) {
+      for (const m of line.matchAll(/\]\(([a-z0-9-]+)\.md(?:#[^)]*)?\)[^.]{0,60}?REQ-([a-z0-9]+(?:-[a-z0-9]+)*)/g)) {
         const target = reqsById.get(m[1]);
         if (!target) err(`line ${i + 1}: reference to unknown spec \`${m[1]}.md\``);
-        else if (!target.has(m[2])) err(`line ${i + 1}: \`${m[1]}.md\` declares no \`REQ-${m[2]}\``);
+        else if (!hasReq(target, m[2])) err(`line ${i + 1}: \`${m[1]}.md\` declares no \`REQ-${m[2]}\``);
       }
     });
   }
 
   // Cross-references (see `citationsIn` / `staleNamesIn`). Citations are checked
-  // wherever they are written — a code comment's `transport.md REQ-7` is as much
+  // wherever they are written — a code comment's `transport.md REQ-the-cue-is-where-start-begins` is as much
   // a claim as a spec's. Code names are checked in specs and docs only, and not
   // in ADRs: a decision record names the alternatives it rejected, which by
   // design never existed.
@@ -419,7 +373,10 @@ function lint(failExit) {
   ];
   for (const f of citing) {
     const text = textOf(f);
-    for (const msg of citationsIn(text, reqsById, knownMd, f.startsWith('specs/'))) errors.push(`${f}: ${msg}`);
+    const bareSlugs = !NAMES_IDS_BY_EXAMPLE.test(f);
+    for (const msg of citationsIn(text, reqsById, knownMd, f.startsWith('specs/'), bareSlugs)) {
+      errors.push(`${f}: ${msg}`);
+    }
   }
   const ids = codeIdentifiers();
   for (const f of [...specs.map(rel).filter((f) => !f.includes('/decisions/')), ...rootDocs]) {

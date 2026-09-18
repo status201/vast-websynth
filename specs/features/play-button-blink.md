@@ -32,16 +32,17 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
 
 ## Requirements
 
-- **REQ-1** (beat blink, pre-existing) — While the transport plays, the LED is
-  red (`.on`) and blinks with the beat: lit for steps 0–1 of each beat, dimmed
-  (`.blink` class) for steps 2–3, driven by `clock.onTick`.
-- **REQ-2** (idle attract) — While the transport is stopped, the LED pulses
-  **orange, slowly** (~2 s cycle, CSS animation via the `attract` class) so the
-  transport is discoverable. Active from boot.
-- **REQ-3** (silent-action cue, v2) — Any action that stays *audibly inert
-  until the transport runs* arms a **fast green blink** (~0.4 s cycle, `cue`
-  class) — a "press play" call to action — when it happens while the transport
-  is **stopped**. Cueing actions:
+- **REQ-led-blinks-with-the-beat** (beat blink, pre-existing) — While the
+  transport plays, the LED is red (`.on`) and blinks with the beat: lit for
+  steps 0–1 of each beat, dimmed (`.blink` class) for steps 2–3, driven by
+  `clock.onTick`.
+- **REQ-stopped-led-pulses-to-attract** (idle attract) — While the transport is
+  stopped, the LED pulses **orange, slowly** (~2 s cycle, CSS animation via the
+  `attract` class) so the transport is discoverable. Active from boot.
+- **REQ-silent-actions-arm-a-green-cue** (silent-action cue, v2) — Any action
+  that stays *audibly inert until the transport runs* arms a **fast green
+  blink** (~0.4 s cycle, `cue` class) — a "press play" call to action — when it
+  happens while the transport is **stopped**. Cueing actions:
   - loading a **demo** (any demo button, JSON or zip; also the tour's `loadDemo`);
   - the Song panel's **Load** button (localStorage slot);
   - a successful song/project **import** (Import button, OS file launch,
@@ -54,20 +55,22 @@ two stopped-state blinks: a subtle standing "attract" pulse, and a stronger
   The same action while already playing does *not* arm the cue. The signal
   travels via `UiBridge.cuePlay` (callers → header), assigned in `buildHeader`
   before any UI can fire it.
-- **REQ-4** (exclusivity & lifecycle) — At most one blink state at a time:
-  `attract` and `cue` are only present while stopped (cue wins while armed);
-  starting the transport clears both and consumes the cue; stopping returns to
-  `attract`. The beat blink runs only while playing (unchanged).
-- **REQ-5** (reduced motion) — Under `prefers-reduced-motion: reduce` the
-  animations are disabled; the LED holds its lit face instead (orange for
-  attract, green for cue) — the signal stays, only the motion goes.
-- **REQ-6** (compositor-only) — Both blinks pulse the **opacity** of a lit
-  `::after` overlay on the LED; they must never animate `background` or
-  `box-shadow` directly. These are the only infinite animations in the app and
-  the attract pulse runs the entire time the transport is stopped, so a
-  paint-bound property would repaint the LED every frame for as long as the app
-  sits idle. Opacity on a promoted layer costs nothing per frame and looks
-  identical ([runtime-performance](runtime-performance.md)).
+- **REQ-one-blink-state-at-a-time** (exclusivity & lifecycle) — At most one
+  blink state at a time: `attract` and `cue` are only present while stopped (cue
+  wins while armed); starting the transport clears both and consumes the cue;
+  stopping returns to `attract`. The beat blink runs only while playing
+  (unchanged).
+- **REQ-blink-holds-still-under-reduced-motion** (reduced motion) — Under
+  `prefers-reduced-motion: reduce` the animations are disabled; the LED holds
+  its lit face instead (orange for attract, green for cue) — the signal stays,
+  only the motion goes.
+- **REQ-blinks-animate-opacity-only** (compositor-only) — Both blinks pulse the
+  **opacity** of a lit `::after` overlay on the LED; they must never animate
+  `background` or `box-shadow` directly. These are the only infinite animations
+  in the app and the attract pulse runs the entire time the transport is
+  stopped, so a paint-bound property would repaint the LED every frame for as
+  long as the app sits idle. Opacity on a promoted layer costs nothing per frame
+  and looks identical ([runtime-performance](runtime-performance.md)).
 
 ## Technical design
 
@@ -95,7 +98,7 @@ song-panel.ts: applyDemo (the tail EVERY demo branch ends on — built-in,
   (imports + zip demos + share links + OS launches) and buildChainLane's
   Chain-enable click call bridge.cuePlay().
 layout.module.css: .playBtn:global(.attract)/.playBtn:global(.cue) animate the
-  OPACITY of a lit ::after overlay on the :global(.switch-led) dot (REQ-6) —
+  OPACITY of a lit ::after overlay on the :global(.switch-led) dot (REQ-blinks-animate-opacity-only) —
   ledPulse / ledFlash, module-scoped. The dot itself is only made
   `position: relative` so the overlay can sit on it; its base colour, inset and
   outer ring stay in switch.module.css and show through at opacity 0.

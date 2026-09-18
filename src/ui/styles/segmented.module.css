@@ -36,7 +36,7 @@
 }
 
 /* Armed: the choice is remembered and still selected, but nothing is connected
-   so it isn't doing anything (midi-clock-sync REQ-22). Keep the pressed well,
+   so it isn't doing anything (midi-clock-sync REQ-an-armed-sync-section). Keep the pressed well,
    drop the amber glow — reads as "selected, not lit". `--text-dim` (not
    `--text-faint`, which *is* the unselected colour) keeps three legible tiers:
    unselected < armed < lit. */

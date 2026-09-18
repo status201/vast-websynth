@@ -1,6 +1,6 @@
 /**
  * Staging and packing the deployable MCP server bundle
- * (DEPLOYMENT.md → "Hosting the MCP server", mcp-server.md REQ-1b).
+ * (DEPLOYMENT.md → "Hosting the MCP server", mcp-server.md REQ-streamable-http-is-one-message-per-post).
  *
  * Two callers, one implementation: `release.mjs` packs it alongside the `dist/`
  * artifact when cutting a version, and `pack-mcp.mjs` packs it on its own so the
@@ -28,7 +28,7 @@ const ROOT_DIR = fileURLToPath(root);
  * Files the deployed MCP server needs, relative to `scripts/mcp/`.
  *
  * `app.js` is the Passenger startup file; `dist/song-core.mjs` is the prebuilt
- * bundle it refuses to run without (mcp-server.md REQ-3), which is the whole
+ * bundle it refuses to run without (mcp-server.md REQ-local-entries-self-build-the-core), which is the whole
  * reason this artifact exists rather than the server being told to `git pull`.
  * `websynth-mcp.mjs` and `core.mjs`'s self-build path are deliberately absent
  * from what the server ever runs — but `core.mjs` itself ships, because

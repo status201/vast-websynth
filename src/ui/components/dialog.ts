@@ -43,7 +43,7 @@ export interface AlertOptions {
   message: string;
   okLabel?: string;
   /**
-   * Full text offered behind a `dialog-copy` button beside OK (REQ-9). Omitted
+   * Full text offered behind a `dialog-copy` button beside OK (REQ-an-alert-may-offer-copyable-text). Omitted
    * → no button, and the alert keeps its single full-width one.
    *
    * This is **passed in, never scraped from `message`**: the point of the button
@@ -82,7 +82,7 @@ function messagePara(text: string): HTMLParagraphElement {
   return p;
 }
 
-/** The italic muted supporting line under the message (REQ-7) — confirm + choose. */
+/** The italic muted supporting line under the message (REQ-confirm-detail-is-a-muted-italic-line) — confirm + choose. */
 function detailPara(text: string): HTMLParagraphElement {
   const p = document.createElement('p');
   p.className = `${styles.message!} ${styles.detail!}`;
@@ -186,7 +186,7 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
 /**
  * Show a message with a single OK button. Resolves when dismissed.
  *
- * With `copyable` (REQ-9) it grows a second button that puts the *full* text on
+ * With `copyable` (REQ-an-alert-may-offer-copyable-text) it grows a second button that puts the *full* text on
  * the clipboard — an aside, not an answer: it neither closes the dialog nor
  * settles the promise, so the user can copy, read on, and then dismiss.
  */
@@ -230,7 +230,7 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
     }
 
     modal.open();
-    // OK keeps focus either way, so Enter still dismisses (REQ-5).
+    // OK keeps focus either way, so Enter still dismisses (REQ-dialog-focus-and-keyboard).
     ok.focus();
   });
 }
@@ -240,7 +240,7 @@ export function alertDialog(opts: AlertOptions): Promise<void> {
  * than yes/no. Resolves the chosen `id`; **every** dismissal — the optional
  * dismiss button, Escape, a backdrop click — resolves `null`.
  *
- * That null is the whole point (dialog.md REQ-8). A `confirmDialog` would have
+ * That null is the whole point (dialog.md REQ-choose-dialog-offers-several-options). A `confirmDialog` would have
  * to spend one of its two answers on `false`, which is also what Escape returns,
  * so dismissing it would silently *perform* the second action. Here "neither"
  * stays sayable, so a stray Escape does nothing.

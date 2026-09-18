@@ -21,7 +21,7 @@ const SEQ_LENGTH = 16;
  * hashed — so they are the only selectable thing here.
  *
  * `playing` is the live playhead and exists **only while playing**; `cue` is
- * where Play will begin (transport-position.md REQ-14). v1 conflated the two.
+ * where Play will begin (transport-position.md REQ-the-cue-and-the-playhead-are-two-marks). v1 conflated the two.
  */
 const markedTick = (page: Page, lane: string, cls: string): Promise<number> =>
   page.evaluate(([l, c]) => {
@@ -76,14 +76,14 @@ test.describe('transport position', () => {
     expect(await clockStep(page)).toBe(9);
     expect(await cueTick(page, 'sampler')).toBe(9);
     // No chain is enabled, so the readout names the bank rather than inventing a
-    // bar number for a one-bank loop (REQ-15).
+    // bar number for a one-bank loop (REQ-the-readout-never-invents-bars).
     await expect(page.getByTestId('ruler-sampler-bar')).toHaveText('Bank A');
   });
 
   test('Home returns to the top and Shift+Arrow moves a bar', async ({ page }) => {
     await gotoAndStart(page);
     // A chain makes bars real, which is the only state where a bar readout means
-    // anything — without one the readout names the bank instead (REQ-15).
+    // anything — without one the readout names the bank instead (REQ-the-readout-never-invents-bars).
     await setSeqChain(page, [0, 0, 1, 0]);
     await page.getByTestId('tab-drums').click();
 
@@ -103,7 +103,7 @@ test.describe('transport position', () => {
     await expect(page.getByTestId('ruler-drum-bar')).toContainText('1');
   });
 
-  // --- v2: the cue is its own mark (REQ-14) ---
+  // --- v2: the cue is its own mark (REQ-the-cue-and-the-playhead-are-two-marks) ---
   test('a stopped ruler shows a cue and no playhead, and Play starts there', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
@@ -122,7 +122,7 @@ test.describe('transport position', () => {
     await page.getByTestId('transport-play').click();
   });
 
-  // --- v2: the readout names the bank, and the stepper walks bars (REQ-15/16) ---
+  // --- v2: the readout names the bank, and the stepper walks bars (REQ-the-readout-never-invents-bars/16) ---
   test('the readout follows the bank, then becomes a bar stepper once chained', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
@@ -200,7 +200,7 @@ test.describe('transport position', () => {
   });
 
   /**
-   * A ruler that does not sit over its steps marks nothing (REQ-9).
+   * A ruler that does not sit over its steps marks nothing (REQ-a-position-ruler-above-every-grid).
    *
    * The sampler panel got this wrong for real: its slot rows widened their control
    * cluster to fit a filename while the ruler row kept the drum panel's bare width,
@@ -227,15 +227,15 @@ test.describe('transport position', () => {
 
   test('the ruler re-syncs to the current step when its tab is revealed', async ({ page }) => {
     await gotoAndStart(page);
-    // Chained, so the bar readout is a bar (REQ-15) and this still asserts it.
+    // Chained, so the bar readout is a bar (REQ-the-readout-never-invents-bars) and this still asserts it.
     await setSeqChain(page, [0, 0, 1, 0]);
     await page.getByTestId('tab-drums').click();
     await page.getByTestId('ruler-drum-2').click();
-    // Stopped, so the mark is the cue rather than a playhead (REQ-14).
+    // Stopped, so the mark is the cue rather than a playhead (REQ-the-cue-and-the-playhead-are-two-marks).
     expect(await cueTick(page, 'drum')).toBe(2);
 
     // Move the playhead while the drum panel is off screen. Its ruler must not
-    // repaint there (transport-position.md REQ-10) but must catch up on reveal,
+    // repaint there (transport-position.md REQ-the-ruler-costs-nothing-off-screen) but must catch up on reveal,
     // never opening on the column it was left on.
     await page.getByTestId('tab-seq').click();
     await page.evaluate((n) => (window as any).__synth.engine.seekTo(n), SEQ_LENGTH * 3 + 12);

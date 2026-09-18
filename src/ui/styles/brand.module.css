@@ -3,8 +3,8 @@
 
    Deliberately no outer framing: the header's divider rule to the right of the
    block lives in layout.module.css `.headerBrand` and is composed on at that
-   call site (REQ-3). A border-right here would draw a stray vertical line down
-   the inside of a modal card. Alignment is the container's business too (REQ-4)
+   call site (REQ-brand-block-carries-no-framing). A border-right here would draw a stray vertical line down
+   the inside of a modal card. Alignment is the container's business too (REQ-brand-alignment-belongs-to-the-container)
    — `.start-card` centres it, the header and About card do not. */
 .brand {
   display: flex;
@@ -40,7 +40,7 @@
   letter-spacing: 0.14em;
   color: var(--accent);
   text-shadow: 0 0 4px var(--accent-glow);
-  /* Optically centred, not geometrically (brand.md REQ-6). Symmetric padding
+  /* Optically centred, not geometrically (brand.md REQ-model-badge-is-optically-centred). Symmetric padding
      hangs the text high and left, because the box is sized from metrics the
      string does not use:
      - vertical: Courier New reserves 5px of descent under a 15px line, and a

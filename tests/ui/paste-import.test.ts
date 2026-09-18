@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildPasteImport, openPasteImportModal } from '../../src/ui/components/paste-import';
 
 /**
- * paste-import.md REQ-5..REQ-8 — the fragment renders and routes; it never
- * validates or applies anything itself.
+ * paste-import.md REQ-one-paste-fragment-two-placements/REQ-paste-status-updates-live,
+ * paste-import.md REQ-paste-confirm-routes-by-kind/REQ-a-refused-load-leaves-the-text
+ * — the fragment renders and routes; it never validates or applies anything itself.
  */
 
 const AUTHOR = '{"format":"websynth-song-author","version":1,"name":"Night Drive"}';
@@ -40,7 +41,7 @@ describe('paste import fragment', () => {
     expect(confirm().disabled).toBe(true);
   });
 
-  it('names what it recognized and states the action (REQ-6)', () => {
+  it('names what it recognized and states the action (REQ-paste-status-updates-live)', () => {
     mount();
     paste('```json\n' + AUTHOR + '\n```');
     expect(status().textContent).toContain('Night Drive');
@@ -53,14 +54,14 @@ describe('paste import fragment', () => {
     expect(confirm().textContent).toBe('Review 2 presets');
   });
 
-  it('shows the refusal reason and stays disabled on junk (REQ-4/REQ-6)', () => {
+  it('shows the refusal reason and stays disabled on junk (REQ-unknown-always-carries-a-reason/REQ-paste-status-updates-live)', () => {
     mount();
     paste('Sorry, I can only describe the song in words.');
     expect(status().textContent).toContain('No JSON');
     expect(confirm().disabled).toBe(true);
   });
 
-  it('routes a song to onSong as encoded bytes (REQ-7)', async () => {
+  it('routes a song to onSong as encoded bytes (REQ-paste-confirm-routes-by-kind)', async () => {
     const { onSong, onPresets, onDone } = mount();
     paste('prose\n```json\n' + AUTHOR + '\n```\nmore prose');
     confirm().click();
@@ -73,7 +74,7 @@ describe('paste import fragment', () => {
     expect(name).toBe('pasted-song.json');
   });
 
-  it('routes a bank to onPresets as a parsed payload (REQ-7)', async () => {
+  it('routes a bank to onPresets as a parsed payload (REQ-paste-confirm-routes-by-kind)', async () => {
     const { onSong, onPresets, onDone } = mount();
     paste(BANK);
     confirm().click();
@@ -85,7 +86,7 @@ describe('paste import fragment', () => {
     expect(Object.keys(parse.presets)).toEqual(['lead', 'bass']);
   });
 
-  // REQ-8 — a rejected song keeps the text so the user can fix a line.
+  // REQ-a-refused-load-leaves-the-text — a rejected song keeps the text so the user can fix a line.
   it('keeps the pasted text when the import refuses it', async () => {
     const onSong = vi.fn(async () => false);
     const { onDone } = mount({ onSong });
@@ -98,7 +99,7 @@ describe('paste import fragment', () => {
     expect(confirm().disabled).toBe(false);
   });
 
-  it('opens as a modal with a Cancel that closes it (REQ-5)', () => {
+  it('opens as a modal with a Cancel that closes it (REQ-one-paste-fragment-two-placements)', () => {
     openPasteImportModal({ onSong: vi.fn(async () => true), onPresets: vi.fn() });
     const body = document.querySelector('[data-testid="paste-modal"]');
     expect(body).not.toBeNull();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SustainPedal } from '../../src/audio/sustain-pedal';
 
-describe('SustainPedal (input-control REQ-8)', () => {
+describe('SustainPedal (input-control REQ-the-sustain-pedal-is-midi-layer)', () => {
   it('passes note-offs through while the pedal is up', () => {
     const p = new SustainPedal();
     p.noteOn(60);

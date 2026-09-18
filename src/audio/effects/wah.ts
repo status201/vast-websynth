@@ -9,11 +9,11 @@ const CENTER_NOTE = 75;
 const CENTER_HZ = midiToHz(CENTER_NOTE);
 /**
  * The upward reach at full depth, as the linear-Hz mapping expressed it. Kept
- * only so `depthCents` can reproduce that top exactly — see REQ-11.
+ * only so `depthCents` can reproduce that top exactly — see REQ-the-wah-lfo-sweeps-in-cents.
  */
 const SWEEP_TOP_HZ = 1500;
 /**
- * Makeup for the bandpass's insertion loss (effects.md REQ-12). A
+ * Makeup for the bandpass's insertion loss (effects.md REQ-toggling-an-effect-must-not-step-the-level). A
  * constant-peak-gain bandpass passes a share of a broadband signal proportional
  * to its bandwidth `f0 / Q`, so the loss goes as `1/sqrt(Q)` and this as
  * `sqrt(Q)`. `2.5` calibrates it against the measured drop — +14 dB at the
@@ -28,7 +28,7 @@ const MAKEUP_K = 2.5;
 const MAKEUP_MAX = 8;
 
 /**
- * The bandpass's makeup gain at a given Q (effects.md REQ-12). Exported so the
+ * The bandpass's makeup gain at a given Q (effects.md REQ-toggling-an-effect-must-not-step-the-level). Exported so the
  * spec's numbers can be pinned without reaching into a private field.
  */
 export function makeupFor(q: number): number {
@@ -48,7 +48,7 @@ export class Wah extends WrappedEffect {
 
     this.bp = ctx.createBiquadFilter();
     this.bp.type = 'bandpass';
-    // Written once and never again: the sweep rides `detune` (REQ-11).
+    // Written once and never again: the sweep rides `detune` (REQ-the-wah-lfo-sweeps-in-cents).
     this.bp.frequency.value = CENTER_HZ;
     this.bp.Q.value = 4;
 
@@ -77,7 +77,7 @@ export class Wah extends WrappedEffect {
   setQ(q: number): void {
     this.bp.Q.setTargetAtTime(q, this.ctx.currentTime, RAMP_SMOOTH);
     // A narrower band throws away more of the signal, so the makeup tracks it
-    // rather than being a fixed trim (REQ-12).
+    // rather than being a fixed trim (REQ-toggling-an-effect-must-not-step-the-level).
     this.makeup.gain.setTargetAtTime(makeupFor(q), this.ctx.currentTime, RAMP_SMOOTH);
   }
 
@@ -89,7 +89,7 @@ export class Wah extends WrappedEffect {
   }
 
   /**
-   * The LFO's swing, in **cents** (effects.md REQ-11, ADR-005). The v1 mapping
+   * The LFO's swing, in **cents** (effects.md REQ-the-wah-lfo-sweeps-in-cents, ADR-005). The v1 mapping
    * was `depth * 1500` linear Hz around a 622 Hz centre, which at depth >= 0.415
    * drove the computed `bp.frequency` to the AudioParam's 0 Hz floor — where a
    * bandpass has `alpha = 0`, an all-zero numerator and a double pole at z = 1,

@@ -121,13 +121,13 @@ test.describe('control surface (testids + debug bridge)', () => {
     await expect(width).toBeHidden();
   });
 
-  // Both REQ-9 cues ride one lfo.dest subscription (oscillators.md), so they are
+  // Both REQ-question-mark-toggles-the-badges cues ride one lfo.dest subscription (oscillators.md), so they are
   // asserted together — a capped arc with no sentence beside it explaining it
   // would be worse than neither.
   test('the LFO rate cap is disclosed by both the hint and the knob arc', async ({ page }) => {
     await gotoAndStart(page);
     // By testid, not by text: with two LFOs the same sentence renders twice, one
-    // per page, and a text selector matches both (testids.md REQ-4).
+    // per page, and a text selector matches both (testids.md REQ-select-by-testid-not-by-label).
     const hint = page.getByTestId('pulse-hint-lfo');
     const rate = page.getByTestId('knob-lfo.rate');
     await expect(hint).toBeHidden();

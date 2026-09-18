@@ -21,11 +21,11 @@ export type LaneHitListener = (
 
 /**
  * One machine's share of the meter: how many cells it loops over and how fast
- * (specs/features/meter.md REQ-10/REQ-14/REQ-15/REQ-16).
+ * (specs/features/meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate/REQ-coarser-skips-ticks-finer-fans-out/REQ-swing-is-computed-on-the-lanes-grid).
  *
  * Held by the sequencer, drum machine, sampler and motion sequencer so the
  * length/rate arithmetic exists once. Everything it computes is a pure function
- * of the absolute tick (meter.md REQ-3), so a 12- or 14-cell lane survives a
+ * of the absolute tick (meter.md REQ-a-cell-index-is-a-pure-function-of-step), so a 12- or 14-cell lane survives a
  * seek, a Song-Position join and a dropout with no state to repair.
  */
 export class LaneMeter {
@@ -75,9 +75,9 @@ export class LaneMeter {
    * Call `fn` for each cell that **begins** inside this tick: usually exactly
    * one, none on the ticks a coarser lane skips, and two or three for a rate
    * finer than a 16th — scheduled inside the tick at sample-accurate offsets,
-   * the technique the arpeggiator already uses (arpeggiator.md REQ-6).
+   * the technique the arpeggiator already uses (arpeggiator.md REQ-a-sub-16th-rate-schedules-its-own-hits).
    *
-   * **Swing is applied on the lane's own grid** (meter.md REQ-16). The clock
+   * **Swing is applied on the lane's own grid** (meter.md REQ-swing-is-computed-on-the-lanes-grid). The clock
    * delays odd *ticks*, so a lane at two ticks per cell only ever fires on even
    * ticks — never delayed — and would sit dead straight under swung hats. Such a
    * lane subtracts the clock's offset for this tick and adds the one its own

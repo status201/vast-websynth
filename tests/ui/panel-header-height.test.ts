@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Drift pin for the tabbed/plain panel header match (panel-tabs.md REQ-9).
+// Drift pin for the tabbed/plain panel header match (panel-tabs.md REQ-the-strip-replaces-the-title).
 //
 // A tab strip *replaces* a panel title, so the two must occupy the same height
 // or the LFO panel's controls sit off the baseline of every panel beside it.
@@ -77,7 +77,7 @@ function headerHeight(body: string, what: string): number {
   );
 }
 
-describe('panel header height (specs/features/panel-tabs.md REQ-9)', () => {
+describe('panel header height (specs/features/panel-tabs.md REQ-the-strip-replaces-the-title)', () => {
   const title = bodies('.panelTitle');
   const tab = bodies('.panelTab');
 

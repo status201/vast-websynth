@@ -17,7 +17,7 @@ export type SeqNoteListener = (note: number, when: number, releaseAt: number) =>
 /**
  * Per-track held-note state. Each of the four tracks is independently
  * monophonic — it owns its ringing note and its tie flag — so four active
- * tracks layer into a chord through the shared voice pool (sequencer.md REQ-8)
+ * tracks layer into a chord through the shared voice pool (sequencer.md REQ-four-tracks-per-bank)
  * without any of them stealing another's release.
  */
 interface SeqTrackState {
@@ -32,7 +32,7 @@ const newTrackState = (): SeqTrackState =>
 
 /**
  * A stored note shifted by an arrangement slot's transpose, clamped to the MIDI
- * range (sequencer.md REQ-16, untrusted-input.md REQ-4).
+ * range (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose, untrusted-input.md REQ-payload-values-are-bounded).
  *
  * **Clamped, not dropped.** Skipping a note that lands out of range would make a
  * transposed bar silently lose part of its line — the same class of silent loss
@@ -48,7 +48,7 @@ function transposeNote(note: number, semitones: number): number {
  * Four-track 16-step note sequencer. Triggers the synth engine on each active
  * step of each track. Keyboard input still passes through (it can layer on top).
  *
- * Tracks 2..4 only sound in **poly** voicing (REQ-9): in mono they would fight
+ * Tracks 2..4 only sound in **poly** voicing (REQ-poly-voicing-gates-the-extra-tracks): in mono they would fight
  * over the single voice and produce last-note-wins mush, so they are gated
  * rather than silently mixed. Their data is untouched either way.
  */
@@ -60,7 +60,7 @@ export class StepSequencer {
     Array.from({ length: SEQ_TRACK_COUNT }, newTrackState);
   private readonly stepListeners = new ListenerSet<[number]>();
   private readonly noteListeners = new ListenerSet<[number, number, number]>();
-  /** This machine's loop length + step rate (meter.md REQ-10/REQ-14). */
+  /** This machine's loop length + step rate (meter.md REQ-each-machine-has-a-loop-length/REQ-each-machine-has-a-step-rate). */
   readonly lane: LaneMeter;
 
   constructor(
@@ -76,15 +76,15 @@ export class StepSequencer {
     // A playhead jump makes the per-track tie/held-note state meaningless: it
     // only ever describes the *adjacent* step. Left alone, a note tied at the
     // old position slurs into the new one — or never gets released at all
-    // (sequencer.md REQ-14).
+    // (sequencer.md REQ-a-seek-releases-every-tracks-note).
     // At each track's gate end, not now — as the stop below. A seek can land
     // while the last step's note-on is still in the look-ahead, and a loop wrap
     // always does (it jumps from inside the drain, right after scheduling it):
     // a release at `now` precedes that attack and is overwritten by it, hanging
-    // a tied voice (sequencer.md REQ-14, transport-loop.md REQ-9).
+    // a tied voice (sequencer.md REQ-a-seek-releases-every-tracks-note, transport-loop.md REQ-a-tied-note-does-not-hang-across-a-wrap).
     clock.onSeek(() => this.releaseAllAtGateEnd());
     // A tie schedules no release of its own — that is the NEXT tick's job — so a
-    // stop stranded the voice until the user reached for Panic (REQ-15). Release
+    // stop stranded the voice until the user reached for Panic (REQ-a-stop-releases-every-tracks-note). Release
     // at each track's own gate end rather than `now`: the note-on may still be
     // sitting in the look-ahead, and a release scheduled before its attack is
     // simply overwritten by it — the very hang this fixes. A release, not a kill,
@@ -97,7 +97,7 @@ export class StepSequencer {
     if (!on) this.releaseAll();
   }
 
-  /** Poly voicing gate for tracks 2..4 (REQ-9). Track 1 always plays. */
+  /** Poly voicing gate for tracks 2..4 (REQ-poly-voicing-gates-the-extra-tracks). Track 1 always plays. */
   setPolyphonic(poly: boolean): void {
     if (poly === this.polyphonic) return;
     this.polyphonic = poly;
@@ -106,7 +106,7 @@ export class StepSequencer {
     }
   }
 
-  /** Per-track mute (REQ-10): stop triggering, keep the playhead advancing. */
+  /** Per-track mute (REQ-per-track-mute): stop triggering, keep the playhead advancing. */
   setTrackMuted(track: number, muted: boolean): void {
     const st = this.tracks[track];
     if (!st || st.muted === muted) return;
@@ -126,7 +126,7 @@ export class StepSequencer {
     for (const st of this.tracks) this.releaseTrack(st, when);
   }
 
-  /** Release every track where its last hit's gate said it would end (REQ-15).
+  /** Release every track where its last hit's gate said it would end (REQ-a-stop-releases-every-tracks-note).
    *  A stale past value is harmless — the envelope anchors at `max(when, now)`. */
   private releaseAllAtGateEnd(): void {
     for (const st of this.tracks) this.releaseTrack(st, st.lastReleaseAt);
@@ -157,7 +157,7 @@ export class StepSequencer {
   }
 
   /** One cell of the lane. Split out of `onTick` because a rate finer than a
-   *  16th can put two or three of them inside one tick (meter.md REQ-15). */
+   *  16th can put two or three of them inside one tick (meter.md REQ-coarser-skips-ticks-finer-fans-out). */
   private tickCell(idx: number, when: number, cellDur: number): void {
     this.stepListeners.emit(idx);
     // Arrangement rest bar: play nothing this bar, but release notes tied into
@@ -174,8 +174,8 @@ export class StepSequencer {
     if (this.muted) return;
 
     const bank = this.patterns.seqBank(this.arrangement.seqPlayBank);
-    // Track 1 always plays; 2..4 need poly voicing (REQ-9) and their own
-    // un-muted state (REQ-10). Each track advances independently below.
+    // Track 1 always plays; 2..4 need poly voicing (REQ-poly-voicing-gates-the-extra-tracks) and their own
+    // un-muted state (REQ-per-track-mute). Each track advances independently below.
     const last = this.polyphonic ? this.tracks.length : 1;
     for (let t = 0; t < last; t++) {
       const st = this.tracks[t]!;
@@ -196,7 +196,7 @@ export class StepSequencer {
     }
 
     // This step's micro-timing offset, resolved ONCE and used everywhere the step
-    // is placed in time (step-settings.md REQ-8). The sequencer cannot let
+    // is placed in time (step-settings.md REQ-micro-is-one-pure-offset). The sequencer cannot let
     // `stepHits` apply it internally, the way the one-shot machines do, because
     // the release below has to move with the attack.
     const at = when + microOffset(s, cellDur);
@@ -208,23 +208,23 @@ export class StepSequencer {
     // new attack, so releasing there would cut the note that just started.
     if (!st.prevTied && st.lastPlayedNote >= 0) this.output.releaseNote(st.lastPlayedNote, at);
 
-    // The arrangement slot's transpose (sequencer.md REQ-16). Resolved ONCE, and
+    // The arrangement slot's transpose (sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose). Resolved ONCE, and
     // `note` used everywhere `s.note` used to be — including what lands in
     // `st.lastPlayedNote`. That is what keeps a tie across a bar line correct:
     // the next bar releases through `lastPlayedNote`, so a note started in a bar
     // transposed +5 is released at +5 even when the new bar is at +7. Re-deriving
     // the shift at each release site would strand that voice at the wrong pitch.
-    // The stored SeqStep is never rewritten (arrangement.md REQ-9).
-    // Transpose FIRST, then quantize (sequencer.md REQ-17). The order is the point:
+    // The stored SeqStep is never rewritten (arrangement.md REQ-transposition-is-applied-at-trigger).
+    // Transpose FIRST, then quantize (sequencer.md REQ-the-transposed-note-is-then-quantized). The order is the point:
     // a +5 bar lands back in the key instead of leaving it, which is the chromatic
-    // drift REQ-16's shift otherwise creates. Quantizing first would preserve it.
+    // drift REQ-every-note-is-shifted-by-the-slot-transpose's shift otherwise creates. Quantizing first would preserve it.
     // The quantized note is what lands in `st.lastPlayedNote` below, so the tie
-    // safety REQ-16 describes covers this transform too, for free.
+    // safety REQ-every-note-is-shifted-by-the-slot-transpose describes covers this transform too, for free.
     const note = this.scale.get(transposeNote(s.note, this.arrangement.seqTranspose));
 
     // `cellDur`, not the clock's 16th: gate and ratchet are fractions of the
     // step the user sees, so a lane at 1/8 must hold twice as long (meter.md
-    // REQ-14). At the default rate the two are the same number.
+    // REQ-each-machine-has-a-step-rate). At the default rate the two are the same number.
     const hits = stepHits(s, at, cellDur);
     for (const h of hits) {
       this.output.playNote(note, s.velocity, h.t);

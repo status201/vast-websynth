@@ -10,8 +10,8 @@ import type { PatternUndo } from '../../src/state/pattern-undo';
 import type { UiBridge } from '../../src/ui/ui-bridge';
 
 /**
- * The Motion panel's cost gate — motion-sequencer.md REQ-16b,
- * runtime-performance.md REQ-4.
+ * The Motion panel's cost gate — motion-sequencer.md REQ-the-ab-lane-repaint-is-gated-on-visibility,
+ * runtime-performance.md REQ-no-work-for-offscreen-dom.
  *
  * A lane repaint clears and rebuilds an SVG polyline plus up to 16 circles and
  * re-levels 16 pads, *per lane*. `arrangement.onChange` fires every bar while
@@ -88,7 +88,7 @@ function harness() {
 const laneGraph = (el: HTMLElement): SVGElement =>
   el.querySelector<SVGElement>('[data-testid="motion-trk-0-graph"]')!;
 
-describe('Motion panel lane repaint (REQ-16b)', () => {
+describe('Motion panel lane repaint (REQ-the-ab-lane-repaint-is-gated-on-visibility)', () => {
   it('repaints no lane per bar while the tab is hidden', () => {
     const { patterns, panel, advanceBar } = harness();
     patterns.setMotionTrackParam(0, 'filter.cutoff');
@@ -176,7 +176,7 @@ const dotCx = (el: SVGElement): string | null =>
   el.querySelector('circle')!.getAttribute('cx');
 const centre = (step: number, cells: number): string => String(((step + 0.5) / cells) * 100);
 
-describe('Motion panel draws on the lane, not the bank (REQ-24b)', () => {
+describe('Motion panel draws on the lane, not the bank (REQ-the-motion-graph-follows-the-lane)', () => {
   it('re-projects the XY graph when the lane length changes', () => {
     const { bus, patterns, panel } = harness();
     patterns.setMotionStep(4, { on: true, x: 0.5, y: 0.75 });

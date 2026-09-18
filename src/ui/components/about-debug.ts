@@ -3,7 +3,7 @@
 //
 // The largest of about.ts's five former tenants, and the one with its own spec —
 // so it gets its own file. It rides the lazy About chunk
-// (runtime-performance.md REQ-1); the late-bound row sources it reads are in
+// (runtime-performance.md REQ-boot-cost-matches-the-request); the late-bound row sources it reads are in
 // `state/debug-sources.ts` precisely so `main.ts` can bind them at boot without
 // importing any of this.
 import { Modal } from './modal';
@@ -26,7 +26,7 @@ import styles from '../styles/modal.module.css';
 
 declare const __APP_VERSION__: string;
 
-/** An inline action button attached to a row's value cell (REQ-6). */
+/** An inline action button attached to a row's value cell (REQ-scope-renderers-are-rect-scoped). */
 interface RowAction {
   label: string;
   testId: string;
@@ -49,7 +49,7 @@ function ago(at: number | null): string {
 }
 
 /**
- * The scope's liveness in one line (scope.md REQ-38). `drawing` is the common case
+ * The scope's liveness in one line (scope.md REQ-the-panel-says-whether-it-is-drawing). `drawing` is the common case
  * and reads as such; anything else names what is wrong, because this row exists to
  * be read back off a device that cannot be attached to a debugger. The counters are
  * always shown once non-zero — a scope that recovered is still evidence.
@@ -101,7 +101,7 @@ export function buildDebugSection(engine: StudioApi): {
   grid.className = Modal.keysClass;
   body.appendChild(grid);
 
-  /** Every row, in order — the source for the copyable report (REQ-7). */
+  /** Every row, in order — the source for the copyable report (REQ-a-channels-toggle-button). */
   const rows: Array<{ name: string; el: HTMLElement }> = [];
 
   const rowButton = (action: RowAction): HTMLButtonElement => createButton({
@@ -211,7 +211,7 @@ export function buildDebugSection(engine: StudioApi): {
   midiVal.dataset.testid = 'debug-midi';
   const wakeVal = addRow('Wake lock');
   wakeVal.dataset.testid = 'debug-wake';
-  // Is the scope actually painting? (scope.md REQ-38) The panel going dead after a
+  // Is the scope actually painting? (scope.md REQ-the-panel-says-whether-it-is-drawing) The panel going dead after a
   // backgrounding has now been reported twice from devices with no console, and
   // both times there was nothing to read. The counters are the whole point.
   const scopeVal = addRow('Scope');
@@ -242,7 +242,7 @@ export function buildDebugSection(engine: StudioApi): {
     }).catch(() => { swText = 'unavailable'; });
   };
 
-  // ---- actions (REQ-7) ----
+  // ---- actions (REQ-a-channels-toggle-button) ----
   const actions = document.createElement('div');
   actions.className = styles.debugActions!;
   actions.dataset.testid = 'debug-actions';
@@ -255,7 +255,7 @@ export function buildDebugSection(engine: StudioApi): {
       // Suspending is how you prove a stuck note is the graph and not the
       // device; resuming is the escape hatch when the OS suspended us.
       // Through the Engine, not ctx.suspend(): that is what marks it deliberate
-      // so the automatic re-arm leaves it alone (audio-lifecycle.md REQ-15).
+      // so the automatic re-arm leaves it alone (audio-lifecycle.md REQ-an-unasked-suspension-is-recovered).
       if (engine.ctx.state === 'running') void engine.suspendForDebug();
       else void engine.resume();
     },
@@ -307,7 +307,7 @@ export function buildDebugSection(engine: StudioApi): {
   actions.append(ctxToggle, panicBtn, toneBtn, copyBtn);
   body.appendChild(actions);
 
-  // ---- polling tiers (REQ-11) ---------------------------------------------
+  // ---- polling tiers (REQ-zero-db-is-the-top-of-the-graph) ---------------------------------------------
   // The rows differ wildly in cost. Most are plain field reads, but the storage
   // and session rows walk (and JSON.parse) localStorage *synchronously* — far
   // too expensive to run at the interval's rate behind a playing audio graph.
@@ -319,10 +319,10 @@ export function buildDebugSection(engine: StudioApi): {
   const refresh = (force = false): void => {
     // ---- every tick: cheap field reads ----
     // `suspended` alone cannot tell "the OS took it" from "we asked and were
-    // refused" — the suffix is the difference (audio-lifecycle.md REQ-13).
+    // refused" — the suffix is the difference (audio-lifecycle.md REQ-a-resume-that-does-not-take-is-retried).
     // `autoplay ok` is the verdict that decided whether a start modal was shown
-    // at all (audio-lifecycle.md REQ-20) — and on a machine that reports a click
-    // at boot it is the one-glance confirmation of why (REQ-19).
+    // at all (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required) — and on a machine that reports a click
+    // at boot it is the one-glance confirmation of why (REQ-a-scope-resize-handle).
     const ctxNotes = [
       engine.autoplayAllowed ? 'autoplay ok' : null,
       engine.audioRecovery.gestureArmed ? 'awaiting gesture' : null,
@@ -339,12 +339,12 @@ export function buildDebugSection(engine: StudioApi): {
       `${engine.clock.playing ? 'playing' : 'stopped'} · ` +
       `${engine.clock.bpm.toFixed(1)} BPM · sync ${engine.sync.mode} · ` +
       // The only on-device evidence that the wakeup source stalled — the phone
-      // this happens on has no console (audio-lifecycle.md REQ-7).
+      // this happens on has no console (audio-lifecycle.md REQ-the-glitch-recovery-is-observable).
       `${engine.clock.dropouts} dropouts`;
     iosVal.textContent = isIOS() ? 'yes' : 'no';
     const clips = clipStats();
     clipsVal.textContent = clips ? `${clips.count} · ${formatBytes(clips.bytes)}` : 'n/a';
-    // REQ-8 — an action whose source never bound is disabled, not broken.
+    // REQ-the-scope-drop-shadow-is-dropped — an action whose source never bound is disabled, not broken.
     clipsBtn.disabled = clips === undefined;
     const midi = midiStats();
     midiVal.textContent = midi ? `${midi.inputs} in · ${midi.outputs} out` : 'n/a';
@@ -404,7 +404,7 @@ export function buildDebugSection(engine: StudioApi): {
   refresh(true);
 
   // Whole-header click toggles (chevron included), persisted; default collapsed.
-  // Folded shut, the rows aren't merely invisible — they go unread (REQ-3):
+  // Folded shut, the rows aren't merely invisible — they go unread (REQ-studio-api-exposes-both-channels):
   // someone who opened About for the credits shouldn't pay for a readout that
   // isn't on screen. `onChange` also fires once here with the stored/default
   // state, so `visible` is correct from the start without a second source.
@@ -420,10 +420,10 @@ export function buildDebugSection(engine: StudioApi): {
   });
   header.appendChild(toggle.el);
 
-  /** What the modal's interval and `statechange` drive — gated per REQ-3. */
+  /** What the modal's interval and `statechange` drive — gated per REQ-studio-api-exposes-both-channels. */
   const tick = (): void => { if (visible) refresh(); };
 
-  // REQ-9 — nothing an action started may outlive the modal.
+  // REQ-stereo-on-a-mono-scope-falls-back — nothing an action started may outlive the modal.
   const dispose = (): void => {
     stopTone?.();
     stopTone = null;
@@ -461,7 +461,7 @@ function playTestTone(ctx: AudioContext, onEnded: () => void): () => void {
 /**
  * Drop every service-worker registration, then reload. The caches stay: the next
  * registration of the same version reuses them. Deleting them is the factory
- * reset's job (factory-reset.md REQ-8), which also brings an offline copy back.
+ * reset's job (factory-reset.md REQ-reset-redownloads-the-offline-copy), which also brings an offline copy back.
  */
 async function unregisterServiceWorkers(): Promise<void> {
   try {

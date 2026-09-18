@@ -156,7 +156,7 @@ describe('computePeaks', () => {
 });
 
 /**
- * sample-chop.md REQ-3/REQ-4.
+ * sample-chop.md REQ-two-ways-to-place-the-cuts/REQ-detect-onsets-is-pure-and-cheap.
  *
  * A chop is right only if the slices start ON the hits, so these tests are built
  * from material whose onsets are known by construction — a detector tested
@@ -187,7 +187,7 @@ describe('chopping', () => {
       expect(sliceEqual(a, 0)).toEqual([]);
     });
 
-    it('divides the selection, not the file (REQ-2)', () => {
+    it('divides the selection, not the file (REQ-edit-in-captured-audio-space)', () => {
       const a = clickTrain([0], 2); // 88200 samples
       // The middle half: 22050..66150.
       expect(sliceEqual(a, 2, 22050, 66150)).toEqual([44100]);
@@ -234,7 +234,7 @@ describe('chopping', () => {
       expect(detectOnsets(a, { maxSlices: 4 }).every((b) => b > 0)).toBe(true);
     });
 
-    it('does not re-trigger on a long decay (REQ-4, edge)', () => {
+    it('does not re-trigger on a long decay (REQ-a-loaded-slot-reopens-for-editing, edge)', () => {
       const a = clickTrain([0.2], 2, 4); // ONE hit, ringing for ~0.25 s
       const bounds = detectOnsets(a, { maxSlices: 8 });
       // Exactly one: the hit itself. Without the refractory period the decay
@@ -260,7 +260,7 @@ describe('chopping', () => {
       expect(detectOnsets(silence, { maxSlices: 8 })).toEqual([]);
     });
 
-    it('honours the selection bounds (REQ-2)', () => {
+    it('honours the selection bounds (REQ-edit-in-captured-audio-space)', () => {
       const a = clickTrain([0, 0.5, 1.0, 1.5]);
       const bounds = detectOnsets(a, { from: 0.4 * SR, to: 1.1 * SR, maxSlices: 8 });
       expect(bounds.every((b) => b > 0.4 * SR && b < 1.1 * SR)).toBe(true);

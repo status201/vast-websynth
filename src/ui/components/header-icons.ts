@@ -1,6 +1,6 @@
 /**
  * Inline SVG glyphs for the header's utility icon buttons
- * (specs/features/responsive-header.md REQ-5). Modeled on `wave-icons.ts`:
+ * (specs/features/responsive-header.md REQ-utility-buttons-are-icon-only). Modeled on `wave-icons.ts`:
  * no inline colour — stroke/fill come from CSS `currentColor`
  * (`switch.module.css` styles `svg.hdr-icon`), so state classes like the
  * Perf button's tier colours tint the glyph automatically. Solid shapes
@@ -28,7 +28,7 @@ export const HEADER_ICONS = {
    * ⓘ — the info-badges toggle. Same glyph the badges themselves draw, and
    * while they are showing it takes their colours too: `tour.module.css` fills
    * `.disc` with the accent and inks `.stem`/`.dot` in `--bg-deep`
-   * (onboarding.md REQ-8b). The part classes are inert until then — no colour
+   * (onboarding.md REQ-the-glyph-inverts-while-badges-show). The part classes are inert until then — no colour
    * is declared here, as for every other glyph.
    */
   info: icon(INFO_SHAPE),

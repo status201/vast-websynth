@@ -44,7 +44,7 @@ describe('TabContainer', () => {
     expect(tabBtn(tc, 'b').classList.contains('active')).toBe(true);
   });
 
-  // sequencer.md REQ-5 — the surface a panel gates an off-screen mode on.
+  // sequencer.md REQ-step-input-arms-only-on-screen — the surface a panel gates an off-screen mode on.
   describe('view visibility', () => {
     const collapsible = (key: string, collapsed = false) => new TabContainer([
       { id: 'a', label: 'Alpha', content: document.createElement('div') },
@@ -96,7 +96,7 @@ describe('TabContainer', () => {
     });
   });
 
-  // machine-status.md REQ-3/REQ-4/REQ-7
+  // machine-status.md REQ-the-tab-led-is-not-a-control/REQ-machine-state-is-not-colour-only/REQ-reveal-beats-activate
   describe('status indicators', () => {
     const withIndicator = () => new TabContainer([
       { id: 'a', label: 'Alpha', content: document.createElement('div'), indicator: true },

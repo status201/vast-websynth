@@ -16,7 +16,7 @@ function anchor(rect: Partial<DOMRect> = {}): HTMLElement {
 const bubble = (): HTMLElement | null =>
   document.querySelector('[data-testid="value-bubble"]');
 
-/** motion-sequencer.md REQ-22 — the gesture-scoped half of the readout. */
+/** motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering — the gesture-scoped half of the readout. */
 describe('value bubble', () => {
   beforeEach(() => {
     hideValueBubble();

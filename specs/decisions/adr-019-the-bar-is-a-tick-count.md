@@ -32,7 +32,7 @@ bar are ordinary musical requests, and a groovebox player already knows the
 length + rate model from Elektron, Roland and Polyend hardware. **Stability**:
 the transport is a look-ahead scheduler that must survive `seek`, MIDI Song
 Position, a WiFi peer and a dropout ([transport](../features/transport.md)
-REQ-6/REQ-9) — anything that accumulates its own position drifts under all four.
+REQ-seek-moves-a-running-clock/REQ-the-transport-catch-up-is-bounded) — anything that accumulates its own position drifts under all four.
 **Cost**: the tick loop runs for every machine on every 16th, and
 [runtime-performance](../features/runtime-performance.md) budgets it.
 **Compatibility**: 19 shipped demos, a published JSON schema, a share-link format
@@ -57,7 +57,7 @@ the pattern.** The pattern grid stays exactly 16 cells.
   Position, WiFi sync and dropout recovery all keep working with no new state.
 - **Rates finer than a 16th fan their sub-hits out inside one tick** with
   absolute `when` offsets — the technique `Arpeggiator` has used since
-  [arpeggiator](../features/arpeggiator.md) REQ-6, not a new mechanism.
+  [arpeggiator](../features/arpeggiator.md) REQ-a-sub-16th-rate-schedules-its-own-hits, not a new mechanism.
 - Meter and lane settings ride in the SongFile's open `params` map with
   no-op defaults ([ADR-006](adr-006-no-op-param-defaults.md)), so `SONG_VERSION`,
   the schemas, the validators and every demo are untouched.
@@ -112,5 +112,5 @@ deliberate trade, not an oversight.
   any rate. Meter is **global to the song** — it cannot change per bank or per
   chain slot. And because a lane index is derived from an unbounded `clock.step`,
   the transport's old 16-bit wrap had to go ([transport](../features/transport.md)
-  REQ-10): it was only ever phase-safe for bar lengths dividing 65536, i.e. powers
+  REQ-the-step-counter-is-bounded-at-ingress): it was only ever phase-safe for bar lengths dividing 65536, i.e. powers
   of two.

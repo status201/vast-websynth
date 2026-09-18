@@ -25,7 +25,7 @@ import {
 } from '../../src/state/meter';
 import { DIVISIONS } from '../../src/utils/tempo';
 
-describe('meter — bar length (meter.md REQ-5/REQ-6)', () => {
+describe('meter — bar length (meter.md REQ-meter-is-two-bus-scalars/REQ-bar-ticks-is-the-arrangement-bar-line)', () => {
   it('defaults to 4/4, i.e. the pre-meter bar', () => {
     expect(barTicks(DEFAULT_BEATS, DEFAULT_BEAT_UNIT)).toBe(DEFAULT_BAR_TICKS);
     expect(DEFAULT_BAR_TICKS).toBe(GRID_CELLS);
@@ -61,7 +61,7 @@ describe('meter — bar length (meter.md REQ-5/REQ-6)', () => {
   });
 });
 
-describe('meter — the lane rate table (meter.md REQ-14)', () => {
+describe('meter — the lane rate table (meter.md REQ-each-machine-has-a-step-rate)', () => {
   it('mirrors utils/tempo.ts, so the two spellings cannot drift', () => {
     for (const r of LANE_RATES) {
       const division = DIVISIONS.find((d) => d.label === r.label);
@@ -89,7 +89,7 @@ describe('meter — the lane rate table (meter.md REQ-14)', () => {
   });
 });
 
-describe('meter — lane length (meter.md REQ-10)', () => {
+describe('meter — lane length (meter.md REQ-each-machine-has-a-loop-length)', () => {
   const rate = (label: string): number => LANE_RATES.findIndex((r) => r.label === label);
 
   it('follows the bar by default, so one meter moves every machine', () => {
@@ -98,7 +98,7 @@ describe('meter — lane length (meter.md REQ-10)', () => {
     expect(laneCells(LEN_FOLLOW, DEFAULT_LANE_RATE, 14)).toBe(14);
   });
 
-  it('reaches 5/4 and 7/4 at eighth-note resolution (REQ-14)', () => {
+  it('reaches 5/4 and 7/4 at eighth-note resolution (REQ-each-machine-has-a-step-rate)', () => {
     const eighth = rate('1/8');
     expect(laneCells(LEN_FOLLOW, eighth, barTicks(5, 0))).toBe(10);
     expect(laneTicks(LEN_FOLLOW, eighth, barTicks(5, 0))).toBe(20);
@@ -118,7 +118,7 @@ describe('meter — lane length (meter.md REQ-10)', () => {
   });
 });
 
-describe('meter — cell index is pure in `step` (meter.md REQ-3)', () => {
+describe('meter — cell index is pure in `step` (meter.md REQ-a-cell-index-is-a-pure-function-of-step)', () => {
   it('depends only on the absolute step, never on how it was reached', () => {
     for (const step of [0, 1, 11, 12, 40, 65535, 65536, 65537, 1_000_000]) {
       expect(cellIndex(step, 12, DEFAULT_LANE_RATE)).toBe(step % 12);
@@ -137,7 +137,7 @@ describe('meter — cell index is pure in `step` (meter.md REQ-3)', () => {
   });
 });
 
-describe('meter — which cells begin in a tick (meter.md REQ-15)', () => {
+describe('meter — which cells begin in a tick (meter.md REQ-coarser-skips-ticks-finer-fans-out)', () => {
   const rate = (label: string): number => LANE_RATES.findIndex((r) => r.label === label);
 
   it('is exactly one per tick at the default rate', () => {

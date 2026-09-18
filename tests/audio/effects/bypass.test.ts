@@ -10,7 +10,7 @@ import { Distortion } from '../../../src/audio/effects/distortion';
 import { makeMockAudioContext, installMockAudioWorkletNode, MockAudioWorkletNode } from '../mock-audio-context';
 
 /**
- * True bypass (ADR-012, effects.md REQ-2/REQ-2c): a bypassed wrapper disconnects
+ * True bypass (ADR-012, effects.md REQ-bypass-and-mix-are-a-crossfade/REQ-a-bypassed-effect-drains-before-disconnect): a bypassed wrapper disconnects
  * its own two edges so the processed DSP stops being rendered; un-bypassing
  * reconnects them *before* ramping.
  *
@@ -55,7 +55,7 @@ describe('BypassWrapper true bypass', () => {
 
   it('crossfades over RAMP_BYPASS, and disconnects well after it has settled', () => {
     const { wrap } = build();
-    // effects.md REQ-12: the swap gets its own constant, not RAMP_MEDIUM's 10 ms.
+    // effects.md REQ-toggling-an-effect-must-not-step-the-level: the swap gets its own constant, not RAMP_MEDIUM's 10 ms.
     const dryRamp = (wrap.dry.gain.setTargetAtTime as unknown as Spy).mock.calls.at(-1)!;
     const wetRamp = (wrap.wet.gain.setTargetAtTime as unknown as Spy).mock.calls.at(-1)!;
     expect(dryRamp[2]).toBe(RAMP_BYPASS);
@@ -80,7 +80,7 @@ describe('BypassWrapper true bypass', () => {
     expect(outDisconnect).toHaveBeenCalledExactlyOnceWith(wrap.wet);
   });
 
-  it('a re-enable during the drain cancels it and undoes the quiesce (REQ-2c)', () => {
+  it('a re-enable during the drain cancels it and undoes the quiesce (REQ-a-bypassed-effect-drains-before-disconnect)', () => {
     const { wrap, inConnect, outDisconnect, quiesce } = build({ drainSeconds: 2 });
     vi.advanceTimersByTime(DISCONNECT_DELAY_MS);      // input cut, draining
     vi.advanceTimersByTime(500);                      // still mid-drain
@@ -164,11 +164,11 @@ describe('BypassWrapper true bypass', () => {
 });
 
 /**
- * The per-effect drain declarations (effects.md REQ-2c). These are the numbers
+ * The per-effect drain declarations (effects.md REQ-a-bypassed-effect-drains-before-disconnect). These are the numbers
  * that decide whether a re-enabled effect is silent or replays the last song, so
  * they are pinned against the real classes rather than the wrapper's default.
  */
-describe('what each effect declares about its own memory (REQ-2c)', () => {
+describe('what each effect declares about its own memory (REQ-a-bypassed-effect-drains-before-disconnect)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 

@@ -4,7 +4,7 @@ import { makeMockAudioContext } from './mock-audio-context';
 import type { MockAudioParam } from './mock-audio-context';
 
 /**
- * Scheduled-automation model (envelopes.md REQ-4): phase changes anchor at the
+ * Scheduled-automation model (envelopes.md REQ-envelope-scheduling-is-future-time-safe): phase changes anchor at the
  * value the curve reaches at the scheduled time — never the live param value,
  * which is a stale snapshot when the transport schedules ahead (the click bug:
  * a sequenced note's release anchored ~0 and cut the note instantly).

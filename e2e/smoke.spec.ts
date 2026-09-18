@@ -4,7 +4,7 @@ import { startAudio } from './helpers';
 /**
  * Boot smoke test — the one thing unit tests can't cover: that the real app
  * boots in a browser, unlocks its AudioContext at whichever start gate the
- * browser imposes (audio-lifecycle.md REQ-20), loads the two AudioWorklets,
+ * browser imposes (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required), loads the two AudioWorklets,
  * and mounts a working UI.
  *
  * Selectors are text/role-based only — CSS Modules hash every class name, so
@@ -35,7 +35,7 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
 
   // Past whichever start gate this browser imposes — the default project runs
   // with autoplay permitted, so there is no modal at all (audio-lifecycle.md
-  // REQ-20). `audio-autostart.spec.ts` is what asserts *which* gate; this one
+  // REQ-the-gesture-is-required-only-when-required). `audio-autostart.spec.ts` is what asserts *which* gate; this one
   // only cares that audio ends up running.
   await startAudio(page);
 
@@ -68,7 +68,7 @@ test('boots, unlocks audio, and wires up the UI', async ({ page }) => {
   // Pattern tabs activate on click (literal `.active` class). Selected by
   // testid, not label: the four machine tabs carry a status LED whose state is
   // mirrored into aria-label ("Sequencer — on"), so their accessible name is no
-  // longer the bare label (machine-status.md REQ-4).
+  // longer the bare label (machine-status.md REQ-machine-state-is-not-colour-only).
   for (const id of ['seq', 'drums', 'sampler', 'song', 'arp']) {
     const tab = page.locator(`[data-testid="tab-${id}"]`);
     await tab.click();

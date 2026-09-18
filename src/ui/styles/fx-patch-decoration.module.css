@@ -1,7 +1,7 @@
 /* Decorative filler for the empty .fxRow cell — see
    specs/features/fx-patch-decoration.md and fx-patch-decoration.ts.
    Near-black throughout: the brightest stroke stays at or below --panel-border
-   so it never out-contrasts a real effect panel (REQ-6). Fully static (REQ-7). */
+   so it never out-contrasts a real effect panel (REQ-the-decoration-recedes). Fully static (REQ-the-decoration-is-static-and-cheap). */
 
 .root {
   position: relative;
@@ -10,7 +10,7 @@
      Percentage margins resolve against the cell's width on all four sides, so
      the reveal stays square as the bay grows. Deliberately no border: a rim
      would draw the slot as an object; it should just be a hole in the rack,
-     defined only by the recessed face falling away to black (REQ-8). */
+     defined only by the recessed face falling away to black (REQ-the-bay-is-inset-from-its-cell). */
   margin: 5%;
   min-height: 48px; /* never tall enough to drive the FX row's height */
   overflow: hidden; /* cables that run past the bay disappear behind the rack */
@@ -19,7 +19,7 @@
   background: radial-gradient(ellipse 78% 86% at 50% 48%, #0c0c0a 0%, #0a0806 58%, #050403 100%);
   box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.75);
   /* Only the ≤992px 2-column grid leaves a gap to fill; the 5-column row is
-     full, and a 6th child would wrap onto a row of its own (REQ-1).
+     full, and a 6th child would wrap onto a row of its own (REQ-decoration-occupies-one-grid-cell).
      Breakpoint mirrors .fxRow in layout.module.css — keep the two in sync. */
   display: none;
 }

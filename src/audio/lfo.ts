@@ -5,7 +5,7 @@ import { bindTempoLocked } from './tempo-bind';
 const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square'];
 
 /**
- * The slice of `PwmDriver` an LFO is allowed to drive (oscillators.md REQ-8).
+ * The slice of `PwmDriver` an LFO is allowed to drive (oscillators.md REQ-set-periodic-wave-is-immediate).
  *
  * Structural rather than an import of the class, so `lfo.ts` pulls nothing from
  * `pwm.ts` and the existing `pwm.ts -> lfo.ts` dependency stays a one-way edge.
@@ -27,7 +27,7 @@ export const enum LfoDest {
   Shape = 6,
 }
 
-/** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-5).
+/** Control-signal smoothing for the amplitude-domain outputs (lfo.md REQ-amplitude-destinations-are-smoothed).
  *  Q = 0.5 is critically damped — a step settles without overshoot, so the
  *  smoothed depth never exceeds the depth that was asked for. */
 const SMOOTH_HZ = 200;
@@ -41,18 +41,18 @@ const SMOOTH_Q = 0.5;
  * cutoffNote, tremolo gain, filter shape); Engine connects pan to the synth bus
  * panner.
  *
- * `Engine` builds **two** of these (lfo.md REQ-10). Nothing here is shared or
+ * `Engine` builds **two** of these (lfo.md REQ-there-are-two-lfos). Nothing here is shared or
  * static, and every output lands on a summing AudioParam, so two instances on
- * one destination simply add (REQ-13). The single exception is `Pulse`, which is
+ * one destination simply add (REQ-duplicated-destinations-sum-and-stay-bounded). The single exception is `Pulse`, which is
  * a parameter write and has to be arbitrated — see `bind` and `PwmDriver`.
  *
  * `Pulse` is the fifth destination and has **no output node here**: a native
  * OscillatorNode has no width AudioParam to drive, so it is handled by
- * `PwmDriver` from a JS-side mirror of this shape (oscillators.md REQ-8). Its
+ * `PwmDriver` from a JS-side mirror of this shape (oscillators.md REQ-set-periodic-wave-is-immediate). Its
  * only effect on this class is that `update()` silences everything.
  *
  * `amp`, `pan` and `shape` are fed through a lowpass, `pitch` and `cutoff` are
- * not (lfo.md REQ-5/REQ-7): on a square/saw waveform a stepped *gain* is a
+ * not (lfo.md REQ-amplitude-destinations-are-smoothed/REQ-shape-destination-sweeps-the-pole-mix): on a square/saw waveform a stepped *gain* is a
  * click, while a stepped octave or filter jump is a musical event. `shape`
  * joins the smoothed group despite being frequency-domain in effect — it moves
  * filter *coefficients*, where a step is a click, not a musical event.
@@ -101,7 +101,7 @@ export class LFO {
     smooth.connect(this.toShape);
 
     // The mod matrix's tap: unit amplitude, ahead of this LFO's own `amount`, because
-    // each matrix route carries its own depth (mod-matrix.md REQ-8). Taken from the
+    // each matrix route carries its own depth (mod-matrix.md REQ-depth-is-in-the-destinations-unit). Taken from the
     // smoothed path so a square wave cannot click into an amplitude-domain
     // destination — at LFO rates the 200 Hz lowpass is otherwise transparent.
     this.modTap = ctx.createGain();
@@ -117,7 +117,7 @@ export class LFO {
    * `Engine.subscribeParams()`, which necessarily runs after `init()` has built
    * the shared `PwmDriver`.
    *
-   * `modWheelId` is passed for **LFO 1 only** (lfo.md REQ-11): the wheel is a
+   * `modWheelId` is passed for **LFO 1 only** (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only): the wheel is a
    * performance gesture with one meaning, and opening a second unrelated
    * modulation with it would be one gesture with two outcomes (ADR-014 law 2).
    *
@@ -149,7 +149,7 @@ export class LFO {
 
     bus.subscribe(`${prefix}.dest`, applyDest);
     // Rate, tempo lock and BPM, in one place shared with the FX (tempo-lock.md
-    // REQ-7). PWM rides the same effective rate (REQ-6/REQ-14), so it is driven
+    // REQ-audio-resolves-the-lock-in-one-place). PWM rides the same effective rate (REQ-pulse-destination-sweeps-width/REQ-pulse-is-arbitrated), so it is driven
     // from the same callback rather than from a second subscription that could
     // disagree with this one.
     bindTempoLocked(bus, `${prefix}.rate`, `${prefix}.sync`, 'freq', (hz) => {
@@ -188,11 +188,11 @@ export class LFO {
     // Amp: ±50% modulation at full depth (added to tremolo VCA's base 1.0)
     rampTo(this.toAmp.gain, this.dest === LfoDest.Amp ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
     // Pan: ±1.0 — hard L↔R at full depth. StereoPannerNode.pan clamps to ±1,
-    // so this stays bounded whatever the amount (lfo.md REQ-4).
+    // so this stays bounded whatever the amount (lfo.md REQ-pan-sweeps-a-stereo-panner).
     rampTo(this.toPan.gain, this.dest === LfoDest.Pan ? this.amount : 0, this.ctx, RAMP_MEDIUM);
     // Shape: ±0.5 of the POLY pole-mix morph at full depth, summed onto the
     // knob's position. A no-op under the LADDER model, which ignores shape
-    // (filter-models.md REQ-7).
+    // (filter-models.md REQ-shape-is-poly-only).
     rampTo(this.toShape.gain, this.dest === LfoDest.Shape ? this.amount * 0.5 : 0, this.ctx, RAMP_MEDIUM);
   }
 }

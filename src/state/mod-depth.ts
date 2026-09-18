@@ -2,7 +2,7 @@ import { LFO_DEST_LABELS } from './params';
 import { MOD_ROWS, MOD_DST, MOD_SRC, MOD_DEST_SCALE } from './mod-routing';
 
 /**
- * How far modulation can move a given faceplate param — mod-matrix.md REQ-8.
+ * How far modulation can move a given faceplate param — mod-matrix.md REQ-depth-is-in-the-destinations-unit.
  *
  * This is what lets a knob draw the **range** modulation can take it over, computed
  * from the route params alone. No audio-thread readback, nothing per frame: the answer
@@ -29,7 +29,7 @@ const DEST_PARAM: Record<number, string> = {
 
 /**
  * The same for an LFO row, which carries **its own** depth scalars — the LFO reaches
- * ±24 semitones of cutoff where a matrix route reaches ±48 (lfo.md REQ-13). Keyed by
+ * ±24 semitones of cutoff where a matrix route reaches ±48 (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded). Keyed by
  * destination *name* because `LFO_DEST_LABELS` and `MOD_DEST_LABELS` are two
  * independently append-only arrays whose indices do not line up.
  */
@@ -81,7 +81,7 @@ export function modDepthDeps(paramId: string): string[] {
  * the one where a static band reads as a broken feature.
  *
  * Signed, unlike `modDepthFor`: a negative amount moves the marker the other way.
- * The wheel's own contribution to LFO 1's *depth* (lfo.md REQ-11) is deliberately not
+ * The wheel's own contribution to LFO 1's *depth* (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only) is deliberately not
  * counted here — that widens the band, which `modDepthFor` already shows, and adding
  * it again would double-count one gesture.
  */
@@ -105,7 +105,7 @@ export function modOffsetFor(paramId: string, read: (id: string) => number): num
  * negative, `1` when every one is positive, `0` when they are mixed or there are none.
  *
  * This is what lets a faceplate knob show an inverted route without the matrix window
- * open (mod-matrix.md REQ-13) — the case that motivated the colour in the first place.
+ * open (mod-matrix.md REQ-the-bands-direction-has-a-colour) — the case that motivated the colour in the first place.
  *
  * Deliberately unanimous rather than a sum of signs: with one route up and one down,
  * "the modulation is negative" is not a true statement about the knob, and a colour
@@ -150,7 +150,7 @@ export function modDepthFor(paramId: string, read: (id: string) => number): numb
     const name = LFO_DEST_LABELS[Math.round(read(`${prefix}.dest`))];
     const d = name === undefined ? undefined : LFO_DEST[name];
     if (!d || d.param !== paramId) continue;
-    // The mod wheel adds into LFO 1's depth (lfo.md REQ-11), so it widens the reach
+    // The mod wheel adds into LFO 1's depth (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only), so it widens the reach
     // exactly as the AMT knob does — the arc has to agree with what is heard.
     const wheel = prefix === 'lfo' ? read('master.modWheel') : 0;
     depth += Math.min(1, read(`${prefix}.amount`) + wheel) * d.scale;

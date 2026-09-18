@@ -59,56 +59,64 @@ exist, at what version, and what did each version add".
 
 ## Requirements
 
-- **REQ-1** — `buildParamCatalog(bus)` in the new, pure `src/state/param-catalog.ts` is
-  the **structured** counterpart to `paramTable()`: one entry per registered id, in
-  `bus.ids()` order. It is DOM-free and importable by the MCP Node bundle, so it may
-  depend only on `params.ts`, `preset-session.ts` and `song-version.ts` — **never**
-  `song.ts`, whose `import.meta.glob` demo registration poisons that bundle
-  ([mcp-server](mcp-server.md) REQ-4).
-- **REQ-1b** — The registration order in `registerDefaults()` **is** the catalogue's
-  order, so how a param is registered is a published-artefact concern. The four
-  insert effects that appear on more than one chain are registered from shared
-  factories (`distParams`, `phaserParams`, `delayParams`, `reverbParams`, over
-  `fxOnParam`) rather than written out once per prefix; the wah and the compressors
-  stay longhand because each appears once. Chain-specific defaults are arguments to
-  the factory, never a second copy of it.
+- **REQ-catalogue-is-node-importable** — `buildParamCatalog(bus)` in the new,
+  pure `src/state/param-catalog.ts` is the **structured** counterpart to
+  `paramTable()`: one entry per registered id, in `bus.ids()` order. It is
+  DOM-free and importable by the MCP Node bundle, so it may depend only on
+  `params.ts`, `preset-session.ts` and `song-version.ts` — **never** `song.ts`,
+  whose `import.meta.glob` demo registration poisons that bundle
+  ([mcp-server](mcp-server.md) REQ-song-core-entry-exports-only-pure-code).
+- **REQ-registration-order-is-published** — The registration order in
+  `registerDefaults()` **is** the catalogue's order, so how a param is
+  registered is a published-artefact concern. The four insert effects that
+  appear on more than one chain are registered from shared factories
+  (`distParams`, `phaserParams`, `delayParams`, `reverbParams`, over
+  `fxOnParam`) rather than written out once per prefix; the wah and the
+  compressors stay longhand because each appears once. Chain-specific defaults
+  are arguments to the factory, never a second copy of it.
 
   The bar for that change is `npm run check:params`: regenerating `public/params.json`
   and `public/params.md` must produce **byte-identical** files. Ids, order, bounds,
   defaults, tapers and labels are all a compatibility surface — the defaults doubly
   so, since ADR-006 makes a default what every older preset and song silently
   inherits.
-- **REQ-2** — An entry carries every `ParamDef` field that is **data**: `id`, `min`,
-  `max`, `default`, and the optional `step`, `taper`, `curve`, `unit`, `labels`.
-  Optional fields are **omitted when unset**, never emitted as `null`. `format` is
-  excluded — it is a render function, not data. Each entry adds `patch: boolean` from
-  `isPatchParam`, the sound-vs-song split [preset-authoring](preset-authoring.md) REQ-3
-  already reports on.
-- **REQ-3** — The catalogue is **published as two generated files** under `public/`, so
-  they ship in `dist/` and are fetchable from the deployed site:
+- **REQ-entry-carries-data-fields-only** — An entry carries every `ParamDef`
+  field that is **data**: `id`, `min`, `max`, `default`, and the optional
+  `step`, `taper`, `curve`, `unit`, `labels`. Optional fields are **omitted when
+  unset**, never emitted as `null`. `format` is excluded — it is a render
+  function, not data. Each entry adds `patch: boolean` from `isPatchParam`, the
+  sound-vs-song split [preset-authoring](preset-authoring.md) REQ-semantic-validation-needs-the-bus already
+  reports on.
+- **REQ-published-as-json-and-md** — The catalogue is **published as two
+  generated files** under `public/`, so they ship in `dist/` and are fetchable
+  from the deployed site:
   - `params.json` — `buildParamCatalog()` pretty-printed, for programmatic use.
   - `params.md` — the prose table, rendered by the **existing** `paramTable()` in two
     sections: sound parameters (`isPatchParam`) and song-only parameters (its negation).
     There is exactly one param-line format in the repo, and this is not a second one.
   Both carry a generated-file banner. Neither is hand-edited.
-- **REQ-4** — `params.json` carries no **app** version. It is stamped with its own
-  `format`/`version` pair and with `songVersion` interpolated from `SONG_VERSION`. A
-  release bump must not be able to redden the drift check, and a version literal in a
-  model-visible file drifts silently ([mcp-server](mcp-server.md) REQ-5).
-- **REQ-5** — `scripts/gen-params.ts` writes both files; with `GEN_PARAMS_CHECK` set it
-  writes nothing and **fails naming every drifted file**. The two modes are one entry
-  behind two vitest configs — `npm run gen:params` and `npm run check:params` — exactly
-  as `clean:demos`/`check:demos` are. `gen:params` runs in `prebuild`; `check:params`
-  runs in CI, so a param added without regenerating cannot ship.
-- **REQ-6** — `public/llms.txt` **links** `/params.json` and `/params.md` instead of
-  sending agents to the app, and gains a format/version table: the four formats, their
-  versions, their schema URLs, and what each `websynth-song` version added. It still
-  carries **no parameter ids** of its own — the existing drift pin stands.
-- **REQ-7** — `README.md` links both preset schemas alongside the two song schemas it
-  already linked, and names the published param files.
-- **REQ-8** — MCP serves the same catalogue as JSON via `get_params`
-  ([mcp-server](mcp-server.md) REQ-5d), so a tool-using agent gets ranges it can compute
-  against rather than comment text it must parse.
+- **REQ-params-json-has-its-own-version** — `params.json` carries no **app**
+  version. It is stamped with its own `format`/`version` pair and with
+  `songVersion` interpolated from `SONG_VERSION`. A release bump must not be
+  able to redden the drift check, and a version literal in a model-visible file
+  drifts silently ([mcp-server](mcp-server.md) REQ-five-song-tools).
+- **REQ-gen-params-has-a-check-mode** — `scripts/gen-params.ts` writes both
+  files; with `GEN_PARAMS_CHECK` set it writes nothing and **fails naming every
+  drifted file**. The two modes are one entry behind two vitest configs — `npm
+  run gen:params` and `npm run check:params` — exactly as
+  `clean:demos`/`check:demos` are. `gen:params` runs in `prebuild`;
+  `check:params` runs in CI, so a param added without regenerating cannot ship.
+- **REQ-llms-txt-links-not-lists** — `public/llms.txt` **links** `/params.json`
+  and `/params.md` instead of sending agents to the app, and gains a
+  format/version table: the four formats, their versions, their schema URLs, and
+  what each `websynth-song` version added. It still carries **no parameter ids**
+  of its own — the existing drift pin stands.
+- **REQ-readme-links-the-schemas** — `README.md` links both preset schemas
+  alongside the two song schemas it already linked, and names the published
+  param files.
+- **REQ-mcp-serves-the-catalogue** — MCP serves the same catalogue as JSON via
+  `get_params` ([mcp-server](mcp-server.md) REQ-get-params-is-shared-by-both-halves), so a tool-using agent gets
+  ranges it can compute against rather than comment text it must parse.
 
 ## Technical design
 
@@ -232,6 +240,6 @@ Scenario: an agent fetches the catalogue over MCP
   version as a bare literal at each use site; only `SONG_VERSION` is a named constant.
   The format table in `llms.txt` is hand-kept for those three until they get one.
 - The JSON Schemas still describe `params` as an open `{string: number}` map
-  ([preset-authoring](preset-authoring.md) REQ-6). Now that a machine-readable id list
+  ([preset-authoring](preset-authoring.md) REQ-preset-schemas-are-published). Now that a machine-readable id list
   exists, a generated `enum` is possible — but it would make every schema reject files
   from a newer build, which is the forward-compatibility the open map buys.

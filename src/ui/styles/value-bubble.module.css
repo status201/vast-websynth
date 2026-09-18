@@ -1,5 +1,5 @@
 /* Transient value readout pinned above the control being dragged
-   (src/ui/components/value-bubble.ts, motion-sequencer.md REQ-22).
+   (src/ui/components/value-bubble.ts, motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering).
 
    Fixed-position and pointer-transparent: it is placed from the anchor's
    viewport rect and must never intercept the gesture that spawned it. Layered

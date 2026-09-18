@@ -9,7 +9,7 @@ import type { SyncController } from '../../src/audio/transport/sync/sync-control
 import type { WebRtcSyncTransport } from '../../src/audio/webrtc-sync-transport';
 
 /**
- * onboarding.md REQ-24 (runtime-performance.md REQ-1): the help door is behind
+ * onboarding.md REQ-the-help-door-never-fails-silently (runtime-performance.md REQ-boot-cost-matches-the-request): the help door is behind
  * two `import()`s, and before this it failed *silently* — a `?` button that
  * appended no card and said nothing, which reads as a broken app rather than a
  * missing download.
@@ -105,7 +105,7 @@ const SYNC_CTRL = {
 } as unknown as SyncController;
 const RTC = { linked: false, onPortsChange: () => () => {} } as unknown as WebRtcSyncTransport;
 
-describe('A deferred help surface that cannot load (onboarding.md REQ-24)', () => {
+describe('A deferred help surface that cannot load (onboarding.md REQ-the-help-door-never-fails-silently)', () => {
   beforeEach(() => {
     installLocalStorageMock();
     document.body.innerHTML = '';
@@ -125,7 +125,7 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-24)', () =
     btn.click();
     await vi.waitFor(() => expect(toast()).toBeTruthy());
 
-    // The regression: before REQ-24 this was the whole outcome — no card, and
+    // The regression: before REQ-the-help-door-never-fails-silently this was the whole outcome — no card, and
     // nothing else either.
     expect(card()).toBeNull();
     expect(toastText()).toContain('Help & About');
@@ -224,20 +224,20 @@ describe('A deferred help surface that cannot load (onboarding.md REQ-24)', () =
  * graph, and — more to the point — no behavioural test can pin the *set*: the
  * regression this spec exists to prevent is someone adding an eighth deferred
  * surface and forgetting the catch. So the set is pinned structurally, the way
- * overlay-cost.test.ts pins REQ-10 by the absence of a declaration.
+ * overlay-cost.test.ts pins REQ-the-tour-showcases-the-song-tab by the absence of a declaration.
  */
-describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-1)', () => {
+describe('Every deferred-surface trigger is guarded (lazy-load-failure.md REQ-every-lazy-trigger-reports)', () => {
   /**
    * Runtime `import()`s only. Type positions (`typeof import('x').T`,
    * `: import('x').T`) carry no fetch and must not be flagged.
    */
   const RUNTIME_IMPORT = /\bawait import\(|\bimport\([^)]*\)\s*\.(then|catch)\b/;
 
-  /** REQ-4 and REQ-5: the imports that legitimately do not report. */
+  /** REQ-lazy-report-is-the-backstop and REQ-lazy-scope-is-surfaces-not-operations: the imports that legitimately do not report. */
   const EXEMPT = new Map<string, string>([
-    ['src/main.ts', 'REQ-4 — idle warms; not a gesture, so a toast would be noise'],
-    ['src/audio/recorder/encode.ts', 'REQ-5 — lamejs mid-export, owned by audio-export.md'],
-    ['src/ui/components/sync-pair-modal.ts', 'REQ-5 — jsqr mid-scan, owned by webrtc-sync.md'],
+    ['src/main.ts', 'REQ-lazy-report-is-the-backstop — idle warms; not a gesture, so a toast would be noise'],
+    ['src/audio/recorder/encode.ts', 'REQ-lazy-scope-is-surfaces-not-operations — lamejs mid-export, owned by audio-export.md'],
+    ['src/ui/components/sync-pair-modal.ts', 'REQ-lazy-scope-is-surfaces-not-operations — jsqr mid-scan, owned by webrtc-sync.md'],
   ]);
 
   it('leaves no runtime import() in src/ without a report or a documented exemption', async () => {

@@ -9,7 +9,10 @@ import { citationsIn, staleNamesIn, hasReq, EXTERNAL_NAMES } from '../../scripts
  */
 
 const reqs = new Map<string, Set<string>>([
-  ['arrangement', new Set(['1', '2', '8', '12'])],
+  // Both id grammars, because a half-migrated tree is the normal state for as long
+  // as the migration runs (ADR-021). These ids are fixtures, not the real spec's —
+  // `req-migrate.mjs` skips this file for exactly that reason.
+  ['arrangement', new Set(['1', '2', '8', '12', 'slot-transpose', 'rest-clears-lane'])],
   ['motion-sequencer', new Set(['22', '23'])],
   ['transport-position', new Set(['6', '8'])],
 ]);
@@ -33,6 +36,23 @@ describe('citationsIn', () => {
     expect(cite('the REQ-99 above; this spec REQ-99; see ADR-015 REQ-99')).toEqual([]);
   });
 
+  it('checks a citation split across a line break', () => {
+    // The spec name ends one line and the id opens the next. 130 citations in the
+    // tree wrap this way and none of them were checked until this existed — which
+    // is also how a rename pass silently repointed 17 of them at the wrong spec.
+    expect(cite('buffers to match ([arrangement](arrangement.md)\nREQ-8). Because it', true)).toEqual([]);
+    expect(cite('buffers to match ([arrangement](arrangement.md)\nREQ-16). Because it', true)).toEqual([
+      'line 2: `arrangement.md REQ-16` — arrangement.md declares no REQ-16',
+    ]);
+  });
+
+  it('does not carry an anchor once prose has resumed', () => {
+    // Only the head of the line continues the citation; a later id is its own.
+    expect(cite('see arrangement.md\nthe REQ-16 above is unrelated')).toEqual([]);
+    // A previous line that already carries an id is a complete citation, not a head.
+    expect(cite('arrangement.md REQ-8 is the rule\nREQ-16 here means something else')).toEqual([]);
+  });
+
   it('checks every REQ in a run, not just the first', () => {
     expect(cite('transport-position.md REQ-6/REQ-7, REQ-8')).toEqual([
       'line 1: `transport-position.md REQ-7` — transport-position.md declares no REQ-7',
@@ -44,9 +64,58 @@ describe('citationsIn', () => {
     expect(cite('(motion-sequencer REQ-24a)')).toHaveLength(1);
   });
 
+  it('resolves a slug id in both citation forms', () => {
+    expect(cite('# the per-slot transpose (arrangement.md REQ-slot-transpose)')).toEqual([]);
+    expect(cite('// a resting bank (arrangement REQ-rest-clears-lane).')).toEqual([]);
+    expect(cite('see arrangement.md REQ-slot-transposes')).toEqual([
+      'line 1: `arrangement.md REQ-slot-transposes` — arrangement.md declares no REQ-slot-transposes',
+    ]);
+  });
+
+  it('ends the id at the last word, so trailing punctuation is never part of it', () => {
+    // `[a-z0-9]+(?:-[a-z0-9]+)*` cannot end on a hyphen, and an em-dash is outside
+    // the class — both would otherwise be swallowed into the slug and never resolve.
+    expect(cite('arrangement.md REQ-slot-transpose — the slot carries it')).toEqual([]);
+    expect(cite('arrangement REQ-rest-clears-lane, and the bar flags itself')).toEqual([]);
+  });
+
+  it('checks a run that mixes a legacy number and a slug', () => {
+    expect(cite('arrangement.md REQ-8/REQ-slot-transpose, REQ-nope')).toEqual([
+      'line 1: `arrangement.md REQ-nope` — arrangement.md declares no REQ-nope',
+    ]);
+  });
+
+  it('checks the backticked form the root docs and ADRs use', () => {
+    // `` `specs/architecture.md` REQ-1 `` — the closing backtick used to end the
+    // match, so 45 of these went unchecked and one had already gone stale.
+    expect(cite('write via the bus — see `specs/arrangement.md` REQ-8.')).toEqual([]);
+    expect(cite('see `specs/arrangement.md` REQ-16.')).toEqual([
+      'line 1: `arrangement.md REQ-16` — arrangement.md declares no REQ-16',
+    ]);
+  });
+
   it('flags a citation of a spec that does not exist, but not of a real non-spec file', () => {
     expect(cite('renamed-spec.md REQ-3')).toEqual(['line 1: cites `renamed-spec.md`, which is no spec']);
     expect(cite('README.md REQ-3')).toEqual([]);
+  });
+
+  it('checks a bare slug against every spec — what a bare number could never be', () => {
+    // No spec is named, so the id has to resolve on its own. This is the payoff
+    // ADR-021 argued for: ~3,900 references in the tree are written this way.
+    expect(cite('// a resting bank (REQ-rest-clears-lane)')).toEqual([]);
+    expect(cite('// a resting bank (REQ-rest-clears-lanes)')).toEqual([
+      'line 1: `REQ-rest-clears-lanes` is declared by no spec',
+    ]);
+  });
+
+  it('never bare-checks a number, and never re-reports an anchored id', () => {
+    // A bare number is unresolvable by construction — it is not an error, it is
+    // simply outside what this check can see.
+    expect(cite('// the release path (REQ-4)')).toEqual([]);
+    // And an id a `.md` citation already resolved is reported once, not twice.
+    expect(cite('see arrangement.md REQ-slot-transposes')).toEqual([
+      'line 1: `arrangement.md REQ-slot-transposes` — arrangement.md declares no REQ-slot-transposes',
+    ]);
   });
 
   it('leaves ADRs alone — they declare no REQs', () => {
@@ -71,6 +140,14 @@ describe('citationsIn', () => {
     expect(hasReq(s, '5')).toBe(true);
     expect(hasReq(s, '5a')).toBe(true);   // part (a) of REQ-5
     expect(hasReq(s, '6a')).toBe(false);
+  });
+
+  it('hasReq: never resolves a slug by stripping its last word', () => {
+    // Every slug ends in a letter, so the lettered-part rule would answer
+    // `REQ-reset-auto-start` by looking for a `REQ-reset-auto-` nobody wrote.
+    expect(hasReq(new Set(['reset-auto-start']), 'reset-auto-start')).toBe(true);
+    expect(hasReq(new Set(['reset-auto']), 'reset-auto-start')).toBe(false);
+    expect(hasReq(new Set(['reset-auto-']), 'reset-auto-start')).toBe(false);
   });
 });
 

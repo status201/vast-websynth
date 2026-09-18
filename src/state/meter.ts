@@ -9,7 +9,7 @@
  *   barTicks()   bar length in ticks    (job 2 — from transport.beats/beatUnit)
  *   LANE_RATES   ticks per cell         (job 3's partner — per machine)
  *
- * A **tick** is one 16th note: the clock's unit, unchanged (meter.md REQ-1).
+ * A **tick** is one 16th note: the clock's unit, unchanged (meter.md REQ-the-clock-stays-a-sixteenth-pulse).
  *
  * Pure and dependency-light on purpose — `scripts/mcp/song-core-entry.ts` pulls
  * `patterns.ts` (and so this) into a plain-Node bundle, so nothing here may touch
@@ -27,7 +27,7 @@ export const MAX_BEATS = 12;
 export const BEAT_UNITS = [4, 2] as const;
 export const BEAT_UNIT_LABELS = ['1/4', '1/8'] as const;
 
-/** 4/4 — what every pre-meter song means (meter.md REQ-19). */
+/** 4/4 — what every pre-meter song means (meter.md REQ-meter-needs-no-song-file-bump). */
 export const DEFAULT_BEATS = 4;
 export const DEFAULT_BEAT_UNIT = 0;
 export const DEFAULT_BAR_TICKS = 16;
@@ -95,7 +95,7 @@ export const METER_PRESETS: readonly MeterPreset[] = [
 
 function clampInt(v: number, min: number, max: number): number {
   // Non-finite floored to `min` first: the app-wide `max(min, min(max, v))` idiom
-  // returns NaN for NaN (untrusted-input.md REQ-6), and a NaN bar length would
+  // returns NaN for NaN (untrusted-input.md REQ-no-subscriber-can-wedge-the-clock), and a NaN bar length would
   // make every modulo below NaN and stall every machine at once.
   if (!Number.isFinite(v)) return min;
   return Math.max(min, Math.min(max, Math.round(v)));
@@ -106,7 +106,7 @@ export function ticksPerBeat(unitIdx: number): number {
   return BEAT_UNITS[clampInt(unitIdx, 0, BEAT_UNITS.length - 1)]!;
 }
 
-/** Bar length in ticks — `beats × ticksPerBeat` (meter.md REQ-5/REQ-6). */
+/** Bar length in ticks — `beats × ticksPerBeat` (meter.md REQ-meter-is-two-bus-scalars/REQ-bar-ticks-is-the-arrangement-bar-line). */
 export function barTicks(beats: number, unitIdx: number): number {
   return clampInt(beats, MIN_BEATS, MAX_BEATS) * ticksPerBeat(unitIdx);
 }
@@ -151,7 +151,7 @@ export function laneTicks(len: number, rateIdx: number, bar: number): number {
 
 /**
  * The cell a lane is on at absolute tick `step` — **a pure function of `step`**
- * (meter.md REQ-3). No accumulator anywhere, which is what makes a 12- or
+ * (meter.md REQ-a-cell-index-is-a-pure-function-of-step). No accumulator anywhere, which is what makes a 12- or
  * 14-cell lane survive a seek, a Song-Position join and a dropout untouched.
  */
 export function cellIndex(step: number, cells: number, rateIdx: number): number {
@@ -177,7 +177,7 @@ function ceilDiv(a: number, b: number): number {
  * At a rate of one tick per cell this is always `{ count: 1 }`; coarser rates
  * give `count: 0` on the ticks they skip; finer rates give 2 or 3, to be
  * scheduled inside the one tick at `cellOffsetTicks` — the technique the
- * arpeggiator already uses for sub-16th rates (arpeggiator.md REQ-6).
+ * arpeggiator already uses for sub-16th rates (arpeggiator.md REQ-a-sub-16th-rate-schedules-its-own-hits).
  */
 export function cellsInTick(step: number, rateIdx: number): { from: number; count: number } {
   const r = laneRate(rateIdx);

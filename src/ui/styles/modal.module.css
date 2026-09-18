@@ -5,7 +5,7 @@
    rasterization, regardless of what the card contains. It is inherited by every
    Modal, so the cost applied to the whole app whenever any dialog was open.
    At 82% opacity the blur was buying almost nothing visually.
-   See specs/features/runtime-performance.md REQ-10; pinned by
+   See specs/features/runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces; pinned by
    tests/ui/overlay-cost.test.ts. */
 .backdrop {
   position: fixed;
@@ -118,7 +118,7 @@
   grid-template-columns: auto 1fr;
   gap: 8px 18px;
   /* Centred, not baseline: a note row is two ranks tall and its wrapped action
-     label should sit against the middle of the block (onboarding REQ-17c). */
+     label should sit against the middle of the block (onboarding REQ-keys-are-drawn-as-keys). */
   align-items: center;
   --cap-w: 19px;
   --cap-h: 20px;
@@ -136,7 +136,7 @@
   white-space: nowrap;
 }
 
-/* ---- Shortcut combos: only real keys are drawn as keys (REQ-17c) ---- */
+/* ---- Shortcut combos: only real keys are drawn as keys (REQ-keys-are-drawn-as-keys) ---- */
 
 .combo {
   display: flex;
@@ -240,7 +240,7 @@
 
 /* A foldable section header: the .sec label plus a fold chevron, whole row
    clickable. Shared by the Keyboard Shortcuts and Debug sections — one fold
-   idiom per modal, not two (onboarding.md REQ-17b). */
+   idiom per modal, not two (onboarding.md REQ-the-key-list-folds-to-six-rows). */
 .secFold {
   display: flex;
   align-items: center;
@@ -281,7 +281,7 @@
    (`xy-pad.module.css .gearBtn`) — same `⚙`, same 90° rotation on open — so
    "gear reveals a setting" reads identically wherever it appears. The header's
    inline-SVG icon set is a different thing: those glyphs exist because the
-   header's tier/state classes tint them (responsive-header.md REQ-5). */
+   header's tier/state classes tint them (responsive-header.md REQ-utility-buttons-are-icon-only). */
 .gearBtn {
   flex: none;
   width: 18px;
@@ -419,7 +419,7 @@
 }
 
 /*
- * The hosted-MCP shortcut above step 1 (ai-prompt.md REQ-10). An aside, not a
+ * The hosted-MCP shortcut above step 1 (ai-prompt.md REQ-the-modal-offers-the-connector). An aside, not a
  * step: it is inset and quieter than the numbered flow so it reads as "there is
  * a shorter way" rather than as a fourth thing to do.
  */
@@ -439,7 +439,7 @@
   color: var(--text-dim);
 }
 
-/* The endpoint itself: pasted text, so --mono (typography.md REQ-3). */
+/* The endpoint itself: pasted text, so --mono (typography.md REQ-mono-is-readouts-and-pasted-text). */
 .aiConnectorUrl {
   font-family: var(--mono);
   font-size: 11px;

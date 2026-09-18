@@ -8,7 +8,7 @@ const def = (over: Partial<ParamDef>): ParamDef => ({
 } as ParamDef);
 
 /**
- * Pins the fallback chain lifted out of `Knob` (motion-sequencer.md REQ-22), so
+ * Pins the fallback chain lifted out of `Knob` (motion-sequencer.md REQ-a-motion-steps-value-is-readable-without-hovering), so
  * the knobs and the motion readout keep describing a parameter identically.
  */
 describe('formatParam', () => {
@@ -36,14 +36,14 @@ describe('formatParam', () => {
 });
 
 /**
- * drum-machine.md REQ-18, regression.
+ * drum-machine.md REQ-tune-reads-in-semitones, regression.
  *
  * `unit` looks like it labels a value and does not: `formatParam` consults only
  * `format`. A param that declared `unit: 'st'` and nothing else therefore fell
  * through to the plain numeric branch, and a knob whose whole range is whole
  * semitones read "0.00". Nothing failed — the number was simply meaningless.
  */
-describe('a registered param that a knob has to show (REQ-18)', () => {
+describe('a registered param that a knob has to show (REQ-tune-reads-in-semitones)', () => {
   it('ignores `unit` — only `format` reaches the readout', () => {
     // The trap itself, stated as a fact about formatParam rather than about any
     // one param: adding `unit` to a def changes nothing a user can see.

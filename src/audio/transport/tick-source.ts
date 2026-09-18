@@ -8,12 +8,12 @@ export interface TickSubscriber {
   onStop(fn: () => void): () => void;
   /** The playhead jumped: `step` changed without the grid advancing. Consumers
    *  that track position *relatively* must re-base here (transport-position.md
-   *  REQ-4). Like `onStart`, subscribers read `step` themselves. */
+   *  REQ-every-relative-consumer-reacts-to-a-seek). Like `onStart`, subscribers read `step` themselves. */
   onSeek(fn: () => void): () => void;
   sixteenthDuration(): number;
   /** The swing delay this tick's `when` already carries, in seconds. A lane
    *  running coarser than a 16th subtracts it and applies swing on its own grid
-   *  (transport.md REQ-11, meter.md REQ-16). */
+   *  (transport.md REQ-swing-offset-is-public, meter.md REQ-swing-is-computed-on-the-lanes-grid). */
   swingOffset(step: number): number;
   setBpm(bpm: number): void;
   start(): void;

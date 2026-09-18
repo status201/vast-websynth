@@ -4,26 +4,27 @@
 id: debug-panel
 status: implemented
 version: 13  # v13: a Scope row (debug-scope) reports whether the visualizer is
-             #      actually painting — scope.md REQ-38, a REQ-4 extension, no
+             #      actually painting — scope.md REQ-the-panel-says-whether-it-is-drawing, a REQ-the-debug-extension-contract extension, no
              #      contract change.
              # v12: sizes read in kB below a megabyte ("1 key · 3 kB", not
              #      "1 keys · 0.0 MB"), and the Unregister confirm says what it
-             #      does — the caches stay (REQ-6)
+             #      does — the caches stay (REQ-a-debug-row-may-carry-one-action)
              # v11: the ctx-state row also names the autoplay verdict — the one
              #      glance that says whether a start modal was shown at all, and
-             #      why a boot could be audible (audio-lifecycle.md v6 REQ-19/20)
+             #      why a boot could be audible (audio-lifecycle.md
+#      REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required)
              # v10: the Suspend action goes through Engine.suspendForDebug() so the
              #      universal statechange re-arm can tell a deliberate suspend from
              #      an OS one, and the ctx-state row shows when a resume is waiting
-             #      for a gesture (audio-lifecycle.md v5 REQ-13/REQ-15)
+             #      for a gesture (audio-lifecycle.md v5 REQ-a-resume-that-does-not-take-is-retried/REQ-an-unasked-suspension-is-recovered)
              # v9: about.ts split five ways — the panel is now about-debug.ts,
              #     the late-bound row sources are state/debug-sources.ts, and
-             #     createAboutButton is about-button.ts (runtime-performance REQ-1)
+             #     createAboutButton is about-button.ts (runtime-performance REQ-boot-cost-matches-the-request)
              # v8: createAboutButton takes the tour hook too, and the section
              #     header class is now the shared `.secFold` (onboarding.md v15)
-             # v7: + the Background audio row (audio-lifecycle.md REQ-12)
-             # v6: + the Media session row (media-session.md REQ-8); v5 put
-             #     Clock.dropouts on the Transport row (audio-lifecycle REQ-7)
+             # v7: + the Background audio row (audio-lifecycle.md REQ-the-measurement-is-visible-either-way)
+             # v6: + the Media session row (media-session.md REQ-session-is-observable-on-device); v5 put
+             #     Clock.dropouts on the Transport row (audio-lifecycle REQ-the-glitch-recovery-is-observable)
 owner: core
 related:
   - architecture
@@ -36,12 +37,12 @@ related:
   - session-autosave
   - pwa-install
   - dialog
-  - runtime-performance             # REQ-1 — why the panel is behind a lazy import
+  - runtime-performance             # REQ-a-debug-section-in-about — why the panel is behind a lazy import
 source:
   - src/ui/components/about-debug.ts # the panel itself
   - src/ui/components/about-button.ts # createAboutButton + the open/close lifecycle
   - src/ui/components/about-modal.ts # builds the card the panel sits in
-  - src/state/debug-sources.ts       # the late-bound row sources (REQ-4)
+  - src/state/debug-sources.ts       # the late-bound row sources (REQ-the-debug-extension-contract)
   - src/state/session-autosave.ts    # SessionAutosave.stats
   - src/state/slot-store.ts          # storageUsage
   - src/utils/wake-lock.ts           # WakeLockManager.held
@@ -76,118 +77,134 @@ instead of transcribing it from a phone screen.
 
 ## Requirements
 
-- **REQ-1** — A "Debug" section in the About modal (`ui/components/about-debug.ts`,
-  `buildDebugSection`), **default-collapsed**, toggled via the shared
-  `createCollapseToggle` and persisted under `localStorage['websynth.debug.about']`
-  (same `websynth.*` + try/catch convention as `collapse-toggle.ts`). The whole header
-  row is the click target; the body carries `data-testid="debug-section"`.
-- **REQ-2** — Rows are a key/value grid built by a local `addRow(name, action?)` helper
-  (reusing the modal's `.keys`/`.key`/`.act` classes) that returns the value element to
-  write into. The section body wraps that grid **plus** the actions block (REQ-7), so
-  collapsing hides both. Built-in rows: **AudioContext** state
-  (`data-testid="debug-ctx-state"`; v10 appends `· awaiting gesture` while
-  `engine.audioRecovery.gestureArmed` — the state alone cannot distinguish "the OS
-  took it" from "we asked and were refused"; v11 appends `· autoplay ok` while
-  `engine.autoplayAllowed`, which is both why no start modal was shown
-  ([audio-lifecycle](audio-lifecycle.md) REQ-20) and, on a build without REQ-19,
-  the reason a boot could be heard. Notes join in that order, ` · `-separated), **Sample rate**, **Latency** (`debug-latency`,
-  base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm` ·
-  sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
-  wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-7), **iOS**
+- **REQ-a-debug-section-in-about** — A "Debug" section in the About modal
+  (`ui/components/about-debug.ts`, `buildDebugSection`), **default-collapsed**,
+  toggled via the shared `createCollapseToggle` and persisted under
+  `localStorage['websynth.debug.about']` (same `websynth.*` + try/catch
+  convention as `collapse-toggle.ts`). The whole header row is the click target;
+  the body carries `data-testid="debug-section"`.
+- **REQ-debug-rows-are-a-key-value-grid** — Rows are a key/value grid built by a
+  local `addRow(name, action?)` helper (reusing the modal's
+  `.keys`/`.key`/`.act` classes) that returns the value element to write into.
+  The section body wraps that grid **plus** the actions block
+  (REQ-a-panel-level-actions-block), so collapsing hides both. Built-in rows:
+  **AudioContext** state (`data-testid="debug-ctx-state"`; v10 appends `·
+  awaiting gesture` while `engine.audioRecovery.gestureArmed` — the state alone
+  cannot distinguish "the OS took it" from "we asked and were refused"; v11
+  appends `· autoplay ok` while `engine.autoplayAllowed`, which is both why no
+  start modal was shown ([audio-lifecycle](audio-lifecycle.md) REQ-the-gesture-is-required-only-when-required) and, on a
+  build without REQ-19, the reason a boot could be heard. Notes join in that
+  order, ` · `-separated), **Sample rate**, **Latency** (`debug-latency`,
+  base/output), **Transport** (`debug-transport`: playing/stopped · `Clock.bpm`
+  · sync mode · `Clock.dropouts` — v5, the only on-device evidence of a stalled
+  wakeup source, see [audio-lifecycle](audio-lifecycle.md) REQ-the-glitch-recovery-is-observable), **iOS**
   (`isIOS()` yes/no), **Media session** (`debug-media-session` — v6, the Android
   keep-alive's status/`playbackState`, `n/a` elsewhere; see
-  [media-session](media-session.md) REQ-8), **Background audio**
-  (`debug-background` — v7, the watchdog's underrun/drift readings while hidden
-  and any suspends it made; [audio-lifecycle](audio-lifecycle.md) REQ-12),
-  **Local storage** (`debug-storage`, `storageUsage()`).
-  (v12) Every size in the grid goes through the shared `formatBytes`
-  (`utils/format.ts`): one decimal of MB from a megabyte up, whole kB below — a
-  few kilobytes used to read `0.0 MB`, which says "empty" about a store that is
-  not — and counts through `plural`, so one stored key reads `1 key`.
-- **REQ-3** — Live refresh while the modal is open **and the section is expanded**:
-  a single `refresh()` re-reads every row's source and runs **on open**, on the `ctx`
-  `statechange` event, **and** on a ~500 ms interval (so values that change without an
-  event — e.g. a media element's `currentTime` — visibly tick). The `statechange`
-  listener and the interval are registered on open and **torn down in `close()`** (no
-  leaks when the modal is shut). Because the section is default-collapsed (REQ-1), the
-  interval and the `statechange` handler drive a **gated tick** that does nothing while
-  collapsed: a reader who opens About for the credits must not pay for a readout that
-  is not on screen. Expanding forces an immediate, **all-tier** repaint (REQ-11), so
-  the panel is never shown stale. The visibility signal is `createCollapseToggle`'s
-  existing `onChange` — which also fires once at creation with the stored/default
-  state — not a new API.
-- **REQ-4** — **Extension contract**: a feature adds rows inside `buildDebugSection` by
-  calling `addRow` and reading either the `StudioApi` passed to
-  `createAboutButton(engine, deps)` or, for state that lives outside the Engine, a
-  **late-bound module hook** the owner binds at boot (the same idiom as app.ts's
-  live scope knobs). Those hooks live in `state/debug-sources.ts`, not in the panel:
-  a binder that runs at boot must not have to import the lazily-loaded modal to reach
-  its setter ([`runtime-performance.md`](runtime-performance.md) REQ-1). No contract
-  change is needed to add a row. Current
-  contributors: [`ios-audio`](ios-audio.md) (Audio unlock / Silent loop, from
-  `engine.iosAudio`), [`performance-mode`](performance-mode.md) (tier / cores /
-  memory / mobile / audio profile), and
+  [media-session](media-session.md) REQ-session-is-observable-on-device),
+  **Background audio** (`debug-background` — v7, the watchdog's underrun/drift
+  readings while hidden and any suspends it made;
+  [audio-lifecycle](audio-lifecycle.md) REQ-the-measurement-is-visible-either-way), **Local storage**
+  (`debug-storage`, `storageUsage()`). (v12) Every size in the grid goes through
+  the shared `formatBytes` (`utils/format.ts`): one decimal of MB from a
+  megabyte up, whole kB below — a few kilobytes used to read `0.0 MB`, which
+  says "empty" about a store that is not — and counts through `plural`, so one
+  stored key reads `1 key`.
+- **REQ-debug-refreshes-while-expanded** — Live refresh while the modal is open
+  **and the section is expanded**: a single `refresh()` re-reads every row's
+  source and runs **on open**, on the `ctx` `statechange` event, **and** on a
+  ~500 ms interval (so values that change without an event — e.g. a media
+  element's `currentTime` — visibly tick). The `statechange` listener and the
+  interval are registered on open and **torn down in `close()`** (no leaks when
+  the modal is shut). Because the section is default-collapsed
+  (REQ-a-debug-section-in-about), the interval and the `statechange` handler
+  drive a **gated tick** that does nothing while collapsed: a reader who opens
+  About for the credits must not pay for a readout that is not on screen.
+  Expanding forces an immediate, **all-tier** repaint
+  (REQ-debug-refresh-is-tiered-by-row-cost), so the panel is never shown stale.
+  The visibility signal is `createCollapseToggle`'s existing `onChange` — which
+  also fires once at creation with the stored/default state — not a new API.
+- **REQ-the-debug-extension-contract** — **Extension contract**: a feature adds
+  rows inside `buildDebugSection` by calling `addRow` and reading either the
+  `StudioApi` passed to `createAboutButton(engine, deps)` or, for state that
+  lives outside the Engine, a **late-bound module hook** the owner binds at boot
+  (the same idiom as app.ts's live scope knobs). Those hooks live in
+  `state/debug-sources.ts`, not in the panel: a binder that runs at boot must
+  not have to import the lazily-loaded modal to reach its setter
+  ([`runtime-performance.md`](runtime-performance.md)
+  REQ-boot-cost-matches-the-request). No contract change is needed to add a row.
+  Current contributors: [`ios-audio`](ios-audio.md) (Audio unlock / Silent loop,
+  from `engine.iosAudio`), [`performance-mode`](performance-mode.md) (tier /
+  cores / memory / mobile / audio profile), and
   [`sample-persistence`](sample-persistence.md) (**Sampler clips**,
   `data-testid="debug-sampler-clips"`, via `setClipStatsSource`),
-  [`session-autosave`](session-autosave.md) (**Session autosave**, `debug-session`,
-  from `SessionAutosave.stats()`), [`pwa-install`](pwa-install.md) (**Service
-  worker**, `debug-sw`), [`midi-clock-sync`](midi-clock-sync.md) (**MIDI ports**,
-  `debug-midi`, via `setMidiStatsSource`), the wake lock (**Wake lock**,
-  `debug-wake`, via `setWakeLockSource`) and [`scope`](scope.md) (**Scope**,
-  `debug-scope`, via `setScopeStatsSource` — whether the visualizer is painting,
-  and how often it had to recover; scope.md REQ-38).
-- **REQ-5** — A row whose late-bound source is unbound reads **"n/a"** rather
-  than blank or a crash, so the panel degrades cleanly in any boot order.
+  [`session-autosave`](session-autosave.md) (**Session autosave**,
+  `debug-session`, from `SessionAutosave.stats()`),
+  [`pwa-install`](pwa-install.md) (**Service worker**, `debug-sw`),
+  [`midi-clock-sync`](midi-clock-sync.md) (**MIDI ports**, `debug-midi`, via
+  `setMidiStatsSource`), the wake lock (**Wake lock**, `debug-wake`, via
+  `setWakeLockSource`) and [`scope`](scope.md) (**Scope**, `debug-scope`, via
+  `setScopeStatsSource` — whether the visualizer is painting, and how often it
+  had to recover; scope.md REQ-the-panel-says-whether-it-is-drawing).
+- **REQ-an-unbound-row-reads-n-a** — A row whose late-bound source is unbound
+  reads **"n/a"** rather than blank or a crash, so the panel degrades cleanly in
+  any boot order.
 
 ### v3 — actions
 
-- **REQ-6** — **A row may carry one inline action button** in its value cell
-  (`addRow(name, action)`), which is why the value is written into its own `<span>`
-  — `refresh()` must not be able to wipe the button beside it. An action marked
-  `danger` is styled with `dialogStyles.danger` and **must** carry `confirm` copy:
-  it runs only after `confirmDialog` ([dialog](dialog.md)) resolves true, so a
-  stray click can never destroy state. Current row actions:
-  **Sampler clips ▸ Clear** (`debug-clips-clear`: nulls every sampler slot, then
-  `SampleAutosave.clear()` for orphans), **Session autosave ▸ Clear**
-  (`debug-session-clear`: `SessionAutosave.clear()` + reload) and
-  **Service worker ▸ Unregister** (`debug-sw-unregister`: unregister all + reload).
-  (v12) It does **not** delete the caches — the next registration of the same
-  version reuses them — and its confirm now says so; it used to promise "Drop the
-  offline cache", which the code never did. Deleting the caches is the factory
-  reset's job ([factory-reset](factory-reset.md) REQ-8), which also brings a saved
-  offline copy back.
-  Each is the *small hammer* for something that previously needed a factory reset.
-- **REQ-7** — A panel-level **actions block** (`data-testid="debug-actions"`) of
-  plain buttons sits under the grid: **Resume/Suspend** (`debug-ctx-toggle`, label
-  follows `ctx.state`; `engine.resume()` / `engine.suspendForDebug()` — v10: the
-  suspend goes through the Engine so it is recorded as *deliberate* and the
-  now-universal `statechange` re-arm leaves it alone,
-  [audio-lifecycle](audio-lifecycle.md) REQ-15), **Panic**
-  (`debug-panic`, `engine.panic()`), **Test tone** (`debug-test-tone`) and
-  **Copy report** (`debug-copy`). The report is built from the *row registry*
-  (name + current text, in order), not by scraping the DOM, prefixed with
-  `__APP_VERSION__`, an ISO timestamp and the user agent, and copied via the
-  shared `copyText`/`flashCopied` ([ai-prompt](ai-prompt.md)'s helpers).
-- **REQ-7b** — **The test tone bypasses the master chain**: a 1 s A440 oscillator
-  connected straight to `ctx.destination`. That is deliberate — it answers "is
-  this device producing any sound at all?", which a muted mixer, a closed filter
-  or a solo'd lane would otherwise mask. It re-triggers on a second click.
-- **REQ-8** — An action whose late-bound source is **unbound renders disabled**
-  (the action-side mirror of REQ-5): with no `setClipStatsSource`, clip
-  persistence never started and there is nothing for Clear to clear.
-- **REQ-9** — **Nothing an action starts outlives the panel.** `buildDebugSection`
-  returns a `dispose()` alongside `refresh()`, called from the modal's `close()`
-  next to the interval/listener teardown; it stops a ringing test tone and resets
-  its button label.
-- **REQ-10** — The **service-worker row is polled on its own slow schedule**
-  (≥5 s, guarded by a timestamp inside `refresh()`), because
-  `getRegistrations()` is async and the rows refresh every ~500 ms (REQ-3). Its
-  value is cached between checks and written synchronously like every other row.
+- **REQ-a-debug-row-may-carry-one-action** — **A row may carry one inline action
+  button** in its value cell (`addRow(name, action)`), which is why the value is
+  written into its own `<span>` — `refresh()` must not be able to wipe the
+  button beside it. An action marked `danger` is styled with
+  `dialogStyles.danger` and **must** carry `confirm` copy: it runs only after
+  `confirmDialog` ([dialog](dialog.md)) resolves true, so a stray click can
+  never destroy state. Current row actions: **Sampler clips ▸ Clear**
+  (`debug-clips-clear`: nulls every sampler slot, then `SampleAutosave.clear()`
+  for orphans), **Session autosave ▸ Clear** (`debug-session-clear`:
+  `SessionAutosave.clear()` + reload) and **Service worker ▸ Unregister**
+  (`debug-sw-unregister`: unregister all + reload). (v12) It does **not** delete
+  the caches — the next registration of the same version reuses them — and its
+  confirm now says so; it used to promise "Drop the offline cache", which the
+  code never did. Deleting the caches is the factory reset's job
+  ([factory-reset](factory-reset.md) REQ-reset-redownloads-the-offline-copy),
+  which also brings a saved offline copy back. Each is the *small hammer* for
+  something that previously needed a factory reset.
+- **REQ-a-panel-level-actions-block** — A panel-level **actions block**
+  (`data-testid="debug-actions"`) of plain buttons sits under the grid:
+  **Resume/Suspend** (`debug-ctx-toggle`, label follows `ctx.state`;
+  `engine.resume()` / `engine.suspendForDebug()` — v10: the suspend goes through
+  the Engine so it is recorded as *deliberate* and the now-universal
+  `statechange` re-arm leaves it alone, [audio-lifecycle](audio-lifecycle.md)
+  REQ-an-unasked-suspension-is-recovered), **Panic** (`debug-panic`, `engine.panic()`), **Test tone**
+  (`debug-test-tone`) and **Copy report** (`debug-copy`). The report is built
+  from the *row registry* (name + current text, in order), not by scraping the
+  DOM, prefixed with `__APP_VERSION__`, an ISO timestamp and the user agent, and
+  copied via the shared `copyText`/`flashCopied` ([ai-prompt](ai-prompt.md)'s
+  helpers).
+- **REQ-the-test-tone-bypasses-the-master-chain** — **The test tone bypasses the
+  master chain**: a 1 s A440 oscillator connected straight to `ctx.destination`.
+  That is deliberate — it answers "is this device producing any sound at all?",
+  which a muted mixer, a closed filter or a solo'd lane would otherwise mask. It
+  re-triggers on a second click.
+- **REQ-an-unbound-action-renders-disabled** — An action whose late-bound source
+  is **unbound renders disabled** (the action-side mirror of
+  REQ-an-unbound-row-reads-n-a): with no `setClipStatsSource`, clip persistence
+  never started and there is nothing for Clear to clear.
+- **REQ-nothing-an-action-starts-outlives-the-panel** — **Nothing an action
+  starts outlives the panel.** `buildDebugSection` returns a `dispose()`
+  alongside `refresh()`, called from the modal's `close()` next to the
+  interval/listener teardown; it stops a ringing test tone and resets its button
+  label.
+- **REQ-the-service-worker-row-polls-slowly** — The **service-worker row is
+  polled on its own slow schedule** (≥5 s, guarded by a timestamp inside
+  `refresh()`), because `getRegistrations()` is async and the rows refresh every
+  ~500 ms (REQ-debug-refreshes-while-expanded). Its value is cached between
+  checks and written synchronously like every other row.
 
 ### v4 — cost
 
-- **REQ-11** — **`refresh()` is tiered by row cost**, generalizing REQ-10's guard
-  from "async" to "expensive". A row that is not due keeps the text it already has
+- **REQ-debug-refresh-is-tiered-by-row-cost** — **`refresh()` is tiered by row
+  cost**, generalizing REQ-the-service-worker-row-polls-slowly's guard from
+  "async" to "expensive". A row that is not due keeps the text it already has
   (no cache-and-rewrite is needed — only the async SW row needs that):
   - *every tick (~500 ms)* — plain field reads: AudioContext state + the toggle
     label, sample rate, latency, transport, iOS, sampler clips (in-memory
@@ -200,13 +217,13 @@ instead of transcribing it from a phone screen.
     additionally `JSON.parse`s the whole session payload), and the five
     performance-mode rows. Perf is re-read rather than computed once so a live
     Perf-modal change still appears.
-  - *~5 s* — the service worker (REQ-10, unchanged).
+  - *~5 s* — the service worker (REQ-the-service-worker-row-polls-slowly, unchanged).
 
   The rationale is that this panel exists for weak, console-less devices: blocking
   the main thread on a full `localStorage` walk twice a second while audio plays
   risks dropouts, which would make the diagnostic tool a cause of the very symptom
   it is opened to diagnose. `refresh(force)` runs **all** tiers, and is used for the
-  initial build and for the expand repaint (REQ-3).
+  initial build and for the expand repaint (REQ-debug-refreshes-while-expanded).
 
 ## Technical design
 
@@ -216,10 +233,10 @@ instead of transcribing it from a phone screen.
 # src/ui/components/about-button.ts   — EAGER. The only part of About on the boot path.
 createAboutButton(engine: StudioApi, deps: { startTour(): void }): HTMLButtonElement
   # deps is the tour hook the modal's "Take the guided tour" button calls
-  # (onboarding.md REQ-20) — injected, so About never imports onboarding.
+  # (onboarding.md REQ-about-is-the-single-door-for-help) — injected, so About never imports onboarding.
   # Owns the open/close lifecycle (backdrop cache, Escape, the 500 ms refresh
   # tick) and `import()`s about-modal.ts on the click that opens it
-  # (runtime-performance.md REQ-1). `open` is async; the click handler voids it.
+  # (runtime-performance.md REQ-boot-cost-matches-the-request). `open` is async; the click handler voids it.
 AboutDeps { startTour(): void }        # declared here; about-modal imports it type-only
 
 # src/state/debug-sources.ts  — EAGER leaf. Lives outside the modal precisely so
@@ -227,7 +244,7 @@ AboutDeps { startTour(): void }        # declared here; about-modal imports it t
 setClipStatsSource(fn: () => { count: number; bytes: number }): void   # late-bound row source
 setMidiStatsSource(fn: () => { inputs: number; outputs: number }): void
 setWakeLockSource(fn: () => { supported: boolean; held: boolean }): void
-setScopeStatsSource(fn: () => ScopeHealth): void   # scope.md REQ-38; bound by app.ts
+setScopeStatsSource(fn: () => ScopeHealth): void   # scope.md REQ-the-panel-says-whether-it-is-drawing; bound by app.ts
 clipStats(): { count: number; bytes: number } | undefined   # undefined = unbound -> "n/a"
 midiStats(): { inputs: number; outputs: number } | undefined
 wakeState(): { supported: boolean; held: boolean } | undefined
@@ -238,8 +255,8 @@ buildModal(close, engine, deps): { backdrop, refreshDebug, disposeDebug }
 
 # src/ui/components/about-debug.ts     — LAZY.
 # internal: buildDebugSection(engine) -> { header, body, refresh, dispose }
-#   refresh is the *gated* tick (a no-op while collapsed, REQ-3); the ungated
-#   refresh(force?) it wraps runs all polling tiers when force is true (REQ-11)
+#   refresh is the *gated* tick (a no-op while collapsed, REQ-debug-refreshes-while-expanded); the ungated
+#   refresh(force?) it wraps runs all polling tiers when force is true (REQ-debug-refresh-is-tiered-by-row-cost)
 #   addRow(name, action?): HTMLElement  # key cell + value cell (+ button); returns
 #                                       # the element `refresh` writes text into
 #   RowAction: { label, testId, onClick, danger?, confirm? }
@@ -254,7 +271,7 @@ SessionAutosave.stats(): { bytes, savedAt: number | null } | null   # session-au
 storageUsage(prefix = 'websynth.'): { keys, bytes }                 # slot-store.ts
 WakeLockManager.held: boolean                                       # utils/wake-lock.ts
 Clock.bpm: number                                                   # transport clock
-Clock.dropouts: number                              # v5: stalled-wakeup recoveries (transport.md REQ-9)
+Clock.dropouts: number                              # v5: stalled-wakeup recoveries (transport.md REQ-the-transport-catch-up-is-bounded)
 Engine.mediaSession: MediaSessionDiagnostics        # v6: Android keep-alive (media-session.ts)
 Engine.backgroundAudio: WatchdogDiagnostics         # v7: background-watchdog.ts
 initMIDI(engine, bus): Promise<MIDIAccess | null>                   # resolves the handle
@@ -307,7 +324,7 @@ Scenario: A late-bound row with no source reads n/a, and its action is disabled 
   And its Clear button is disabled
 # pinned by: tests/ui/about.test.ts
 
-Scenario: The context toggle follows and drives the AudioContext (REQ-7)
+Scenario: The context toggle follows and drives the AudioContext (REQ-a-panel-level-actions-block)
   Given the context is suspended
   Then the action reads "Resume" and calls engine.resume()
   When the context becomes running
@@ -321,36 +338,36 @@ Scenario: The context row says when a resume is waiting for a gesture (v10)
   Then the suffix is gone
 # pinned by: tests/ui/about.test.ts
 
-Scenario: The test tone goes straight to the destination (REQ-7b)
+Scenario: The test tone goes straight to the destination (REQ-the-test-tone-bypasses-the-master-chain)
   When Test tone is pressed
   Then a 440 Hz oscillator is started outside the master chain
   And closing the panel stops it
 # pinned by: tests/ui/about.test.ts
 
-Scenario: Copy report carries the whole readout (REQ-7)
+Scenario: Copy report carries the whole readout (REQ-a-panel-level-actions-block)
   When Copy report is pressed
   Then the clipboard holds the version, the user agent and every row's value
 # pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
 
-Scenario: A destructive action asks first (REQ-6)
+Scenario: A destructive action asks first (REQ-a-debug-row-may-carry-one-action)
   Given an autosaved session exists
   When Clear is pressed and the confirm is cancelled
   Then the session is still stored
 # pinned by: tests/ui/about.test.ts, e2e/debug-panel.spec.ts
 
-Scenario: A collapsed section does no work (REQ-3)
+Scenario: A collapsed section does no work (REQ-debug-refreshes-while-expanded)
   Given the modal is open and the Debug section is collapsed
   When the refresh interval fires repeatedly
   Then no row source is read at all
 # pinned by: tests/ui/about.test.ts
 
-Scenario: Expanding repaints immediately (REQ-3)
+Scenario: Expanding repaints immediately (REQ-debug-refreshes-while-expanded)
   Given the modal is open and the Debug section is collapsed
   When the header is clicked to expand it
   Then every row is repainted before the next interval tick
 # pinned by: tests/ui/about.test.ts
 
-Scenario: Expensive rows are not re-read on every tick (REQ-11)
+Scenario: Expensive rows are not re-read on every tick (REQ-debug-refresh-is-tiered-by-row-cost)
   Given the Debug section is expanded
   When one ~500 ms tick fires
   Then the transport row is re-read but localStorage is not walked

@@ -43,8 +43,8 @@ const CLIP_RE = /(?:^|\/)samples\/(\d+)-[^/]*\.(wav|mp3)$/i;
 /**
  * Encode one slot's audio. The extension derives from the blob's MIME type,
  * never the requested format — `encodeMp3` silently falls back to WAV at
- * sample rates lamejs cannot handle (project-export.md REQ-4). Async because
- * the MP3 path lazily imports lamejs (audio-export.md REQ-7).
+ * sample rates lamejs cannot handle (project-export.md REQ-export-modal-offers-song-or-project). Async because
+ * the MP3 path lazily imports lamejs (audio-export.md REQ-the-mp3-encoder-loads-lazily).
  */
 export async function encodeClip(a: CapturedAudio, fmt: ClipExt): Promise<{ blob: Blob; ext: ClipExt }> {
   const blob = fmt === 'mp3'
@@ -112,7 +112,7 @@ export function sniffImportKind(head: Uint8Array, filename: string): 'zip' | 'js
 }
 
 /**
- * The one import parse path (pwa-install.md REQ-7): sniff raw import bytes
+ * The one import parse path (pwa-install.md REQ-one-import-parse-path): sniff raw import bytes
  * and route to the project-zip or plain-JSON song parser. Pure — shared by
  * the Song panel's file input and the installed-PWA launchQueue consumer,
  * so an OS-opened song file behaves exactly like an Import-button import.

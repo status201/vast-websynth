@@ -4,8 +4,8 @@
 id: ios-audio
 status: implemented
 version: 4   # v4: the ctx 'statechange' listener is no longer iOS-only either — it is
-             #     gated on a deliberate-suspend flag instead (audio-lifecycle REQ-15)
-             # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-4)
+             #     gated on a deliberate-suspend flag instead (audio-lifecycle REQ-an-unasked-suspension-is-recovered)
+             # v3: the foreground re-arm is no longer iOS-only (audio-lifecycle REQ-foreground-return-rearms-the-context)
 owner: core
 related:
   - architecture
@@ -17,7 +17,7 @@ related:
 source:
   - src/platform/ios.ts
   - src/audio/ios-audio-session.ts
-  - src/audio/silent-loop.ts          # shared element builder (media-session.md REQ-7)
+  - src/audio/silent-loop.ts          # shared element builder (media-session.md REQ-one-silent-loop-builder-two-callers)
   - src/audio/engine.ts
   - src/ui/components/about-debug.ts   # the Audio-unlock / Silent-loop debug rows
   - src/ui/studio-api.ts
@@ -56,67 +56,73 @@ These are device-specific runtime quirks, so — like [`performance-mode`](perfo
 On Safari 17+ `unlock()` additionally sets `navigator.audioSession.type =
 'playback'` (the standardized fix for the same problem — feature-detected, and
 additive to the silent loop, which Safari <17 still needs); see
-[`pwa-install`](pwa-install.md) REQ-4.
+[`pwa-install`](pwa-install.md) REQ-audio-session-type-is-playback.
 Because the failure only reproduces on real iOS hardware (no console on a remote
 rig), the iOS session exposes diagnostics rendered in the [`debug-panel`](debug-panel.md).
 
 ## Requirements
 
-- **REQ-1** — `isIOS()` detects iOS: a UA match for `iPhone | iPad | iPod`, **or**
-  the iPadOS-13+ desktop-mode case (`navigator.platform === 'MacIntel'` **and**
-  `navigator.maxTouchPoints > 1`). Pure; safe when `navigator` is absent (returns
-  `false`). Kept separate from `detectTier()` (`perf-mode.ts`) — different
-  concern (OS identity vs. hardware capability).
-- **REQ-2** — `IosAudioSession(ctx)` lazily builds **one** silent, **looping**
-  `<audio>` element — via the shared `createSilentLoop(ctx)`
-  ([media-session](media-session.md) REQ-7), which Android's keep-alive also uses
-  (detached, no context) — (source = a tiny silent stereo WAV from the existing `encodeWav`
-  in `audio/recorder/encode.ts` via `URL.createObjectURL` — no hardcoded base64) **and
-  routes it through the context**: `ctx.createMediaElementSource(el).connect(ctx.destination)`.
-  A detached element only elevates the page session and proved insufficient on a muted
-  iPhone (while the iPad, with no mute switch, was fine); a media-element source feeding
-  the context makes the **context itself** media-backed, lifting it off the ambient
-  category. `playsinline` is set as an attribute (TS `HTMLMediaElement` has no
-  `playsInline`); `createMediaElementSource` is guarded (it throws if called twice on an
-  element).
-- **REQ-3** — `IosAudioSession.unlock()` (in-gesture) plays that element and `rearm()`
-  replays it after an interruption. Both are **no-ops off iOS** (`active === false`) and
-  never throw (a rejected `play()` is caught). The play outcome updates a diagnostic
+- **REQ-ios-detection-covers-ipad** — `isIOS()` detects iOS: a UA match for
+  `iPhone | iPad | iPod`, **or** the iPadOS-13+ desktop-mode case
+  (`navigator.platform === 'MacIntel'` **and** `navigator.maxTouchPoints > 1`).
+  Pure; safe when `navigator` is absent (returns `false`). Kept separate from
+  `detectTier()` (`perf-mode.ts`) — different concern (OS identity vs. hardware
+  capability).
+- **REQ-silent-loop-routes-through-the-context** — `IosAudioSession(ctx)` lazily
+  builds **one** silent, **looping** `<audio>` element — via the shared
+  `createSilentLoop(ctx)` ([media-session](media-session.md) REQ-one-silent-loop-builder-two-callers), which
+  Android's keep-alive also uses (detached, no context) — (source = a tiny
+  silent stereo WAV from the existing `encodeWav` in `audio/recorder/encode.ts`
+  via `URL.createObjectURL` — no hardcoded base64) **and routes it through the
+  context**: `ctx.createMediaElementSource(el).connect(ctx.destination)`. A
+  detached element only elevates the page session and proved insufficient on a
+  muted iPhone (while the iPad, with no mute switch, was fine); a media-element
+  source feeding the context makes the **context itself** media-backed, lifting
+  it off the ambient category. `playsinline` is set as an attribute (TS
+  `HTMLMediaElement` has no `playsInline`); `createMediaElementSource` is
+  guarded (it throws if called twice on an element).
+- **REQ-unlock-runs-inside-the-gesture** — `IosAudioSession.unlock()`
+  (in-gesture) plays that element and `rearm()` replays it after an
+  interruption. Both are **no-ops off iOS** (`active === false`) and never throw
+  (a rejected `play()` is caught). The play outcome updates a diagnostic
   status: `idle → starting → playing | blocked:<name>`.
-- **REQ-4** — `Engine.resume()` calls `iosSession.unlock()` first (synchronous,
-  within the gesture), then resumes the context whenever
-  `shouldResumeContext(ctx.state)` is true — i.e. the state is neither `'running'`
-  nor `'closed'`. This covers `'suspended'` **and** the non-standard
-  `'interrupted'` without referencing a literal outside TS's `AudioContextState`.
-- **REQ-5** (v3, amended v4) — `Engine.init()` installs a `document`
-  `visibilitychange` listener on **every** platform. On return-to-foreground iOS
-  resumes *unconditionally* (the silent loop must be replayed to hold the
-  media-backed category even when the context survived); elsewhere it resumes only
-  when `shouldResumeContext(ctx.state)` — the Android case, where the OS suspends
-  a hidden page's context and it stays suspended on return.
-  **(v4)** The `ctx` `statechange` listener is **no longer iOS-only**. It was,
-  because `'interrupted'` arrives *while visible* and nothing else recovers it,
-  whereas off iOS auto-resuming on `statechange` would undo the Debug panel's
-  deliberate Suspend. That trade is gone: the listener runs everywhere and is
-  gated on the suspend's *intent* instead of on the platform
-  ([audio-lifecycle](audio-lifecycle.md) REQ-15), so iOS keeps its recovery and
+- **REQ-resume-unlocks-before-anything** — `Engine.resume()` calls
+  `iosSession.unlock()` first (synchronous, within the gesture), then resumes
+  the context whenever `shouldResumeContext(ctx.state)` is true — i.e. the state
+  is neither `'running'` nor `'closed'`. This covers `'suspended'` **and** the
+  non-standard `'interrupted'` without referencing a literal outside TS's
+  `AudioContextState`.
+- **REQ-foreground-return-resumes-audio** (v3, amended v4) — `Engine.init()`
+  installs a `document` `visibilitychange` listener on **every** platform. On
+  return-to-foreground iOS resumes *unconditionally* (the silent loop must be
+  replayed to hold the media-backed category even when the context survived);
+  elsewhere it resumes only when `shouldResumeContext(ctx.state)` — the Android
+  case, where the OS suspends a hidden page's context and it stays suspended on
+  return. **(v4)** The `ctx` `statechange` listener is **no longer iOS-only**.
+  It was, because `'interrupted'` arrives *while visible* and nothing else
+  recovers it, whereas off iOS auto-resuming on `statechange` would undo the
+  Debug panel's deliberate Suspend. That trade is gone: the listener runs
+  everywhere and is gated on the suspend's *intent* instead of on the platform
+  ([audio-lifecycle](audio-lifecycle.md) REQ-an-unasked-suspension-is-recovered), so iOS keeps its recovery and
   every other platform gains one. Resume may still need a fresh gesture on some
   iOS versions — and that fallback is now built rather than assumed
-  ([audio-lifecycle](audio-lifecycle.md) REQ-13).
-- **REQ-6** (v3) — Off iOS the *session* workaround stays fully inert: no `<audio>`
-  element, no media-element source, `unlock()`/`rearm()` return immediately, and
-  nothing iOS-specific is persisted. What is **not** iOS-gated (v3) is the
-  visibility re-arm above and the click-free start fade, both owned by
+  ([audio-lifecycle](audio-lifecycle.md) REQ-a-resume-that-does-not-take-is-retried).
+- **REQ-off-ios-the-workaround-is-inert** (v3) — Off iOS the *session*
+  workaround stays fully inert: no `<audio>` element, no media-element source,
+  `unlock()`/`rearm()` return immediately, and nothing iOS-specific is
+  persisted. What is **not** iOS-gated (v3) is the visibility re-arm above and
+  the click-free start fade, both owned by
   [audio-lifecycle](audio-lifecycle.md). `main.ts` is unchanged — `await
   engine.resume()` keeps doing everything.
-- **REQ-7** — `IosAudioSession.diagnostics` (`{ active, status, routed, paused,
-  currentTime, audioSessionSet }` — the last set when
-  `navigator.audioSession.type = 'playback'` succeeds) is re-exported by `Engine.iosAudio` and is part of `StudioApi`. These
-  values are **displayed** in the [`debug-panel`](debug-panel.md), which owns the panel
-  mechanics; ios-audio only owns the data and contributes two rows — **Audio unlock**
-  (`debug-ios-unlock`: status + `· routed`) and **Silent loop** (`debug-ios-loop`:
-  `paused` / `playing t=<currentTime>`). A live, advancing `currentTime` confirms the loop
-  is actually playing on the device.
+- **REQ-ios-session-reports-diagnostics** — `IosAudioSession.diagnostics` (`{
+  active, status, routed, paused, currentTime, audioSessionSet }` — the last set
+  when `navigator.audioSession.type = 'playback'` succeeds) is re-exported by
+  `Engine.iosAudio` and is part of `StudioApi`. These values are **displayed**
+  in the [`debug-panel`](debug-panel.md), which owns the panel mechanics;
+  ios-audio only owns the data and contributes two rows — **Audio unlock**
+  (`debug-ios-unlock`: status + `· routed`) and **Silent loop**
+  (`debug-ios-loop`: `paused` / `playing t=<currentTime>`). A live, advancing
+  `currentTime` confirms the loop is actually playing on the device.
 
 ## Technical design
 
@@ -141,7 +147,7 @@ Engine.resume(): Promise<void>                      # iosSession.unlock(); if sh
 Engine.iosAudio: IosAudioDiagnostics                # re-exports iosSession.diagnostics
 # Engine.init(): installContextRearm() — visibilitychange + pageshow (all platforms; iOS
 #   resumes unconditionally, others only when not running) + ctx 'statechange'
-#   (v4: all platforms, gated on deliberateSuspend — audio-lifecycle REQ-15)
+#   (v4: all platforms, gated on deliberateSuspend — audio-lifecycle REQ-an-unasked-suspension-is-recovered)
 
 # src/ui/studio-api.ts
 StudioApi.iosAudio: IosAudioDiagnostics             # Engine satisfies it structurally

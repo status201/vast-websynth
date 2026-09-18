@@ -13,7 +13,7 @@ export default defineConfig({
   },
   // Writes dist/offline-manifest.json — every file the app can request, for the
   // About card's Play offline and the worker's release refresh
-  // (specs/features/play-offline.md REQ-2).
+  // (specs/features/play-offline.md REQ-the-build-writes-the-file-list).
   plugins: [offlineManifestPlugin(pkg.version)],
   build: {
     target: 'es2022',
@@ -23,7 +23,7 @@ export default defineConfig({
         // The drop-in demo songs (src/state/demos/*.json) used to be imported
         // eagerly and needed a chunk of their own — ~227 kB of JS (835 kB of
         // JSON) downloaded and evaluated by every visitor to load at most one.
-        // They are now `?url` assets fetched on click (song-mode.md REQ-11), so
+        // They are now `?url` assets fetched on click (song-mode.md REQ-song-lane-titles-navigate), so
         // no bundling rule applies to them at all; the JSON lands in
         // dist/assets/ as plain files.
         codeSplitting: {
@@ -33,7 +33,7 @@ export default defineConfig({
             // every visitor whether or not they ever export MP3. It is reached
             // only through the dynamic import in `encodeMp3`, so rolldown
             // already splits it; this just gives the chunk a stable, readable
-            // name. See specs/features/audio-export.md REQ-7.
+            // name. See specs/features/audio-export.md REQ-the-mp3-encoder-loads-lazily.
             { name: 'lamejs', test: /[\\/]vendor[\\/]lamejs[\\/]/ },
           ],
         },
@@ -68,7 +68,7 @@ export default defineConfig({
     // `isolate: false` — were both measured here and both BREAK this suite.
     // `isolate: false` is the instructive one: `tests/audio/effects/fx-cost.test.ts`
     // asserts the reverb IR bank is built cold, and that cache is deliberately
-    // process-wide (features/effects.md REQ-6), as are the drive-curve and PWM
+    // process-wide (features/effects.md REQ-the-reverb-ir-bank-is-lazy-and-shared), as are the drive-curve and PWM
     // wave-table caches. Sharing an environment across files makes every such
     // cache a cross-file leak. Don't take that trade.
     projects: [

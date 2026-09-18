@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * websynth MCP server — song authoring & validation for AI agents, over stdio
- * (specs/features/mcp-server.md REQ-1a). Hand-rolled JSON-RPC 2.0 with
+ * (specs/features/mcp-server.md REQ-stdio-is-newline-delimited-json-rpc). Hand-rolled JSON-RPC 2.0 with
  * newline-delimited framing, zero dependencies beyond the repo's own dev
  * toolchain (Vite is only needed to (re)build the song-core bundle).
  *
@@ -11,7 +11,7 @@
  * that: it runs in a child process whose stdout is piped to our stderr, so it
  * cannot reach the protocol stream even in principle.
  *
- * This is the LOCAL profile: all ten tools, writes included (REQ-10). The
+ * This is the LOCAL profile: all ten tools, writes included (REQ-the-remote-profile-is-read-only). The
  * public endpoint is `app.js` / `websynth-mcp-http.mjs` — same dispatcher,
  * different framing and no write tools.
  *
@@ -28,7 +28,7 @@ import { loadCore, repoRoot } from './core.mjs';
 
 const log = (...a) => process.stderr.write(`[websynth-mcp] ${a.join(' ')}\n`);
 
-// stdout is protocol-only (REQ-1a): anything that logs via console must land
+// stdout is protocol-only (REQ-stdio-is-newline-delimited-json-rpc): anything that logs via console must land
 // on stderr, including Vite during the self-build.
 console.log = console.info = console.warn = (...a) =>
   process.stderr.write(a.map(String).join(' ') + '\n');

@@ -26,7 +26,7 @@ describe('Ducker', () => {
     return { duck, env: created[0]!.offset };
   }
 
-  describe('scheduling (REQ-1, REQ-3)', () => {
+  describe('scheduling (REQ-the-duck-is-keyed-by-scheduled-hits, REQ-linear-clamp-down-exponential-recovery)', () => {
     it('ramps down then decays back on a key hit', () => {
       const { duck, env } = build({ src: 0, attack: 0.005, release: 0.18 });
       duck.onDrumHit(0, 10);
@@ -34,24 +34,24 @@ describe('Ducker', () => {
       expect(env.cancelScheduledValues).toHaveBeenCalledWith(10);
       expect(env.setValueAtTime).toHaveBeenCalledWith(0, 10); // first hit: from rest
       expect(env.linearRampToValueAtTime).toHaveBeenCalledWith(1, 10.005);
-      // Always last: the terminal state is a decay to *no duck* (REQ-5).
+      // Always last: the terminal state is a decay to *no duck* (REQ-the-resting-duck-state-is-unity).
       expect(env.setTargetAtTime).toHaveBeenCalledWith(0, 10.005, 0.18);
     });
 
-    it('does not duck on a non-key track (REQ-7)', () => {
+    it('does not duck on a non-key track (REQ-the-duck-key-is-one-track-or-any)', () => {
       const { duck, env } = build({ src: 0 });
       duck.onDrumHit(3, 10);
       expect(env.setValueAtTime).not.toHaveBeenCalled();
       expect(env.cancelScheduledValues).not.toHaveBeenCalled();
     });
 
-    it('ducks on every track when src is Any (REQ-7)', () => {
+    it('ducks on every track when src is Any (REQ-the-duck-key-is-one-track-or-any)', () => {
       const { duck, env } = build({ src: DUCK_SRC_ANY });
       duck.onDrumHit(5, 10);
       expect(env.linearRampToValueAtTime).toHaveBeenCalledWith(1, 10.005);
     });
 
-    it('schedules nothing while bypassed (REQ-6)', () => {
+    it('schedules nothing while bypassed (REQ-a-bypassed-ducker-costs-nothing)', () => {
       const { duck, env } = build({ on: false, src: 0 });
       duck.onDrumHit(0, 10);
       expect(env.cancelScheduledValues).not.toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe('Ducker', () => {
    * time would erase the ramp already scheduled for the later one and strand the
    * envelope mid-duck — the one way this design could get stuck ducked.
    */
-  describe('out-of-order triggers (REQ-4)', () => {
+  describe('out-of-order triggers (REQ-an-early-duck-trigger-is-ignored)', () => {
     it('ignores a hit earlier than the last scheduled onset', () => {
       const { duck, env } = build({ src: DUCK_SRC_ANY });
       duck.onDrumHit(0, 10.5); // a ratchet sub-hit, emitted first
@@ -95,7 +95,7 @@ describe('Ducker', () => {
    * ramp's start — and `cancelAndHoldAtTime`, which would avoid that, is not
    * implemented in Firefox.
    */
-  describe('retrigger (REQ-3)', () => {
+  describe('retrigger (REQ-linear-clamp-down-exponential-recovery)', () => {
     it('pins the mid-decay value rather than restarting from rest', () => {
       const { duck, env } = build({ src: 0, attack: 0.005, release: 0.18 });
       duck.onDrumHit(0, 10);
@@ -130,7 +130,7 @@ describe('Ducker', () => {
     });
 
     /**
-     * REQ-2's bound: gain is `1 - amount * e`, so `e` leaving [0,1] would put
+     * REQ-the-gain-law-is-bounded-by-construction's bound: gain is `1 - amount * e`, so `e` leaving [0,1] would put
      * the bus gain outside [0,1]. Swept rather than spot-checked because the
      * whole stability claim rests on it.
      */
@@ -149,7 +149,7 @@ describe('Ducker', () => {
    * Nothing releases the envelope explicitly: every schedule *ends* with a decay
    * to 0, so a stop, a clock dropout and a bypass all recover unaided.
    */
-  it('leaves a decay to rest as the final scheduled event (REQ-5)', () => {
+  it('leaves a decay to rest as the final scheduled event (REQ-the-resting-duck-state-is-unity)', () => {
     const { duck, env } = build({ src: 0 });
     duck.onDrumHit(0, 10);
 
@@ -160,7 +160,7 @@ describe('Ducker', () => {
     expect(lastDecay[1] as number).toBeGreaterThanOrEqual(lastRamp[1] as number);
   });
 
-  it('has no setMix — the ducker has no dry/wet (effects.md REQ-1)', () => {
+  it('has no setMix — the ducker has no dry/wet (effects.md REQ-every-effect-implements-the-interface)', () => {
     const { duck } = build();
     expect((duck as unknown as { setMix?: unknown }).setMix).toBeUndefined();
   });

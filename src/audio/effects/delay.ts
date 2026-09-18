@@ -49,7 +49,7 @@ export class Delay extends WrappedEffect {
   /**
    * The whole 2 s of `createDelay(2)`: fed silence for that long, every sample
    * in the ring buffer has been overwritten, whatever the read pointer is doing
-   * (effects.md REQ-2c).
+   * (effects.md REQ-a-bypassed-effect-drains-before-disconnect).
    */
   protected override drainSeconds(): number { return 2; }
 

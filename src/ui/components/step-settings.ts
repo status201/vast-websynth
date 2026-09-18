@@ -45,7 +45,7 @@ export class StepSettingsEditor {
     this.el.appendChild(probSlider.el);
 
     // Micro — nudge this one step off the grid, in 1/24 of its own cell
-    // (step-settings.md REQ-6). Bipolar, so it is centre-detented and snapped to
+    // (step-settings.md REQ-a-step-carries-a-micro-offset). Bipolar, so it is centre-detented and snapped to
     // the integer notch ladder rather than sweeping continuously like the three
     // above; arrow keys give the single-notch precision a 25-position track
     // cannot (see the spec's gesture inventory).
@@ -237,7 +237,7 @@ function makeSlider(
 
   // Drag listeners live on `window` only for the duration of a stroke, attached
   // on pointerdown and removed on up/cancel — the same discipline as Knob and
-  // Strip (specs/recipes/add-a-ui-component.md, runtime-performance.md REQ-3).
+  // Strip (specs/recipes/add-a-ui-component.md, runtime-performance.md REQ-global-listeners-live-only-for-a-gesture).
   // Held from the constructor instead, three sliders x three editors put nine
   // pointermove handlers on every mouse move anywhere on the page.
   // The track box is measured once per stroke: reading it per move is a forced

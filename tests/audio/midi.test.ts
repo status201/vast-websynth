@@ -7,8 +7,8 @@ import type { Engine } from '../../src/audio/engine';
 import type { SyncMessage } from '../../src/audio/transport/sync/sync-types';
 
 /**
- * `midi.ts` — the raw-byte ingest surface (input-control.md REQ-4/REQ-7/REQ-8,
- * midi-clock-sync.md REQ-10). `handleMessage` is module-private on purpose, so
+ * `midi.ts` — the raw-byte ingest surface (input-control.md REQ-midi-maps-note-on-and-off/REQ-one-module-owns-the-midi-access/REQ-the-sustain-pedal-is-midi-layer,
+ * midi-clock-sync.md REQ-song-position-pointer-jumps-the-slave). `handleMessage` is module-private on purpose, so
  * every case here drives it the way a device does: through `initMIDI`, which
  * assigns `onmidimessage` on each port, then feeding bytes into that handler.
  *
@@ -76,7 +76,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('initMIDI wiring (input-control.md REQ-7)', () => {
+describe('initMIDI wiring (input-control.md REQ-one-module-owns-the-midi-access)', () => {
   it('registers exactly one sync transport, bound to the shared access', async () => {
     const r = await makeRig(2);
     expect(r.addTransport).toHaveBeenCalledTimes(1);
@@ -140,7 +140,7 @@ describe('channel-voice messages', () => {
     expect(r.notes).toEqual([{ on: true, note: 72, velocity: 1 }]);
   });
 
-  // input-control.md REQ-4 — the edge every controller relies on.
+  // input-control.md REQ-midi-maps-note-on-and-off — the edge every controller relies on.
   it('note-on with velocity 0 is a note-off', async () => {
     const r = await makeRig();
     r.input.receive([0x90, 60, 0]);
@@ -196,7 +196,7 @@ describe('control change map', () => {
     expect(r.notes).toEqual([]);
   });
 
-  // input-control.md REQ-8 — the pedal integrated *through* midi.ts, which the
+  // input-control.md REQ-the-sustain-pedal-is-midi-layer — the pedal integrated *through* midi.ts, which the
   // SustainPedal unit test cannot see: the note-off never reaches the bus until
   // CC64 is released.
   it('CC64 defers a note-off until the pedal comes up, then flushes it once', async () => {
@@ -258,7 +258,7 @@ describe('system messages route before the channel mask', () => {
     expect(r.notes).toEqual([]);
   });
 
-  // midi-clock-sync.md REQ-10 — 0xF2 is System Common, below the 0xF8 floor, so
+  // midi-clock-sync.md REQ-song-position-pointer-jumps-the-slave — 0xF2 is System Common, below the 0xF8 floor, so
   // it needs its own branch ahead of the mask.
   it('a Song Position Pointer reassembles its 14-bit beat', async () => {
     const r = await makeRig();

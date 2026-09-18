@@ -41,7 +41,7 @@ const PITCH_BEND_RANGE_CENTS = 200;
 
 /**
  * Master fade-in applied whenever the context is actually resumed
- * (audio-lifecycle.md REQ-1). Long enough to swallow the output stream's own
+ * (audio-lifecycle.md REQ-a-start-is-click-free). Long enough to swallow the output stream's own
  * start transient and the worklets' first block, short enough to be inaudible
  * as a fade after a deliberate tap.
  */
@@ -49,14 +49,14 @@ const RESUME_FADE_S = 0.15;
 
 /**
  * Fade before the watchdog suspends a backgrounded context that is breaking up
- * (audio-lifecycle.md REQ-9). Short — the audio is already glitching, so the
+ * (audio-lifecycle.md REQ-breaking-up-background-audio-is-suspended). Short — the audio is already glitching, so the
  * point is only that the exit isn't itself a click.
  */
 const GLITCH_FADE_S = 0.06;
 
 /**
  * How long `ctx.resume()` gets to actually take before we stop believing it
- * (audio-lifecycle.md REQ-13). Android does not always reject a resume it will
+ * (audio-lifecycle.md REQ-a-resume-that-does-not-take-is-retried). Android does not always reject a resume it will
  * not honour — it can hand back a promise that never settles at all — so the
  * await is raced rather than trusted, and the verdict comes from `ctx.state`.
  */
@@ -66,7 +66,7 @@ const RESUME_RETRY_MS = 150;
 /** Retries after the first attempt, so three tries in total. */
 const RESUME_RETRIES = 2;
 
-/** What the UI needs to know about a resume that did not take (REQ-13/REQ-14). */
+/** What the UI needs to know about a resume that did not take (REQ-clicking-the-graph-resets-the-peak/REQ-peak-hold-obeys-the-perf-tier). */
 export interface AudioRecoveryState {
   /** Every attempt failed: the app is silent and waiting for a gesture. */
   blocked: boolean;
@@ -80,7 +80,7 @@ export interface AudioRecoveryState {
 const RESUME_GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 
 /**
- * Fan one LFO's per-voice outputs into a voice (lfo.md REQ-13). Every target is
+ * Fan one LFO's per-voice outputs into a voice (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded). Every target is
  * a summing `AudioParam`, so calling this for both LFOs is what makes two of
  * them on one destination add rather than fight. `pan` is bus-wide and wired
  * once in the constructor instead; `pulse` has no node at all.
@@ -134,7 +134,7 @@ export class Engine {
   readonly drumFx: ReturnType<typeof createDrumChain>;
   readonly samplerFx: ReturnType<typeof createSamplerChain>;
 
-  /** Synth-bus auto-panner, swept by the LFO's `pan` destination (lfo.md REQ-4).
+  /** Synth-bus auto-panner, swept by the LFO's `pan` destination (lfo.md REQ-pan-sweeps-a-stereo-panner).
    *  Sits *after* the insert chain so the chain stays 1-channel; centred (a
    *  no-op) unless the LFO is routed here. */
   readonly synthPan: StereoPannerNode;
@@ -153,11 +153,11 @@ export class Engine {
   readonly clock: Clock;
   /**
    * The DJ filter is a SERIES pair, not one node whose type flips (performance.md
-   * REQ-9). Each keeps its constructed type forever and rests transparent; only
+   * REQ-the-dj-filter-is-a-series-pair). Each keeps its constructed type forever and rests transparent; only
    * `detune` moves, so crossing centre cannot click.
    *
    * The frequencies set below are fixed *references* the sweep is measured from
-   * and are never written again (REQ-10) — `Performance` retargets `detune` in
+   * and are never written again (REQ-spectrum-draws-a-peak-hold) — `Performance` retargets `detune` in
    * cents instead, which is log-frequency and so needs only `setTargetAtTime`.
    */
   readonly djLow: BiquadFilterNode;
@@ -184,13 +184,13 @@ export class Engine {
   private recorderNode!: RecorderNode;
 
   readonly lfo: LFO;
-  /** The second LFO (lfo.md REQ-10). Identical to `lfo` except that the mod
-   *  wheel does not reach it (REQ-11). Off by default, so it costs an idle
+  /** The second LFO (lfo.md REQ-there-are-two-lfos). Identical to `lfo` except that the mod
+   *  wheel does not reach it (REQ-zero-db-is-the-top-of-the-graph). Off by default, so it costs an idle
    *  oscillator and nothing else until a patch arms it. */
   readonly lfo2: LFO;
   /** Drives whichever LFO holds the `pulse` destination. Built in `init()` — it
-   *  writes to the voices, so it needs the pool to exist (oscillators.md REQ-8).
-   *  One driver, two possible sources: it arbitrates by index (lfo.md REQ-14). */
+   *  writes to the voices, so it needs the pool to exist (oscillators.md REQ-set-periodic-wave-is-immediate).
+   *  One driver, two possible sources: it arbitrates by index (lfo.md REQ-pulse-is-arbitrated). */
   pwm!: PwmDriver;
   private readonly pitchBend: ConstantSourceNode;
   /** Global matrix sources with no other home (mod-matrix.md). */
@@ -206,7 +206,7 @@ export class Engine {
   /**
    * Raw key/MIDI note → the notes it actually sounded, so a note-off releases exactly
    * what its note-on started even if the key or chord voicing changed mid-hold
-   * (voicing.md REQ-8). Bounded at 128 keys × ≤4 notes, and cleared with the voices.
+   * (voicing.md REQ-passthrough-remembers-what-it-played). Bounded at 128 keys × ≤4 notes, and cleared with the voices.
    */
   private readonly heldIn = new Map<number, number[]>();
 
@@ -225,35 +225,35 @@ export class Engine {
   private readonly iosSession: IosAudioSession;
   /** Android-only Media Session keep-alive; inert on every other platform. */
   private readonly media: MediaSessionKeepAlive;
-  /** Watches a backgrounded context for real underruns (audio-lifecycle REQ-9). */
+  /** Watches a backgrounded context for real underruns (audio-lifecycle REQ-breaking-up-background-audio-is-suspended). */
   private watchdog!: BackgroundAudioWatchdog;
 
   /**
    * True while the context is suspended *because we asked* — only ever set by
-   * `suspendForDebug()`. The `statechange` re-arm (REQ-15) is gated on this
+   * `suspendForDebug()`. The `statechange` re-arm (REQ-the-scope-canvas-carries-a-testid) is gated on this
    * rather than on the platform, which is what lets the listener exist off iOS
-   * without instantly undoing the Debug panel's Suspend (REQ-5).
+   * without instantly undoing the Debug panel's Suspend (REQ-the-split-layout-is-pure).
    */
   private deliberateSuspend = false;
-  /** True while the watchdog's fade-out is still holding the master at 0 (REQ-16). */
+  /** True while the watchdog's fade-out is still holding the master at 0 (REQ-no-per-frame-layout-read). */
   private glitchMuted = false;
-  /** The watchdog's pending suspend, cancellable if we come back first (REQ-16). */
+  /** The watchdog's pending suspend, cancellable if we come back first (REQ-no-per-frame-layout-read). */
   private glitchTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Consecutive failed recovery runs (REQ-13). */
+  /** Consecutive failed recovery runs (REQ-clicking-the-graph-resets-the-peak). */
   private resumeAttempts = 0;
-  /** True from the moment we give up until a resume actually takes (REQ-14). */
+  /** True from the moment we give up until a resume actually takes (REQ-peak-hold-obeys-the-perf-tier). */
   private blocked = false;
   /**
    * Whether the context has ever been running. Until it has, the automatic
    * re-arms stay out of the way: before the Tap-to-start gesture a refused
-   * resume is the *expected* state, not a fault to report (REQ-13). Without
+   * resume is the *expected* state, not a fault to report (REQ-clicking-the-graph-resets-the-peak). Without
    * this the initial `pageshow` would raise the "tap to resume" toast over the
    * start modal on every load.
    */
   private everRan = false;
   /**
    * Whether the context reached `running` without a user gesture — i.e. the
-   * browser's autoplay policy permits us (audio-lifecycle.md REQ-20). Read from
+   * browser's autoplay policy permits us (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required). Read from
    * the state `new AudioContext()` returned, re-read at the end of `init()` and
    * OR'd in from `statechange`, because the spec allows a permitted context to
    * be created `suspended` and transition asynchronously.
@@ -276,7 +276,7 @@ export class Engine {
     this.xyStore = opts.xy ?? new XyPadStore();
     this.motionFps = opts.motionFps;
     this.ctx = new AudioContext({ latencyHint: opts.latencyHint ?? 'interactive' });
-    // The state we were handed IS the autoplay verdict (REQ-20). Captured here,
+    // The state we were handed IS the autoplay verdict (REQ-the-scope-height-persists). Captured here,
     // before anything can change it, and never by suspending the context —
     // that would destroy the only direct evidence we get.
     this.autoplayAllowedFlag = this.ctx.state === 'running';
@@ -285,7 +285,7 @@ export class Engine {
     // The OS's transport controls. The closures reach `this.clock`, which is
     // built at the end of this constructor — they only ever run from a
     // notification tap, long after. Pause is the real Pause; only stop panics
-    // (media-session.md REQ-4).
+    // (media-session.md REQ-notification-controls-work).
     this.media = new MediaSessionKeepAlive(transportMediaHandlers({
       resume: () => this.resume(),
       start: () => this.clock.start(),
@@ -296,7 +296,7 @@ export class Engine {
     this.voiceBus = this.ctx.createGain();
     this.voiceBus.gain.value = 1;
 
-    // Perf-tier FX-cost knobs (performance-mode.md REQ-11); defaults are no-ops.
+    // Perf-tier FX-cost knobs (performance-mode.md REQ-weak-tier-reduces-fx-cost); defaults are no-ops.
     this.fxOversample = opts.fxOversample ?? true;
     const reverbOpts = { maxIrS: opts.reverbIrMaxS ?? 4 };
     const distOpts = { oversample: this.fxOversample };
@@ -308,20 +308,20 @@ export class Engine {
     this.masterComp = new Compressor(this.ctx, 'vca');
 
     this.master = this.ctx.createGain();
-    // Seeded SILENT (audio-lifecycle.md REQ-19). An autoplay-permitted browser
+    // Seeded SILENT (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). An autoplay-permitted browser
     // hands us a context that is already rendering, so the whole boot — worklet
     // loading, ~50 node constructions, the boot patch, the session restore —
     // runs into an open output stream; at 0.8 that arrived as the stream-start
-    // transient at full level, which is the click REQ-1's fade exists to swallow
-    // and which REQ-2's state gate skipped. `fadeInMaster()` is now the only
+    // transient at full level, which is the click REQ-two-extra-per-channel-analysers's fade exists to swallow
+    // and which REQ-all-analysers-share-fft-settings's state gate skipped. `fadeInMaster()` is now the only
     // thing that ever raises this, and it reads `master.volume` at fade time.
     this.master.gain.value = 0;
 
-    // fftSize is perf-tier-dependent (performance-mode.md REQ-12): 256/512/1024 for
+    // fftSize is perf-tier-dependent (performance-mode.md REQ-analyser-fft-size-follows-the-tier): 256/512/1024 for
     // weak/medium/strong, cutting the always-pulled analyser FFT + per-draw copy cost
     // on weaker tiers. This is the BOOT seed only — the scope applies later tier
     // changes live via setFftSize. All three share one value so the scope's
-    // per-channel buffers stay uniform (scope.md REQ-2).
+    // per-channel buffers stay uniform (scope.md REQ-all-analysers-share-fft-settings).
     const fft = opts.analyserFftSize ?? 1024;
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = fft;
@@ -348,7 +348,7 @@ export class Engine {
     this.samplerBus = this.ctx.createGain();
     this.samplerBus.gain.value = 1;
 
-    // Synth auto-pan (lfo.md REQ-4): last stage of the synth channel, so one
+    // Synth auto-pan (lfo.md REQ-pan-sweeps-a-stereo-panner): last stage of the synth channel, so one
     // node pans instead of one per voice and the inserts ahead of the reverb
     // stay 1-channel (ADR-010, cheap). The reverb — last in the chain — is where
     // the channel actually becomes stereo: its IR has 2 decorrelated channels,
@@ -397,7 +397,7 @@ export class Engine {
     // Pan is the one destination that is bus-wide rather than per-voice, so it
     // is wired here and not in the per-voice loop below. `pan` is a-rate.
     // Two GainNodes into one AudioParam sum, and the panner clamps to ±1, so
-    // both LFOs on `pan` stays bounded (lfo.md REQ-13).
+    // both LFOs on `pan` stays bounded (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded).
     this.lfo.toPan.connect(this.synthPan.pan);
     this.lfo2.toPan.connect(this.synthPan.pan);
 
@@ -406,7 +406,7 @@ export class Engine {
     this.pitchBend.start();
 
     // Two global matrix sources that have no node of their own yet (mod-matrix.md).
-    // The mod wheel is otherwise only a depth scalar on LFO 1 (lfo.md REQ-11); as a
+    // The mod wheel is otherwise only a depth scalar on LFO 1 (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only); as a
     // matrix source it becomes a signal, so a performance gesture can drive anything.
     this.modWheelSource = this.ctx.createConstantSource();
     this.modWheelSource.offset.value = 0;
@@ -448,12 +448,12 @@ export class Engine {
       this.noise.connect(v.noiseGain);
 
       // LFO routing — every target is a summing AudioParam, so both LFOs can
-      // land on the same one and simply add (lfo.md REQ-13).
+      // land on the same one and simply add (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded).
       connectLfoToVoice(this.lfo, v);
       connectLfoToVoice(this.lfo2, v);
       // The matrix builds this voice's six route gains here, for the same reason:
       // the fan-out is created once at boot and never touched per note or per frame
-      // (mod-matrix.md REQ-1).
+      // (mod-matrix.md REQ-one-gain-per-route-rewired-while-silent).
       this.modMatrix.connectVoice(v);
 
       // Pitch bend
@@ -468,7 +468,7 @@ export class Engine {
     }
 
     // PWM writes params on every voice, so it is built once the pool exists.
-    // Its timer only runs while an LFO is on `pulse` (oscillators.md REQ-8).
+    // Its timer only runs while an LFO is on `pulse` (oscillators.md REQ-set-periodic-wave-is-immediate).
     this.pwm = new PwmDriver(this.voices, () => this.ctx.currentTime);
 
     // Arrangement first so its clock tick runs before the machines read
@@ -493,7 +493,7 @@ export class Engine {
       ...(this.motionFps !== undefined ? { fps: this.motionFps } : {}),
     });
 
-    // Sidechain ducking (sidechain-ducking.md REQ-1): the duckers are chain
+    // Sidechain ducking (sidechain-ducking.md REQ-the-duck-is-keyed-by-scheduled-hits): the duckers are chain
     // members built in the constructor, the drum machine only exists here, so
     // the trigger is wired at this seam rather than injected. Each ducker
     // filters on its own `.src` and early-outs while bypassed.
@@ -515,8 +515,8 @@ export class Engine {
     // Bank resample (render-to-sampler.md): a second zero-output tap on the
     // synth channel output (post-reverb, post-pan, pre-preMaster) — the drum/
     // sampler buses never enter it. Tapping the panner rather than the FX tail
-    // keeps a rendered bank identical to what was heard (lfo.md REQ-4). Engine
-    // keeps the state juggling (REQ-5) in the prepare closure so LaneMixer/
+    // keeps a rendered bank identical to what was heard (lfo.md REQ-pan-sweeps-a-stereo-panner). Engine
+    // keeps the state juggling (REQ-the-split-layout-is-pure) in the prepare closure so LaneMixer/
     // private state stays out of the controller.
     const bankRenderNode = await RecorderNode.create(this.ctx);
     this.synthPan.connect(bankRenderNode.input);
@@ -529,7 +529,7 @@ export class Engine {
       () => this.recorder.isCapturing(),
     );
 
-    // Stop cuts the sampler's in-flight one-shots (sampler.md REQ-8). A tied (or
+    // Stop cuts the sampler's in-flight one-shots (sampler.md REQ-a-stop-cuts-in-flight-one-shots). A tied (or
     // gate-1) cell schedules no choke of its own, so a long user sample used to
     // play on with nothing able to silence it — not even Panic, which only kills
     // synth voices. The policy lives here rather than in the machine because the
@@ -550,10 +550,10 @@ export class Engine {
       toPerfMs: (t) => performance.now() + (t - this.ctx.currentTime) * 1000,
       toAudioTime: (ms) => this.ctx.currentTime + (ms - performance.now()) / 1000,
       localBpm: () => this.bus.get('transport.bpm'),
-      // One-shot tempo handoff when a link drops mid-play (REQ-21).
+      // One-shot tempo handoff when a link drops mid-play (REQ-the-resize-obeys-the-cost-contract).
       setLocalBpm: (b) => this.bus.set('transport.bpm', b),
       // The meter travels the WiFi wire so peers agree what bar a Song Position
-      // lands in (meter.md REQ-18). Written to the bus like any other param, so
+      // lands in (meter.md REQ-meter-travels-on-the-wifi-wire). Written to the bus like any other param, so
       // a followed meter shows in the picker and saves with the song.
       meter: () => ({
         beats: this.bus.get('transport.beats'),
@@ -571,7 +571,7 @@ export class Engine {
     this.sync.addTransport('wifi', this.rtcSync);
 
     // After sync, the recorder and the bank renderer: a wrap is a seek, refused
-    // by the same `canSeek` those three feed (transport-loop.md REQ-6).
+    // by the same `canSeek` those three feed (transport-loop.md REQ-a-loop-that-cannot-jump-does-not).
     this.loopDriver = new LoopDriver({
       clock: this.clock,
       loop: this.loop,
@@ -581,13 +581,13 @@ export class Engine {
     });
 
     // While slaved, Tape Stop skips its clock-BPM ramp (pitch ramp still sounds)
-    // so incoming clock keeps driving the tempo (midi-clock-sync REQ-13).
+    // so incoming clock keeps driving the tempo (midi-clock-sync REQ-tape-stop-is-gated-while-slaved).
     this.perf.clockRampAllowed = () => this.sync.activeMode !== 'slave';
 
     // Sample & hold: one new value per 16th, scheduled at the tick's own time so it
     // lands with the beat rather than whenever the main thread got round to it
     // (mod-matrix.md). One write per tick, not per frame — and none at all while no
-    // route reads `random`, which is the default (mod-matrix.md REQ-10b).
+    // route reads `random`, which is the default (mod-matrix.md REQ-an-unselected-source-costs-nothing).
     this.clock.onTick((_step, when) => {
       if (!this.modMatrix.usesSource(MOD_SRC.random)) return;
       this.randomSource.offset.setValueAtTime(Math.random() * 2 - 1, when);
@@ -599,17 +599,17 @@ export class Engine {
     this.installContextRearm();
 
     // Built here, not in the constructor: `isBusy` reads the recorder and the
-    // bank renderer, which only exist by now (audio-lifecycle.md REQ-11).
+    // bank renderer, which only exist by now (audio-lifecycle.md REQ-the-trip-never-interrupts-a-capture).
     this.watchdog = new BackgroundAudioWatchdog(this.ctx, {
       onGlitch: () => this.suspendForGlitch(),
       isBusy: () => this.recorder.isCapturing() || this.bankRender.isRendering(),
       // Nothing sounding, nothing to protect from crackle — and a suspend/resume
-      // cycle is exactly what went wrong on the device (audio-lifecycle REQ-17).
+      // cycle is exactly what went wrong on the device (audio-lifecycle REQ-nothing-suspends-for-silent-crackle).
       isSilent: () => !this.clock.playing,
     });
     this.watchdog.start();
 
-    // Last word on the autoplay verdict (REQ-20). `init()` has awaited three
+    // Last word on the autoplay verdict (REQ-the-scope-height-persists). `init()` has awaited three
     // worklet module loads by now, so an asynchronous transition to `running`
     // that happened before the `statechange` listener above existed is caught
     // here. The three reads together cover every ordering the spec permits.
@@ -617,7 +617,7 @@ export class Engine {
   }
 
   /**
-   * Force the bank-render preconditions (render-to-sampler REQ-5) and return
+   * Force the bank-render preconditions (render-to-sampler REQ-render-preconditions-are-forced-then-restored) and return
    * the restore. Live state is re-asserted from the bus, so a param change made
    * *during* the ~2-bar render is overwritten by its own pre-render value —
    * acceptable for a modal-ish action this short.
@@ -658,7 +658,7 @@ export class Engine {
    * iOS-only `'interrupted'` state alike — and gates the fade with it, so
    * resuming an already-running context can never dip live audio.
    *
-   * The call is **verified, not trusted** (audio-lifecycle.md REQ-13). Android
+   * The call is **verified, not trusted** (audio-lifecycle.md REQ-a-resume-that-does-not-take-is-retried). Android
    * can refuse a resume that lands outside a user gesture, and it does not
    * always refuse by rejecting — the promise can simply never settle. So each
    * attempt is raced against `RESUME_VERIFY_MS`, the verdict comes from
@@ -672,7 +672,7 @@ export class Engine {
   }
 
   private async runResume(): Promise<void> {
-    // Any resume is intent to play, so it clears a Debug-panel suspend (REQ-15).
+    // Any resume is intent to play, so it clears a Debug-panel suspend (REQ-the-scope-canvas-carries-a-testid).
     this.deliberateSuspend = false;
     this.iosSession.unlock();
     // Android: become a media player the OS protects (media-session.md). Like
@@ -682,10 +682,10 @@ export class Engine {
 
     for (let attempt = 0; ; attempt++) {
       // A context that is already running still needs its gain back in two
-      // cases, and neither is a dip — the gain is at 0 either way (REQ-2):
-      //  - the watchdog muted it and something else resumed us (REQ-16);
+      // cases, and neither is a dip — the gain is at 0 either way (REQ-all-analysers-share-fft-settings):
+      //  - the watchdog muted it and something else resumed us (REQ-no-per-frame-layout-read);
       //  - it was created running, so this is the FIRST start and the master is
-      //    still on its seeded silence (REQ-19). Without this the app would come
+      //    still on its seeded silence (REQ-a-scope-resize-handle). Without this the app would come
       //    up running and silent, which is worse than the click.
       if (!shouldResumeContext(this.ctx.state)) {
         // `state === 'running'` because the other branch here is `'closed'`,
@@ -696,7 +696,7 @@ export class Engine {
       }
       this.fadeInMaster();
       // Raced, not awaited: `currentTime` is frozen, so the ramp above is
-      // already on the timeline whatever this promise decides to do (REQ-3).
+      // already on the timeline whatever this promise decides to do (REQ-studio-api-exposes-both-channels).
       // A rejected resume() and one that hangs forever are the same event here —
       // both mean "not running yet", and `ctx.state` is the only thing worth
       // asking afterwards.
@@ -711,7 +711,7 @@ export class Engine {
     this.armGestureResume();
   }
 
-  /** Clear the recovery state after a resume that actually took (REQ-13). */
+  /** Clear the recovery state after a resume that actually took (REQ-clicking-the-graph-resets-the-peak). */
   private onResumeSucceeded(): void {
     this.everRan = true;
     this.glitchMuted = false;
@@ -725,7 +725,7 @@ export class Engine {
   }
 
   /**
-   * Arm a one-shot resume on the next real user gesture (REQ-13). Capture-phase
+   * Arm a one-shot resume on the next real user gesture (REQ-clicking-the-graph-resets-the-peak). Capture-phase
    * so a control that stops propagation cannot swallow it, and passive so it can
    * never delay a scroll or a key. Idempotent — re-arming while already armed
    * keeps the existing listeners rather than stacking a second set.
@@ -750,7 +750,7 @@ export class Engine {
    * Extracted from `armGestureResume` because the auto-start path needs the same
    * arming for the work that genuinely wants a gesture but is not about the
    * AudioContext — Web MIDI's permission prompt and the Android keep-alive
-   * (audio-lifecycle.md REQ-21). One implementation, not two.
+   * (audio-lifecycle.md REQ-post-gesture-work-is-deferred). One implementation, not two.
    */
   onFirstGesture(fn: () => void): () => void {
     const opts: AddEventListenerOptions = { capture: true, passive: true, once: true };
@@ -776,7 +776,7 @@ export class Engine {
   }
 
   /**
-   * Subscribe to "audio is stuck and needs a tap" (REQ-14). The Engine owns the
+   * Subscribe to "audio is stuck and needs a tap" (REQ-peak-hold-obeys-the-perf-tier). The Engine owns the
    * state and touches no DOM; `main.ts` turns this into the toast (ADR-001).
    * Returns an unsubscribe.
    */
@@ -787,12 +787,12 @@ export class Engine {
 
   /**
    * Whether audio is unblocked without a user gesture (audio-lifecycle.md
-   * REQ-20). `main.ts` reads this to decide whether the "Tap to start" modal is
+   * REQ-the-gesture-is-required-only-when-required). `main.ts` reads this to decide whether the "Tap to start" modal is
    * needed; the Debug panel surfaces it on the context row.
    */
   get autoplayAllowed(): boolean { return this.autoplayAllowedFlag; }
 
-  /** Recovery state for the Debug panel and the toast (REQ-13/REQ-14). */
+  /** Recovery state for the Debug panel and the toast (REQ-clicking-the-graph-resets-the-peak/REQ-peak-hold-obeys-the-perf-tier). */
   get audioRecovery(): AudioRecoveryState {
     return {
       blocked: this.blocked,
@@ -803,7 +803,7 @@ export class Engine {
 
   /**
    * The Debug panel's Suspend — the *only* suspend that counts as deliberate, so
-   * the `statechange` re-arm leaves it alone (audio-lifecycle.md REQ-5/REQ-15).
+   * the `statechange` re-arm leaves it alone (audio-lifecycle.md REQ-statechange-must-not-fight-a-deliberate-suspend/REQ-an-unasked-suspension-is-recovered).
    */
   async suspendForDebug(): Promise<void> {
     this.deliberateSuspend = true;
@@ -812,14 +812,14 @@ export class Engine {
 
   /**
    * Ramp the master up from silence so a start doesn't click
-   * (audio-lifecycle.md REQ-1). The graph is fine; what clicks is the step from
+   * (audio-lifecycle.md REQ-a-start-is-click-free). The graph is fine; what clicks is the step from
    * "not rendering" to "rendering at full gain" — the device's own stream-start
    * transient, the worklets' first block, or an underrun while the start
    * handler is still working all arrive at once otherwise.
    *
    * Scheduled *before* `ctx.resume()` is awaited: `currentTime` is frozen while
    * a context is suspended, so this ramp is guaranteed to cover the very first
-   * rendered blocks rather than landing somewhere inside them (REQ-3).
+   * rendered blocks rather than landing somewhere inside them (REQ-studio-api-exposes-both-channels).
    */
   private fadeInMaster(): void {
     const t = this.ctx.currentTime;
@@ -840,23 +840,23 @@ export class Engine {
    *
    * The `statechange` listener runs on **every** platform (v5) and is gated on
    * `deliberateSuspend`, not on the OS. Not installing it off iOS used to stand
-   * in for "don't fight the Debug panel's Suspend" (audio-lifecycle.md REQ-5),
+   * in for "don't fight the Debug panel's Suspend" (audio-lifecycle.md REQ-statechange-must-not-fight-a-deliberate-suspend),
    * and the price was that every non-iOS device had no recovery at all from a
    * suspension arriving while the page is *visible* — an audio-focus loss, a
-   * battery saver, an interruption. Gating on the intent keeps REQ-5 and buys
-   * back the recovery (REQ-15).
+   * battery saver, an interruption. Gating on the intent keeps REQ-the-split-layout-is-pure and buys
+   * back the recovery (REQ-the-scope-canvas-carries-a-testid).
    *
    * `pageshow` joins `visibilitychange` because a bfcache restore can reach a
-   * visible, interactive page without one (REQ-18).
+   * visible, interactive page without one (REQ-the-wave-read-is-float).
    */
   private installContextRearm(): void {
     const onForeground = (): void => {
       if (document.hidden || !this.everRan) return;
       // We are back before the watchdog's fade finished — call the suspend off
-      // rather than letting it land on a foreground page (REQ-16).
+      // rather than letting it land on a foreground page (REQ-no-per-frame-layout-read).
       this.clearGlitchTimer();
       // The Android keep-alive first: if the OS paused our element while we were
-      // away, the session it holds needs to come back too (media-session REQ-6).
+      // away, the session it holds needs to come back too (media-session REQ-session-rearms-on-foreground).
       this.media.rearm();
       // iOS re-arms unconditionally: even a context that survived needs the
       // silent loop replayed to hold the media-backed session category. Off iOS
@@ -870,7 +870,7 @@ export class Engine {
     this.ctx.addEventListener('statechange', () => {
       // A context the browser was allowed to start may be created `suspended`
       // and transition asynchronously — that still counts as autoplay permitted
-      // (REQ-20). Only before the first start: after it, `running` says nothing
+      // (REQ-the-scope-height-persists). Only before the first start: after it, `running` says nothing
       // about policy, it just says we resumed.
       if (!this.everRan && this.ctx.state === 'running') this.autoplayAllowedFlag = true;
       if (this.deliberateSuspend || !this.everRan) return;
@@ -878,7 +878,7 @@ export class Engine {
     });
   }
 
-  /** Drop the watchdog's pending suspend, if one is still in flight (REQ-16). */
+  /** Drop the watchdog's pending suspend, if one is still in flight (REQ-no-per-frame-layout-read). */
   private clearGlitchTimer(): void {
     if (this.glitchTimer === null) return;
     clearTimeout(this.glitchTimer);
@@ -888,15 +888,15 @@ export class Engine {
   /** iOS audio-session diagnostics for the Debug panel (see ios-audio.md / debug-panel.md). */
   get iosAudio(): IosAudioDiagnostics { return this.iosSession.diagnostics; }
 
-  /** Android keep-alive diagnostics for the Debug panel (see media-session.md REQ-8). */
+  /** Android keep-alive diagnostics for the Debug panel (see media-session.md REQ-session-is-observable-on-device). */
   get mediaSession(): MediaSessionDiagnostics { return this.media.diagnostics; }
 
-  /** Background-watchdog readings for the Debug panel (audio-lifecycle.md REQ-12). */
+  /** Background-watchdog readings for the Debug panel (audio-lifecycle.md REQ-the-measurement-is-visible-either-way). */
   get backgroundAudio(): WatchdogDiagnostics { return this.watchdog.diagnostics; }
 
   /**
    * The watchdog's verdict: this device cannot keep a backgrounded audio thread
-   * fed, so go quiet rather than crackle (audio-lifecycle.md REQ-9). Fade first
+   * fed, so go quiet rather than crackle (audio-lifecycle.md REQ-breaking-up-background-audio-is-suspended). Fade first
    * so the exit is clean, then suspend — `currentTime` freezes with it, so the
    * transport's grid is preserved and the foreground re-arm picks up where it
    * left off. The suspend is deferred past the fade; a throttled background timer
@@ -905,7 +905,7 @@ export class Engine {
    * `glitchMuted` records that the master is being held at 0 by *us*, so that
    * whatever brings the context back restores it — including a browser that
    * resumes the context by itself, where the state-gated `fadeInMaster()` would
-   * otherwise leave a running context silent (REQ-16).
+   * otherwise leave a running context silent (REQ-no-per-frame-layout-read).
    */
   private suspendForGlitch(): void {
     const t = this.ctx.currentTime;
@@ -935,14 +935,14 @@ export class Engine {
   }
 
   /**
-   * The keyboard/MIDI note passthrough (voicing.md REQ-6/REQ-8).
+   * The keyboard/MIDI note passthrough (voicing.md REQ-note-events-flow-through-the-bus/REQ-passthrough-remembers-what-it-played).
    *
    * A raw key no longer maps 1:1 to a sounding note — the key can re-pitch it and
    * chord memory can expand it — so what was played is **remembered** rather than
    * re-derived on release. Re-deriving would miss `Polyphony.heldNotes` (keyed by the
    * note passed in) the moment the key or voicing changed mid-hold, and strand the
    * voice forever. Same "resolve once, release through the stored note" rule the
-   * sequencer states at sequencer.md REQ-16.
+   * sequencer states at sequencer.md REQ-every-note-is-shifted-by-the-slot-transpose.
    *
    * A method rather than an inline closure so it can be exercised against a
    * structural stub, as `seekTo`/`canSeek` are.
@@ -967,7 +967,7 @@ export class Engine {
     this.clock.stop();
     this.polyphony.killAll();
     // The map names voices that no longer exist; leaving entries would make the next
-    // note-off release notes that were already killed (voicing.md REQ-8).
+    // note-off release notes that were already killed (voicing.md REQ-passthrough-remembers-what-it-played).
     this.heldIn.clear();
   }
 
@@ -976,9 +976,9 @@ export class Engine {
   /**
    * Whether moving the playhead is currently allowed. Three states say no, and
    * they are all "something else owns the step counter right now"
-   * (transport-position.md REQ-6):
+   * (transport-position.md REQ-seeking-is-refused-in-three-states):
    *  - **slaved** — the remote transport owns the playhead, and a local jump
-   *    drives the slave's phase tracking into a re-anchor (midi-clock-sync REQ-24);
+   *    drives the slave's phase tracking into a re-anchor (midi-clock-sync REQ-a-slave-refuses-to-seek-locally);
    *  - **exporting / rendering** — both bound their capture by absolute step
    *    number, so a jump truncates or unbounds it silently.
    *
@@ -1002,14 +1002,14 @@ export class Engine {
   seekTo(step: number): boolean {
     if (!this.canSeek()) return false;
     // No announce here: SyncController hears every `clock.onSeek` — this one and
-    // a loop wrap alike — and tells slaves itself (transport-position.md REQ-7).
+    // a loop wrap alike — and tells slaves itself (transport-position.md REQ-a-sync-master-announces-its-seek).
     this.clock.seek(Math.max(0, Math.round(step)));
     return true;
   }
 
   /**
    * The bar length in 16th ticks, as `transport.beats` + `transport.beatUnit`
-   * currently say it (meter.md REQ-6). Read by the UI's ruler and readouts, so
+   * currently say it (meter.md REQ-bar-ticks-is-the-arrangement-bar-line). Read by the UI's ruler and readouts, so
    * they measure a bar the same way the transport does.
    */
   get barTicks(): number {
@@ -1021,7 +1021,7 @@ export class Engine {
    * called from both meter params so the pair is always read together.
    *
    * The recorder is included because a bar-exact capture measures its bars in
-   * ticks too (meter.md REQ-7) — an export of a 7/8 song must be 7/8 bars long.
+   * ticks too (meter.md REQ-bar-exact-capture-follows-bar-ticks) — an export of a 7/8 song must be 7/8 bars long.
    */
   private applyMeter(): void {
     const ticks = this.barTicks;
@@ -1034,7 +1034,7 @@ export class Engine {
     this.bankRender.setBarTicks(ticks);
     this.loopDriver.setBarTicks(ticks);
     // Peers number bars by their own meter, so a local change has to reach them
-    // or the same Song Position means two different bars (meter.md REQ-18).
+    // or the same Song Position means two different bars (meter.md REQ-meter-travels-on-the-wifi-wire).
     this.sync.announceMeter();
   }
 
@@ -1056,18 +1056,18 @@ export class Engine {
       bus.subscribe(`mod.${n}.dst`, (v) => this.modMatrix.setDest(row, v));
       bus.subscribe(`mod.${n}.amt`, (v) => this.modMatrix.setAmount(row, v));
     }
-    // The mod wheel is a depth scalar on LFO 1 (lfo.md REQ-11) AND a matrix source.
+    // The mod wheel is a depth scalar on LFO 1 (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only) AND a matrix source.
     // Mirroring it into a node here is what lets one gesture drive anything.
     bus.subscribe('master.modWheel', (v) => {
       rampTo(this.modWheelSource.offset, v, this.ctx, RAMP_MEDIUM);
     });
 
     // Key / scale. `subscribe` fires immediately, so the table is built at boot and
-    // rebuilt only on change — never per note (scale-quantization.md REQ-7).
+    // rebuilt only on change — never per note (scale-quantization.md REQ-the-scale-mapping-is-a-lookup-table).
     bus.subscribe('scale.root', (v) => this.scale.setRoot(Math.round(v)));
     bus.subscribe('scale.type', (v) => this.scale.setScale(Math.round(v)));
     bus.subscribe('chord.voicing', (v) => this.scale.setChord(Math.round(v)));
-    // Mono suppresses chord expansion — chord-tools.md REQ-7.
+    // Mono suppresses chord expansion — chord-tools.md REQ-mono-gates-the-live-chord-path.
     bus.subscribe('voicing.mode', (v) => this.scale.setPoly(v >= 0.5));
 
     // OSC 1
@@ -1123,8 +1123,8 @@ export class Engine {
 
     // The LFOs self-wire their own params (ADR-008), including the tempo lock
     // and the `pulse` path's share of PwmDriver — which arbitrates between the
-    // two by index, so neither can stop the other's sweep (lfo.md REQ-14).
-    // Only LFO 1 takes the mod wheel (lfo.md REQ-11).
+    // two by index, so neither can stop the other's sweep (lfo.md REQ-pulse-is-arbitrated).
+    // Only LFO 1 takes the mod wheel (lfo.md REQ-the-mod-wheel-feeds-lfo-one-only).
     this.lfo.bind(bus, 'lfo', this.pwm, 0, 'master.modWheel');
     this.lfo2.bind(bus, 'lfo2', this.pwm, 1);
     // The base widths belong to the oscillators, not to an LFO, so they stay here.
@@ -1145,7 +1145,7 @@ export class Engine {
 
     // Master
     bus.subscribe('master.volume', (x) => {
-      // Inert until audio has actually started (audio-lifecycle.md REQ-19). This
+      // Inert until audio has actually started (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). This
       // subscription fires on registration and again for every boot-patch /
       // session-restore write, all of which land before the first start — and any
       // one of them would undo the seeded silence on a context the browser
@@ -1157,28 +1157,28 @@ export class Engine {
     bus.subscribe('master.pitchBend', (x) => {
       rampTo(this.pitchBend.offset, x * PITCH_BEND_RANGE_CENTS, this.ctx, RAMP_FAST);
     });
-    // `master.modWheel` is subscribed by LFO 1's own bind() above (REQ-11).
+    // `master.modWheel` is subscribed by LFO 1's own bind() above (REQ-zero-db-is-the-top-of-the-graph).
 
     // ----- Transport -----
     // Gated while *actively* slaved: incoming MIDI clock owns the tempo then;
     // the knob's bus value is the restore target when the role ends
-    // (midi-clock-sync REQ-4). `activeMode`, not `mode`, so a selected-but-
-    // disconnected Slave leaves the knob in charge (REQ-19).
+    // (midi-clock-sync REQ-slave-follows-tempo-from-pulses). `activeMode`, not `mode`, so a selected-but-
+    // disconnected Slave leaves the knob in charge (REQ-a-scope-resize-handle).
     bus.subscribe('transport.bpm', (b) => {
       if (this.sync.activeMode !== 'slave') this.clock.setBpm(b);
       // A tempo-locked LFO tracks the tempo, including a slave's incoming clock
-      // (lfo.md REQ-9) — each LFO subscribes transport.bpm in its own bind().
+      // (lfo.md REQ-lfo-sync-locks-rate-to-tempo) — each LFO subscribes transport.bpm in its own bind().
     });
     bus.subscribe('transport.swing', (s) => this.clock.setSwing(s));
 
-    // ----- Meter (meter.md REQ-5/REQ-6, ADR-019) -----
+    // ----- Meter (meter.md REQ-meter-is-two-bus-scalars/REQ-bar-ticks-is-the-arrangement-bar-line, ADR-019) -----
     // The two scalars resolve to ONE number — the bar length in 16th ticks —
     // pushed to everything that counts a bar. Resolved here rather than in each
     // consumer so `beats` and `beatUnit` can never be read a tick apart and
     // disagree about how long the bar is.
     bus.subscribe('transport.beats', () => this.applyMeter());
     bus.subscribe('transport.beatUnit', () => this.applyMeter());
-    // Per-machine loop length + step rate (REQ-10/REQ-14). Both defaults are
+    // Per-machine loop length + step rate (REQ-spectrum-draws-a-peak-hold/REQ-peak-hold-obeys-the-perf-tier). Both defaults are
     // no-ops: `LEN_FOLLOW` follows the bar and the default rate is one cell per
     // tick, i.e. exactly the pre-meter 16-step bar.
     for (const [prefix, lane] of [
@@ -1200,8 +1200,8 @@ export class Engine {
 
     // ----- Sequencer -----
     bus.subscribe('seq.on', (v) => this.seq.setEnabled(v >= 0.5));
-    // Tracks 2-4 only sound in poly voicing (sequencer.md REQ-9); each track
-    // also has its own mute (REQ-10), independent of the lane-wide seq.mute.
+    // Tracks 2-4 only sound in poly voicing (sequencer.md REQ-poly-voicing-gates-the-extra-tracks); each track
+    // also has its own mute (REQ-spectrum-draws-a-peak-hold), independent of the lane-wide seq.mute.
     bus.subscribe('voicing.mode', (v) => this.seq.setPolyphonic(v >= 0.5));
     for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
       const track = t;
@@ -1241,19 +1241,19 @@ export class Engine {
     for (let i = 0; i < SAMPLER_SLOT_COUNT; i++) {
       const slot = i;
       bus.subscribe(`sampler.t${i}.mute`, (v) => this.sampler.setSlotMute(slot, v >= 0.5));
-      // The per-slot channel (sampler.md REQ-12) …
+      // The per-slot channel (sampler.md REQ-each-slot-has-a-channel) …
       bus.subscribe(`sampler.t${i}.vol`, (v) => this.sampler.setSlotVol(slot, v));
       bus.subscribe(`sampler.t${i}.pan`, (v) => this.sampler.setSlotPan(slot, v));
       bus.subscribe(`sampler.t${i}.tone`, (v) => this.sampler.setSlotTone(slot, v));
       bus.subscribe(`sampler.t${i}.res`, (v) => this.sampler.setSlotRes(slot, v));
-      // … and its voice window (REQ-13).
+      // … and its voice window (REQ-clicking-the-graph-resets-the-peak).
       bus.subscribe(`sampler.t${i}.pitch`, (v) => this.sampler.setSlotPitch(slot, v));
       bus.subscribe(`sampler.t${i}.start`, (v) => this.sampler.setSlotStart(slot, v));
       bus.subscribe(`sampler.t${i}.end`, (v) => this.sampler.setSlotEnd(slot, v));
       bus.subscribe(`sampler.t${i}.rev`, (v) => this.sampler.setSlotRev(slot, v >= 0.5));
       bus.subscribe(`sampler.t${i}.attack`, (v) => this.sampler.setSlotAttack(slot, v));
       bus.subscribe(`sampler.t${i}.decay`, (v) => this.sampler.setSlotDecay(slot, v));
-      // Choke group + mono (REQ-14).
+      // Choke group + mono (REQ-peak-hold-obeys-the-perf-tier).
       bus.subscribe(`sampler.t${i}.choke`, (v) => this.sampler.setSlotChokeGroup(slot, v));
       bus.subscribe(`sampler.t${i}.poly`, (v) => this.sampler.setSlotMono(slot, v >= 0.5));
     }
@@ -1262,7 +1262,7 @@ export class Engine {
     bus.subscribe('motion.on', (v) => this.motion.setEnabled(v >= 0.5));
     bus.subscribe('motion.mute', (v) => this.motion.setMuted(v >= 0.5));
     bus.subscribe('motion.slide', (v) => this.motion.setSlide(v >= 0.5));
-    // Each extra motion track interpolates on its own mode (REQ-2).
+    // Each extra motion track interpolates on its own mode (REQ-all-analysers-share-fft-settings).
     for (let t = 0; t < MOTION_TRACK_COUNT; t++) {
       const track = t;
       bus.subscribe(`motion.t${t}.slide`, (v) => this.motion.setTrackSlide(track, v >= 0.5));

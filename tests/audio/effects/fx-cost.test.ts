@@ -5,7 +5,7 @@ import { Distortion } from '../../../src/audio/effects/distortion';
 import { makeMockAudioContext } from '../mock-audio-context';
 
 /**
- * Weak-tier FX-cost reductions (performance-mode.md REQ-11): the reverb IR
+ * Weak-tier FX-cost reductions (performance-mode.md REQ-weak-tier-reduces-fx-cost): the reverb IR
  * bank is capped by duration (never by bank size) and the distortion's
  * WaveShaper oversampling can be disabled — both at construction.
  */
@@ -34,7 +34,7 @@ describe('Reverb IR duration cap', () => {
 
   it('caps durations, not the bank size, so setSize index mapping is unchanged', () => {
     // Three sizes collapse onto the 1.5 s cap, so only three IRs are ever built —
-    // but `size` still spans five bank positions, which is what REQ-11 promises.
+    // but `size` still spans five bank positions, which is what REQ-the-wah-lfo-sweeps-in-cents promises.
     expect(irSeconds(1.5)).toEqual([0.4, 0.8, 1.5]);
   });
 });

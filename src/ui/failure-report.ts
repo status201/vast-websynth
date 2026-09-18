@@ -11,7 +11,7 @@ declare const __APP_VERSION__: string;
  * `errors` is the **complete** set, never the shortened list a dialog renders:
  * the reason this exists is that the two differ. The song validator collects up
  * to `MAX_ERRORS` (50) messages and the Import failed dialog shows eight of
- * them, so dismissing it used to destroy the rest (song-mode.md REQ-18).
+ * them, so dismissing it used to destroy the rest (song-mode.md REQ-a-rejected-import-is-copyable-in-full).
  */
 export interface FailureReport {
   /** The dialog's own title — becomes the report's first line. */
@@ -29,7 +29,7 @@ const SHOWN_IN_ALERT = 8;
 
 /**
  * True when a validator filled its error budget, so its own list is partial —
- * what `FailureReport.capped` wants (REQ-3). Every caller derives it the same
+ * what `FailureReport.capped` wants (REQ-count-line-admits-the-cap). Every caller derives it the same
  * way, so it is derived in one place.
  */
 export function isCapped(errors: string[]): boolean {
@@ -39,7 +39,7 @@ export function isCapped(errors: string[]): boolean {
 /**
  * The bulleted message an alert shows: the first few, then a line that **names
  * the Copy button**. One implementation because that last sentence is a promise
- * the spec makes (song-mode.md REQ-18) — two copies of it drift, and the copy
+ * the spec makes (song-mode.md REQ-a-rejected-import-is-copyable-in-full) — two copies of it drift, and the copy
  * this surface shows would stop matching the button it points at.
  */
 export function failureMessage(lead: string, errors: string[]): string {
@@ -51,15 +51,15 @@ export function failureMessage(lead: string, errors: string[]): string {
 
 /**
  * Build the pasteable report. Pure apart from the timestamp — it reads no DOM,
- * writes no clipboard, and truncates nothing (failure-report.md REQ-1/REQ-4).
- * The caller hands the result to `alertDialog`'s `copyable` (dialog.md REQ-9).
+ * writes no clipboard, and truncates nothing (failure-report.md REQ-report-carries-every-message/REQ-report-builders-are-pure).
+ * The caller hands the result to `alertDialog`'s `copyable` (dialog.md REQ-an-alert-may-offer-copyable-text).
  */
 export function buildFailureReport(r: FailureReport): string {
   const n = r.errors.length;
   const lines = [`VAST G1-J8 ${__APP_VERSION__} — ${r.title}`, new Date().toISOString()];
   if (r.file) lines.push(`file: ${r.file}`);
   // Say so when the validator stopped walking, rather than presenting a capped
-  // list as a complete one (REQ-3).
+  // list as a complete one (REQ-count-line-admits-the-cap).
   lines.push(`${n} ${n === 1 ? 'error' : 'errors'}${r.capped ? ' (validator cap reached)' : ''}:`);
   if (n > 0) lines.push('', ...r.errors.map((e) => `• ${e}`));
   return lines.join('\n') + '\n';

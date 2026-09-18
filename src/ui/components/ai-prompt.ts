@@ -30,7 +30,7 @@ const BRIEF_PLACEHOLDER =
 /**
  * The two routes the embedded paste step hands its payload to — the Song panel
  * passes the same object it gives its own Paste button, so both doors behave
- * identically (paste-import.md REQ-5).
+ * identically (paste-import.md REQ-one-paste-fragment-two-placements).
  */
 export type AiPromptRoutes = Pick<PasteImportOptions, 'onSong' | 'onPresets'>;
 
@@ -68,7 +68,7 @@ export function createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTM
 
   /**
    * The authoring guide is ~22 kB of prompt copy that only this modal reads, so
-   * it loads with the click rather than at boot (runtime-performance.md REQ-1).
+   * it loads with the click rather than at boot (runtime-performance.md REQ-boot-cost-matches-the-request).
    * Awaited before the modal is built so the textarea is never briefly empty.
    */
   /**
@@ -136,16 +136,16 @@ function buildModal(
     'Describe your song, copy the prompt into any AI agent, then paste the ' +
     'JSON it answers with straight back here.';
 
-  // The shorter route, offered before the three-step round trip (REQ-10). An
+  // The shorter route, offered before the three-step round trip (REQ-the-modal-offers-the-connector). An
   // agent with MCP connector support does not need this modal at all, and the
   // person most likely to benefit is the one who just opened it.
   //
-  // Origin-resolved like REQ-3's schema URLs, so a fork points at its own host
+  // Origin-resolved like REQ-the-prompt-cites-absolute-schema-urls's schema URLs, so a fork points at its own host
   // rather than advertising ours. Plain text, NOT an anchor: the endpoint
   // answers POST only, so a click would render a 405 JSON body and read as a
-  // broken link (mcp-server.md REQ-9b).
+  // broken link (mcp-server.md REQ-no-sse-every-response-is-one-json-body).
   //
-  // Nothing about this goes into the prompt text — REQ-10 has the reasoning.
+  // Nothing about this goes into the prompt text — REQ-the-modal-offers-the-connector has the reasoning.
   const connector = document.createElement('div');
   connector.className = modalStyles.aiConnector!;
 
@@ -224,7 +224,7 @@ function buildModal(
   actions.appendChild(copyExample);
   actions.appendChild(downloadExample);
 
-  // Step 3 — the shared paste fragment (paste-import.md REQ-5). Agents answer
+  // Step 3 — the shared paste fragment (paste-import.md REQ-one-paste-fragment-two-placements). Agents answer
   // in chat rather than with a download, so the round trip closes here instead
   // of via a save-to-disk detour. A successful load closes the modal so the
   // user sees the song that just landed.

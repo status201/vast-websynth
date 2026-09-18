@@ -8,7 +8,7 @@ owner: core
 related:
   - architecture
   - testids                    # owns the ptab-/ppage- namespace rule
-  - typography                 # the no-new-serif-module constraint (REQ-4)
+  - typography                 # the no-new-serif-module constraint (REQ-a-panel-tab-declares-no-font)
   - responsive-synth-panels    # why the strip must fit an 8-column cell
   - lfo                        # the first and only consumer
   - onboarding                 # info-badges must re-observe a hidden page
@@ -28,7 +28,7 @@ two separate elements for the caller to place.
 
 The synth faceplate is a fixed 8-column grid (`layout.module.css` `.main`), and
 all eight columns are taken. Any feature that wants a ninth panel either wraps the
-grid to a second row or shares an existing panel. [lfo](lfo.md) REQ-15 needed the
+grid to a second row or shares an existing panel. [lfo](lfo.md) REQ-the-two-lfos-share-one-panel needed the
 second, so a panel had to grow pages.
 
 `TabContainer` (`src/ui/components/tabs.ts`) already does tabs — but it builds its
@@ -42,36 +42,40 @@ whole of this component.
 
 ## Requirements
 
-- **REQ-1** — `createPanelTabs` returns the strip (`bar`) and the page stack
-  (`body`) as **two separate elements**, plus `activate` / `activeId` /
-  `setLit` / `onChange` / `destroy`. It renders no panel chrome of its own and
-  makes no assumption about where either element is placed. This is the one thing
-  `TabContainer` cannot do, and the reason this is a new component rather than a
-  refactor of it.
+- **REQ-panel-tabs-return-bar-and-pages** — `createPanelTabs` returns the strip
+  (`bar`) and the page stack (`body`) as **two separate elements**, plus
+  `activate` / `activeId` / `setLit` / `onChange` / `destroy`. It renders no
+  panel chrome of its own and makes no assumption about where either element is
+  placed. This is the one thing `TabContainer` cannot do, and the reason this is
+  a new component rather than a refactor of it.
 
-- **REQ-2** — The selected page is **session-only view state**: never a
-  `ParamBus` param, never persisted. A `*.page` ParamDef would be snapshotted into
-  every preset, song and share link, published to AI authors through
-  `public/params.json`, and offered as a Motion/XY automation axis (the pickers
-  read `bus.ids()`) — "automate which tab is visible" is nonsense. The precedents
-  are explicit: `motion-panel.ts`'s X/Y graph toggle is "a local view state, never
-  persisted", and `TabContainer`'s active tab is not persisted either. In this app
-  only *collapse* survives a reload (`websynth.ui.collapsed.*`).
+- **REQ-selected-page-is-session-only** — The selected page is **session-only
+  view state**: never a `ParamBus` param, never persisted. A `*.page` ParamDef
+  would be snapshotted into every preset, song and share link, published to AI
+  authors through `public/params.json`, and offered as a Motion/XY automation
+  axis (the pickers read `bus.ids()`) — "automate which tab is visible" is
+  nonsense. The precedents are explicit: `motion-panel.ts`'s X/Y graph toggle is
+  "a local view state, never persisted", and `TabContainer`'s active tab is not
+  persisted either. In this app only *collapse* survives a reload
+  (`websynth.ui.collapsed.*`).
 
-- **REQ-3** — Testids are **prefix-namespaced**, `ptab-<prefix>-<pageId>` for a
-  tab button and `ppage-<prefix>-<pageId>` for its page shell, minted in the
-  factory from a required `prefix` option (testids.md REQ-2, the `BankBar`
-  pattern). Deliberately **not** `tab-<id>` / `panel-<id>`: that namespace belongs
-  to `TabContainer` and is anchored by e2e specs, `info-badges.ts` and
+- **REQ-panel-tab-testids-are-prefixed** — Testids are **prefix-namespaced**,
+  `ptab-<prefix>-<pageId>` for a tab button and `ppage-<prefix>-<pageId>` for
+  its page shell, minted in the factory from a required `prefix` option
+  (testids.md REQ-containers-mint-from-their-own-id, the `BankBar` pattern).
+  Deliberately **not** `tab-<id>` / `panel-<id>`: that namespace belongs to
+  `TabContainer` and is anchored by e2e specs, `info-badges.ts` and
   `UiBridge.showTab`. Deliberately not `seg-…` either, which `Segmented` mints
   from param ids.
 
-- **REQ-4** — The tab **declares no `font-family`**, so it inherits the sans like
-  the `.panelTitle` it replaces. This is a consequence of REQ-9, not a style
-  preference: the active tab has to *be* the panel heading, and panel headings
-  are content-adjacent sans in this app, not serif faceplate legends. It is the
-  one place [typography](typography.md) REQ-1's "tab labels are serif" does not
-  apply, and that spec records the carve-out rather than this one.
+- **REQ-a-panel-tab-declares-no-font** — The tab **declares no `font-family`**,
+  so it inherits the sans like the `.panelTitle` it replaces. This is a
+  consequence of REQ-the-strip-replaces-the-title, not a style preference: the
+  active tab has to *be* the panel heading, and panel headings are
+  content-adjacent sans in this app, not serif faceplate legends. It is the one
+  place [typography](typography.md) REQ-serif-is-display-type-only's "tab labels
+  are serif" does not apply, and that spec records the carve-out rather than
+  this one.
   - It also keeps the component off the serif allowlist.
     `tests/ui/typography.test.ts` asserts an **exact set match** between every
     selector declaring `font-family: var(--serif)` and its `DISPLAY_TYPE` list,
@@ -81,44 +85,47 @@ whole of this component.
     `.panelPage`, `.panelTabLamp`) live in `layout.module.css` — the component
     imports that stylesheet and no other — and set no `font-family`.
 
-- **REQ-5** — **Every page stays in the DOM**; switching toggles the global
-  `visible` class on page shells, mirroring `TabContainer`'s
-  `.content:global(.visible)` idiom. Hidden pages keep their `bus.subscribe`
-  registrations, so a song or preset load repaints them and a page is already
-  correct the instant it is revealed. Pages are **not** rebuilt on switch, and a
-  control is never re-bound to a different `paramId` — a component's testid is
-  minted from its param id at construction (testids.md REQ-1), so re-binding would
-  mutate a testid at runtime and make every e2e selector race the tab state. It
-  would also break ADR-008: a component whose param moves is not self-wired.
+- **REQ-every-page-stays-in-the-dom** — **Every page stays in the DOM**;
+  switching toggles the global `visible` class on page shells, mirroring
+  `TabContainer`'s `.content:global(.visible)` idiom. Hidden pages keep their
+  `bus.subscribe` registrations, so a song or preset load repaints them and a
+  page is already correct the instant it is revealed. Pages are **not** rebuilt
+  on switch, and a control is never re-bound to a different `paramId` — a
+  component's testid is minted from its param id at construction (testids.md
+  REQ-param-controls-mint-from-the-param-id), so re-binding would mutate a
+  testid at runtime and make every e2e selector race the tab state. It would
+  also break ADR-008: a component whose param moves is not self-wired.
 
-- **REQ-6** — `setLit(id, on)` puts a **lamp** on a tab whose page is doing
-  something the user cannot currently see. Without it, a page-2 modulation is
-  invisible state, which ADR-014 law 5 forbids. The component only paints the
-  lamp; *what counts as active* is the caller's rule (for the LFO panel,
-  lfo.md REQ-15).
+- **REQ-set-lit-puts-a-lamp-on-a-tab** — `setLit(id, on)` puts a **lamp** on a
+  tab whose page is doing something the user cannot currently see. Without it, a
+  page-2 modulation is invisible state, which ADR-014 law 5 forbids. The
+  component only paints the lamp; *what counts as active* is the caller's rule
+  (for the LFO panel, lfo.md REQ-the-two-lfos-share-one-panel).
 
-- **REQ-7** — A tabbed panel carries `data-help` on the **tab row**, never on a
-  tab button: `info-badges.ts` anchors via `byHelp(topic)`, and an anchor that
-  moved or vanished with the selected page would take the ⓘ badge with it. The
-  row is the title's replacement (REQ-9), so it inherits the title's role as the
+- **REQ-data-help-sits-on-the-tab-row** — A tabbed panel carries `data-help` on
+  the **tab row**, never on a tab button: `info-badges.ts` anchors via
+  `byHelp(topic)`, and an anchor that moved or vanished with the selected page
+  would take the ⓘ badge with it. The row is the title's replacement
+  (REQ-the-strip-replaces-the-title), so it inherits the title's role as the
   anchor. Because a page shell is a `display:none ↔ flex` container, the **first
-  page's shell must be added to `info-badges`' `ResizeObserver` selector list** —
-  the same treatment `[data-testid="panel-seq"]` already gets — or badges
+  page's shell must be added to `info-badges`' `ResizeObserver` selector list**
+  — the same treatment `[data-testid="panel-seq"]` already gets — or badges
   anchored inside it do not return when the user switches back.
 
-- **REQ-8** — `createPanel` and `createTabbedPanel` build the same `.panel` box,
-  so a tabbed panel is structurally an ordinary panel: one header element, one
-  body. `createPanel` keeps the existing `panel(title, build, helpId?)`
-  signature, so no existing call site changes.
+- **REQ-panel-and-tabbed-panel-share-a-box** — `createPanel` and
+  `createTabbedPanel` build the same `.panel` box, so a tabbed panel is
+  structurally an ordinary panel: one header element, one body. `createPanel`
+  keeps the existing `panel(title, build, helpId?)` signature, so no existing
+  call site changes.
 
-- **REQ-9** — **The strip replaces the title; it does not sit beside it.** Each
-  tab names its own page in full (`LFO 1`, `LFO 2`), so a separate heading would
-  only repeat them, and a title-plus-strip row costs vertical space that the
-  8-column faceplate does not have. The row therefore occupies **exactly a plain
-  `.panelTitle`'s height** (21 px today: a 13 px line box + 3 px padding + 1 px
-  border top and bottom, against the title's 14 px line box + 6 px padding + 1 px
-  rule), so a tabbed panel's controls stay on the same baseline as its untabbed
-  neighbours across the grid.
+- **REQ-the-strip-replaces-the-title** — **The strip replaces the title; it does
+  not sit beside it.** Each tab names its own page in full (`LFO 1`, `LFO 2`),
+  so a separate heading would only repeat them, and a title-plus-strip row costs
+  vertical space that the 8-column faceplate does not have. The row therefore
+  occupies **exactly a plain `.panelTitle`'s height** (21 px today: a 13 px line
+  box + 3 px padding + 1 px border top and bottom, against the title's 14 px
+  line box + 6 px padding + 1 px rule), so a tabbed panel's controls stay on the
+  same baseline as its untabbed neighbours across the grid.
   - **Both sides of the match declare their `line-height` in px.** Leaving
     either to the font makes the equality a property of the machine rather than
     of the stylesheet: `--sans` is `'Inter', system-ui, …` and no build ships
@@ -141,10 +148,10 @@ whole of this component.
     top-rounded corners. The shape is what says "tab" at this size; nothing
     shouts.
 
-- **REQ-10** — Tabs **share the row evenly** (`flex: 1 1 0`): 50/50 for two,
-  33/33/33 for three. A content-width strip would jitter as labels changed and
-  would leave the header visibly unbalanced against the panel's full-width
-  dropdowns.
+- **REQ-panel-tabs-share-the-row-evenly** — Tabs **share the row evenly**
+  (`flex: 1 1 0`): 50/50 for two, 33/33/33 for three. A content-width strip
+  would jitter as labels changed and would leave the header visibly unbalanced
+  against the panel's full-width dropdowns.
 
 ## Technical design
 
@@ -157,7 +164,7 @@ PanelTabPage:
   content: HTMLElement
 
 PanelTabsOptions:
-  prefix: string          # required — the testid namespace (REQ-3)
+  prefix: string          # required — the testid namespace (REQ-panel-tab-testids-are-prefixed)
   pages: PanelTabPage[]
   initialId?: string      # defaults to pages[0].id
 
@@ -166,7 +173,7 @@ PanelTabs:
   body: HTMLElement       # place where the panel body goes
   activeId: string
   activate(id): void
-  setLit(id, on): void    # REQ-6
+  setLit(id, on): void    # REQ-set-lit-puts-a-lamp-on-a-tab
   onChange(fn): () => void
   destroy(): void
 
@@ -183,7 +190,7 @@ createTabbedPanel({ prefix, help?, pages: [{ id, label, build }] })
 ```yaml
 panel.ts:      createPanel        -> .panel > .panelTitle + .panelBody   (unchanged)
                createTabbedPanel  -> .panel > tabs.bar + tabs.body
-                                     data-help goes on tabs.bar (REQ-7)
+                                     data-help goes on tabs.bar (REQ-data-help-sits-on-the-tab-row)
 panel-tabs.ts: bar  = div.panelTabs > button.panelTab per page (span.panelTabLamp
                       out of flow + a label span, so setLit cannot wipe the text)
                body = div per page, .panelPage, toggled with the global `visible` class
@@ -196,7 +203,7 @@ strip is activated, so `activate(initialId)` paints against a fully built stack.
 
 ### Persistence
 
-**Deliberately none.** See REQ-2. The component reads and writes no
+**Deliberately none.** See REQ-selected-page-is-session-only. The component reads and writes no
 `localStorage` key and registers no param; a reload always opens the initial page.
 
 ## Scenarios (BDD)
@@ -219,60 +226,60 @@ Scenario: The first page is active on construction
   Then pages[0] is active and its shell has the visible class
 # pinned by: tests/ui/panel-tabs.test.ts
 
-Scenario: Switching pages keeps both subtrees mounted (REQ-5)
+Scenario: Switching pages keeps both subtrees mounted (REQ-every-page-stays-in-the-dom)
   Given page 1 is active
   When the user clicks the page 2 tab
   Then page 2 gains the visible class and page 1 loses it
   And both page shells are still in the DOM, with their controls intact
 # pinned by: tests/ui/panel-tabs.test.ts
 
-Scenario: A hidden page still tracks the bus (REQ-5)
+Scenario: A hidden page still tracks the bus (REQ-every-page-stays-in-the-dom)
   Given page 2 holds a control bound to a param
   When that param changes while page 1 is showing
   Then the hidden control has already repainted when page 2 is revealed
 # pinned by: tests/ui/lfo-panel.test.ts
 
-Scenario: An off-screen active page lights its tab (REQ-6)
+Scenario: An off-screen active page lights its tab (REQ-set-lit-puts-a-lamp-on-a-tab)
   Given page 2 is hidden and its feature is doing something
   When the caller calls setLit('2', true)
   Then the page 2 tab carries the lit class, and drops it on setLit('2', false)
 # pinned by: tests/ui/panel-tabs.test.ts
 
-Scenario: The help badge anchor survives a page switch (REQ-7)
+Scenario: The help badge anchor survives a page switch (REQ-data-help-sits-on-the-tab-row)
   Given a tabbed panel with a help topic
   Then the tab row carries data-help, and no tab button does
 # pinned by: tests/ui/panel-tabs.test.ts, tests/ui/lfo-panel.test.ts
 
-Scenario: Existing untabbed panels are unaffected (REQ-8)
+Scenario: Existing untabbed panels are unaffected (REQ-panel-and-tabbed-panel-share-a-box)
   Given createPanel is called with the old (title, build, helpId) signature
   Then it builds the same .panel/.panelTitle/.panelBody as before
 # pinned by: tests/ui/panel-tabs.test.ts
 
-Scenario: A tabbed header is exactly as tall as a plain one (REQ-9)
+Scenario: A tabbed header is exactly as tall as a plain one (REQ-the-strip-replaces-the-title)
   Given the LFO panel and the untabbed panels beside it
   When the faceplate lays out
   Then the tab row measures the same height as every plain panel title
   So the two panels' controls sit on the same baseline
 # pinned by: e2e/lfo2.spec.ts
 
-Scenario: The header match does not depend on which sans the OS substitutes (REQ-9)
+Scenario: The header match does not depend on which sans the OS substitutes (REQ-the-strip-replaces-the-title)
   Given a machine whose fallback sans gives 10px text an 11px line box
   When the faceplate lays out
   Then the plain panel title is still 21px tall, as the tab row is
   Because both rules declare a px line-height instead of inheriting the font's
 # pinned by: tests/ui/panel-header-height.test.ts
 
-Scenario: Each tab names its own page, with no separate heading (REQ-9)
+Scenario: Each tab names its own page, with no separate heading (REQ-the-strip-replaces-the-title)
   Given a two-page LFO panel
   Then the tabs read "LFO 1" and "LFO 2" and the panel carries no other title
 # pinned by: tests/ui/panel-tabs.test.ts, tests/ui/lfo-panel.test.ts
 
-Scenario: Tabs share the header evenly (REQ-10)
+Scenario: Tabs share the header evenly (REQ-panel-tabs-share-the-row-evenly)
   Given two pages in a panel wide enough for both
   Then each tab occupies half the row
 # pinned by: e2e/lfo2.spec.ts
 
-Scenario: The component declares no new serif rule (REQ-4)
+Scenario: The component declares no new serif rule (REQ-a-panel-tab-declares-no-font)
   Given the strip's classes all live in layout.module.css (its only import)
   When the typography drift pin runs
   Then the serif selector set still equals its allowlist, with no new entry
@@ -292,12 +299,12 @@ Required of every new interactive control (`recipes/design-an-interaction.md`).
 | `←` / `→` | the strip | **Nothing.** This is deliberately not a WAI-ARIA `tablist`; `TabContainer` is not one either, and half-adopting the pattern (arrow keys without roving `tabindex`, `role`, and `aria-selected`) is worse for a screen reader than plain buttons. |
 | double-tap | a tab | Nothing. Double-tap is reserved for knob reset-to-baseline (`param-reset-baseline.md`) and these tabs sit beside knobs. |
 | long-press / right-click / wheel / drag | a tab | Nothing. A wheel gesture next to a column of knobs would be a law-2 collision. |
-| — | a tab whose page is active off-screen | Lamp (REQ-6). Pure state display, no gesture. |
+| — | a tab whose page is active off-screen | Lamp (REQ-set-lit-puts-a-lamp-on-a-tab). Pure state display, no gesture. |
 
 **Precedent followed (law 4).** Numbered modulator pages inside one panel are the
 standard answer in both worlds: Xfer **Serum**'s LFO 1–4 strip, Elektron
 **Digitone**'s LFO1/LFO2 pages, Novation **Peak**'s LFO select. None of them
-persists which page you left open, which is the precedent behind REQ-2.
+persists which page you left open, which is the precedent behind REQ-selected-page-is-session-only.
 
 **Law 1 (self-evident).** A tab reads as the panel's heading and names its page
 in full — `LFO 1`, `LFO 2` — so nothing has to explain what the row is. Each
@@ -305,7 +312,7 @@ button carries a `title` naming the outcome ("Show the LFO 2 page"), and the
 panel's existing help topic gains a sentence. No tour step: this is not on the
 first-run path.
 
-**Law 6 (touch-first), honestly.** REQ-9 fixes the row at a panel header's
+**Law 6 (touch-first), honestly.** REQ-the-strip-replaces-the-title fixes the row at a panel header's
 height — 21 px, well short of the 44 px target, and shorter than the 26 px every
 faceplate `Segmented` row already ships. This is the sharpest trade-off in the
 component and it is deliberate: the alternative is a header that costs more
@@ -319,8 +326,8 @@ requirement to revisit first.
 ## Tests & verification
 
 - Unit: `tests/ui/panel-tabs.test.ts`, `tests/ui/lfo-panel.test.ts` — `npm test`
-- Drift pin: `tests/ui/typography.test.ts` (REQ-4),
-  `tests/ui/panel-header-height.test.ts` (REQ-9, from CSS text)
+- Drift pin: `tests/ui/typography.test.ts` (REQ-a-panel-tab-declares-no-font),
+  `tests/ui/panel-header-height.test.ts` (REQ-the-strip-replaces-the-title, from CSS text)
 - E2E: `e2e/lfo2.spec.ts` — `npm run e2e`
 - Typecheck: `npm run typecheck`
 

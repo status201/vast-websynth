@@ -11,7 +11,7 @@ export interface PanelTabPage {
 export interface PanelTabsOptions {
   /**
    * Testid namespace: `ptab-<prefix>-<pageId>` / `ppage-<prefix>-<pageId>`
-   * (testids.md REQ-2). Required, because the un-namespaced `tab-<id>` belongs
+   * (testids.md REQ-containers-mint-from-their-own-id). Required, because the un-namespaced `tab-<id>` belongs
    * to `TabContainer` and is anchored by e2e specs, the tour and `showTab`.
    */
   prefix: string;
@@ -44,13 +44,13 @@ export interface PanelTabs {
  *
  * The strip **is** the panel's header — it replaces the title rather than
  * sitting beside it, and keeps a plain header's height so a tabbed panel lines
- * up with its untabbed neighbours (REQ-9). The active tab therefore wears the
+ * up with its untabbed neighbours (REQ-the-strip-replaces-the-title). The active tab therefore wears the
  * panel-title look and, like it, declares no `font-family` — which is also what
  * keeps this component off the `tests/ui/typography.test.ts` serif allowlist
- * (REQ-4).
+ * (REQ-a-panel-tab-declares-no-font).
  *
  * Which page is showing is **session-only view state** — never a param, never
- * persisted (REQ-2).
+ * persisted (REQ-selected-page-is-session-only).
  */
 export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
   const listeners = new ListenerSet<[string]>();
@@ -69,7 +69,7 @@ export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
     active = id;
     for (const [k, b] of buttons) b.classList.toggle('active', k === id);
     // Every page stays mounted and stays subscribed, so the hidden one is
-    // already repainted when a song or preset load lands (REQ-5).
+    // already repainted when a song or preset load lands (REQ-every-page-stays-in-the-dom).
     for (const [k, s] of shells) s.classList.toggle('visible', k === id);
     listeners.emit(id);
   };
@@ -108,7 +108,7 @@ export function createPanelTabs(opts: PanelTabsOptions): PanelTabs {
     get activeId() { return active; },
     activate,
     /**
-     * Light a tab whose page is doing something the user cannot see (REQ-6).
+     * Light a tab whose page is doing something the user cannot see (REQ-set-lit-puts-a-lamp-on-a-tab).
      * The component paints; the caller decides what counts as active.
      */
     setLit(id: string, on: boolean): void {

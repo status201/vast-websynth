@@ -66,7 +66,7 @@
 
 .edit:hover { color: var(--accent); }
 
-/* The row's quick time-stretch (time-stretch.md REQ-11). A text label, not an
+/* The row's quick time-stretch (time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit). A text label, not an
    icon: no glyph in ui-icons.ts means "fit to the bar", and iconography.md rules
    out typing one. Standalone base styling like every other sampler action button
    — there is no shared base class here to inherit from. Tighter horizontal
@@ -124,7 +124,7 @@
   width: 76px;
 }
 
-/* The selected-slot strip's control row (sampler.md REQ-12/REQ-14).
+/* The selected-slot strip's control row (sampler.md REQ-each-slot-has-a-channel/REQ-a-slot-can-cut-another-slot).
    Deliberately NOT `drum.module.css`'s `.tuningKnobs`, which the panel borrows
    for the row *around* it: that one holds seven controls and this one holds
    twelve, so this is the one that has to fold — and making the shared class wrap
@@ -142,7 +142,7 @@
 
 /* One control of the selected-slot strip. Persistent: the Knob inside is
    rebuilt on every slot change, this is not, because an info badge resolves its
-   anchor once and keeps it (onboarding.md REQ-25). */
+   anchor once and keeps it (onboarding.md REQ-the-sampler-strip-carries-five-badges). */
 .slotCell {
   display: flex;
   align-items: center;

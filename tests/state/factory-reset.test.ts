@@ -44,7 +44,7 @@ describe('restoreFactorySettings', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  // REQ-9: the sampler-clip store (IndexedDB) is wiped too. jsdom has no
+  // REQ-reset-never-strands-an-offline-device: the sampler-clip store (IndexedDB) is wiped too. jsdom has no
   // IndexedDB, so this also pins that its absence is a silent no-op rather
   // than something that can strand the reload.
   it('reloads even though IndexedDB is unavailable (clip wipe is best-effort)', async () => {
@@ -54,7 +54,7 @@ describe('restoreFactorySettings', () => {
   });
 });
 
-// ---- v5: the offline copy (REQ-8, REQ-9) ----
+// ---- v5: the offline copy (REQ-reset-redownloads-the-offline-copy, REQ-reset-never-strands-an-offline-device) ----
 
 describe('restoreFactorySettings and the offline copy', () => {
   let session: Map<string, string>;
@@ -78,7 +78,7 @@ describe('restoreFactorySettings and the offline copy', () => {
     return { reload, sessionAtReload };
   }
 
-  it('deletes a saved copy with every app cache and asks for it back (REQ-8)', async () => {
+  it('deletes a saved copy with every app cache and asks for it back (REQ-reset-redownloads-the-offline-copy)', async () => {
     session.set('websynth.session.tab', 'abc');
     const storage = FakeCacheStorage.with({
       [offlineCacheName('1.0.0')]: [OFFLINE_MARKER_URL, '/'],
@@ -90,21 +90,21 @@ describe('restoreFactorySettings and the offline copy', () => {
     const { reload, sessionAtReload } = await reset({ caches: storage.asCacheStorage, fetch });
 
     expect([...storage.caches.keys()]).toEqual(['not-ours']);
-    // The probe is a HEAD, so the worker passes it to the network (REQ-9).
+    // The probe is a HEAD, so the worker passes it to the network (REQ-reset-never-strands-an-offline-device).
     expect(fetch).toHaveBeenCalledWith('/', expect.objectContaining({ method: 'HEAD', cache: 'no-store' }));
     // Written after the clear: the intent is the only thing that survives.
     expect(sessionAtReload).toEqual([[OFFLINE_REDOWNLOAD_KEY, '1']]);
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('deletes runtime caches without asking for a download (REQ-8)', async () => {
+  it('deletes runtime caches without asking for a download (REQ-reset-redownloads-the-offline-copy)', async () => {
     const storage = FakeCacheStorage.with({ [offlineCacheName('1.0.0')]: ['/', '/assets/a.js'] });
     const { sessionAtReload } = await reset({ caches: storage.asCacheStorage, fetch: reachable() });
     expect(storage.caches.size).toBe(0);
     expect(sessionAtReload).toEqual([]);
   });
 
-  it('keeps every cache when the server cannot be reached (REQ-9)', async () => {
+  it('keeps every cache when the server cannot be reached (REQ-reset-never-strands-an-offline-device)', async () => {
     const storage = FakeCacheStorage.with({ [offlineCacheName('1.0.0')]: [OFFLINE_MARKER_URL, '/'] });
     const fetch = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
 
@@ -123,7 +123,7 @@ describe('restoreFactorySettings and the offline copy', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('reloads after the cap when the Cache API hangs, without an intent (REQ-9)', async () => {
+  it('reloads after the cap when the Cache API hangs, without an intent (REQ-reset-never-strands-an-offline-device)', async () => {
     vi.useFakeTimers();
     const cacheStorage = { keys: () => new Promise<string[]>(() => {}) } as unknown as CacheStorage;
     let sessionAtReload: [string, string][] | null = null;

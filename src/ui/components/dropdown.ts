@@ -2,7 +2,7 @@ import styles from '../styles/dropdown.module.css';
 import { UI_ICONS } from './ui-icons';
 
 /**
- * Option count at which the menu grows a live filter row (dropdown.md REQ-7).
+ * Option count at which the menu grows a live filter row (dropdown.md REQ-a-long-list-carries-a-filter).
  * Well above the ~9-10 rows the 280px menu fits: a list that scrolls a little
  * keeps its zero-chrome look, and only the genuinely long ones (the ~198 bus
  * param ids behind the XY/Motion assign pickers) pay for the extra row.
@@ -20,13 +20,13 @@ const SEARCH_ICON =
   '</svg>';
 
 export interface DropdownOptions {
-  /** Force the filter row on/off; omitted = auto by option count (REQ-7). */
+  /** Force the filter row on/off; omitted = auto by option count (REQ-a-long-list-carries-a-filter). */
   filter?: boolean;
 }
 
 export interface SetOptionsOptions {
   /**
-   * Draw a group rule beneath the option at index `dividerAfter - 1` (REQ-11).
+   * Draw a group rule beneath the option at index `dividerAfter - 1` (REQ-a-list-can-be-split-by-dividers).
    * Presentation only — a count, not a group model, so it cannot desynchronize
    * from `options` the way a parallel group list would.
    */
@@ -42,13 +42,13 @@ export class Dropdown {
   private readonly toggle: HTMLButtonElement;
   private readonly menu: HTMLElement;
   /** The scrolling option box. Separate from `menu` so the filter row can sit
-   *  pinned above it and survive `setOptions` (REQ-7). */
+   *  pinned above it and survive `setOptions` (REQ-a-long-list-carries-a-filter). */
   private readonly list: HTMLElement;
   private readonly empty: HTMLElement;
   private filterRow: HTMLElement | null = null;
   private filterInput: HTMLInputElement | null = null;
   private options: string[] = [];
-  /** Labels that render but cannot be chosen (REQ-10). Kept as a set rather
+  /** Labels that render but cannot be chosen (REQ-an-option-can-be-unselectable). Kept as a set rather
    *  than a per-button flag so it survives `setOptions` rebuilding the list. */
   private disabledOpts = new Set<string>();
   private _value = '';
@@ -98,7 +98,7 @@ export class Dropdown {
    * Rebuild the option list.
    *
    * **Callers whose displayed value may not be an option must call `setValue`
-   * after this, not before** (REQ-12): the fallback below rewrites `_value` to
+   * after this, not before** (REQ-set-options-never-strands-the-value): the fallback below rewrites `_value` to
    * the first option, which silently repainted the header preset selector from
    * a song's name to "acid" on any rebuild.
    */
@@ -109,7 +109,7 @@ export class Dropdown {
     this.ensureFilter(this.forceFilter ?? options.length >= FILTER_MIN_OPTIONS);
     this.list.innerHTML = '';
     // A border on the option itself, not a separate element: nothing extra for
-    // the arrow-key walk to land on or the filter to count (REQ-11).
+    // the arrow-key walk to land on or the filter to count (REQ-a-list-can-be-split-by-dividers).
     const dividerAt = (opts?.dividerAfter ?? 0) - 1;
     for (const [i, opt] of options.entries()) {
       const item = document.createElement('button');
@@ -117,7 +117,7 @@ export class Dropdown {
       // `dropdown-option` is a bridge class, not styling: the toggle and the
       // option showing the same value are two buttons with the same accessible
       // name, so a by-name lookup is ambiguous by construction. A test picks
-      // the option by this class (dropdown.md REQ-13).
+      // the option by this class (dropdown.md REQ-an-option-carries-the-bridge-class).
       item.className = `dropdown-option ${styles.option!}`;
       item.textContent = opt;
       if (i === dividerAt) item.classList.add(styles.divider!);
@@ -150,20 +150,20 @@ export class Dropdown {
   get value(): string { return this._value; }
 
   /**
-   * Dim the control to say its value is inherited / not set here (REQ-9).
+   * Dim the control to say its value is inherited / not set here (REQ-a-dropdown-can-be-dimmed).
    * Presentation only — a dimmed dropdown stays fully operable.
    *
    * Scoped to the toggle deliberately: the menu is `position: fixed` but still a
    * DOM *child* of `this.el`, so `opacity`/`transform`/`filter` on the root would
    * both fade the open option list and trap it in a new stacking context. That
-   * is the Motion tab bug REQ-9 was written for — never move this to `this.el`.
+   * is the Motion tab bug REQ-a-dropdown-can-be-dimmed was written for — never move this to `this.el`.
    */
   setDimmed(on: boolean): void {
     this.toggle.classList.toggle(styles.dimmed!, on);
   }
 
   /**
-   * Mark options as unselectable — greyed, still listed (REQ-10).
+   * Mark options as unselectable — greyed, still listed (REQ-an-option-can-be-unselectable).
    *
    * Deliberately not "drop them from `setOptions`": that path silently rewrites
    * `_value` when the current label is the one removed, and a row that vanishes
@@ -195,7 +195,7 @@ export class Dropdown {
     return [...this.list.querySelectorAll<HTMLButtonElement>(`.${styles.option!}`)];
   }
 
-  /** Build or drop the filter row (REQ-7). Never touches `.list`. */
+  /** Build or drop the filter row (REQ-a-long-list-carries-a-filter). Never touches `.list`. */
   private ensureFilter(want: boolean): void {
     if (want === (this.filterRow !== null)) return;
     if (!want) {
@@ -208,7 +208,7 @@ export class Dropdown {
     row.className = styles.filterRow!;
     row.innerHTML = SEARCH_ICON;
     // Deliberately not a <button> anywhere in here: consumers select the toggle
-    // as the dropdown's first button (REQ-7).
+    // as the dropdown's first button (REQ-a-long-list-carries-a-filter).
     const input = document.createElement('input');
     input.type = 'text';
     input.className = styles.filterInput!;
@@ -244,8 +244,8 @@ export class Dropdown {
     this.empty.hidden = visible > 0 || this.options.length === 0;
   }
 
-  /** The options a filter has not hidden and REQ-10 has not disabled — what the
-   *  arrow keys walk (REQ-8). A disabled button is not focusable, so leaving it
+  /** The options a filter has not hidden and REQ-an-option-can-be-unselectable has not disabled — what the
+   *  arrow keys walk (REQ-arrow-keys-move-the-selection). A disabled button is not focusable, so leaving it
    *  in the walk would stall navigation on it. */
   private visibleOptions(): HTMLButtonElement[] {
     return this.optionEls().filter((o) => !o.hidden && !o.disabled);
@@ -258,7 +258,7 @@ export class Dropdown {
 
   private readonly onFilterKey = (e: KeyboardEvent): void => {
     // Escape and the arrow keys are left to bubble to `onKey`, which owns
-    // closing (REQ-3) and list navigation (REQ-8) for the whole component.
+    // closing (REQ-the-menu-closes-on-outside-click) and list navigation (REQ-arrow-keys-move-the-selection) for the whole component.
     if (e.key !== 'Enter') return;
     e.preventDefault();
     this.visibleOptions()[0]?.click();
@@ -282,13 +282,13 @@ export class Dropdown {
     this.el.classList.toggle('open', o);
     if (o) {
       // Always open on the whole list — a persisted query would be invisible
-      // state hiding options (REQ-7, ADR-014 law 5).
+      // state hiding options (REQ-a-long-list-carries-a-filter, ADR-014 law 5).
       this.resetFilter();
       this.position();
       window.addEventListener('scroll', this.onReposition, true);
       window.addEventListener('resize', this.onReposition);
       // Land on the current selection instead of the top of a long list
-      // (specs/features/dropdown.md REQ-5). Focusing a native <button> makes
+      // (specs/features/dropdown.md REQ-the-selected-option-scrolls-into-view). Focusing a native <button> makes
       // Enter select it; preventScroll keeps the page itself still. The
       // optional call guards jsdom, which lacks scrollIntoView.
       const active =
@@ -296,14 +296,14 @@ export class Dropdown {
         this.list.querySelector<HTMLButtonElement>(`.${styles.option!}`);
       active?.scrollIntoView?.({ block: 'nearest' });
       // With a filter, typing is the point of opening — focus the field and let
-      // the scroll above still show where the current value sits (REQ-5).
+      // the scroll above still show where the current value sits (REQ-the-selected-option-scrolls-into-view).
       if (this.filterInput) this.filterInput.focus({ preventScroll: true });
       else active?.focus({ preventScroll: true });
     } else {
       window.removeEventListener('scroll', this.onReposition, true);
       window.removeEventListener('resize', this.onReposition);
       // Hand focus back to the toggle so Escape/selection doesn't drop the
-      // keyboard user into a display:none menu (REQ-6).
+      // keyboard user into a display:none menu (REQ-closing-returns-focus-to-the-toggle).
       if (this.el.contains(document.activeElement)) this.toggle.focus();
     }
   }
@@ -316,7 +316,7 @@ export class Dropdown {
    * The menu is `position: fixed` so it escapes every `overflow` ancestor
    * (panels, tab scrollers) — and every stacking context its own ancestors do
    * not create. `opacity`/`transform`/`filter` on an ancestor still captures it,
-   * which is why nothing may put those on `.root` (REQ-9). Anchor it to the
+   * which is why nothing may put those on `.root` (REQ-a-dropdown-can-be-dimmed). Anchor it to the
    * toggle's viewport rect, flipping above when it would overflow the bottom.
    */
   private position(): void {
@@ -336,7 +336,7 @@ export class Dropdown {
   };
 
   /**
-   * Escape closes (REQ-3); Up/Down/Home/End walk the options (REQ-8). One
+   * Escape closes (REQ-the-menu-closes-on-outside-click); Up/Down/Home/End walk the options (REQ-arrow-keys-move-the-selection). One
    * document-level handler serves both the filter input and a focused option,
    * because the keydown bubbles here from either — so there is a single
    * definition of "the next option", not one per focus target.

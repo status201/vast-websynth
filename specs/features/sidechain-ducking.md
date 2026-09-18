@@ -13,7 +13,7 @@ related:
   - presets          # fx.duck.* is a patch param and must be pinned (REQ-2b there)
   - runtime-performance
   - mod-matrix       # its "envelope follower off the drum bus" open question
-  - fx-patch-decoration  # the sixth panel made it dormant (its REQ-2)
+  - fx-patch-decoration  # the sixth panel made it dormant (its REQ-the-gain-law-is-bounded-by-construction)
   - fx-group         # the sampler side's DUCK group builder
 source:
   - src/audio/effects/ducker.ts          # Ducker + the pure envValueAt
@@ -45,7 +45,7 @@ Against [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)'s ordering:
 **musical**, because keying off real hits follows the pattern — ratchets,
 probability rolls, fills and per-track mute all come along, and there is no
 detector lag or threshold to dial; **stable**, because the gain law is bounded by
-construction with no feedback path (REQ-2); **cheap**, because there is *zero
+construction with no feedback path (REQ-the-gain-law-is-bounded-by-construction); **cheap**, because there is *zero
 audio-thread DSP* — three native nodes per chain and at most four `AudioParam`
 calls per hit on a per-tick path.
 
@@ -58,88 +58,94 @@ program-dependent. The detector variant is kept as an open question below.
 
 ## Requirements
 
-- **REQ-1** — **The duck is keyed by scheduled drum hits, not by an audio
-  detector.** `DrumMachine` emits `onHit(track, when, velocity)` for every hit it
-  plays; `when` is the absolute `AudioContext` time the hit will sound (already
-  swing-adjusted by `Clock`), so the envelope is scheduled ahead rather than
-  chased. No `AnalyserNode`, no worklet, no key-input edge.
+- **REQ-the-duck-is-keyed-by-scheduled-hits** — **The duck is keyed by scheduled
+  drum hits, not by an audio detector.** `DrumMachine` emits `onHit(track, when,
+  velocity)` for every hit it plays; `when` is the absolute `AudioContext` time
+  the hit will sound (already swing-adjusted by `Clock`), so the envelope is
+  scheduled ahead rather than chased. No `AnalyserNode`, no worklet, no
+  key-input edge.
 
-- **REQ-2** — **The gain law is `1 − amount·e(t)`, bounded by construction.** A
-  `ConstantSourceNode` carries the envelope `e(t) ∈ [0,1]`; it feeds a `depthGain`
-  of `−amount` into `duckGain.gain`, whose intrinsic value stays 1. Web Audio sums
-  the intrinsic value with connected inputs, so with `amount ∈ [0,1]` the result is
-  provably in `[0,1]`: no clamping, no feedback loop, nothing that can run away.
-  Depth is one gain node, so the envelope is scheduled once regardless of depth.
+- **REQ-the-gain-law-is-bounded-by-construction** — **The gain law is `1 −
+  amount·e(t)`, bounded by construction.** A `ConstantSourceNode` carries the
+  envelope `e(t) ∈ [0,1]`; it feeds a `depthGain` of `−amount` into
+  `duckGain.gain`, whose intrinsic value stays 1. Web Audio sums the intrinsic
+  value with connected inputs, so with `amount ∈ [0,1]` the result is provably
+  in `[0,1]`: no clamping, no feedback loop, nothing that can run away. Depth is
+  one gain node, so the envelope is scheduled once regardless of depth.
 
-- **REQ-3** — **The shape is a linear clamp-down and an exponential recovery** —
-  what a real compressor makes. On a qualifying hit at `when`:
-  `cancelScheduledValues(when)`, `setValueAtTime(envValueAt(when), when)`,
-  `linearRampToValueAtTime(1, when + attack)`,
-  `setTargetAtTime(0, when + attack, release)`.
+- **REQ-linear-clamp-down-exponential-recovery** — **The shape is a linear
+  clamp-down and an exponential recovery** — what a real compressor makes. On a
+  qualifying hit at `when`: `cancelScheduledValues(when)`,
+  `setValueAtTime(envValueAt(when), when)`, `linearRampToValueAtTime(1, when +
+  attack)`, `setTargetAtTime(0, when + attack, release)`.
   - **`cancelAndHoldAtTime` is not used.** Firefox does not implement it. The
     current envelope value is computed analytically instead by the pure
     `envValueAt`, which is why that function is exported and separately tested.
 
-- **REQ-4** — **A trigger earlier than the last scheduled onset is ignored.**
-  `forEachActiveHit` sweeps *lanes outer, ratchet sub-hits inner*, so with source
-  `Any` a lane-0 ratchet at `t + 0.5·step` is emitted **before** a lane-3 hit at
-  `t`. Cancelling for the earlier time would erase the ramp already scheduled for
-  the later one and strand the envelope mid-duck. The guard is
-  `if (when < onset) return`. Both hits fall inside one 16th, so nothing audible is
-  lost.
+- **REQ-an-early-duck-trigger-is-ignored** — **A trigger earlier than the last
+  scheduled onset is ignored.** `forEachActiveHit` sweeps *lanes outer, ratchet
+  sub-hits inner*, so with source `Any` a lane-0 ratchet at `t + 0.5·step` is
+  emitted **before** a lane-3 hit at `t`. Cancelling for the earlier time would
+  erase the ramp already scheduled for the later one and strand the envelope
+  mid-duck. The guard is `if (when < onset) return`. Both hits fall inside one
+  16th, so nothing audible is lost.
 
-- **REQ-5** — **The resting state is unity, and there is no path that strands the
-  envelope away from it.** Every schedule *ends* with `setTargetAtTime(0, …)` — a
-  decay toward *no duck* — so a transport stop, a clock dropout (after a >0.25 s
-  stall `Clock` emits nothing) and a bypass all recover on their own, with no
-  explicit release path and no `onStop` wiring. The only thing that could strand a
-  duck is a `cancelScheduledValues` that removes a later schedule, which REQ-4's
-  guard prevents. Nothing accumulates; the ducker holds no state a missed tick
-  could corrupt.
+- **REQ-the-resting-duck-state-is-unity** — **The resting state is unity, and
+  there is no path that strands the envelope away from it.** Every schedule
+  *ends* with `setTargetAtTime(0, …)` — a decay toward *no duck* — so a
+  transport stop, a clock dropout (after a >0.25 s stall `Clock` emits nothing)
+  and a bypass all recover on their own, with no explicit release path and no
+  `onStop` wiring. The only thing that could strand a duck is a
+  `cancelScheduledValues` that removes a later schedule, which
+  REQ-an-early-duck-trigger-is-ignored's guard prevents. Nothing accumulates;
+  the ducker holds no state a missed tick could corrupt.
 
-- **REQ-6** — **`<prefix>.on` defaults off, and a bypassed ducker costs nothing.**
-  Off is the no-op that leaves every existing preset, song and share link
-  unchanged ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)), which is
-  what lets the remaining defaults be musical. Under
+- **REQ-a-bypassed-ducker-costs-nothing** — **`<prefix>.on` defaults off, and a
+  bypassed ducker costs nothing.** Off is the no-op that leaves every existing
+  preset, song and share link unchanged
+  ([ADR-006](../decisions/adr-006-no-op-param-defaults.md)), which is what lets
+  the remaining defaults be musical. Under
   [ADR-012](../decisions/adr-012-true-bypass-disconnects.md) the `BypassWrapper`
   disconnects its own two edges once the crossfade settles, so the envelope
   subgraph becomes unreachable from the destination and the renderer skips it.
   Scheduling also early-returns while bypassed, so a bypassed ducker does no
   main-thread work per hit either.
 
-- **REQ-7** — **The key is one drum track, or any of them.** `<prefix>.src` is a
-  discrete param whose labels are `DRUM_TRACKS` plus `'Any'` **appended last**;
-  index 0 is `Kick`, which is the model track 1 boots on. A discrete index is a
-  stored value in every preset and song, so the label array is append-only. Track
-  identity is by *slot*, not by model — any track can hold any voice
-  ([drum-machine](drum-machine.md) REQ-11), so the label names the lane.
+- **REQ-the-duck-key-is-one-track-or-any** — **The key is one drum track, or any
+  of them.** `<prefix>.src` is a discrete param whose labels are `DRUM_TRACKS`
+  plus `'Any'` **appended last**; index 0 is `Kick`, which is the model track 1
+  boots on. A discrete index is a stored value in every preset and song, so the
+  label array is append-only. Track identity is by *slot*, not by model — any
+  track can hold any voice ([drum-machine](drum-machine.md) REQ-a-drum-tracks-algorithm-is-selectable), so the
+  label names the lane.
 
-- **REQ-8** — **The ducker is last in the synth and sampler chains; the drum bus
-  has none.** Placing it after the reverb means tails duck too, which is the
-  sound. The drum bus is deliberately excluded: its own hits are the key, so a
-  drum ducker could only duck itself.
+- **REQ-the-ducker-is-last-in-the-chain** — **The ducker is last in the synth
+  and sampler chains; the drum bus has none.** Placing it after the reverb means
+  tails duck too, which is the sound. The drum bus is deliberately excluded: its
+  own hits are the key, so a drum ducker could only duck itself.
 
-- **REQ-9** — **`onHit` reports every sounded hit and only sounded hits.** It fires
-  from inside the `forEachActiveHit` callback (so muted lanes and failed
-  probability rolls are already excluded, and each ratchet sub-hit is its own
-  emission at its own `when`), and from `playFill` and `triggerTrack` so a fill and
-  an auditioned pad both pump. Keying off emissions rather than re-reading the
-  pattern is what makes it impossible for the duck to fire on a step that did not
-  sound.
+- **REQ-on-hit-reports-only-sounded-hits** — **`onHit` reports every sounded hit
+  and only sounded hits.** It fires from inside the `forEachActiveHit` callback
+  (so muted lanes and failed probability rolls are already excluded, and each
+  ratchet sub-hit is its own emission at its own `when`), and from `playFill`
+  and `triggerTrack` so a fill and an auditioned pad both pump. Keying off
+  emissions rather than re-reading the pattern is what makes it impossible for
+  the duck to fire on a step that did not sound.
   - `onStep` is **not** the hook: it carries a performance-mapped step index and no
     time, and exists for the UI playhead.
   - **Silence stops the pump.** Both drum mutes and a solo elsewhere suppress the
-    report ([drum-machine](drum-machine.md) REQ-13 v8), so the ducker cannot pump
+    report ([drum-machine](drum-machine.md) REQ-every-sounded-hit-is-reported v8), so the ducker cannot pump
     to drums nobody can hear. This falls out of keying off *reported* hits rather
     than the grid — the ducker itself knows nothing about mute or solo, which is
-    the point of REQ-9. A mute landing inside the clock's look-ahead still lets at
-    most one already-scheduled duck through; it decays back to unity by REQ-5.
+    the point of REQ-on-hit-reports-only-sounded-hits. A mute landing inside the clock's look-ahead still lets at
+    most one already-scheduled duck through; it decays back to unity by REQ-the-resting-duck-state-is-unity.
 
-- **REQ-10** — **The UI adds no new gesture.** Four standard `Knob`s (AMOUNT,
-  ATTACK, RELEASE, SRC — the last discrete, following `fx.drum.comp.ratio`) and the
-  standard `Switch`, in a sixth `fxPanel` on the synth rack and a fifth `fxGroup`
-  on the Sampler panel. Both sit **last**, mirroring chain order (REQ-8). No
-  gesture inventory is owed because no interaction is invented —
+- **REQ-ducking-adds-no-new-gesture** — **The UI adds no new gesture.** Four
+  standard `Knob`s (AMOUNT, ATTACK, RELEASE, SRC — the last discrete, following
+  `fx.drum.comp.ratio`) and the standard `Switch`, in a sixth `fxPanel` on the
+  synth rack and a fifth `fxGroup` on the Sampler panel. Both sit **last**,
+  mirroring chain order (REQ-the-ducker-is-last-in-the-chain). No gesture
+  inventory is owed because no interaction is invented —
   [ADR-014](../decisions/adr-014-dont-make-me-think.md) law 6, precedent before
   invention.
   - **Consequence: the sixth column made equal columns untenable.** `.fxRow`
@@ -147,12 +153,12 @@ program-dependent. The detector variant is kept as an open question below.
     panel 220 px against the 242 px a four-knob panel needs — so PHASER and DUCK
     each wrapped a knob onto a second row, and the rack grew 78 px that a
     non-scrolling faceplate does not have. Sizing panels to their knob runs is
-    now [responsive-synth-panels](responsive-synth-panels.md) REQ-8; a rack panel
+    now [responsive-synth-panels](responsive-synth-panels.md) REQ-fx-panels-fit-their-knob-run; a rack panel
     with four knobs is a shape that spec owns, not this one.
   - **Consequence: the FX patch decoration goes dormant.** Six panels divide the
     ≤992 px 2-column grid evenly, so `buildFx`'s parity guard appends no
     scenery. This is
-    [fx-patch-decoration](fx-patch-decoration.md) REQ-2 firing exactly as its own
+    [fx-patch-decoration](fx-patch-decoration.md) REQ-decoration-is-parity-keyed firing exactly as its own
     open question predicted, not a regression; the component and its unit tests
     are untouched and a seventh effect restores it. The trade was taken
     deliberately — a working effect earns a rack cell ahead of scenery whose job
@@ -168,12 +174,12 @@ Ducker:                                   # src/audio/effects/ducker.ts
   constructor(ctx)
   onDrumHit(track, when)                  # REQ-1/4/7 — filtered, then scheduled
   bind(bus, prefix)                       # ADR-008 self-wiring
-  # no release()/onStop hook — REQ-5: every schedule already ends in a decay
+  # no release()/onStop hook — REQ-the-resting-duck-state-is-unity: every schedule already ends in a decay
   # to no-duck, so stop, dropout and bypass all recover unaided.
-  # no setMix — bindBypassMix feature-detects its absence (effects.md REQ-1),
+  # no setMix — bindBypassMix feature-detects its absence (effects.md REQ-every-effect-implements-the-interface),
   # exactly as Wah and Compressor do. No <prefix>.mix param exists.
 
-envValueAt(t, onset, startVal, attack, release): number   # exported pure fn, REQ-3
+envValueAt(t, onset, startVal, attack, release): number   # exported pure fn, REQ-linear-clamp-down-exponential-recovery
   # t < onset            -> startVal
   # t < onset + attack   -> startVal + (1 - startVal) * (t - onset) / attack
   # otherwise            -> exp(-(t - onset - attack) / release)
@@ -182,7 +188,7 @@ envValueAt(t, onset, startVal, attack, release): number   # exported pure fn, RE
 DUCK_SRC_ANY = 8                          # the `<prefix>.src` index meaning "any track"
 
 DrumMachine:                              # src/audio/transport/drum-machine.ts
-  onHit(fn: (track, when, velocity) => void): () => void   # REQ-9, ListenerSet
+  onHit(fn: (track, when, velocity) => void): () => void   # REQ-on-hit-reports-only-sounded-hits, ListenerSet
 ```
 
 Internal graph, per `Ducker`:
@@ -212,7 +218,7 @@ prefixes:
   fx.sampler.duck  # sampler bus — song-level (fx.sampler. is in NON_PATCH_PREFIXES)
 ```
 
-`.on` off is the no-op (REQ-6), so the other defaults are free to be musical —
+`.on` off is the no-op (REQ-a-bypassed-ducker-costs-nothing), so the other defaults are free to be musical —
 the arrangement `delayParams` already uses. These defaults are the compatibility
 surface: a default is what every patch predating the param receives.
 
@@ -230,7 +236,7 @@ ui:
   src/ui/app.ts                  # sixth fxPanel, last
   src/ui/panels/sampler-panel.ts # fifth fxGroup, last
   src/ui/styles/layout.module.css  # .fxRow repeat(5) -> repeat(6); the panel
-                                   # sizing that needed is responsive-synth-panels REQ-8
+                                   # sizing that needed is responsive-synth-panels REQ-fx-panels-fit-their-knob-run
   src/ui/onboarding/{help-content,info-badges}.ts  # the fx.duck topic
 ```
 
@@ -242,7 +248,7 @@ Ordering constraints:
   mod-matrix random-source precedent (`clock.onTick` → `setValueAtTime` at the
   tick's own time).
 - The order array in each chain factory *is* the signal order, so `duck` goes last
-  in both the `fx` object and the array (REQ-8).
+  in both the `fx` object and the array (REQ-the-ducker-is-last-in-the-chain).
 - Both the synth rack and the Sampler panel list effect groups in chain order, so
   the new group is appended last in each ([fx-group](fx-group.md) is the shared
   builder for the sampler side).
@@ -252,9 +258,9 @@ Ordering constraints:
 No new keys and no `SONG_VERSION` bump: these are additive scalar params, which
 old files simply lack and receive by default
 ([ADR-007](../decisions/adr-007-songfile-additive-versioning.md); the precedent is
-[tempo-lock](tempo-lock.md) REQ-8). `fx.duck.*` is a patch param and so joins
+[tempo-lock](tempo-lock.md) REQ-sync-defaults-to-free). `fx.duck.*` is a patch param and so joins
 presets automatically via `bus.snapshot()` — which makes it subject to
-[presets](presets.md) REQ-2b: `Presets.apply` is a bare `bus.restore(snap)`, so a
+[presets](presets.md) REQ-a-factory-preset-sets-the-full-sound: `Presets.apply` is a bare `bus.restore(snap)`, so a
 factory preset that omits `fx.duck.on` leaks the previous patch's setting. All
 nineteen factory banks pin it, at 0 — a bank shipping with ducking engaged would
 make its sound depend on whatever drum pattern happened to be loaded.
@@ -266,7 +272,7 @@ rule now has its own test (*sets every synth-FX on flag in every bank*), which i
 what caught it.
 
 The envelope itself is deliberately **not** persisted — it is transport-derived
-and its resting value is unity (REQ-5).
+and its resting value is unity (REQ-the-resting-duck-state-is-unity).
 
 ## Scenarios (BDD)
 
@@ -290,43 +296,43 @@ Scenario: Source "Any" ducks on every track
   Then the envelope is triggered
 # pinned by: tests/audio/effects/ducker.test.ts
 
-Scenario: An out-of-order trigger is ignored (REQ-4, edge)
+Scenario: An out-of-order trigger is ignored (REQ-an-early-duck-trigger-is-ignored, edge)
   Given a hit has been scheduled at time T
   When a hit arrives for a time earlier than T
   Then nothing is cancelled and nothing is scheduled
 # pinned by: tests/audio/effects/ducker.test.ts
 
-Scenario: A bypassed ducker schedules nothing (REQ-6)
+Scenario: A bypassed ducker schedules nothing (REQ-a-bypassed-ducker-costs-nothing)
   Given fx.duck.on is 0
   When the drum machine plays a key hit
   Then no AudioParam call is made on the envelope
 # pinned by: tests/audio/effects/ducker.test.ts
 
-Scenario: A stopped transport recovers to unity unaided (REQ-5)
+Scenario: A stopped transport recovers to unity unaided (REQ-the-resting-duck-state-is-unity)
   Given the envelope is part-way through a duck
   When the transport stops and no further hits arrive
   Then the decay already scheduled returns it to 0, with no explicit release call
 # pinned by: tests/audio/effects/ducker.test.ts
 
-Scenario: A ratcheted step pumps once per sub-hit (REQ-9)
+Scenario: A ratcheted step pumps once per sub-hit (REQ-on-hit-reports-only-sounded-hits)
   Given a key-track step with ratchet 4
   When the step plays
   Then onHit fires four times, at four distinct ascending times
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: A silent step does not pump (REQ-9)
+Scenario: A silent step does not pump (REQ-on-hit-reports-only-sounded-hits)
   Given a key-track step that is muted, or whose probability roll fails
   When the step is swept
   Then onHit does not fire for it
 # pinned by: tests/audio/transport/drum-machine.test.ts
 
-Scenario: Muting the drum lane stops the pump (REQ-9, regression)
+Scenario: Muting the drum lane stops the pump (REQ-on-hit-reports-only-sounded-hits, regression)
   Given ducking engaged and the drums playing
   When the drum lane is muted, or another lane is soloed
   Then the drums fall silent and the synth stops pumping with them
 # pinned by: tests/audio/lane-mixer.test.ts, tests/audio/transport/drum-machine.test.ts
 
-Scenario: An existing patch is unaffected (REQ-6)
+Scenario: An existing patch is unaffected (REQ-a-bypassed-ducker-costs-nothing)
   Given a preset or song saved before this feature existed
   When it is loaded
   Then fx.duck.on and fx.sampler.duck.on are 0 and the sound is unchanged
@@ -368,7 +374,7 @@ Scenario: An existing patch is unaffected (REQ-6)
     knob and the rack stood 78 px taller. "Desktop width" is not one width, and
     an eyeball at one of them is not a sweep. Now measured across widths by
     `e2e/responsive-panels.spec.ts`
-    ([responsive-synth-panels](responsive-synth-panels.md) REQ-8).
+    ([responsive-synth-panels](responsive-synth-panels.md) REQ-fx-panels-fit-their-knob-run).
 
 ## Open questions / future
 
@@ -378,7 +384,7 @@ Scenario: An existing patch is unaffected (REQ-6)
   and to live-played drums. It is deliberately not built: it costs a worklet
   instance per ducked bus, duplicates the detector already in `compressor.js`, and
   its key edge would be the first graph edge the `BypassWrapper` does not own
-  (ADR-012 disconnects the wrapper's two edges only). This spec's REQ-1 is the
+  (ADR-012 disconnects the wrapper's two edges only). This spec's REQ-the-duck-is-keyed-by-scheduled-hits is the
   cheaper answer to the same musical goal; the detector should be argued on its own
   terms if it is ever wanted.
 - **A tempo-locked grid mode.** A `Grid` position on `<prefix>.src` pumping on a
@@ -390,6 +396,6 @@ Scenario: An existing patch is unaffected (REQ-6)
   it, matching Kickstart. Scaling depth by it would make ghost kicks duck less,
   which is either musical or surprising depending on the pattern — it wants a
   listen, not a guess.
-- **Ducking the drum bus from the sampler.** The mirror image of REQ-8's exclusion,
+- **Ducking the drum bus from the sampler.** The mirror image of REQ-the-ducker-is-last-in-the-chain's exclusion,
   and the only coherent way a drum ducker could exist. Would need the sampler
   machine to grow the same `onHit` surface.

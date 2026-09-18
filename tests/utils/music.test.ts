@@ -18,7 +18,7 @@ function q(note: number, root: number, scale: number): number {
 }
 
 describe('scale tables', () => {
-  it('keeps chromatic at index 0 as the no-op (REQ-1)', () => {
+  it('keeps chromatic at index 0 as the no-op (REQ-the-key-is-two-inert-params)', () => {
     // ADR-006: this index is what every pre-feature preset/song falls back to.
     expect(SCALE_LABELS[0]).toBe('chromatic');
     expect(isScaleActive(0)).toBe(false);
@@ -43,13 +43,13 @@ describe('buildQuantizeTable', () => {
     expect(q(67, C, MAJOR)).toBe(67); // G
   });
 
-  it('breaks an equidistant tie downward (REQ-2)', () => {
+  it('breaks an equidistant tie downward (REQ-nearest-tone-ties-break-downward)', () => {
     // C# is 1 semitone from both C and D; the flat side wins.
     expect(q(61, C, MAJOR)).toBe(60);
     expect(q(66, C, MAJOR)).toBe(65); // F# -> F, not G
   });
 
-  it('takes the genuinely nearer tone in a gapped scale (REQ-2)', () => {
+  it('takes the genuinely nearer tone in a gapped scale (REQ-nearest-tone-ties-break-downward)', () => {
     // C pentatonic major = C D E G A. F# is 1 below G and 2 above E.
     expect(q(66, C, PENT_MAJ)).toBe(67);
     // F is 1 above E and 2 below G, so it goes down — not the tie rule, the distance.
@@ -71,7 +71,7 @@ describe('buildQuantizeTable', () => {
     }
   };
 
-  it('is idempotent for every note, root and scale (REQ-3)', () => {
+  it('is idempotent for every note, root and scale (REQ-quantization-is-idempotent-and-bounded)', () => {
     // The stability property chord tools rely on: diatonic output survives the filter.
     const bad: string[] = [];
     eachTable((t, scale, root) => {
@@ -82,7 +82,7 @@ describe('buildQuantizeTable', () => {
     expect(bad).toEqual([]);
   });
 
-  it('always lands in the MIDI range, clamped rather than dropped (REQ-3)', () => {
+  it('always lands in the MIDI range, clamped rather than dropped (REQ-quantization-is-idempotent-and-bounded)', () => {
     const bad: string[] = [];
     eachTable((t, scale, root) => {
       for (let n = 0; n < 128; n++) {
@@ -115,7 +115,7 @@ describe('buildQuantizeTable', () => {
 });
 
 describe('diatonicChord', () => {
-  it('stacks thirds into the right quality without a quality table (REQ-1)', () => {
+  it('stacks thirds into the right quality without a quality table (REQ-the-key-is-two-inert-params)', () => {
     const triad = chordDegrees(CHORD_LABELS.indexOf('triad'));
     // C major: I = C E G, ii = D F A, V = G B D.
     expect(diatonicChord(60, C, MAJOR, [0, 2, 4])).toEqual([60, 64, 67]);
@@ -127,17 +127,17 @@ describe('diatonicChord', () => {
     expect(diatonicChord(60, C, MAJOR, [0, 2, 4, 6])).toEqual([60, 64, 67, 71]);
   });
 
-  it('anchors the chord in the octave being edited (REQ-10)', () => {
+  it('anchors the chord in the octave being edited (REQ-the-key-is-shown-where-you-play)', () => {
     expect(diatonicChord(72, C, MAJOR, [0, 2, 4])).toEqual([72, 76, 79]);
     expect(diatonicChord(48, C, MAJOR, [0, 2, 4])).toEqual([48, 52, 55]);
   });
 
-  it('returns notes that are already in the scale, so the filter is a no-op (REQ-5)', () => {
+  it('returns notes that are already in the scale, so the filter is a no-op (REQ-transpose-first-then-quantize)', () => {
     const t = buildQuantizeTable(A, MINOR)!;
     for (const n of diatonicChord(60, A, MINOR, [0, 2, 4, 6])) expect(t[n]).toBe(n);
   });
 
-  it('is empty without a scale or without a voicing (REQ-8)', () => {
+  it('is empty without a scale or without a voicing (REQ-snap-to-scale-is-the-destructive-opt-in)', () => {
     expect(diatonicChord(60, C, 0, [0, 2, 4])).toEqual([]);
     expect(diatonicChord(60, C, MAJOR, [])).toEqual([]);
     expect(chordDegrees(0)).toEqual([]);
@@ -150,7 +150,7 @@ describe('diatonicChord', () => {
 });
 
 describe('degreeLabel', () => {
-  it('cases the numeral from the interval the stacking produced (REQ-9)', () => {
+  it('cases the numeral from the interval the stacking produced (REQ-the-key-is-drawn-not-just-named)', () => {
     expect(degreeLabel(C, MAJOR, 0)).toBe('I — C');
     expect(degreeLabel(C, MAJOR, 1)).toBe('ii — Dm');
     expect(degreeLabel(C, MAJOR, 4)).toBe('V — G');

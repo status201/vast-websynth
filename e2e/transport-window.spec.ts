@@ -55,7 +55,7 @@ test.describe('TRANSPORT window', () => {
     await expect(win.getByTestId('transportw-readout')).toBeVisible();
     await expect(win.getByTestId('transportw-loop')).toBeVisible();
     await expect(win.getByTestId('transportw-scrub')).toBeVisible();
-    // REQ-2: BPM/SWING are the header's alone. A copy here would be a second
+    // REQ-transport-is-a-floating-window: BPM/SWING are the header's alone. A copy here would be a second
     // control for one param that does not know to disable itself while slaved —
     // and a duplicate testid that breaks strict-mode locators elsewhere.
     await expect(win.getByTestId('knob-transport.bpm')).toHaveCount(0);
@@ -76,18 +76,18 @@ test.describe('TRANSPORT window', () => {
     const headerPlay = page.getByTestId('transport-play'); // the header's own button
     await winPlay.click();
     await expect.poll(() => playing(page)).toBe(true);
-    // v5: the song transport pauses; the header still stops (REQ-13).
+    // v5: the song transport pauses; the header still stops (REQ-pause-and-stop-are-separate-verbs).
     await expect(winPlay).toHaveText('Pause');
     await expect(headerPlay).toHaveText('Stop');
 
     // Stopping from the header must move the window's button too — one
-    // transport, not two (transport-window.md REQ-5).
+    // transport, not two (transport-window.md REQ-play-pause-is-not-a-second-truth).
     await headerPlay.click();
     await expect.poll(() => playing(page)).toBe(false);
     await expect(winPlay).toHaveText('Play');
   });
 
-  // REQ-13 (v5) / transport.md REQ-12 — Pause stays here; Stop goes back.
+  // REQ-pause-and-stop-are-separate-verbs (v5) / transport.md REQ-pause-resumes-where-it-stopped — Pause stays here; Stop goes back.
   test('Pause resumes where playback was; the header Stop still returns to the cue', async ({ page }) => {
     await gotoAndStart(page);
     await setSeqChain(page, [0, 0, 1, 0]); // four bars
@@ -142,7 +142,7 @@ test.describe('TRANSPORT window', () => {
   test('the return-to-start button goes back to bar 1', async ({ page }) => {
     await gotoAndStart(page);
     // An eight-bar chain, so bar 6 is a bar the song actually has: the readout
-    // wraps at song length (REQ-6) and would otherwise report bar 1 here.
+    // wraps at song length (REQ-the-position-readout-is-bar-dot-step) and would otherwise report bar 1 here.
     await setSeqChain(page, [0, 0, 1, 0, 0, 0, 1, 0]);
     await page.getByTestId('tab-song').click();
     await page.evaluate((n) => (window as any).__synth.engine.seekTo(n), SEQ_LENGTH * 5 + 7);
@@ -153,7 +153,7 @@ test.describe('TRANSPORT window', () => {
     await expect(page.getByTestId('transport-readout')).toHaveText('1.01');
   });
 
-  // REQ-6 (regression): the readout printed the ABSOLUTE bar, so with no chain
+  // REQ-the-position-readout-is-bar-dot-step (regression): the readout printed the ABSOLUTE bar, so with no chain
   // enabled — the default — it counted 1.01, 2.01, 3.01 … beside a scrubber that
   // had exactly one cell. The two now name the same bar by construction.
   test('the readout never counts a bar the song does not have', async ({ page }) => {

@@ -21,7 +21,7 @@ function setup(localBpm = 120) {
   slave.enable();
   // Both clocks step together in look-ahead-sized wakeups, exactly like the
   // real transport. Deliberately not one big jump: the drain is bounded, and a
-  // grid left far behind currentTime reads as a dropout (transport.md REQ-9).
+  // grid left far behind currentTime reads as a dropout (transport.md REQ-the-transport-catch-up-is-bounded).
   const advance = (audioS: number) => {
     const wakeups = Math.max(1, Math.round(audioS / 0.025));
     for (let i = 0; i < wakeups; i++) {
@@ -52,7 +52,7 @@ describe('SyncSlave', () => {
   it('converges to the master tempo within two beats past the post-start settle', () => {
     const { clock, slave } = setup();
     slave.handleMessage({ type: 'start' }, 0);
-    // The first ~0.55 s of pulses fall inside the settle window (REQ-16 —
+    // The first ~0.55 s of pulses fall inside the settle window (REQ-a-post-start-settle-window —
     // they could be a reordered stale tail); convergence is measured from
     // the pulses after it.
     const dt = intervalMs(140);
@@ -152,7 +152,7 @@ describe('SyncSlave', () => {
     expect(setBpm).toHaveBeenCalled();
   });
 
-  it('ignores pulses inside the post-start settle window entirely (REQ-16)', () => {
+  it('ignores pulses inside the post-start settle window entirely (REQ-a-post-start-settle-window)', () => {
     const { clock, slave } = setup();
     slave.handleMessage({ type: 'start' }, 0);
     const setBpm = vi.spyOn(clock, 'setBpm');
@@ -172,7 +172,7 @@ describe('SyncSlave', () => {
     // interleaved with the real run pulses. Pre-fix this wrote ~2x tempo (the
     // halved intervals) and skewed the pulse counter so the phase corrector
     // dragged the slave ahead of the master and held it there. The settle
-    // window (REQ-16) drops the whole contaminated span by time — per-pulse
+    // window (REQ-a-post-start-settle-window) drops the whole contaminated span by time — per-pulse
     // filtering is not an option, because real MIDI delivery is bursty.
     const { clock, slave, advance } = setup();
     const dt = intervalMs(120);
@@ -215,7 +215,7 @@ describe('SyncSlave', () => {
   });
 });
 
-describe('SyncSlave — meter (meter.md REQ-18)', () => {
+describe('SyncSlave — meter (meter.md REQ-meter-travels-on-the-wifi-wire)', () => {
   it('adopts an incoming time signature immediately', () => {
     vi.useFakeTimers();
     const ctx = { currentTime: 0 } as unknown as AudioContext;

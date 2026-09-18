@@ -10,16 +10,16 @@
  *
  * It also writes `src/state/demos-index.json` — one `DemoMeta` per demo (name,
  * tempo, length, machines used, what is armed for the player). The demos are
- * **fetched on click**, not bundled (song-mode.md REQ-11), so the app cannot read
+ * **fetched on click**, not bundled (song-mode.md REQ-song-lane-titles-navigate), so the app cannot read
  * a song's own fields at build time; this index is how the shelf knows anything
  * about them. Generated here because this is already the one pass that parses
  * every demo, so the index cannot fall out of step with the files it describes
- * (demo-library.md REQ-1).
+ * (demo-library.md REQ-demo-facts-are-generated).
  *
  * Two things it deliberately does NOT own: the **zip** demos' bytes (a zip is a
  * container — canonicalizing one would churn megabytes for no readable diff; it
  * only reads them for their metadata) and the hand-written **blurbs**, which live
- * in `src/state/demo-notes.json` and are merged in, never rewritten (REQ-2).
+ * in `src/state/demo-notes.json` and are merged in, never rewritten (REQ-song-file-is-a-versioned-union).
  *
  * With `CLEAN_DEMOS_CHECK` set (injected by `scripts/check-demos.config.ts`,
  * `npm run check:demos`) it writes nothing and instead fails listing every file
@@ -49,7 +49,7 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
   const index: Record<string, DemoMeta> = {};
 
   // Hand-written blurbs, merged in below. Kept in their own file precisely so
-  // this generator can never clobber prose (demo-library.md REQ-2), and every
+  // this generator can never clobber prose (demo-library.md REQ-demo-prose-lives-apart), and every
   // entry is optional — a demo with no note is still a pure data drop-in.
   const notesPath = join(stateDir, 'demo-notes.json');
   const notes = existsSync(notesPath)
@@ -76,7 +76,7 @@ test(checkOnly ? 'demo song files are canonical' : 'canonicalize demo song files
     }
   }
 
-  // Project-zip demos (demo-library.md REQ-3). They are the only demos that can
+  // Project-zip demos (demo-library.md REQ-zip-demos-are-indexed-too). They are the only demos that can
   // use the sampler — a .json cannot embed audio — so leaving them out of the
   // index made the two most feature-complete demos the two least described.
   // Their bytes are NOT canonicalized: a zip is a container, and rewriting one

@@ -19,7 +19,7 @@ test('Song tab shows the Sync section; mode persists across reload', async ({ pa
 
   await page.getByRole('button', { name: 'Song', exact: true }).click();
 
-  // Section present, with the degraded-gracefully status (REQ-9). The WiFi
+  // Section present, with the degraded-gracefully status (REQ-no-web-midi-degrades-gracefully). The WiFi
   // transport is always added, so the status line carries its (unlinked) suffix.
   const status = page.getByTestId('sync-status');
   await expect(status).toBeVisible();
@@ -36,7 +36,8 @@ test('Song tab shows the Sync section; mode persists across reload', async ({ pa
   await expect(page.getByTestId('sync-mode-slave')).toHaveClass(/\bactive\b/);
 
   // ...but with no MIDI input and no WiFi peer there is nothing to follow, so
-  // the role is *armed*, not running (midi-clock-sync REQ-19/22). This is the
+  // the role is *armed*, not running (midi-clock-sync
+// REQ-selected-mode-versus-active-role/REQ-an-armed-sync-section). This is the
   // end-to-end guard against the "disconnected slave freezes the BPM knob" bug.
   await expect(page.getByTestId('sync-mode-slave')).toHaveClass(/\barmed\b/);
   await expect(status).toContainText('Slave armed');

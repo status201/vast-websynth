@@ -7,7 +7,7 @@ const slotDuration = (page: Page, slot: number): Promise<number | null> =>
 const slotName = (page: Page, slot: number): Promise<string | null> =>
   page.evaluate((s) => (window as any).__synth.patterns.sampleNames[s] ?? null, slot);
 
-/** One bar in seconds, measured the way the transport measures it (meter.md REQ-7). */
+/** One bar in seconds, measured the way the transport measures it (meter.md REQ-bar-exact-capture-follows-bar-ticks). */
 const barSeconds = (page: Page): Promise<number> =>
   page.evaluate(() => {
     const s = (window as any).__synth;
@@ -15,7 +15,7 @@ const barSeconds = (page: Page): Promise<number> =>
   });
 
 /** Pick a Dropdown option by its `dropdown-option` bridge class, not by accessible
- *  name — the toggle and the option carry the same one (dropdown.md REQ-13). */
+ *  name — the toggle and the option carry the same one (dropdown.md REQ-an-option-carries-the-bridge-class). */
 async function pick(page: Page, testId: string, label: RegExp): Promise<void> {
   const dd = page.getByTestId(testId);
   await dd.click();
@@ -40,7 +40,7 @@ async function loadClip(page: Page, slot = 0, name = 'break.wav'): Promise<void>
 
 /**
  * Open the editor on `slot` and unfold the Fit & Shift section, which rests closed
- * like every other editor section (sample-recorder.md REQ-9). The fold itself is
+ * like every other editor section (sample-recorder.md REQ-every-section-below-the-waveform-folds). The fold itself is
  * asserted by `sample-editor-folds.spec.ts`.
  */
 async function openStretch(page: Page, slot = 0): Promise<void> {
@@ -59,7 +59,7 @@ async function openStretch(page: Page, slot = 0): Promise<void> {
  * the name.
  */
 test.describe('time-stretch', () => {
-  test('fits a clip to one bar from the editor (REQ-9)', async ({ page }) => {
+  test('fits a clip to one bar from the editor (REQ-the-editor-gains-a-fit-row)', async ({ page }) => {
     await loadClip(page);
     const before = await slotDuration(page, 0);
     expect(before).toBeCloseTo(1.7, 2);
@@ -80,7 +80,7 @@ test.describe('time-stretch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(bar, 3);
   });
 
-  test('shifts pitch without moving the length (REQ-8)', async ({ page }) => {
+  test('shifts pitch without moving the length (REQ-pitch-shift-keeps-length)', async ({ page }) => {
     await loadClip(page);
     await openStretch(page);
     await expect(page.getByTestId('shift-row')).toBeVisible();
@@ -98,15 +98,15 @@ test.describe('time-stretch', () => {
     expect(await slotDuration(page, 0)).toBeCloseTo(1.7, 1);
   });
 
-  test('quick-fits from the slot row and takes it back (REQ-11/REQ-12)', async ({ page }) => {
+  test('quick-fits from the slot row and takes it back (REQ-the-slot-fit-button-is-a-quick-fit/REQ-the-quick-fit-is-reversible)', async ({ page }) => {
     await loadClip(page);
     const bar = await barSeconds(page);
 
     await page.getByTestId('sampler-fit-0').click();
     await expect(page.getByTestId('fit-toast')).toBeVisible();
     expect(await slotDuration(page, 0)).toBeCloseTo(bar, 3);
-    // REQ-13 — same sound, new timing: the name must not have moved, or
-    // sampler.md REQ-7 would evict the audio the fit just wrote.
+    // REQ-a-fitted-clip-is-not-renamed — same sound, new timing: the name must not have moved, or
+    // sampler.md REQ-a-slots-audio-matches-its-label would evict the audio the fit just wrote.
     expect(await slotName(page, 0)).toBe('break.wav');
 
     await page.getByTestId('fit-toast').getByRole('button', { name: 'Undo' }).click();
@@ -114,7 +114,7 @@ test.describe('time-stretch', () => {
     expect(await slotName(page, 0)).toBe('break.wav');
   });
 
-  test('the FIT button appears only once a slot holds audio (REQ-11)', async ({ page }) => {
+  test('the FIT button appears only once a slot holds audio (REQ-the-slot-fit-button-is-a-quick-fit)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
     await expect(page.getByTestId('sampler-fit-0')).toBeHidden();

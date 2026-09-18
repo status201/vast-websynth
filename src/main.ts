@@ -37,10 +37,10 @@ async function boot() {
   // comes back suspended is the *browser's* call, not ours — an autoplay-permitted
   // one is rendering from the moment it exists — so the boot does not assume it:
   // the master bus is seeded silent and only `Engine.resume()` raises it
-  // (audio-lifecycle.md REQ-19). Which of the two start paths runs is decided at
-  // the end of boot from `engine.autoplayAllowed` (REQ-20).
+  // (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start). Which of the two start paths runs is decided at
+  // the end of boot from `engine.autoplayAllowed` (REQ-about-is-the-single-door-for-help).
   const bus = new ParamBus();
-  // Persisted sampler clips (sample-persistence.md REQ-5): kick the IndexedDB
+  // Persisted sampler clips (sample-persistence.md REQ-boot-restores-clips-before-the-ui): kick the IndexedDB
   // read off FIRST — it needs no AudioContext, so its I/O overlaps the worklet
   // loading in engine.init() below and costs the boot ~nothing.
   const clipsPromise = SampleAutosave.loadAll();
@@ -73,13 +73,13 @@ async function boot() {
   if (basic) Presets.apply(bus, basic);
   session.setActive('basic');
 
-  // Silent session recovery (session-autosave.md REQ-5): restore the autosaved
+  // Silent session recovery (session-autosave.md REQ-boot-restores-an-autosave-silently): restore the autosaved
   // working session over the boot patch, BEFORE the UI mounts so every control
   // constructs already reading the restored values.
   const restored = SessionAutosave.load();
   if (restored) {
     Song.apply(restored, bus, engine.patterns, engine.arrangement, xy, engine.sampler);
-    // Same pin the Song panel's applySong makes (presets.md REQ-13) — which is
+    // Same pin the Song panel's applySong makes (presets.md REQ-a-songs-sound-is-a-selectable-entry) — which is
     // why the pinned sound needs no persistence of its own: restoring the song
     // restores it.
     session.setActiveSong(restored.name, patchSnapshot(bus.snapshot()));
@@ -89,8 +89,8 @@ async function boot() {
   // mountApp, so the sampler panel constructs already seeing loaded slots — no
   // .needs-reload flash, and no race with the share-link / launchQueue
   // importers wired further down. A clip is restored only for a slot the
-  // session names (REQ-6); orphans are dropped, undecodable ones skipped
-  // (REQ-7) so the slot simply keeps its hint.
+  // session names (REQ-the-sync-section-has-two-topics); orphans are dropped, undecodable ones skipped
+  // (REQ-a-motion-topic-anchors-to-the-tab) so the slot simply keeps its hint.
   const restoredClips = await restoreSamplerClips(engine, restored != null, clipsPromise);
 
   // Per-machine step-grid undo — pure state like session/xy, so it lives here
@@ -98,7 +98,7 @@ async function boot() {
   const patternUndo = new PatternUndo(engine.patterns);
 
   // Which characters this keyboard prints, before anything renders the note
-  // mapping or binds to it (keyboard-layout.md REQ-3). Feature-detected and
+  // mapping or binds to it (keyboard-layout.md REQ-layout-detection-is-a-hint-not-a-verdict). Feature-detected and
   // failure-tolerant, so a browser without the API just costs one resolved
   // promise and leaves 'auto' reading as QWERTY.
   await primeDetection();
@@ -124,7 +124,7 @@ async function boot() {
 
   // Keep the display awake exactly while the synth can make sound: the wake
   // lock follows the AudioContext state. Platform concern, so it lives here and
-  // not in Engine (pwa-install.md REQ-1).
+  // not in Engine (pwa-install.md REQ-wake-lock-follows-the-context).
   //
   // `statechange` alone is not enough, and that is the auto-start path's doing: a
   // context the browser created `running` never changes state, and resuming an
@@ -140,7 +140,7 @@ async function boot() {
   setWakeLockSource(() => ({ supported: wake.supported, held: wake.held }));
 
   // A resume the platform refused leaves the app silent with nothing to look at,
-  // which is the worst thing an instrument can do (audio-lifecycle.md REQ-14).
+  // which is the worst thing an instrument can do (audio-lifecycle.md REQ-a-stuck-context-is-visible).
   // The Engine has already armed a one-shot listener so *any* tap fixes it —
   // this only says so out loud, and gets out of the way the moment audio is back.
   // Engine → UI through a subscription, never the reverse (ADR-001).
@@ -178,7 +178,7 @@ async function boot() {
   // OS-launched song files (installed-PWA file_handlers; Chromium desktop
   // only today). Applying a song is pure state and decodeAudioData works on
   // a suspended context, so a file arriving before the start gate applies fine —
-  // behind the modal where there is one. See pwa-install.md REQ-5.
+  // behind the modal where there is one. See pwa-install.md REQ-manifest-declares-install-extras.
   if (window.launchQueue) {
     window.launchQueue.setConsumer((params) => {
       void (async () => {
@@ -194,7 +194,7 @@ async function boot() {
   // song, #songUrl=<https url> points at a hosted song/project file. Both
   // funnel through the same import path as the Import button / launchQueue,
   // so parse errors surface in the normal import dialog. The hash is consumed
-  // only on success (REQ-4), so a bad link stays visible in the address bar for
+  // only on success (REQ-callout-placement-adapts), so a bad link stays visible in the address bar for
   // the user to inspect/copy.
   const link = parseSongLink(window.location.hash);
 
@@ -229,13 +229,13 @@ async function boot() {
 
   // An embedded payload applies at boot: it is pure state, so it works behind
   // the start modal (like launchQueue above). A #songUrl= link cannot — it has
-  // to ASK first (REQ-7), and a dialog raised now would render *under* the start
+  // to ASK first (REQ-a-motion-topic-anchors-to-the-tab), and a dialog raised now would render *under* the start
   // modal, unreachable. So it waits for the start gesture, the same reason the
   // restored-clips toast does.
   if (link?.kind === 'data') void applySongLink(link);
 
   // Everything the start gesture used to carry beyond unlocking the audio
-  // itself (audio-lifecycle.md REQ-21). `deferPlatform` is the auto-start path:
+  // itself (audio-lifecycle.md REQ-post-gesture-work-is-deferred). `deferPlatform` is the auto-start path:
   // there is no gesture yet, so the two pieces that genuinely want one wait for
   // the next real touch instead of demanding a dedicated tap.
   const onStart = ({ deferPlatform }: { deferPlatform: boolean }): void => {
@@ -250,7 +250,7 @@ async function boot() {
       // The Android keep-alive wants a gesture too, and an auto-start's own call
       // was made without one, so it may have been refused. `resume()` is the
       // door to both platform unlocks and is idempotent on a running context
-      // (audio-lifecycle.md REQ-2 — no dip, no second ctx.resume), so re-running
+      // (audio-lifecycle.md REQ-the-fade-never-dips-live-audio — no dip, no second ctx.resume), so re-running
       // it from inside a real gesture is all the retry needed.
       if (deferPlatform) void engine.resume();
     };
@@ -258,7 +258,7 @@ async function boot() {
     else platform();
 
     // Tell the user their sampler audio came back from storage rather than the
-    // song file (sample-persistence.md REQ-8). Deferred off boot only because it
+    // song file (sample-persistence.md REQ-a-clip-restore-raises-a-toast). Deferred off boot only because it
     // would otherwise have appeared *under* the start modal — with no modal it
     // has nothing to hide behind, so it runs here either way.
     if (restoredClips.length > 0) {
@@ -267,15 +267,15 @@ async function boot() {
         testId: 'clips-restored-toast',
       });
     }
-    // A #songUrl= link needs consent (song-share-link.md REQ-7); same reason it
+    // A #songUrl= link needs consent (song-share-link.md REQ-a-linked-fetch-needs-consent); same reason it
     // waited — its dialog would have been trapped under the start modal.
     if (link?.kind === 'url') void applySongLink(link);
   };
 
   // The start modal exists to buy a user gesture, so it is shown only when the
-  // browser actually demands one (audio-lifecycle.md REQ-20). A context created
+  // browser actually demands one (audio-lifecycle.md REQ-the-gesture-is-required-only-when-required). A context created
   // `running` means the output stream is already open — audio is unblocked, and
-  // resuming here takes REQ-19's fade, so the start is click-free without it.
+  // resuming here takes REQ-the-info-button-gesture-inventory's fade, so the start is click-free without it.
   if (engine.autoplayAllowed) {
     await engine.resume();
     syncWake(); // no statechange fires on this path — see the wake lock above
@@ -293,7 +293,7 @@ async function boot() {
   // Deferred to `load` to stay off the boot critical path — but boot() is
   // async, so `load` may have ALREADY fired by this line; check readyState or
   // the listener (and the registration) would silently never run.
-  // See pwa-install.md REQ-6.
+  // See pwa-install.md REQ-service-worker-is-registered.
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     const register = () =>
       void navigator.serviceWorker.register(`/sw.js?v=${__APP_VERSION__}`).catch(() => {});
@@ -306,23 +306,23 @@ async function boot() {
   // off the boot critical path. Warm it once boot is idle: the service worker
   // has no precache manifest of hashed assets, so a chunk never fetched while
   // online would be missing offline. Failures are ignored — the real import
-  // inside encodeMp3 retries. See audio-export.md REQ-7.
+  // inside encodeMp3 retries. See audio-export.md REQ-the-mp3-encoder-loads-lazily.
   const warmMp3 = () => void import('./vendor/lamejs').catch(() => {});
   // The onboarding body (tour + info badges + ~54 kB of help copy) is behind the
   // same kind of split, and help is exactly what a user reaches for when they
   // are stuck — including offline, on a revisit. Warming it also means the
   // first-visit tour is never still fetching when its 350 ms auto-launch fires.
-  // pwa-install.md REQ-6, runtime-performance.md REQ-1.
+  // pwa-install.md REQ-service-worker-is-registered, runtime-performance.md REQ-boot-cost-matches-the-request.
   const warmOnboarding = () => void import('./ui/onboarding/onboarding-impl').catch(() => {});
   // The About card is the door those live behind — the app's single help
-  // surface (onboarding.md REQ-20) — and warming the room but not the door left
+  // surface (onboarding.md REQ-about-is-the-single-door-for-help) — and warming the room but not the door left
   // the ? button dead offline, doing nothing at all. Same split, same warm.
-  // onboarding.md REQ-24, pwa-install.md REQ-6.
+  // onboarding.md REQ-the-help-door-never-fails-silently, pwa-install.md REQ-service-worker-is-registered.
   const warmAbout = () => void import('./ui/components/about-modal').catch(() => {});
   // A factory reset that deleted a saved offline copy asked for it back
-  // (factory-reset.md REQ-8). One sessionStorage read decides; without the
+  // (factory-reset.md REQ-reset-redownloads-the-offline-copy). One sessionStorage read decides; without the
   // intent nothing is imported. A failed import leaves the intent in place for
-  // the next boot. play-offline.md REQ-12.
+  // the next boot. play-offline.md REQ-the-copy-is-fetched-again-after-a-reset.
   const resumeOffline = () => {
     if (!offlineRedownloadPending()) return;
     void import('./ui/components/offline-notices')
@@ -344,7 +344,9 @@ async function boot() {
 
 /**
  * Repopulate the sampler slots from the persisted clip store
- * (sample-persistence.md REQ-5..REQ-7). Returns the clips that actually landed,
+ * (sample-persistence.md REQ-boot-restores-clips-before-the-ui,
+ * sample-persistence.md REQ-clips-restore-only-with-a-session/REQ-an-undecodable-clip-is-skipped).
+ * Returns the clips that actually landed,
  * so the autosaver can seed its identity table with them.
  *
  * Clips only make sense next to the session that named them: with no restored
@@ -363,7 +365,7 @@ async function restoreSamplerClips(
   }
   const restored: StoredClip[] = [];
   // Sequentially, like the project-zip import: 8 × multi-MB decodes at once
-  // is a needless memory spike (project-export.md REQ-8).
+  // is a needless memory spike (project-export.md REQ-clip-codec-is-memory-aware).
   for (const clip of await clipsPromise) {
     if (engine.patterns.sampleNames[clip.slot] == null) {
       void SampleAutosave.drop(clip.slot);
@@ -392,7 +394,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
   card.setAttribute('aria-label', 'Start VAST G1-J8');
 
   // The first thing anyone sees, so it shows the real faceplate (brand.md).
-  // `.start-card` centres it — the block itself has no alignment (REQ-4).
+  // `.start-card` centres it — the block itself has no alignment (REQ-callout-placement-adapts).
   const brand = createBrand();
 
   const startBtn = document.createElement('button');
@@ -426,7 +428,7 @@ function showStartModal(engine: Engine, onboarding: Onboarding, onStart: () => v
 
 /**
  * Fetch a `#songUrl=` target, but only with the user's say-so
- * (song-share-link.md REQ-7, untrusted-input.md REQ-7).
+ * (song-share-link.md REQ-a-linked-fetch-needs-consent, untrusted-input.md REQ-a-link-may-not-fetch-silently).
  *
  * Without consent, one link made any visitor's browser issue an attacker-chosen
  * GET the moment the page loaded — a beacon, or a probe of the visitor's own

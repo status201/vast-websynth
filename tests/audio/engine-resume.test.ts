@@ -6,9 +6,11 @@ import { Engine } from '../../src/audio/engine';
 import { makeParam, type MockAudioParam } from './mock-audio-context';
 
 /**
- * `Engine.resume()` — the click-free start (audio-lifecycle.md REQ-1..REQ-3),
- * the context re-arm policy (REQ-4/REQ-5/REQ-15/REQ-18) and the recovery policy
- * (REQ-13/REQ-14/REQ-16).
+ * `Engine.resume()` — the click-free start (audio-lifecycle.md
+ * REQ-a-start-is-click-free/REQ-the-fade-never-dips-live-audio,
+ * audio-lifecycle.md REQ-the-ramp-is-scheduled-before-the-await),
+ * the context re-arm policy (REQ-foreground-return-rearms-the-context/REQ-statechange-must-not-fight-a-deliberate-suspend/REQ-an-unasked-suspension-is-recovered/REQ-a-bfcache-restore-counts-as-returning) and the recovery policy
+ * (REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible/REQ-the-glitch-fade-out-is-always-undone).
  *
  * A real `Engine` needs an AudioContext, worklet modules and an async `init()`,
  * none of which these methods touch: they read `ctx` / `master` / `bus` /
@@ -39,7 +41,7 @@ afterEach(() => {
 function engineLike(
   over: { state?: string; volume?: number; ios?: boolean; playing?: boolean; everRan?: boolean } = {},
 ) {
-  // The production seed is 0 (REQ-19) — the master is silent until a fade.
+  // The production seed is 0 (REQ-nothing-is-audible-before-the-first-start) — the master is silent until a fade.
   const gain: MockAudioParam = makeParam(0);
   const ctx: CtxStub = {
     state: over.state ?? 'suspended',
@@ -64,8 +66,8 @@ function engineLike(
     glitchTimer: null,
     resumeAttempts: 0,
     blocked: false,
-    // REQ-19: an engine that has never run fades in even on a running context,
-    // so every case asserting REQ-2's "leave it alone" says so explicitly.
+    // REQ-nothing-is-audible-before-the-first-start: an engine that has never run fades in even on a running context,
+    // so every case asserting REQ-the-fade-never-dips-live-audio's "leave it alone" says so explicitly.
     everRan: over.everRan ?? false,
     autoplayAllowedFlag: false,
     disarmGesture: null,
@@ -102,7 +104,7 @@ describe('Engine.resume fade-in (click-free start)', () => {
     expect(ctx.resume).toHaveBeenCalled();
   });
 
-  it('schedules the ramp BEFORE the resume is awaited (REQ-3)', async () => {
+  it('schedules the ramp BEFORE the resume is awaited (REQ-the-ramp-is-scheduled-before-the-await)', async () => {
     const order: string[] = [];
     const { gain, ctx, resume } = engineLike();
     gain.setValueAtTime.mockImplementation(() => { order.push('fade'); });
@@ -133,9 +135,9 @@ describe('Engine.resume fade-in (click-free start)', () => {
     expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 12.5);
   });
 
-  it('leaves a RUNNING context alone — no dip, no second resume (REQ-2)', async () => {
-    // `everRan` is the point: REQ-2 is about a resume *during a session*. The
-    // first one on a context created running is REQ-19's job, below.
+  it('leaves a RUNNING context alone — no dip, no second resume (REQ-the-fade-never-dips-live-audio)', async () => {
+    // `everRan` is the point: REQ-the-fade-never-dips-live-audio is about a resume *during a session*. The
+    // first one on a context created running is REQ-nothing-is-audible-before-the-first-start's job, below.
     const { ctx, gain, unlock, resume } = engineLike({ state: 'running', everRan: true });
     await resume();
     expect(gain.cancelScheduledValues).not.toHaveBeenCalled();
@@ -161,10 +163,10 @@ describe('Engine.resume fade-in (click-free start)', () => {
 });
 
 /**
- * REQ-13/REQ-14 — a resume is verified, not trusted. Fake timers throughout:
+ * REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible — a resume is verified, not trusted. Fake timers throughout:
  * both the 400 ms verification race and the 150 ms retry gap are real waits.
  */
-describe('Engine.resume recovery (REQ-13/REQ-14)', () => {
+describe('Engine.resume recovery (REQ-a-resume-that-does-not-take-is-retried/REQ-a-stuck-context-is-visible)', () => {
   it('retries, then arms a gesture fallback when the resume keeps failing', async () => {
     vi.useFakeTimers();
     const { ctx, engine, resume } = engineLike();
@@ -191,7 +193,7 @@ describe('Engine.resume recovery (REQ-13/REQ-14)', () => {
     expect(engine.audioRecovery.gestureArmed).toBe(true);
   });
 
-  it('brings the audio back on the next tap anywhere, once (REQ-13)', async () => {
+  it('brings the audio back on the next tap anywhere, once (REQ-a-resume-that-does-not-take-is-retried)', async () => {
     vi.useFakeTimers();
     const { ctx, engine, resume } = engineLike();
     ctx.resume.mockRejectedValue(new Error('gesture required'));
@@ -242,8 +244,8 @@ describe('Engine.resume recovery (REQ-13/REQ-14)', () => {
   });
 });
 
-/** REQ-16 — the watchdog's fade to zero is undone by whatever brings us back. */
-describe('Engine.resume glitch-mute restore (REQ-16)', () => {
+/** REQ-the-glitch-fade-out-is-always-undone — the watchdog's fade to zero is undone by whatever brings us back. */
+describe('Engine.resume glitch-mute restore (REQ-the-glitch-fade-out-is-always-undone)', () => {
   it('restores the master on a context that came back running by itself', async () => {
     const { gain, engine, resume } = engineLike({ state: 'running', volume: 0.8 });
     (engine as unknown as { glitchMuted: boolean }).glitchMuted = true;
@@ -265,13 +267,13 @@ describe('Engine.resume glitch-mute restore (REQ-16)', () => {
 });
 
 /**
- * The context the browser hands us (audio-lifecycle.md REQ-19/REQ-20). An
+ * The context the browser hands us (audio-lifecycle.md REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required). An
  * autoplay-permitted browser creates the context already `running`, which used
- * to route the very first `resume()` down REQ-2's "leave it alone" branch — so
+ * to route the very first `resume()` down REQ-the-fade-never-dips-live-audio's "leave it alone" branch — so
  * the fade that exists to swallow the stream-start transient never ran on
  * exactly the machines that reported the click.
  */
-describe('a context created already running (REQ-19/REQ-20)', () => {
+describe('a context created already running (REQ-nothing-is-audible-before-the-first-start/REQ-the-gesture-is-required-only-when-required)', () => {
   it('fades in the FIRST time even though the context is running', async () => {
     const { gain, ctx, resume } = engineLike({ state: 'running', volume: 0.8 });
     await resume();
@@ -300,7 +302,7 @@ describe('a context created already running (REQ-19/REQ-20)', () => {
 });
 
 /**
- * The other half of REQ-19 lives in the constructor and in `subscribeParams`,
+ * The other half of REQ-nothing-is-audible-before-the-first-start lives in the constructor and in `subscribeParams`,
  * neither of which the structural stub above can reach — building either needs a
  * real AudioContext and the whole param table. So they are pinned at the source,
  * the same technique `no-unanchored-cancel.test.ts` uses for a rule no behavioural
@@ -308,7 +310,7 @@ describe('a context created already running (REQ-19/REQ-20)', () => {
  * master seeded at anything but 0, or a `master.volume` write before the first
  * start, puts the app straight back to rendering at full gain behind the modal.
  */
-describe('REQ-19 at the source', () => {
+describe('REQ-nothing-is-audible-before-the-first-start at the source', () => {
   // From `process.cwd()`, the convention every source-reading suite that ALSO
   // imports from `src/` uses (`param-wiring.test.ts`, `song-validate.test.ts`):
   // in such a file Vite rewrites `import.meta.url` to a non-file scheme, which is
@@ -328,12 +330,12 @@ describe('REQ-19 at the source', () => {
 });
 
 /**
- * REQ-21 — the one-shot gesture arming, extracted from `armGestureResume` so the
+ * REQ-post-gesture-work-is-deferred — the one-shot gesture arming, extracted from `armGestureResume` so the
  * auto-start path can defer Web MIDI and the Android keep-alive to the next real
  * touch instead of demanding a dedicated tap. Registered on the real jsdom
  * `window`, so each case disarms what it armed.
  */
-describe('Engine.onFirstGesture (REQ-21)', () => {
+describe('Engine.onFirstGesture (REQ-post-gesture-work-is-deferred)', () => {
   it('runs once on the next gesture and removes every listener', () => {
     const { engine } = engineLike();
     const fn = vi.fn();
@@ -366,7 +368,7 @@ describe('Engine.onFirstGesture (REQ-21)', () => {
 });
 
 /**
- * The re-arm listeners (audio-lifecycle.md REQ-4/REQ-5/REQ-15/REQ-18).
+ * The re-arm listeners (audio-lifecycle.md REQ-foreground-return-rearms-the-context/REQ-statechange-must-not-fight-a-deliberate-suspend/REQ-an-unasked-suspension-is-recovered/REQ-a-bfcache-restore-counts-as-returning).
  * Registered on the real jsdom `document`/`window`, so each case builds its own
  * stub and asserts on that stub's spy — handlers from earlier cases keep talking
  * to their own.
@@ -417,7 +419,7 @@ describe('Engine context re-arm', () => {
     expect(resume).not.toHaveBeenCalled();
   });
 
-  it('re-arms the Android keep-alive on the way back too (media-session REQ-6)', () => {
+  it('re-arms the Android keep-alive on the way back too (media-session REQ-session-rearms-on-foreground)', () => {
     const { media } = rearmLike({ state: 'running' });
     becomeVisible();
     expect(media.rearm).toHaveBeenCalled();
@@ -429,13 +431,13 @@ describe('Engine context re-arm', () => {
     expect(resume).toHaveBeenCalled();
   });
 
-  it('resumes a running-but-muted context so the glitch fade is undone (REQ-16)', () => {
+  it('resumes a running-but-muted context so the glitch fade is undone (REQ-the-glitch-fade-out-is-always-undone)', () => {
     const { resume } = rearmLike({ state: 'running', glitchMuted: true });
     becomeVisible();
     expect(resume).toHaveBeenCalled();
   });
 
-  it('cancels a watchdog suspend that has not landed yet (REQ-16)', () => {
+  it('cancels a watchdog suspend that has not landed yet (REQ-the-glitch-fade-out-is-always-undone)', () => {
     const { engine } = rearmLike({ state: 'running' });
     const priv = engine as unknown as { glitchTimer: ReturnType<typeof setTimeout> | null };
     priv.glitchTimer = setTimeout(() => { /* the pending suspend */ }, 1000);
@@ -445,13 +447,13 @@ describe('Engine context re-arm', () => {
     expect(priv.glitchTimer).toBeNull();
   });
 
-  it('also re-arms from pageshow, which a bfcache restore fires (REQ-18)', () => {
+  it('also re-arms from pageshow, which a bfcache restore fires (REQ-a-bfcache-restore-counts-as-returning)', () => {
     const { resume } = rearmLike({ state: 'suspended' });
     window.dispatchEvent(new Event('pageshow'));
     expect(resume).toHaveBeenCalled();
   });
 
-  // REQ-15 — the listener now exists everywhere; what protects the Debug panel's
+  // REQ-an-unasked-suspension-is-recovered — the listener now exists everywhere; what protects the Debug panel's
   // Suspend is the intent flag, not the absence of the listener.
   it('installs a statechange listener on every platform, not just iOS', () => {
     const { ctx } = rearmLike();
@@ -474,7 +476,7 @@ describe('Engine context re-arm', () => {
     expect(resume).not.toHaveBeenCalled();
   });
 
-  it('leaves a deliberate suspend suspended (REQ-5)', () => {
+  it('leaves a deliberate suspend suspended (REQ-statechange-must-not-fight-a-deliberate-suspend)', () => {
     const { ctx, resume, engine } = rearmLike({ state: 'suspended' });
     (engine as unknown as { deliberateSuspend: boolean }).deliberateSuspend = true;
     statechangeHandler(ctx)();
@@ -482,7 +484,7 @@ describe('Engine context re-arm', () => {
   });
 });
 
-describe('Engine.suspendForDebug (REQ-15)', () => {
+describe('Engine.suspendForDebug (REQ-an-unasked-suspension-is-recovered)', () => {
   it('marks the suspend deliberate, and any resume clears that', async () => {
     const { ctx, engine } = engineLike({ state: 'running' });
     const priv = engine as unknown as { deliberateSuspend: boolean };

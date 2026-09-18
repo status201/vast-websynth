@@ -78,7 +78,7 @@ test('pasting a bank routes into the preset import review step', async ({ page }
   await expect(page.getByTestId('preset-select')).toContainText('Pasted Lead');
 });
 
-// The paste door shows no errors of its own (REQ-7/REQ-8), so a bad pasted
+// The paste door shows no errors of its own (REQ-paste-confirm-routes-by-kind/REQ-a-refused-load-leaves-the-text), so a bad pasted
 // preset is explained by the wizard's strip or nowhere at all.
 test('a malformed pasted bank lands on the wizard strip with every problem', async ({ page }) => {
   await gotoAndStart(page);
@@ -117,7 +117,7 @@ test('the AI Prompt modal embeds the same paste step', async ({ page }) => {
   await openSongTab(page);
 
   // The sparkle is an aria-hidden drawing now, so the accessible name is the
-  // words alone — which is the point (iconography.md REQ-3).
+  // words alone — which is the point (iconography.md REQ-an-icon-is-aria-hidden).
   await page.getByRole('button', { name: 'AI Prompt' }).click();
   await page.getByTestId('paste-input').fill(asReply(SONG));
   await page.getByTestId('paste-confirm').click();

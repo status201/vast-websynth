@@ -12,11 +12,11 @@ import { audioBufferToCaptured } from '../audio/recorder/audio-buffer';
  *
  * The storage backend is injected as a `ClipKv` so the reconcile logic is
  * unit-testable under jsdom, which has no IndexedDB. Every operation is a
- * silent no-op on failure (REQ-10) — the app never breaks because a clip could
+ * silent no-op on failure (REQ-every-clip-storage-failure-is-survivable) — the app never breaks because a clip could
  * not be persisted.
  */
 
-/** One slot's persisted audio: WAV file bytes. Names are NOT stored (REQ-4). */
+/** One slot's persisted audio: WAV file bytes. Names are NOT stored (REQ-clip-names-are-not-stored). */
 export interface StoredClip {
   slot: number;
   data: Uint8Array;
@@ -49,7 +49,7 @@ export class SampleAutosave {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly debounceMs: number;
   /** What is currently in storage per slot, by AudioBuffer *reference* — the
-   *  identity check that keeps an unchanged clip from being re-encoded (REQ-3). */
+   *  identity check that keeps an unchanged clip from being re-encoded (REQ-a-write-pass-reconciles-every-slot). */
   private readonly written: (AudioBuffer | null)[] = Array(SAMPLER_SLOT_COUNT).fill(null);
   private readonly bytes: number[] = Array(SAMPLER_SLOT_COUNT).fill(0);
   /** Serializes reconcile passes so a burst of edits never interleaves two. */
@@ -71,7 +71,7 @@ export class SampleAutosave {
   attach(): void {
     this.sampler.onBufferChange(() => this.touch());
     // IndexedDB cannot be flushed synchronously, so there is no `pagehide`
-    // handler (REQ-11): hidden-visibility is the one chance to land a pending
+    // handler (REQ-a-pending-clip-write-cannot-be-flushed): hidden-visibility is the one chance to land a pending
     // write. Losing that race degrades to the pre-feature `.needs-reload`.
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') void this.flush();

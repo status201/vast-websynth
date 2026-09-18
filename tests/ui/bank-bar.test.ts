@@ -56,7 +56,7 @@ describe('BankBar', () => {
     expect(banks[0]?.classList.contains('filled')).toBe(false);
   });
 
-  it('flags the root as resting so CSS recolours the play-bank dot (REQ-8)', () => {
+  it('flags the root as resting so CSS recolours the play-bank dot (REQ-four-tracks-per-bank)', () => {
     // While a lane rests, the play bank is a safe index 0 and no bank truly
     // plays; the root's `resting` class recolours A's playing dot amber, but A
     // stays selected/playing on the button itself.
@@ -125,7 +125,7 @@ describe('BankBar', () => {
     expect(calls.setEdit).toEqual([1, 3]);
   });
 
-  // sequencer.md REQ-6 — a panel drops Follow on the user's behalf so an
+  // sequencer.md REQ-a-take-is-bank-pinned — a panel drops Follow on the user's behalf so an
   // armed Step Input take can't be moved to another bank mid-recording.
   it('setFollowing pins the edit bank and notifies, like a manual bank click', () => {
     const { bar, followBtn, setPlay, calls } = harness();

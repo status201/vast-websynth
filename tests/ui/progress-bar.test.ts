@@ -7,7 +7,7 @@ import styles from '../../src/ui/styles/progress-bar.module.css';
 const fillOf = (el: HTMLElement): HTMLElement => el.firstElementChild as HTMLElement;
 
 describe('createProgressBar', () => {
-  it('is a labelled 0–100 progressbar carrying its testid (REQ-1, REQ-4)', () => {
+  it('is a labelled 0–100 progressbar carrying its testid (REQ-determinate-announces-value, REQ-progress-testid-and-label)', () => {
     const bar = createProgressBar({ testId: 'thing-progress', label: 'Thing' });
     expect(bar.el.getAttribute('role')).toBe('progressbar');
     expect(bar.el.getAttribute('aria-valuemin')).toBe('0');
@@ -16,7 +16,7 @@ describe('createProgressBar', () => {
     expect(bar.el.getAttribute('aria-label')).toBe('Thing');
   });
 
-  it('sets the width and the value from a ratio, clamped (REQ-1)', () => {
+  it('sets the width and the value from a ratio, clamped (REQ-determinate-announces-value)', () => {
     const bar = createProgressBar();
     bar.set(0.5);
     expect(fillOf(bar.el).style.width).toBe('50%');
@@ -31,7 +31,7 @@ describe('createProgressBar', () => {
     expect(bar.el.getAttribute('aria-valuenow')).toBe('0');
   });
 
-  it('drops the value while indeterminate, and set() restores it after (REQ-2)', () => {
+  it('drops the value while indeterminate, and set() restores it after (REQ-indeterminate-drops-valuenow)', () => {
     const bar = createProgressBar();
     bar.set(0.4);
     bar.setIndeterminate(true);

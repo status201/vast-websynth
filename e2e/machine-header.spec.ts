@@ -15,12 +15,12 @@ const TABLET = { width: 1024, height: 768 };
 // not a width where the wide row is guaranteed to fit: the sampler's machine
 // controls plus its collapsed fx groups leave only a sliver of slack there under
 // Windows font metrics, and none under the wider fonts on CI Linux — where the
-// row then legitimately wraps under REQ-1. Row membership is therefore asserted
+// row then legitimately wraps under REQ-machine-header-wraps-at-every-width. Row membership is therefore asserted
 // with real headroom, and the breakpoint rule itself is asserted from computed
 // style, so neither depends on how wide a font renders.
 //
 // The headroom is sized from measurement, and the *fifth* group (DUCK,
-// sidechain-ducking.md REQ-10) moved it: five collapsed groups need 1580px
+// sidechain-ducking.md REQ-ducking-adds-no-new-gesture) moved it: five collapsed groups need 1580px
 // before the row fits under Windows metrics, ~110px more than four did. CI's
 // fonts need more still — 1600px, which used to clear four groups by 20px,
 // wrapped there on all three attempts. This is deliberately far past both, since
@@ -70,7 +70,7 @@ test.describe('responsive machine header', () => {
     await page.getByTestId('tab-sampler').click();
     await engageAllFx(page);
 
-    // REQ-3: below the wrap step the cluster claims a full-width row of its own.
+    // REQ-below-1140-the-cluster-takes-its-own-row: below the wrap step the cluster claims a full-width row of its own.
     // The mirror of the DESKTOP assertion below — together they pin the media
     // query from both sides.
     const cluster = page.getByTestId(fxId('dist')).locator('xpath=..');
@@ -90,10 +90,10 @@ test.describe('responsive machine header', () => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
 
-    // REQ-4: above the wrap step the cluster is a plain content-sized run in DOM
-    // order — REQ-3's `flex-basis: 100%` must not reach here, and it is never
+    // REQ-above-1140-the-cluster-is-content-sized: above the wrap step the cluster is a plain content-sized run in DOM
+    // order — REQ-below-1140-the-cluster-takes-its-own-row's `flex-basis: 100%` must not reach here, and it is never
     // right-aligned. Read from computed style, so a font that renders wider (and
-    // legitimately wraps the row under REQ-1) cannot turn this into a failure.
+    // legitimately wraps the row under REQ-machine-header-wraps-at-every-width) cannot turn this into a failure.
     const cluster = page.getByTestId(fxId('dist')).locator('xpath=..');
     expect(await cluster.evaluate((el) => getComputedStyle(el).flexBasis)).toBe('auto');
     expect(await cluster.evaluate((el) => getComputedStyle(el).marginLeft)).not.toBe('auto');
@@ -114,7 +114,7 @@ test.describe('responsive machine header', () => {
     await gotoAndStart(page);
     await page.getByTestId('tab-sampler').click();
 
-    // fx-group REQ-5: help must stay reachable for a bypassed effect, and
+    // fx-group REQ-help-badge-anchors-to-group-root: help must stay reachable for a bypassed effect, and
     // InfoBadges hides badges on zero-size anchors — so the root keeps a box
     // even though its knobs are hidden and the header has wrapped.
     const reverb = page.getByTestId(fxId('reverb'));

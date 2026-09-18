@@ -3,7 +3,7 @@
 ```yaml
 id: ladder-filter
 status: implemented
-version: 7   # v7: this is filter model 0 of N (REQ-13)
+version: 7   # v7: this is filter model 0 of N (REQ-ladder-is-filter-model-zero)
 owner: core
 related:
   - architecture
@@ -55,94 +55,100 @@ frequencies. The on-screen value is still shown in Hz for the user.
 
 ## Requirements
 
-- **REQ-1** — Four filter params: `cutoff` (note units), `resonance`, `drive`,
-  `envAmount` (bipolar semitone depth).
-- **REQ-2** — `cutoff` range `[30, 130]` note, default `90`; displayed in Hz but
-  stored as a note number.
-- **REQ-3** — Changing any filter param updates **every voice in the pool** live
-  — `VOICE_COUNT` (8), or 5 on the `weak` performance tier.
-- **REQ-4** — Modulation (filter envelope, LFO) is **additive in semitone space**;
-  cutoff must not be re-expressed in Hz anywhere in the audio path.
-- **REQ-5** — `LadderFilterNode.loadModule()` is awaited (in `Engine.init()`)
-  before any voice is created.
-- **REQ-6** — The input and every pole are saturated with a bounded rational
-  nonlinearity. Output stays **finite and bounded** for any input at any
-  resonance (no NaN / runaway) — the feedback path reads saturated states.
-- **REQ-7** — At max resonance the filter self-oscillates **gently and
-  self-limits** (no explosion). Because `sat'(0) === 1`, low-level / low-resonance
-  tone matches the pre-v2 linear ladder.
-- **REQ-8** — The `resonance` knob uses a **`power` taper** (`curve < 1`) for
-  finer resolution near self-oscillation. The taper is a UI knob mapping only;
-  the stored value and its `[0, 4.2]` range are unchanged, so presets are
-  unaffected.
-- **REQ-9** — The worklet node is **mono** (`channelCount: 1`,
-  `outputChannelCount: [1]`, v3). The voice path is mono end-to-end (mono
-  oscillators/noise → gains → filter → gains); stereo first materialises
-  downstream (drum panners, stereo reverb IRs) by up-mix. Forcing the node
-  stereo (pre-v3) merely computed identical samples twice — per ADR-010
-  (*cheap*), the duplicate channel is dropped. Output is bit-identical after
-  the downstream mono→stereo up-mix.
-- **REQ-10** — **Idle gating** (v4): an *active flag* posted over the worklet
-  port gates the per-sample DSP. While inactive the processor zeroes its state
-  once, outputs silence, and skips all per-sample work (the pow/exp/sat loop).
-  The voice's oscillators feed the filter forever and the amp VCA sits
-  *downstream*, so input-silence detection can never fire — the flag is the
-  only workable gate. Safety asymmetry: `noteOn` posts `true`
-  **unconditionally on every call**, so a lost `false` can only waste CPU,
-  never silence a note. The worklet **defaults to active** for the same
-  reason. Any activation step is inaudible by construction: the downstream
-  ampVCA is already closed whenever the flag flips (masking invariant).
-- **REQ-11** — **Block-constant coefficient hoist** (v5): the cutoff→Hz→pole
-  coefficient `g` costs a `Math.pow` + `Math.exp` per sample. When every
-  `cutoffNote` sample in a render quantum is equal, `g` is computed **once per
-  block** (and cached across blocks — recomputed only when the block's constant
-  cutoff value changes), reusing it for both the loop and channels; a block
-  whose samples differ still gets a **per-sample** (a-rate) coefficient. Output
-  is **bit-identical** to the per-sample path in both cases (same expression,
-  same order). This matters because the old `cutoffArr.length === 1` fast path
-  is *dead code*: the filter envelope (`voice.ts`) and the global LFO
-  (`engine.ts`) are permanently connected to the `cutoffNote` `AudioParam`, so
-  the host always delivers a full 128-length array — usually all-equal (a held
-  or unmodulated cutoff), the common case this hoist now covers. Detecting
-  constancy is a full scan with early exit (`~1` compare when modulated), run
-  **after** the REQ-10 idle early-out so a silent voice still does no work. This
-  is the "cheap" half of *musical, stable, cheap*
+- **REQ-four-filter-params** — Four filter params: `cutoff` (note units),
+  `resonance`, `drive`, `envAmount` (bipolar semitone depth).
+- **REQ-cutoff-is-note-units** — `cutoff` range `[30, 130]` note, default `90`;
+  displayed in Hz but stored as a note number.
+- **REQ-filter-changes-reach-every-voice** — Changing any filter param updates
+  **every voice in the pool** live — `VOICE_COUNT` (8), or 5 on the `weak`
+  performance tier.
+- **REQ-filter-modulation-is-additive-semitones** — Modulation (filter envelope,
+  LFO) is **additive in semitone space**; cutoff must not be re-expressed in Hz
+  anywhere in the audio path.
+- **REQ-the-filter-worklet-module-is-awaited** — `LadderFilterNode.loadModule()`
+  is awaited (in `Engine.init()`) before any voice is created.
+- **REQ-input-and-poles-are-saturated** — The input and every pole are saturated
+  with a bounded rational nonlinearity. Output stays **finite and bounded** for
+  any input at any resonance (no NaN / runaway) — the feedback path reads
+  saturated states.
+- **REQ-self-oscillation-stays-gentle** — At max resonance the filter
+  self-oscillates **gently and self-limits** (no explosion). Because `sat'(0)
+  === 1`, low-level / low-resonance tone matches the pre-v2 linear ladder.
+- **REQ-resonance-uses-a-power-taper** — The `resonance` knob uses a **`power`
+  taper** (`curve < 1`) for finer resolution near self-oscillation. The taper is
+  a UI knob mapping only; the stored value and its `[0, 4.2]` range are
+  unchanged, so presets are unaffected.
+- **REQ-the-filter-worklet-is-mono** — The worklet node is **mono**
+  (`channelCount: 1`, `outputChannelCount: [1]`, v3). The voice path is mono
+  end-to-end (mono oscillators/noise → gains → filter → gains); stereo first
+  materialises downstream (drum panners, stereo reverb IRs) by up-mix. Forcing
+  the node stereo (pre-v3) merely computed identical samples twice — per ADR-010
+  (*cheap*), the duplicate channel is dropped. Output is bit-identical after the
+  downstream mono→stereo up-mix.
+- **REQ-the-filter-idles-when-gated** — **Idle gating** (v4): an *active flag*
+  posted over the worklet port gates the per-sample DSP. While inactive the
+  processor zeroes its state once, outputs silence, and skips all per-sample
+  work (the pow/exp/sat loop). The voice's oscillators feed the filter forever
+  and the amp VCA sits *downstream*, so input-silence detection can never fire —
+  the flag is the only workable gate. Safety asymmetry: `noteOn` posts `true`
+  **unconditionally on every call**, so a lost `false` can only waste CPU, never
+  silence a note. The worklet **defaults to active** for the same reason. Any
+  activation step is inaudible by construction: the downstream ampVCA is already
+  closed whenever the flag flips (masking invariant).
+- **REQ-filter-coefficients-hoist-per-block** — **Block-constant coefficient
+  hoist** (v5): the cutoff→Hz→pole coefficient `g` costs a `Math.pow` +
+  `Math.exp` per sample. When every `cutoffNote` sample in a render quantum is
+  equal, `g` is computed **once per block** (and cached across blocks —
+  recomputed only when the block's constant cutoff value changes), reusing it
+  for both the loop and channels; a block whose samples differ still gets a
+  **per-sample** (a-rate) coefficient. Output is **bit-identical** to the
+  per-sample path in both cases (same expression, same order). This matters
+  because the old `cutoffArr.length === 1` fast path is *dead code*: the filter
+  envelope (`voice.ts`) and the global LFO (`engine.ts`) are permanently
+  connected to the `cutoffNote` `AudioParam`, so the host always delivers a full
+  128-length array — usually all-equal (a held or unmodulated cutoff), the
+  common case this hoist now covers. Detecting constancy is a full scan with
+  early exit (`~1` compare when modulated), run **after** the
+  REQ-the-filter-idles-when-gated idle early-out so a silent voice still does no
+  work. This is the "cheap" half of *musical, stable, cheap*
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)) — the single
   biggest per-sample saving for the common held-cutoff case, with no audible
   change.
-- **REQ-12** — **Per-sample `sat()` carry** (v6): the naive recurrence calls
-  `sat()` **ten times per sample**, but five of those recompute a
-  value the previous statement — or the previous *sample* — already produced.
-  Each of stages 0–2 saturates its own state twice (once as the feedback term
-  inside its update, once again as the next stage's input `v`), and the
-  half-sample feedback tap's `sat(s4)` is just last sample's `sat(s3)`, since
-  `s4` only ever held the previous `s3`. The processor therefore **carries**
-  `sat(s0)`, `sat(s1)`, `sat(s2)` and the previous `sat(s3)` in per-channel
-  state (a `Float64Array(8)`: four pole states + four carried saturations),
-  computing `sat(s3)` once per sample and using it for both the feedback tap and
-  stage 4's own update — **5 calls instead of 10**, each `sat()` being a divide
-  plus an `abs`. The `s4` slot is gone; the carry replaces it exactly.
-  Output is **bit-identical** (same operands, same order), which is the
-  requirement, not a nicety: this is the only always-on per-sample cost that
-  scales with polyphony (up to 8 voices, one channel each — REQ-9), so it is tempting
-  to keep shaving — and the spec's promise that low-level/low-resonance response matches
-  the linear ladder, hence that existing presets are preserved, depends on the
-  recurrence not drifting. `sat(0) === 0`, so REQ-10's zero-the-state on
-  deactivate leaves the carries self-consistent with no extra handling. Pinned
-  against a frozen naive reference under drive + resonance, where every `sat()`
-  call actually affects the result (see
-  [`runtime-performance.md`](runtime-performance.md) REQ-8).
-- **REQ-13** — **This is filter model `0` of N** (v7). The worklet also hosts the
-  POLY model, selected by a k-rate `model` `AudioParam`
-  ([filter-models.md](filter-models.md),
+- **REQ-the-sat-carry-is-per-sample** — **Per-sample `sat()` carry** (v6): the
+  naive recurrence calls `sat()` **ten times per sample**, but five of those
+  recompute a value the previous statement — or the previous *sample* — already
+  produced. Each of stages 0–2 saturates its own state twice (once as the
+  feedback term inside its update, once again as the next stage's input `v`),
+  and the half-sample feedback tap's `sat(s4)` is just last sample's `sat(s3)`,
+  since `s4` only ever held the previous `s3`. The processor therefore
+  **carries** `sat(s0)`, `sat(s1)`, `sat(s2)` and the previous `sat(s3)` in
+  per-channel state (a `Float64Array(8)`: four pole states + four carried
+  saturations), computing `sat(s3)` once per sample and using it for both the
+  feedback tap and stage 4's own update — **5 calls instead of 10**, each
+  `sat()` being a divide plus an `abs`. The `s4` slot is gone; the carry
+  replaces it exactly. Output is **bit-identical** (same operands, same order),
+  which is the requirement, not a nicety: this is the only always-on per-sample
+  cost that scales with polyphony (up to 8 voices, one channel each —
+  REQ-the-filter-worklet-is-mono), so it is tempting to keep shaving — and the
+  spec's promise that low-level/low-resonance response matches the linear
+  ladder, hence that existing presets are preserved, depends on the recurrence
+  not drifting. `sat(0) === 0`, so REQ-the-filter-idles-when-gated's
+  zero-the-state on deactivate leaves the carries self-consistent with no extra
+  handling. Pinned against a frozen naive reference under drive + resonance,
+  where every `sat()` call actually affects the result (see
+  [`runtime-performance.md`](runtime-performance.md)
+  REQ-a-worklet-optimisation-is-bit-exact).
+- **REQ-ladder-is-filter-model-zero** — **This is filter model `0` of N** (v7).
+  The worklet also hosts the POLY model, selected by a k-rate `model`
+  `AudioParam` ([filter-models.md](filter-models.md),
   [ADR-016](../decisions/adr-016-one-filter-worklet-model-per-block.md)). The
   model branch sits **outside** the sample loop, so everything above — the
   recurrence, the make-up gain, REQ-10/11/12 — is unchanged and the ladder's
   output remains **bit-identical** to the frozen naive reference. `filter.shape`
-  belongs to POLY and is ignored here (filter-models REQ-7). Two params are
-  shared: `filter.keytrack` offsets this model's cutoff exactly as it does
-  POLY's ([key-tracking.md](key-tracking.md)), and the `setActive` port flag
-  (REQ-10) gates both models from one place.
+  belongs to POLY and is ignored here (filter-models REQ-shape-is-poly-only).
+  Two params are shared: `filter.keytrack` offsets this model's cutoff exactly
+  as it does POLY's ([key-tracking.md](key-tracking.md)), and the `setActive`
+  port flag (REQ-the-filter-idles-when-gated) gates both models from one place.
 
 ## Technical design
 
@@ -155,11 +161,11 @@ standard bus surface (`bus.set`/`get`/`subscribe`). The worklet wrapper:
 LadderFilterNode:  # src/audio/ladder-filter/node.ts
   static loadModule(ctx): Promise<void>   # await once per context, before voices
   cutoffNote: AudioParam                  # note units; env + LFO sum in here
-  setActive(on: boolean)                  # REQ-10 — port.postMessage(boolean)
+  setActive(on: boolean)                  # REQ-the-filter-idles-when-gated — port.postMessage(boolean)
   # (+ resonance / drive params per the node's surface)
 Voice setters (per-voice, called by the engine):
   setFilterCutoff(note) / setFilterResonance(r) / setFilterDrive(d) / setFilterEnvAmount(semis)
-Voice lifecycle -> filter activity (REQ-10):
+Voice lifecycle -> filter activity (REQ-the-filter-idles-when-gated):
   construction     -> setActive(false)   # pool voices boot idle
   noteOn()         -> setActive(true)    # unconditionally, every call
   release complete -> setActive(false)   # the noteOff releaseTimer firing
@@ -264,7 +270,7 @@ Scenario: Idle gating skips the DSP and restarts clean (perf)
   Then the filter behaves like a freshly constructed one (bounded, filtering)
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
-Scenario: A block-constant cutoff hoist is bit-identical to per-sample (REQ-11, perf)
+Scenario: A block-constant cutoff hoist is bit-identical to per-sample (REQ-filter-coefficients-hoist-per-block, perf)
   Given the same input and cutoff value
   When one processor receives a full 128-length all-equal cutoffNote array
   And another receives a length-1 cutoffNote array
@@ -272,19 +278,19 @@ Scenario: A block-constant cutoff hoist is bit-identical to per-sample (REQ-11, 
   And changing the constant cutoff across later blocks stays equal (cache invalidates)
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
-Scenario: The sat() carry is bit-identical to the naive recurrence (REQ-12, perf)
+Scenario: The sat() carry is bit-identical to the naive recurrence (REQ-the-sat-carry-is-per-sample, perf)
   Given full-scale noise, a driven input and resonance high enough that every sat() matters
   When the block is processed
   Then every output sample equals a frozen reference that recomputes sat() everywhere
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
-Scenario: A deactivate clears the carried saturations too (REQ-12, edge)
+Scenario: A deactivate clears the carried saturations too (REQ-the-sat-carry-is-per-sample, edge)
   Given a processor with non-zero stage state and carries
   When it is deactivated and then reactivated
   Then its output matches a fresh processor on the same input, sample-for-sample
 # pinned by: tests/audio/ladder-filter-worklet.test.ts
 
-Scenario: A varying cutoff block stays per-sample accurate (REQ-11, edge)
+Scenario: A varying cutoff block stays per-sample accurate (REQ-filter-coefficients-hoist-per-block, edge)
   Given a cutoffNote array that steps low→high partway through a block
   When the block is processed
   Then the coefficient tracks the value per sample (the hoist does not fire)
@@ -297,7 +303,7 @@ Scenario: A lost deactivate can only cost CPU, never a note (safety edge)
   Then setActive(true) is posted unconditionally and the note sounds
 # pinned by: tests/audio/voice.test.ts
 
-Scenario: Adding a second model left this one bit-identical (REQ-13, regression)
+Scenario: Adding a second model left this one bit-identical (REQ-ladder-is-filter-model-zero, regression)
   Given the model param sits at its default 0
   When a driven, resonant block is processed
   Then every output sample equals the frozen naive ladder reference
@@ -319,7 +325,7 @@ Scenario: Resonance knob has a power taper (non-linear mapping)
 - Unit (DSP): `tests/audio/ladder-filter-worklet.test.ts` — stubs the
   AudioWorklet globals and imports the real worklet (pattern:
   `tests/audio/compressor-worklet.test.ts`): boundedness at max resonance,
-  bounded self-oscillation, low-res ≈ linear reference, idle gating (REQ-10).
+  bounded self-oscillation, low-res ≈ linear reference, idle gating (REQ-the-filter-idles-when-gated).
 - Unit (lifecycle): `tests/audio/voice.test.ts` — Voice posts the active flag
   on construction/noteOn/release-complete/kill (mock AudioContext + mock
   worklet port).

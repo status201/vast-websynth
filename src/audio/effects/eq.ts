@@ -7,7 +7,7 @@ import type { ParamBus } from '../../state/params';
 
 /**
  * How long the ten-filter span must be fed silence before it holds none of the
- * old audio (`effects.md` REQ-2c, equalizer.md REQ-7).
+ * old audio (`effects.md` REQ-a-bypassed-effect-drains-before-disconnect, equalizer.md REQ-the-eq-declares-a-longer-drain).
  *
  * `add-an-effect.md`: a biquad is only memoryless at *low* Q — its ring-down is
  * roughly `Q / (pi * f0)`. The worst case here is the 150 Hz band at the widest
@@ -28,7 +28,7 @@ const EQ_DRAIN_S = 0.12;
  *
  * It declares **no `setMix`**. That absence is the declaration that the EQ has no
  * `.mix` param, exactly as it is for the wah and the compressors — `bindBypassMix`
- * keys off it (`effects.md` REQ-1). A dry/wet on an EQ would be a comb filter
+ * keys off it (`effects.md` REQ-every-effect-implements-the-interface). A dry/wet on an EQ would be a comb filter
  * with extra steps.
  */
 export class Equalizer extends WrappedEffect {
@@ -41,7 +41,7 @@ export class Equalizer extends WrappedEffect {
 
     // Highpass and lowpass bracket the bands. Their `frequency` is a fixed
     // REFERENCE, written here and never again: the knobs ride `detune` in cents
-    // (equalizer.md REQ-3 — the rule performance.md REQ-10 and effects.md REQ-11
+    // (equalizer.md REQ-a-real-highpass-and-lowpass — the rule performance.md REQ-the-dj-sweep-rides-detune and effects.md REQ-the-wah-lfo-sweeps-in-cents
     // already impose on djLow/djHigh and the wah). `Q` is in dB for these two
     // types, which is why the constant says so in its name.
     this.hp = ctx.createBiquadFilter();
@@ -59,7 +59,7 @@ export class Equalizer extends WrappedEffect {
     for (const band of EQ_BANDS) {
       const f = ctx.createBiquadFilter();
       f.type = band.type;
-      // Band centres are fixed (equalizer.md REQ-2), so unlike the two filters
+      // Band centres are fixed (equalizer.md REQ-eight-fixed-eq-bands), so unlike the two filters
       // above these are written once because they genuinely never move — there
       // is no `detune` question to answer.
       f.frequency.value = band.hz;
@@ -78,7 +78,7 @@ export class Equalizer extends WrappedEffect {
   }
 
   /**
-   * The shared peaking Q (equalizer.md REQ-4). Web Audio's shelving filters
+   * The shared peaking Q (equalizer.md REQ-one-q-knob-over-the-bands). Web Audio's shelving filters
    * ignore `Q` — they use a fixed slope `S = 1` — so writing it on them would be
    * a no-op that merely looked like a control. Only the peaks are touched, and
    * the graph draws them the same way.

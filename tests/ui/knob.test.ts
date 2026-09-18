@@ -39,7 +39,7 @@ describe('Knob double-tap reset', () => {
   });
 });
 
-// The BPM knob dims + refuses input while slaved (midi-clock-sync REQ-14):
+// The BPM knob dims + refuses input while slaved (midi-clock-sync REQ-the-bpm-knob-shows-slaved):
 // setDisabled(true) blocks both a drag and the double-tap reset, and marks the
 // control (opacity + aria-disabled); the bus value still repaints the dial.
 describe('Knob setDisabled (slaved BPM knob)', () => {
@@ -77,7 +77,7 @@ describe('Knob setDisabled (slaved BPM knob)', () => {
 
 // The drum tuning strip destroys + recreates Knobs on track change, so a Knob
 // that leaks window listeners accumulates dead handlers over a session — the
-// degrade-over-time crackle (drum-machine.md REQ-10). Drag listeners must be
+// degrade-over-time crackle (drum-machine.md REQ-the-strip-rebuilds-only-on-selection). Drag listeners must be
 // attached on pointerdown and removed on pointerup / destroy().
 describe('Knob drag-listener lifecycle', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -135,7 +135,7 @@ describe('Knob drag-listener lifecycle', () => {
 });
 
 /**
- * Repaint guards (runtime-performance.md REQ-7). A knob is not only dragged: the
+ * Repaint guards (runtime-performance.md REQ-dom-writes-are-guarded-on-what-is-rendered). A knob is not only dragged: the
  * motion sequencer automates up to four params at frame rate, so `render` runs
  * ~60x/s per driven knob and most of those frames paint the same pixels.
  */
@@ -192,7 +192,7 @@ describe('Knob repaint guards', () => {
 
 /**
  * Soft ceiling (knob-soft-ceiling.md). `lfo.rate` is registered 0.05..20 Hz but
- * the PWM path clamps it to 10 (oscillators.md REQ-9), so the top half of the
+ * the PWM path clamps it to 10 (oscillators.md REQ-pwm-rate-is-clamped), so the top half of the
  * travel is dead while `dest === pulse`. The ceiling stops the arc there and
  * changes nothing else — these tests pin "nothing else" as hard as they pin the
  * arc, because a ceiling that quietly clamped the value would invalidate presets.
@@ -203,7 +203,7 @@ describe('Knob soft ceiling', () => {
   // Same geometry as the component: r=26, a 280° sweep.
   const DASH_ON = (2 * Math.PI * 26 * 280) / 360;
   // Where a 10 Hz ceiling lands on lfo.rate, derived from the param's own taper
-  // (exp over 0.05..20, lfo.md REQ-8) rather than hardcoded — the point of the
+  // (exp over 0.05..20, lfo.md REQ-lfo-rate-is-exponentially-tapered) rather than hardcoded — the point of the
   // assertion is "the ceiling tracks the taper", not one arithmetic result.
   const RATE_CEIL = Math.log(10 / 0.05) / Math.log(20 / 0.05); // ≈ 0.884
   // By class, not nth-of-type: the dead-region marker (v2) inserts a third
@@ -268,7 +268,7 @@ describe('Knob soft ceiling', () => {
     expect(deadOf(knob)).toBeNull(); // the marker goes with it
   });
 
-  // v2, REQ-5. The dead band is ~32° once lfo.rate is exponentially tapered, and
+  // v2, REQ-phase-correction-uses-nudge. The dead band is ~32° once lfo.rate is exponentially tapered, and
   // at that size bare track reads as nothing at all — so it gets a positive mark.
   it('marks the dead region with an arc spanning ceiling to end of sweep', () => {
     const b = bus();
@@ -300,7 +300,7 @@ describe('Knob soft ceiling', () => {
     expect(knob.el.dataset.uimax).toBeUndefined();
   });
 
-  it('costs nothing to automate above the ceiling (REQ-7)', () => {
+  it('costs nothing to automate above the ceiling (REQ-the-sync-core-is-transport-agnostic)', () => {
     const b = bus();
     const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
     b.set('lfo.rate', 15);
@@ -313,7 +313,7 @@ describe('Knob soft ceiling', () => {
     expect(setAttr).not.toHaveBeenCalled();
   });
 
-  it('still lets a drag reach the true top of the range (REQ-2)', () => {
+  it('still lets a drag reach the true top of the range (REQ-master-broadcasts-start-and-stop)', () => {
     vi.spyOn(performance, 'now').mockReturnValue(10_000); // skip the double-tap branch
     const b = bus();
     const knob = new Knob({ bus: b, paramId: 'lfo.rate', uiMax: 10 });
@@ -330,7 +330,7 @@ describe('Knob soft ceiling', () => {
 });
 
 /**
- * The modulation range arc (specs/features/mod-matrix.md REQ-8): how far routes can
+ * The modulation range arc (specs/features/mod-matrix.md REQ-depth-is-in-the-destinations-unit): how far routes can
  * move this knob, drawn from the route params alone — no audio-thread readback.
  */
 describe('Knob modulation range arc', () => {
@@ -411,7 +411,7 @@ describe('Knob modulation range arc', () => {
   });
 });
 
-/** REQ-11's live tick — only for sources the main thread already knows. */
+/** REQ-the-master-keeps-an-idle-clock's live tick — only for sources the main thread already knows. */
 describe('Knob modulation position marker', () => {
   const marker = (k: Knob): SVGCircleElement | null =>
     k.el.querySelector('.' + styles.modMarker!);
@@ -462,7 +462,7 @@ describe('Knob modulation position marker', () => {
 });
 
 /**
- * Sign colouring (mod-matrix.md REQ-13). Green is up, yellow is down — the direction
+ * Sign colouring (mod-matrix.md REQ-the-bands-direction-has-a-colour). Green is up, yellow is down — the direction
  * a control pushes, not how much of it.
  */
 describe('Knob modulation direction colouring', () => {

@@ -45,13 +45,13 @@ export function scopeRegions(channels: ScopeChannels, w: number, h: number): Sco
   ];
 }
 
-/** dB shown at the very top of a spectrum region — i.e. "clip" (REQ-11). */
+/** dB shown at the very top of a spectrum region — i.e. "clip" (REQ-zero-db-is-the-top-of-the-graph). */
 export const SPECTRUM_DB_TOP = 0;
 
 /**
  * dB span from the top of a region to its bottom. 70 matches the AnalyserNode's
  * default `getByteFrequencyData` range (−100…−30 dB), so the displayed scale is a
- * pure +30 re-label of the existing bars — bar heights are untouched (REQ-11).
+ * pure +30 re-label of the existing bars — bar heights are untouched (REQ-zero-db-is-the-top-of-the-graph).
  */
 export const SPECTRUM_DB_RANGE = 70;
 
@@ -64,7 +64,7 @@ export const PEAK_HOLD_SEC = 1.5;
 /**
  * Map an analyser frequency byte (0..255) onto the displayed dB scale: 0 dB at the
  * top of the graph (byte 255) down to −SPECTRUM_DB_RANGE at the bottom (byte 0).
- * Pure (canvas-free) so it is unit-testable. (REQ-11)
+ * Pure (canvas-free) so it is unit-testable. (REQ-zero-db-is-the-top-of-the-graph)
  */
 export function byteToDisplayDb(byte: number): number {
   return SPECTRUM_DB_TOP - SPECTRUM_DB_RANGE * (1 - byte / 255);
@@ -94,7 +94,7 @@ export interface PeakState {
 }
 
 /**
- * Peak-hold update (REQ-12): a louder bar pushes the held dB up instantly and
+ * Peak-hold update (REQ-a-taller-bar-pins-the-peak): a louder bar pushes the held dB up instantly and
  * re-arms a `PEAK_HOLD_SEC` plateau during which the line stays pinned (so the max
  * is readable); once the plateau elapses it falls slowly via `decayPeak`. A
  * `-Infinity` start (just reset) snaps straight to `currentMaxDb`.
@@ -107,7 +107,7 @@ export function updatePeak(state: PeakState, currentMaxDb: number, dtSec: number
 }
 
 /**
- * Wave auto-gain (REQ-17). The fixed 1:1 scale only looked like an oscilloscope for
+ * Wave auto-gain (REQ-the-wave-view-auto-gains). The fixed 1:1 scale only looked like an oscilloscope for
  * material running into clip — a −25 dBFS song drew a flat line ~6% tall. These six
  * constants are the whole knob set; `WAVE_NORM_STRENGTH` is the one that matters.
  */
@@ -135,7 +135,7 @@ export const WAVE_GAIN_FALL_TAU = 0.05;
 export const WAVE_GAIN_RISE_TAU = 0.6;
 
 /**
- * The clamped target gain for a frame peak (REQ-17). Pure (canvas-free), so it is
+ * The clamped target gain for a frame peak (REQ-the-wave-view-auto-gains). Pure (canvas-free), so it is
  * unit-testable. Three bounds keep it honest: the floor of 1 never *shrinks* a
  * clipping signal, `WAVE_MAX_GAIN` caps the boost, and the silence gate (written as
  * `!(peak > …)` so a NaN peak lands here too) keeps quiet passages flat.
@@ -150,7 +150,7 @@ export function waveGainTarget(peak: number): number {
  * One-pole move toward `waveGainTarget(peak)`, frame-rate independent via `dtSec`
  * and deliberately **asymmetric**: fast down (a transient can't fly off-screen),
  * slow up (no pumping). `dtSec <= 0` — the first frame after the tab-hidden pause,
- * where `lastTs` was reset — leaves the gain alone. (REQ-17)
+ * where `lastTs` was reset — leaves the gain alone. (REQ-the-wave-view-auto-gains)
  */
 export function updateWaveGain(gain: number, peak: number, dtSec: number): number {
   if (dtSec <= 0) return gain;
@@ -160,7 +160,7 @@ export function updateWaveGain(gain: number, peak: number, dtSec: number): numbe
 }
 
 /**
- * The Spectrum's **logarithmic** frequency axis (v13, REQ-26..29). The view used
+ * The Spectrum's **logarithmic** frequency axis (v13, REQ-the-frequency-axis-is-logarithmic..29). The view used
  * to map bin index linearly across the panel, which put 100/500/1k in the leftmost
  * 7% and made the whole "mud" band about five pixels wide — you could see a bump
  * but never say what note it was. A log axis gives every octave the same width, so
@@ -179,14 +179,14 @@ const LABEL_FONT = '10px ui-monospace, monospace';
 /** One step down, for the zone names — they are annotation, not readout. */
 const ZONE_FONT = '9px ui-monospace, monospace';
 
-/** Px per drawn column. The bar loop steps in pixels now, not in bins (REQ-27). */
+/** Px per drawn column. The bar loop steps in pixels now, not in bins (REQ-bars-are-drawn-per-pixel-column). */
 export const SPECTRUM_COL_W = 3;
 
 /**
  * Px per character at the component's 10px monospace — the width *estimate* that
  * decides tick collisions. Deliberately not `ctx.measureText`: the lifecycle suite
  * drives a proxy 2D context whose methods all return `undefined`, so reading
- * `.width` off one throws there. (REQ-28)
+ * `.width` off one throws there. (REQ-the-scale-is-a-permanent-ruler)
  */
 export const TICK_CHAR_W = 6;
 
@@ -199,10 +199,10 @@ export const ZONE_NAME_MIN_W = 300;
 /** Px below a region's top edge where zone names sit — clear of the corner buttons. */
 export const ZONE_NAME_TOP = 22;
 
-/** The labelled frequencies on the bottom ruler (REQ-28). */
+/** The labelled frequencies on the bottom ruler (REQ-the-scale-is-a-permanent-ruler). */
 export const SPECTRUM_TICKS_HZ: readonly number[] = [100, 500, 1000, 5000, 10000];
 
-/** A named problem band — what the Zones overlay shades (REQ-29). */
+/** A named problem band — what the Zones overlay shades (REQ-a-zones-toggle). */
 export interface SpectrumZone {
   from: number;
   to: number;
@@ -220,7 +220,7 @@ export const SPECTRUM_ZONES: readonly SpectrumZone[] = [
 /**
  * Log position of a frequency as a 0..1 fraction of the plot width, clamped. The
  * **single** definition of where a frequency lives — bars, ticks, zones and the
- * hover cursor all read from it, so none of them can drift apart. (REQ-26)
+ * hover cursor all read from it, so none of them can drift apart. (REQ-the-frequency-axis-is-logarithmic)
  */
 export function freqToFrac(hz: number, fMax: number = SPECTRUM_F_MAX): number {
   const frac = Math.log(hz / SPECTRUM_F_MIN) / Math.log(fMax / SPECTRUM_F_MIN);
@@ -240,13 +240,13 @@ function toKilo(hz: number): number {
   return k >= 10 ? Math.round(k) : Math.round(k * 10) / 10;
 }
 
-/** Compact ruler label: `100`, `500`, `1k`, `5k`, `10k`. (REQ-28) */
+/** Compact ruler label: `100`, `500`, `1k`, `5k`, `10k`. (REQ-the-scale-is-a-permanent-ruler) */
 export function formatHz(hz: number): string {
   if (!Number.isFinite(hz) || hz < 0) return '';
   return hz < 1000 ? `${Math.round(hz)}` : `${toKilo(hz)}k`;
 }
 
-/** Spoken form for the hover cursor: `437 Hz`, `1.2 kHz`. (REQ-31) */
+/** Spoken form for the hover cursor: `437 Hz`, `1.2 kHz`. (REQ-hovering-reads-out-a-frequency) */
 export function formatHzFull(hz: number): string {
   if (!Number.isFinite(hz) || hz < 0) return '';
   return hz < 1000 ? `${Math.round(hz)} Hz` : `${toKilo(hz)} kHz`;
@@ -263,11 +263,11 @@ export interface SpectrumTick {
 }
 
 /**
- * The ruler for a given plot width, with crowded entries pruned (REQ-28). Ticks
+ * The ruler for a given plot width, with crowded entries pruned (REQ-the-scale-is-a-permanent-ruler). Ticks
  * are accepted in order of **distance from the middle of the set**, so on a panel
  * too narrow for all five the ends of the scale — the ones that establish the
  * range — are the last to go. Pure and canvas-free; `Scope` caches the result per
- * width, because this allocates and the redraw loop must not (REQ-16).
+ * width, because this allocates and the redraw loop must not (REQ-no-per-frame-layout-read).
  */
 export function visibleTicks(regionW: number, fMax: number = SPECTRUM_F_MAX): SpectrumTick[] {
   const all: SpectrumTick[] = SPECTRUM_TICKS_HZ.map((hz) => {
@@ -299,7 +299,7 @@ export function visibleTicks(regionW: number, fMax: number = SPECTRUM_F_MAX): Sp
  * Fractional bin index at each column's left edge (length `cols + 1`, monotonic).
  * This is the whole of the log mapping the bar loop needs: a column whose span
  * covers a whole bin takes the max over those bins, one narrower than a bin
- * interpolates between its neighbours. (REQ-27)
+ * interpolates between its neighbours. (REQ-bars-are-drawn-per-pixel-column)
  *
  * Pure, but allocating — `Scope` caches it per `(cols, fftSize, sampleRate)` and
  * drops the cache exactly where it drops the gradient cache.
@@ -337,7 +337,7 @@ export interface ScopeOptions {
    * timestamp accumulator, so it stays correct on high-refresh displays;
    * `fps >= 60` means "draw every frame". Lower fps cuts main-thread work that
    * contends with the audio callback on weaker devices. Default 60.
-   * (perf-mode REQ-6)
+   * (perf-mode REQ-scope-renderers-are-rect-scoped)
    */
   fps?: number;
 }
@@ -346,7 +346,7 @@ export interface ScopeOptions {
 const DEFAULT_FPS = 60;
 
 /**
- * Liveness (v16, REQ-32..38). v12 made `start()` restartable; it did not make
+ * Liveness (v16, REQ-the-scope-proves-it-is-painting..38). v12 made `start()` restartable; it did not make
  * anything *call* it. Every trigger was an event, and each one bought exactly one
  * `requestAnimationFrame` — so a renderer that dropped that single callback ended the
  * panel for the life of the page. These four numbers are the whole supervision.
@@ -355,7 +355,7 @@ const DEFAULT_FPS = 60;
 /** How often the watchdog looks. Low-frequency, and it returns at once while hidden. */
 export const SCOPE_WATCHDOG_MS = 1000;
 
-/** No rAF callback for this long (visible) means the frame chain is dead. (REQ-33) */
+/** No rAF callback for this long (visible) means the frame chain is dead. (REQ-a-watchdog-restarts-a-stalled-loop) */
 export const SCOPE_STALL_MS = 1200;
 
 /**
@@ -364,7 +364,7 @@ export const SCOPE_STALL_MS = 1200;
  */
 export const SCOPE_PAINT_STALL_MS = 1500;
 
-/** A `contextrestored` that has not arrived by now is not going to. (REQ-34) */
+/** A `contextrestored` that has not arrived by now is not going to. (REQ-waiting-for-contextrestored-is-bounded) */
 export const CONTEXT_RESTORE_MS = 3000;
 
 /**
@@ -372,11 +372,11 @@ export const CONTEXT_RESTORE_MS = 3000;
  * gone answers `isContextLost()` truthfully every time, and without this the ~1 Hz
  * watchdog would mint a fresh canvas and a fresh bitmap every second for as long as
  * the page lived — turning a recovery into a leak. Recovery is still automatic when
- * the GPU comes back; it is only the retry rate that is bounded. (REQ-35)
+ * the GPU comes back; it is only the retry rate that is bounded. (REQ-a-lost-context-is-escaped-by-replacing-the-canvas)
  */
 export const REBUILD_MIN_GAP_MS = 5000;
 
-/** What the panel knows about its own liveness — the Debug panel's row. (REQ-38) */
+/** What the panel knows about its own liveness — the Debug panel's row. (REQ-the-panel-says-whether-it-is-drawing) */
 export interface ScopeHealth {
   /** A frame arrived recently AND a paint landed recently. */
   drawing: boolean;
@@ -396,7 +396,7 @@ export interface ScopeHealth {
 /** Min ms between drawn frames for a target fps; 0 = draw every frame. */
 function fpsToInterval(fps: number): number {
   // A non-finite or non-positive rate would give NaN/Infinity here — a loop that
-  // spins and never draws, which is the black panel of REQ-22 by another route.
+  // spins and never draws, which is the black panel of REQ-the-redraw-loop-can-always-restart by another route.
   const f = Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS;
   return f >= 60 ? 0 : 1000 / f;
 }
@@ -405,7 +405,7 @@ function fpsToInterval(fps: number): number {
 interface Channel {
   analyser: AnalyserNode;
   /** Float, not byte: 8-bit quantises to 1/128, which the auto-gain would magnify
-   *  into a visible staircase on quiet material. (REQ-18) */
+   *  into a visible staircase on quiet material. (REQ-the-wave-read-is-float) */
   wave: Float32Array<ArrayBuffer>;
   freq: Uint8Array<ArrayBuffer>;
   /** Held max level in displayed dB for the Spectrum peak-hold; -Infinity = cleared. */
@@ -416,7 +416,7 @@ interface Channel {
 
 export class Scope {
   /**
-   * The canvas. Mutable because REQ-35 can replace the element underneath: a 2D
+   * The canvas. Mutable because REQ-a-lost-context-is-escaped-by-replacing-the-canvas can replace the element underneath: a 2D
    * context that is lost cannot be re-acquired — `getContext('2d')` hands back the
    * same dead one — so a fresh element is the only escape. Callers still see a
    * read-only `el`.
@@ -434,7 +434,7 @@ export class Scope {
   /**
    * `performance.now()` at the top of the last rAF callback — before the fps
    * throttle, so it tracks the frame *chain* and not the draw rate. The one thing
-   * `running` could never tell us: that flag latches true over a dead chain (REQ-32).
+   * `running` could never tell us: that flag latches true over a dead chain (REQ-the-scope-proves-it-is-painting).
    */
   private lastFrameTs = 0;
   /**
@@ -454,7 +454,7 @@ export class Scope {
   /** `performance.now()` of the last rebuild; -1 = never. Rate-limits the retry. */
   private lastRebuildAt = -1;
   private losses = 0;
-  /** The ~1 Hz supervisor. `window.setInterval` id; 0 = not running. (REQ-33) */
+  /** The ~1 Hz supervisor. `window.setInterval` id; 0 = not running. (REQ-a-watchdog-restarts-a-stalled-loop) */
   private watchdog = 0;
   private ctx: CanvasRenderingContext2D | null;
   private readonly mono: Channel;
@@ -467,11 +467,11 @@ export class Scope {
   private cssH = 0;
   /** Spectrum gradients per region box — allocated once, not per frame. */
   private readonly gradCache = new Map<string, CanvasGradient>();
-  /** Column→bin boundaries per (cols, fftSize, sampleRate) — see REQ-27. */
+  /** Column→bin boundaries per (cols, fftSize, sampleRate) — see REQ-bars-are-drawn-per-pixel-column. */
   private readonly edgeCache = new Map<string, Float32Array>();
   /** Pruned ruler per (regionW, fMax) — `visibleTicks` allocates, the loop must not. */
   private readonly tickCache = new Map<string, SpectrumTick[]>();
-  /** Problem-band overlay (REQ-29). Spectrum-only, memory-only, default off. */
+  /** Problem-band overlay (REQ-a-zones-toggle). Spectrum-only, memory-only, default off. */
   private zones = false;
   /** Pointer position in canvas CSS px while hovering the Spectrum; null = none. */
   private hoverX: number | null = null;
@@ -493,7 +493,7 @@ export class Scope {
   /** Timestamp of the previous drawn frame; 0 = none yet (peak decay is dt-based). */
   private lastTs = 0;
   /**
-   * Wave auto-gain, shared by *every* region rather than held per channel (REQ-17):
+   * Wave auto-gain, shared by *every* region rather than held per channel (REQ-the-wave-view-auto-gains):
    * per-channel gains would blow a hard-panned quiet side up to match the loud one
    * and erase the stereo image the Stereo view exists to show.
    */
@@ -501,7 +501,7 @@ export class Scope {
   /**
    * Max |sample| seen across all regions in the frame being drawn. It feeds the
    * *next* frame's gain — accumulating it during the draw pass costs nothing,
-   * whereas a pre-pass to get it first would double the per-sample work. (REQ-18)
+   * whereas a pre-pass to get it first would double the per-sample work. (REQ-the-wave-read-is-float)
    */
   private wavePeak = 0;
 
@@ -516,9 +516,9 @@ export class Scope {
     // pure wasted main-thread work that can starve the audio thread on mobile.
     document.addEventListener('visibilitychange', this.onVisibility);
     // A bfcache restore can reach a visible page without a visibilitychange
-    // (REQ-25) — and it is exactly the path that drops a queued frame.
+    // (REQ-becoming-visible-re-measures) — and it is exactly the path that drops a queued frame.
     window.addEventListener('pageshow', this.onVisibility);
-    // Two more ways back in (REQ-37). A renderer that was frozen and resumed while
+    // Two more ways back in (REQ-every-public-mutator-is-a-recovery-path). A renderer that was frozen and resumed while
     // already visible fires neither of the two above. `focus` is deliberately NOT
     // capturing: it does not bubble, so a capturing listener would route every knob
     // and button in the app through `ensureLive`.
@@ -530,7 +530,7 @@ export class Scope {
     // draw path measures itself in that case (see syncSize).
     if (typeof ResizeObserver !== 'undefined') this.ro = new ResizeObserver(() => this.measure());
     this.attachCanvas();
-    // The supervisor (REQ-33). Everything above is an *event*, and v16 exists
+    // The supervisor (REQ-a-watchdog-restarts-a-stalled-loop). Everything above is an *event*, and v16 exists
     // because every event in this component turned out to be one-shot.
     if (typeof window !== 'undefined') {
       this.watchdog = window.setInterval(this.onWatchdog, SCOPE_WATCHDOG_MS);
@@ -542,22 +542,22 @@ export class Scope {
    * Every registration that belongs to the canvas *element*, in one place. The
    * constructor, `destroy()` and `rebuildCanvas()` all go through this pair — a
    * listener added in one of three places and forgotten in the others is the next
-   * bug of exactly this kind. (REQ-35)
+   * bug of exactly this kind. (REQ-a-lost-context-is-escaped-by-replacing-the-canvas)
    */
   private attachCanvas(): void {
     // Clicking the graph resets the Spectrum peak-hold. The listener is on the
     // canvas itself; the Wave/Spectrum + Mono/Stereo buttons are siblings (not
     // children) of it, so clicking a button never resets — "anywhere but the
-    // buttons" with no stopPropagation needed. (REQ-13)
+    // buttons" with no stopPropagation needed. (REQ-clicking-the-graph-resets-the-peak)
     this.canvas.addEventListener('click', this.onClick);
     // A backgrounded tab can have its canvas backing store reclaimed. The
     // browser only ever restores a lost 2D context if the page asks it to, so
     // these two are the difference between "blank for a moment" and "blank for
-    // the life of the page" (REQ-24).
+    // the life of the page" (REQ-canvas-context-loss-is-survivable).
     this.canvas.addEventListener('contextlost', this.onContextLost);
     this.canvas.addEventListener('contextrestored', this.onContextRestored);
     this.ro?.observe(this.canvas);
-    // The hover pair is mode-scoped (REQ-31), so it only comes back in Spectrum.
+    // The hover pair is mode-scoped (REQ-hovering-reads-out-a-frequency), so it only comes back in Spectrum.
     // `detachCanvas` cleared `hoverBound` on the way out, which is why this can
     // just ask for the binding it wants — the two are always called as a pair.
     if (this.mode === 'spectrum') this.bindHover();
@@ -572,7 +572,7 @@ export class Scope {
   }
 
   setMode(m: ScopeMode): void {
-    // Every control is a recovery path (REQ-37). Poking a button is what a user does
+    // Every control is a recovery path (REQ-every-public-mutator-is-a-recovery-path). Poking a button is what a user does
     // to a dead panel, and until v16 it was the one thing that could not help: these
     // setters write a field the loop was going to read. A no-op when healthy.
     this.ensureLive();
@@ -580,14 +580,14 @@ export class Scope {
     // Leaving Spectrum must drop the held-peak readout; re-entering re-acquires it.
     this.clearDatasetMirror();
     // The cursor belongs to the Spectrum's frequency axis, so it goes with it —
-    // and its listeners are attached only while that axis is on screen (REQ-31).
+    // and its listeners are attached only while that axis is on screen (REQ-hovering-reads-out-a-frequency).
     this.clearHover();
     if (m === 'spectrum') { this.bindHover(); this.mirrorZones(); } else this.unbindHover();
   }
 
-  /** Show/hide the problem-band overlay. Spectrum-only, memory-only. (REQ-29) */
+  /** Show/hide the problem-band overlay. Spectrum-only, memory-only. (REQ-a-zones-toggle) */
   setZones(on: boolean): void {
-    this.ensureLive();   // REQ-37
+    this.ensureLive();   // REQ-every-public-mutator-is-a-recovery-path
     this.zones = on;
     this.mirrorZones();
   }
@@ -595,9 +595,9 @@ export class Scope {
   /** Whether the problem-band overlay is on. */
   get zonesOn(): boolean { return this.zones; }
 
-  /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-13) */
+  /** Clear the Spectrum peak-hold (also bound to a canvas click). (REQ-clicking-the-graph-resets-the-peak) */
   resetPeak(): void {
-    this.ensureLive();   // REQ-37
+    this.ensureLive();   // REQ-every-public-mutator-is-a-recovery-path
     for (const c of [this.mono, this.left, this.right]) {
       if (!c) continue;
       c.peakDb = -Infinity;
@@ -608,7 +608,7 @@ export class Scope {
 
   /** Switch mono/stereo. Stereo needs both channel analysers; falls back to mono. */
   setChannels(c: ScopeChannels): void {
-    this.ensureLive();   // REQ-37
+    this.ensureLive();   // REQ-every-public-mutator-is-a-recovery-path
     this.channels = c === 'stereo' && this.left && this.right ? 'stereo' : 'mono';
     // The set of active peak keys (peak vs peakL/peakR) changes with the layout.
     this.clearDatasetMirror();
@@ -622,18 +622,18 @@ export class Scope {
     // ResizeObserver will not fire for a box that comes back the size it left,
     // so a hidden spell that zeroed the layout would otherwise leave `cssW/cssH`
     // stale and every draw early-returning. `measure()` refuses a 0×0 read, so
-    // this can only help (REQ-25).
+    // this can only help (REQ-becoming-visible-re-measures).
     this.measure();
     this.start();
   };
 
   /**
    * Without `preventDefault()` here the browser never restores the context and
-   * the panel stays blank forever — that one line is REQ-24. What v12 missed is
+   * the panel stays blank forever — that one line is REQ-canvas-context-loss-is-survivable. What v12 missed is
    * that `stop()` was then the last thing that ever happened to this panel: a lost
    * context restores *lazily*, so stopping is how you stop giving the browser any
    * reason to restore one, and no control could undo it. `lostAt` bounds the wait
-   * (REQ-34) — note this path needs no backgrounding at all, since a GPU-process
+   * (REQ-waiting-for-contextrestored-is-bounded) — note this path needs no backgrounding at all, since a GPU-process
    * crash fires `contextlost` on a visible, foregrounded tab.
    */
   private readonly onContextLost = (e: Event): void => {
@@ -656,18 +656,18 @@ export class Scope {
 
   private readonly onClick = (): void => { this.resetPeak(); };
 
-  /** `window` focus and the Page Lifecycle `resume` — see the constructor. (REQ-37) */
+  /** `window` focus and the Page Lifecycle `resume` — see the constructor. (REQ-every-public-mutator-is-a-recovery-path) */
   private readonly onEnsureLive = (): void => { this.ensureLive(); };
 
   /**
    * Restart the loop if — and **only** if — it has actually stalled. The guard is
    * the point: this runs from six controls, a window focus and a page resume, so on
-   * a healthy scope it must force no layout read and re-arm no frame. (REQ-37)
+   * a healthy scope it must force no layout read and re-arm no frame. (REQ-every-public-mutator-is-a-recovery-path)
    */
   ensureLive(): void {
     if (document.hidden) return;
     if (this.contextDead()) { this.rebuildCanvas(); return; }
-    // Still inside the restore window we asked for: REQ-24 says stay stopped, and
+    // Still inside the restore window we asked for: REQ-canvas-context-loss-is-survivable says stay stopped, and
     // restarting would only spend frames on a context whose every method is a no-op.
     if (this.lostAt >= 0) return;
     if (this.running && performance.now() - this.lastFrameTs < SCOPE_STALL_MS) return;
@@ -675,7 +675,7 @@ export class Scope {
   }
 
   /**
-   * Is the context provably gone? Both signals are free (REQ-36): the browser's own
+   * Is the context provably gone? Both signals are free (REQ-scope-detection-is-free-or-it-does-not-happen): the browser's own
    * answer where it has one, and a `contextlost` we acknowledged that was never
    * answered. Never a pixel read-back — that costs the panel its GPU acceleration to
    * ask whether it has any, and a lost 2D context makes every method a silent no-op
@@ -696,16 +696,16 @@ export class Scope {
   }
 
   /**
-   * The supervisor (REQ-33). Every *other* way back into this component is an event,
+   * The supervisor (REQ-a-watchdog-restarts-a-stalled-loop). Every *other* way back into this component is an event,
    * and v16 exists because each of them buys exactly one frame — drop it and the
    * panel is over. A timer does not have to guess which event the platform sends.
    */
   private readonly onWatchdog = (): void => {
-    // While hidden the loop is *meant* to be stopped (performance-mode REQ-6,
-    // runtime-performance REQ-9). First line, so a background tab pays nothing.
+    // While hidden the loop is *meant* to be stopped (performance-mode REQ-scope-fps-and-fft-apply-live,
+    // runtime-performance REQ-visibility-gating-is-for-pixels-not-sound). First line, so a background tab pays nothing.
     if (document.hidden) return;
     if (this.contextDead()) { this.rebuildCanvas(); return; }
-    // Inside the restore window — REQ-24's pause is deliberate, and it is the only
+    // Inside the restore window — REQ-canvas-context-loss-is-survivable's pause is deliberate, and it is the only
     // period in which a stopped loop on a visible page is correct.
     if (this.lostAt >= 0) return;
     const now = performance.now();
@@ -720,7 +720,7 @@ export class Scope {
    * Escape a lost context the only way there is: a **new canvas element**.
    * `getContext('2d')` on a canvas whose context is lost hands back that same dead
    * context, and `canvas.width = canvas.width` resets the bitmap, not the context.
-   * (REQ-35)
+   * (REQ-a-lost-context-is-escaped-by-replacing-the-canvas)
    */
   private rebuildCanvas(): void {
     // Rate-limited: see REBUILD_MIN_GAP_MS. A dead GPU never stops saying so.
@@ -738,7 +738,7 @@ export class Scope {
     // mounts the canvas), so the field swap above stands on its own.
     if (old.parentNode) old.replaceWith(next);
     // A fresh element carries none of the attributes, but `mirrored` still holds the
-    // last values — and those are change-only writes (REQ-15), so without this the
+    // last values — and those are change-only writes (REQ-the-scope-canvas-carries-a-testid), so without this the
     // replacement would never expose a single readout again.
     this.clearDatasetMirror();
     this.dropCaches();
@@ -753,7 +753,7 @@ export class Scope {
     this.start();
   }
 
-  /** What the panel knows about its own liveness — the Debug panel's row. (REQ-38) */
+  /** What the panel knows about its own liveness — the Debug panel's row. (REQ-the-panel-says-whether-it-is-drawing) */
   get health(): ScopeHealth {
     // Plain subtraction, no "0 means never" sentinel: `start()` seeds both and the
     // constructor always calls it, so an unseeded field would read as a huge age —
@@ -774,7 +774,7 @@ export class Scope {
   }
 
   /**
-   * Hover cursor (REQ-31). `offsetX/offsetY` are already relative to the canvas's
+   * Hover cursor (REQ-hovering-reads-out-a-frequency). `offsetX/offsetY` are already relative to the canvas's
    * padding box, so this forces no layout — a `getBoundingClientRect()` here would
    * be a reflow on every pointer move. Mouse only: hover has no touch equivalent,
    * and a finger drag that left a cursor line behind reads as a bug.
@@ -829,7 +829,7 @@ export class Scope {
     const bw = Math.round(w * dpr);
     const bh = Math.round(h * dpr);
     // Nothing moved: keep the caches. This is what makes `measure()` cheap enough to
-    // call from a 1 Hz watchdog and from every window focus (REQ-33/37) — otherwise
+    // call from a 1 Hz watchdog and from every window focus (REQ-a-watchdog-restarts-a-stalled-loop/37) — otherwise
     // each call would throw away the gradients, the ruler and the bin edges and make
     // the next frame rebuild all three. `onContextRestored` zeroes `bitmapW/H` first,
     // so its forced path still gets through.
@@ -857,7 +857,7 @@ export class Scope {
   /** Change the target redraw rate live (e.g. a perf-mode tier switch). */
   setFps(fps: number): void {
     // `fpsToInterval` rejects a non-finite or non-positive rate for us.
-    this.ensureLive();   // REQ-37
+    this.ensureLive();   // REQ-every-public-mutator-is-a-recovery-path
     this.frameInterval = fpsToInterval(fps);
   }
 
@@ -867,14 +867,14 @@ export class Scope {
    * to it, so reallocate each channel's `wave`/`freq` to match the new size.
    */
   setFftSize(fftSize: number): void {
-    this.ensureLive();   // REQ-37
+    this.ensureLive();   // REQ-every-public-mutator-is-a-recovery-path
     for (const c of [this.mono, this.left, this.right]) {
       if (!c) continue;
       c.analyser.fftSize = fftSize;
       c.wave = new Float32Array(c.analyser.fftSize);
       c.freq = new Uint8Array(new ArrayBuffer(c.analyser.frequencyBinCount));
     }
-    // The column→bin mapping is keyed on fftSize, so it is now stale (REQ-27).
+    // The column→bin mapping is keyed on fftSize, so it is now stale (REQ-bars-are-drawn-per-pixel-column).
     this.dropCaches();
   }
 
@@ -889,7 +889,7 @@ export class Scope {
     this.tickCache.clear();
   }
 
-  /** Cached column→bin boundaries — allocating this per frame is the thing REQ-16 forbids. */
+  /** Cached column→bin boundaries — allocating this per frame is the thing REQ-no-per-frame-layout-read forbids. */
   private binEdges(cols: number, fftSize: number, sampleRate: number): Float32Array {
     const key = `${cols}:${fftSize}:${sampleRate}`;
     let edges = this.edgeCache.get(key);
@@ -913,7 +913,7 @@ export class Scope {
 
   /**
    * Start (or restart) the redraw loop. Deliberately **not** guarded on
-   * `running` (REQ-22): that guard was the only thing between a broken frame
+   * `running` (REQ-the-redraw-loop-can-always-restart): that guard was the only thing between a broken frame
    * chain and recovery. A frame the browser dropped while freezing the renderer,
    * or one that threw before re-arming, left `running` latched true with nothing
    * queued — and then every restart path in this component was a no-op, forever.
@@ -934,9 +934,9 @@ export class Scope {
     const loop = (now: number) => {
       if (!this.running) return;
       // Before the throttle, so this tracks the frame CHAIN and not the draw rate —
-      // the watchdog's only evidence that the browser is still delivering (REQ-32).
+      // the watchdog's only evidence that the browser is still delivering (REQ-the-scope-proves-it-is-painting).
       this.lastFrameTs = performance.now();
-      // Re-arm BEFORE drawing (REQ-23). A throw in draw() then still reaches the
+      // Re-arm BEFORE drawing (REQ-one-bad-frame-cannot-end-the-loop). A throw in draw() then still reaches the
       // console — an invisible error is how this shipped — but the next frame is
       // already queued, so one bad frame cannot end the loop.
       this.rafId = requestAnimationFrame(loop);
@@ -944,7 +944,7 @@ export class Scope {
         this.lastDrawTs = now;
         this.draw();
         // Only on the way out: a throw leaves this stale, which is exactly the
-        // signal we want. Not evidence of pixels — see REQ-32.
+        // signal we want. Not evidence of pixels — see REQ-the-scope-proves-it-is-painting.
         this.lastPaintTs = performance.now();
       }
     };
@@ -1036,7 +1036,7 @@ export class Scope {
     ctx.font = LABEL_FONT;
     // Bottom-left: the corner overlay buttons (Mono/Stereo top-left, Wave/Spectrum
     // top-right) sit flush with the canvas corners, so a top-anchored label hides
-    // behind them. Same dodge the peak-dB readout makes by centring. (REQ-6)
+    // behind them. Same dodge the peak-dB readout makes by centring. (REQ-scope-renderers-are-rect-scoped)
     ctx.textBaseline = 'bottom';
     haloText(ctx, r.label, r.x + 4, r.y + r.h - 4, 'rgba(244, 205, 94, 0.6)');
   }
@@ -1054,7 +1054,7 @@ export class Scope {
     const len = data.length;
     // One pass: draw the scaled sample *and* accumulate the raw peak that will set
     // the next frame's gain. The two extra ops per sample sit inside a loop already
-    // issuing a lineTo, so the auto-gain costs nothing measurable. (REQ-18)
+    // issuing a lineTo, so the auto-gain costs nothing measurable. (REQ-the-wave-read-is-float)
     let peak = this.wavePeak;
     for (let i = 0; i < len; i++) {
       const x = r.x + (i / (len - 1)) * r.w;
@@ -1088,7 +1088,7 @@ export class Scope {
     // On a panel narrow enough for the two to meet, the top tick label goes behind
     // the button — a deliberate trade, because reserving the width cost every
     // region a dead strip (and put an 80px hole down the middle of side-by-side
-    // stereo) to protect one label at one end. (REQ-29)
+    // stereo) to protect one label at one end. (REQ-a-zones-toggle)
     const cols = Math.max(1, Math.floor(r.w / SPECTRUM_COL_W));
     const edges = this.binEdges(cols, analyser.fftSize, sampleRate);
 
@@ -1113,7 +1113,7 @@ export class Scope {
   }
 
   /**
-   * The bars themselves, and the raw peak byte they were drawn from (REQ-27).
+   * The bars themselves, and the raw peak byte they were drawn from (REQ-bars-are-drawn-per-pixel-column).
    * Column-based, not bin-based: a log axis maps the two ends of the spectrum in
    * opposite directions, so a column covering whole bins takes the **max** over
    * them (a narrow peak must never be averaged away) while a column narrower than
@@ -1151,7 +1151,7 @@ export class Scope {
         const a = data[i0] ?? 0;
         const b = data[i1] ?? 0;
         level = a + (b - a) * (mid - i0);
-        // The held peak reads RAW bins, never the interpolation (REQ-27).
+        // The held peak reads RAW bins, never the interpolation (REQ-bars-are-drawn-per-pixel-column).
         if (a > maxByte) maxByte = a;
         if (b > maxByte) maxByte = b;
       }
@@ -1170,7 +1170,7 @@ export class Scope {
     return r.x + freqToFrac(hz, fMax) * r.w;
   }
 
-  /** The shaded problem bands, behind the bars. (REQ-29) */
+  /** The shaded problem bands, behind the bars. (REQ-a-zones-toggle) */
   private drawZoneBands(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
     ctx.fillStyle = 'rgba(244, 205, 94, 0.08)';
     for (const z of SPECTRUM_ZONES) {
@@ -1182,7 +1182,7 @@ export class Scope {
   /**
    * The band names, in front of the bars. Inset from the region top so they clear
    * the two corner overlay buttons, and dropped entirely on a region too narrow to
-   * hold them — the shading still says where the band is. (REQ-29)
+   * hold them — the shading still says where the band is. (REQ-a-zones-toggle)
    */
   private drawZoneNames(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
     if (r.w < ZONE_NAME_MIN_W || r.h < ZONE_NAME_TOP + 12) return;
@@ -1197,7 +1197,7 @@ export class Scope {
     ctx.restore();
   }
 
-  /** The bottom ruler: a short tick per labelled frequency, the label above it. (REQ-28) */
+  /** The bottom ruler: a short tick per labelled frequency, the label above it. (REQ-the-scale-is-a-permanent-ruler) */
   private drawTicks(ctx: CanvasRenderingContext2D, r: ScopeRegion, fMax: number): void {
     const ticks = this.ticksFor(r.w, fMax);
     const bottom = r.y + r.h;
@@ -1221,7 +1221,7 @@ export class Scope {
   }
 
   /**
-   * The hover cursor: a line at the pointer and the frequency under it (REQ-31).
+   * The hover cursor: a line at the pointer and the frequency under it (REQ-hovering-reads-out-a-frequency).
    * Drawn only for the region the pointer is actually in, so in Stereo you read
    * the channel you are pointing at. The label rides the pointer's own Y and flips
    * side at the halfway mark, which keeps it clear of the corner chrome without a
@@ -1257,7 +1257,7 @@ export class Scope {
     ctx.restore();
   }
 
-  /** The dotted max-dB peak-hold line + its dB label for one region. (REQ-10/11) */
+  /** The dotted max-dB peak-hold line + its dB label for one region. (REQ-spectrum-draws-a-peak-hold/11) */
   private drawPeak(ctx: CanvasRenderingContext2D, r: ScopeRegion, peakDb: number): void {
     if (!Number.isFinite(peakDb)) return;
     const y = r.y + r.h - dbToFrac(peakDb) * (r.h - 2);
@@ -1283,7 +1283,7 @@ export class Scope {
   }
 
   /**
-   * Mirror a region's held peak onto the canvas dataset for E2E (REQ-15) — but only
+   * Mirror a region's held peak onto the canvas dataset for E2E (REQ-the-scope-canvas-carries-a-testid) — but only
    * when the formatted value changes, so a steady scope writes no attribute per frame
    * (a per-frame `data-*` write would dirty layout). The mirror still always reflects
    * the latest displayed value.
@@ -1299,7 +1299,7 @@ export class Scope {
 
   /**
    * Mirror the applied Wave gain for E2E, under the same change-only-write rule as
-   * `mirrorPeak` — a steady scope writes no attribute per frame (REQ-15/16/18).
+   * `mirrorPeak` — a steady scope writes no attribute per frame (REQ-the-scope-canvas-carries-a-testid/16/18).
    */
   private mirrorWaveGain(): void {
     const v = this.waveGain.toFixed(1);
@@ -1320,7 +1320,7 @@ export class Scope {
   }
 
   /**
-   * How many times the canvas had to be replaced (REQ-38). Under the same
+   * How many times the canvas had to be replaced (REQ-the-panel-says-whether-it-is-drawing). Under the same
    * change-only-write rule as the readouts above — which here means it is written
    * essentially never, because a rebuild is a once-in-a-session event at worst.
    */
@@ -1331,7 +1331,7 @@ export class Scope {
     this.canvas.dataset.rebuilds = v;
   }
 
-  /** Mirror the overlay state for E2E — Spectrum-only, so cleared in Wave. (REQ-29) */
+  /** Mirror the overlay state for E2E — Spectrum-only, so cleared in Wave. (REQ-a-zones-toggle) */
   private mirrorZones(): void {
     const v = this.mode === 'spectrum' ? (this.zones ? 'on' : 'off') : '';
     if (this.mirrored.zones === v) return;
@@ -1343,7 +1343,7 @@ export class Scope {
   /**
    * Mirror the frequency under the cursor. Written only when the rounded value
    * changes, and only while a mouse is over the graph — so a scope nobody is
-   * pointing at still performs no attribute write at all. (REQ-15/31)
+   * pointing at still performs no attribute write at all. (REQ-the-scope-canvas-carries-a-testid/31)
    */
   private mirrorCursor(v: string): void {
     if (this.mirrored.cursorHz === v) return;
@@ -1355,7 +1355,7 @@ export class Scope {
   destroy(): void {
     this.stop();
     // The supervisor outlives a stopped loop by design — it must not outlive the
-    // component (REQ-33).
+    // component (REQ-a-watchdog-restarts-a-stalled-loop).
     if (this.watchdog) { clearInterval(this.watchdog); this.watchdog = 0; }
     this.detachCanvas();
     this.ro?.disconnect();
@@ -1366,7 +1366,7 @@ export class Scope {
   }
 }
 
-/** A blank scope canvas. Two callers: the constructor, and REQ-35's rebuild. */
+/** A blank scope canvas. Two callers: the constructor, and REQ-a-lost-context-is-escaped-by-replacing-the-canvas's rebuild. */
 function makeCanvas(): HTMLCanvasElement {
   const el = document.createElement('canvas');
   el.className = styles.root!;

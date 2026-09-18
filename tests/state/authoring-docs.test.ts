@@ -41,7 +41,7 @@ describe('websynth-song-author.schema.json', () => {
     const [positional, defaults, tracks] = schema.$defs.seqBank.oneOf;
     expect(positional.maxItems).toBe(SEQ_LENGTH);
     expect(defaults.properties.notes.maxItems).toBe(SEQ_LENGTH);
-    // v6 multi-track form — capped at the real track count (sequencer.md REQ-8).
+    // v6 multi-track form — capped at the real track count (sequencer.md REQ-four-tracks-per-bank).
     expect(tracks.properties.tracks.maxItems).toBe(SEQ_TRACK_COUNT);
     expect(schema.properties.sampleNames.maxItems).toBe(SAMPLER_SLOT_COUNT);
     // Hits address steps 0..15; chains address banks -1..3.
@@ -80,7 +80,7 @@ describe('websynth-song-author.schema.json', () => {
  * MCP `get_song_format` tool serve. The published pair fell behind `capture()`
  * twice (v5 and v6 shipped without them) and the guide's canonical EXAMPLE SHAPE
  * sat at 4 while its own TOP-LEVEL SHAPE said 6 — so all three are pinned to
- * `SONG_VERSION` rather than trusted (song-mode.md REQ-2).
+ * `SONG_VERSION` rather than trusted (song-mode.md REQ-song-file-is-a-versioned-union).
  */
 describe('the published canonical version', () => {
   it('is the top of the schema version enum', () => {
@@ -182,7 +182,7 @@ describe('the published canonical version', () => {
 
 /**
  * The preset schemas are the machine-readable mirror of `preset-validate.ts`
- * (preset-authoring.md REQ-6) — the same drift risk as the song pair.
+ * (preset-authoring.md REQ-preset-schemas-are-published) — the same drift risk as the song pair.
  */
 describe('the published preset schemas', () => {
   const preset = JSON.parse(read('schema/websynth-preset.schema.json')) as Record<string, any>;

@@ -1,7 +1,9 @@
 import { type TickTimer, defaultTickTimer } from './transport/tick-timer';
 
 /**
- * Background audio watchdog — see `specs/features/audio-lifecycle.md` REQ-9..REQ-12.
+ * Background audio watchdog — audio-lifecycle.md
+ * REQ-breaking-up-background-audio-is-suspended/REQ-the-trip-is-measured-never-inferred,
+ * audio-lifecycle.md REQ-the-trip-never-interrupts-a-capture/REQ-the-measurement-is-visible-either-way.
  *
  * Some devices cannot keep a hidden page's audio thread fed: a Pixel 8a crackles
  * continuously the moment the app is backgrounded (screen off *or* just switched
@@ -53,9 +55,9 @@ export interface VisibilityDoc {
 export interface WatchdogOptions {
   /** Called once when the audio is measurably breaking up while hidden. */
   onGlitch: () => void;
-  /** True while a real-time capture must not be interrupted (REQ-11). */
+  /** True while a real-time capture must not be interrupted (REQ-the-trip-never-interrupts-a-capture). */
   isBusy?: () => boolean;
-  /** True while nothing is sounding, so there is no crackle to prevent (REQ-17). */
+  /** True while nothing is sounding, so there is no crackle to prevent (REQ-nothing-suspends-for-silent-crackle). */
   isSilent?: () => boolean;
   doc?: VisibilityDoc;
   /** Sampling wakeups; worker-backed by default so throttling cannot blind it. */
@@ -63,7 +65,7 @@ export interface WatchdogOptions {
   now?: () => number;
 }
 
-/** What the Debug panel renders (audio-lifecycle.md REQ-12). */
+/** What the Debug panel renders (audio-lifecycle.md REQ-the-measurement-is-visible-either-way). */
 export interface WatchdogDiagnostics {
   /** Whether `renderCapacity` exists here — false means drift-only. */
   supported: boolean;
@@ -127,7 +129,7 @@ export class BackgroundAudioWatchdog {
 
   private beginWatch(): void {
     // Nothing to measure on a context that is not rendering: if the OS suspended
-    // it, the foreground re-arm is what brings it back (audio-lifecycle REQ-4).
+    // it, the foreground re-arm is what brings it back (audio-lifecycle REQ-foreground-return-rearms-the-context).
     if (this.watching || this.ctx.state !== 'running') return;
     this.watching = true;
     this.badWindows = 0;
@@ -191,11 +193,11 @@ export class BackgroundAudioWatchdog {
   private judge(bad: boolean, severe: boolean): void {
     if (!bad) { this.badWindows = 0; return; }
     // A capture is recording the live output in real time — suspending mid-take
-    // truncates the file, which is worse than a damaged one (REQ-11).
+    // truncates the file, which is worse than a damaged one (REQ-the-trip-never-interrupts-a-capture).
     if (this.isBusy()) return;
     // Nothing is sounding, so there is no break-up to prevent and the only
     // effect of tripping would be a suspend/resume cycle that can go wrong
-    // (REQ-17). Checked here and not in beginWatch(), so a transport started
+    // (REQ-nothing-suspends-for-silent-crackle). Checked here and not in beginWatch(), so a transport started
     // while hidden by a clock master still arms the trip.
     if (this.isSilent()) { this.badWindows = 0; return; }
     if (++this.badWindows < BAD_WINDOWS && !severe) return;

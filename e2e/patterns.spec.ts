@@ -52,7 +52,7 @@ test.describe('pattern grids', () => {
     expect(await seqNote(page, 8)).toBe(72);
   });
 
-  // sequencer.md REQ-5 — Step Input listens on the global note funnel, so
+  // sequencer.md REQ-step-input-arms-only-on-screen — Step Input listens on the global note funnel, so
   // without this gate any note played anywhere in the app overwrote the grid.
   test('leaving the tab disarms Step Input, so other tabs cannot record', async ({ page }) => {
     await gotoAndStart(page);
@@ -78,7 +78,7 @@ test.describe('pattern grids', () => {
     expect(await seqOn(page, 0)).toBe(false);
   });
 
-  // sequencer.md REQ-6 — Follow would otherwise drag the edit bank along with
+  // sequencer.md REQ-a-take-is-bank-pinned — Follow would otherwise drag the edit bank along with
   // the arrangement, spraying one take across all four banks.
   test('arming Step Input pins the take by turning Bank Follow off', async ({ page }) => {
     await gotoAndStart(page);
@@ -139,7 +139,7 @@ test.describe('pattern grids', () => {
 
   // The beat columns (steps 0/4/8/12) are red, and `.red.on` used to outrank the
   // selection border — a lit beat cell showed no cursor at all. See
-  // specs/features/step-grid-editing.md REQ-1.
+  // specs/features/step-grid-editing.md REQ-tap-toggles-a-step.
   test('a lit beat-column cell still shows the selection ring', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-drums').click();
@@ -159,7 +159,7 @@ test.describe('pattern grids', () => {
     const orangeSelected = await borderOf(0, 5);
     expect(redUnselected).not.toBe(orangeSelected);
 
-    // Right-click selects without toggling (REQ-3), so the red cell stays LIT —
+    // Right-click selects without toggling (REQ-a-cell-index-is-a-pure-function-of-step), so the red cell stays LIT —
     // the case that used to lose the ring. A plain click would switch it off and
     // pass regardless.
     await page.getByTestId('drum-step-0-4').click({ button: 'right' });
@@ -184,7 +184,7 @@ test.describe('pattern grids', () => {
     await expect(cell).toHaveAttribute('title', /vel 85% · gate 100% · prob 100% · ×3 · tie/);
   });
 
-  // step-settings.md REQ-6 — micro through the real panel: the keyboard gesture,
+  // step-settings.md REQ-a-step-carries-a-micro-offset — micro through the real panel: the keyboard gesture,
   // the store, the cell viz, and the fact that it does not move the octave.
   test('drum micro-timing nudges a step and shows on its face', async ({ page }) => {
     await gotoAndStart(page);
@@ -236,7 +236,7 @@ test.describe('pattern grids', () => {
     await page.getByTestId('transport-play').click(); // stop
   });
 
-  // step-grid-editing.md REQ-12 / runtime-performance.md REQ-4. Inactive tabs stay
+  // step-grid-editing.md REQ-an-offscreen-grid-repaints-nothing / runtime-performance.md REQ-no-work-for-offscreen-dom. Inactive tabs stay
   // mounted, so without gating all four panels sweep a playhead every 16th against
   // DOM nobody can see. The risk the gate introduces is staleness, which is why the
   // reveal half matters as much as the freeze half — and only a real browser
@@ -372,7 +372,8 @@ test.describe('step-grid gestures', () => {
 });
 
 /**
- * Four sequencer tracks — specs/features/sequencer.md REQ-8..REQ-13.
+ * Four sequencer tracks — sequencer.md REQ-four-tracks-per-bank through
+ * sequencer.md REQ-song-file-v6-adds-seq-tracks.
  */
 test.describe('sequencer tracks', () => {
   const trackOn = (page: import('@playwright/test').Page, t: number, i: number): Promise<boolean> =>
@@ -467,7 +468,7 @@ test('the Sequencer can clear just the selected track', async ({ page }) => {
   expect(await on(0, 0)).toBe(true);    // track 1 untouched
 
   // …and now that the track is empty the item is gone rather than inert
-  // (step-grid-editing.md REQ-6). The menu is rebuilt on every open, so this is
+  // (step-grid-editing.md REQ-clear-menu-clears-in-bulk). The menu is rebuilt on every open, so this is
   // the same click as before.
   await page.getByTestId('clear-seq').click();
   await expect(page.getByTestId('clear-seq-row-0')).toHaveCount(0);
@@ -475,7 +476,7 @@ test('the Sequencer can clear just the selected track', async ({ page }) => {
 });
 
 /**
- * step-grid-editing.md REQ-6 (v6) — the no-dead-item rule reaches the machines
+ * step-grid-editing.md REQ-clear-menu-clears-in-bulk (v6) — the no-dead-item rule reaches the machines
  * with a selection cursor too, not just Motion. The drum grid is the clearest
  * case: bank A boots with a kick groove, so the item is there, and clearing the
  * row is what makes it disappear.

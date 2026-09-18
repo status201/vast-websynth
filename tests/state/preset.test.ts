@@ -43,7 +43,7 @@ describe('Presets', () => {
       }
     });
 
-    // Factory presets set the FULL sound (REQ-2b), so a param missing from one
+    // Factory presets set the FULL sound (REQ-a-factory-preset-sets-the-full-sound), so a param missing from one
     // of them leaks the previous patch's value on a preset change. The filter
     // model is the loudest possible instance of that bug: load a LADDER patch
     // after a POLY one and it would keep the wrong filter.
@@ -58,7 +58,7 @@ describe('Presets', () => {
     // Same rule, the instance that actually slipped twice: `lfo.sync` shipped
     // in lfo v6 and never reached the banks, and `lfo2.*` would have repeated
     // it. Only presets leak — Song.apply resets defaults first, Presets.apply
-    // does not (presets.md REQ-2b).
+    // does not (presets.md REQ-a-factory-preset-sets-the-full-sound).
     it('sets every param of both LFOs in every bank', () => {
       const ids = ['lfo', 'lfo2'].flatMap((p) =>
         ['rate', 'amount', 'wave', 'dest', 'sync'].map((k) => `${p}.${k}`));
@@ -73,7 +73,7 @@ describe('Presets', () => {
     // FX `.on` is pinned unconditionally — the comment below has claimed this
     // was the convention since the tempo-lock work, but nothing enforced it, so
     // `fx.duck.on` was absent from all nineteen banks the day it shipped
-    // (sidechain-ducking.md REQ-6, presets.md REQ-2b).
+    // (sidechain-ducking.md REQ-a-bypassed-ducker-costs-nothing, presets.md REQ-a-factory-preset-sets-the-full-sound).
     it('sets every synth-FX on flag in every bank', () => {
       for (const [name, snap] of Object.entries(Presets.factory())) {
         for (const fx of ['eq', 'dist', 'wah', 'phaser', 'delay', 'reverb', 'duck']) {
@@ -82,7 +82,7 @@ describe('Presets', () => {
       }
     });
 
-    // The same rule for the FX tempo locks (tempo-lock.md REQ-8). Scoped to the
+    // The same rule for the FX tempo locks (tempo-lock.md REQ-sync-defaults-to-free). Scoped to the
     // banks that ENGAGE the effect, which is the existing convention here: a
     // bypassed effect's sub-params are inert, so only `fx.<name>.on` is pinned
     // unconditionally. An engaged one with no `.sync` would inherit whatever
@@ -130,7 +130,7 @@ describe('Presets', () => {
     // `restore` writes only the ids the snapshot carries — it does not reset
     // the rest — so a preset that omits a param inherits whatever was loaded
     // before it. That is exactly why every FACTORY bank sets the full sound
-    // (REQ-2b); this pins the failure mode that rule exists to prevent.
+    // (REQ-a-factory-preset-sets-the-full-sound); this pins the failure mode that rule exists to prevent.
     it('would otherwise leak the previous patch, which is why factory banks set them', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
@@ -251,7 +251,7 @@ describe('Presets', () => {
   });
 });
 
-describe('Presets.modified() / entries() (presets.md REQ-8)', () => {
+describe('Presets.modified() / entries() (presets.md REQ-modified-is-computed-not-tracked)', () => {
   beforeEach(() => {
     installLocalStorageMock();
   });

@@ -15,7 +15,7 @@ function freshBus(): ParamBus {
   return bus;
 }
 
-describe('the preset table (equalizer.md REQ-15)', () => {
+describe('the preset table (equalizer.md REQ-eq-presets-are-a-table-of-bus-writes)', () => {
   it('names every band, inside the registered range', () => {
     // A preset that wrote past the param's bounds would be silently clamped, so
     // the curve you picked and the curve you got would differ.
@@ -66,7 +66,7 @@ describe('the preset table (equalizer.md REQ-15)', () => {
   });
 });
 
-describe('applying a preset (REQ-15)', () => {
+describe('applying a preset (REQ-eq-presets-are-a-table-of-bus-writes)', () => {
   it('writes the curve and engages the EQ', () => {
     const bus = freshBus();
     expect(bus.get('fx.drum.eq.on')).toBe(0);
@@ -107,7 +107,7 @@ describe('applying a preset (REQ-15)', () => {
   });
 });
 
-describe('resetEq — the panel’s RESET (REQ-15)', () => {
+describe('resetEq — the panel’s RESET (REQ-eq-presets-are-a-table-of-bus-writes)', () => {
   it('flattens the curve and leaves the switch where it was', () => {
     // One gesture, one outcome: RESET undoes a curve, it does not also switch
     // the effect on — which is the whole reason it is not `applyEqPreset(Flat)`.
@@ -132,7 +132,7 @@ describe('resetEq — the panel’s RESET (REQ-15)', () => {
   });
 });
 
-describe('matchEqPreset (REQ-15)', () => {
+describe('matchEqPreset (REQ-eq-presets-are-a-table-of-bus-writes)', () => {
   it('names the preset a lane is sitting on', () => {
     const bus = freshBus();
     for (const name of eqPresetNames()) {

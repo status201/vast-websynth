@@ -4,14 +4,14 @@
 
 /* Cancels the tab shell's own horizontal padding (tabs.module.css `.content`
    is `10px 12px`) — passed as TabOptions.pageClass rather than changed there,
-   because that shell is shared with the pattern row (equalizer.md REQ-18).
+   because that shell is shared with the pattern row (equalizer.md REQ-the-eq-page-mirrors-the-scope-row).
    The vertical 10px stays: it is the gap to the tab bar and to the keyboard. */
 .pageShell {
   padding-left: 0;
   padding-right: 0;
 }
 
-/* The page mirrors the scope row above it (REQ-18): one gutter-wide column of
+/* The page mirrors the scope row above it (REQ-the-eq-page-mirrors-the-scope-row): one gutter-wide column of
    controls, then the graph filling the rest.
 
    The `- 1px` is this section's own left border. The wheels box sits directly in
@@ -91,7 +91,7 @@
 
 /* The plot's cell. Its height is the scope's, so the grip on the scope's top
    edge sizes both and the two panels can never be resized out of alignment
-   (REQ-18; scope.md REQ-19 owns the property). The CSS default matches the
+   (REQ-the-eq-page-mirrors-the-scope-row; scope.md REQ-a-scope-resize-handle owns the property). The CSS default matches the
    scope's, so an untouched session renders them equal too.
 
    The 8px padding is what makes the *screens* line up rather than merely the

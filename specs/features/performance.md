@@ -3,12 +3,12 @@
 ```yaml
 id: performance
 status: implemented
-version: 7   # v7: REQ-10 — the DJ filter sweeps `detune` with `setTargetAtTime`
+version: 7   # v7: REQ-the-dj-sweep-rides-detune — the DJ filter sweeps `detune` with `setTargetAtTime`
              #     only; the unanchored cancel it used to issue restarted every
              #     ramp from the constructed value on Gecko (a crackle)
-             # v6: REQ-9 — the DJ filter is a SERIES lowpass->highpass pair, so
+             # v6: REQ-the-dj-filter-is-a-series-pair — the DJ filter is a SERIES lowpass->highpass pair, so
              #     crossing centre no longer swaps a live biquad's type (a click)
-             # v5: stutter composes with a lane's length + rate (REQ-8)
+             # v5: stutter composes with a lane's length + rate (REQ-stutter-composes-with-lane-length)
 owner: core
 related:
   - architecture
@@ -38,48 +38,53 @@ so the Song panel can drive momentary controls without reaching into the machine
 
 ## Requirements
 
-- **REQ-1** — **Stutter/beat-repeat**: loop a short slice; `mapStep` is consulted
-  by the sequencer + drum machine each tick.
-- **REQ-2** — **Fill**: `fillActive` makes the drum machine play a roll.
-- **REQ-3** — **Filter Drop**: momentary lowpass dive on the master `djLow`,
-  overriding the manual DJ filter while held. The dive glides from wherever the
-  filter currently sits (v7 — REQ-10 removed the jump that used to start it).
-- **REQ-4** — **DJ Filter**: manual bipolar sweep on the same pair (`fx.djfilter`,
-  LP ← 0 → HP).
-- **REQ-5** — **Tape Stop**: ramp `Clock` BPM down + pitch-bend down via rAF, then
-  recover on release.
-- **REQ-6** (v3) — **Clock-ramp gate**: a public settable predicate
-  `clockRampAllowed: () => boolean` (default `() => true`) guards *both* the
-  per-frame `clock.setBpm(...)` and the final `clock.setBpm(origBpm)` restore in
-  Tape Stop's rAF tick — an ungated restore would stomp an externally-followed
-  tempo with the local knob value. The pitch-bend ramp is unaffected. Engine
-  wires `perf.clockRampAllowed = () => sync.activeMode !== 'slave'` — the mode
-  that is actually RUNNING, not the selected preference — so a slaved
-  instance's Tape Stop bends pitch only and never fights the followed clock
-  ([midi-clock-sync.md](midi-clock-sync.md) REQ-13).
-- **REQ-7** (v4) — **A transport seek re-anchors stutter.** `mapStep` returns
-  `anchor + ((rawStep - anchor) mod n)`, and `anchor` is captured from the live
-  clock when stutter engages. After a playhead jump
-  ([transport-position.md](transport-position.md) REQ-4) that anchor belongs to the
-  old position, so the mapping silently clamps the new position back into the old
-  window — a backwards jump replays it forever and a forward jump goes nowhere.
-  `Performance` subscribes `clock.onSeek` and, **while stutter is engaged**,
-  re-anchors to the new `clock.step`; with stutter off there is nothing to do
-  (`mapStep` is the identity). Fill / Drop / DJ Filter hold no position state and
-  are unaffected; Tape Stop's rAF ramp is a BPM ramp, not a position, so it too is
-  untouched.
+- **REQ-stutter-loops-a-short-slice** — **Stutter/beat-repeat**: loop a short
+  slice; `mapStep` is consulted by the sequencer + drum machine each tick.
+- **REQ-fill-makes-the-drums-roll** — **Fill**: `fillActive` makes the drum
+  machine play a roll.
+- **REQ-filter-drop-is-momentary** — **Filter Drop**: momentary lowpass dive on
+  the master `djLow`, overriding the manual DJ filter while held. The dive
+  glides from wherever the filter currently sits (v7 —
+  REQ-the-dj-sweep-rides-detune removed the jump that used to start it).
+- **REQ-dj-filter-is-a-manual-sweep** — **DJ Filter**: manual bipolar sweep on
+  the same pair (`fx.djfilter`, LP ← 0 → HP).
+- **REQ-tape-stop-ramps-bpm-and-pitch** — **Tape Stop**: ramp `Clock` BPM down +
+  pitch-bend down via rAF, then recover on release.
+- **REQ-a-clock-ramp-gate-predicate** (v3) — **Clock-ramp gate**: a public
+  settable predicate `clockRampAllowed: () => boolean` (default `() => true`)
+  guards *both* the per-frame `clock.setBpm(...)` and the final
+  `clock.setBpm(origBpm)` restore in Tape Stop's rAF tick — an ungated restore
+  would stomp an externally-followed tempo with the local knob value. The
+  pitch-bend ramp is unaffected. Engine wires `perf.clockRampAllowed = () =>
+  sync.activeMode !== 'slave'` — the mode that is actually RUNNING, not the
+  selected preference — so a slaved instance's Tape Stop bends pitch only and
+  never fights the followed clock ([midi-clock-sync.md](midi-clock-sync.md)
+  REQ-tape-stop-is-gated-while-slaved).
+- **REQ-a-seek-re-anchors-stutter** (v4) — **A transport seek re-anchors
+  stutter.** `mapStep` returns `anchor + ((rawStep - anchor) mod n)`, and
+  `anchor` is captured from the live clock when stutter engages. After a
+  playhead jump ([transport-position.md](transport-position.md) REQ-every-relative-consumer-reacts-to-a-seek) that
+  anchor belongs to the old position, so the mapping silently clamps the new
+  position back into the old window — a backwards jump replays it forever and a
+  forward jump goes nowhere. `Performance` subscribes `clock.onSeek` and,
+  **while stutter is engaged**, re-anchors to the new `clock.step`; with stutter
+  off there is nothing to do (`mapStep` is the identity). Fill / Drop / DJ
+  Filter hold no position state and are unaffected; Tape Stop's rAF ramp is a
+  BPM ramp, not a position, so it too is untouched.
 
-- **REQ-8** (v5) — **Stutter composes with a lane's length and rate.**
-  `stepIndex(step, cells, rateIdx)` still folds the **absolute** step through
-  `mapStep` first and only then resolves a cell, so a stutter window is unchanged
-  by the meter and a stutter over a 12-cell lane repeats 12-cell material
-  ([meter](meter.md) REQ-17). Both extra arguments default to the pre-meter
-  values, so an un-metered caller behaves exactly as before.
+- **REQ-stutter-composes-with-lane-length** (v5) — **Stutter composes with a
+  lane's length and rate.** `stepIndex(step, cells, rateIdx)` still folds the
+  **absolute** step through `mapStep` first and only then resolves a cell, so a
+  stutter window is unchanged by the meter and a stutter over a 12-cell lane
+  repeats 12-cell material ([meter](meter.md) REQ-stutter-composes-with-length-and-rate). Both extra arguments
+  default to the pre-meter values, so an un-metered caller behaves exactly as
+  before.
 
 
-- **REQ-9** (v6) — **The DJ filter is a series lowpass → highpass pair, and its
-  type is never reassigned.** It used to be one `BiquadFilterNode` whose `.type`
-  was assigned `'lowpass'` or `'highpass'` on every write, flipping as the value
+- **REQ-the-dj-filter-is-a-series-pair** (v6) — **The DJ filter is a series
+  lowpass → highpass pair, and its type is never reassigned.** It used to be one
+  `BiquadFilterNode` whose `.type` was assigned `'lowpass'` or `'highpass'` on
+  every write, flipping as the value
   crossed the `|x| < 0.02` dead zone. Swapping a biquad's type swaps its
   coefficients **instantaneously** while its state variables still hold values for
   the old ones — a transient, i.e. a click, on the master bus where every voice
@@ -103,11 +108,11 @@ so the Song panel can drive momentary controls without reaching into the machine
   on every shipped song that automates the knob
   ([runtime-performance](runtime-performance.md)).
 
-- **REQ-10** (v7) — **The sweep rides `detune`, through `setTargetAtTime` alone.
-  The DJ filter path never calls `cancelScheduledValues` and never reads a live
-  `.value`.** Both nodes' `frequency` is a fixed reference set once at
-  construction (20 kHz on `djLow`, 20 Hz on `djHigh`) and never written again;
-  the sweep is `detune`, in cents.
+- **REQ-the-dj-sweep-rides-detune** (v7) — **The sweep rides `detune`, through
+  `setTargetAtTime` alone. The DJ filter path never calls
+  `cancelScheduledValues` and never reads a live `.value`.** Both nodes'
+  `frequency` is a fixed reference set once at construction (20 kHz on `djLow`,
+  20 Hz on `djHigh`) and never written again; the sweep is `detune`, in cents.
 
   v6 left a defect behind that only Gecko exposes. Its `rampSide` (since removed) cancelled both
   params and re-issued a 40 ms `exponentialRampToValueAtTime` on every write:
@@ -167,9 +172,9 @@ so the Song panel can drive momentary controls without reaching into the machine
     `Math.pow` mapping drew is what a linear approach in cents draws. The
     endpoints are unchanged: `1200·log2(130/20000)` ≈ -8800 cents of lowpass,
     `1200·log2(4000/20)` ≈ +9171 cents of highpass.
-  - **`Math.max(f.value, 400)` goes** (REQ-3). It forced Filter Drop's dive to
+  - **`Math.max(f.value, 400)` goes** (REQ-filter-drop-is-momentary). It forced Filter Drop's dive to
     *start* at ≥400 Hz, which from a knob already parked at 130 Hz was an
-    instantaneous jump up — a coefficient step, i.e. exactly the click REQ-9
+    instantaneous jump up — a coefficient step, i.e. exactly the click REQ-the-dj-filter-is-a-series-pair
     exists to abolish. Drop now glides from where the filter is. It also read a
     live `.value`, the same Gecko trap in its other form.
 
@@ -191,12 +196,12 @@ Performance:  # src/audio/transport/performance.ts
   setFill(on)
   setDrop(on)                       # momentary lowpass dive on djLow (djHigh opens out)
   setDjFilter(x)                    # manual sweep, -1..1 (LP..HP)
-  # v7 (REQ-10): both write djLow/djHigh `detune` (cents) via setTargetAtTime only.
+  # v7 (REQ-the-dj-sweep-rides-detune): both write djLow/djHigh `detune` (cents) via setTargetAtTime only.
   #              `frequency` is a fixed reference, never written after construction.
   setTapeStop(on)                   # BPM + pitch ramp via rAF
   clockRampAllowed: () => boolean   # v3: default () => true; gates Tape Stop's clock ramp + restore
-ctor deps: (ctx, clock, bus, djLow: BiquadFilterNode, djHigh: BiquadFilterNode)  # v6: a series pair (REQ-9)
-# v4: subscribes clock.onSeek -> re-anchor the stutter window (REQ-7)
+ctor deps: (ctx, clock, bus, djLow: BiquadFilterNode, djHigh: BiquadFilterNode)  # v6: a series pair (REQ-the-dj-filter-is-a-series-pair)
+# v4: subscribes clock.onSeek -> re-anchor the stutter window (REQ-a-seek-re-anchors-stutter)
 ```
 
 ### Data shapes (registry)
@@ -212,7 +217,7 @@ fx.djfilter: { range: -1..1, default: 0 }    # |x|<0.02 = off; <0 LP, >0 HP
 engine: owns this.perf and the djLow/djHigh BiquadFilters, inserted
         preMaster -> djLow -> djHigh -> masterComp -> analyser;
         sets each node's reference frequency once (20000 / 20 Hz) and never
-        again — Performance sweeps `detune` (v7, REQ-10);
+        again — Performance sweeps `detune` (v7, REQ-the-dj-sweep-rides-detune);
         fx.djfilter -> perf.setDjFilter(x)
 machines: sequencer + drum machine call perf.mapStep() each tick; drum machine
           checks perf.fillActive
@@ -231,33 +236,33 @@ Scenario: Stutter loops a short slice
   Then mapStep folds subsequent steps back into [a, a+2)
 # pinned by: tests/audio/transport/performance.test.ts
 
-Scenario: Crossing the centre of the DJ filter never swaps a filter type (v6, REQ-9, regression)
+Scenario: Crossing the centre of the DJ filter never swaps a filter type (v6, REQ-the-dj-filter-is-a-series-pair, regression)
   Given the DJ filter is swept from lowpass through centre into highpass
   When each value is applied
   Then djLow and djHigh keep the types they were constructed with
   And only their detune moves, so the crossing carries no discontinuity
 # pinned by: tests/audio/transport/performance.test.ts
 
-Scenario: Each side rests transparent while the other works (v6, REQ-9)
+Scenario: Each side rests transparent while the other works (v6, REQ-the-dj-filter-is-a-series-pair)
   Given a lowpass-side value
   Then djHigh stays at its 0-cent resting detune and only djLow sweeps
 # pinned by: tests/audio/transport/performance.test.ts
 
-Scenario: A repeated sweep never cancels automation (v7, REQ-10, regression)
+Scenario: A repeated sweep never cancels automation (v7, REQ-the-dj-sweep-rides-detune, regression)
   Given the DJ filter is written many times in quick succession
   When each value is applied
   Then cancelScheduledValues is never called on either side
   And every write is a setTargetAtTime, so each continues from the value now
 # pinned by: tests/audio/transport/performance.test.ts, tests/audio/no-unanchored-cancel.test.ts
 
-Scenario: The sweep rides detune, so its curve is logarithmic by construction (v7, REQ-10)
+Scenario: The sweep rides detune, so its curve is logarithmic by construction (v7, REQ-the-dj-sweep-rides-detune)
   Given any DJ filter value
   When it is applied
   Then the moving side's detune is retargeted in cents
   And neither node's frequency is ever written
 # pinned by: tests/audio/transport/performance.test.ts
 
-Scenario: A side already at its target is not rewritten (v7, REQ-10)
+Scenario: A side already at its target is not rewritten (v7, REQ-the-dj-sweep-rides-detune)
   Given a lowpass-side sweep, so the highpass side rests
   When many values are applied
   Then djHigh is written once, not once per value
@@ -281,7 +286,7 @@ Scenario: Tape Stop gated while slaved ramps pitch only (v3)
    And the pitch-bend ramp still runs
 # pinned by: tests/audio/transport/performance.test.ts
 
-Scenario: A seek under active stutter re-anchors (v4, REQ-7)
+Scenario: A seek under active stutter re-anchors (v4, REQ-a-seek-re-anchors-stutter)
   Given stutter is engaged at anchor step a
   When the playhead is seeked backwards past a
   Then the window re-anchors to the new step instead of replaying [a, a+n)

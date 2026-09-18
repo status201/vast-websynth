@@ -1,13 +1,13 @@
 // @vitest-environment node
 //
-// Drift pin for REQ-10 of specs/features/runtime-performance.md: no compositing
+// Drift pin for REQ-no-viewport-scaled-compositing-on-hot-surfaces of specs/features/runtime-performance.md: no compositing
 // effect whose cost scales with the viewport may sit on a persistent overlay.
 //
-// REQ-10 is a frame-rate rule, and a jsdom test cannot measure frames. What it
+// REQ-no-viewport-scaled-compositing-on-hot-surfaces is a frame-rate rule, and a jsdom test cannot measure frames. What it
 // *can* do is pin the one declaration that broke it, which is worth doing
 // because nothing else in the repo would catch a re-add: `sdd-guard.mjs`
 // allowlists `*.css` and `**/styles/**`, so a blur can go back onto the modal
-// backdrop without ever touching a spec. The manual measurement REQ-10 was
+// backdrop without ever touching a spec. The manual measurement REQ-no-viewport-scaled-compositing-on-hot-surfaces was
 // derived from is written down under "Tests & verification" in that spec.
 //
 // Same shape and the same reasoning as `typography.test.ts`, which pins the
@@ -25,9 +25,9 @@ const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
  *
  * Empty, and that is the point rather than an oversight: every overlay in this
  * app is full-viewport and lives for as long as its dialog is open, which is
- * precisely the shape REQ-10 forbids. A genuinely small or gesture-scoped one
+ * precisely the shape REQ-no-viewport-scaled-compositing-on-hot-surfaces forbids. A genuinely small or gesture-scoped one
  * could be added here — with a note saying which, and why it is not the
- * viewport — and the reviewer would then be reading REQ-10 while doing it.
+ * viewport — and the reviewer would then be reading REQ-no-viewport-scaled-compositing-on-hot-surfaces while doing it.
  */
 const VIEWPORT_EFFECT_OK: string[] = [];
 
@@ -62,7 +62,7 @@ const rules = readRules();
 const find = (file: string, selector: string) =>
   rules.find((r) => r.file === file && r.selector === selector);
 
-describe('overlay compositing cost (runtime-performance.md REQ-10)', () => {
+describe('overlay compositing cost (runtime-performance.md REQ-no-viewport-scaled-compositing-on-hot-surfaces)', () => {
   it('parsed the stylesheets at all', () => {
     // Guards the guard: a parser that silently matched nothing would make every
     // other assertion here vacuously true.

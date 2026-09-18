@@ -53,7 +53,7 @@ export function buildMotionPanel(
   root.className = layout.patternPanel!;
   const patterns = engine.patterns;
 
-  // Which axis the graph traces — a local view state, never persisted (REQ-8).
+  // Which axis the graph traces — a local view state, never persisted (REQ-each-motion-step-is-a-mini-xy-pad).
   let view: 'x' | 'y' = 'y';
 
   // ---- Header ----
@@ -61,17 +61,17 @@ export function buildMotionPanel(
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'motion.on', 'motion').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
-  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
   header.appendChild(laneControlsFor(bus, engine, 'motion', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'motion').el);
 
-  // ---- XY lane header (REQ-8) ----
+  // ---- XY lane header (REQ-each-motion-step-is-a-mini-xy-pad) ----
   // Everything that belongs to the XY lane rather than the machine: its
   // launcher, its graph projection toggle, its interpolation mode, the axes it
   // drives and the hint reading them back — one row, directly above its pads.
   const xyHeader = document.createElement('div');
   xyHeader.className = styles.xyHeader!;
-  // Anchor for the short XY-lane help badge (onboarding.md REQ-14).
+  // Anchor for the short XY-lane help badge (onboarding.md REQ-the-motion-tab-carries-two-lane-badges).
   xyHeader.dataset.help = 'motion.xy';
   xyHeader.appendChild(xyPadLaunchButton(xyWin, 'motion-xypad'));
 
@@ -97,7 +97,7 @@ export function buildMotionPanel(
   xyHeader.appendChild(viewSel);
   xyHeader.appendChild(new Segmented(bus, 'motion.slide', ['STEP', 'SLIDE']).el);
 
-  // ---- Per-lane value readout (REQ-22) ----
+  // ---- Per-lane value readout (REQ-a-motion-steps-value-is-readable-without-hovering) ----
   // The pads are ~40px wide and there are 48 of them, so a step's value cannot
   // live on the cell. Each lane gets one readout in its own header instead —
   // permanent chrome, the Knob's `.num` pattern, which is what ADR-014 law 6
@@ -116,7 +116,7 @@ export function buildMotionPanel(
   };
 
   /** The edit bank's effective axes — `motionAxesFor` is the one override/inherit
-   *  rule (REQ-4), shared with the machine and the graph so all three agree on
+   *  rule (REQ-motion-drives-the-xy-assignment), shared with the machine and the graph so all three agree on
    *  which parameter a bank's anchors mean. */
   const effectiveAxes = (): XyAssign =>
     motionAxesFor(patterns, patterns.motionEditBank, xy.get());
@@ -158,7 +158,7 @@ export function buildMotionPanel(
 
   /** Mouse hover updates the header readout only — never the bubble, which
    *  belongs to a live gesture. Touch has no hover and does not need one: a
-   *  hold peeks (REQ-23a). */
+   *  hold peeks (REQ-the-pad-write-is-deferred). */
   const wireHover = (el: HTMLElement, readout: HTMLElement, text: () => string): void => {
     el.addEventListener('pointerenter', (e) => {
       if (e.pointerType !== 'mouse' || gesturing) return;
@@ -169,15 +169,15 @@ export function buildMotionPanel(
   const bankBar = bankBarFor(engine, 'motion');
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'motion'));
-  // Motion keeps its own per-pad gestures (step-grid-editing.md REQ-9) — this is
+  // Motion keeps its own per-pad gestures (step-grid-editing.md REQ-motion-keeps-its-own-gesture) — this is
   // the bulk escape hatch, since clearing 16 anchors by double-tapping each is
-  // exactly the tedium REQ-6 exists to remove. The bank's axis override survives.
+  // exactly the tedium REQ-motion-has-the-fourth-chain-lane exists to remove. The bank's axis override survives.
   // Motion has no selection cursor, so there is no "selected row" to clear.
   // Instead the menu lists every lane that currently holds steps — offering an
   // already-empty lane would be a dead item (ADR-014 law 1).
   // All three lanes, every time: dropping the empty ones is `clearMenuFor`'s job
   // now, so the rule reads the same on all four machines (step-grid-editing.md
-  // REQ-6). Motion just answers `hasContent` per lane.
+  // REQ-clear-menu-clears-in-bulk). Motion just answers `hasContent` per lane.
   header.appendChild(clearMenuFor(engine, 'motion', undo, () => {
     const out: ClearRow[] = [{
       label: 'XY',
@@ -198,7 +198,7 @@ export function buildMotionPanel(
   // built before the pads and needs the same gate.
   const gate = new VisibilityGate();
 
-  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // ---- Transport-position ruler (transport-position.md REQ-a-position-ruler-above-every-grid) ----
   // The bar readout belongs to the machine header (position is transport-wide,
   // not an XY-lane setting); the ticks span the full width above the pads, which
   // have no left control column of their own. Outside the rest-overlay wrapper
@@ -226,7 +226,7 @@ export function buildMotionPanel(
   };
   const pads: MotionStepPad[] = [];
   // Every cell is built; `bindLaneGrid` below decides which are live and where
-  // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+  // the beat accents fall, so the meter owns both (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden).
   for (let s = 0; s < ALL_CELLS; s++) {
     const step = s;
     const pad = new MotionStepPad({
@@ -258,7 +258,7 @@ export function buildMotionPanel(
 
   /**
    * The banks the edit bank's bar sits between in the chain — what its bar-line
-   * segments ramp to and from (REQ-2b). A disabled lane (or a bank the chain never
+   * segments ramp to and from (REQ-cross-bank-carry). A disabled lane (or a bank the chain never
    * plays) loops on itself; a REST neighbour, or one driving other params, carries
    * nothing, matching MotionMachine's own gate.
    */
@@ -290,7 +290,7 @@ export function buildMotionPanel(
 
   /**
    * The neighbouring bars' same-index track, for an extra track's bar-line carry
-   * (REQ-14) — mirroring `chainNeighbours` for the axes. A neighbour driving a
+   * (REQ-tracks-share-the-lanes-curve-semantics) — mirroring `chainNeighbours` for the axes. A neighbour driving a
    * different param carries nothing, matching MotionMachine's own gate.
    */
   const trackNeighbours = (track: number, param: string | undefined): MotionTrackNeighbours => {
@@ -313,14 +313,14 @@ export function buildMotionPanel(
   /**
    * The lane's played length — the same `laneGrid` that sets `--steps` on the
    * three grids, so the curve is drawn over exactly the cells beneath it
-   * (REQ-24b). Read per redraw rather than captured: the meter changes under a
+   * (REQ-the-motion-graph-follows-the-lane). Read per redraw rather than captured: the meter changes under a
    * built panel.
    */
   const motionCells = (): number => laneGrid(bus, 'motion').cells;
 
   const redrawGraph = (): void => {
     graph.innerHTML = '';
-    // Mode-aware line (REQ-8): slide = anchor polyline; step = the true
+    // Mode-aware line (REQ-each-motion-step-is-a-mini-xy-pad): slide = anchor polyline; step = the true
     // jump-and-hold staircase, so the graph matches what valueAt will play.
     const mode = bus.get('motion.slide') >= 0.5 ? 'slide' : 'step';
     const { line, dots, carry } =
@@ -339,7 +339,7 @@ export function buildMotionPanel(
 
   // ---- Axes: the edit bank's effective assignment (override or inherit) ----
   // Appended into the XY lane header above, so the dropdowns and the "graph:"
-  // hint sit beside the view toggle that drives them (REQ-8).
+  // hint sit beside the view toggle that drives them (REQ-each-motion-step-is-a-mini-xy-pad).
   const paramIds = bus.ids().slice().sort();
 
   const mkAxis = (axis: 'x' | 'y'): Dropdown => {
@@ -382,7 +382,7 @@ export function buildMotionPanel(
     ySel.setValue(ax.y);
     // Dim, not disable: an inherited axis is exactly the one you need to click.
     // `setDimmed` marks the toggle — dimming the root faded the open option list
-    // and buried it under the pads (dropdown.md REQ-9).
+    // and buried it under the pads (dropdown.md REQ-a-dropdown-can-be-dimmed).
     xSel.setDimmed(!ov?.x);
     ySel.setDimmed(!ov?.y);
     resetBtn.style.visibility = ov ? '' : 'hidden';
@@ -392,7 +392,7 @@ export function buildMotionPanel(
       : `inherited from XY Pad — graph: ${effective}`;
   };
 
-  // ---- Extra single-param tracks (REQ-13/REQ-16) ----
+  // ---- Extra single-param tracks (REQ-two-extra-tracks-per-bank/REQ-two-lanes-below-the-xy-lane) ----
   // One row per track: a param picker plus 16 level cells sharing the XY pads'
   // gesture family (drag = set, double-tap = clear) via MotionStepPad's level
   // mode, and the same mode-aware polyline so slide interpolation and the
@@ -401,10 +401,10 @@ export function buildMotionPanel(
   const buildTrackRow = (track: number): { repaint: () => void; pads: MotionStepPad[]; cells: HTMLElement } => {
     const row = document.createElement('div');
     // The first track carries the one divider — A and B are the same kind of
-    // lane, so only the XY lane above is fenced off (REQ-8).
+    // lane, so only the XY lane above is fenced off (REQ-each-motion-step-is-a-mini-xy-pad).
     row.className = styles.trackRow! + (track === 0 ? ` ${styles.laneDivider!}` : '');
     // The shared A/B help badge anchors here, on the first track's row
-    // (onboarding.md REQ-14).
+    // (onboarding.md REQ-the-motion-tab-carries-two-lane-badges).
     if (track === 0) row.dataset.help = 'motion.tracks';
 
     const ctrls = document.createElement('div');
@@ -418,7 +418,7 @@ export function buildMotionPanel(
     picker.el.dataset.testid = `motion-trk-${track}-param`;
     picker.onChange((id) => patterns.setMotionTrackParam(track, id === NONE ? null : id));
     ctrls.appendChild(picker.el);
-    // This lane's own interpolation mode (REQ-2/REQ-16). Segmented mints
+    // This lane's own interpolation mode (REQ-set-steps-are-anchors/REQ-two-lanes-below-the-xy-lane). Segmented mints
     // `seg-motion.t<i>.slide` itself, so there is no testid to hand-maintain.
     ctrls.appendChild(new Segmented(bus, `motion.t${track}.slide`, ['STEP', 'SLIDE']).el);
     const readout = makeReadout(`motion-readout-trk-${track}`);
@@ -426,7 +426,7 @@ export function buildMotionPanel(
     row.appendChild(ctrls);
 
     // Normalized first — that is the number you match against the other lane —
-    // then what the parameter actually reads (REQ-22).
+    // then what the parameter actually reads (REQ-a-motion-steps-value-is-readable-without-hovering).
     const readoutText = (s: number, v: number): string => {
       const pt = paramText(patterns.motionTrack(track)?.param, v);
       return `${stepLabel(s)} · ${v.toFixed(2)}${pt ? ` · ${pt}` : ''}`;
@@ -434,7 +434,7 @@ export function buildMotionPanel(
 
     const cells = document.createElement('div');
     // Wider-gap grid than the XY lane's (styles.trackCells vs drumStyles.cells),
-    // so the tracks read as a distinct lane (REQ-8/REQ-16).
+    // so the tracks read as a distinct lane (REQ-each-motion-step-is-a-mini-xy-pad/REQ-two-lanes-below-the-xy-lane).
     cells.className = styles.trackCells!;
     const pads: MotionStepPad[] = [];
     for (let sIdx = 0; sIdx < ALL_CELLS; sIdx++) {
@@ -444,7 +444,7 @@ export function buildMotionPanel(
         onSet: (_x, y) => patterns.setMotionTrackStep(track, step, { on: true, v: y }),
         // Clearing returns the cell to the default step (level included), so a
         // cleared cell reads like an untouched one instead of keeping its old
-        // parked height (motion-sequencer.md REQ-16).
+        // parked height (motion-sequencer.md REQ-two-lanes-below-the-xy-lane).
         onClear: () => patterns.setMotionTrackStep(track, step, { ...MOTION_TRACK_STEP_DEFAULTS }),
         // Only y is meaningful on a level cell, so only y reaches the readout.
         onGesture: (g) =>
@@ -470,7 +470,7 @@ export function buildMotionPanel(
     grid.appendChild(cells);
     grid.appendChild(graph);
     // Dim this track lane while the motion lane rests, like the XY lane above
-    // (arrangement-rest.md REQ-6). The overlay self-wires to arrangement.onChange
+    // (arrangement-rest.md REQ-a-resting-machine-tab-shows-it). The overlay self-wires to arrangement.onChange
     // + bankBar.onFollowChange, so it needs no extra refresh plumbing; the header
     // (ctrls) stays outside the dim so the param picker remains usable.
     const { el: gridWrap } = wrapGridWithRestOverlay(engine, 'motion', bankBar, grid);
@@ -488,7 +488,7 @@ export function buildMotionPanel(
       row.classList.toggle(styles.trackDim!, !assigned);
       // An unassigned lane has no value to convert, so it reports none. An
       // assigned one keeps whatever the readout was last showing — that
-      // stickiness is what makes two lanes comparable (REQ-22).
+      // stickiness is what makes two lanes comparable (REQ-a-motion-steps-value-is-readable-without-hovering).
       if (!assigned) readout.textContent = EMPTY_READOUT;
       for (let i = 0; i < ALL_CELLS; i++) {
         const cell = t.steps[i]!;
@@ -515,7 +515,7 @@ export function buildMotionPanel(
   const trackRows = Array.from({ length: MOTION_TRACK_COUNT }, (_, t) => buildTrackRow(t));
 
   // Column count, live cells and beat accents for the XY lane and both A/B
-  // lanes at once (meter.md REQ-8/REQ-11) — one binding, so the three rows and
+  // lanes at once (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden) — one binding, so the three rows and
   // the ruler above them can never end up drawing different bars. Not
   // unsubscribed: the panel is built once and lives as long as the page does.
   bindLaneGrid(
@@ -525,10 +525,10 @@ export function buildMotionPanel(
     () => [pads, ...trackRows.map((r) => r.pads)],
   );
 
-  // Repaint the A/B lanes only while they are on screen (REQ-16b). A repaint
+  // Repaint the A/B lanes only while they are on screen (REQ-the-ab-lane-repaint-is-gated-on-visibility). A repaint
   // clears and rebuilds an SVG polyline plus up to 16 circles and re-levels 16
   // pads, *per lane* — and `arrangement.onChange` below fires every bar during
-  // playback, so off-screen that is pure waste (runtime-performance.md REQ-4).
+  // playback, so off-screen that is pure waste (runtime-performance.md REQ-no-work-for-offscreen-dom).
   // A repaint asked for while hidden is coalesced into one on reveal, so the
   // lanes are never stale. Same idiom as the XY graph's `graphDirty` further
   // down; the two are deliberately separate flags because they redraw different
@@ -546,7 +546,7 @@ export function buildMotionPanel(
   });
 
   patterns.onMotionTrackChange(repaintTracksIfShown);
-  // Per lane (REQ-2): a track's staircase-vs-ramp follows its own param, so the
+  // Per lane (REQ-set-steps-are-anchors): a track's staircase-vs-ramp follows its own param, so the
   // XY lane's STEP/SLIDE no longer redraws the tracks. Off-screen this coalesces
   // into the same reveal repaint as everything else — a per-lane redraw of a
   // panel nobody is looking at is the same waste as a per-bar one.
@@ -563,14 +563,14 @@ export function buildMotionPanel(
   };
 
   // Light the playing column across all three lanes (XY + A + B), not just the XY
-  // pads — the tracks were added later (v4) and were never wired in (REQ-16).
+  // pads — the tracks were added later (v4) and were never wired in (REQ-two-lanes-below-the-xy-lane).
   const highlighter = wirePlayhead(
     engine, 'motion', [pads, ...trackRows.map((r) => r.pads)], restOverlay, gate,
   );
 
   // Re-project the graph only when it is on screen. `arrangement.onChange` below
   // fires every bar during playback, and this is an SVG rebuild — off-screen
-  // that is pure waste (runtime-performance.md REQ-4). A redraw requested while
+  // that is pure waste (runtime-performance.md REQ-no-work-for-offscreen-dom). A redraw requested while
   // hidden is coalesced into one on reveal, so the graph is never stale.
   let graphDirty = false;
   const redrawGraphIfShown = (): void => {
@@ -600,7 +600,7 @@ export function buildMotionPanel(
   // Chain edits (and each bar's advance) move which banks border this one.
   engine.arrangement.onChange(redrawGraphIfShown);
   // LEN / RATE / the meter change how many cells the curve is drawn over
-  // (REQ-24b), so all three lanes re-project — the column count `bindLaneGrid`
+  // (REQ-the-motion-graph-follows-the-lane), so all three lanes re-project — the column count `bindLaneGrid`
   // sets above is only half of following the meter. Fires once on bind, which
   // is harmless: the initial draws below are idempotent.
   onLaneGridChange(bus, 'motion', () => {

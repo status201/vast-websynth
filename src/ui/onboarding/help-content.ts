@@ -17,9 +17,9 @@ import {
 
 /**
  * A control's glyph inside help copy, drawn rather than typed (iconography.md
- * REQ-1). `<strong>` because that is how this copy already marks a control's
+ * REQ-a-control-glyph-is-inline-svg). `<strong>` because that is how this copy already marks a control's
  * name; the SVG is aria-hidden, so the label on the wrapper is what a screen
- * reader gets — without it the sentence would simply lose a word (REQ-3).
+ * reader gets — without it the sentence would simply lose a word (REQ-studio-api-exposes-both-channels).
  */
 const g = (name: IconName, label: string): string =>
   `<strong role="img" aria-label="${label}">${UI_ICONS[name]}</strong>`;
@@ -66,7 +66,7 @@ export const TOUR_STEPS: TourStep[] = [
     placement: 'top',
     precondition: () => clickTestId('tab-song'),
     // Awaited: the tour demo is a drop-in, so it is fetched rather than bundled
-    // (song-mode.md REQ-12) — starting the transport before it lands would play
+    // (song-mode.md REQ-drop-in-demos-are-fetched-on-click) — starting the transport before it lands would play
     // whatever was loaded before, which for a first-time visitor is silence.
     action: async (ctx) => {
       await ctx.applyDemo(DEMO_FOR_TOUR);
@@ -103,7 +103,7 @@ export const TOUR_STEPS: TourStep[] = [
     // Deliberately the DRUM grid, not the sequencer the previous step spotlights:
     // two steps sharing a target leave the spotlight rect unmoved, which reads as
     // "nothing happened". The demo loaded earlier has filled this grid, so the
-    // gestures land on real content (onboarding.md REQ-13).
+    // gestures land on real content (onboarding.md REQ-the-tour-teaches-the-grid-gestures).
     target: 'panel-drums',
     title: 'Paint a pattern',
     body:
@@ -168,7 +168,7 @@ export interface HelpTopic {
  * seq / drum / sampler topics. One constant, not three paraphrases: the gestures
  * are identical on all three grids, and copy that drifts between machines is
  * worse than none. Motion states its own variant — it has no tap-toggle and its
- * Clear ▾ lists lanes rather than a selected row (onboarding.md REQ-11).
+ * Clear ▾ lists lanes rather than a selected row (onboarding.md REQ-help-copy-covers-the-gesture-model).
  */
 const GRID_GESTURES =
   '<p><strong>Editing faster:</strong> <strong>drag</strong> across the grid to paint a whole ' +
@@ -211,7 +211,7 @@ const RULER_HELP: HelpTopic = {
 
 /**
  * What each EQ band is for, keyed by its label in `EQ_BANDS` (onboarding.md
- * REQ-26). Only the prose is authored here: the band list below is generated
+ * REQ-the-equalizer-carries-seven-badges). Only the prose is authored here: the band list below is generated
  * from the table the filters are built from, so the help cannot give a band a
  * frequency the audio does not use. A label with no entry fails
  * `tests/ui/help-content.test.ts`.
@@ -240,7 +240,7 @@ const EQ_BAND_LIST =
   '</ul>';
 
 /**
- * The EQ graph (equalizer.md REQ-12, its gesture inventory). One object behind
+ * The EQ graph (equalizer.md REQ-the-curve-is-drawn-by-dragging, its gesture inventory). One object behind
  * three lane ids, for the ruler's reason: only the visible page's anchor has a
  * box, and three paraphrases of one copy would drift.
  */
@@ -265,7 +265,7 @@ const EQ_GRAPH_HELP: HelpTopic = {
     '<strong>De-Nasal</strong> and <strong>De-Harsh</strong> presets do exactly that.</p>',
 };
 
-/** The HP · LP · Q row (equalizer.md REQ-3/REQ-4). One object, three lane ids. */
+/** The HP · LP · Q row (equalizer.md REQ-a-real-highpass-and-lowpass/REQ-one-q-knob-over-the-bands). One object, three lane ids. */
 const EQ_KNOBS_HELP: HelpTopic = {
   title: 'HP, LP & Q',
   body:
@@ -311,7 +311,7 @@ export type TopicId =
   | 'lfo.rate'
   | 'lfo2.rate'
   | 'fx'
-  // The Equalizer (onboarding.md REQ-26): the section, then a graph and a knob
+  // The Equalizer (onboarding.md REQ-the-equalizer-carries-seven-badges): the section, then a graph and a knob
   // row per lane — per lane for the ruler's reason below.
   | 'eq'
   | 'eq.graph.seq'
@@ -1133,7 +1133,7 @@ export const HELP_TOPICS: Record<TopicId, HelpTopic> = {
       'effect mix, a level, the tempo — use a <strong>Motion</strong> lane or the ' +
       '<strong>XY Pad</strong> instead.</p>',
   },
-  // read as a pair (live-fx-window.md REQ-7).
+  // read as a pair (live-fx-window.md REQ-live-fx-row-carries-a-help-badge).
   'song.fx': {
     title: 'Live FX',
     body:

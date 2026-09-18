@@ -6,14 +6,14 @@ import { PatternUndo } from '../../src/state/pattern-undo';
 import type { StudioApi } from '../../src/ui/studio-api';
 
 /**
- * sampler.md REQ-9 — the sampler's Clear ▾ row item is labelled with the slot's
+ * sampler.md REQ-clear-ejects-the-slot — the sampler's Clear ▾ row item is labelled with the slot's
  * FILENAME, so it has to remove the file: steps, name and buffer. Before v5 it
  * cleared steps only, which meant a slot holding just a name (the shape every
  * song import lands in) had nothing to clear — the item was silently inert, and
  * the name kept riding along in every song saved afterwards.
  *
  * These drive the real menu DOM rather than the row object, because the wiring
- * under test is precisely which Undo the toast gets (step-grid-editing.md REQ-7).
+ * under test is precisely which Undo the toast gets (step-grid-editing.md REQ-one-bulk-action-one-undo-entry).
  */
 
 /** Two distinguishable AudioBuffer stand-ins — only identity matters here. */
@@ -56,7 +56,7 @@ function harness() {
 
 beforeEach(() => { document.body.innerHTML = ''; });
 
-describe('sampler Clear ▾ → row (sampler.md REQ-9)', () => {
+describe('sampler Clear ▾ → row (sampler.md REQ-clear-ejects-the-slot)', () => {
   it('empties a slot that holds only a name — the item is no longer inert', () => {
     const h = harness();
     h.patterns.setSampleName(0, 'kick.wav');
@@ -116,7 +116,7 @@ describe('sampler Clear ▾ → row (sampler.md REQ-9)', () => {
     expect(h.undo.canUndo('sampler')).toBe(true);
   });
 
-  it('is not offered at all on an empty slot (step-grid-editing.md REQ-6)', () => {
+  it('is not offered at all on an empty slot (step-grid-editing.md REQ-clear-menu-clears-in-bulk)', () => {
     const h = harness();
     h.open();
 
@@ -147,7 +147,7 @@ describe('sampler Clear ▾ → row (sampler.md REQ-9)', () => {
   });
 });
 
-describe('sampler Clear ▾ → bank (sampler.md REQ-9, the deliberate exception)', () => {
+describe('sampler Clear ▾ → bank (sampler.md REQ-clear-ejects-the-slot, the deliberate exception)', () => {
   it('never ejects a sample: names are shared by all four banks', () => {
     const h = harness();
     h.patterns.setSampleName(0, 'kick.wav');

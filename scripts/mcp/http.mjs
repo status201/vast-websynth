@@ -1,6 +1,6 @@
 /**
  * Streamable HTTP transport for the websynth MCP server
- * (mcp-server.md REQ-1b/REQ-9/REQ-11, untrusted-input.md REQ-14, ADR-020).
+ * (mcp-server.md REQ-streamable-http-is-one-message-per-post/REQ-the-http-transport-is-stateless/REQ-the-public-endpoint-is-bounded-not-authenticated, untrusted-input.md REQ-the-public-endpoint-is-bounded, ADR-020).
  *
  * This file is the whole trust boundary of the public endpoint. There is no
  * auth by design — every tool behind it is a pure function over a public
@@ -11,12 +11,12 @@
  * (ADR-003). `createDispatcher` was already transport-agnostic, so nothing
  * about JSON-RPC lives in here: this is framing, bounds and status codes.
  *
- * Stateless on purpose (REQ-9a/9b): no Mcp-Session-Id is issued and no SSE
+ * Stateless on purpose (REQ-no-mcp-session-id-is-issued/9b): no Mcp-Session-Id is issued and no SSE
  * stream is offered, so there is no session table to bound, no eviction policy
  * to get wrong, and no long-lived response for a reverse proxy to buffer. GET
  * answering 405 is the spec's way of saying "no server-initiated stream", and
  * it doubles as the reason the app's service worker can never cache this path
- * (pwa-install.md REQ-6 — a 405 is not a cacheable 200).
+ * (pwa-install.md REQ-service-worker-is-registered — a 405 is not a cacheable 200).
  */
 import { createServer } from 'node:http';
 import process from 'node:process';
@@ -39,7 +39,7 @@ const JSON_TYPE = 'application/json';
 const DRAIN_GRACE = 8;
 
 /**
- * Fixed-window per-IP counter, bounded (REQ-11).
+ * Fixed-window per-IP counter, bounded (REQ-the-public-endpoint-is-bounded-not-authenticated).
  *
  * The cap is not paranoia about the happy path — it is that this map allocates
  * one entry per *caller-chosen* key on an endpoint anyone can reach. Unbounded,
@@ -102,7 +102,7 @@ export function clientKey(req) {
 
 /** True when `origin` is absent (a non-browser caller) or allowlisted. */
 export function originAllowed(origin, allowed) {
-  // Absent is ALLOWED, deliberately (REQ-9c). Claude reaches this server-side
+  // Absent is ALLOWED, deliberately (REQ-an-absent-origin-is-allowed). Claude reaches this server-side
   // and sends no Origin, so requiring the header would reject the only client
   // that matters. The check exists for DNS rebinding, which is a browser
   // attack, and a browser always sends one.
@@ -112,12 +112,12 @@ export function originAllowed(origin, allowed) {
 
 /**
  * Read the body with a running byte count, refusing over-cap input *in transit*
- * (REQ-11). Resolves `null` when the cap was hit — the caller has already been
+ * (REQ-the-public-endpoint-is-bounded-not-authenticated). Resolves `null` when the cap was hit — the caller has already been
  * answered 413, so there is nothing left to do.
  *
  * Over the cap the buffered chunks are dropped immediately and nothing further
  * is kept: a cap applied after the fact has already spent the memory it was
- * meant to save (untrusted-input.md REQ-2).
+ * meant to save (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec).
  *
  * The remaining bytes are then *discarded as they arrive* rather than the socket
  * being destroyed on the spot. Destroying leaves unread data on the connection,
@@ -129,7 +129,7 @@ export function originAllowed(origin, allowed) {
  * reasoned about — `fetch` buffers the whole body first and so cannot tell the
  * two cases apart.
  *
- * Discarding costs no memory, so REQ-2 still holds; it costs bandwidth, so the
+ * Discarding costs no memory, so REQ-initialize-echoes-the-protocol-version still holds; it costs bandwidth, so the
  * drain is bounded in turn by {@link DRAIN_GRACE} and the connection is cut for
  * a sender that keeps going regardless. In production nginx's own
  * `client_max_body_size` refuses these at the edge anyway — this path is what
@@ -181,7 +181,7 @@ function send(res, status, body, extraHeaders = {}) {
   res.writeHead(status, {
     'content-type': `${JSON_TYPE}; charset=utf-8`,
     'content-length': Buffer.byteLength(text),
-    // Belt and braces for REQ-9b: nothing on this path is ever cacheable, by
+    // Belt and braces for REQ-no-sse-every-response-is-one-json-body: nothing on this path is ever cacheable, by
     // a browser, a service worker or an intermediary.
     'cache-control': 'no-store',
     ...headers,
@@ -225,7 +225,7 @@ export function createRequestListener({
   });
 
   return function listener(req, res) {
-    // One clock for the whole request (REQ-11). A tool that somehow hangs must
+    // One clock for the whole request (REQ-the-public-endpoint-is-bounded-not-authenticated). A tool that somehow hangs must
     // not hold a socket open indefinitely on a public endpoint.
     res.setTimeout?.(limits.requestMs, () => {
       send(res, 504, { error: 'Request timed out' });
@@ -234,7 +234,7 @@ export function createRequestListener({
 
     const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
     const cors = corsHeaders(origin);
-    // Path is parsed but NOT matched for the MCP verb (REQ-9e): the same
+    // Path is parsed but NOT matched for the MCP verb (REQ-the-request-path-is-not-matched): the same
     // process answers at /mcp behind the production proxy, at / on the origin
     // server, and at whatever a developer types locally. Hard-matching /mcp
     // would make the deployment topology a code constant.
@@ -256,7 +256,7 @@ export function createRequestListener({
     }
 
     if (req.method === 'GET' || req.method === 'DELETE') {
-      // No server-initiated stream, and no session to terminate (REQ-9a/9b).
+      // No server-initiated stream, and no session to terminate (REQ-no-mcp-session-id-is-issued/9b).
       send(res, 405, { error: 'This MCP server offers no SSE stream; use POST.' }, {
         ...cors,
         allow: 'POST, OPTIONS',
@@ -296,7 +296,7 @@ export function createRequestListener({
         return;
       }
 
-      // MCP-Protocol-Version is deliberately IGNORED (REQ-9d) — not read and
+      // MCP-Protocol-Version is deliberately IGNORED (REQ-the-protocol-version-header-is-ignored) — not read and
       // discarded, simply never consulted. `rpc.mjs` behaves identically at
       // every revision it knows and `initialize` already negotiates, so there
       // is nothing this header could change. Validating it would only give a
@@ -318,9 +318,9 @@ export function createRequestListener({
 /**
  * Stand the whole thing up: core bundle → read-only tools → dispatcher →
  * listener → socket. Both HTTP entries are a one-line call to this; the only
- * thing they disagree about is `selfBuild` (REQ-3).
+ * thing they disagree about is `selfBuild` (REQ-local-entries-self-build-the-core).
  *
- * `allowWrites: false` is not a parameter (REQ-10). Whether the write tools are
+ * `allowWrites: false` is not a parameter (REQ-the-remote-profile-is-read-only). Whether the write tools are
  * exposed is a property of the *transport*, not of the deployment: there is no
  * configuration in which a remotely-reachable server should write files into
  * its own working directory, so it is not made configurable.

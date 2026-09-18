@@ -116,7 +116,7 @@ export class Arpeggiator {
     //
     // This replaces a branch that fired *once* per tick with a comment calling
     // it a good-enough approximation: it made 1/32 audibly identical to 1/16, so
-    // the dropdown entry did nothing at all (arpeggiator.md REQ-6). Written
+    // the dropdown entry did nothing at all (arpeggiator.md REQ-a-sub-16th-rate-schedules-its-own-hits). Written
     // generally, so a finer rate appended to RATE_DIVISIONS needs no new branch.
     const stepDur = sixteenth * division;
     const hits = Math.round(1 / division); // 0.5 -> 2
@@ -128,9 +128,9 @@ export class Arpeggiator {
   private fire(when: number, stepDur: number): void {
     // Build the full note pool (held notes × octave range), ordered low to high.
     // Chord memory widens the pool BEFORE stacking, and the key is applied AFTER it,
-    // so the octave copies land in scale too (arpeggiator.md REQ-8). Expanding here
+    // so the octave copies land in scale too (arpeggiator.md REQ-arp-pool-is-expanded-then-quantized). Expanding here
     // as well as in the engine's passthrough is required, not duplicated by accident:
-    // REQ-1 means an engaged arp takes the note stream away from the engine entirely.
+    // REQ-arp-takes-over-the-note-stream means an engaged arp takes the note stream away from the engine entirely.
     const held = this.expand(this.heldOrder);
     const sorted = [...held].sort((a, b) => a - b);
     const pool: number[] = [];
@@ -188,7 +188,7 @@ export class Arpeggiator {
 
   /**
    * Held notes widened through chord memory, preserving press order so `as-played`
-   * still means what it says (chord-tools.md REQ-6).
+   * still means what it says (chord-tools.md REQ-chord-memory-reaches-the-arp).
    *
    * Returns the source array itself when chord memory is inert, so the default path
    * allocates nothing beyond what `fire` already copies.

@@ -111,7 +111,7 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
-  // motion-sequencer.md REQ-21 — a seek clears the tick latch and NOTHING else.
+  // motion-sequencer.md REQ-a-seek-clears-the-tick-latch — a seek clears the tick latch and NOTHING else.
   // Copying onStop's reset here (the obvious mistake, since the two hooks sit
   // side by side) would lose the user's original sound for the whole session.
   it('keeps the baselines across a seek, so stop still restores the ORIGINAL value', () => {
@@ -228,7 +228,7 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(fromNorm(defX, 0));
   });
 
-  describe('bar-line carry across banks (REQ-2b)', () => {
+  describe('bar-line carry across banks (REQ-cross-bank-carry)', () => {
     /** Fill bank `i` with anchors (+ an optional assign), restoring the edit bank. */
     function fill(
       patterns: PatternStore,
@@ -288,7 +288,7 @@ describe('MotionMachine', () => {
       const frameAt = driver(clock, machine);
       frameAt(bar(0, 15.5));
       expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.13), 6);
-      // The empty bank writes nothing (REQ-3) — so the value it inherits is A's
+      // The empty bank writes nothing (REQ-a-bank-with-no-anchors-writes-nothing) — so the value it inherits is A's
       // last anchor, not the 0.55 the old self-wrap sprang back up to.
       frameAt(bar(1, 8));
       expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(def, 0.13), 6);
@@ -322,12 +322,12 @@ describe('MotionMachine', () => {
     });
   });
 
-  describe('handover park (v16, REQ-25)', () => {
+  describe('handover park (v16, REQ-a-bank-parks-at-its-last-anchor)', () => {
     const EIGHTH = LANE_RATES.findIndex((r) => r.label === '1/8');
 
     /**
      * Gankogui's meter: a 24-tick 12/8 bar under a nine-cell lane of 1/8 — 18
-     * ticks, so the lane deliberately does NOT tile the bar (meter.md REQ-10)
+     * ticks, so the lane deliberately does NOT tile the bar (meter.md REQ-each-machine-has-a-loop-length)
      * and a bank's bar cannot end on the lane's last cell. Bank B's bar plays
      * cells 3,4,5,6,7,8,0,1,2,3,4,5 and ends on cell 5.
      */
@@ -419,11 +419,11 @@ describe('MotionMachine', () => {
       ticksTo(clock, next, 16);
       machine.frame(16 * STEP_DUR);
       // One write on the handover frame: bank B's opening. Bank A's seam value
-      // is never put in front of it (REQ-2b's carry stays bit-for-bit).
+      // is never put in front of it (REQ-cross-bank-carry's carry stays bit-for-bit).
       expect(seen).toEqual([fromNorm(def, 0.2)]);
     });
 
-    it('a seek is not a handover (REQ-21)', () => {
+    it('a seek is not a handover (REQ-a-seek-clears-the-tick-latch)', () => {
       const { bus, patterns, clock, arrangement, machine } = build();
       machine.setEnabled(true);
       machine.setSlide(false);
@@ -436,7 +436,7 @@ describe('MotionMachine', () => {
       machine.frame(47.9 * STEP_DUR);
       expect(bus.get('fx.delay.mix')).toBeCloseTo(fromNorm(def, 0.9), 6);
       // Jumping back to bar 0 is not the chain playing out of bank B, so nothing
-      // is parked — the latch is simply dropped and refilled (REQ-21).
+      // is parked — the latch is simply dropped and refilled (REQ-a-seek-clears-the-tick-latch).
       clock.fireSeek(0);
       clock.fireTick(0);
       machine.frame(0);
@@ -459,7 +459,7 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).not.toBe(cutoff0);
   });
 
-  it('muting mid-play stops writes and restores baselines; unmuting resumes (REQ-12)', () => {
+  it('muting mid-play stops writes and restores baselines; unmuting resumes (REQ-motion-mute-is-an-ordinary-param)', () => {
     const { bus, patterns, clock, machine } = build();
     machine.setEnabled(true);
     const cutoff0 = bus.get('filter.cutoff');
@@ -494,7 +494,7 @@ describe('MotionMachine', () => {
     expect(bus.get('filter.cutoff')).toBe(cutoff0);
   });
 
-  // runtime-performance.md REQ-6 — the frame loop memoizes each bank's anchor
+  // runtime-performance.md REQ-no-allocation-in-a-hot-loop — the frame loop memoizes each bank's anchor
   // set, and banks are mutated in place, so every edit stream must drop the memo.
   // A stale entry would make automation quietly ignore the user's edit.
   describe('anchor memo invalidation', () => {
@@ -554,11 +554,11 @@ describe('MotionMachine', () => {
     });
   });
 
-  // REQ-15 / runtime-performance.md REQ-5. The per-param listeners must still
+  // REQ-motion-baselines-are-unchanged / runtime-performance.md REQ-automation-is-not-an-edit. The per-param listeners must still
   // fire (knobs and the XY pad track the automation); only the global "the user
   // edited the sound" signal is withheld — it drives the session autosave
   // debounce and the preset dirty marker, and at frame rate it starved both.
-  it('automation writes reach per-param listeners but not onChange (REQ-15)', () => {
+  it('automation writes reach per-param listeners but not onChange (REQ-motion-baselines-are-unchanged)', () => {
     const { bus, patterns, clock, machine } = build();
     const perParam: number[] = [];
     const global: string[] = [];
@@ -600,7 +600,7 @@ describe('MotionMachine', () => {
   });
 });
 
-describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-13/REQ-15)', () => {
+describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank/REQ-motion-baselines-are-unchanged)', () => {
   /** Assign a track and anchor two of its steps on the edit bank. */
   const setupTrack = (patterns: PatternStore, track: number, param: string,
     anchors: Record<number, number>): void => {
@@ -661,7 +661,7 @@ describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-1
     expect(bus.get('filter.cutoff')).toBeCloseTo(fromNorm(bus.def('filter.cutoff')!, 0.25), 6);
   });
 
-  it('restores a track param’s baseline on stop, like the axes (REQ-15)', () => {
+  it('restores a track param’s baseline on stop, like the axes (REQ-motion-baselines-are-unchanged)', () => {
     const { bus, patterns, clock, machine } = build();
     const before = bus.get('fx.delay.mix');
     setupTrack(patterns, 0, 'fx.delay.mix', { 0: 1 });
@@ -700,7 +700,7 @@ describe('MotionMachine — extra single-param tracks (motion-sequencer.md REQ-1
   });
 });
 
-describe('MotionMachine — per-lane Slide/Step (motion-sequencer.md REQ-2)', () => {
+describe('MotionMachine — per-lane Slide/Step (motion-sequencer.md REQ-set-steps-are-anchors)', () => {
   const setupTrack = (patterns: PatternStore, track: number, param: string,
     anchors: Record<number, number>): void => {
     patterns.setMotionTrackParam(track, param);
@@ -750,7 +750,7 @@ describe('MotionMachine — per-lane Slide/Step (motion-sequencer.md REQ-2)', ()
 });
 
 /**
- * The frame loop's *driver* (REQ-20) — the half `build()` deliberately bypasses.
+ * The frame loop's *driver* (REQ-the-motion-frame-loop-is-visibility-independent) — the half `build()` deliberately bypasses.
  * Browsers suspend rAF for a hidden document, so a bare rAF loop froze motion
  * whenever the tab was backgrounded while every other machine (worker-driven
  * clock) kept playing. Here the drivers are all injected, so the swap is
@@ -819,7 +819,7 @@ describe('MotionMachine frame driver', () => {
     expect(h.timer.starts).toEqual([]);
   });
 
-  it('swaps to the worker-backed timer at the perf fps when hidden (REQ-20, regression)', () => {
+  it('swaps to the worker-backed timer at the perf fps when hidden (REQ-the-motion-frame-loop-is-visibility-independent, regression)', () => {
     const h = buildDriven(30);
     play(h);
     h.setHidden(true);
@@ -848,7 +848,7 @@ describe('MotionMachine frame driver', () => {
     expect(later).toBeCloseTo(fromNorm(h.bus.def('filter.cutoff')!, 0.5), 6);
   });
 
-  it('does not restore baselines when the document is merely hidden (REQ-5)', () => {
+  it('does not restore baselines when the document is merely hidden (REQ-motion-writes-go-through-bus-set)', () => {
     const h = buildDriven();
     const base = h.bus.get('filter.cutoff');
     play(h);

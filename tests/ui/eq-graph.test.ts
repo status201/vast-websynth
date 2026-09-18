@@ -5,7 +5,7 @@ import { EQ_BANDS, EQ_BAND_COUNT } from '../../src/state/eq';
 import { freqToFrac } from '../../src/ui/components/scope';
 
 /**
- * The drawable curve — `specs/features/equalizer.md` REQ-12/REQ-13.
+ * The drawable curve — `specs/features/equalizer.md` REQ-the-curve-is-drawn-by-dragging/REQ-the-graph-computes-from-bus-values.
  *
  * jsdom has no 2D context and no layout, so this drives a real `EqGraph` over a
  * recording context and an injected frame scheduler, exactly as the Scope's
@@ -106,7 +106,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('drawing the curve (REQ-12)', () => {
+describe('drawing the curve (REQ-the-curve-is-drawn-by-dragging)', () => {
   it('writes the band under a tap', () => {
     frameScheduler();
     const { bus, graph } = mount();
@@ -206,7 +206,7 @@ describe('drawing the curve (REQ-12)', () => {
   });
 });
 
-describe('repainting (REQ-13)', () => {
+describe('repainting (REQ-the-graph-computes-from-bus-values)', () => {
   it('coalesces a whole preset’s worth of writes into one frame', () => {
     const frames = frameScheduler();
     const { bus, graph } = mount();
@@ -263,7 +263,7 @@ describe('repainting (REQ-13)', () => {
   });
 });
 
-describe('teardown (REQ-13)', () => {
+describe('teardown (REQ-the-graph-computes-from-bus-values)', () => {
   it('releases its subscriptions, listeners and pending frame', () => {
     const frames = frameScheduler();
     const { bus, graph, painter } = mount();
@@ -287,7 +287,7 @@ describe('teardown (REQ-13)', () => {
   });
 });
 
-describe('an in-flight frame respects a hide (REQ-13, regression)', () => {
+describe('an in-flight frame respects a hide (REQ-the-graph-computes-from-bus-values, regression)', () => {
   it('does not paint a frame that was queued before the page folded away', () => {
     // `invalidate` guards the scheduling; the callback needs its own guard, or a
     // fold that lands between "frame queued" and "frame runs" still paints.

@@ -74,7 +74,7 @@ describe('MediaSessionKeepAlive', () => {
     expect(playSpy).not.toHaveBeenCalled();
   });
 
-  it('plays a detached silent loop and describes the player (REQ-2/REQ-3)', async () => {
+  it('plays a detached silent loop and describes the player (REQ-a-silent-loop-creates-the-session/REQ-session-identifies-the-app)', async () => {
     const ms = asAndroid();
     const keepAlive = new MediaSessionKeepAlive(actions());
     keepAlive.unlock();
@@ -91,7 +91,7 @@ describe('MediaSessionKeepAlive', () => {
     expect(keepAlive.diagnostics).toMatchObject({ active: true, status: 'playing', handlers: 3 });
   });
 
-  it('registers play / pause / stop and drives them (REQ-4)', () => {
+  it('registers play / pause / stop and drives them (REQ-notification-controls-work)', () => {
     const ms = asAndroid();
     const acts = actions();
     const keepAlive = new MediaSessionKeepAlive(acts);
@@ -109,7 +109,7 @@ describe('MediaSessionKeepAlive', () => {
     expect(ms.playbackState).toBe('paused');
   });
 
-  // REQ-5 — the state describes the AUDIO SESSION, not the transport: an
+  // REQ-playback-state-mirrors-the-session — the state describes the AUDIO SESSION, not the transport: an
   // instrument makes sound with the transport stopped, and Android tears down a
   // paused session.
   it('reports playing from unlock, with no transport involved', () => {
@@ -172,7 +172,7 @@ describe('MediaSessionKeepAlive', () => {
   });
 });
 
-// REQ-4 (v2) — the OS buttons drive the transport the way the TRANSPORT row does:
+// REQ-notification-controls-work (v2) — the OS buttons drive the transport the way the TRANSPORT row does:
 // pause is the real Pause, play continues from it, and only stop panics.
 describe('transportMediaHandlers', () => {
   function transport() {

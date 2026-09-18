@@ -226,7 +226,7 @@ describe('Song', () => {
       { on: true, velocity: 0.85, gate: 0.5, prob: 1, ratchet: 3, tie: false, micro: 0 });
   });
 
-  // step-settings.md REQ-6 — micro defaults to a no-op, so it must vanish from
+  // step-settings.md REQ-a-step-carries-a-micro-offset — micro defaults to a no-op, so it must vanish from
   // the wire when unused and survive exactly when used (ADR-006 / ADR-011).
   describe('micro-timing serialization (v3)', () => {
     const captureWith = (mutate: (p: PatternStore) => void) => {
@@ -340,7 +340,7 @@ describe('Song', () => {
   });
 
   describe('load is authoritative — motion (regression)', () => {
-    it('loading a no-motion song clears motion but keeps sampler (REQ-3)', () => {
+    it('loading a no-motion song clears motion but keeps sampler (REQ-a-bank-with-no-anchors-writes-nothing)', () => {
       const bus = new ParamBus();
       registerDefaults(bus);
       const patterns = new PatternStore();
@@ -373,7 +373,7 @@ describe('Song', () => {
     });
   });
 
-  // song-mode.md REQ-3b / sampler.md REQ-7 — a slot's audio belongs to the name
+  // song-mode.md REQ-stale-sampler-audio-is-evicted / sampler.md REQ-a-slots-audio-matches-its-label — a slot's audio belongs to the name
   // beside it, so a load that renames a slot must take the audio with it.
   describe('load is authoritative — stale sampler audio (regression)', () => {
     /** Stand-in for SamplerMachine: records what apply evicted. */
@@ -416,7 +416,7 @@ describe('Song', () => {
       expect(sampler.cleared).toEqual([0, 1]);
     });
 
-    it('evicts nothing when the file omits sampleNames (v1 inherit, REQ-3)', () => {
+    it('evicts nothing when the file omits sampleNames (v1 inherit, REQ-a-bank-with-no-anchors-writes-nothing)', () => {
       const { bus, patterns, arr } = rig();
       const sampler = fakeSampler();
 
@@ -544,7 +544,7 @@ describe('Song', () => {
       });
     });
 
-    // song-mode.md REQ-12 (v20). Stated over the whole library rather than
+    // song-mode.md REQ-drop-in-demos-are-fetched-on-click (v20). Stated over the whole library rather than
     // through spelled names — it holds however many demos exist. This replaced
     // "every drop-in ahead of every built-in": which of the three sources a demo
     // comes from is a loading detail, and it used to pin the project zips to the
@@ -575,7 +575,7 @@ describe('Song', () => {
       }
     });
 
-    // song-mode.md REQ-11: the drop-ins are fetched on click, so their *names*
+    // song-mode.md REQ-song-lane-titles-navigate: the drop-ins are fetched on click, so their *names*
     // come from the generated index rather than from the files at build time.
     // A drifted index would silently mislabel every button.
     it('labels every drop-in by its song name, via the generated index', () => {
@@ -597,7 +597,7 @@ describe('Song', () => {
   });
 });
 
-describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
+describe('Song — four sequencer tracks (sequencer.md REQ-song-file-v6-adds-seq-tracks)', () => {
   const rig = () => {
     const bus = new ParamBus();
     registerDefaults(bus);
@@ -642,7 +642,7 @@ describe('Song — four sequencer tracks (sequencer.md REQ-13)', () => {
 });
 
 /**
- * song-mode.md REQ-12 — the drop-ins are fetched, not bundled, but they must not
+ * song-mode.md REQ-drop-in-demos-are-fetched-on-click — the drop-ins are fetched, not bundled, but they must not
  * disappear from the slot picker: they were selectable there before the change,
  * and `Song.list()` is what fills that dropdown.
  */
@@ -651,7 +651,7 @@ describe('Song.list with fetched demos', () => {
     const list = Song.list();
     for (const name of Object.keys(DROP_IN_DEMOS)) expect(list).toContain(name);
     for (const name of Object.keys(DEMO_SONGS)) expect(list).toContain(name);
-    // The same comparator the demo row uses (song-mode.md REQ-12) — the picker
+    // The same comparator the demo row uses (song-mode.md REQ-drop-in-demos-are-fetched-on-click) — the picker
     // and the shelf must not disagree about where a name sits.
     expect(list).toEqual([...list].sort(compareSongNames));
   });
@@ -667,7 +667,7 @@ describe('Song.list with fetched demos', () => {
 });
 
 /**
- * song-mode.md REQ-12 (v18). Demo names are *data* — `src/state/demos/` is a
+ * song-mode.md REQ-drop-in-demos-are-fetched-on-click (v18). Demo names are *data* — `src/state/demos/` is a
  * drop-in directory — but callers name one: the tour applies `DEMO_FOR_TOUR` by
  * string constant. `loadDemo` used to return silently for a name no source
  * owned, so renaming that one file turned the tour's headline step into a no-op
@@ -691,7 +691,7 @@ describe('demo name resolution', () => {
   });
 });
 
-describe('Song — meter back-compat (meter.md REQ-19)', () => {
+describe('Song — meter back-compat (meter.md REQ-meter-needs-no-song-file-bump)', () => {
   it('loads a pre-meter file as 4/4, with every lane following the bar', () => {
     const bus = new ParamBus();
     registerDefaults(bus);
@@ -725,7 +725,7 @@ describe('Song — meter back-compat (meter.md REQ-19)', () => {
 
     const file = compactSongForExport(Song.capture(bus, patterns, arr as never, 'Seven'));
     // The meter is ten scalars in the open `params` map — no new top-level key,
-    // no schema change, and so no version bump (ADR-007, meter.md REQ-19).
+    // no schema change, and so no version bump (ADR-007, meter.md REQ-meter-needs-no-song-file-bump).
     expect(file.params!['transport.beats']).toBe(7);
     expect(file.params!['transport.beatUnit']).toBe(1);
     expect(Object.keys(file)).not.toContain('meter');

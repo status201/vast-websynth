@@ -64,7 +64,7 @@ test.describe('XY Pad', () => {
   });
 
   test('the axis picker filters its ~200 param ids down to one match', async ({ page }) => {
-    // dropdown.md REQ-7: the assign pickers list every bus param id, so they
+    // dropdown.md REQ-a-long-list-carries-a-filter: the assign pickers list every bus param id, so they
     // carry a live filter. Before it, choosing a param meant scrolling ~20
     // screens — which is why the other specs here set axes via __synth.xy.
     await page.getByTestId('perf-xypad').click();
@@ -86,7 +86,7 @@ test.describe('XY Pad', () => {
     await expect(filter).toHaveValue('');
     await expect(picker.getByText('lfo.rate', { exact: true })).toBeVisible();
 
-    // dropdown.md REQ-8: each arrow moves one option. The bug this pins is a
+    // dropdown.md REQ-arrow-keys-move-the-selection: each arrow moves one option. The bug this pins is a
     // second ArrowDown only scrolling the menu instead of advancing the cursor.
     await page.keyboard.press('ArrowDown');
     const first = await page.evaluate(() => document.activeElement?.textContent);

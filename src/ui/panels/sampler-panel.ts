@@ -33,7 +33,7 @@ import { UI_ICONS } from '../components/ui-icons';
 /**
  * The recorder/editor is ~19 kB of modal that a player reaching for the sampler
  * may never open, so it loads on the click that opens it
- * (runtime-performance.md REQ-1). Both call sites go through here.
+ * (runtime-performance.md REQ-boot-cost-matches-the-request). Both call sites go through here.
  */
 async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions): Promise<void> {
   let m: typeof import('../components/record-sound-modal');
@@ -53,14 +53,14 @@ async function openRecordSoundModal(engine: StudioApi, opts?: RecordSoundOptions
  * Width of a slot row's control cluster — Load, name, ✎, FIT, mute.
  *
  * Wider than the drum panel's 130px because a sampler row carries a filename, and
- * wider again since the FIT button joined it (time-stretch.md REQ-11): at 210px
+ * wider again since the FIT button joined it (time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit): at 210px
  * the name collapsed to about four characters, which is not a label.
  *
  * **The ruler row uses this too.** It used to take the drum panel's bare 130px
  * while the slot rows overrode to 210px, so the playhead ticks sat 80px left of
  * the steps they mark — the one thing `playheadRulerFor` asks the panel to get
  * right ("reusing each panel's real grid class is what keeps the ticks aligned
- * with the steps beneath them", transport-position.md REQ-9). One constant, both
+ * with the steps beneath them", transport-position.md REQ-a-position-ruler-above-every-grid). One constant, both
  * rows, so they cannot drift apart again.
  */
 const SLOT_CTRLS_WIDTH = '240px';
@@ -79,7 +79,7 @@ export function buildSamplerPanel(
   header.className = layout.patternPanelHeader!;
   header.appendChild(new Switch(bus, 'sampler.on', 'sampler').el);
   // Chain / Mute / Solo, right after the machine switch — the same three
-  // controls the Song tab's lane card carries (machine-status.md REQ-9).
+  // controls the Song tab's lane card carries (machine-status.md REQ-lane-controls-live-on-both-surfaces).
   header.appendChild(laneControlsFor(bus, engine, 'sampler', bridge).el);
   header.appendChild(laneMeterControlsFor(bus, 'sampler').el);
   header.appendChild(new Knob({ bus, paramId: 'sampler.master', label: 'MASTER' }).el);
@@ -87,7 +87,7 @@ export function buildSamplerPanel(
   header.appendChild(bankBar.el);
   header.appendChild(createUndoButton(undo, 'sampler'));
   // The row item is labelled with the slot's filename, so it removes the file
-  // too — steps, name and buffer (sampler.md REQ-9). `Clear bank` stays
+  // too — steps, name and buffer (sampler.md REQ-clear-ejects-the-slot). `Clear bank` stays
   // step-only: names are shared by all four banks.
   header.appendChild(clearMenuFor(engine, 'sampler', undo,
     () => [samplerSlotClearRow(engine, undo, cursor.selRow)]));
@@ -125,7 +125,7 @@ export function buildSamplerPanel(
     { id: 'fx.sampler.reverb.damp', label: 'DAMP' },
     { id: 'fx.sampler.reverb.mix', label: 'MIX' },
   ]));
-  // Last, mirroring the sampler chain order (sidechain-ducking.md REQ-8).
+  // Last, mirroring the sampler chain order (sidechain-ducking.md REQ-the-ducker-is-last-in-the-chain).
   fx.appendChild(fxGroup(bus, 'DUCK', 'fx.sampler.duck', [
     { id: 'fx.sampler.duck.amount', label: 'AMT' },
     { id: 'fx.sampler.duck.attack', label: 'ATK' },
@@ -140,7 +140,7 @@ export function buildSamplerPanel(
   // built before the grid and needs the same gate.
   const gate = new VisibilityGate();
 
-  // ---- Transport-position ruler (transport-position.md REQ-9) ----
+  // ---- Transport-position ruler (transport-position.md REQ-a-position-ruler-above-every-grid) ----
   // Outside the rest-overlay wrapper on purpose: a rest bar dims the *pattern*,
   // but where the transport is stays readable.
   const ruler = playheadRulerFor(engine, bus, 'sampler', gate);
@@ -169,7 +169,7 @@ export function buildSamplerPanel(
 
   /**
    * The nearest musical length for a clip, among quarter-bar to four bars
-   * (time-stretch.md REQ-11), or `null` when none is reachable inside the stretch
+   * (time-stretch.md REQ-the-slot-fit-button-is-a-quick-fit), or `null` when none is reachable inside the stretch
    * limits.
    *
    * Nearest, deliberately, rather than "one bar": a 3.9-bar loop forced into one
@@ -205,13 +205,13 @@ export function buildSamplerPanel(
 
   /**
    * Retime a slot to its nearest musical length, and offer the previous audio back
-   * (time-stretch.md REQ-12). No confirm: a confirm would defeat a one-click
+   * (time-stretch.md REQ-the-quick-fit-is-reversible). No confirm: a confirm would defeat a one-click
    * action, and the toast makes it reversible instead. The clip keeps its name —
-   * same sound, new timing — which also avoids sampler.md REQ-7 evicting the audio
+   * same sound, new timing — which also avoids sampler.md REQ-a-slots-audio-matches-its-label evicting the audio
    * this just wrote.
    *
    * The DSP is loaded on the click that needs it, like the editor modal above
-   * (runtime-performance.md REQ-1): most players never press this.
+   * (runtime-performance.md REQ-boot-cost-matches-the-request): most players never press this.
    */
   const quickFit = async (slot: number): Promise<void> => {
     const prev = engine.sampler.buffers[slot] ?? null;
@@ -224,7 +224,7 @@ export function buildSamplerPanel(
     } catch {
       // Deliberately NOT `showLazyLoadFailure`: this import sits inside an
       // *operation*, not behind a surface that opens, and
-      // lazy-load-failure.md REQ-5 keeps those with their own feature and their
+      // lazy-load-failure.md REQ-lazy-scope-is-surfaces-not-operations keeps those with their own feature and their
       // own sentence — "Couldn't open the time-stretcher" describes nothing the
       // user asked for. Same shape as the `lamejs` and `jsqr` deferrals.
       showToast({
@@ -372,7 +372,7 @@ export function buildSamplerPanel(
     cellRows.push(cells);
     const trackBtns: StepButton[] = [];
     // Every cell is built; `bindLaneGrid` below decides which are live and where
-    // the beat accents fall, so the meter owns both (meter.md REQ-8/REQ-11).
+    // the beat accents fall, so the meter owns both (meter.md REQ-accents-and-ruler-derive-from-the-meter/REQ-cells-beyond-the-length-are-hidden).
     for (let s = 0; s < ALL_CELLS; s++) {
       const cell = engine.patterns.sampler[slot]![s]!;
       const sb = new StepButton('');
@@ -406,11 +406,12 @@ export function buildSamplerPanel(
   });
 
   // ---- Selected-slot strip (sound design for the selected slot) ----
-  // The drum panel's tuning strip, applied to a sampler slot (sampler.md REQ-12/13):
+  // The drum panel's tuning strip, applied to a sampler slot
+  // (sampler.md REQ-each-slot-has-a-channel/REQ-a-hit-plays-a-window-of-the-buffer):
   // one shared row driven by the selection cursor. Per-row knobs were the obvious
   // alternative and are the wrong one — the row controls are a fixed narrow width and would
   // have to hold nine knobs and a switch, eight times over.
-  // `help` pins an info badge to this control's CELL (onboarding.md REQ-25). Only
+  // `help` pins an info badge to this control's CELL (onboarding.md REQ-the-sampler-strip-carries-five-badges). Only
   // the controls a player cannot guess carry one, and each covers its neighbours:
   // START speaks for END, DECAY for ATK, TONE for RES.
   const SLOT_PARAMS: { suffix: string; label: string; help?: string }[] = [
@@ -448,7 +449,7 @@ export function buildSamplerPanel(
    * `InfoBadges` resolves each anchor when the badges are switched on and then
    * *keeps the element*. A badge pinned to `knob-sampler.t0.pitch` would be
    * holding a detached node the moment the cursor moved to another slot, measure
-   * 0x0, and silently vanish (onboarding.md REQ-25).
+   * 0x0, and silently vanish (onboarding.md REQ-the-sampler-strip-carries-five-badges).
    */
   const cellFor = (help?: string): HTMLElement => {
     const cell = document.createElement('div');

@@ -60,7 +60,7 @@ expressed as six laws. When they conflict, **in this order**:
 5. **State is visible, not remembered.** If a mode exists it carries a lit
    affordance, and it ends when its context ends — the user must never have to
    recall what mode they are in. (`Step Input`'s visibility scoping,
-   [sequencer](../features/sequencer.md) REQ-5, is the worked example.)
+   [sequencer](../features/sequencer.md) REQ-step-input-arms-only-on-screen, is the worked example.)
 6. **Every control is touch-first.** Pointer Events, hit targets ≥ 44 px, and no
    affordance that exists only on hover — the app ships as an installed PWA on
    phones ([pwa-install](../features/pwa-install.md)).

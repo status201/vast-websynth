@@ -29,7 +29,7 @@ describe('motion-curve', () => {
 
   /**
    * The allocation-free companion the motion machine's frame loop calls
-   * (runtime-performance.md REQ-6). It has to mean exactly what `valueAt` means,
+   * (runtime-performance.md REQ-no-allocation-in-a-hot-loop). It has to mean exactly what `valueAt` means,
    * or the frame loop and every other caller would disagree about the curve.
    */
   describe('valueAtInto', () => {
@@ -120,7 +120,7 @@ describe('motion-curve', () => {
     });
   });
 
-  describe('cross-bank carry (REQ-2b)', () => {
+  describe('cross-bank carry (REQ-cross-bank-carry)', () => {
     // The reported bug, distilled: bank D ramps a delay up and ends high, bank A
     // opens on that value and fades down. Pre-v3 each bank's final step raced back
     // to its OWN first anchor, so D's throw collapsed at the seam and A's low
@@ -185,7 +185,7 @@ describe('motion-curve', () => {
   });
 });
 
-describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-14)', () => {
+describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-tracks-share-the-lanes-curve-semantics)', () => {
   const t = (anchors: Record<number, number>): { on: boolean; v: number }[] =>
     Array.from({ length: 16 }, (_, i) => (
       i in anchors ? { on: true, v: anchors[i]! } : { on: false, v: 0.5 }
@@ -213,7 +213,7 @@ describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-14)',
     const a = t({ 0: 0, 15: 1 });
     const b = t({ 0: 0 });
     // After the last anchor it heads for b's first anchor (1 → 0), not back to
-    // its own step-0 value — the REQ-2b carry, inherited from the shared core.
+    // its own step-0 value — the REQ-cross-bank-carry carry, inherited from the shared core.
     const mid = valueAt1D(a, 15.5 / 16, 'slide', { next: b });
     expect(mid).toBeGreaterThan(0);
     expect(mid).toBeLessThan(1);
@@ -243,7 +243,7 @@ describe('valueAt1D — extra single-param tracks (motion-sequencer.md REQ-14)',
 });
 
 /**
- * The frame-loop anchor memo (runtime-performance.md REQ-6). Correctness first:
+ * The frame-loop anchor memo (runtime-performance.md REQ-no-allocation-in-a-hot-loop). Correctness first:
  * banks are mutated in place, so a cache that is not cleared serves stale
  * anchors — the failure mode would be automation silently ignoring an edit.
  */

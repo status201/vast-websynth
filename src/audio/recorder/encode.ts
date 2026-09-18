@@ -3,7 +3,7 @@
  * standalone `triggerDownload`), so the WAV path is unit-testable under
  * vitest+jsdom. WAV is dependency-free; MP3 uses the vendored lamejs, pulled in
  * by a dynamic import so its 153 kB stay off the boot path (audio-export.md
- * REQ-7 — that is why `encodeMp3` is async and `encodeWav` is not).
+ * REQ-the-mp3-encoder-loads-lazily — that is why `encodeMp3` is async and `encodeWav` is not).
  */
 
 /** lamejs supports these PCM sample rates; others fall back to WAV. */

@@ -29,7 +29,7 @@ export async function copyText(text: string): Promise<boolean> {
 /**
  * Clipboard *read*, or null when unavailable — no API (Firefox/Safari without a
  * user gesture), permission denied, or an empty clipboard. A convenience only:
- * the paste textarea is always the supported path (paste-import.md REQ-9).
+ * the paste textarea is always the supported path (paste-import.md REQ-clipboard-read-is-a-convenience).
  */
 export async function readClipboardText(): Promise<string | null> {
   try {

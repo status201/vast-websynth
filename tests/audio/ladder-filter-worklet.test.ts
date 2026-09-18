@@ -137,7 +137,7 @@ describe('ladder-filter worklet DSP', () => {
     expect(peak(out)).toBeLessThan(0.1); // << 0.5 input peak
   });
 
-  it('idle gating: silence while inactive, clean (fresh-equal) restart (REQ-10)', () => {
+  it('idle gating: silence while inactive, clean (fresh-equal) restart (REQ-the-filter-idles-when-gated)', () => {
     const gen = (n: number) => 0.5 * Math.sin((2 * Math.PI * 220 * n) / SR);
     const params = makeParams({ resonance: 1, cutoffNote: 80 });
 
@@ -158,7 +158,7 @@ describe('ladder-filter worklet DSP', () => {
     expect(allFinite(after)).toBe(true);
   });
 
-  // REQ-11: env + LFO are always connected to cutoffNote, so the host hands a
+  // REQ-filter-coefficients-hoist-per-block: env + LFO are always connected to cutoffNote, so the host hands a
   // full 128-length array. When it is all-equal, the coefficient is hoisted
   // once per block (cached across blocks) — must be bit-identical to feeding a
   // length-1 array, and the cache must invalidate when the value changes.
@@ -170,7 +170,7 @@ describe('ladder-filter worklet DSP', () => {
     shape: new Float32Array([0]),
   });
 
-  it('hoists a block-constant cutoff bit-identically to a length-1 array (REQ-11)', () => {
+  it('hoists a block-constant cutoff bit-identically to a length-1 array (REQ-filter-coefficients-hoist-per-block)', () => {
     const gen = (n: number) => 0.3 * Math.sin((2 * Math.PI * 300 * n) / SR);
     const procFull = new Processor();
     const procOne = new Processor();
@@ -186,7 +186,7 @@ describe('ladder-filter worklet DSP', () => {
     expect(full60).toEqual(one60);
   });
 
-  // REQ-12: the per-sample `sat()` carry. The processor caches each stage's
+  // REQ-the-sat-carry-is-per-sample: the per-sample `sat()` carry. The processor caches each stage's
   // saturated state instead of recomputing it, which must be a pure speed change
   // — so this pins the FULL nonlinear recurrence (drive + resonance + feedback,
   // where every sat() call actually matters) against a fixed reference written
@@ -228,7 +228,7 @@ describe('ladder-filter worklet DSP', () => {
     return out;
   }
 
-  it('is bit-identical to the naive sat() recurrence under drive + resonance (REQ-12)', () => {
+  it('is bit-identical to the naive sat() recurrence under drive + resonance (REQ-the-sat-carry-is-per-sample)', () => {
     let seed = 7;
     const noise = (): number => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -252,7 +252,7 @@ describe('ladder-filter worklet DSP', () => {
     }
   });
 
-  it('carries no stale sat() state across a deactivate (REQ-12)', () => {
+  it('carries no stale sat() state across a deactivate (REQ-the-sat-carry-is-per-sample)', () => {
     const gen = (n: number) => 0.6 * Math.sin((2 * Math.PI * 210 * n) / SR);
     const params = makeParams({ resonance: 3, drive: 2, cutoffNote: 78 });
 
@@ -266,10 +266,10 @@ describe('ladder-filter worklet DSP', () => {
     expect(run(proc, params, gen, 12)).toEqual(run(new Processor(), params, gen, 12));
   });
 
-  // REQ-13: the worklet now hosts a second model (filter-models.md), branched
+  // REQ-ladder-is-filter-model-zero: the worklet now hosts a second model (filter-models.md), branched
   // per block. That branch must be invisible from here — the ladder is model 0,
   // and `shape` belongs to POLY.
-  it('is unchanged by the second model living in the same worklet (REQ-13)', () => {
+  it('is unchanged by the second model living in the same worklet (REQ-ladder-is-filter-model-zero)', () => {
     let seed = 11;
     const noise = (): number => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -297,7 +297,7 @@ describe('ladder-filter worklet DSP', () => {
     }
   });
 
-  it('keeps a varying cutoff block per-sample accurate — the hoist does not fire (REQ-11)', () => {
+  it('keeps a varying cutoff block per-sample accurate — the hoist does not fire (REQ-filter-coefficients-hoist-per-block)', () => {
     const tone = (n: number) => 0.5 * Math.sin((2 * Math.PI * 6000 * n) / SR);
     // Low cutoff for the first half of each block, high for the second half.
     const varying = new Float32Array(BLOCK);

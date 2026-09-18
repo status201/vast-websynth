@@ -29,7 +29,7 @@ function song(over: Partial<SongFile> = {}): SongFile {
   } as SongFile;
 }
 
-describe('demoMetaOf — the facts (REQ-1)', () => {
+describe('demoMetaOf — the facts (REQ-demo-facts-are-generated)', () => {
   it('reads tempo, length and the machines that will sound', () => {
     const f = song({ params: { 'transport.bpm': 124 } });
     f.seqBanks[0]![0]!.on = true;
@@ -40,7 +40,7 @@ describe('demoMetaOf — the facts (REQ-1)', () => {
     expect(meta.armed).toBeUndefined();
   });
 
-  it('takes bars from the LONGEST enabled lane, and ignores disabled ones (REQ-5)', () => {
+  it('takes bars from the LONGEST enabled lane, and ignores disabled ones (REQ-demo-length-is-the-longest-lane)', () => {
     const f = song({
       seqChain: { enabled: true, steps: [0, 0] },
       drumChain: { enabled: true, steps: [0, 0, 0, 0, 0] },
@@ -73,10 +73,10 @@ describe('demoMetaOf — the facts (REQ-1)', () => {
   });
 });
 
-describe('demoMetaOf — armed vs used (REQ-4)', () => {
+describe('demoMetaOf — armed vs used (REQ-uses-is-heard-armed-is-playable)', () => {
   it('reports an armed arp as armed, never as used', () => {
     // The arp follows the keyboard/MIDI and never the sequencer
-    // (arpeggiator.md REQ-7), so it can only ever be armed.
+    // (arpeggiator.md REQ-saved-arp-on-is-armed-not-broken), so it can only ever be armed.
     const meta = demoMetaOf(song({ params: { 'arp.on': 1 } }));
     expect(meta.armed).toEqual(['arp']);
     expect(meta.uses).not.toContain('arp');
@@ -105,7 +105,7 @@ describe('demoMetaOf — armed vs used (REQ-4)', () => {
   it('never reports a staged effect — it measured as noise, not signal', () => {
     // "Any bypassed effect with a non-default param" fires on 13 of the 15
     // shipped demos; "on but mix pinned to 0" fires on none. Neither is a hint.
-    // demo-library.md REQ-4 holds the measurement; this pins the decision.
+    // demo-library.md REQ-uses-is-heard-armed-is-playable holds the measurement; this pins the decision.
     const f = song({
       params: { 'fx.wah.on': 0, 'fx.wah.rate': 0.61, 'fx.wah.depth': 0.1, 'fx.reverb.on': 1, 'fx.reverb.mix': 0 },
     });
@@ -113,7 +113,7 @@ describe('demoMetaOf — armed vs used (REQ-4)', () => {
   });
 });
 
-describe('demoSummary — what the button says (REQ-6)', () => {
+describe('demoSummary — what the button says (REQ-demo-row-says-what-it-knows)', () => {
   const base: DemoMeta = { name: 'X', bpm: 124, bars: 16, uses: ['seq', 'drums'] };
 
   it('joins the facts', () => {

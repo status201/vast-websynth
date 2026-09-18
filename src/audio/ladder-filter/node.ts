@@ -10,9 +10,9 @@ export class LadderFilterNode {
   readonly cutoffNote: AudioParam;
   readonly resonance: AudioParam;
   readonly drive: AudioParam;
-  /** Which model runs: 0 = LADDER, 1 = POLY (filter-models.md REQ-1). */
+  /** Which model runs: 0 = LADDER, 1 = POLY (filter-models.md REQ-filter-model-is-a-discrete-param). */
   readonly model: AudioParam;
-  /** POLY pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (REQ-6). */
+  /** POLY pole-mix morph, 0 = LP24 … 1 = HP24. The LFO sums in here (REQ-input-and-poles-are-saturated). */
   readonly shape: AudioParam;
 
   private constructor(private readonly node: AudioWorkletNode) {
@@ -26,7 +26,7 @@ export class LadderFilterNode {
   }
 
   /**
-   * Idle gating (ladder-filter.md REQ-10): while inactive the processor skips
+   * Idle gating (ladder-filter.md REQ-the-filter-idles-when-gated): while inactive the processor skips
    * its per-sample DSP and outputs silence. The downstream ampVCA is closed
    * whenever this flips, so the step is inaudible by construction.
    */
@@ -37,7 +37,7 @@ export class LadderFilterNode {
   static async create(ctx: AudioContext): Promise<LadderFilterNode> {
     // Mono: the voice path is mono end-to-end; stereo starts downstream by
     // up-mix. A stereo node here would compute identical samples twice
-    // (ladder-filter.md REQ-9).
+    // (ladder-filter.md REQ-the-filter-worklet-is-mono).
     const node = new AudioWorkletNode(ctx, 'ladder-filter', {
       numberOfInputs: 1,
       numberOfOutputs: 1,

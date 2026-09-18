@@ -273,7 +273,7 @@ describe('PatternStore', () => {
   });
 });
 
-describe('PatternStore — motion banks (motion-sequencer.md REQ-1/REQ-4)', () => {
+describe('PatternStore — motion banks (motion-sequencer.md REQ-a-motion-step-is-an-optional-anchor/REQ-motion-drives-the-xy-assignment)', () => {
   it('motion banks default empty (center coordinates, all off)', () => {
     const p = new PatternStore();
     for (let b = 0; b < BANK_COUNT; b++) {
@@ -345,7 +345,7 @@ describe('PatternStore — motion banks (motion-sequencer.md REQ-1/REQ-4)', () =
   });
 });
 
-describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', () => {
+describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-capture-happens-at-the-mutation-entry/REQ-restore-fires-a-bulk-hook)', () => {
   it('emits the pre-state clone for a cell mutation', () => {
     const p = new PatternStore();
     const seen: unknown[] = [];
@@ -390,7 +390,7 @@ describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', 
     expect(mutations).toHaveLength(0);
   });
 
-  it('setSampleName never emits onMutate (REQ-11)', () => {
+  it('setSampleName never emits onMutate (REQ-the-xy-window-axes-follow-motion)', () => {
     const p = new PatternStore();
     const seen: unknown[] = [];
     p.onMutate((m) => seen.push(m));
@@ -399,8 +399,8 @@ describe('PatternStore onMutate / onBulkRestore (pattern-undo.md REQ-2/REQ-7)', 
   });
 });
 
-describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
-  it('clearSeqBank clears only `on`, keeping every per-step setting (REQ-2)', () => {
+describe('PatternStore bulk clears (step-grid-editing.md REQ-clear-menu-clears-in-bulk/REQ-one-bulk-action-one-undo-entry)', () => {
+  it('clearSeqBank clears only `on`, keeping every per-step setting (REQ-set-steps-are-anchors)', () => {
     const p = new PatternStore();
     p.setSeqStep(0, 3, { on: true, note: 64, velocity: 0.42, gate: 0.9, ratchet: 3, tie: true });
     expect(p.clearSeqBank()).toBe(true);
@@ -466,7 +466,7 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
     expect(p.sampler.every((row) => row.every((c) => !c.on))).toBe(true);
   });
 
-  it('clearMotionBank drops the anchors but keeps the bank axis override (REQ-9)', () => {
+  it('clearMotionBank drops the anchors but keeps the bank axis override (REQ-song-file-v4-adds-motion-banks)', () => {
     const p = new PatternStore();
     p.setMotionStep(2, { on: true, x: 0.3, y: 0.7 });
     p.setMotionAssign({ x: 'fx.delay.mix' });
@@ -523,13 +523,13 @@ describe('PatternStore bulk clears (step-grid-editing.md REQ-6/REQ-7)', () => {
     p.setSeqStep(2, 4, { on: true, note: 67 });
     expect(p.clearSeqTrack(2)).toBe(true);
     expect(p.seqTrack(2)![4]!.on).toBe(false);
-    expect(p.seqTrack(2)![4]!.note).toBe(67);   // note preserved (REQ-2)
+    expect(p.seqTrack(2)![4]!.note).toBe(67);   // note preserved (REQ-set-steps-are-anchors)
     expect(p.seqTrack(0)![2]!.on).toBe(true);
     expect(p.clearSeqTrack(2)).toBe(false);     // already empty
   });
 });
 
-describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-13)', () => {
+describe('PatternStore — extra motion tracks (motion-sequencer.md REQ-two-extra-tracks-per-bank)', () => {
   it('boots with two blank, unassigned tracks per bank', () => {
     const p = new PatternStore();
     const tracks = p.motionTracks(0);

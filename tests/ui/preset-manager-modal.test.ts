@@ -6,7 +6,7 @@ import { parsePresetPayload } from '../../src/state/preset-file';
 import { installLocalStorageMock } from '../storage-mock';
 import styles from '../../src/ui/styles/preset-manager.module.css';
 
-// presets.md REQ-16. The wizard's error strip used to render `errors[0]` and
+// presets.md REQ-the-preset-wizard-reports-every-problem. The wizard's error strip used to render `errors[0]` and
 // drop the rest before they reached the DOM — and this strip is the only place
 // they are ever shown, since the paste door raises no dialog of its own.
 
@@ -48,7 +48,7 @@ describe('preset manager import errors', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders every message, not just the first (REQ-16)', () => {
+  it('renders every message, not just the first (REQ-the-preset-wizard-reports-every-problem)', () => {
     openWith(tenBadPresets());
     expect(shown('preset-import-errors')).toBe(true);
     const rows = rowsIn('preset-import-errors', styles.errorRow!);
@@ -58,7 +58,7 @@ describe('preset manager import errors', () => {
     expect(byId('preset-import-errors')!.textContent).toContain('10 problems');
   });
 
-  it('copies the whole list, built from the array and not the rows (REQ-16)', async () => {
+  it('copies the whole list, built from the array and not the rows (REQ-the-preset-wizard-reports-every-problem)', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     openWith(tenBadPresets());
@@ -114,7 +114,7 @@ describe('preset manager import warnings', () => {
     expect((byId('preset-import-confirm') as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('warns about an out-of-range value instead of refusing the file (REQ-8)', () => {
+  it('warns about an out-of-range value instead of refusing the file (REQ-modified-is-computed-not-tracked)', () => {
     openWith({
       format: 'websynth-preset', version: 1, name: 'Too Hot',
       params: { 'filter.cutoff': 9000 },

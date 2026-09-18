@@ -38,7 +38,7 @@
   border-radius: 0;
 }
 
-/* Machine status LED (machine-status.md REQ-3). Deliberately inert: no hover,
+/* Machine status LED (machine-status.md REQ-the-tab-led-is-not-a-control). Deliberately inert: no hover,
    focus or cursor styling of its own, and pointer-events:none so the whole tab
    highlights as ONE unit and every click navigates. It must never read as a
    toggle — the real machine switch lives inside the tab. */
@@ -82,9 +82,9 @@
   border-bottom-color: var(--accent);
 }
 
-/* Selected, but folded out of sight (section-title.md REQ-7): the same yellow
+/* Selected, but folded out of sight (section-title.md REQ-folded-selected-tab-dims): the same yellow
    burning low — no glow, underline dimmed with it — the way the heading beside it
-   dims (REQ-6). A dim YELLOW, never the heading's --text-dim, so it still reads
+   dims (REQ-the-navigation-link-is-visible-at-rest). A dim YELLOW, never the heading's --text-dim, so it still reads
    as a tab. Child combinators so only the folded row's own tabs dim, and nothing
    here touches .led: the lamp reports the machine, not the view. */
 .root:global(.collapsed) > .bar > .tab:global(.active) {
@@ -136,7 +136,7 @@
 }
 
 /* The smaller tab type starts above the 992px step, at 1030px
-   (section-title.md REQ-5). At full size the machine row — seven tabs, the
+   (section-title.md REQ-compact-drops-text-not-icon). At full size the machine row — seven tabs, the
    caret and the MACHINES icon — needs ~957px of bar, and a label wraps onto a
    second line below a 1028px viewport (measured: 42px-tall tabs from 993 to
    1027px). 1030 covers that band with a couple of pixels to spare. */

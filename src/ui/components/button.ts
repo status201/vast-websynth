@@ -17,7 +17,7 @@ export interface ButtonOptions {
   /**
    * Inline SVG rendered *alongside* the text label rather than instead of it
    * (`← Back`, the AI Prompt sparkle). The glyph is `aria-hidden`, so the
-   * accessible name stays the text alone — iconography.md REQ-3.
+   * accessible name stays the text alone — iconography.md REQ-an-icon-is-aria-hidden.
    */
   iconBefore?: string;
   /** As `iconBefore`, on the other side (a trailing caret). */

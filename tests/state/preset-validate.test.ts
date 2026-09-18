@@ -71,10 +71,10 @@ describe('semantic layer (with a bus)', () => {
     expect(res.errors[0]).toContain(`${def.min}..${def.max}`);
   });
 
-  // preset-authoring.md REQ-8 — the same findings, two severities. The MCP
+  // preset-authoring.md REQ-semantic-severity-is-the-callers-choice — the same findings, two severities. The MCP
   // tools want an author's file refused; the app's importer wants it to load,
   // because the bus clamps a range and ignores an unknown id.
-  it('demotes the registry findings to warnings when the caller asks (REQ-8)', () => {
+  it('demotes the registry findings to warnings when the caller asks (REQ-lfo-rate-is-exponentially-tapered)', () => {
     const payload = PRESET({ 'osc1.shape': 1, 'filter.resonance': 99 });
     const res = validatePresetPayload(payload, bus(), { semantics: 'warning' });
     expect(res.ok).toBe(true);
@@ -105,7 +105,7 @@ describe('semantic layer (with a bus)', () => {
     expect(res.ok).toBe(false);
   });
 
-  it('accepts every pre-v2 lfo.dest index unchanged (lfo.md REQ-3)', () => {
+  it('accepts every pre-v2 lfo.dest index unchanged (lfo.md REQ-destination-is-one-of-the-labels)', () => {
     // The destination list is append-only: growing it to add `pan` must not
     // invalidate — or re-point — any index a saved patch already holds.
     const labels = bus().def('lfo.dest')!.labels!;
@@ -116,14 +116,14 @@ describe('semantic layer (with a bus)', () => {
   });
 
   // Appending a destination must widen the accepted range by exactly one and
-  // leave every older index meaning what it always meant (lfo.md REQ-3).
+  // leave every older index meaning what it always meant (lfo.md REQ-destination-is-one-of-the-labels).
   it('accepts the pan and shape destinations and still rejects past them', () => {
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 5 }), bus()).ok).toBe(true); // pan
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 6 }), bus()).ok).toBe(true); // shape
     expect(validatePresetPayload(PRESET({ 'lfo.dest': 7 }), bus()).ok).toBe(false);
   });
 
-  // Exclusivity is a UI affordance, not a data invariant (lfo.md REQ-12): a
+  // Exclusivity is a UI affordance, not a data invariant (lfo.md REQ-destinations-are-no-longer-exclusive): a
   // hand-authored or MCP-authored file may put both LFOs anywhere, including
   // on the same destination, and must still load.
   it('range-checks lfo2.dest exactly like lfo.dest, and independently', () => {
@@ -165,7 +165,7 @@ describe('semantic layer (with a bus)', () => {
   });
 });
 
-describe('expansion (REQ-4)', () => {
+describe('expansion (REQ-pan-sweeps-a-stereo-panner)', () => {
   it('defaults cover every patch param and nothing else', () => {
     const b = bus();
     const defaults = defaultPatchParams(b);

@@ -4,9 +4,9 @@
 id: voicing
 status: implemented
 version: 4   # v3: the passthrough stores what it played, so a re-pitched or
-             #     chord-expanded key still releases correctly (REQ-8)
+             #     chord-expanded key still releases correctly (REQ-passthrough-remembers-what-it-played)
              # v4: a stolen voice is evicted from its old note's held list, so
-             #     releasing that key no longer cuts the new note (REQ-9)
+             #     releasing that key no longer cuts the new note (REQ-a-stolen-voice-leaves-the-held-list)
 owner: core
 related:
   - architecture
@@ -35,46 +35,50 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
 
 ## Requirements
 
-- **REQ-1** — `voicing.mode` toggles mono/poly; switching **kills all voices** so
-  no notes hang across the mode change.
+- **REQ-mode-switch-kills-all-voices** — `voicing.mode` toggles mono/poly;
+  switching **kills all voices** so no notes hang across the mode change.
 
-- **REQ-2** — Unison stacks `1..4` detuned copies per note (`unison.detune` cents).
+- **REQ-unison-stacks-detuned-copies** — Unison stacks `1..4` detuned copies per
+  note (`unison.detune` cents).
 
-- **REQ-3** — Glide time + mode control portamento; defaults reproduce the legacy
-  no-glide behaviour.
+- **REQ-glide-controls-portamento** — Glide time + mode control portamento;
+  defaults reproduce the legacy no-glide behaviour.
 
-- **REQ-4** — Analogue drift adds subtle per-voice pitch wander (default 0 = off).
-  The 110 ms drift interval runs **only while drift > 0** (v2): `setDrift`
-  starts it on a 0→>0 transition and on >0→0 clears it after settling the
-  detune source back to 0 — at the default there is no recurring main-thread
-  timer (pinned by `tests/audio/polyphony.test.ts`).
+- **REQ-analogue-drift-is-off-by-default** — Analogue drift adds subtle
+  per-voice pitch wander (default 0 = off). The 110 ms drift interval runs
+  **only while drift > 0** (v2): `setDrift` starts it on a 0→>0 transition and
+  on >0→0 clears it after settling the detune source back to 0 — at the default
+  there is no recurring main-thread timer (pinned by
+  `tests/audio/polyphony.test.ts`).
 
-- **REQ-5** — Pitch bend (`±` cents) and keyboard transpose (`±2` oct) shift pitch
-  globally.
+- **REQ-bend-and-transpose-shift-pitch** — Pitch bend (`±` cents) and keyboard
+  transpose (`±2` oct) shift pitch globally.
 
-- **REQ-6** — Note events flow `bus.onNote → Engine.playNote / releaseNote` unless
-  `passthroughSuppressed` (arp/sequencer own triggering then).
+- **REQ-note-events-flow-through-the-bus** — Note events flow `bus.onNote →
+  Engine.playNote / releaseNote` unless `passthroughSuppressed` (arp/sequencer
+  own triggering then).
 
-- **REQ-7** — (v2) The voice lifecycle drives the ladder filter's **idle gating**:
-  voices boot inactive, `noteOn` activates the filter unconditionally, and
-  release-completion / `kill` deactivate it — see
-  [ladder-filter](ladder-filter.md) REQ-10 for the protocol and its safety
+- **REQ-voice-lifecycle-gates-the-ladder** — (v2) The voice lifecycle drives the
+  ladder filter's **idle gating**: voices boot inactive, `noteOn` activates the
+  filter unconditionally, and release-completion / `kill` deactivate it — see
+  [ladder-filter](ladder-filter.md) REQ-the-filter-idles-when-gated for the protocol and its safety
   asymmetry (pinned by `tests/audio/voice.test.ts`).
 
-- **REQ-8** (the passthrough remembers what it played, v3) — a raw key no longer maps
-  1:1 to a sounding note: it may be re-pitched by the key or expanded into a chord
-  ([scale-quantization](scale-quantization.md), [chord-tools](chord-tools.md)). Since
-  `Polyphony.releaseNote` looks up `heldNotes` **by the note number passed in**, a
-  note-off that re-derived that mapping after the key or voicing changed would miss the
-  lookup and **strand the voice forever**.
+- **REQ-passthrough-remembers-what-it-played** (the passthrough remembers what
+  it played, v3) — a raw key no longer maps 1:1 to a sounding note: it may be
+  re-pitched by the key or expanded into a chord
+  ([scale-quantization](scale-quantization.md), [chord-tools](chord-tools.md)).
+  Since `Polyphony.releaseNote` looks up `heldNotes` **by the note number passed
+  in**, a note-off that re-derived that mapping after the key or voicing changed
+  would miss the lookup and **strand the voice forever**.
 
   So the passthrough keeps `Engine.heldIn: Map<number, number[]>` — raw key → the notes
   actually sounded. Note-on stores; note-off replays that array and deletes the entry.
   This is the same "resolve once, release through the stored note" rule the sequencer
-  states at [sequencer](sequencer.md) REQ-16, now applied to the one note source that
+  states at [sequencer](sequencer.md) REQ-every-note-is-shifted-by-the-slot-transpose, now applied to the one note source that
   previously had nowhere to store it. It is what lets a player change key, or switch on
   chord memory, **while holding a chord**. The map is bounded at 128 keys × ≤4 notes and
-  is cleared alongside `killAll` — REQ-1's mode switch and panic both go through it, so
+  is cleared alongside `killAll` — REQ-mode-switch-kills-all-voices's mode switch and panic both go through it, so
   no entry outlives the voices it names.
 
   *Accepted consequence:* two raw keys can quantize onto the same note, so releasing one
@@ -82,11 +86,12 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   hardware quantizers behave; it is not to be "fixed" by refcounting, which would make a
   legato retrigger stop working.
 
-- **REQ-9** (a stolen voice leaves its old note's held list, v4) — `heldNotes` maps a
-  sounding note to the voices playing it, and `releaseNote` sends `noteOff` to whatever
-  that entry names. When the pool is full, `pickVoice` **steals** the oldest playing
-  voice — so that voice is now sounding a *new* note while the old note's entry still
-  claims it. Releasing the old key then stopped the new note.
+- **REQ-a-stolen-voice-leaves-the-held-list** (a stolen voice leaves its old
+  note's held list, v4) — `heldNotes` maps a sounding note to the voices playing
+  it, and `releaseNote` sends `noteOff` to whatever that entry names. When the
+  pool is full, `pickVoice` **steals** the oldest playing voice — so that voice
+  is now sounding a *new* note while the old note's entry still claims it.
+  Releasing the old key then stopped the new note.
 
   The bug is reachable with nothing exotic: hold eight notes (`VOICE_COUNT = 8`), play a
   ninth, and let go of the first — the ninth stops, the first was never sounding. Unison
@@ -96,7 +101,7 @@ time 0 reproduces the pre-song-mode behaviour, keeping existing presets unchange
   So allocation is the point where the bookkeeping is repaired: taking a voice
   **evicts it from whatever note currently holds it**, and an entry left with no voices
   is dropped. The invariant is *a voice appears in at most one `heldNotes` entry* —
-  which is what makes REQ-8's "release through the stored note" rule sound, since that
+  which is what makes REQ-passthrough-remembers-what-it-played's "release through the stored note" rule sound, since that
   rule assumes the stored note still owns the voice it names.
 
   This is deliberately **not** refcounting, and not a change to the stealing order:
@@ -143,13 +148,13 @@ Scenario: Switching mono<->poly never leaves a hanging note
   Then all voices are killed and no note hangs
 # pinned by: tests/state/params.test.ts (subscription); manual/e2e controls
 
-Scenario: Changing the key while a note is held never hangs it (v3, REQ-8, regression)
+Scenario: Changing the key while a note is held never hangs it (v3, REQ-passthrough-remembers-what-it-played, regression)
   Given a key is held and sounding through the passthrough
   When scale.root changes and the key is then released
   Then the note that was started is the note released, and no voice is left sounding
 # pinned by: tests/audio/engine-scale.test.ts
 
-Scenario: Releasing a key whose voice was stolen leaves the thief sounding (v4, REQ-9, regression)
+Scenario: Releasing a key whose voice was stolen leaves the thief sounding (v4, REQ-a-stolen-voice-leaves-the-held-list, regression)
   Given every voice in the pool is playing a held note
   When one more note is played, stealing the oldest voice
   And the note that voice used to play is released
@@ -158,7 +163,7 @@ Scenario: Releasing a key whose voice was stolen leaves the thief sounding (v4, 
 # pinned by: tests/audio/polyphony.test.ts (voice stealing keeps heldNotes
 #            honest — releasing the robbed note does not stop the thief)
 
-Scenario: A stolen note stops when it is stolen, not when its key is released (v4, REQ-9)
+Scenario: A stolen note stops when it is stolen, not when its key is released (v4, REQ-a-stolen-voice-leaves-the-held-list)
   Given every voice in the pool is playing a held note
   When one more note is played
   Then the oldest note stops immediately, because its voice was taken
@@ -166,7 +171,7 @@ Scenario: A stolen note stops when it is stolen, not when its key is released (v
 # pinned by: tests/audio/polyphony.test.ts (voice stealing keeps heldNotes
 #            honest — still releases the note the stolen voice actually plays)
 
-Scenario: A note keeps its own voices when the pool has room (v4, REQ-9, edge)
+Scenario: A note keeps its own voices when the pool has room (v4, REQ-a-stolen-voice-leaves-the-held-list, edge)
   Given fewer notes are held than there are voices
   When another note is played
   Then an idle voice is taken and every held note still owns its own voices
@@ -181,9 +186,9 @@ Scenario: Glide defaults reproduce legacy behaviour (backward compat, edge)
 ## Tests & verification
 
 - `tests/state/params.test.ts`, `tests/state/preset.test.ts`, `e2e/controls.spec.ts`.
-- REQ-9 stealing/eviction: `tests/audio/polyphony.test.ts`.
+- REQ-a-stolen-voice-leaves-the-held-list stealing/eviction: `tests/audio/polyphony.test.ts`.
 - `npm test` / `npm run e2e`.
-- **Verified by ear (REQ-9)**, which is the part the tests cannot do
+- **Verified by ear (REQ-a-stolen-voice-leaves-the-held-list)**, which is the part the tests cannot do
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md)): a nine-note
   chord held across the eight voices and released oldest-first, A/B against the
   build before the fix, rendered with

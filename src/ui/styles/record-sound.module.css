@@ -117,7 +117,7 @@
   animation: flash 0.3s ease-out alternate 2;
 }
 
-/* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-9) ----
+/* ---- Editor sections: Chop, Fit & Shift, Scratch (sample-recorder.md REQ-every-section-below-the-waveform-folds) ----
    Folds rather than extra modals: each edits the same selection through the same
    undo, and a second surface is what sample-chop.md warns drifts. The header is
    the About modal's — `.sec` + `.secFold` + `.secFoldLabel` from

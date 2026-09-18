@@ -3,7 +3,7 @@ import { clamp01 } from '../../utils/math';
 import { RAMP_SMOOTH } from '../param-utils';
 import type { ParamBus } from '../../state/params';
 
-/** `<prefix>.src` index that keys off every drum track (sidechain-ducking.md REQ-7). */
+/** `<prefix>.src` index that keys off every drum track (sidechain-ducking.md REQ-the-duck-key-is-one-track-or-any). */
 export const DUCK_SRC_ANY = 8;
 
 /**
@@ -35,13 +35,13 @@ export function envValueAt(
  *
  * `duckGain.gain` holds an intrinsic 1 and sums a `-amount`-scaled envelope
  * coming in from `env`, so the gain law is `1 - amount * e(t)` with both factors
- * in [0,1] — bounded by construction, no clamp and no feedback path (REQ-2).
+ * in [0,1] — bounded by construction, no clamp and no feedback path (REQ-bypass-and-mix-are-a-crossfade).
  * There is no DSP on the audio thread at all: the envelope is native
  * `AudioParam` automation, scheduled at the absolute time the drum machine has
- * already decided a hit will sound (REQ-1).
+ * already decided a hit will sound (REQ-every-effect-implements-the-interface).
  *
  * No `setMix` — the ducker has no dry/wet, so `bindBypassMix` subscribes only
- * `.on`, the same way the wah and the compressors opt out (effects.md REQ-1).
+ * `.on`, the same way the wah and the compressors opt out (effects.md REQ-every-effect-implements-the-interface).
  */
 export class Ducker extends WrappedEffect {
   private readonly duckGain: GainNode;
@@ -84,7 +84,7 @@ export class Ducker extends WrappedEffect {
   }
 
   setAmount(a: number): void {
-    // Negative: the envelope *subtracts* from the intrinsic 1 (REQ-2).
+    // Negative: the envelope *subtracts* from the intrinsic 1 (REQ-bypass-and-mix-are-a-crossfade).
     this.depthGain.gain.setTargetAtTime(-clamp01(a), this.ctx.currentTime, RAMP_SMOOTH);
   }
   setAttack(s: number): void {
@@ -98,18 +98,18 @@ export class Ducker extends WrappedEffect {
   }
 
   /**
-   * A drum hit sounded on `track` at absolute time `when` (REQ-1). Schedules the
+   * A drum hit sounded on `track` at absolute time `when` (REQ-every-effect-implements-the-interface). Schedules the
    * duck if this track is the key, otherwise ignores it.
    */
   onDrumHit(track: number, when: number): void {
     // A bypassed ducker is inaudible, so scheduling would be pure main-thread
-    // waste — the same early-out shape as the mod matrix's random source (REQ-6).
+    // waste — the same early-out shape as the mod matrix's random source (REQ-the-reverb-ir-bank-is-lazy-and-shared).
     if (this.bypassed) return;
     if (this.src !== DUCK_SRC_ANY && track !== this.src) return;
     // `forEachActiveHit` sweeps lanes outer, ratchets inner, so with `Any` a
     // later ratchet sub-hit can be emitted before an earlier lane's hit.
     // Cancelling for the earlier time would erase the ramp already scheduled for
-    // the later one and strand the envelope mid-duck (REQ-4). Both fall inside
+    // the later one and strand the envelope mid-duck (REQ-the-drum-bus-chain-order). Both fall inside
     // one 16th, so nothing audible is lost by skipping it.
     if (when < this.onset) return;
 
@@ -120,7 +120,7 @@ export class Ducker extends WrappedEffect {
     p.linearRampToValueAtTime(1, when + this.attack);
     // Always the last event scheduled: the envelope's terminal state is a decay
     // to *no duck*, which is why a stop, a dropout or a bypass all recover with
-    // no explicit release path (REQ-5).
+    // no explicit release path (REQ-fx-on-below-half-is-bypassed).
     p.setTargetAtTime(0, when + this.attack, this.release);
 
     this.onset = when;

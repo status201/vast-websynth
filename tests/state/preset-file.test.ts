@@ -6,14 +6,16 @@ import {
 import { ParamBus, registerDefaults } from '../../src/state/params';
 
 /**
- * presets.md REQ-7..REQ-11. Everything here is pure — no Storage mock, no DOM:
+ * presets.md REQ-two-preset-file-shapes through
+ * presets.md REQ-a-malformed-preset-is-refused-with-a-reason.
+ * Everything here is pure — no Storage mock, no DOM:
  * the whole import decision is a function of incoming × existing × policy.
  */
 
 const A = { 'filter.cutoff': 80, 'osc1.level': 0.5 };
 const B = { 'filter.cutoff': 40, 'osc1.level': 0.5 };
 
-describe('sameSnapshot (REQ-8)', () => {
+describe('sameSnapshot (REQ-modified-is-computed-not-tracked)', () => {
   it('compares at the 4-sig-fig boundary save() writes at', () => {
     expect(sameSnapshot({ a: 0.123456789 }, { a: 0.1235 })).toBe(true);
     expect(sameSnapshot({ a: 0.1 }, { a: 0.2 })).toBe(false);
@@ -24,7 +26,7 @@ describe('sameSnapshot (REQ-8)', () => {
   });
 });
 
-describe('file building (REQ-7)', () => {
+describe('file building (REQ-two-preset-file-shapes)', () => {
   it('a preset file tags its format and rounds its params', () => {
     const f = buildPresetFile('MyLead', { 'filter.cutoff': 80.123456 });
     expect(f).toMatchObject({ format: 'websynth-preset', version: 1, name: 'MyLead' });
@@ -48,7 +50,7 @@ describe('file building (REQ-7)', () => {
   });
 });
 
-describe('parsePresetPayload (REQ-11)', () => {
+describe('parsePresetPayload (REQ-a-malformed-preset-is-refused-with-a-reason)', () => {
   it('round-trips a preset file, collapsing it to a one-entry map', () => {
     const res = parsePresetPayload(JSON.stringify(buildPresetFile('MyLead', A)));
     expect(res.ok).toBe(true);
@@ -86,7 +88,7 @@ describe('parsePresetPayload (REQ-11)', () => {
     expect(parsePresetPayload('{"format":"websynth-preset-bank"}').ok).toBe(false);
   });
 
-  // preset-authoring.md REQ-8 — the app's door now runs the registry checks, but
+  // preset-authoring.md REQ-semantic-severity-is-the-callers-choice — the app's door now runs the registry checks, but
   // only the structural layer decides `ok`. That is the whole safety argument:
   // nothing that imported before starts being refused.
   it('given the bus, warns where it used to say nothing', () => {
@@ -128,7 +130,7 @@ describe('parsePresetPayload (REQ-11)', () => {
   });
 });
 
-describe('planImport (REQ-10)', () => {
+describe('planImport (REQ-preset-import-is-a-two-step-wizard)', () => {
   it('classifies new / identical / conflicting', () => {
     const plan = planImport({ fresh: A, same: A, clash: B }, { same: A, clash: A }, 'rename');
     expect(plan.counts).toMatchObject({ new: 1, identical: 1, conflict: 1 });

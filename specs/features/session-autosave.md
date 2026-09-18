@@ -3,22 +3,23 @@
 ```yaml
 id: session-autosave
 status: implemented
-version: 8   # v8: REQ-12 — the session is PER TAB. Two tabs sharing one key was
+version: 8   # v8: REQ-each-tab-autosaves-to-its-own-key — the session is PER TAB. Two tabs sharing one key was
              #     last-writer-wins, and it silently ate a real session's motion
-             # v7: REQ-14c — Save guards the same slot the import path does, and
-             #     REQ-14d — a demo click never writes a slot at all
-             # v6: REQ-14 — an identical slot is not a conflict (re-importing the
-             #     same song no longer re-asks). Also renumbers v5's import gate
-             #     from REQ-11, which collided with the storage-failure REQ-11.
+             # v7: REQ-every-slot-write-is-guarded — Save guards the same slot the import path does, and
+             #     REQ-a-demo-click-never-writes-a-slot — a demo click never writes a slot at all
+             # v6: REQ-the-undo-net-covers-the-session — an identical slot is not a conflict (re-importing the
+             #     same song no longer re-asks). Also renumbered v5's import gate,
+             #     which had collided with the storage-failure requirement — both
+             #     under the numeric ids that predate slugs (ADR-021).
              # v5: an import confirms before overwriting a same-named saved slot
              #     (the undo toast can't restore one)
 owner: websynth
 related:
   - architecture
-  - untrusted-input      # REQ-14: the song name is attacker-chosen
-  - presets              # REQ-14 follows the preset importer's never-blind-merge rule
-  - runtime-performance  # REQ-5: automation is not an edit (REQ-2b's other half)
-  - motion-sequencer     # the frame-rate writer REQ-2b exists for
+  - untrusted-input      # REQ-the-undo-net-covers-the-session: the song name is attacker-chosen
+  - presets              # REQ-the-undo-net-covers-the-session follows the preset importer's never-blind-merge rule
+  - runtime-performance  # REQ-boot-restores-an-autosave-silently: automation is not an edit (REQ-playback-alone-never-rearms-the-debounce's other half)
+  - motion-sequencer     # the frame-rate writer REQ-playback-alone-never-rearms-the-debounce exists for
   - song-mode        # the SongFile the session serializes to; the guarded panel
   - sample-persistence  # the audio half of the same reload safety net
   - toast            # the undo affordance
@@ -34,7 +35,7 @@ when there is none — backs the [debug panel](debug-panel.md)'s Session row and
 its Clear action. A session the app chokes on was otherwise only escapable via a
 full [factory reset](factory-reset.md); the size of a corrupt payload is still
 reported (with `savedAt: null`), since that is the half that still helps. It is a
-*polled* read, so it is deliberately parse-free (REQ-13).
+*polled* read, so it is deliberately parse-free (REQ-stats-never-parses-the-payload).
 
 ## Background / Why
 
@@ -49,74 +50,83 @@ happy path.
 
 ## Requirements
 
-- **REQ-1** — The working session (a full `Song.capture`: params + all banks +
-  chains + sampleNames + xy + motion) is autosaved to
-  `localStorage['websynth.session.<tab>']` (REQ-12), debounced ~1.5 s after the
-  last change.
-  Capture runs **only** inside the debounced callback, never synchronously in a
-  change listener (so mid-`Song.apply` states are never captured).
-- **REQ-2** — Autosave triggers: any `ParamBus.onChange`, any `PatternStore`
-  per-cell / bank-level / edit-bank / sample-meta change, any `XyPadStore`
-  change, and **structural** `Arrangement` changes only — a fingerprint of
-  `enabled + steps` per lane gates the per-bar `onChange` firings so playback
-  never writes storage.
-- **REQ-2b** — **Playback alone never re-arms the debounce**, param writes
-  included. The two lane gates above cover the `Arrangement`'s per-bar firings;
-  the third source is *param automation* — the [motion
-  sequencer](motion-sequencer.md) writes its lanes at frame rate, and a Tape Stop
-  ramps `master.pitchBend` per frame. Those go through
+- **REQ-the-working-session-is-captured-whole** — The working session (a full
+  `Song.capture`: params + all banks + chains + sampleNames + xy + motion) is
+  autosaved to `localStorage['websynth.session.<tab>']`
+  (REQ-each-tab-autosaves-to-its-own-key), debounced ~1.5 s after the last
+  change. Capture runs **only** inside the debounced callback, never
+  synchronously in a change listener (so mid-`Song.apply` states are never
+  captured).
+- **REQ-autosave-triggers-on-any-change** — Autosave triggers: any
+  `ParamBus.onChange`, any `PatternStore` per-cell / bank-level / edit-bank /
+  sample-meta change, any `XyPadStore` change, and **structural** `Arrangement`
+  changes only — a fingerprint of `enabled + steps` per lane gates the per-bar
+  `onChange` firings so playback never writes storage.
+- **REQ-playback-alone-never-rearms-the-debounce** — **Playback alone never
+  re-arms the debounce**, param writes included. The two lane gates above cover
+  the `Arrangement`'s per-bar firings; the third source is *param automation* —
+  the [motion sequencer](motion-sequencer.md) writes its lanes at frame rate,
+  and a Tape Stop ramps `master.pitchBend` per frame. Those go through
   `ParamBus.withoutChangeSignal` at the writer (see
-  [`runtime-performance.md`](runtime-performance.md) REQ-5), so they never reach
-  the trigger in REQ-1 at all. Gating here instead would be the wrong place: the
-  distinction is *who wrote it*, which only the writer knows. Without it a
-  sliding motion lane re-armed the 1.5 s debounce every ~16 ms and the session
-  was **never written for as long as the transport ran** — the failure mode this
-  feature exists to prevent, in exactly the songs most worth saving.
-- **REQ-3** — The key lives **outside** `websynth.song.*`: it never appears in
-  `Song.list()`, and slot machinery (save/load/delete/factory reset of slots)
-  never touches it. Payload: `{ v: 1, savedAt, file }` with `file` in the
-  canonical compact form (`compactSongForExport`, ADR-011).
-- **REQ-4** — A pending (debounced, unwritten) save is flushed synchronously on
-  `pagehide` and on `visibilitychange → hidden`. No `beforeunload` handler.
-- **REQ-5** — Boot: a valid autosave is restored **silently** into the working
-  session before the UI mounts (controls construct reading restored values);
-  the header label becomes the saved song name. Absent key → fresh boot.
-  Corrupt/invalid payload → fresh boot and the key is cleared. First visit and
-  onboarding are unaffected (no key exists).
-- **REQ-6** — A `#song=`/`#songUrl` share link (and an OS-launched file) applies
-  **over** the restored session — it routes through the import path, which
-  itself stashes, so the toast's Undo returns the user to their autosaved work.
-- **REQ-7** — Every destructive apply — demo button (JSON and zip), Load,
-  Import (file, share link, launchQueue), and New — first stashes the current
-  session **in memory**: the captured `SongFile` **plus the live sampler
-  `AudioBuffer` references**, then shows a toast (`song-undo-toast`) with an
-  Undo action (~8 s). New keeps its confirm dialog (user decision); the toast
-  follows a confirmed clear.
-- **REQ-8** — Undo restores the stashed file (params, banks, chains, xy,
-  sampler names), the sampler **buffers** (audio playable again immediately),
-  the header label, and the slot dropdown's prior selection. The stash lives
-  only in the toast's closure — dismissal/replacement releases the buffers
-  (toast REQ-5).
-- **REQ-9** — In-flight async work from a superseded apply must not leak into
-  the current session: a monotonically increasing apply token invalidates
-  project-zip clip decodes still pending when another apply (or Undo) lands.
-- **REQ-10** — This key carries `sampleNames` only; binary clips don't fit
-  localStorage. Sampler *audio* is persisted separately in IndexedDB and
-  restored alongside this session at boot — see
+  [`runtime-performance.md`](runtime-performance.md)
+  REQ-automation-is-not-an-edit), so they never reach the trigger in
+  REQ-the-working-session-is-captured-whole at all. Gating here instead would be
+  the wrong place: the distinction is *who wrote it*, which only the writer
+  knows. Without it a sliding motion lane re-armed the 1.5 s debounce every ~16
+  ms and the session was **never written for as long as the transport ran** —
+  the failure mode this feature exists to prevent, in exactly the songs most
+  worth saving.
+- **REQ-the-autosave-key-lives-outside-song-keys** — The key lives **outside**
+  `websynth.song.*`: it never appears in `Song.list()`, and slot machinery
+  (save/load/delete/factory reset of slots) never touches it. Payload: `{ v: 1,
+  savedAt, file }` with `file` in the canonical compact form
+  (`compactSongForExport`, ADR-011).
+- **REQ-a-pending-save-flushes-on-unload** — A pending (debounced, unwritten)
+  save is flushed synchronously on `pagehide` and on `visibilitychange →
+  hidden`. No `beforeunload` handler.
+- **REQ-boot-restores-an-autosave-silently** — Boot: a valid autosave is
+  restored **silently** into the working session before the UI mounts (controls
+  construct reading restored values); the header label becomes the saved song
+  name. Absent key → fresh boot. Corrupt/invalid payload → fresh boot and the
+  key is cleared. First visit and onboarding are unaffected (no key exists).
+- **REQ-a-share-link-wins-over-the-autosave** — A `#song=`/`#songUrl` share link
+  (and an OS-launched file) applies **over** the restored session — it routes
+  through the import path, which itself stashes, so the toast's Undo returns the
+  user to their autosaved work.
+- **REQ-every-destructive-apply-stashes-first** — Every destructive apply — demo
+  button (JSON and zip), Load, Import (file, share link, launchQueue), and New —
+  first stashes the current session **in memory**: the captured `SongFile`
+  **plus the live sampler `AudioBuffer` references**, then shows a toast
+  (`song-undo-toast`) with an Undo action (~8 s). New keeps its confirm dialog
+  (user decision); the toast follows a confirmed clear.
+- **REQ-undo-restores-the-stashed-file** — Undo restores the stashed file
+  (params, banks, chains, xy, sampler names), the sampler **buffers** (audio
+  playable again immediately), the header label, and the slot dropdown's prior
+  selection. The stash lives only in the toast's closure — dismissal/replacement
+  releases the buffers (toast REQ-on-dismiss-fires-on-every-exit).
+- **REQ-superseded-async-work-must-not-leak** — In-flight async work from a
+  superseded apply must not leak into the current session: a monotonically
+  increasing apply token invalidates project-zip clip decodes still pending when
+  another apply (or Undo) lands.
+- **REQ-the-autosave-carries-names-not-clips** — This key carries `sampleNames`
+  only; binary clips don't fit localStorage. Sampler *audio* is persisted
+  separately in IndexedDB and restored alongside this session at boot — see
   [sample-persistence](sample-persistence.md), which owns that contract
   (including what happens when a clip is missing: the slot keeps the existing
   `.needs-reload` hint, i.e. this spec's original behaviour).
-- **REQ-11** — Storage failures (quota, private mode) are silent no-ops; the
-  app never breaks because autosave couldn't write.
-- **REQ-12** (v8) — **Each tab autosaves to its own key, and no tab can
-  overwrite another's session.** This used to read "multi-tab is last-writer-wins
-  on the single key — documented limitation, not defended against". It came due:
-  with two tabs open, the one switched away from flushed its own, older session
-  over the shared key, and the next boot restored *that*. Because
-  [song-mode](song-mode.md) makes motion authoritative on apply, a stale session
-  that predates a song's motion does not merely fail to restore it — it **blanks
-  it**, silently, while params and patterns look untouched. A session's worth of
-  automation went that way, which is what a safety net must never do.
+- **REQ-autosave-storage-failures-are-silent** — Storage failures (quota,
+  private mode) are silent no-ops; the app never breaks because autosave
+  couldn't write.
+- **REQ-each-tab-autosaves-to-its-own-key** (v8) — **Each tab autosaves to its
+  own key, and no tab can overwrite another's session.** This used to read
+  "multi-tab is last-writer-wins on the single key — documented limitation, not
+  defended against". It came due: with two tabs open, the one switched away from
+  flushed its own, older session over the shared key, and the next boot restored
+  *that*. Because [song-mode](song-mode.md) makes motion authoritative on apply,
+  a stale session that predates a song's motion does not merely fail to restore
+  it — it **blanks it**, silently, while params and patterns look untouched. A
+  session's worth of automation went that way, which is what a safety net must
+  never do.
 
   - **Identity.** A tab takes an id from `sessionStorage`, which is per-tab by
     definition and survives that tab's own reload. Its session lives at
@@ -124,14 +134,14 @@ happy path.
     gone because there is no shared writer.
   - **Restore order.** Boot prefers **this tab's own** session (so a reload
     returns exactly where that tab was), and falls back to the **most recently
-    saved** of any other — which is what keeps REQ-5's "tab close loses nothing"
+    saved** of any other — which is what keeps REQ-boot-restores-an-autosave-silently's "tab close loses nothing"
     true when the tab that did the work is gone.
   - **Bounded.** At most `MAX_SESSIONS` (3) are kept; a write prunes the oldest
     beyond that, never its own. A session is ~50-100 kB (no audio — clips live in
     IndexedDB, [sample-persistence](sample-persistence.md)), so the cap costs a
     fraction of the quota while covering the realistic number of open tabs.
   - **Quota.** If a write throws, the other tabs' sessions are pruned and it is
-    retried **once** before standing down per REQ-11. Storing more sessions must
+    retried **once** before standing down per REQ-autosave-storage-failures-are-silent. Storing more sessions must
     not make the safety net *more* likely to fail.
   - **Legacy.** The old single `websynth.session` key is still read as a restore
     candidate, so an existing session survives the upgrade. It is never written
@@ -139,64 +149,74 @@ happy path.
   - **Storage disabled.** With no `sessionStorage` the id falls back to a
     constant, which is exactly the old single-key behaviour — degraded, not
     broken.
-- **REQ-13** — **`stats()` never parses the payload.** It is called from the
-  [debug panel](debug-panel.md)'s poll, and the payload is the entire session —
-  megabytes once samples are in play — so `JSON.parse`-ing it to recover one
-  number is out of proportion to the answer. `savedAt` is instead read by scanning
-  a short **prefix** of the raw string: `write()` builds its object literal in a
-  fixed order (`{ v, savedAt, file }`, REQ-3) and `JSON.stringify` preserves it, so
-  the value always lands in the first few dozen characters. The prefix bound is
-  also what makes the scan *correct* — it cannot match a `savedAt` occurring later
-  inside `file`. **Constraint: `savedAt` must stay ahead of `file` in `write()`'s
-  literal.** If it ever moves, the scan degrades to `savedAt: null` (the same
-  graceful path as a corrupt payload) rather than reporting a wrong time; `bytes`
-  is unaffected either way.
-- **REQ-14** (v5, was REQ-11) — **The undo net covers the session, not the slot —
-  so an import may not silently overwrite a saved slot.** REQ-8 restores the
-  in-memory session; it cannot restore a `localStorage` slot that `Song.saveSlot`
-  has already replaced, so an unconfirmed overwrite is *unrecoverable*. An import
-  whose song name collides with an existing slot therefore **asks first**
-  (naming the slot), and on a decline the song still **applies to the session** —
-  only the persistence is skipped, so nothing is lost either way. A non-colliding
-  name saves as before. This matters because the name is attacker-chosen: a
-  share link naming its song after a common slot ("My Song") would otherwise
-  destroy that work at boot. Mirrors [presets](presets.md) REQ-10 ("never a
-  blind merge") and [untrusted-input](untrusted-input.md) REQ-9.
-- **REQ-14b** (v6) — **An identical slot is not a conflict.** The question REQ-14
-  asks is "may I destroy this?", so it may only be asked when there is something
-  to destroy: if the stored slot's bytes are *already* what saving this import
-  would write, the write is a no-op and the prompt is pure noise. `planImportSave`
-  therefore compares `Song.toJSON(file)` against the stored raw and reports a
-  conflict only on a **difference**. Without this, "Replace it" never stuck —
-  re-opening the same share link (or importing the same file after loading
-  another song) re-asked forever, teaching the user that the dialog means
-  nothing, which is exactly how a real overwrite gets waved through. The
-  comparison is on the canonical compact string (ADR-011), so it is exact and
-  order-sensitive: a same-song-different-encoding edge falls back to *asking*,
-  which is the safe side. A **changed** song under a saved name still asks —
-  that is REQ-14's whole point, and a slot the user chose to keep is theirs.
-- **REQ-14c** (v7) — **Every write to a slot is guarded, not just the import
-  one.** The Save button called `Song.saveSlot` unconditionally, so typing a name
-  another song already used destroyed it with no dialog and no undo — the exact
-  loss REQ-14 exists to prevent, reached by a likelier route than a share link.
-  Save therefore asks too, on the same content test (REQ-14b), with one addition:
-  it does **not** ask when the name is the slot **this session came from**.
-  Re-saving your own song after an edit is the normal loop and must stay one
-  click, whereas saving *onto* a name whose song you have not been working on is
-  a Save-As over someone else's work. The panel tracks that provenance as
-  `sessionSlot` — the stored slot the session was last read from or written to,
-  `null` after a demo, a New, or an import that did not persist — and it is
-  stashed and restored with the undo net (REQ-7/REQ-8), so Undo cannot leave the
-  guard describing a session that no longer exists.
-- **REQ-14d** (v7) — **A demo click never writes a slot.** Zip demos routed
-  through the *import* path and so persisted themselves, while JSON and built-in
-  demos did not: clicking `1973` could prompt to replace your saved `1973` while
-  clicking `1979` silently ignored yours, and one of the two kinds quietly filled
-  localStorage with copies of read-only content. Demos are content, not the
-  user's work — `applyProjectBundle` persists only when the caller is an import.
-  What remains of the collision is a *naming* one, and [song-mode](song-mode.md)
-  REQ-15 owns it: the demo button and the slot list can offer two different songs
-  under one name, so the demo doors ask which was meant instead of guessing.
+- **REQ-stats-never-parses-the-payload** — **`stats()` never parses the
+  payload.** It is called from the [debug panel](debug-panel.md)'s poll, and the
+  payload is the entire session — megabytes once samples are in play — so
+  `JSON.parse`-ing it to recover one number is out of proportion to the answer.
+  `savedAt` is instead read by scanning a short **prefix** of the raw string:
+  `write()` builds its object literal in a fixed order (`{ v, savedAt, file }`,
+  REQ-the-autosave-key-lives-outside-song-keys) and `JSON.stringify` preserves
+  it, so the value always lands in the first few dozen characters. The prefix
+  bound is also what makes the scan *correct* — it cannot match a `savedAt`
+  occurring later inside `file`. **Constraint: `savedAt` must stay ahead of
+  `file` in `write()`'s literal.** If it ever moves, the scan degrades to
+  `savedAt: null` (the same graceful path as a corrupt payload) rather than
+  reporting a wrong time; `bytes` is unaffected either way.
+- **REQ-the-undo-net-covers-the-session** (v5, was
+  REQ-autosave-storage-failures-are-silent) — **The undo net covers the session,
+  not the slot — so an import may not silently overwrite a saved slot.**
+  REQ-undo-restores-the-stashed-file restores the in-memory session; it cannot
+  restore a `localStorage` slot that `Song.saveSlot` has already replaced, so an
+  unconfirmed overwrite is *unrecoverable*. An import whose song name collides
+  with an existing slot therefore **asks first** (naming the slot), and on a
+  decline the song still **applies to the session** — only the persistence is
+  skipped, so nothing is lost either way. A non-colliding name saves as before.
+  This matters because the name is attacker-chosen: a share link naming its song
+  after a common slot ("My Song") would otherwise destroy that work at boot.
+  Mirrors [presets](presets.md) REQ-preset-import-is-a-two-step-wizard ("never a
+  blind merge") and [untrusted-input](untrusted-input.md)
+  REQ-an-import-may-not-destroy-saved-work.
+- **REQ-an-identical-slot-is-not-a-conflict** (v6) — **An identical slot is not
+  a conflict.** The question REQ-the-undo-net-covers-the-session asks is "may I
+  destroy this?", so it may only be asked when there is something to destroy: if
+  the stored slot's bytes are *already* what saving this import would write, the
+  write is a no-op and the prompt is pure noise. `planImportSave` therefore
+  compares `Song.toJSON(file)` against the stored raw and reports a conflict
+  only on a **difference**. Without this, "Replace it" never stuck — re-opening
+  the same share link (or importing the same file after loading another song)
+  re-asked forever, teaching the user that the dialog means nothing, which is
+  exactly how a real overwrite gets waved through. The comparison is on the
+  canonical compact string (ADR-011), so it is exact and order-sensitive: a
+  same-song-different-encoding edge falls back to *asking*, which is the safe
+  side. A **changed** song under a saved name still asks — that is
+  REQ-the-undo-net-covers-the-session's whole point, and a slot the user chose
+  to keep is theirs.
+- **REQ-every-slot-write-is-guarded** (v7) — **Every write to a slot is guarded,
+  not just the import one.** The Save button called `Song.saveSlot`
+  unconditionally, so typing a name another song already used destroyed it with
+  no dialog and no undo — the exact loss REQ-the-undo-net-covers-the-session
+  exists to prevent, reached by a likelier route than a share link. Save
+  therefore asks too, on the same content test
+  (REQ-an-identical-slot-is-not-a-conflict), with one addition: it does **not**
+  ask when the name is the slot **this session came from**. Re-saving your own
+  song after an edit is the normal loop and must stay one click, whereas saving
+  *onto* a name whose song you have not been working on is a Save-As over
+  someone else's work. The panel tracks that provenance as `sessionSlot` — the
+  stored slot the session was last read from or written to, `null` after a demo,
+  a New, or an import that did not persist — and it is stashed and restored with
+  the undo net
+  (REQ-every-destructive-apply-stashes-first/REQ-undo-restores-the-stashed-file),
+  so Undo cannot leave the guard describing a session that no longer exists.
+- **REQ-a-demo-click-never-writes-a-slot** (v7) — **A demo click never writes a
+  slot.** Zip demos routed through the *import* path and so persisted
+  themselves, while JSON and built-in demos did not: clicking `1973` could
+  prompt to replace your saved `1973` while clicking `1979` silently ignored
+  yours, and one of the two kinds quietly filled localStorage with copies of
+  read-only content. Demos are content, not the user's work —
+  `applyProjectBundle` persists only when the caller is an import. What remains
+  of the collision is a *naming* one, and [song-mode](song-mode.md) REQ-one-name-two-songs-ask owns
+  it: the demo button and the slot list can offer two different songs under one
+  name, so the demo doors ask which was meant instead of guessing.
 
 ## Technical design
 
@@ -204,7 +224,7 @@ happy path.
 
 ```ts
 // src/state/session-autosave.ts
-export const SESSION_KEY = 'websynth.session';   // legacy: read-only (REQ-12)
+export const SESSION_KEY = 'websynth.session';   // legacy: read-only (REQ-each-tab-autosaves-to-its-own-key)
 // The live key is `websynth.session.<tabId>`, the id kept in sessionStorage.
 export class SessionAutosave {
   constructor(capture: () => SongFile, opts?: { debounceMs?: number }); // default 1500
@@ -213,7 +233,7 @@ export class SessionAutosave {
   flush(): void;             // synchronous write if a save is pending
   static load(): SongFile | null;  // validated; clears the key on corrupt payloads
   static clear(): void;
-  static stats(): { bytes: number; savedAt: number | null } | null;  // REQ-13's debug row
+  static stats(): { bytes: number; savedAt: number | null } | null;  // REQ-stats-never-parses-the-payload's debug row
 }
 ```
 
@@ -225,7 +245,7 @@ on `song-validate`/`serialize`, not `song.ts`.
 
 - `main.ts` boot order: preset seed → **silent restore** (`SessionAutosave.load()`
   → `Song.apply` + `session.setActive`) → sampler-clip restore (awaited; see
-  [sample-persistence](sample-persistence.md) REQ-5) → `mountApp` → construct +
+  [sample-persistence](sample-persistence.md) REQ-boot-restores-clips-before-the-ui) → `mountApp` → construct +
   `attach()` the autosaver → share-link hook (unchanged position; applies over
   the restore via the import path).
 - `song-panel.ts`: `applySongWithUndo(file, verb)` wraps the existing
@@ -246,21 +266,21 @@ on `song-validate`/`serialize`, not `song.ts`.
   button and the import path cannot drift apart. The dialogs live in
   `song-panel.ts` (`saveImportedSlot`, the Save handler), which own the decisions
   the plan only describes — the `preset-file.ts` `planImport` idiom.
-- `sessionSlot` (REQ-14c) is a single `string | null` in the panel closure, set
+- `sessionSlot` (REQ-every-slot-write-is-guarded) is a single `string | null` in the panel closure, set
   by Save and by a Load that resolved to a **stored** slot, cleared by demos /
   New / a non-persisting import, and carried in `SessionStash` so Undo restores
   it with the dropdown value it already stashes.
 
 ### Persistence
 
-- `websynth.session.<tab>` — the autosaved session, one per tab (REQ-12). **Not**
+- `websynth.session.<tab>` — the autosaved session, one per tab (REQ-each-tab-autosaves-to-its-own-key). **Not**
   a song slot; invisible to `Song.list()`, which keys on `websynth.song.`.
 - `websynth.session` — the pre-v8 single key. Read as a restore candidate and
   cleared by `clear()`, never written. **Removable at the next major** (see
   DEPLOYMENT.md → "Before a major version").
 - `sessionStorage['websynth.session.tab']` — this tab's id. Deliberately *session*
   storage: it must die with the tab and survive that tab's reload.
-- Sampler audio lives in IndexedDB, not here (REQ-10).
+- Sampler audio lives in IndexedDB, not here (REQ-the-autosave-carries-names-not-clips).
 - Deliberately not persisted: the undo stash (memory only), any history.
 
 ## Scenarios (BDD)
@@ -273,27 +293,27 @@ Scenario: accidental demo click is undoable
   And clicking Undo restores their song including the audible sampler clip
 # pinned by: e2e/session.spec.ts
 
-Scenario: A second tab cannot overwrite the first tab's session (v8, REQ-12, regression)
+Scenario: A second tab cannot overwrite the first tab's session (v8, REQ-each-tab-autosaves-to-its-own-key, regression)
   Given two tabs each with their own session
   When the second tab autosaves
   Then the first tab's stored session is untouched
   And each tab restores its own on reload
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: A closed tab's session is still restored (v8, REQ-12)
+Scenario: A closed tab's session is still restored (v8, REQ-each-tab-autosaves-to-its-own-key)
   Given a stored session belonging to a tab id this tab does not have
   And no session of this tab's own
   When the app boots
   Then the most recently saved session is restored
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: Stored sessions stay bounded (v8, REQ-12)
+Scenario: Stored sessions stay bounded (v8, REQ-each-tab-autosaves-to-its-own-key)
   Given more than MAX_SESSIONS stored sessions
   When a tab writes
   Then the oldest beyond the cap are dropped and this tab's own is kept
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: A session written before per-tab keys still restores (v8, REQ-12, edge)
+Scenario: A session written before per-tab keys still restores (v8, REQ-each-tab-autosaves-to-its-own-key, edge)
   Given only the legacy websynth.session key
   When the app boots
   Then it is restored, and never written to again
@@ -318,21 +338,21 @@ Scenario: playback never writes storage
   Then no autosave write occurs (arrangement fingerprint unchanged)
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: automation never starves the debounce (REQ-2b, regression)
+Scenario: automation never starves the debounce (REQ-playback-alone-never-rearms-the-debounce, regression)
   Given a motion lane sliding a param every frame while the transport runs
   When frames elapse well past the debounce window with no user edit
   Then no autosave write occurs
   And a subsequent real edit is still written 1.5 s later, while automation keeps writing
 # pinned by: tests/state/session-autosave.test.ts, tests/audio/transport/motion-machine.test.ts
 
-Scenario: stats reads the age without parsing the session (REQ-13)
+Scenario: stats reads the age without parsing the session (REQ-stats-never-parses-the-payload)
   Given a written autosave whose file is large
   When stats() is called
   Then savedAt matches the time it was written
   And no JSON.parse of the payload occurs
-# pinned by: tests/state/session-autosave.test.ts (stats() — REQ-13)
+# pinned by: tests/state/session-autosave.test.ts (stats() — REQ-stats-never-parses-the-payload)
 
-Scenario: stats survives a payload it cannot scan (REQ-13, edge)
+Scenario: stats survives a payload it cannot scan (REQ-stats-never-parses-the-payload, edge)
   Given a stored payload that is not the shape write() produces
   When stats() is called
   Then bytes is still its true length
@@ -345,7 +365,7 @@ Scenario: corrupt autosave falls back to a fresh boot
   Then defaults load and the key is cleared
 # pinned by: tests/state/session-autosave.test.ts
 
-Scenario: an import confirms before overwriting a saved slot (v5, REQ-14)
+Scenario: an import confirms before overwriting a saved slot (v5, REQ-the-undo-net-covers-the-session)
   Given a saved slot named "My Song" holding different music
   When a shared song also named "My Song" is imported
   Then Song.planImportSave reports a conflict and writes nothing itself
@@ -355,37 +375,37 @@ Scenario: an import confirms before overwriting a saved slot (v5, REQ-14)
 # pinned by: tests/state/song-import-slot.test.ts (the plan; the dialog wiring is
 #   song-panel's saveImportedSlot, following preset-file.ts planImport)
 
-Scenario: re-importing the very same song does not re-ask (v6, REQ-14b, regression)
+Scenario: re-importing the very same song does not re-ask (v6, REQ-an-identical-slot-is-not-a-conflict, regression)
   Given a song was imported and the user chose "Replace it"
   When the user loads another song and then imports that same song again
   Then Song.planImportSave reports no conflict
   And the slot is written without a dialog
 # pinned by: tests/state/song-import-slot.test.ts
 
-Scenario: an edited song under a saved name still asks (v6, REQ-14b, boundary)
+Scenario: an edited song under a saved name still asks (v6, REQ-an-identical-slot-is-not-a-conflict, boundary)
   Given a saved slot named "1973"
   When a song named "1973" with one changed step or param is imported
   Then Song.planImportSave still reports a conflict
 # pinned by: tests/state/song-import-slot.test.ts
 
-Scenario: Save asks before landing on another song's slot (v7, REQ-14c)
+Scenario: Save asks before landing on another song's slot (v7, REQ-every-slot-write-is-guarded)
   Given a saved slot "Night Shift" holding a song the user is not working on
   When they Save the current session under the name "Night Shift"
   Then Song.planSlotSave reports a conflict, so a confirm runs before saveSlot
   And declining leaves both the slot and the session untouched
 # pinned by: tests/state/song-import-slot.test.ts (the rule), e2e/song.spec.ts (the dialog)
 
-Scenario: re-saving the song you are working on never asks (v7, REQ-14c)
+Scenario: re-saving the song you are working on never asks (v7, REQ-every-slot-write-is-guarded)
   Given the session was loaded from — or last saved to — the slot "My Song"
   When the user edits a param and saves under "My Song" again
   Then planSlotSave reports no conflict and it saves silently
 # pinned by: tests/state/song-import-slot.test.ts, e2e/song.spec.ts
 
-Scenario: a demo click writes no slot (v7, REQ-14d, regression)
+Scenario: a demo click writes no slot (v7, REQ-a-demo-click-never-writes-a-slot, regression)
   Given the zip demo "1973" and the JSON demo "1979"
   When either is clicked
   Then the song applies with an Undo toast and no localStorage slot is created
-  And a following Save under that name is guarded like any other (REQ-14c)
+  And a following Save under that name is guarded like any other (REQ-every-slot-write-is-guarded)
 # pinned by: e2e/song.spec.ts
 
 Scenario: undo mid-import cancels stale clip decodes

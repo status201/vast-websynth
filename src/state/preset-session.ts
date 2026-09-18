@@ -1,7 +1,7 @@
 import type { ParamId } from './params';
 import type { Snapshot } from './preset';
 
-/** The sound a loaded song brought with it, kept selectable (presets.md REQ-13). */
+/** The sound a loaded song brought with it, kept selectable (presets.md REQ-a-songs-sound-is-a-selectable-entry). */
 export interface SongSound {
   /** The song's name — the label of the pinned dropdown entry. */
   name: string;
@@ -16,7 +16,7 @@ export interface SongSound {
  * stays unit-testable. UI and audio are unaffected — this only drives the
  * selector's displayed text.
  *
- * Since presets.md REQ-13 it also holds the loaded song's **sound**, so the
+ * Since presets.md REQ-a-songs-sound-is-a-selectable-entry it also holds the loaded song's **sound**, so the
  * selector can offer it as an option instead of only naming it: auditioning a
  * preset against a demo used to destroy the demo's patch with no way back.
  */
@@ -43,7 +43,7 @@ export class PresetSession {
    * A preset/song became active (selected, saved, loaded, or boot). Clean.
    *
    * Deliberately leaves `songSound` alone: picking a preset is exactly the act
-   * REQ-13 exists to make survivable, so it must not unpin the sound being
+   * REQ-motion-joins-the-non-patch-prefixes exists to make survivable, so it must not unpin the sound being
    * compared against. Only {@link setActiveSong} replaces it.
    */
   setActive(name: string): void {
@@ -54,7 +54,7 @@ export class PresetSession {
 
   /**
    * A song/demo became active: label it *and* pin its patch so the selector can
-   * offer it as an option (presets.md REQ-13). One slot — the next song load
+   * offer it as an option (presets.md REQ-a-songs-sound-is-a-selectable-entry). One slot — the next song load
    * replaces it, and nothing is persisted (the autosaved song re-pins on
    * restore).
    */
@@ -96,7 +96,7 @@ export class PresetSession {
  */
 const NON_PATCH_PREFIXES = [
   'transport.', 'arp.', 'seq.', 'drum.', 'sampler.', 'fx.drum.', 'fx.sampler.',
-  // `motion.` was missing (meter.md REQ-13): the motion sequencer is a song-level
+  // `motion.` was missing (meter.md REQ-motion-joins-the-non-patch-prefixes): the motion sequencer is a song-level
   // machine exactly like seq/drum/sampler, but `motion.on` / `.mute` / `.slide`
   // were being captured into presets and reapplied on load — so auditioning a
   // sound silently switched a song's automation off. That is the defect this
@@ -114,7 +114,7 @@ export function isPatchParam(id: ParamId): boolean {
 
 /**
  * The patch half of a snapshot — what the selector calls "the sound"
- * (presets.md REQ-13).
+ * (presets.md REQ-a-songs-sound-is-a-selectable-entry).
  *
  * Same predicate the dirty marker uses, so the `*` and the pinned entry can
  * never disagree about what a sound *is*. Restoring only these ids is the point:

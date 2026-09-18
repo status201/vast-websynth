@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { extractJson, classifyPayload } from '../../src/state/paste-payload';
 
 /**
- * paste-import.md REQ-1..REQ-4 — the tolerance layer. Every case here is
+ * paste-import.md REQ-extraction-comes-before-parsing/REQ-classification-is-pure-and-total,
+ * paste-import.md REQ-a-missing-format-tag-is-inferred/REQ-unknown-always-carries-a-reason
+ * — the tolerance layer. Every case here is
  * something an AI agent actually does: fences the JSON, chats around it,
  * forgets the format tag, or gets cut off mid-object.
  */
@@ -50,12 +52,12 @@ describe('classifyPayload', () => {
     expect(classifyPayload(bank)).toMatchObject({ kind: 'bank', name: 'mine', count: 3 });
   });
 
-  it('hands back the extracted json, not the pasted text (REQ-1)', () => {
+  it('hands back the extracted json, not the pasted text (REQ-extraction-comes-before-parsing)', () => {
     const res = classifyPayload('blah\n```json\n' + AUTHOR + '\n```\nblah');
     expect(res.json).toBe(AUTHOR);
   });
 
-  // REQ-3 — an agent that drops one field must still reach the validator.
+  // REQ-a-missing-format-tag-is-inferred — an agent that drops one field must still reach the validator.
   it('infers a song from its keys when the format tag is missing', () => {
     expect(classifyPayload('{"name":"X","seqBanks":[],"drumBanks":[]}'))
       .toMatchObject({ kind: 'song', assumed: true });
@@ -63,7 +65,7 @@ describe('classifyPayload', () => {
       .toMatchObject({ kind: 'author', assumed: true });
   });
 
-  // REQ-4 — every refusal explains itself.
+  // REQ-unknown-always-carries-a-reason — every refusal explains itself.
   it('refuses with a reason', () => {
     expect(classifyPayload('just prose')).toMatchObject({
       kind: 'unknown',

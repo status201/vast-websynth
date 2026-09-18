@@ -3,12 +3,12 @@
 ```yaml
 id: dialog
 status: implemented
-version: 5   # v5: REQ-9 — an alert may carry a Copy button offering the FULL
+version: 5   # v5: REQ-an-alert-may-offer-copyable-text — an alert may carry a Copy button offering the FULL
              #     text of what it reports, so a truncated error list is no
              #     longer destroyed by dismissing the dialog
-             # v4: REQ-6's "one dialog at a time" is now enforced, not assumed
+             # v4: REQ-dialog-testids-are-unambiguous's "one dialog at a time" is now enforced, not assumed
              #     — a closing dialog is reaped when the next one opens
-             # v3: REQ-8 — chooseDialog, for a question whose answers are two
+             # v3: REQ-choose-dialog-offers-several-options — chooseDialog, for a question whose answers are two
              #     positive actions rather than yes/no
 owner: core
 related:
@@ -36,42 +36,46 @@ backdrop-click-to-close) rather than reinventing it.
 
 ## Requirements
 
-- **REQ-1** — Three `async` helpers replace the native dialogs, each **composing
-  `Modal`** (no re-implementation of backdrop / fade / Escape / backdrop-click):
+- **REQ-three-helpers-compose-modal** — Three `async` helpers replace the native
+  dialogs, each **composing `Modal`** (no re-implementation of backdrop / fade /
+  Escape / backdrop-click):
   `confirmDialog → Promise<boolean>`, `promptDialog → Promise<string | null>`,
   `alertDialog → Promise<void>`. Each builds a fresh single-use `Modal`, appends
   a message paragraph (its own `.message`, from `dialog.module.css` — **not**
   `Modal.metaClass`), an optional single-line input
   (prompt only), and an actions row of `createButton`s
   (`src/ui/components/button.ts`), then `open()`s it.
-- **REQ-2** — The returned promise **settles exactly once**. The affirmative
-  action resolves the *confirm* value; **any** dismissal — the Cancel button,
-  Escape, or a backdrop click — resolves the *cancel* value. A `settled` latch
-  makes double-close (e.g. affirmative → `modal.close()` → `onClose`) resolve a
-  single time, mirroring `Modal.onClose` firing once.
-- **REQ-3** — Cancel semantics mirror the natives they replace so callers are a
-  drop-in: `confirmDialog` cancel → `false`; `promptDialog` cancel → `null`;
-  `promptDialog` confirm → the input's current string (which **may be empty**, so
-  callers keep their existing `if (!name) return` empty-guard, exactly like
-  native `prompt`); `alertDialog` resolves `undefined` on OK/dismiss.
-- **REQ-4** — `confirmDialog`'s `danger?` option renders the affirmative button
-  in a destructive (red) style for wipes (the per-lane Clear, Song New). Default
-  is the neutral style.
-- **REQ-5** — Focus + keyboard: on open, `confirmDialog`/`alertDialog` autofocus
-  the affirmative button; `promptDialog` focuses the input and selects its text.
-  **Enter** confirms (prompt: an input keydown handler; confirm/alert: the
-  focused affirmative button activates on Enter). **Escape** cancels (owned by
-  `Modal`, which beats the global panic handler).
-- **REQ-6** — Stable `data-testid`s for E2E (a single dialog is open at a time):
-  the affirmative button is `dialog-confirm`, the dismiss button is
-  `dialog-cancel`, the prompt field is `dialog-input`, an alert's optional copy
-  button is `dialog-copy` *(v5)*.
+- **REQ-dialog-promise-settles-once** — The returned promise **settles exactly
+  once**. The affirmative action resolves the *confirm* value; **any** dismissal
+  — the Cancel button, Escape, or a backdrop click — resolves the *cancel*
+  value. A `settled` latch makes double-close (e.g. affirmative →
+  `modal.close()` → `onClose`) resolve a single time, mirroring `Modal.onClose`
+  firing once.
+- **REQ-cancel-mirrors-the-native-dialogs** — Cancel semantics mirror the
+  natives they replace so callers are a drop-in: `confirmDialog` cancel →
+  `false`; `promptDialog` cancel → `null`; `promptDialog` confirm → the input's
+  current string (which **may be empty**, so callers keep their existing `if
+  (!name) return` empty-guard, exactly like native `prompt`); `alertDialog`
+  resolves `undefined` on OK/dismiss.
+- **REQ-danger-confirm-is-red** — `confirmDialog`'s `danger?` option renders the
+  affirmative button in a destructive (red) style for wipes (the per-lane Clear,
+  Song New). Default is the neutral style.
+- **REQ-dialog-focus-and-keyboard** — Focus + keyboard: on open,
+  `confirmDialog`/`alertDialog` autofocus the affirmative button; `promptDialog`
+  focuses the input and selects its text. **Enter** confirms (prompt: an input
+  keydown handler; confirm/alert: the focused affirmative button activates on
+  Enter). **Escape** cancels (owned by `Modal`, which beats the global panic
+  handler).
+- **REQ-dialog-testids-are-unambiguous** — Stable `data-testid`s for E2E (a
+  single dialog is open at a time): the affirmative button is `dialog-confirm`,
+  the dismiss button is `dialog-cancel`, the prompt field is `dialog-input`, an
+  alert's optional copy button is `dialog-copy` *(v5)*.
 
   *(v4)* "A single dialog is open at a time" was an **assumption** here, and it
   did not hold. These helpers settle their promise *before* `modal.close()`, so
   the caller resumes while the answered dialog is still mounted for its ~200 ms
   fade. A caller that answers one dialog and raises another inside that window —
-  the demo-shadow question in [song-mode](song-mode.md) REQ-15 does exactly
+  the demo-shadow question in [song-mode](song-mode.md) REQ-one-name-two-songs-ask does exactly
   that, twice in a row — had two dialogs mounted, so `dialog-cancel` and every
   `dialog-choice-*` id matched **two** nodes and the E2E driving it failed
   intermittently on a strict-mode violation. The testids were never ambiguous by
@@ -79,46 +83,48 @@ backdrop-click-to-close) rather than reinventing it.
   the fade lives, rather than here: `open()` reaps anything still fading
   ([add-a-modal-dialog](../recipes/add-a-modal-dialog.md) v4), so the invariant
   this REQ has always claimed is now true for every modal, not just dialogs.
-- **REQ-7** *(v2)* — `confirmDialog`'s optional `detail?: string` renders a
-  second paragraph below the message, in **italics** and slightly muted
-  (`.detail`, `data-testid="dialog-detail"`) — supporting copy under the main
-  question (e.g. [factory-reset](factory-reset.md)'s “Everything not saved will
-  be lost.”). Omitted → no extra element.
-- **REQ-8** *(v3)* — **`chooseDialog → Promise<string | null>`** — a fourth
-  helper for the question `confirmDialog` cannot ask honestly: one whose answers
-  are **two positive actions**, not yes/no. Squeezing "load the demo or your own
-  song?" into a confirm would make one of the two answers `false`, which is the
-  same value Escape and a backdrop click produce — so a dismissal would silently
-  *do* something. `chooseDialog` takes `choices: {id, label, danger?}[]` (2+),
-  resolves the chosen **id**, and resolves **`null` on every dismissal**, so
-  "neither" stays expressible. The last choice is the affirmative: it is focused
-  on open (REQ-5) and is the one Enter takes. An optional `cancelLabel` renders a
-  leading dismiss button resolving `null` too, for when the escape hatch should
-  be visible rather than keyboard-only. Everything else — settle-once (REQ-2),
-  `detail` (REQ-7), Modal composition (REQ-1) — is unchanged.
-- **REQ-9** *(v5)* — **An alert may offer its full text on the clipboard.**
-  `alertDialog`'s optional `copyable?: string` adds a second button
-  (`dialog-copy`, label from `copyLabel?`, default `'Copy errors'`) beside OK,
-  which writes that string via the shared `copyText` / `flashCopied`
-  (`src/ui/clipboard.ts`) — the same helpers Copy Link and Copy report use.
-  Four rules make it worth having:
-  1. **The payload is passed in, never scraped from the rendered message.** The
-     reason the button exists is that the message is *shorter than the truth*:
-     the import-error alert renders 8 of up to 50 validator messages
-     ([song-mode](song-mode.md) REQ-18) and the rest exist nowhere else once the
-     dialog closes. Callers build the string with
-     [`buildFailureReport`](failure-report.md), which sees the whole array.
-  2. **Copying does not close the dialog and does not settle the promise** — it
-     is an aside, not an answer (the rule [song-share-link](song-share-link.md)
-     REQ-5 already sets for Copy Link). The user copies, reads on, then dismisses.
-  3. **Focus stays on `dialog-confirm`**, so Enter still dismisses (REQ-5) and
-     the copy button is reached by Tab.
-  4. **Without `copyable` the alert is unchanged**: one full-width button using
-     `Modal.closeBtnClass`. With it, the layout switches to the shared
-     `.actions` row every other dialog kind already uses. `copyText` resolves
-     `false` rather than throwing on an insecure origin or a denied permission,
-     and `flashCopied` then reads `Press Ctrl+C` — the dialog degrades, never
-     breaks.
+- **REQ-confirm-detail-is-a-muted-italic-line** *(v2)* — `confirmDialog`'s
+  optional `detail?: string` renders a second paragraph below the message, in
+  **italics** and slightly muted (`.detail`, `data-testid="dialog-detail"`) —
+  supporting copy under the main question (e.g.
+  [factory-reset](factory-reset.md)'s “Everything not saved will be lost.”).
+  Omitted → no extra element.
+- **REQ-choose-dialog-offers-several-options** *(v3)* — **`chooseDialog →
+  Promise<string | null>`** — a fourth helper for the question `confirmDialog`
+  cannot ask honestly: one whose answers are **two positive actions**, not
+  yes/no. Squeezing "load the demo or your own song?" into a confirm would make
+  one of the two answers `false`, which is the same value Escape and a backdrop
+  click produce — so a dismissal would silently *do* something. `chooseDialog`
+  takes `choices: {id, label, danger?}[]` (2+), resolves the chosen **id**, and
+  resolves **`null` on every dismissal**, so "neither" stays expressible. The
+  last choice is the affirmative: it is focused on open
+  (REQ-dialog-focus-and-keyboard) and is the one Enter takes. An optional
+  `cancelLabel` renders a leading dismiss button resolving `null` too, for when
+  the escape hatch should be visible rather than keyboard-only. Everything else
+  — settle-once (REQ-dialog-promise-settles-once), `detail`
+  (REQ-confirm-detail-is-a-muted-italic-line), Modal composition
+  (REQ-three-helpers-compose-modal) — is unchanged.
+- **REQ-an-alert-may-offer-copyable-text** *(v5)* — **An alert may offer its
+  full text on the clipboard.** `alertDialog`'s optional `copyable?: string`
+  adds a second button (`dialog-copy`, label from `copyLabel?`, default `'Copy
+  errors'`) beside OK, which writes that string via the shared `copyText` /
+  `flashCopied` (`src/ui/clipboard.ts`) — the same helpers Copy Link and Copy
+  report use. Four rules make it worth having: 1. **The payload is passed in,
+  never scraped from the rendered message.** The reason the button exists is
+  that the message is *shorter than the truth*: the import-error alert renders 8
+  of up to 50 validator messages ([song-mode](song-mode.md) REQ-a-rejected-import-is-copyable-in-full) and the rest
+  exist nowhere else once the dialog closes. Callers build the string with
+  [`buildFailureReport`](failure-report.md), which sees the whole array. 2.
+  **Copying does not close the dialog and does not settle the promise** — it is
+  an aside, not an answer (the rule [song-share-link](song-share-link.md)
+  REQ-export-modal-copies-a-link already sets for Copy Link). The user copies,
+  reads on, then dismisses. 3. **Focus stays on `dialog-confirm`**, so Enter
+  still dismisses (REQ-dialog-focus-and-keyboard) and the copy button is reached
+  by Tab. 4. **Without `copyable` the alert is unchanged**: one full-width
+  button using `Modal.closeBtnClass`. With it, the layout switches to the shared
+  `.actions` row every other dialog kind already uses. `copyText` resolves
+  `false` rather than throwing on an insecure origin or a denied permission, and
+  `flashCopied` then reads `Press Ctrl+C` — the dialog degrades, never breaks.
 
 ## Technical design
 
@@ -200,7 +206,7 @@ src/ui/panels/song-panel.ts:
   Song Save       -> promptDialog   (was prompt('Song name:'))
   Song New        -> confirmDialog({ danger:true })  (was confirm('Clear all banks and chains?'))
   Import errors   -> alertDialog + copyable (v5; the full list, not the shown 8)
-  import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-5
+  import/demo/clip failures -> alertDialog + copyable   # failure-report.md REQ-every-failure-surface-emits-one
 src/ui/app.ts:            Preset Save  -> promptDialog   (was prompt('Preset name:'))
 src/ui/panels/sampler-panel.ts: decode error -> alertDialog + copyable (was alert('Unsupported…'))
 src/main.ts:              boot-failure alert() stays NATIVE (app graph never
@@ -243,20 +249,20 @@ Scenario: Enter confirms a prompt
   Then the promise resolves the field's value
 # pinned by: tests/ui/dialog.test.ts
 
-Scenario: Choose resolves the id of the clicked choice (v3, REQ-8)
+Scenario: Choose resolves the id of the clicked choice (v3, REQ-choose-dialog-offers-several-options)
   Given a chooseDialog is open with choices "demo" and "mine"
   When the user clicks the "mine" button
   Then the promise resolves "mine" and the dialog closes
 # pinned by: tests/ui/dialog.test.ts
 
-Scenario: Choose resolves null when dismissed — neither action runs (v3, REQ-8)
+Scenario: Choose resolves null when dismissed — neither action runs (v3, REQ-choose-dialog-offers-several-options)
   Given a chooseDialog is open with two positive choices
   When the user presses Escape, clicks the backdrop, or clicks the dismiss button
   Then the promise resolves null
   And no choice id can be mistaken for a dismissal
 # pinned by: tests/ui/dialog.test.ts
 
-Scenario: Answering a dialog and immediately raising another leaves one (v4, REQ-6)
+Scenario: Answering a dialog and immediately raising another leaves one (v4, REQ-dialog-testids-are-unambiguous)
   Given a dialog has just been answered and is still playing its close fade
   When the caller opens a second dialog straight away
   Then only the second dialog is in the document
@@ -269,21 +275,21 @@ Scenario: The promise settles exactly once
   Then the promise resolves a single time
 # pinned by: tests/ui/dialog.test.ts
 
-Scenario: An alert offers its full text on the clipboard (v5, REQ-9)
+Scenario: An alert offers its full text on the clipboard (v5, REQ-an-alert-may-offer-copyable-text)
   Given an alertDialog opened with a copyable string longer than its message
   When the user clicks dialog-copy
   Then the whole copyable string is written to the clipboard, not the message
   And the button flashes its copied state
 # pinned by: tests/ui/dialog.test.ts, e2e/song-link.spec.ts
 
-Scenario: Copying is an aside, not an answer (v5, REQ-9)
+Scenario: Copying is an aside, not an answer (v5, REQ-an-alert-may-offer-copyable-text)
   Given an alertDialog with a copyable string is open
   When the user clicks dialog-copy
   Then the dialog stays open and the promise has not settled
   And clicking dialog-confirm afterwards still resolves it
 # pinned by: tests/ui/dialog.test.ts
 
-Scenario: An alert without copyable is unchanged (v5, REQ-9)
+Scenario: An alert without copyable is unchanged (v5, REQ-an-alert-may-offer-copyable-text)
   Given an alertDialog opened without a copyable string
   Then it has one full-width button and no dialog-copy element
 # pinned by: tests/ui/dialog.test.ts

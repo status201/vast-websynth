@@ -70,7 +70,7 @@ describe('fftInPlace', () => {
     for (let i = 0; i < n; i++) expect(sum.re[i]!).toBeCloseTo(a.re[i]! + b.re[i]!, 3);
   });
 
-  // The module keeps time-stretch.md REQ-6's "nothing throws" contract, because
+  // The module keeps time-stretch.md REQ-every-stretch-entry-point-is-total's "nothing throws" contract, because
   // every caller is reached from a user-supplied buffer.
   it('is a no-op on a non-power-of-two length', () => {
     const re = new Float32Array([1, 2, 3]);

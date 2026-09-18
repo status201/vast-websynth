@@ -3,8 +3,8 @@
 ```yaml
 id: fx-group
 status: implemented
-version: 2   # v2: REQ-4 — a rate/time knob in a group also mints the tempo-lock
-             #     ids; the builder itself is unchanged (tempo-lock.md REQ-1)
+version: 2   # v2: REQ-fx-group-testids — a rate/time knob in a group also mints the tempo-lock
+             #     ids; the builder itself is unchanged (tempo-lock.md REQ-one-table-declares-lockable-params)
 owner: core
 related:
   - effects
@@ -32,7 +32,7 @@ is **not** governed here.
 
 The header FX rows were eating panel space: every group always showed all its
 knobs even though every `fx.*.on` defaults to 0 (bypassed — [effects](effects.md)
-REQ-5). Since a bypassed effect's knobs are inert, the group hides them and
+REQ-fx-on-below-half-is-bypassed). Since a bypassed effect's knobs are inert, the group hides them and
 shows only `[divider · TITLE · switch]` until the effect is engaged. This is
 **param-driven visibility** (the group reacts to the `.on` param like `Switch`
 does), deliberately distinct from the user-driven, localStorage-persisted
@@ -44,30 +44,33 @@ behaviour like this lives in one place.
 
 ## Requirements
 
-- **REQ-1** — `fxGroup(bus, title, onPrefix, knobs, opts?)` renders divider,
-  title label, a `Switch` bound to `` `${onPrefix}.on` ``, one `Knob` per
-  entry, then `opts.trailing` (if given) — knobs + trailing inside a single
-  `.knobs` sub-container.
-- **REQ-2** — While `` `${onPrefix}.on` `` < 0.5 the group is **collapsed**:
-  the `.knobs` container (knobs *and* trailing) is hidden; divider, title and
-  switch stay visible. At or above 0.5 the knobs show in place.
-- **REQ-3** — Visibility is reactive: it follows every param change, whatever
-  the source (switch click, preset/song load, `bus.set`). Initial state comes
-  from the param's current value at build time.
-- **REQ-4** — Testids: the group root carries `fxgroup-<onPrefix>`; the switch
-  `switch-<onPrefix>.on`; each knob `knob-<paramId>` (minted by the factories).
+- **REQ-fx-group-renders-switch-and-knobs** — `fxGroup(bus, title, onPrefix,
+  knobs, opts?)` renders divider, title label, a `Switch` bound to ``
+  `${onPrefix}.on` ``, one `Knob` per entry, then `opts.trailing` (if given) —
+  knobs + trailing inside a single `.knobs` sub-container.
+- **REQ-bypassed-group-collapses-its-knobs** — While `` `${onPrefix}.on` `` <
+  0.5 the group is **collapsed**: the `.knobs` container (knobs *and* trailing)
+  is hidden; divider, title and switch stay visible. At or above 0.5 the knobs
+  show in place.
+- **REQ-collapse-follows-any-param-change** — Visibility is reactive: it follows
+  every param change, whatever the source (switch click, preset/song load,
+  `bus.set`). Initial state comes from the param's current value at build time.
+- **REQ-fx-group-testids** — Testids: the group root carries
+  `fxgroup-<onPrefix>`; the switch `switch-<onPrefix>.on`; each knob
+  `knob-<paramId>` (minted by the factories).
   - (v2) A group's rate/time knob mints `tempolock-<paramId>` and
-    `tempodiv-<paramId>` as well ([tempo-lock](tempo-lock.md) REQ-1/REQ-2). The
+    `tempodiv-<paramId>` as well ([tempo-lock](tempo-lock.md) REQ-one-table-declares-lockable-params/REQ-the-lock-is-a-note-glyph). The
     builder here is **unchanged** and knows nothing about it: the `Knob` looks its
     own param up in `TEMPO_LOCKS`, which is exactly why the drum and sampler
     PHASER/DELAY groups got the lock without this signature growing a field.
-    The lock sits inside `.knobs`, so REQ-2 hides it with everything else while
+    The lock sits inside `.knobs`, so REQ-bypassed-group-collapses-its-knobs hides it with everything else while
     the effect is bypassed — correct, since a bypassed effect's division is as
     inert as its rate.
-- **REQ-5** — Help badges that relate to an effect group anchor to the group
-  **root** (`fxgroup-<prefix>`), never to a knob or trailing meter — those hide
-  while bypassed and InfoBadges hides badges on zero-size anchors, but help must
-  stay reachable for a bypassed effect (that's when "what is this?" is asked).
+- **REQ-help-badge-anchors-to-group-root** — Help badges that relate to an
+  effect group anchor to the group **root** (`fxgroup-<prefix>`), never to a
+  knob or trailing meter — those hide while bypassed and InfoBadges hides badges
+  on zero-size anchors, but help must stay reachable for a bypassed effect
+  (that's when "what is this?" is asked).
 
 ## Technical design
 

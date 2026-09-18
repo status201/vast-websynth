@@ -11,7 +11,9 @@ import { Clock } from '../../../src/audio/transport/clock';
 import { TimeoutTimer } from '../../../src/audio/transport/tick-timer';
 import { SEQ_LENGTH } from '../../../src/state/patterns';
 
-// ---------- bankCropRange (pure crop math — render-to-sampler REQ-1/2/3) ----------
+// ---------- bankCropRange (pure crop math — render-to-sampler
+// REQ-the-rendered-buffer-has-exact-length/REQ-the-buffer-starts-exactly-on-a-bar,
+// render-to-sampler REQ-a-two-pass-loop-bake) ----------
 
 describe('bankCropRange', () => {
   it('window is exactly one bar and starts at the second bar boundary', () => {
@@ -69,7 +71,7 @@ function fakeNode(opts: { firstFrame: number | null; length: number; sampleRate:
  *
  * Deliberately not one jump past the window: the drain is bounded, so a grid
  * left far behind `currentTime` reads as a dropout and emits nothing
- * (transport.md REQ-9).
+ * (transport.md REQ-the-transport-catch-up-is-bounded).
  */
 function harness(opts?: {
   firstFrame?: number | null;

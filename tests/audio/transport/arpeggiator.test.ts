@@ -16,7 +16,7 @@ function setup(scale = new ScaleQuantizer()) {
   return { clock, bus, arp, playNote, releaseNote, scale };
 }
 
-/** A quantizer already set to a key, for the REQ-8 cases. */
+/** A quantizer already set to a key, for the REQ-arp-pool-is-expanded-then-quantized cases. */
 function inKey(scaleName: string, root = 0): ScaleQuantizer {
   const s = new ScaleQuantizer();
   s.setRoot(root);
@@ -194,11 +194,11 @@ describe('Arpeggiator pattern generation', () => {
   });
 });
 
-// arpeggiator.md REQ-6. The clock only ticks in 16ths, so 1/32 used to fall into
+// arpeggiator.md REQ-a-sub-16th-rate-schedules-its-own-hits. The clock only ticks in 16ths, so 1/32 used to fall into
 // an `else` branch that fired once per tick and called itself "sample-accurate
 // enough" — which made it play exactly 1/16. The dropdown offered a rate that
 // changed nothing.
-describe('Arpeggiator sub-16th rates (REQ-6)', () => {
+describe('Arpeggiator sub-16th rates (REQ-a-sub-16th-rate-schedules-its-own-hits)', () => {
   const SIXTEENTH = 0.125; // TestClock at 120 BPM
 
   it('schedules two hits per tick at 1/32, a half-sixteenth apart', () => {
@@ -245,9 +245,9 @@ describe('Arpeggiator sub-16th rates (REQ-6)', () => {
   });
 });
 
-// arpeggiator.md REQ-7 — this is the design, not a defect. A song saves arp.on
+// arpeggiator.md REQ-saved-arp-on-is-armed-not-broken — this is the design, not a defect. A song saves arp.on
 // to *arm* the arp for a player; the sequencer deliberately does not feed it.
-describe('Arpeggiator armed by a song (REQ-7)', () => {
+describe('Arpeggiator armed by a song (REQ-saved-arp-on-is-armed-not-broken)', () => {
   it('sounds nothing while no key is held, then arpeggiates when one is', () => {
     const { clock, bus, arp, playNote } = setup();
     arp.setEnabled(true); // as a loaded song's arp.on: 1 would
@@ -262,9 +262,9 @@ describe('Arpeggiator armed by a song (REQ-7)', () => {
   });
 });
 
-// arpeggiator.md REQ-8. Two transforms sit on the pool build: chord memory widens
+// arpeggiator.md REQ-arp-pool-is-expanded-then-quantized. Two transforms sit on the pool build: chord memory widens
 // it, and the key snaps every entry — including the octave-stacked copies.
-describe('Arpeggiator key + chord memory (REQ-8)', () => {
+describe('Arpeggiator key + chord memory (REQ-arp-pool-is-expanded-then-quantized)', () => {
   it('quantizes the held note into the key', () => {
     const { clock, bus, arp, playNote } = setup(inKey('major'));
     arp.setEnabled(true);
@@ -293,7 +293,7 @@ describe('Arpeggiator key + chord memory (REQ-8)', () => {
     expect(played(playNote)).toEqual([61]);
   });
 
-  it('arpeggiates a whole chord from one held key (chord-tools.md REQ-6)', () => {
+  it('arpeggiates a whole chord from one held key (chord-tools.md REQ-chord-memory-reaches-the-arp)', () => {
     const scale = inKey('major');
     scale.setChord(CHORD_LABELS.indexOf('triad'));
     const { clock, bus, arp, playNote } = setup(scale);
@@ -303,7 +303,7 @@ describe('Arpeggiator key + chord memory (REQ-8)', () => {
     expect(played(playNote)).toEqual([60, 64, 67]);
   });
 
-  it('does not expand chord memory in mono (chord-tools.md REQ-7)', () => {
+  it('does not expand chord memory in mono (chord-tools.md REQ-mono-gates-the-live-chord-path)', () => {
     const scale = inKey('major');
     scale.setChord(CHORD_LABELS.indexOf('triad'));
     scale.setPoly(false);

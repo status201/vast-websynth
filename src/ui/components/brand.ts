@@ -12,10 +12,10 @@ const TAGLINE = 'Vast Audio Synthesis Technology';
 
 /**
  * The brand block: `VAST` + a boxed `G1-J8` on one row, the tagline beneath.
- * No size or content variant — every surface shows the same thing (REQ-1).
+ * No size or content variant — every surface shows the same thing (REQ-brand-block-has-no-variants).
  *
  * Carries no outer framing and no alignment of its own: the header composes its
- * divider class on top, and `.start-card` centres it (REQ-3/REQ-4).
+ * divider class on top, and `.start-card` centres it (REQ-brand-block-carries-no-framing/REQ-brand-alignment-belongs-to-the-container).
  */
 export function createBrand(): HTMLElement {
   const brand = document.createElement('div');

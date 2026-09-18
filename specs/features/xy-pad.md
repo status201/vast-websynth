@@ -40,58 +40,63 @@ subscribes to the assigned params.
 
 ## Requirements
 
-- **REQ-1** — A button in the Song tab's **Live FX** row (`perf-xypad`) toggles a
-  non-modal floating window containing the pad. The app stays interactive while it
-  is open. The window is owned by a single shared controller
-  (`createXyPadWindowController`, `src/ui/components/xy-pad-window.ts`), so the
-  **same** window can also be toggled from the LIVE FX window's XY Pad launcher
-  (`livefx-xypad`, see [live-fx-window](live-fx-window.md)) — only one
-  `xypad-window` ever exists, and every launcher button mirrors its open state.
-  The window also carries the built-in minimise button (see
-  [floating-window](floating-window.md) REQ-7).
-- **REQ-2** — **Assignable axes**: two dropdowns (X and Y), each seeded from
-  `bus.ids()`, choose the param each axis drives. The assignment lives in a small
-  pure store, `XyPadStore`; defaults are X = `filter.cutoff`, Y = `filter.resonance`.
-- **REQ-3** — **Drag drives both params through the taper**: pointer position
-  normalises to `nx = x/width`, `ny = 1 - y/height` (up = more), then
-  `bus.set(id, fromNorm(def, n))` per axis. The dot renders from the live value via
-  `toNorm`, so the correct taper (e.g. `filter.resonance`'s `power` curve) is
-  honoured in both directions — never a linear approximation.
-- **REQ-4** — **Spring-back (momentary)**: on gesture end both params ramp back to
-  their pre-gesture values over ~180 ms (rAF, eased `1-(1-k)²`, exact snap at the
-  end). Restarting a gesture mid-ramp cancels the ramp and **keeps the original
-  `pre`** (so a flurry of gestures still returns to the true starting point, not a
-  half-sprung one).
-- **REQ-5** — **Trackpad two-finger scroll**: a `wheel` gesture over the pad nudges
-  the dot without clicking (`nx += deltaX·K`, `ny -= deltaY·K`, `K ≈ 1/400`); a
-  visible hint (`xypad-hint`) advertises it. A wheel gesture ends — and springs
-  back — when the pointer **leaves** the pad (`pointerleave`).
-- **REQ-6** — **Persistence**: the axis assignment is saved in songs via SongFile
-  **v3** (an additive, optional `xy` field). Loading a file without it restores the
-  defaults. Only the *assignment* persists — live dragging is momentary and never
-  written.
-- **REQ-7** — **On-surface axis labels + finer grid** (orientation only, no
-  behaviour change): the pad surface shows the **short name** of each assigned
-  param — its id's last dotted segment, lowercased (`filter.cutoff` → `cutoff`) —
-  in a small, faint font. The **X** label sits centred just above the bottom edge
-  (`xypad-axis-x`); the **Y** label runs down the left edge **rotated 90° CCW**
-  (reading bottom-to-top, `xypad-axis-y`). Both update live when their axis is
-  reassigned (they flow through the same `xy.onChange` path as the dot). In
-  addition to the centre crosshair, the surface draws **faint dotted** grid lines
-  at 25% and 75% on both axes, so each existing quadrant is itself divided into
-  quarters (a 4×4 reference grid). Labels and grid are non-interactive
-  (`pointer-events: none`) and never intercept a drag/wheel gesture.
-- **REQ-8** — **Collapsible assign row behind a gear** (saves window real estate):
-  a **gear** glyph button (`⚙`, `xypad-gear`) sits in the **top-left of the
-  floating window** (the title bar, via the window's `leading` slot). It toggles
-  the visibility of the X/Y assign dropdown row (`.assign`, hidden with the global
-  `collapsed` class). The row **starts collapsed** — the on-surface axis labels
-  (REQ-7) keep the assignment visible, so the dropdowns are only needed when
+- **REQ-xy-pad-lives-in-one-shared-window** — A button in the Song tab's **Live
+  FX** row (`perf-xypad`) toggles a non-modal floating window containing the
+  pad. The app stays interactive while it is open. The window is owned by a
+  single shared controller (`createXyPadWindowController`,
+  `src/ui/components/xy-pad-window.ts`), so the **same** window can also be
+  toggled from the LIVE FX window's XY Pad launcher (`livefx-xypad`, see
+  [live-fx-window](live-fx-window.md)) — only one `xypad-window` ever exists,
+  and every launcher button mirrors its open state. The window also carries the
+  built-in minimise button (see [floating-window](floating-window.md) REQ-every-window-can-minimise).
+- **REQ-xy-axes-are-assignable** — **Assignable axes**: two dropdowns (X and Y),
+  each seeded from `bus.ids()`, choose the param each axis drives. The
+  assignment lives in a small pure store, `XyPadStore`; defaults are X =
+  `filter.cutoff`, Y = `filter.resonance`.
+- **REQ-drag-drives-both-params-through-the-taper** — **Drag drives both params
+  through the taper**: pointer position normalises to `nx = x/width`, `ny = 1 -
+  y/height` (up = more), then `bus.set(id, fromNorm(def, n))` per axis. The dot
+  renders from the live value via `toNorm`, so the correct taper (e.g.
+  `filter.resonance`'s `power` curve) is honoured in both directions — never a
+  linear approximation.
+- **REQ-gesture-end-springs-back** — **Spring-back (momentary)**: on gesture end
+  both params ramp back to their pre-gesture values over ~180 ms (rAF, eased
+  `1-(1-k)²`, exact snap at the end). Restarting a gesture mid-ramp cancels the
+  ramp and **keeps the original `pre`** (so a flurry of gestures still returns
+  to the true starting point, not a half-sprung one).
+- **REQ-wheel-nudges-the-dot** — **Trackpad two-finger scroll**: a `wheel`
+  gesture over the pad nudges the dot without clicking (`nx += deltaX·K`, `ny -=
+  deltaY·K`, `K ≈ 1/400`); a visible hint (`xypad-hint`) advertises it. A wheel
+  gesture ends — and springs back — when the pointer **leaves** the pad
+  (`pointerleave`).
+- **REQ-only-the-axis-assignment-persists** — **Persistence**: the axis
+  assignment is saved in songs via SongFile **v3** (an additive, optional `xy`
+  field). Loading a file without it restores the defaults. Only the *assignment*
+  persists — live dragging is momentary and never written.
+- **REQ-pad-shows-short-axis-labels** — **On-surface axis labels + finer grid**
+  (orientation only, no behaviour change): the pad surface shows the **short
+  name** of each assigned param — its id's last dotted segment, lowercased
+  (`filter.cutoff` → `cutoff`) — in a small, faint font. The **X** label sits
+  centred just above the bottom edge (`xypad-axis-x`); the **Y** label runs down
+  the left edge **rotated 90° CCW** (reading bottom-to-top, `xypad-axis-y`).
+  Both update live when their axis is reassigned (they flow through the same
+  `xy.onChange` path as the dot). In addition to the centre crosshair, the
+  surface draws **faint dotted** grid lines at 25% and 75% on both axes, so each
+  existing quadrant is itself divided into quarters (a 4×4 reference grid).
+  Labels and grid are non-interactive (`pointer-events: none`) and never
+  intercept a drag/wheel gesture.
+- **REQ-assign-row-hides-behind-a-gear** — **Collapsible assign row behind a
+  gear** (saves window real estate): a **gear** glyph button (`⚙`, `xypad-gear`)
+  sits in the **top-left of the floating window** (the title bar, via the
+  window's `leading` slot). It toggles the visibility of the X/Y assign dropdown
+  row (`.assign`, hidden with the global `collapsed` class). The row **starts
+  collapsed** — the on-surface axis labels (REQ-pad-shows-short-axis-labels)
+  keep the assignment visible, so the dropdowns are only needed when
   reassigning. The gear **rotates** (90°, CSS transition driven by its
   `aria-expanded`) when toggled, and its `pointerdown` is stopped so clicking it
-  never starts a window drag. The collapse state is in-memory only (not persisted,
-  not in songs) but survives close/reopen because the pad instance is kept alive
-  across closes.
+  never starts a window drag. The collapse state is in-memory only (not
+  persisted, not in songs) but survives close/reopen because the pad instance is
+  kept alive across closes.
 
 ## Technical design
 
@@ -111,7 +116,7 @@ createXyPad(bus: ParamBus, xy: XyPadStore, effective?: EffectiveXy): { el: HTMLE
   # gesture (snap to pre), unsubscribes the bus + store + axes source, and
   # destroys the dropdowns.
   # `effective` (state/xy-effective.ts, built in app.ts from the motion play
-  # bank — motion-sequencer.md REQ-11): when passed, the pad's AXES — labels,
+  # bank — motion-sequencer.md REQ-the-xy-window-axes-follow-motion): when passed, the pad's AXES — labels,
   # dot, drag/wheel targets — follow the effective assignment; the gear
   # dropdowns still show/edit the base store. Omitted (tests) = store-only,
   # the original behaviour.

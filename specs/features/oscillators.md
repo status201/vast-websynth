@@ -3,11 +3,11 @@
 ```yaml
 id: oscillators
 status: implemented
-version: 5                     # v5: REQ-6b — a duty-bank entry is built on first use,
+version: 5                     # v5: REQ-a-wave-bank-entry-is-built-on-first-use — a duty-bank entry is built on first use,
                                #     not the whole bank; 128 waves cost ~86 MB of native
                                #     memory that a heap snapshot cannot see
-                               # v4: one PwmDriver, two LFOs — the source claim (REQ-8)
-                               # v3: the REQ-9 rate cap is shown on the knob, not only in prose
+                               # v4: one PwmDriver, two LFOs — the source claim (REQ-set-periodic-wave-is-immediate)
+                               # v3: the REQ-pwm-rate-is-clamped rate cap is shown on the knob, not only in prose
                                # v2: pulse-width modulation on osc1/osc2
 owner: core
 related:
@@ -16,7 +16,7 @@ related:
   - ladder-filter
   - lfo                        # the `pulse` destination drives pulseWidth
   - runtime-performance        # the PWM control loop's cost contract
-  - knob-soft-ceiling          # v3: how REQ-9's cap is drawn on the RATE knob
+  - knob-soft-ceiling          # v3: how REQ-pwm-rate-is-clamped's cap is drawn on the RATE knob
 source:
   - src/audio/oscillator.ts    # duty bank + setPulseWidth
   - src/audio/pwm.ts           # the control loop (v2)
@@ -38,30 +38,33 @@ scalar params, so they snapshot into presets/songs for free.
 
 ## Requirements
 
-- **REQ-1** — Two main oscillators, each with waveform / octave / fine detune /
-  level.
-- **REQ-2** — A sub-oscillator with waveform / octave (only `-2..-1`) / level,
-  defaulting to **level 0** (no-op for existing presets).
-- **REQ-3** — A noise level in the mixer, default 0.
-- **REQ-4** — Every change applies to **every voice in the pool** live — 8, or 5
-  on the `weak` tier ([performance-mode](performance-mode.md)) — (via the `all(...)`
-  fan-out).
-- **REQ-5** — (v2) `osc1`/`osc2` have a **pulse width**, `0.5..0.95`, default
-  `0.5`. Duty `0.5` *is* a square wave, so the default is an exact no-op
-  (ADR-006). It applies only while that oscillator's waveform is `square`; the
-  sub-oscillator is excluded.
-- **REQ-6** — (v2) Width is realised by swapping a precomputed `PeriodicWave` on
-  the **live** `OscillatorNode`. The bank holds `PWM_BANK_SIZE` waves built from
-  the pulse Fourier series (`a[n] = (2/(nπ))·sin(nπd)`), so every width is
-  exactly band-limited — the same construction as the native waveforms, and
-  alias-free where a PolyBLEP approximation would not be. `setPeriodicWave`
-  preserves the oscillator's phase, so sweeping never clicks. The bank is shared
-  by all voices and scoped to the `AudioContext`.
+- **REQ-two-oscillators-with-full-controls** — Two main oscillators, each with
+  waveform / octave / fine detune / level.
+- **REQ-a-sub-oscillator-sits-below** — A sub-oscillator with waveform / octave
+  (only `-2..-1`) / level, defaulting to **level 0** (no-op for existing
+  presets).
+- **REQ-noise-level-defaults-to-zero** — A noise level in the mixer, default 0.
+- **REQ-osc-changes-reach-every-voice** — Every change applies to **every voice
+  in the pool** live — 8, or 5 on the `weak` tier
+  ([performance-mode](performance-mode.md)) — (via the `all(...)` fan-out).
+- **REQ-oscillators-have-a-pulse-width** — (v2) `osc1`/`osc2` have a **pulse
+  width**, `0.5..0.95`, default `0.5`. Duty `0.5` *is* a square wave, so the
+  default is an exact no-op (ADR-006). It applies only while that oscillator's
+  waveform is `square`; the sub-oscillator is excluded.
+- **REQ-width-swaps-a-precomputed-wave** — (v2) Width is realised by swapping a
+  precomputed `PeriodicWave` on the **live** `OscillatorNode`. The bank holds
+  `PWM_BANK_SIZE` waves built from the pulse Fourier series (`a[n] =
+  (2/(nπ))·sin(nπd)`), so every width is exactly band-limited — the same
+  construction as the native waveforms, and alias-free where a PolyBLEP
+  approximation would not be. `setPeriodicWave` preserves the oscillator's
+  phase, so sweeping never clicks. The bank is shared by all voices and scoped
+  to the `AudioContext`.
 
-- **REQ-6b** — (v5) **A bank entry is built the first time that width is used,
-  never as a bank.** `PWM_BANK_SIZE` is the bank's *resolution*, not the number
-  of waves a patch pays for: entry `i` is constructed on first use and memoized,
-  so a width that is never selected costs nothing.
+- **REQ-a-wave-bank-entry-is-built-on-first-use** — (v5) **A bank entry is built
+  the first time that width is used, never as a bank.** `PWM_BANK_SIZE` is the
+  bank's *resolution*, not the number of waves a patch pays for: entry `i` is
+  constructed on first use and memoized, so a width that is never selected costs
+  nothing.
 
   This is a memory rule, and the numbers are why it is a requirement rather than
   a preference. A `PeriodicWave` is not stored as the Fourier coefficients handed
@@ -91,23 +94,24 @@ scalar params, so they snapshot into presets/songs for free.
 
   A patch that genuinely sweeps the whole duty range still converges on the whole
   bank. That is correct — it is cost proportional to what the player asked for
-  ([runtime-performance](runtime-performance.md) REQ-1/REQ-2) — and it is now
+  ([runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request/REQ-immutable-artefacts-are-shared) — and it is now
   paid gradually instead of as one burst.
-- **REQ-7** — (v2) The LFO's `pulse` destination sweeps width **unipolar and
-  upward** from the knob's base: `width = base + depth·(lfo+1)/2·(0.95−base)`.
-  Bipolar modulation around `0.5` would sweep through `0.4`/`0.3`, and duty `d`
-  and `1−d` have identical magnitude spectra — so the sweep would sound like
-  *double* the LFO rate. This is a deliberate asymmetry versus the other
-  destinations, which are bipolar around their base.
-- **REQ-8** — (v2) `setPeriodicWave` is an immediate call, not schedulable
-  automation, so PWM runs from a control loop at `PWM_CONTROL_HZ`. It runs
-  **only while some LFO's destination is `pulse`** and is stopped otherwise, so
-  the feature costs nothing in any other patch. It owns its own timer and must
-  **not** ride `requestAnimationFrame` — `PERF_PROFILES.weak` caps fps at 15
+- **REQ-pulse-destination-sweeps-unipolar** — (v2) The LFO's `pulse` destination
+  sweeps width **unipolar and upward** from the knob's base: `width = base +
+  depth·(lfo+1)/2·(0.95−base)`. Bipolar modulation around `0.5` would sweep
+  through `0.4`/`0.3`, and duty `d` and `1−d` have identical magnitude spectra —
+  so the sweep would sound like *double* the LFO rate. This is a deliberate
+  asymmetry versus the other destinations, which are bipolar around their base.
+- **REQ-set-periodic-wave-is-immediate** — (v2) `setPeriodicWave` is an
+  immediate call, not schedulable automation, so PWM runs from a control loop at
+  `PWM_CONTROL_HZ`. It runs **only while some LFO's destination is `pulse`** and
+  is stopped otherwise, so the feature costs nothing in any other patch. It owns
+  its own timer and must **not** ride `requestAnimationFrame` —
+  `PERF_PROFILES.weak` caps fps at 15
   ([runtime-performance](runtime-performance.md)), which would make PWM unusable
   on that tier.
   - (v4) **There is one driver and there are two LFOs**
-    ([lfo](lfo.md) REQ-14), so every setter takes a **source index** and the
+    ([lfo](lfo.md) REQ-pulse-is-arbitrated), so every setter takes a **source index** and the
     driver tracks an **owner**. A source claims it by selecting `pulse` when the
     driver is unowned or owned by a higher index (lowest index wins); it releases
     by leaving `pulse`; a non-owner's `setRate`/`setWave`/`setAmount` are ignored.
@@ -115,25 +119,27 @@ scalar params, so they snapshot into presets/songs for free.
     `setDest(non-pulse)` and stop a sweep it does not own — the whole reason the
     driver is not simply shared. Cost is unchanged: still one timer, still only
     while someone is on `pulse`.
-- **REQ-9** — (v2) On the PWM path the LFO rate is clamped to `PWM_RATE_MAX`,
-  because smoothness is `PWM_CONTROL_HZ ÷ rate` updates per cycle and a faster
-  LFO steps audibly. `lfo.rate`'s registered range is **unchanged** — narrowing
-  it would make `preset-validate` reject every saved patch with a faster LFO —
-  so the UI discloses the cap while `pulse` is selected rather than the knob
-  silently doing nothing. (v3) The disclosure is **two cues, one subscription**:
-  the panel hint *and* a [soft ceiling](knob-soft-ceiling.md) at `PWM_RATE_MAX`
-  on the RATE knob, which stops its arc filling through the dead travel. Both are
-  driven from the same `lfo.dest` listener so they cannot drift apart, and both
-  disappear for every other destination, where the full `0.05..20` range really
-  is live. The cap is paint only — dragging still reaches and stores 20 Hz.
-  (v4) Each LFO page owns its own pair, keyed off `${prefix}.dest`; the hint
-  carries a per-page testid (`pulse-hint-lfo` / `pulse-hint-lfo2`) because two
-  copies of the same sentence can no longer be selected by text
-  ([testids](testids.md) REQ-4).
-- **REQ-10** — (v2) A background tab throttles main-thread timers to ~1 Hz while
-  audio keeps playing ([audio-lifecycle](audio-lifecycle.md)). The duty then
-  freezes at its last value: no click, no drift, and it resumes on return.
-  Accepted rather than worked around.
+- **REQ-pwm-rate-is-clamped** — (v2) On the PWM path the LFO rate is clamped to
+  `PWM_RATE_MAX`, because smoothness is `PWM_CONTROL_HZ ÷ rate` updates per
+  cycle and a faster LFO steps audibly. `lfo.rate`'s registered range is
+  **unchanged** — narrowing it would make `preset-validate` reject every saved
+  patch with a faster LFO — so the UI discloses the cap while `pulse` is
+  selected rather than the knob silently doing nothing. (v3) The disclosure is
+  **two cues, one subscription**: the panel hint *and* a [soft
+  ceiling](knob-soft-ceiling.md) at `PWM_RATE_MAX` on the RATE knob, which stops
+  its arc filling through the dead travel. Both are driven from the same
+  `lfo.dest` listener so they cannot drift apart, and both disappear for every
+  other destination, where the full `0.05..20` range really is live. The cap is
+  paint only — dragging still reaches and stores 20 Hz. (v4) Each LFO page owns
+  its own pair, keyed off `${prefix}.dest`; the hint carries a per-page testid
+  (`pulse-hint-lfo` / `pulse-hint-lfo2`) because two copies of the same sentence
+  can no longer be selected by text ([testids](testids.md)
+  REQ-select-by-testid-not-by-label).
+- **REQ-a-background-tab-throttles-pwm** — (v2) A background tab throttles
+  main-thread timers to ~1 Hz while audio keeps playing
+  ([audio-lifecycle](audio-lifecycle.md)). The duty then freezes at its last
+  value: no click, no drift, and it resumes on return. Accepted rather than
+  worked around.
 
 ## Technical design
 
@@ -162,7 +168,7 @@ Osc:
 pwm.ts:
   PWM_BANK_SIZE   # duty-bank resolution
   PWM_CONTROL_HZ  # control-loop rate
-  PWM_RATE_MAX    # LFO rate ceiling on this path (REQ-9)
+  PWM_RATE_MAX    # LFO rate ceiling on this path (REQ-pwm-rate-is-clamped)
   PwmDriver.setBase(i, width) / dispose
   PwmDriver.setDest(src, d) / setAmount(src, a) / setRate(src, hz) / setWave(src, i)
     # v4: `src` is the LFO index. setDest claims/releases the driver; the other
@@ -178,7 +184,7 @@ limit — a full LFO cycle sweeps the bank up and back.
 That crossover is also why `PWM_BANK_SIZE` is **not** a memory knob. It sits at
 0.94 Hz today; halving the bank to 64 would move it to 1.9 Hz and make slow
 sweeps — the classic PWM patch — step audibly. Shrinking it is a sound change
-owing an ADR-010 by-ear pass, which is why REQ-6b buys the memory back through
+owing an ADR-010 by-ear pass, which is why REQ-a-wave-bank-entry-is-built-on-first-use buys the memory back through
 *when* entries are built instead of *how many* exist.
 
 ### Layer touchpoints
@@ -200,7 +206,7 @@ graph (v2):
 ui:       src/ui/app.ts  (OSC1 / OSC2 / SUB panels: Knob + Segmented for wave)
   osc{N}.pulseWidth knob is shown only while osc{N}.wave === square
   LFO panel (src/ui/panels/lfo-panel.ts): pulseRateDisclosure(bus, prefix, rate) —
-    ONE ${prefix}.dest listener per page drives both REQ-9 cues, the rate-cap
+    ONE ${prefix}.dest listener per page drives both REQ-pwm-rate-is-clamped cues, the rate-cap
     hint's visibility AND knob-${prefix}.rate's soft ceiling (v3, per page in v4)
 ```
 
@@ -216,8 +222,8 @@ holds one destination, so nothing reads the owning LFO's audio oscillator while
 oscillator, and only the driver's owner runs a mirror.
 
 Being a parameter write rather than a summed connection is exactly why `pulse`
-needs the REQ-8 owner claim while every other destination tolerates two LFOs by
-simply summing ([lfo](lfo.md) REQ-13).
+needs the REQ-set-periodic-wave-is-immediate owner claim while every other destination tolerates two LFOs by
+simply summing ([lfo](lfo.md) REQ-duplicated-destinations-sum-and-stay-bounded).
 
 ## Scenarios (BDD)
 
@@ -252,20 +258,20 @@ Scenario: Sweeping width never restarts the oscillator
   Then setPeriodicWave is called on the same live node and phase is preserved
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
-Scenario: One width builds one wave, not a bank (v5, REQ-6b)
+Scenario: One width builds one wave, not a bank (v5, REQ-a-wave-bank-entry-is-built-on-first-use)
   Given osc1.wave is square and no width has been used yet
   When the width is set to a single value off 0.5
   Then exactly one PeriodicWave is created
   And holding that width creates no further waves
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
-Scenario: A revisited width reuses its entry (v5, REQ-6b)
+Scenario: A revisited width reuses its entry (v5, REQ-a-wave-bank-entry-is-built-on-first-use)
   Given the width has moved across a handful of bank entries
   When it returns to one it already used
   Then no new PeriodicWave is created for it
 # pinned by: tests/audio/oscillator-pwm.test.ts
 
-Scenario: A width never selected costs nothing (v5, REQ-6b)
+Scenario: A width never selected costs nothing (v5, REQ-a-wave-bank-entry-is-built-on-first-use)
   Given a patch that only ever uses the lower half of the duty range
   Then no PeriodicWave exists for any entry in the upper half
   # 128 entries at ~670 KB of native memory each is ~86 MB if built as a bank
@@ -278,30 +284,30 @@ Scenario: The control loop runs only for the pulse destination
   Then the timer starts, and stops again when the destination changes away
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: The other LFO cannot stop a sweep it does not own (regression, v4, REQ-8)
+Scenario: The other LFO cannot stop a sweep it does not own (regression, v4, REQ-set-periodic-wave-is-immediate)
   Given LFO 1 owns the driver and is sweeping the width
   When LFO 2 moves its destination from "off" to "cutoff"
   Then the timer keeps running and the width keeps sweeping
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: The lowest LFO index wins the driver (v4, REQ-8, edge)
+Scenario: The lowest LFO index wins the driver (v4, REQ-set-periodic-wave-is-immediate, edge)
   Given LFO 2 claims pulse first and LFO 1 then claims it too
   Then LFO 1 owns the driver, and LFO 2's rate and amount are ignored
   And releasing the owner stops the timer and restores the base widths
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: PWM modulation is unipolar and upward from the base (REQ-7)
+Scenario: PWM modulation is unipolar and upward from the base (REQ-pulse-destination-sweeps-unipolar)
   Given osc1.pulseWidth is 0.5 and the LFO is at full depth
   Then the swept width stays within 0.5..0.95 and never dips below the base
 # pinned by: tests/audio/pwm.test.ts
 
-Scenario: The LFO rate is capped on the PWM path (REQ-9, edge)
+Scenario: The LFO rate is capped on the PWM path (REQ-pwm-rate-is-clamped, edge)
   Given lfo.rate is 20 and lfo.dest is "pulse"
   Then the PWM sweep runs at PWM_RATE_MAX, not 20 Hz
   And lfo.rate's registered range still accepts 20
 # pinned by: tests/audio/pwm.test.ts, tests/state/preset-validate.test.ts
 
-Scenario: A backgrounded tab freezes the sweep instead of jumping it (REQ-10, edge)
+Scenario: A backgrounded tab freezes the sweep instead of jumping it (REQ-a-background-tab-throttles-pwm, edge)
   Given the PWM loop is running and the tab is backgrounded for a minute
   When the timer fires again
   Then the duty moves at most one capped tick, rather than to an arbitrary phase
@@ -314,14 +320,14 @@ Scenario: The width knob is only on show for the square waveform
   Then it appears
 # pinned by: e2e/controls.spec.ts
 
-Scenario: The rate cap is disclosed rather than silent (REQ-9)
+Scenario: The rate cap is disclosed rather than silent (REQ-pwm-rate-is-clamped)
   Given lfo.dest is "pulse"
   Then the LFO panel shows the rate-cap hint
   When the destination changes to anything else
   Then the hint is hidden
 # pinned by: e2e/controls.spec.ts
 
-Scenario: The rate cap is shown on the knob, not only in prose (REQ-9, v3)
+Scenario: The rate cap is shown on the knob, not only in prose (REQ-pwm-rate-is-clamped, v3)
   Given lfo.dest is "pulse"
   Then knob-lfo.rate carries a PWM_RATE_MAX soft ceiling, so its arc stops there
   And lfo.rate can still be dragged to 20

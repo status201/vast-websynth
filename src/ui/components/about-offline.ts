@@ -1,10 +1,10 @@
 // The About card's **Play offline** section (specs/features/play-offline.md):
 // one button, a status line and a progress bar, rendering the page's single
-// `OfflineCopy`. It sits directly above Restore to Factory Settings (REQ-1).
+// `OfflineCopy`. It sits directly above Restore to Factory Settings (REQ-the-about-card-hosts-play-offline).
 //
 // This module only renders. The state lives in `utils/offline-copy.ts`, so
 // closing the card is not a cancel; the toasts for a run that ends while the
-// card is hidden live in `offline-notices.ts` (REQ-8), which this section tells
+// card is hidden live in `offline-notices.ts` (REQ-offline-feedback-while-about-is-closed), which this section tells
 // when its own status line is on screen.
 import { Modal } from './modal';
 import { createButton } from './button';
@@ -21,7 +21,7 @@ import {
 import switchStyles from '../styles/switch.module.css';
 import styles from '../styles/about-offline.module.css';
 
-/** What the section shows for a state — REQ-3's table, as data. */
+/** What the section shows for a state — REQ-one-offline-state-machine-many-views's table, as data. */
 export interface OfflineView {
   label: string;
   icon: IconName;
@@ -109,7 +109,7 @@ export function buildOfflineSection(
         case 'unsupported':
         case 'checking': return;
         // none, error, and complete — where a run skips what is cached and
-        // repairs whatever the browser evicted (REQ-5).
+        // repairs whatever the browser evicted (REQ-the-offline-download-runs-in-order).
         default: void copy.start();
       }
     },
@@ -140,7 +140,7 @@ export function buildOfflineSection(
 
   // The card is built once and reused (about-button.ts), so this subscription
   // lives as long as the page. While the card is on screen its status line is
-  // the report, so the toasts stand down (REQ-8).
+  // the report, so the toasts stand down (REQ-offline-feedback-while-about-is-closed).
   copy.subscribe(render);
   watchOfflineRuns(copy, reload).setInlineView(
     () => root.isConnected && root.closest('.hidden') === null,

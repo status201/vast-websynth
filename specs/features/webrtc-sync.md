@@ -3,8 +3,8 @@
 ```yaml
 id: webrtc-sync
 status: implemented
-version: 7   # v7: the wire carries the time signature (REQ-12) — meter.md
-             # v6: REQ-1 type-guards the wire (a peer can't inject NaN into the
+version: 7   # v7: the wire carries the time signature (REQ-the-wire-carries-the-time-signature) — meter.md
+             # v6: REQ-the-transport-opens-two-channels type-guards the wire (a peer can't inject NaN into the
              #     clock); the signal blob decodes under MAX_SIGNAL_BYTES
 owner: core
 related:
@@ -14,7 +14,7 @@ related:
   - onboarding
   - untrusted-input
   - transport
-  - typography          # REQ-5's wizard type follows the app-wide rule
+  - typography          # REQ-pairing-is-serverless-and-non-trickle's wizard type follows the app-wide rule
 source:
   - src/audio/transport/sync/sync-types.ts
   - src/audio/transport/sync/clock-offset.ts
@@ -51,7 +51,7 @@ pure NTP-style **clock-offset estimator** that converts the sender's
 share a clock the way two ends of one MIDI cable effectively do), and (b) the
 **serverless pairing** UI (offer/answer blob exchange + QR).
 
-**LAN-only, empty `iceServers`** is a deliberate decision (see REQ-7): no STUN,
+**LAN-only, empty `iceServers`** is a deliberate decision (see REQ-sync-has-zero-npm-dependencies): no STUN,
 no TURN, fully offline-capable. It pairs two devices on the same network via
 mDNS/host candidates; it does *not* traverse NAT to the public internet. The
 help topic documents the "same network, client isolation off" requirement.
@@ -62,50 +62,53 @@ follows whichever delivers.
 
 ## Requirements
 
-- **REQ-1** — `WebRtcSyncTransport implements SyncTransport`. It opens **two
-  negotiated DataChannels** on one `RTCPeerConnection`: `sync-control` (id 0,
-  ordered + reliable) carries semantic state (`start`/`continue`/`stop`/
-  `songposition`/`tempo`) where loss or reorder is a correctness bug;
-  `sync-timing` (id 1, `{ordered:false, maxRetransmits:0}`) carries `pulse`/
-  `ping`/`pong` where a *late-retransmitted* pulse is worse than a dropped one
-  (a 24-interval estimator window + 1 s stall tolerance absorb loss) and
-  head-of-line blocking of 96 msg/s pulses must be avoided. Both channels are
-  `negotiated: true` with explicit ids, and **each peer creates its own** —
-  `createChannels(pc)` runs from `createLink()` on the offerer and from
-  `acceptOffer()` on the answerer. That is what `negotiated` means: matching ids
-  on both sides, so no `ondatachannel` handshake is needed.
-  Messages are JSON, one object per message, and **every inbound message is
-  type-guarded, never cast** (v6): `t` must be one of the known variants and each
-  numeric field must be `Number.isFinite`, or the message is **dropped
-  silently** — the timing channel is already lossy by design, so a drop is the
-  cheapest correct response. A bare `JSON.parse(data) as Wire` let a peer send
-  `{t:'tempo', bpm:'fast'}` straight into `Clock.setBpm`, whose clamp returns
-  `NaN` for `NaN` and stalls the scheduler ([transport](transport.md) REQ-3,
-  [untrusted-input](untrusted-input.md) REQ-8). A paired peer is semi-trusted,
-  not trusted: pairing proves someone scanned a code, not that they are friendly.
+- **REQ-the-transport-opens-two-channels** — `WebRtcSyncTransport implements
+  SyncTransport`. It opens **two negotiated DataChannels** on one
+  `RTCPeerConnection`: `sync-control` (id 0, ordered + reliable) carries
+  semantic state (`start`/`continue`/`stop`/ `songposition`/`tempo`) where loss
+  or reorder is a correctness bug; `sync-timing` (id 1, `{ordered:false,
+  maxRetransmits:0}`) carries `pulse`/ `ping`/`pong` where a
+  *late-retransmitted* pulse is worse than a dropped one (a 24-interval
+  estimator window + 1 s stall tolerance absorb loss) and head-of-line blocking
+  of 96 msg/s pulses must be avoided. Both channels are `negotiated: true` with
+  explicit ids, and **each peer creates its own** — `createChannels(pc)` runs
+  from `createLink()` on the offerer and from `acceptOffer()` on the answerer.
+  That is what `negotiated` means: matching ids on both sides, so no
+  `ondatachannel` handshake is needed. Messages are JSON, one object per
+  message, and **every inbound message is type-guarded, never cast** (v6): `t`
+  must be one of the known variants and each numeric field must be
+  `Number.isFinite`, or the message is **dropped silently** — the timing channel
+  is already lossy by design, so a drop is the cheapest correct response. A bare
+  `JSON.parse(data) as Wire` let a peer send `{t:'tempo', bpm:'fast'}` straight
+  into `Clock.setBpm`, whose clamp returns `NaN` for `NaN` and stalls the
+  scheduler ([transport](transport.md) REQ-bpm-and-swing-are-live-settable,
+  [untrusted-input](untrusted-input.md) REQ-deserialized-state-is-validated-never-cast). A paired peer is semi-trusted,
+  not trusted: pairing proves someone scanned a code, not that they are
+  friendly.
 
-- **REQ-2** — All timestamps on the wire are the **sender's**
-  `performance.now()`. The receiver converts a message's `at` to its own domain
-  via `ClockOffsetEstimator.toLocal(at)` **before** invoking the `onMessage`
-  callback, so `SyncSlave` receives receiver-domain timestamps and its timing
-  math is byte-for-byte identical to the MIDI path. Before the offset is warm
-  (or a message carries no `at`), the transport falls back to local receipt
-  time (`performance.now()`).
+- **REQ-wire-timestamps-are-the-senders** — All timestamps on the wire are the
+  **sender's** `performance.now()`. The receiver converts a message's `at` to
+  its own domain via `ClockOffsetEstimator.toLocal(at)` **before** invoking the
+  `onMessage` callback, so `SyncSlave` receives receiver-domain timestamps and
+  its timing math is byte-for-byte identical to the MIDI path. Before the offset
+  is warm (or a message carries no `at`), the transport falls back to local
+  receipt time (`performance.now()`).
 
-- **REQ-3** — Offset estimation is a pure `ClockOffsetEstimator` (no clocks, no
-  `performance`, no RTC). NTP-style: for a `{a, b, now}` sample (`a` = local
-  send time of the ping, `b` = remote receive/reply time echoed in the pong,
-  `now` = local receive time of the pong), `rtt = now − a`, raw
-  `offset = b − (a + rtt/2)`. Keep the last 16 samples; accept a sample into an
-  EMA (α 0.25) **only** when `rtt ≤ 1.5 × min(rtt)` (lowest-RTT filtering
-  rejects samples delayed by scheduling jitter). The transport owns cadence:
-  a burst of **8 pings at 150 ms** on channel open, then **1 Hz** thereafter
-  (a `TickTimer`); both peers ping, and a `ping` is answered with a `pong`
-  unconditionally. 1 Hz keeps the EMA tracking cross-device `performance.now()`
-  drift over long sessions.
+- **REQ-offset-estimation-is-pure** — Offset estimation is a pure
+  `ClockOffsetEstimator` (no clocks, no `performance`, no RTC). NTP-style: for a
+  `{a, b, now}` sample (`a` = local send time of the ping, `b` = remote
+  receive/reply time echoed in the pong, `now` = local receive time of the
+  pong), `rtt = now − a`, raw `offset = b − (a + rtt/2)`. Keep the last 16
+  samples; accept a sample into an EMA (α 0.25) **only** when `rtt ≤ 1.5 ×
+  min(rtt)` (lowest-RTT filtering rejects samples delayed by scheduling jitter).
+  The transport owns cadence: a burst of **8 pings at 150 ms** on channel open,
+  then **1 Hz** thereafter (a `TickTimer`); both peers ping, and a `ping` is
+  answered with a `pong` unconditionally. 1 Hz keeps the EMA tracking
+  cross-device `performance.now()` drift over long sessions.
 
-- **REQ-4** — The controller is **multi-transport**:
-  `SyncController.addTransport(id: TransportId, t)` manages a `Map`
+- **REQ-the-sync-controller-is-multi-transport** — The controller is
+  **multi-transport**: `SyncController.addTransport(id: TransportId, t)` manages
+  a `Map`
   (`TransportId = 'midi' | 'wifi'`); adding the same id replaces + unsubscribes
   the old one. Broadcasting loops over **every** transport; incoming messages
   from **any** transport are gated by mode exactly as before. `attachTransport`
@@ -113,15 +116,15 @@ follows whichever delivers.
   `links: Array<{id, ins, outs}>`. When a transport's `outs` goes **0 → >0
   while master**, the controller calls `master.announceTo` targeting **only that
   transport's `send`** (a broadcast would audibly restart already-locked MIDI
-  slaves — see midi-clock-sync REQ-10).
+  slaves — see midi-clock-sync REQ-song-position-pointer-jumps-the-slave).
 
-- **REQ-5** — Pairing is **non-trickle** and serverless. The transport gathers
-  ICE to completion (`icegatheringstate === 'complete'`, 3 s timeout fallback)
-  then encodes the full SDP into a `WS2.` blob (`webrtc-signaling.ts`). The
-  `sync-pair-modal.ts` (built on `Modal`) is a **linear, foolproof wizard**
-  — `openSyncPairModal(rtc, sync)`, where `sync` is a `Pick<SyncController,
-  'setMode'>` — presenting **one step at a time**, never the whole exchange at
-  once:
+- **REQ-pairing-is-serverless-and-non-trickle** — Pairing is **non-trickle** and
+  serverless. The transport gathers ICE to completion (`icegatheringstate ===
+  'complete'`, 3 s timeout fallback) then encodes the full SDP into a `WS2.`
+  blob (`webrtc-signaling.ts`). The `sync-pair-modal.ts` (built on `Modal`) is a
+  **linear, foolproof wizard** — `openSyncPairModal(rtc, sync)`, where `sync` is
+  a `Pick<SyncController, 'setMode'>` — presenting **one step at a time**, never
+  the whole exchange at once:
   - **Choose** — the entry step: two buttons, **Create Link** (`sync-pair-create`)
     and **Join a Link** (`sync-pair-join`). Choosing a role **also sets the
     transport mode** so the pairing UI and the Sync section's Off/Master/Slave
@@ -164,74 +167,80 @@ follows whichever delivers.
   and CSS-clamping it *down* to a fixed 180 px (the v1 bug) left ~2 px/module and
   nearest-neighbour-dropped modules — undecodable by **any** reader.
 
-- **REQ-6** — Lifecycle. A DataChannel close or a `connectionstatechange ∈
-  {failed, closed}` tears the link down **immediately**. `disconnected` is
-  **transient/recoverable** per the WebRTC spec, so it is **not** an immediate
-  teardown: the transport starts a grace timer (`DISCONNECT_GRACE_MS`) and tears
-  down only if the state is still `disconnected`/`failed` when it elapses;
-  a recovery to `connected` cancels it. (Tearing down on `disconnected` — the v1
-  behaviour — killed connections that were still completing their ICE checks or
-  briefly flapping.) On teardown: `ports()` returns `{ins:0, outs:0}`,
-  `onPortsChange` fires (status "WiFi: not linked"), and a **playing slave keeps
-  playing** via the existing > 1 s stall free-run (midi-clock-sync REQ-6).
-  Re-pairing closes the previous peer first. A page reload **never** resumes a
-  link (the sync *mode* persists; the link does not) — the user re-pairs. The
-  zeroed `ports()` also **releases the sync role** (`activeMode` returns to
-  `off`, midi-clock-sync REQ-19/20): the mode stays selected but inert, so the
-  BPM knob comes back instead of staying frozen at the vanished peer's tempo.
+- **REQ-a-closed-channel-ends-the-session** — Lifecycle. A DataChannel close or
+  a `connectionstatechange ∈ {failed, closed}` tears the link down
+  **immediately**. `disconnected` is **transient/recoverable** per the WebRTC
+  spec, so it is **not** an immediate teardown: the transport starts a grace
+  timer (`DISCONNECT_GRACE_MS`) and tears down only if the state is still
+  `disconnected`/`failed` when it elapses; a recovery to `connected` cancels it.
+  (Tearing down on `disconnected` — the v1 behaviour — killed connections that
+  were still completing their ICE checks or briefly flapping.) On teardown:
+  `ports()` returns `{ins:0, outs:0}`, `onPortsChange` fires (status "WiFi: not
+  linked"), and a **playing slave keeps playing** via the existing > 1 s stall
+  free-run (midi-clock-sync REQ-a-stalled-pulse-stream-is-tolerated). Re-pairing closes the previous peer first. A
+  page reload **never** resumes a link (the sync *mode* persists; the link does
+  not) — the user re-pairs. The zeroed `ports()` also **releases the sync role**
+  (`activeMode` returns to `off`, midi-clock-sync
+  REQ-selected-mode-versus-active-role/REQ-link-liveness-beats-port-presence): the mode stays
+  selected but inert, so the BPM knob comes back instead of staying frozen at
+  the vanished peer's tempo.
 
-- **REQ-7** — **Zero npm dependencies.** The QR encoder is vendored under
-  `src/vendor/qr/` (MIT, `lamejs` layout: vendored `.js` + used-subset `.d.ts` +
-  4-line `index.ts` + `LICENSE`; `src/vendor/**` is SDD-exempt). The QR **decoder**
-  is vendored the same way under `src/vendor/jsqr/` (jsQR, **Apache-2.0**;
-  jsqr@1.4.0 `dist/jsQR.js` with its webpack-UMD wrapper mechanically replaced by
-  an ESM `export default`). Apache-2.0 is permissive and license-compatible with
-  the MIT-vendored libs; its `NOTICE`/`LICENSE` are kept alongside. The
-  `RTCPeerConnection` is created with **empty `iceServers`** — LAN-only, no STUN
-  — an accepted trade-off: it is offline-capable and needs no third party, but
-  fails where the network blocks mDNS/host candidates or enables AP client
-  isolation. A configurable STUN server is a documented future option.
+- **REQ-sync-has-zero-npm-dependencies** — **Zero npm dependencies.** The QR
+  encoder is vendored under `src/vendor/qr/` (MIT, `lamejs` layout: vendored
+  `.js` + used-subset `.d.ts` + 4-line `index.ts` + `LICENSE`; `src/vendor/**`
+  is SDD-exempt). The QR **decoder** is vendored the same way under
+  `src/vendor/jsqr/` (jsQR, **Apache-2.0**; jsqr@1.4.0 `dist/jsQR.js` with its
+  webpack-UMD wrapper mechanically replaced by an ESM `export default`).
+  Apache-2.0 is permissive and license-compatible with the MIT-vendored libs;
+  its `NOTICE`/`LICENSE` are kept alongside. The `RTCPeerConnection` is created
+  with **empty `iceServers`** — LAN-only, no STUN — an accepted trade-off: it is
+  offline-capable and needs no third party, but fails where the network blocks
+  mDNS/host candidates or enables AP client isolation. A configurable STUN
+  server is a documented future option.
 
-- **REQ-8** — **Secure-context notice.** WebRTC pairing, `navigator.clipboard`,
-  and the QR camera all require a secure origin. When `window.isSecureContext`
-  is false the modal shows a **non-blocking** banner (`sync-pair-insecure`)
-  telling the user to open the app over `https://` on **both** devices; the
-  copy-paste flows still render (best-effort) rather than the modal failing in
-  silence. (Cross-device pairing over plain `http://<lan-ip>` is the common
-  first-time trap — same constraint the mic modal already guards.)
+- **REQ-pairing-needs-a-secure-context** — **Secure-context notice.** WebRTC
+  pairing, `navigator.clipboard`, and the QR camera all require a secure origin.
+  When `window.isSecureContext` is false the modal shows a **non-blocking**
+  banner (`sync-pair-insecure`) telling the user to open the app over `https://`
+  on **both** devices; the copy-paste flows still render (best-effort) rather
+  than the modal failing in silence. (Cross-device pairing over plain
+  `http://<lan-ip>` is the common first-time trap — same constraint the mic
+  modal already guards.)
 
-- **REQ-9** — **Connection feedback.** After a peer completes its half — host
-  accepts the guest's answer, or guest generates its answer — the modal enters a
-  **"Connecting…"** state instead of sitting silently at "Not linked". If the
-  DataChannels open, `onPortsChange` flips the status to "Linked ✓" and the modal
-  self-closes; if the link tears down (`onPortsChange` fires with `linked`
-  false — a `connectionstatechange ∈ {failed,closed}` or a channel close, or the
-  `disconnected` grace period elapsing) **or** a watchdog elapses without a link,
-  the modal surfaces **actionable** guidance on `sync-pair-error`, rendered
-  **readably** (sentence case — not the uppercase/letter-spaced label style). The
-  guidance names the real causes, most-common first: a **firewall** blocking the
-  browser (Windows Defender Firewall — allow the browser / set the network to
-  Private), a **VPN or virtual network adapter (WSL / Docker / Hyper-V /
-  VirtualBox)**, and both devices on the same Wi-Fi with client/AP isolation off.
-  Switching step or closing the modal cancels the wait.
+- **REQ-pairing-gives-connection-feedback** — **Connection feedback.** After a
+  peer completes its half — host accepts the guest's answer, or guest generates
+  its answer — the modal enters a **"Connecting…"** state instead of sitting
+  silently at "Not linked". If the DataChannels open, `onPortsChange` flips the
+  status to "Linked ✓" and the modal self-closes; if the link tears down
+  (`onPortsChange` fires with `linked` false — a `connectionstatechange ∈
+  {failed,closed}` or a channel close, or the `disconnected` grace period
+  elapsing) **or** a watchdog elapses without a link, the modal surfaces
+  **actionable** guidance on `sync-pair-error`, rendered **readably** (sentence
+  case — not the uppercase/letter-spaced label style). The guidance names the
+  real causes, most-common first: a **firewall** blocking the browser (Windows
+  Defender Firewall — allow the browser / set the network to Private), a **VPN
+  or virtual network adapter (WSL / Docker / Hyper-V / VirtualBox)**, and both
+  devices on the same Wi-Fi with client/AP isolation off. Switching step or
+  closing the modal cancels the wait.
 
-- **REQ-10** — **No accidental dismissal.** The pair modal is a multi-step flow, so
-  it opts out of `Modal`'s backdrop-click close (`dismissOnBackdrop: false`) — an
-  outside click while fiddling to scan a QR must not discard the in-progress
-  handshake. It provides an explicit **Close** button (`sync-pair-close`); **Escape
-  still closes** (owned by `Modal`). The opt-out is a general `ModalOptions` flag
-  (default `true`, so every other dialog keeps backdrop-close).
+- **REQ-the-pair-modal-resists-dismissal** — **No accidental dismissal.** The
+  pair modal is a multi-step flow, so it opts out of `Modal`'s backdrop-click
+  close (`dismissOnBackdrop: false`) — an outside click while fiddling to scan a
+  QR must not discard the in-progress handshake. It provides an explicit
+  **Close** button (`sync-pair-close`); **Escape still closes** (owned by
+  `Modal`). The opt-out is a general `ModalOptions` flag (default `true`, so
+  every other dialog keeps backdrop-close).
 
-- **REQ-11** — **Diagnostics panel.** Every connection attempt is recorded and
-  surfaced in a collapsible **debug panel** (`sync-pair-debug`) under the error,
-  so a failing pair can be self-diagnosed. The transport exposes a
-  `WebRtcDiagnostics` snapshot (`diagnostics` getter + `onDiagnostics(cb)`),
-  accumulated from the peer's ICE/candidate events and `getStats`:
-  the **ICE + connection state history** (e.g. `checking → disconnected`), the
-  **local ICE candidates** gathered (type/protocol/address — this is what exposes
-  virtual-adapter subnets), the **remote-candidate count**, the **selected
-  candidate pair** (or none), and any `icecandidateerror`s. A pure
-  `summarizeDiagnostics()` turns the snapshot into plain-language **hints**
+- **REQ-every-sync-attempt-is-recorded** — **Diagnostics panel.** Every
+  connection attempt is recorded and surfaced in a collapsible **debug panel**
+  (`sync-pair-debug`) under the error, so a failing pair can be self-diagnosed.
+  The transport exposes a `WebRtcDiagnostics` snapshot (`diagnostics` getter +
+  `onDiagnostics(cb)`), accumulated from the peer's ICE/candidate events and
+  `getStats`: the **ICE + connection state history** (e.g. `checking →
+  disconnected`), the **local ICE candidates** gathered (type/protocol/address —
+  this is what exposes virtual-adapter subnets), the **remote-candidate count**,
+  the **selected candidate pair** (or none), and any `icecandidateerror`s. A
+  pure `summarizeDiagnostics()` turns the snapshot into plain-language **hints**
   (multiple adapter subnets → "a VPN/virtual adapter may be advertising
   unreachable addresses"; reached `checking` but no pair → "no path found — a
   firewall or different subnets"; zero remote candidates → "the other device's
@@ -239,13 +248,14 @@ follows whichever delivers.
   lives in `src/audio/webrtc-diagnostics.ts` (no DOM/RTC) so it is unit-tested
   directly.
 
-- **REQ-12** (v7) — **The wire carries the time signature.** A `meter` message
-  (`{t:'meter', beats, unit}`) joins the control channel, announced by a master on
-  link-up and whenever the local meter changes ([meter](meter.md) REQ-18). Without
-  it two peers resolve the same Song Position into different **bars**, because a
-  position counts 16ths and only the meter says how many make a bar. Guarded like
-  every other variant — both fields must be finite numbers, or the message is
-  dropped ([untrusted-input](untrusted-input.md) REQ-8) — and applied through the
+- **REQ-the-wire-carries-the-time-signature** (v7) — **The wire carries the time
+  signature.** A `meter` message (`{t:'meter', beats, unit}`) joins the control
+  channel, announced by a master on link-up and whenever the local meter changes
+  ([meter](meter.md) REQ-meter-travels-on-the-wifi-wire). Without it two peers resolve the same Song
+  Position into different **bars**, because a position counts 16ths and only the
+  meter says how many make a bar. Guarded like every other variant — both fields
+  must be finite numbers, or the message is dropped
+  ([untrusted-input](untrusted-input.md) REQ-deserialized-state-is-validated-never-cast) — and applied through the
   `ParamBus`, so a followed meter shows in the picker and saves with the song.
 ## Technical design
 
@@ -328,7 +338,7 @@ pingBurstCount: 8
 pingBurstMs: 150
 pingSteadyMs: 1000
 iceCompleteTimeoutMs: 3000
-disconnectGraceMs: 5000     # 'disconnected' recovery window before teardown (REQ-6)
+disconnectGraceMs: 5000     # 'disconnected' recovery window before teardown (REQ-a-closed-channel-ends-the-session)
 
 # Signal blob: "WS2." <codec> "." <base64url payload>
 #   codec 'c' = CompressionStream('deflate-raw') available (feature-detected on globalThis)
@@ -526,7 +536,7 @@ Scenario: Two real pages link and follow (E2E loopback)
 - Manual: two `localhost` tabs pair on one machine; cross-device WiFi needs
   HTTPS in production (WebRTC on a secure origin, same constraint as mic/MIDI);
   QR scan needs a camera — `BarcodeDetector` is the fast path where present
-  (Android Chrome), the vendored jsQR decoder covers the rest (REQ-5/REQ-7).
+  (Android Chrome), the vendored jsQR decoder covers the rest (REQ-pairing-is-serverless-and-non-trickle/REQ-sync-has-zero-npm-dependencies).
 
 ## Open questions / future
 

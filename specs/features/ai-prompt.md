@@ -3,9 +3,9 @@
 ```yaml
 id: ai-prompt
 status: implemented
-version: 6   # v6: REQ-10 — the modal names the hosted MCP connector as the
+version: 6   # v6: REQ-the-modal-offers-the-connector — the modal names the hosted MCP connector as the
              #     shorter route; the PROMPT TEXT deliberately does not
-             # v5: REQ-5 — the worked example is the built-in "Mordor", renamed
+             # v5: REQ-the-params-table-is-generated — the worked example is the built-in "Mordor", renamed
              #     from "I Feel Love"
              # v4: the reply pastes back in (step 3) instead of going via a file
 owner: ui
@@ -44,7 +44,7 @@ Version 4 closes the loop. Agents answer in chat and essentially never offer a
 download, so "import the JSON it returns via Song → Import" meant saving the
 reply to a file first. The modal now ends with a third step that takes the reply
 directly — the shared paste fragment from
-[paste-import.md](paste-import.md) (REQ-5), the same one behind the Song row's
+[paste-import.md](paste-import.md) (REQ-one-paste-fragment-two-placements), the same one behind the Song row's
 Paste button.
 
 Version 3 makes the **compact authoring dialect** (see
@@ -57,69 +57,76 @@ is ~40 lines. The prompt-building logic moved to the pure
 
 ## Requirements
 
-- **REQ-1** — The modal has an editable **"Describe your song"** field at the top,
-  seeded only as `placeholder` text (a Rockit-style example). Its value is injected
-  into a `SONG REQUEST` section at the top of the copyable prompt, updating **live**
-  as the user types.
+- **REQ-the-modal-leads-with-a-brief-field** — The modal has an editable
+  **"Describe your song"** field at the top, seeded only as `placeholder` text
+  (a Rockit-style example). Its value is injected into a `SONG REQUEST` section
+  at the top of the copyable prompt, updating **live** as the user types.
 
-- **REQ-2** — When the brief is empty/whitespace, `SONG REQUEST` shows a bracketed
-  placeholder line (e.g. `[Describe the song you want — …]`) — **not** the example
-  text. Copying without typing must never inject the example.
+- **REQ-an-empty-brief-shows-a-placeholder** — When the brief is
+  empty/whitespace, `SONG REQUEST` shows a bracketed placeholder line (e.g.
+  `[Describe the song you want — …]`) — **not** the example text. Copying
+  without typing must never inject the example.
 
-- **REQ-3** — The prompt cites **both** published JSON Schemas as **absolute**
-  URLs: `<origin>/schema/websynth-song-author.schema.json` (author dialect) and
+- **REQ-the-prompt-cites-absolute-schema-urls** — The prompt cites **both**
+  published JSON Schemas as **absolute** URLs:
+  `<origin>/schema/websynth-song-author.schema.json` (author dialect) and
   `<origin>/schema/websynth-song.schema.json` (canonical), where `<origin>` is
   the live `window.location.origin`. Resolution lives in `authoring-guide.ts`
   and is guarded so the module stays safe to import outside a browser (falls
   back to the bare path); `buildAuthoringGuide` also accepts an explicit
   `origin` for non-browser callers (the MCP server).
 
-- **REQ-4** — The prompt teaches the **authoring dialect as the recommended
-  output**: a complete QUICKSTART example (valid, importable) plus the compact
-  format reference lead the prompt; the canonical full form (TOP-LEVEL SHAPE,
-  cell types, and the `…`-elided **EXAMPLE SHAPE** skeleton) is demoted to an
-  appendix. The prompt text must **not** reference the modal's example buttons.
+- **REQ-the-prompt-teaches-the-dialect** — The prompt teaches the **authoring
+  dialect as the recommended output**: a complete QUICKSTART example (valid,
+  importable) plus the compact format reference lead the prompt; the canonical
+  full form (TOP-LEVEL SHAPE, cell types, and the `…`-elided **EXAMPLE SHAPE**
+  skeleton) is demoted to an appendix. The prompt text must **not** reference
+  the modal's example buttons.
 
-- **REQ-5** — The PARAMS table (one line per `ParamBus` id with range/default/value
-  map) and the NOTES/tips section are generated live and kept as the format
-  reference; the modal's **Copy Example JSON** / **Download Example** buttons still
-  return the full built-in "Mordor" demo. The NOTES include a tip that
-  `drum.t{i}.model` swaps a track's voice (models 8–12 = conga/bongo/cowbell/
-  clave/shaker — a percussion section; drum-machine.md REQ-11).
+- **REQ-the-params-table-is-generated** — The PARAMS table (one line per
+  `ParamBus` id with range/default/value map) and the NOTES/tips section are
+  generated live and kept as the format reference; the modal's **Copy Example
+  JSON** / **Download Example** buttons still return the full built-in "Mordor"
+  demo. The NOTES include a tip that `drum.t{i}.model` swaps a track's voice
+  (models 8–12 = conga/bongo/cowbell/ clave/shaker — a percussion section;
+  drum-machine.md REQ-a-drum-tracks-algorithm-is-selectable).
 
-- **REQ-6** — The modal card composes the base `.card` (height-capped to `86vh`,
-  internally scrollable) **with** the `.cardWide` width variant — the same
-  composition the reusable `Modal` helper uses. So on small/short viewports the card
-  fits the screen and scrolls internally; the title and every action (incl. Close)
-  stay reachable. On phones the prompt/brief textareas are shortened so the actions
-  come into reach with little scrolling.
+- **REQ-the-prompt-card-is-height-capped** — The modal card composes the base
+  `.card` (height-capped to `86vh`, internally scrollable) **with** the
+  `.cardWide` width variant — the same composition the reusable `Modal` helper
+  uses. So on small/short viewports the card fits the screen and scrolls
+  internally; the title and every action (incl. Close) stay reachable. On phones
+  the prompt/brief textareas are shortened so the actions come into reach with
+  little scrolling.
 
-- **REQ-7** — The OUTPUT RULES are anti-give-up guardrails for weaker agents:
-  respond with exactly ONE JSON object and no prose; a compact song is under
-  ~80 lines; NEVER truncate or emit placeholders; if length is a concern,
-  author 1–2 banks and repeat them via a chain.
+- **REQ-output-rules-guard-weaker-agents** — The OUTPUT RULES are anti-give-up
+  guardrails for weaker agents: respond with exactly ONE JSON object and no
+  prose; a compact song is under ~80 lines; NEVER truncate or emit placeholders;
+  if length is a concern, author 1–2 banks and repeat them via a chain.
 
-- **REQ-8** — `public/llms.txt` gives crawling agents the app intro, both format
-  names + schema URLs, the grid dimensions and drum track names, and points at
-  the in-app AI Prompt for the live PARAMS table (which is bus-generated and
-  would drift if duplicated). (v6) It also names the **hosted MCP endpoint**
-  ([mcp-server](mcp-server.md) REQ-1b) rather than describing the server as
-  repo-only: an agent reaching `llms.txt` under its own steam is exactly the
-  reader who can act on a connector URL, and telling it to clone a repo instead
-  was the wrong answer the moment the endpoint went up.
+- **REQ-llms-txt-introduces-the-app** — `public/llms.txt` gives crawling agents
+  the app intro, both format names + schema URLs, the grid dimensions and drum
+  track names, and points at the in-app AI Prompt for the live PARAMS table
+  (which is bus-generated and would drift if duplicated). (v6) It also names the
+  **hosted MCP endpoint** ([mcp-server](mcp-server.md) REQ-streamable-http-is-one-message-per-post) rather than
+  describing the server as repo-only: an agent reaching `llms.txt` under its own
+  steam is exactly the reader who can act on a connector URL, and telling it to
+  clone a repo instead was the wrong answer the moment the endpoint went up.
 
-- **REQ-9** — (v4) The modal is a **numbered three-step round trip**: *1 · Describe
-  your song* (the brief), *2 · Copy this prompt into any AI agent* (the prompt +
-  its Copy/example actions), *3 · Paste the reply here* — the embedded
-  `buildPasteImport` fragment, wired to the same `onSong`/`onPresets` routes the
-  Song panel gives its own Paste button. A successful load **closes the modal**
-  (`onDone`) so the user sees what landed; a rejected one leaves the modal and the
-  pasted text alone ([paste-import](paste-import.md) REQ-8). The Close button
-  moves below the fragment, staying the card's last child.
+- **REQ-the-prompt-modal-is-a-numbered-round-trip** — (v4) The modal is a
+  **numbered three-step round trip**: *1 · Describe your song* (the brief), *2 ·
+  Copy this prompt into any AI agent* (the prompt + its Copy/example actions),
+  *3 · Paste the reply here* — the embedded `buildPasteImport` fragment, wired
+  to the same `onSong`/`onPresets` routes the Song panel gives its own Paste
+  button. A successful load **closes the modal** (`onDone`) so the user sees
+  what landed; a rejected one leaves the modal and the pasted text alone
+  ([paste-import](paste-import.md) REQ-a-refused-load-leaves-the-text). The
+  Close button moves below the fragment, staying the card's last child.
 
-- **REQ-10** — (v6) **The modal offers the connector; the prompt text does
-  not.** Above step 1 the card names the hosted MCP endpoint
-  (`<origin>/mcp` — resolved like REQ-3's schema URLs, so a fork points at
+- **REQ-the-modal-offers-the-connector** — (v6) **The modal offers the
+  connector; the prompt text does not.** Above step 1 the card names the hosted
+  MCP endpoint (`<origin>/mcp` — resolved like
+  REQ-the-prompt-cites-absolute-schema-urls's schema URLs, so a fork points at
   itself) with a Copy button, as the shorter route for an agent that supports
   MCP connectors: it validates and fixes directly instead of round-tripping
   through this modal.
@@ -127,13 +134,13 @@ is ~40 lines. The prompt-building logic moved to the pure
   **The generated prompt is deliberately unchanged**, and that is the load-bearing
   half of this requirement:
   - `buildAuthoringGuide` is what the MCP server's `get_song_format` returns
-    ([mcp-server](mcp-server.md) REQ-5). A connector pitch there would be read by
+    ([mcp-server](mcp-server.md) REQ-five-song-tools). A connector pitch there would be read by
     an agent *already connected* — an advert for the tool it is holding.
   - `buildSongPrompt` reaches an agent that by construction has no such
     connector, so the line would cost context on every paste to describe a
     capability the reader lacks, and invites a weaker model to try fetching the
-    URL (`GET` answers `405` — [mcp-server](mcp-server.md) REQ-9b).
-  - It is the same principle REQ-4 already states for the example buttons: the
+    URL (`GET` answers `405` — [mcp-server](mcp-server.md) REQ-no-sse-every-response-is-one-json-body).
+  - It is the same principle REQ-the-prompt-teaches-the-dialect already states for the example buttons: the
     prompt text carries the *format*, never the app's UI.
 
   The URL is **plain text, never an anchor.** The endpoint answers `POST` only,
@@ -155,7 +162,7 @@ is ~40 lines. The prompt-building logic moved to the pure
 - `createAiPromptButton(bus: ParamBus, routes: AiPromptRoutes): HTMLButtonElement`
   — the `✨ AI Prompt` button + lazily-built modal (reuses the `Modal` lifecycle
   classes + Escape/backdrop close, like `record-sound-modal`). `AiPromptRoutes` is
-  `Pick<PasteImportOptions, 'onSong' | 'onPresets'>` (v4, REQ-9).
+  `Pick<PasteImportOptions, 'onSong' | 'onPresets'>` (v4, REQ-the-prompt-modal-is-a-numbered-round-trip).
 
 Modal wiring: an editable brief `<textarea>` (`.aiBrief`) sits above the read-only
 prompt `<textarea>` (`.aiText`); an `input` listener rebuilds the prompt value via
@@ -165,7 +172,7 @@ prompt `<textarea>` (`.aiText`); an `input` listener rebuilds the prompt value v
 
 The ad-hoc card must carry both classes —
 `card.className = ${Modal.cardClass} ${Modal.cardWideClass}` — so it inherits the
-base `.card` cap/scroll (REQ-6); `.cardWide` wins on width by source order.
+base `.card` cap/scroll (REQ-the-prompt-card-is-height-capped); `.cardWide` wins on width by source order.
 
 ### Prompt shape (sections, in order)
 
@@ -173,11 +180,11 @@ base `.card` cap/scroll (REQ-6); `.cardWide` wins on width by source order.
 intro line (VAST G1-J8)
 SONG REQUEST          <- brief or bracketed placeholder (REQ-1/2)
 OUTPUT RULES          <- anti-give-up guardrails + both absolute schema URLs (REQ-3/7)
-QUICKSTART            <- a complete, valid author-dialect song (REQ-4)
-COMPACT AUTHOR FORMAT <- the recommended dialect, field-by-field (REQ-4)
-NOTES                 <- musical tips (REQ-5)
-PARAMS                <- live bus.ids()/bus.def() dump (REQ-5)
-APPENDIX (canonical)  <- TOP-LEVEL SHAPE, cell types, EXAMPLE SHAPE skeleton with … (REQ-4)
+QUICKSTART            <- a complete, valid author-dialect song (REQ-the-prompt-teaches-the-dialect)
+COMPACT AUTHOR FORMAT <- the recommended dialect, field-by-field (REQ-the-prompt-teaches-the-dialect)
+NOTES                 <- musical tips (REQ-the-params-table-is-generated)
+PARAMS                <- live bus.ids()/bus.def() dump (REQ-the-params-table-is-generated)
+APPENDIX (canonical)  <- TOP-LEVEL SHAPE, cell types, EXAMPLE SHAPE skeleton with … (REQ-the-prompt-teaches-the-dialect)
 ```
 
 Everything from OUTPUT RULES down is `buildAuthoringGuide`; `buildSongPrompt`
@@ -242,7 +249,7 @@ Scenario: The prompt no longer embeds a full song
   And it is far shorter than Song.toJSON(DEMO_SONGS['Mordor'])
 # pinned by: tests/ui/ai-prompt.test.ts (buildSongPrompt — an illustrative skeleton, not a full song)
 
-Scenario: The reply pastes back in the same modal (REQ-9)
+Scenario: The reply pastes back in the same modal (REQ-the-prompt-modal-is-a-numbered-round-trip)
   When the AI Prompt modal is opened
   Then it holds the paste fragment labelled "3 · Paste the reply here"
   And the Close button is the card's last child
@@ -254,13 +261,13 @@ Scenario: Modal stays usable on a small screen
   And so it is height-capped and scrolls internally (Close stays reachable)
 # pinned by: tests/ui/ai-prompt.test.ts
 
-Scenario: The modal offers the connector as the shorter route (v6, REQ-10)
+Scenario: The modal offers the connector as the shorter route (v6, REQ-the-modal-offers-the-connector)
   When the AI Prompt modal is opened
   Then it shows <origin>/mcp with a Copy URL button, above step 1
   And that URL is plain text, never an anchor — the endpoint answers POST only
 # pinned by: tests/ui/ai-prompt.test.ts
 
-Scenario: The prompt text never mentions the connector (v6, REQ-10)
+Scenario: The prompt text never mentions the connector (v6, REQ-the-modal-offers-the-connector)
   When buildSongPrompt or buildAuthoringGuide is generated
   Then neither mentions MCP or a connector
   And so get_song_format cannot advertise the tool its own caller is holding,

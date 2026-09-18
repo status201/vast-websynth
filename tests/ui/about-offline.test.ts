@@ -5,8 +5,8 @@ import { StubOfflineCopy } from '../fixtures/offline-fakes';
 import styles from '../../src/ui/styles/about-offline.module.css';
 
 /**
- * The About card's Play offline section (specs/features/play-offline.md REQ-1,
- * REQ-3, REQ-8), rendered against a stub state machine — the real one is pinned
+ * The About card's Play offline section (specs/features/play-offline.md REQ-the-about-card-hosts-play-offline,
+ * REQ-one-offline-state-machine-many-views, REQ-offline-feedback-while-about-is-closed), rendered against a stub state machine — the real one is pinned
  * by tests/utils/offline-copy.test.ts.
  */
 
@@ -33,7 +33,7 @@ beforeEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('rendering each state (REQ-3)', () => {
+describe('rendering each state (REQ-one-offline-state-machine-many-views)', () => {
   it('holds a disabled button while checking, with no bar', () => {
     mount();
     expect(button().textContent).toBe('Play offline');
@@ -155,7 +155,7 @@ describe('the button acts on the state (gesture inventory)', () => {
   });
 });
 
-describe('a run that ends behind a closed About (REQ-8)', () => {
+describe('a run that ends behind a closed About (REQ-offline-feedback-while-about-is-closed)', () => {
   const downloading: OfflineState = { kind: 'downloading', doneFiles: 1, totalFiles: 2, doneBytes: 1, totalBytes: 2 };
 
   it('says it is ready', () => {

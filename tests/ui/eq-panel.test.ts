@@ -7,7 +7,7 @@ import { UI_ICONS } from '../../src/ui/components/ui-icons';
 import { readSource as read, cssDecl as decl } from '../css-source';
 
 /**
- * The EQUALIZER section — `specs/features/equalizer.md` REQ-9/REQ-10/REQ-11/REQ-16.
+ * The EQUALIZER section — `specs/features/equalizer.md` REQ-the-eq-section-is-a-folded-tab-container/REQ-the-eq-tab-led-only-indicates/REQ-eq-tab-ids-are-namespaced/REQ-the-eq-is-a-third-bottom-row.
  *
  * The panel is mostly wiring over `TabContainer`, so most of what is worth
  * pinning here is the wiring's *contract with the rest of the app*: that its
@@ -40,7 +40,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe('the section header (REQ-9)', () => {
+describe('the section header (REQ-the-eq-section-is-a-folded-tab-container)', () => {
   it('reads EQUALIZER, then the three lanes', () => {
     const { panel } = build();
     const bar = panel.el.firstElementChild!;
@@ -60,7 +60,7 @@ describe('the section header (REQ-9)', () => {
     expect(bar.lastElementChild!.getAttribute('aria-expanded')).not.toBeNull();
   });
 
-  it('leads the title with the sliders icon (section-title.md REQ-3)', () => {
+  it('leads the title with the sliders icon (section-title.md REQ-heading-is-icon-then-text)', () => {
     // Colour and type are the shared heading's business and pinned there; what
     // is this section's own is which glyph it wears.
     const { panel } = build();
@@ -86,7 +86,7 @@ describe('the section header (REQ-9)', () => {
   });
 });
 
-describe('the tab lamp (REQ-10)', () => {
+describe('the tab lamp (REQ-the-eq-tab-led-only-indicates)', () => {
   it('reads off, then muted while flat, then on once shaping', () => {
     const { bus, panel } = build();
     const led = lamp(panel.el, 'eq-drums');
@@ -134,7 +134,7 @@ describe('the tab lamp (REQ-10)', () => {
   });
 });
 
-describe('testid namespace (REQ-11)', () => {
+describe('testid namespace (REQ-eq-tab-ids-are-namespaced)', () => {
   it('never shadows the pattern row’s machine tabs', () => {
     const { panel } = build();
     for (const id of ['eq-seq', 'eq-drums', 'eq-sampler']) {
@@ -164,7 +164,7 @@ describe('testid namespace (REQ-11)', () => {
   });
 });
 
-describe('the Q knob and the badge anchors (REQ-4 v3, REQ-19)', () => {
+describe('the Q knob and the badge anchors (REQ-one-q-knob-over-the-bands v3, REQ-the-eq-explains-itself-through-badges)', () => {
   it('labels the `.width` knob Q on every lane', () => {
     // Up is narrower: the value is the peaking Q, so "WIDTH" read backwards.
     // The id is unchanged — only what the player reads moved.
@@ -192,7 +192,7 @@ describe('the Q knob and the badge anchors (REQ-4 v3, REQ-19)', () => {
   });
 });
 
-describe('the preset control (REQ-15)', () => {
+describe('the preset control (REQ-eq-presets-are-a-table-of-bus-writes)', () => {
   const shown = (root: HTMLElement, lane: string) =>
     q(root, `eq-preset-${lane}`)!.querySelector('button')!.textContent;
 
@@ -233,7 +233,7 @@ describe('teardown', () => {
   });
 });
 
-describe('the bottom grid keeps its shape (REQ-16)', () => {
+describe('the bottom grid keeps its shape (REQ-the-eq-is-a-third-bottom-row)', () => {
   const css = read('src/ui/styles/layout.module.css');
 
   it('declares three rows, with --scope-h still sizing only the first', () => {
@@ -249,12 +249,12 @@ describe('the bottom grid keeps its shape (REQ-16)', () => {
   });
 });
 
-describe('the page mirrors the scope row (REQ-18)', () => {
+describe('the page mirrors the scope row (REQ-the-eq-page-mirrors-the-scope-row)', () => {
   const layout = read('src/ui/styles/layout.module.css');
   const eqCss = read('src/ui/styles/eq.module.css');
 
   it('takes its gutter from the same custom property the wheels do', () => {
-    // The whole point of REQ-18: "exactly as wide as the wheels". Two literal
+    // The whole point of REQ-the-eq-page-mirrors-the-scope-row: "exactly as wide as the wheels". Two literal
     // 120px values would be equal only by coincidence and would drift the first
     // time anyone retuned the wheels — which is exactly the kind of thing no
     // screenshot review catches.
@@ -295,7 +295,7 @@ describe('the page mirrors the scope row (REQ-18)', () => {
   });
 });
 
-describe('the control column fits the height the scope can shrink to (REQ-18)', () => {
+describe('the control column fits the height the scope can shrink to (REQ-the-eq-page-mirrors-the-scope-row)', () => {
   it('applies the knob size the 120px column can actually hold', () => {
     const { panel } = build();
     // Three knob roots are `knob-size + 8` each; with two 2px gaps that is

@@ -2,17 +2,17 @@ import type { ParamBus } from '../state/params';
 import { syncedValue, type TempoQuantity } from '../utils/tempo';
 
 /**
- * Wire a rate/time param to its tempo lock — tempo-lock.md REQ-7.
+ * Wire a rate/time param to its tempo lock — tempo-lock.md REQ-audio-resolves-the-lock-in-one-place.
  *
  * `apply` receives whichever value is currently in charge: the division `syncId`
  * names, resolved against the live tempo, or — while `syncId` is `free` (0) — the
  * knob's own `valueId`. The knob value is **never rewritten**, so unlocking
- * restores the exact previous sound (lfo.md REQ-9, tempo-lock.md REQ-4).
+ * restores the exact previous sound (lfo.md REQ-lfo-sync-locks-rate-to-tempo, tempo-lock.md REQ-the-lock-is-a-view-of-sync).
  *
  * One definition of "synced", shared by the LFOs and the wah/phaser/delay, so the
  * two cannot drift into two different answers. It deliberately owns only *which*
  * value is applied — `apply` is the effect's existing setter, so each keeps its
- * own smoothing (`RAMP_SMOOTH` for the FX, effects.md REQ-2b; `RAMP_MEDIUM` for
+ * own smoothing (`RAMP_SMOOTH` for the FX, effects.md REQ-an-effects-own-controls-ramp; `RAMP_MEDIUM` for
  * the LFO). This feature changes what is applied, never how.
  *
  * The house self-wiring pattern (ADR-008): called from an `Effect.bind(bus, prefix)`,

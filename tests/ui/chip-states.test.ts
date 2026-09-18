@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * A chain chip carries three independent facts and must spend one visual
- * channel on each — specs/features/arrangement.md REQ-12.
+ * channel on each — specs/features/arrangement.md REQ-a-chip-says-three-things-three-ways.
  *
  * This is a source pin, not a render test, for the reason
  * tests/ui/typography.test.ts gives: the jsdom suite never resolves CSS
@@ -36,7 +36,7 @@ const TRANSPOSED = ".chip[data-transposed='true'] {";
 const SELECTED = '.chip:global(.sel)';
 const PLAYING = '.chip:global(.playing)';
 
-describe('chain chip visual channels (REQ-12)', () => {
+describe('chain chip visual channels (REQ-a-chip-says-three-things-three-ways)', () => {
   it('gives the transposed state its own channel, not the selection border', () => {
     const b = block(TRANSPOSED);
     expect(b).toMatch(/color:\s*var\(--accent-good\)/);
@@ -65,7 +65,7 @@ describe('chain chip visual channels (REQ-12)', () => {
 
   it('draws the drop marker without the drag ever touching layout', () => {
     // An inserted element would reflow a wrapping row under the pointer, so the
-    // marker is an edge pseudo-element on the neighbouring chip (REQ-11).
+    // marker is an edge pseudo-element on the neighbouring chip (REQ-a-chip-is-dragged-to-its-place).
     expect(css).toMatch(/\.chip\[data-drag-over\]::after/);
     expect(block('.chip {')).toMatch(/position:\s*relative/);
   });

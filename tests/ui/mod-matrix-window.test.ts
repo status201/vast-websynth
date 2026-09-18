@@ -43,7 +43,7 @@ describe('mod matrix window', () => {
     expect(document.querySelector('[data-testid="mod-window"]')).not.toBeNull();
   });
 
-  it('shows eight rows: the two LFOs, then the six free ones (REQ-2)', () => {
+  it('shows eight rows: the two LFOs, then the six free ones (REQ-eight-rows-two-grandfathered)', () => {
     const { root } = build();
     for (let r = 0; r < MOD_ROWS + 2; r++) expect(byId(root, `mod-row-${r}`), `row ${r}`).toBeTruthy();
     expect(root.querySelector('[data-testid="mod-row-8"]')).toBeNull();
@@ -57,7 +57,7 @@ describe('mod matrix window', () => {
     expect(byId(root, 'mod-src-2')).toBeTruthy();
   });
 
-  it('binds the LFO rows to their OWN params, not to mod.* (REQ-2)', () => {
+  it('binds the LFO rows to their OWN params, not to mod.* (REQ-eight-rows-two-grandfathered)', () => {
     const { root } = build();
     // This is the whole back-compat story: no migration, because nothing moved.
     expect(root.querySelector('[data-testid="knob-lfo.amount"]')).not.toBeNull();
@@ -82,7 +82,7 @@ describe('mod matrix window', () => {
   });
 });
 
-describe('mod matrix window — the per-voice rule (REQ-7)', () => {
+describe('mod matrix window — the per-voice rule (REQ-per-voice-sources-cannot-drive-bus-destinations)', () => {
   const PAN = MOD_DEST_LABELS[MOD_DST.pan]!;
 
   it('greys pan while the source is per-voice, and says why', () => {
@@ -115,7 +115,7 @@ describe('mod matrix window — the per-voice rule (REQ-7)', () => {
   });
 });
 
-describe('mod matrix window — idle rows (motion-sequencer.md REQ-16)', () => {
+describe('mod matrix window — idle rows (motion-sequencer.md REQ-two-lanes-below-the-xy-lane)', () => {
   it('never dims the row itself, or its own pickers become unreachable', () => {
     const { root } = build();
     const row = byId(root, 'mod-row-2');

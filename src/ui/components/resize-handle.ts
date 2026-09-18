@@ -59,7 +59,7 @@ export class ResizeHandle {
   /** -Infinity, not 0: at 0 the first press within 350ms of page load would
    *  read as a double-tap and reset the height out from under the user. */
   private lastTap = Number.NEGATIVE_INFINITY;
-  /** rAF-coalesced write (REQ-21): a fast drag costs one style write per frame. */
+  /** rAF-coalesced write (REQ-the-resize-obeys-the-cost-contract): a fast drag costs one style write per frame. */
   private pendingValue: number | null = null;
   private rafId = 0;
 

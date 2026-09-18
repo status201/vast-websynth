@@ -6,7 +6,7 @@ status: implemented
 version: 1
 owner: core
 related:
-  - runtime-performance   # REQ-1 — the split that creates this failure mode
+  - runtime-performance   # REQ-every-lazy-trigger-reports — the split that creates this failure mode
   - pwa-install           # REQ-6 — the idle warm that prevents it
   - toast                 # the surface the report is rendered on
   - onboarding            # REQ-24 — the help door, the worked example
@@ -29,7 +29,7 @@ source:
 
 ## Background / Why
 
-[`runtime-performance.md`](runtime-performance.md) REQ-1 splits every
+[`runtime-performance.md`](runtime-performance.md) REQ-boot-cost-matches-the-request splits every
 click-reachable surface behind an `import()` so a player never pays boot cost for
 a modal they never open. That is the right trade, but it converts a class of
 module from *cannot fail* to *can fail*: a static import is resolved before the
@@ -39,7 +39,7 @@ Every one of those triggers was written the same way — `onClick: () => void
 open()` — which swallows the rejection. The result was a control that did
 **nothing at all**: no surface, no error, no console line the player would ever
 see. The realistic trigger is not exotic. The service worker caches only what the
-page actually requested ([`pwa-install.md`](pwa-install.md) REQ-6), so any chunk
+page actually requested ([`pwa-install.md`](pwa-install.md) REQ-service-worker-is-registered), so any chunk
 never fetched while online is simply absent on an offline revisit — and the first
 report came from exactly that: the header's **?** button, dead offline, which
 reads as a broken app rather than a missing download.
@@ -50,18 +50,19 @@ would drift.
 
 ## Requirements
 
-- **REQ-1** (every trigger reports) — A trigger that `import()`s a **surface**
-  must handle the rejection and tell the user. Silently returning is not an
-  option, and neither is a bare `console.error`. The current set is: Help &
-  About, the guided tour, the info badges, the preset manager, the audio-export
-  dialog, the sound recorder, WiFi pairing, and the AI-prompt authoring guide.
-  A new deferred surface joins the list by construction — see the recipe note in
-  [runtime-performance](runtime-performance.md) REQ-1.
+- **REQ-every-lazy-trigger-reports** (every trigger reports) — A trigger that
+  `import()`s a **surface** must handle the rejection and tell the user.
+  Silently returning is not an option, and neither is a bare `console.error`.
+  The current set is: Help & About, the guided tour, the info badges, the preset
+  manager, the audio-export dialog, the sound recorder, WiFi pairing, and the
+  AI-prompt authoring guide. A new deferred surface joins the list by
+  construction — see the recipe note in
+  [runtime-performance](runtime-performance.md) REQ-boot-cost-matches-the-request.
 
-- **REQ-2** (one report, one wording) — The report is
-  `showLazyLoadFailure(surface, retry)`, and it is the **only** place the wording
-  lives. It raises a [toast](toast.md) with a **Retry** action and testid
-  `lazy-load-failed-toast`, worded off `navigator.onLine`:
+- **REQ-one-wording-for-lazy-failure** (one report, one wording) — The report is
+  `showLazyLoadFailure(surface, retry)`, and it is the **only** place the
+  wording lives. It raises a [toast](toast.md) with a **Retry** action and
+  testid `lazy-load-failed-toast`, worded off `navigator.onLine`:
 
   | `navigator.onLine` | message |
   | --- | --- |
@@ -75,29 +76,32 @@ would drift.
   "open" — `'the preset manager'`, `'the guided tour'` — except for proper names
   of UI surfaces, which keep their capitals (`'Help & About'`).
 
-- **REQ-3** (Retry is a real retry) — `retry` re-runs the **whole gesture**, not
-  the bare import, so the surface opens with the arguments the original click
-  carried. Where a trigger **memoizes** its import promise — the onboarding
-  facade does, so two triggers cannot construct two `InfoBadges` — the catch must
-  clear the memo before rethrowing. A cached *rejection* is permanent: without
-  this, one offline click kills that surface for the rest of the session even
-  after the network returns. Clearing it is safe precisely because a failed load
-  constructed nothing for a later load to duplicate.
+- **REQ-retry-reruns-the-whole-gesture** (Retry is a real retry) — `retry`
+  re-runs the **whole gesture**, not the bare import, so the surface opens with
+  the arguments the original click carried. Where a trigger **memoizes** its
+  import promise — the onboarding facade does, so two triggers cannot construct
+  two `InfoBadges` — the catch must clear the memo before rethrowing. A cached
+  *rejection* is permanent: without this, one offline click kills that surface
+  for the rest of the session even after the network returns. Clearing it is
+  safe precisely because a failed load constructed nothing for a later load to
+  duplicate.
 
-- **REQ-4** (report is the backstop, not the plan) — The primary defence is the
-  idle warm ([`pwa-install.md`](pwa-install.md) REQ-6): a surface reachable
-  offline is fetched on idle at boot, so one online visit makes it permanently
-  available. The warm swallows its own error and never reports — it is not a
-  gesture, and a toast for something the user did not ask for is noise. REQ-1's
-  report covers what the warm cannot: a first visit that lost the network before
-  idle, a purged cache, a flaky fetch. The one defence that covers every surface
-  is opt-in — a device that saved an offline copy ([play-offline](play-offline.md))
-  has every chunk — so this report is still the backstop for everyone else.
+- **REQ-lazy-report-is-the-backstop** (report is the backstop, not the plan) —
+  The primary defence is the idle warm ([`pwa-install.md`](pwa-install.md)
+  REQ-service-worker-is-registered): a surface reachable offline is fetched on idle at boot, so one online
+  visit makes it permanently available. The warm swallows its own error and
+  never reports — it is not a gesture, and a toast for something the user did
+  not ask for is noise. REQ-every-lazy-trigger-reports's report covers what the
+  warm cannot: a first visit that lost the network before idle, a purged cache,
+  a flaky fetch. The one defence that covers every surface is opt-in — a device
+  that saved an offline copy ([play-offline](play-offline.md)) has every chunk —
+  so this report is still the backstop for everyone else.
 
-- **REQ-5** (scope: surfaces, not operations) — This is for `import()`s that
-  **open something**. An `import()` in the middle of an operation already has a
-  flow that owns its errors, and "Couldn't open …" is the wrong sentence for it,
-  so those stay with their own feature: the `lamejs` encoder inside an MP3 export
+- **REQ-lazy-scope-is-surfaces-not-operations** (scope: surfaces, not
+  operations) — This is for `import()`s that **open something**. An `import()`
+  in the middle of an operation already has a flow that owns its errors, and
+  "Couldn't open …" is the wrong sentence for it, so those stay with their own
+  feature: the `lamejs` encoder inside an MP3 export
   ([audio-export](audio-export.md)) and the `jsqr` decoder inside a QR scan
   ([webrtc-sync](webrtc-sync.md)). Neither is covered here.
 
@@ -167,7 +171,7 @@ build` chunk table is where that shows up; nothing else catches it.
 ### Persistence
 
 None. A failed load is not remembered — the next click is a fresh attempt, which
-is the whole point of REQ-3.
+is the whole point of REQ-retry-reruns-the-whole-gesture.
 
 ## Scenarios (BDD)
 
@@ -179,7 +183,7 @@ Scenario: a trigger whose chunk is missing says so
   And a toast names Help & About and offers Retry
 # pinned by: tests/ui/lazy-load-failure.test.ts
 
-Scenario: the wording distinguishes offline from a failed fetch (REQ-2)
+Scenario: the wording distinguishes offline from a failed fetch (REQ-one-wording-for-lazy-failure)
   Given a trigger whose import will reject
   When navigator.onLine is false
   Then the toast says "you're offline and this part of the app isn't downloaded yet"
@@ -187,13 +191,13 @@ Scenario: the wording distinguishes offline from a failed fetch (REQ-2)
   Then the toast says "the download failed" and does not mention being offline
 # pinned by: tests/ui/lazy-load-failure.test.ts
 
-Scenario: Retry re-runs the gesture once the import succeeds (REQ-3)
+Scenario: Retry re-runs the gesture once the import succeeds (REQ-retry-reruns-the-whole-gesture)
   Given the load-failure toast is showing
   When the import stops rejecting and the user clicks Retry
   Then the surface opens normally and the toast is gone
 # pinned by: tests/ui/lazy-load-failure.test.ts
 
-Scenario: a memoizing trigger does not cache its rejection (REQ-3)
+Scenario: a memoizing trigger does not cache its rejection (REQ-retry-reruns-the-whole-gesture)
   Given the onboarding facade's import of onboarding-impl rejects
   When startTour() is called and then retried after the import recovers
   Then the body is imported again and the tour starts
@@ -201,17 +205,17 @@ Scenario: a memoizing trigger does not cache its rejection (REQ-3)
     the toggle that failed
 # pinned by: tests/ui/lazy-load-failure.test.ts
 
-Scenario: the AI prompt and WiFi pairing report too (REQ-1)
+Scenario: the AI prompt and WiFi pairing report too (REQ-every-lazy-trigger-reports)
   Given the authoring guide / the pair modal will not load
   When the user clicks the button that opens it
   Then a toast names that surface and no modal is appended
 # pinned by: tests/ui/lazy-load-failure.test.ts
 
-Scenario: no deferred surface is left silent (REQ-1, drift)
+Scenario: no deferred surface is left silent (REQ-every-lazy-trigger-reports, drift)
   Given every .ts file under src/ outside vendor/
   When one contains a runtime import() — `await import(` or `import(...).then/.catch`
   Then that file also calls showLazyLoadFailure, or is one of the three
-    exemptions REQ-4/REQ-5 name, with its reason recorded beside it
+    exemptions REQ-lazy-report-is-the-backstop/REQ-lazy-scope-is-surfaces-not-operations name, with its reason recorded beside it
 # pinned by: tests/ui/lazy-load-failure.test.ts
 ```
 
@@ -233,7 +237,7 @@ Scenario: no deferred surface is left silent (REQ-1, drift)
     whole panel's dependency graph, so they are verified by construction and by
     `typecheck`, not by being driven.
 - Typecheck: `npm run typecheck`
-- **By hand, and only by hand, for REQ-4**: no test can see whether a chunk is in
+- **By hand, and only by hand, for REQ-lazy-report-is-the-backstop**: no test can see whether a chunk is in
   the service-worker cache. `npm run build && npx vite preview`, load, reload
   (the SW takes control), then DevTools ▸ Network ▸ Offline and reload: the `?`
   button must open About and its tour button must start the tour.
@@ -247,7 +251,7 @@ Scenario: no deferred surface is left silent (REQ-1, drift)
 
 ## Open questions / future
 
-- REQ-5's two mid-operation imports (`lamejs`, `jsqr`) are still weakly
+- REQ-lazy-scope-is-surfaces-not-operations's two mid-operation imports (`lamejs`, `jsqr`) are still weakly
   reported: an MP3 export whose encoder chunk is missing ends back at idle with
   no message, and a QR scan whose decoder is missing shows "Camera unavailable",
   which is not what went wrong. Both want a fix in their own feature's error

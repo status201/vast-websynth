@@ -103,7 +103,7 @@ export class ModMatrix {
   }
 
   /**
-   * Re-patch a row: mute, rewire while silent, unmute (REQ-1).
+   * Re-patch a row: mute, rewire while silent, unmute (REQ-one-gain-per-route-rewired-while-silent).
    *
    * `gen` guards the timer — two changes inside the mute window must settle on the
    * last one, not race. The mute is deliberate and audible only as a re-patch.
@@ -139,7 +139,7 @@ export class ModMatrix {
     for (const c of [...this.perVoice[row]!, this.busWide[row]!]) this.unwire(c);
 
     if (r.src === MOD_SRC.off || r.dst === MOD_DST.none) return;
-    // REQ-7: a per-voice source cannot drive a bus-wide destination. The UI greys the
+    // REQ-per-voice-sources-cannot-drive-bus-destinations: a per-voice source cannot drive a bus-wide destination. The UI greys the
     // combination; this is the audio layer refusing to make mush if it ever slips past.
     if (isPerVoiceSource(r.src) && isBusWideDest(r.dst)) return;
 
@@ -191,7 +191,7 @@ export class ModMatrix {
 
   /**
    * Does this row carry signal? A row is live when it names both a source and a
-   * destination, and is not the one combination REQ-7 forbids (a per-voice source
+   * destination, and is not the one combination REQ-per-voice-sources-cannot-drive-bus-destinations forbids (a per-voice source
    * into a bus-wide destination — eight envelopes summing into one panner).
    */
   private isLive(r: Row): boolean {
@@ -200,7 +200,7 @@ export class ModMatrix {
   }
 
   /**
-   * Does any live row read this source (REQ-10b)? Lets the Engine skip feeding a
+   * Does any live row read this source (REQ-an-unselected-source-costs-nothing)? Lets the Engine skip feeding a
    * source nothing is listening to — the sample-&-hold otherwise schedules a new
    * random value on every 16th forever, whether or not a route selects it.
    * Read from the rows on demand rather than cached, so re-patching needs no

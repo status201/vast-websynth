@@ -4,7 +4,7 @@ import { gotoAndStart } from './helpers';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Drag a chain chip to reorder a lane — arrangement.md REQ-11 and the drag row
+ * Drag a chain chip to reorder a lane — arrangement.md REQ-a-chip-is-dragged-to-its-place and the drag row
  * of the chip's gesture inventory.
  *
  * Why it exists: every add button appends, so a bank that belongs near the
@@ -89,14 +89,14 @@ test.describe('chain reorder by drag', () => {
     expect(await seqSteps(page)).toEqual([0]);
   });
 
-  test('a transposed chip can show that it is selected as well (REQ-12)', async ({ page }) => {
+  test('a transposed chip can show that it is selected as well (REQ-a-chip-says-three-things-three-ways)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
     await page.getByTestId('chain-add-seq-0').click();
     await page.getByTestId('chain-chip-seq-1').click();
     await page.getByTestId('chain-transpose-up-seq').click();
 
-    // Both facts on one chip at once — the collision REQ-12 removed was that
+    // Both facts on one chip at once — the collision REQ-a-chip-says-three-things-three-ways removed was that
     // the transposed styling made the selection invisible.
     const chip = page.getByTestId('chain-chip-seq-1');
     await expect(chip).toHaveAttribute('data-transposed', 'true');

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const STYLE_DIRS = ['../../src/ui/styles', '../../src/styles'];
 
-/** Selectors that may render in `--serif` — display type only (REQ-1). */
+/** Selectors that may render in `--serif` — display type only (REQ-serif-is-display-type-only). */
 const DISPLAY_TYPE = [
   // — identity & headings —
   'brand.module.css .brandName',
@@ -27,7 +27,7 @@ const DISPLAY_TYPE = [
   'modal.module.css .tag',
   'tour.module.css .calloutTitle',
   // The info badge's content is the letter `i`, not a number — the serif italic
-  // *is* the info mark. Display type doing its job; not a REQ-3 case.
+  // *is* the info mark. Display type doing its job; not a REQ-mono-is-readouts-and-pasted-text case.
   'tour.module.css .badge',
   // — faceplate legends —
   'bank-bar.module.css .btn',
@@ -48,7 +48,7 @@ const DISPLAY_TYPE = [
   'step-button.module.css .root',
   // The heading on the FX, MACHINES and EQUALIZER bars (section-title.md). A
   // heading, and it names a section of the instrument in the same type as the
-  // tabs beside it — colour, not face, is what tells the two apart (REQ-2).
+  // tabs beside it — colour, not face, is what tells the two apart (REQ-sans-is-content-type).
   'section-title.module.css .root',
   'tabs.module.css .tab',
   'xy-pad.module.css .fieldLabel',
@@ -94,7 +94,7 @@ describe('the type rule (specs/features/typography.md)', () => {
     expect(rules.length).toBeGreaterThan(200);
   });
 
-  it('uses --serif only for declared display type (REQ-1, REQ-6)', () => {
+  it('uses --serif only for declared display type (REQ-serif-is-display-type-only, REQ-typography-rule-is-pinned-by-a-test)', () => {
     const serif = rules
       .filter((r) => faceOf(r) === 'var(--serif)')
       .map((r) => `${r.file} ${r.selector}`);
@@ -105,21 +105,21 @@ describe('the type rule (specs/features/typography.md)', () => {
     expect([...serif].sort()).toEqual([...DISPLAY_TYPE].sort());
   });
 
-  it('renders the dropdown filter row as content, not legend (regression, REQ-2)', () => {
+  it('renders the dropdown filter row as content, not legend (regression, REQ-sans-is-content-type)', () => {
     // The bug this pin was written for: both were var(--serif), copied from the
     // sibling .option rule when the filter row was added.
     expect(faceOf(find('dropdown.module.css', '.filterInput')!)).toBe('var(--sans)');
     expect(faceOf(find('dropdown.module.css', '.empty')!)).toBe('var(--sans)');
   });
 
-  it('keeps the dropdown toggle and options on the faceplate serif (REQ-1)', () => {
+  it('keeps the dropdown toggle and options on the faceplate serif (REQ-serif-is-display-type-only)', () => {
     // The other half of the same decision — the fix was scoped to the menu's
     // content, and the legends around it must not drift to sans by imitation.
     expect(faceOf(find('dropdown.module.css', '.toggle')!)).toBe('var(--serif)');
     expect(faceOf(find('dropdown.module.css', '.option')!)).toBe('var(--serif)');
   });
 
-  it('sets live position readouts in --mono (regression, REQ-3)', () => {
+  it('sets live position readouts in --mono (regression, REQ-mono-is-readouts-and-pasted-text)', () => {
     // Both count while the transport runs. Georgia's figures are proportional
     // old-style with no `tnum`, so a serif counter shifts sideways per digit.
     expect(faceOf(find('transport-controls.module.css', '.readout')!)).toBe('var(--mono)');
@@ -128,7 +128,7 @@ describe('the type rule (specs/features/typography.md)', () => {
     expect(faceOf(find('scratch-graph.module.css', '.legend b')!)).toBe('var(--mono)');
   });
 
-  it('defines all three faces in one place (REQ-3)', () => {
+  it('defines all three faces in one place (REQ-mono-is-readouts-and-pasted-text)', () => {
     const root = find('theme.css', ':root')!;
     expect(root.body).toMatch(/--serif:.*Georgia/);
     expect(root.body).toMatch(/--sans:.*Inter/);

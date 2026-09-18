@@ -94,7 +94,7 @@ function noise(): number {
   return seed / 0x3fffffff - 1;
 }
 
-describe('POLY filter model — bass preservation (REQ-3)', () => {
+describe('POLY filter model — bass preservation (REQ-poly-preserves-the-low-end)', () => {
   it('holds its low end as resonance rises, where the ladder loses ~7 dB', () => {
     // The headline claim, and the entire reason for a second model. Same input,
     // same cutoff, resonance swept from nothing to maximum.
@@ -117,7 +117,7 @@ describe('POLY filter model — bass preservation (REQ-3)', () => {
     }
   });
 
-  it('is level-matched to the ladder at the default resonance (REQ-10)', () => {
+  it('is level-matched to the ladder at the default resonance (REQ-poly-trim-matches-the-levels)', () => {
     // POLY_TRIM exists so that flipping the model switch on an untouched patch
     // is an A/B of character, not of loudness.
     const diff = Math.abs(dB(lowEnd(POLY, 0.5) / lowEnd(LADDER, 0.5)));
@@ -125,7 +125,7 @@ describe('POLY filter model — bass preservation (REQ-3)', () => {
   });
 });
 
-describe('POLY filter model — stability (REQ-5)', () => {
+describe('POLY filter model — stability (REQ-poly-output-is-finite-and-bounded)', () => {
   it('stays finite and bounded under full-scale noise at every extreme', () => {
     // Worst case by construction: full-scale input, maximum drive, maximum
     // resonance, and each SHAPE anchor in turn (HP24 sums the widest mix).
@@ -153,7 +153,7 @@ describe('POLY filter model — stability (REQ-5)', () => {
   });
 });
 
-describe('POLY filter model — SHAPE (REQ-6)', () => {
+describe('POLY filter model — SHAPE (REQ-shape-morphs-the-pole-mix)', () => {
   // Cutoff note 84 ≈ 1046 Hz, with a probe tone two-and-a-bit octaves either
   // side of it, so each anchor's stop-band is unambiguous.
   const low = (n: number) => AMP * Math.sin((2 * Math.PI * 120 * n) / SR);
@@ -183,7 +183,7 @@ describe('POLY filter model — SHAPE (REQ-6)', () => {
     expect(at(1 / 3, high)).toBeGreaterThan(at(0, high));
   });
 
-  it('hoists a block-constant shape identically to a length-1 array (REQ-8)', () => {
+  it('hoists a block-constant shape identically to a length-1 array (REQ-mix-coefficients-resolve-once-per-block)', () => {
     const gen = (n: number) => 0.4 * Math.sin((2 * Math.PI * 300 * n) / SR);
     const base = makeParams({ resonance: 2, cutoffNote: 84 });
     const full = { ...base, shape: new Float32Array(BLOCK).fill(0.4) };
@@ -215,7 +215,7 @@ describe('POLY filter model — SHAPE (REQ-6)', () => {
   });
 });
 
-describe('POLY filter model — model switching (REQ-9)', () => {
+describe('POLY filter model — model switching (REQ-switching-model-mid-note-is-safe)', () => {
   const gen = (n: number) => 0.5 * Math.sin((2 * Math.PI * 220 * n) / SR);
   const opts = { resonance: 3, drive: 2, cutoffNote: 78 };
 
@@ -262,7 +262,7 @@ describe('POLY filter model — model switching (REQ-9)', () => {
     expect(maxDiff).toBeLessThan(1e-7);
   });
 
-  it('keeps the idle gate working for both models (REQ-13)', () => {
+  it('keeps the idle gate working for both models (REQ-shared-worklet-contracts-cover-both-models)', () => {
     const params = makeParams({ ...opts, model: POLY });
     const proc = new Processor();
     expect(peak(run(proc, params, gen, 10))).toBeGreaterThan(0);

@@ -13,7 +13,7 @@
 
 /*
  * The one surface that reserves a gutter for the tempo-lock glyph
- * (knob.module.css `.hasLock`, tempo-lock.md REQ-10). Everywhere else the
+ * (knob.module.css `.hasLock`, tempo-lock.md REQ-the-lock-glyph-hangs-out-of-flow). Everywhere else the
  * lockable knob leads its row and the glyph hangs into container padding; here
  * the row is packed switch-then-knobs at 4 px, so an unreserved glyph would
  * hang over the on/off switch. Set on the row, not the knob, because it is a
@@ -26,7 +26,7 @@
   gap: 4px;
 }
 
-/* Bypassed effect: only divider + title + switch remain (spec fx-group REQ-2). */
+/* Bypassed effect: only divider + title + switch remain (spec fx-group REQ-bypassed-group-collapses-its-knobs). */
 .root:global(.collapsed) .knobs {
   display: none;
 }

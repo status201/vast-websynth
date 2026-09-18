@@ -53,7 +53,7 @@ function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransp
   }
   // Song Position Pointer (0xF2, System Common, 3 bytes): a slave joining
   // mid-song seeks to this beat. Routed before the & 0xf0 mask (midi-clock-sync
-  // REQ-10); 14-bit beat = (msb << 7) | lsb, one beat = 6 clocks = one 16th.
+  // REQ-song-position-pointer-jumps-the-slave); 14-bit beat = (msb << 7) | lsb, one beat = 6 clocks = one 16th.
   if (data[0] === 0xf2) {
     sync.handleSongPosition(((data[2] ?? 0) << 7) | (data[1] ?? 0), ev.timeStamp);
     return;
@@ -85,7 +85,7 @@ function handleMessage(ev: MIDIMessageEvent, bus: ParamBus, sync: MidiSyncTransp
   }
 }
 
-/** A note-off routed through the sustain pedal (input-control.md REQ-8):
+/** A note-off routed through the sustain pedal (input-control.md REQ-the-sustain-pedal-is-midi-layer):
  *  deferred while the pedal is down, delivered otherwise. */
 function noteOff(note: number, bus: ParamBus, pedal: SustainPedal): void {
   if (pedal.noteOff(note)) bus.noteOff(note);

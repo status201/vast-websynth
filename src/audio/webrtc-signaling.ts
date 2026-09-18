@@ -1,7 +1,7 @@
 /**
  * Serverless WebRTC signaling codec (pure — no RTC, no DOM beyond the platform
  * text/compression/base64 globals). Turns an SDP + its kind into a compact,
- * copy-pasteable / QR-friendly blob and back (webrtc-sync.md REQ-5).
+ * copy-pasteable / QR-friendly blob and back (webrtc-sync.md REQ-pairing-is-serverless-and-non-trickle).
  *
  * Blob format: `WS2.<codec>.<base64url payload>`
  *   codec 'c' — payload is `deflate-raw`-compressed JSON (`CompressionStream`,
@@ -57,7 +57,7 @@ export async function decodeSignal(blob: string): Promise<DecodedSignal> {
     const raw = fromBase64Url(rest.slice(dot + 1));
     // Capped: a blob can arrive from a scanned QR — i.e. from whoever printed
     // the code — so it is untrusted input like any other (untrusted-input.md
-    // REQ-2). A real deflated SDP is ~700 bytes; the cap is orders above that.
+    // REQ-bounds-in-the-validator-sizes-in-the-codec). A real deflated SDP is ~700 bytes; the cap is orders above that.
     if (raw.length > MAX_SIGNAL_BYTES) {
       throw new SignalDecodeError('That sync link is too large to be a pairing code.');
     }

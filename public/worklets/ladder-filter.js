@@ -36,17 +36,17 @@ function satWide(x) {
   return POLY_HEADROOM * sat(x / POLY_HEADROOM);
 }
 
-// POLY (filter-models.md REQ-3): resonance compensation as a *pre*-gain on the
+// POLY (filter-models.md REQ-poly-preserves-the-low-end): resonance compensation as a *pre*-gain on the
 // loop input rather than a post-gain on the output. The ladder's closed-loop DC
 // gain is 1/(1+res), so a (1 + res*BASS_COMP) pre-gain pins it at 1 — the body
 // stays put as the peak rises, instead of sagging under it. 1 is exact unity.
 const BASS_COMP = 1;
 // Level match against LADDER at the *default* resonance (0.5), so flipping the
-// switch is an A/B of character, not of loudness (REQ-10). Above that POLY is
-// louder — that is REQ-3 working. Dialled by ear, like RES_MAKEUP (ADR-010).
+// switch is an A/B of character, not of loudness (REQ-the-filter-idles-when-gated). Above that POLY is
+// louder — that is REQ-filter-changes-reach-every-voice working. Dialled by ear, like RES_MAKEUP (ADR-010).
 const POLY_TRIM = 0.85;
 
-// POLY pole-mix anchors (REQ-6), as coefficients over [v, s0, s1, s2, s3].
+// POLY pole-mix anchors (REQ-input-and-poles-are-saturated), as coefficients over [v, s0, s1, s2, s3].
 // Binomial — HP_n is (1 - LP)^n applied to the loop input — so the four stage
 // outputs the cascade already computed yield LP24/LP12/BP12/HP24 for ~5 mul.
 // Feedback always stays on s3, so the resonant peak tracks cutoff in every mode.
@@ -68,9 +68,9 @@ function mixCoeffs(shape, out) {
   for (let k = 0; k < 5; k++) out[k] = a[k] + (b[k] - a[k]) * f;
 }
 
-// One channel's filter state: 4 pole states + the 4 carried saturations (REQ-12).
+// One channel's filter state: 4 pole states + the 4 carried saturations (REQ-the-sat-carry-is-per-sample).
 // POLY uses slots 0..3 and 7 (the half-sample feedback tap); slots 4..6 are the
-// LADDER-only carries, re-primed whenever the model changes (REQ-9).
+// LADDER-only carries, re-primed whenever the model changes (REQ-the-filter-worklet-is-mono).
 function newChannelState() {
   return new Float64Array(8);
 }
@@ -99,7 +99,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         maxValue: 8,
         automationRate: 'k-rate',
       },
-      // Which model runs (filter-models.md REQ-1). k-rate: the branch is per
+      // Which model runs (filter-models.md REQ-filter-model-is-a-discrete-param). k-rate: the branch is per
       // block, never per sample. Defaults to 0 = LADDER, so a node nobody has
       // told about models behaves exactly as it always did (ADR-006).
       {
@@ -109,8 +109,8 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
         maxValue: 1,
         automationRate: 'k-rate',
       },
-      // POLY pole-mix morph (REQ-6). a-rate so the LFO can sum into it and
-      // sweep the filter's *type*; ignored entirely by the LADDER path (REQ-7).
+      // POLY pole-mix morph (REQ-input-and-poles-are-saturated). a-rate so the LFO can sum into it and
+      // sweep the filter's *type*; ignored entirely by the LADDER path (REQ-self-oscillation-stays-gentle).
       {
         name: 'shape',
         defaultValue: 0,
@@ -123,7 +123,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super();
-    // Per-channel state, 8 slots (REQ-12):
+    // Per-channel state, 8 slots (REQ-the-sat-carry-is-per-sample):
     //   0..3  the four pole states s0..s3
     //   4..6  sat(s0), sat(s1), sat(s2) carried from the previous sample
     //   7     sat(s3) from the previous sample — the feedback's half-sample tap
@@ -144,13 +144,13 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       }
       this.active = on;
     };
-    // Block-constant cutoff cache (REQ-11): the pole coefficient `g` only
+    // Block-constant cutoff cache (REQ-filter-coefficients-hoist-per-block): the pole coefficient `g` only
     // depends on the cutoff value, so when a block is all-equal we compute it
     // once and reuse it across blocks until the value changes. NaN forces the
     // first compute.
     this.lastCutoff = NaN;
     this.lastG = 0;
-    // Block-constant shape cache (REQ-8), the same trick as the cutoff hoist.
+    // Block-constant shape cache (REQ-resonance-uses-a-power-taper), the same trick as the cutoff hoist.
     this.lastShape = NaN;
     this.coef = new Float64Array(5);
     // Scratch for the per-sample fallback when shape is genuinely modulated.
@@ -174,7 +174,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
     const resArr = params.resonance;
     const resStatic = resArr.length === 1;
 
-    // Block-constant cutoff hoist (REQ-11): env + LFO are always wired to
+    // Block-constant cutoff hoist (REQ-filter-coefficients-hoist-per-block): env + LFO are always wired to
     // cutoffNote, so the host hands us a full 128-length array — but it is
     // all-equal whenever the cutoff is held/unmodulated (the common case). Then
     // the pole coefficient `g` (a Math.pow + Math.exp) is computed once per
@@ -199,11 +199,11 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       gBlock = this.lastG;
     }
 
-    // Which model runs this block (filter-models.md REQ-2). One compare per
+    // Which model runs this block (filter-models.md REQ-both-models-live-in-one-worklet). One compare per
     // render quantum, never per sample.
     const model = params.model[0] >= 0.5 ? 1 : 0;
 
-    // Block-constant shape hoist (REQ-8), the cutoff hoist's twin: the LFO is
+    // Block-constant shape hoist (REQ-resonance-uses-a-power-taper), the cutoff hoist's twin: the LFO is
     // permanently connected to `shape`, so a full 128-length array always
     // arrives — all-equal whenever nothing is sweeping it, the common case.
     // Resolved once per block and cached across blocks; a modulated block falls
@@ -230,14 +230,14 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
       }
 
       // Hoist the state into locals for the sample loop — the carried
-      // saturations (q0..q3prev) turn 10 sat() calls per sample into 5 (REQ-12).
+      // saturations (q0..q3prev) turn 10 sat() calls per sample into 5 (REQ-the-sat-carry-is-per-sample).
       let s0 = s[0], s1 = s[1], s2 = s[2], s3 = s[3];
       let q0 = s[4], q1 = s[5], q2 = s[6], q3prev = s[7];
 
       if (model === 1) {
         // ---- POLY: bass-preserving multimode (filter-models.md) ----
         // Saturation only at the input and on the feedback tap; the four stages
-        // stay linear (REQ-4). Two sat() calls per sample against the ladder's
+        // stay linear (REQ-filter-modulation-is-additive-semitones). Two sat() calls per sample against the ladder's
         // five — the glassier model is also the cheaper one.
         let mv = coef[0], m0 = coef[1], m1 = coef[2], m2 = coef[3], m3 = coef[4];
         const scratch = this.coefScratch;
@@ -254,7 +254,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
             g = 1 - Math.exp(-2 * Math.PI * fNorm);
           }
 
-          // Only when the shape is genuinely being swept (REQ-8).
+          // Only when the shape is genuinely being swept (REQ-resonance-uses-a-power-taper).
           if (!shapeConst) {
             mixCoeffs(shapeArr[i], scratch);
             mv = scratch[0]; m0 = scratch[1]; m1 = scratch[2];
@@ -269,7 +269,7 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
           // Drive saturates the input alone (against the wide rail), so
           // resonance behaviour stays independent of it. The (1 + res*BASS_COMP)
           // pre-gain is the bass-preservation trick: it cancels the 1/(1+res)
-          // the feedback subtraction would otherwise cost the low end (REQ-3).
+          // the feedback subtraction would otherwise cost the low end (REQ-filter-changes-reach-every-voice).
           const v = satWide(x * drive) * (1 + res * BASS_COMP) - res * fb;
 
           s0 += g * (v - s0);
@@ -278,15 +278,15 @@ class LadderFilterProcessor extends AudioWorkletProcessor {
           s3 += g * (s2 - s3);
           q3prev = q3;
 
-          // Pole mix (REQ-6). |v| is bounded by (1 + res) + res and the four
-          // linear one-poles cannot exceed it, so this stays finite (REQ-5).
+          // Pole mix (REQ-input-and-poles-are-saturated). |v| is bounded by (1 + res) + res and the four
+          // linear one-poles cannot exceed it, so this stays finite (REQ-the-filter-worklet-module-is-awaited).
           outCh[i] = (mv * v + m0 * s0 + m1 * s1 + m2 * s2 + m3 * s3) * POLY_TRIM;
         }
 
         // POLY never reads the LADDER-only carries, so they would go stale
         // across a POLY episode. Re-prime them from the pole states once per
         // block, so a switch back to LADDER resumes a self-consistent
-        // recurrence (filter-models.md REQ-9). The pole states themselves carry
+        // recurrence (filter-models.md REQ-switching-model-mid-note-is-safe). The pole states themselves carry
         // over untouched — they mean the same thing in both models, so the
         // switch is a character crossfade, not a reset.
         q0 = sat(s0); q1 = sat(s1); q2 = sat(s2);

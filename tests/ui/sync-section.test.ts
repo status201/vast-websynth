@@ -86,7 +86,7 @@ describe('sync-section', () => {
     expect(q(buildSyncSection(linked, rtcStub), 'sync-status').textContent).toContain('WiFi: linked');
   });
 
-  // v4 (midi-clock-sync REQ-22): a selected-but-unconnected mode stays the
+  // v4 (midi-clock-sync REQ-an-armed-sync-section): a selected-but-unconnected mode stays the
   // *selected* segment (so the setting visibly persists) but reads as armed.
   it('marks a selected-but-inactive mode armed, keeping it selected', () => {
     const { ctrl } = stubController({ mode: 'slave', activeMode: 'off' });

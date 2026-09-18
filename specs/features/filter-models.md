@@ -55,82 +55,94 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
 
 ## Requirements
 
-- **REQ-1** — `filter.model` is a discrete param, `labels: FILTER_MODEL_LABELS =
-  ['ladder', 'poly']`, range `[0, 1]`, **default `0`**. The list is
-  **append-only** — an index here is a stored value in every preset, song and
-  share link. Changing it updates **every voice in the pool** live (`all(...)`).
-  The pool is `VOICE_COUNT` (8) on the medium/strong tiers and 5 on `weak` —
-  see [performance-mode](performance-mode.md).
-- **REQ-2** — Both models live in **one worklet**
+- **REQ-filter-model-is-a-discrete-param** — `filter.model` is a discrete param,
+  `labels: FILTER_MODEL_LABELS = ['ladder', 'poly']`, range `[0, 1]`, **default
+  `0`**. The list is **append-only** — an index here is a stored value in every
+  preset, song and share link. Changing it updates **every voice in the pool**
+  live (`all(...)`). The pool is `VOICE_COUNT` (8) on the medium/strong tiers
+  and 5 on `weak` — see [performance-mode](performance-mode.md).
+- **REQ-both-models-live-in-one-worklet** — Both models live in **one worklet**
   (`public/worklets/ladder-filter.js`), selected by a **k-rate `model`
   AudioParam**, not by swapping nodes
   ([ADR-016](../decisions/adr-016-one-filter-worklet-model-per-block.md)). The
   model branch sits **outside** the sample loop — one loop per model — so the
   ladder's per-sample path is untouched and its output stays **bit-identical**
-  to the frozen reference (`runtime-performance.md` REQ-8).
-- **REQ-3** — **POLY preserves the low end.** The resonance compensation is a
-  *pre*-gain on the loop input, `v = x * (1 + res*BASS_COMP) - res*fb`, which
-  cancels the `1/(1+res)` that the feedback subtraction would otherwise cost the
-  low end. `RES_MAKEUP` is not applied in this path. Measured on a sub-cutoff
-  sine as resonance sweeps `0 → 4.2`, LADDER **loses ~7 dB** of low end while
-  POLY **gains ~3 dB**. Flat was the design target; the residual rise is the
-  saturating feedback under-subtracting at high resonance, and it is kept —
-  "crank the resonance and the bottom thickens" is the musical inverse of the
-  ladder's flaw, which is the whole point of the model.
-- **REQ-4** — POLY saturates **only** at the input (the `drive` stage) and on the
-  feedback tap; the four one-pole stages are **linear**. This is the character
-  divergence — a clean, glassy passband under drive — and it is *cheaper* than
-  the ladder (2 saturator calls per sample vs 5). The input rail is
-  **wider** than the ladder's: `satWide(x) = H·sat(x/H)`, `H = POLY_HEADROOM = 3`.
-  The reason is structural, not cosmetic — see the note under the recurrence.
-- **REQ-5** — POLY output is **finite and bounded** for any input at any setting
+  to the frozen reference (`runtime-performance.md`
+  REQ-a-worklet-optimisation-is-bit-exact).
+- **REQ-poly-preserves-the-low-end** — **POLY preserves the low end.** The
+  resonance compensation is a *pre*-gain on the loop input, `v = x * (1 +
+  res*BASS_COMP) - res*fb`, which cancels the `1/(1+res)` that the feedback
+  subtraction would otherwise cost the low end. `RES_MAKEUP` is not applied in
+  this path. Measured on a sub-cutoff sine as resonance sweeps `0 → 4.2`, LADDER
+  **loses ~7 dB** of low end while POLY **gains ~3 dB**. Flat was the design
+  target; the residual rise is the saturating feedback under-subtracting at high
+  resonance, and it is kept — "crank the resonance and the bottom thickens" is
+  the musical inverse of the ladder's flaw, which is the whole point of the
+  model.
+- **REQ-poly-saturates-only-at-two-points** — POLY saturates **only** at the
+  input (the `drive` stage) and on the feedback tap; the four one-pole stages
+  are **linear**. This is the character divergence — a clean, glassy passband
+  under drive — and it is *cheaper* than the ladder (2 saturator calls per
+  sample vs 5). The input rail is **wider** than the ladder's: `satWide(x) =
+  H·sat(x/H)`, `H = POLY_HEADROOM = 3`. The reason is structural, not cosmetic —
+  see the note under the recurrence.
+- **REQ-poly-output-is-finite-and-bounded** — POLY output is **finite and
+  bounded** for any input at any setting
   ([ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) #2,
   non-negotiable). The bound is structural: `|satWide| < 3` and `|fb| < 1` bound
   the loop input at `3(1+res) + res`, and four linear one-poles with
   `g ∈ (0,1)` are strictly stable, so no state can exceed it. Measured worst
   case — full-scale noise × `drive 8` × `resonance 4.2` × HP24 — peaks near 13,
   inside the ceiling the ladder's own boundedness test already uses.
-- **REQ-6** — `filter.shape` (`[0, 1]`, **default `0`**) morphs the pole mix
-  across four anchors — **LP24 → LP12 → BP12 → HP24** — as a linear crossfade
-  between adjacent anchors. `0` is LP24, so the default is a plain 4-pole
-  low-pass and the param is a no-op. The resonance feedback is always taken from
-  the **fourth** pole in every mode, so the peak tracks cutoff throughout.
-- **REQ-7** — `SHAPE` is **POLY-only**. Under LADDER the DSP ignores it and the
-  UI dims the knob. The ladder's taps are saturated, so the binomial
-  cancellation that makes the high-pass anchors work would leak low end.
-- **REQ-8** — The five mix coefficients are resolved **once per block** when the
-  `shape` array is all-equal (the common case — the LFO is permanently connected,
-  so a full 128-length array always arrives), with a **per-sample** fallback when
-  it is genuinely modulated. Same scan-with-early-exit shape as
-  [ladder-filter.md](ladder-filter.md) REQ-11.
-- **REQ-9** — Switching model **mid-note is safe**: the four pole states carry
-  over (they mean the same thing in both models, so the switch is a character
-  crossfade, not a reset), and the ladder's carried saturations are **re-primed**
-  from the current states on the switching block so the ladder path resumes
-  self-consistent. Output stays finite across the switch.
-- **REQ-10** — **Level matching**: `POLY_TRIM` is tuned so that at the *default*
-  resonance (0.5) the two models put out the same **passband** level — within
-  0.1 dB on a sub-cutoff sine — so flipping the switch is an A/B of character
-  rather than of loudness. Two honest caveats. Away from that resonance they
-  diverge by REQ-3's ~10 dB, which is the feature. And **broadband** POLY reads
-  about **2 dB hotter** on harmonically rich material (measured on the `basic`
-  patch's two saws), because its linear stages pass harmonics the ladder's
-  per-stage saturation compresses away — brightness, not gain. Trimming that out
-  would drag the passband *below* the ladder and undo REQ-3's whole point.
-- **REQ-11** — `shape` is reachable as an **LFO destination** (`'shape'`
-  appended to `LFO_DEST_LABELS`) and, with no extra code, as an **XY-pad axis**
-  and a **motion-sequencer lane** — both address `ParamBus` ids directly. The
-  LFO's `toShape` hangs off the **smoothed** LFO output (like `toAmp`/`toPan`,
-  not the raw path used by `toCutoff`): a square LFO stepping filter
-  coefficients would click.
-- **REQ-12** — Every factory preset carries `filter.model` and `filter.shape`
-  explicitly. Factory presets set the *full* sound ([presets.md](presets.md)
-  REQ-2b), so an omitted key would leak the previous patch's model on a preset
-  change.
-- **REQ-13** — The shared worklet contracts apply to **both** models unchanged:
-  the `setActive` idle gate ([ladder-filter.md](ladder-filter.md) REQ-10), the
-  block-constant cutoff coefficient hoist (REQ-11), the mono node (REQ-9), and
-  `cutoffNote` in MIDI-note units with additive semitone modulation
+- **REQ-shape-morphs-the-pole-mix** — `filter.shape` (`[0, 1]`, **default `0`**)
+  morphs the pole mix across four anchors — **LP24 → LP12 → BP12 → HP24** — as a
+  linear crossfade between adjacent anchors. `0` is LP24, so the default is a
+  plain 4-pole low-pass and the param is a no-op. The resonance feedback is
+  always taken from the **fourth** pole in every mode, so the peak tracks cutoff
+  throughout.
+- **REQ-shape-is-poly-only** — `SHAPE` is **POLY-only**. Under LADDER the DSP
+  ignores it and the UI dims the knob. The ladder's taps are saturated, so the
+  binomial cancellation that makes the high-pass anchors work would leak low
+  end.
+- **REQ-mix-coefficients-resolve-once-per-block** — The five mix coefficients
+  are resolved **once per block** when the `shape` array is all-equal (the
+  common case — the LFO is permanently connected, so a full 128-length array
+  always arrives), with a **per-sample** fallback when it is genuinely
+  modulated. Same scan-with-early-exit shape as
+  [ladder-filter.md](ladder-filter.md) REQ-filter-coefficients-hoist-per-block.
+- **REQ-switching-model-mid-note-is-safe** — Switching model **mid-note is
+  safe**: the four pole states carry over (they mean the same thing in both
+  models, so the switch is a character crossfade, not a reset), and the ladder's
+  carried saturations are **re-primed** from the current states on the switching
+  block so the ladder path resumes self-consistent. Output stays finite across
+  the switch.
+- **REQ-poly-trim-matches-the-levels** — **Level matching**: `POLY_TRIM` is
+  tuned so that at the *default* resonance (0.5) the two models put out the same
+  **passband** level — within 0.1 dB on a sub-cutoff sine — so flipping the
+  switch is an A/B of character rather than of loudness. Two honest caveats.
+  Away from that resonance they diverge by REQ-poly-preserves-the-low-end's ~10
+  dB, which is the feature. And **broadband** POLY reads about **2 dB hotter**
+  on harmonically rich material (measured on the `basic` patch's two saws),
+  because its linear stages pass harmonics the ladder's per-stage saturation
+  compresses away — brightness, not gain. Trimming that out would drag the
+  passband *below* the ladder and undo REQ-poly-preserves-the-low-end's whole
+  point.
+- **REQ-shape-is-an-lfo-destination** — `shape` is reachable as an **LFO
+  destination** (`'shape'` appended to `LFO_DEST_LABELS`) and, with no extra
+  code, as an **XY-pad axis** and a **motion-sequencer lane** — both address
+  `ParamBus` ids directly. The LFO's `toShape` hangs off the **smoothed** LFO
+  output (like `toAmp`/`toPan`, not the raw path used by `toCutoff`): a square
+  LFO stepping filter coefficients would click.
+- **REQ-every-preset-carries-model-and-shape** — Every factory preset carries
+  `filter.model` and `filter.shape` explicitly. Factory presets set the *full*
+  sound ([presets.md](presets.md) REQ-a-factory-preset-sets-the-full-sound), so an omitted key would leak the
+  previous patch's model on a preset change.
+- **REQ-shared-worklet-contracts-cover-both-models** — The shared worklet
+  contracts apply to **both** models unchanged: the `setActive` idle gate
+  ([ladder-filter.md](ladder-filter.md) REQ-the-filter-idles-when-gated), the block-constant cutoff
+  coefficient hoist (REQ-shape-is-an-lfo-destination), the mono node
+  (REQ-switching-model-mid-note-is-safe), and `cutoffNote` in MIDI-note units
+  with additive semitone modulation
   ([ADR-005](../decisions/adr-005-cutoff-as-midi-note.md)).
 
 ## Technical design
@@ -139,13 +151,13 @@ Per [ADR-006](../decisions/adr-006-no-op-param-defaults.md) the default is index
 
 ```yaml
 LadderFilterNode:  # src/audio/ladder-filter/node.ts — hosts BOTH models
-  model:  AudioParam   # k-rate, 0..1, 0 = ladder (REQ-1)
+  model:  AudioParam   # k-rate, 0..1, 0 = ladder (REQ-filter-model-is-a-discrete-param)
   shape:  AudioParam   # a-rate, 0..1, pole-mix morph; LFO sums in here (REQ-6/11)
   # (+ cutoffNote / resonance / drive / setActive per ladder-filter.md)
 Voice setters (per-voice, called by the engine):
   setFilterModel(m) / setFilterShape(s)
 LFO:  # src/audio/lfo.ts
-  toShape: GainNode    # fed from the SMOOTHED oscillator path (REQ-11)
+  toShape: GainNode    # fed from the SMOOTHED oscillator path (REQ-shape-is-an-lfo-destination)
 ```
 
 ### Data shapes (registry)
@@ -153,8 +165,8 @@ LFO:  # src/audio/lfo.ts
 ```yaml
 filter.model: { range: 0..1, default: 0, step: 1, taper: discrete, labels: FILTER_MODEL_LABELS }
 filter.shape: { range: 0..1, default: 0, format: fmtFilterShape }   # names the nearest anchor
-FILTER_MODEL_LABELS: ['ladder', 'poly']   # APPEND-ONLY (REQ-1)
-LFO_DEST_LABELS:     [..., 'shape']       # APPEND-ONLY, index 6 (REQ-11)
+FILTER_MODEL_LABELS: ['ladder', 'poly']   # APPEND-ONLY (REQ-filter-model-is-a-discrete-param)
+LFO_DEST_LABELS:     [..., 'shape']       # APPEND-ONLY, index 6 (REQ-shape-is-an-lfo-destination)
 ```
 
 ### The POLY recurrence
@@ -164,9 +176,9 @@ Same cascade, same half-sample feedback tap, three divergences (REQ-3/4/6):
 ```js
 const q3 = sat(s3);
 const fb = (q3 + q3prev) * 0.5;            // half-sample tap, as the ladder
-const x  = satWide(inCh[i] * drive);       // saturator #1 of 2 (REQ-4)
-const v  = x * (1 + res * BASS_COMP) - res * fb;   // bass preservation (REQ-3)
-s0 += g * (v  - s0);                       // linear stages (REQ-4)
+const x  = satWide(inCh[i] * drive);       // saturator #1 of 2 (REQ-poly-saturates-only-at-two-points)
+const v  = x * (1 + res * BASS_COMP) - res * fb;   // bass preservation (REQ-poly-preserves-the-low-end)
+s0 += g * (v  - s0);                       // linear stages (REQ-poly-saturates-only-at-two-points)
 s1 += g * (s0 - s1);
 s2 += g * (s1 - s2);
 s3 += g * (s2 - s3);
@@ -174,7 +186,7 @@ q3prev = q3;
 outCh[i] = (cv*v + c0*s0 + c1*s1 + c2*s2 + c3*s3) * POLY_TRIM;   // REQ-6/10
 ```
 
-**Why POLY's input rail is wider than the ladder's** (REQ-4) — this is the one
+**Why POLY's input rail is wider than the ladder's** (REQ-poly-saturates-only-at-two-points) — this is the one
 non-obvious thing in the model, and it was found by measurement. The ladder
 feeds back `sat(s_n)` *inside* each stage, so at DC `sat(s_n) === v` and the
 state settles at `sat⁻¹(v)`: the cascade **undoes** its own input saturation,
@@ -203,7 +215,7 @@ Anchor coefficient vectors over `[v, s0, s1, s2, s3]` — binomial, i.e.
 **Tuning constants are ear calls, not derivations** — the stance
 [ADR-010](../decisions/adr-010-musical-stable-cheap-dsp.md) takes on
 `RES_MAKEUP`. `BASS_COMP` (1.0), `POLY_HEADROOM` (3) and `POLY_TRIM` (0.85,
-REQ-10) were placed by measurement and settled by listening, so changing them is
+REQ-poly-trim-matches-the-levels) were placed by measurement and settled by listening, so changing them is
 a judgement call, not a bug fix.
 
 ### Layer touchpoints & ordering
@@ -215,7 +227,7 @@ a judgement call, not a bug fix.
    filter.shape -> all((v, x) => v.setFilterShape(x))
    per-voice wiring: lfo.toShape.connect(v.filter.shape)   # beside the toCutoff connect
 3_ui:        src/ui/app.ts  -> FILTER panel: Segmented('filter.model') + SHAPE knob
-             SHAPE is dimmed while filter.model === 0 (REQ-7)
+             SHAPE is dimmed while filter.model === 0 (REQ-shape-is-poly-only)
 init order:  unchanged — one loadModule, one node per voice
 ```
 
@@ -229,7 +241,7 @@ move — new scalars never bump it (ADR-007).
 ### Worklet message contract
 
 Unchanged. The `port` still carries only the boolean active flag
-([ladder-filter.md](ladder-filter.md) REQ-10), shared by both models — model
+([ladder-filter.md](ladder-filter.md) REQ-the-filter-idles-when-gated), shared by both models — model
 selection travels as an AudioParam, not a message, so it is sample-scheduled and
 automatable like everything else.
 
@@ -345,14 +357,14 @@ Scenario: Factory presets never leak a model (edge)
 
 - **SHAPE on the LADDER.** The pole mix could read the ladder's taps too, but
   they are saturated, so the binomial cancellation is imperfect and the
-  high-pass anchors would leak low end. Deliberately out of scope (REQ-7);
+  high-pass anchors would leak low end. Deliberately out of scope (REQ-shape-is-poly-only);
   revisit only with a measured answer.
 - **HP24 vs HP12 as the top anchor.** `[1, -2, 1, 0, 0]` is the gentler
   alternative. Decided by ear during implementation; record the winner here.
 - **More models.** The selector and the per-block branch generalise, so a third
   model (state-variable, Sallen-Key) is an append to `FILTER_MODEL_LABELS` plus
   one more loop.
-- **Which level match is the right one** (REQ-10). `POLY_TRIM` currently matches
+- **Which level match is the right one** (REQ-poly-trim-matches-the-levels). `POLY_TRIM` currently matches
   the *passband*; broadband, POLY reads ~2 dB hotter on saw material. Matching
   broadband instead would cost ~2 dB of the low end the model exists to keep.
   The passband was chosen because that is what the bass-preservation claim is

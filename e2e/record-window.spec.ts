@@ -34,13 +34,13 @@ test.describe('Record window', () => {
     await page.getByTestId('record-toggle').click();
     await expect.poll(() => phase(page)).toBe('paused');
     await expect(page.getByTestId('record-toggle')).toHaveText('Resume');
-    // Pausing the RECORDER leaves the transport alone (REQ-3).
+    // Pausing the RECORDER leaves the transport alone (REQ-pause-pauses-the-recorder-not-the-transport).
     expect(await page.evaluate(() => (window as any).__synth.engine.clock.playing)).toBe(true);
 
     await page.getByTestId('record-toggle').click();
     await page.getByTestId('record-stop').click();
     await expect.poll(() => phase(page)).toBe('review');
-    // REQ-4: stopping writes nothing. Save/Discard replace Record/Stop.
+    // REQ-the-timer-reports-the-take: stopping writes nothing. Save/Discard replace Record/Stop.
     await expect(page.getByTestId('record-save')).toHaveText('Save as WAV');
     await expect(page.getByTestId('record-toggle')).toBeHidden();
 
@@ -83,7 +83,7 @@ test.describe('Record window', () => {
     await expect(page.getByTestId('record-window')).toBeVisible();
     await expect(page.getByTestId('record-toggle')).toHaveText('Pause');
 
-    // A free take does NOT lock the playhead (transport-position.md REQ-6 v3):
+    // A free take does NOT lock the playhead (transport-position.md REQ-seeking-is-refused-in-three-states v3):
     // only an EXPORT bounds itself by absolute step. Asserted as the contract
     // plus its visible consequence — the landed step is not assertable, because
     // the transport is running and has moved on by the time we could read it.
@@ -103,7 +103,7 @@ test.describe('Record window', () => {
     await expect(page.getByTestId('record-window')).toBeVisible();
   });
 
-  test('closing with an unsaved take asks first (REQ-8)', async ({ page }) => {
+  test('closing with an unsaved take asks first (REQ-closing-mid-take-asks-first)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('tab-song').click();
     await page.getByTestId('song-record').click();

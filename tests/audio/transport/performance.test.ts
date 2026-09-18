@@ -61,7 +61,7 @@ describe('Performance.mapStep (stutter)', () => {
   });
 });
 
-// The sweep rides `detune`, in cents (performance.md REQ-10); 0 is transparent
+// The sweep rides `detune`, in cents (performance.md REQ-the-dj-sweep-rides-detune); 0 is transparent
 // on both sides. These mirror the spans in src/audio/transport/performance.ts.
 const DJ_LP_SPAN_CENTS = 1200 * Math.log2(130 / 20000);  // ~ -8800
 const DJ_HP_SPAN_CENTS = 1200 * Math.log2(4000 / 20);    // ~ +9171
@@ -72,7 +72,7 @@ function makePerf() {
   const clock = new TestClock();
   const bus = new ParamBus();
   registerDefaults(bus);
-  // A SERIES pair (performance.md REQ-9): lowpass then highpass, each holding the
+  // A SERIES pair (performance.md REQ-the-dj-filter-is-a-series-pair): lowpass then highpass, each holding the
   // type it was built with. `type` is set here only as the constructor would.
   const djLow = makeMockBiquadFilter();
   const djHigh = makeMockBiquadFilter();
@@ -92,7 +92,7 @@ function makePerf() {
 const targetedTo = (node: { detune: { setTargetAtTime: { mock: { calls: unknown[][] } } } }) =>
   (node.detune.setTargetAtTime.mock.calls.at(-1)?.[0] as number | undefined) ?? null;
 
-// performance.md REQ-7 — the stutter window is anchored to an ABSOLUTE step, so
+// performance.md REQ-a-seek-re-anchors-stutter — the stutter window is anchored to an ABSOLUTE step, so
 // a playhead jump would otherwise be folded back into the old window.
 describe('Performance stutter re-anchor on seek', () => {
   it('re-anchors to the new position instead of replaying the old window', () => {
@@ -161,7 +161,7 @@ describe('Performance.setDjFilter', () => {
   });
 
   /**
-   * REQ-9, regression. This is the whole point of the pair: a motion lane whose
+   * REQ-the-dj-filter-is-a-series-pair, regression. This is the whole point of the pair: a motion lane whose
    * anchors straddle centre used to flip a live biquad's type six times a bar,
    * and each flip swapped the coefficients under the filter's own state — a click
    * on the master bus, heard on every voice.
@@ -182,7 +182,7 @@ describe('Performance.setDjFilter', () => {
   });
 
   /**
-   * REQ-10, regression — the Firefox crackle. v6 cancelled both params and
+   * REQ-the-dj-sweep-rides-detune, regression — the Firefox crackle. v6 cancelled both params and
    * re-issued a scheduled ramp on every write; with the nodes seeded by `.value`
    * the cancel left NO preceding event, and Gecko restarts such a ramp from the
    * constructed value rather than the one the automation had reached. At the
@@ -198,7 +198,7 @@ describe('Performance.setDjFilter', () => {
     }
   });
 
-  it('sweeps detune and never writes either frequency (REQ-10)', () => {
+  it('sweeps detune and never writes either frequency (REQ-the-dj-sweep-rides-detune)', () => {
     const { perf, djLow, djHigh } = makePerf();
     for (let x = -1; x <= 1.0001; x += 0.01) perf.setDjFilter(Number(x.toFixed(3)));
     expect(djLow.detune.setTargetAtTime).toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe('Performance.setDjFilter', () => {
   });
 
   /**
-   * REQ-10 — only one side moves per gesture, so the resting side must not be
+   * REQ-the-dj-sweep-rides-detune — only one side moves per gesture, so the resting side must not be
    * rewritten once per value. v6 drove both on every call, doubling the
    * automation churn on the bus every voice passes through.
    */
@@ -235,7 +235,7 @@ describe('Performance.setDrop', () => {
     perf.setDrop(true);
     expect(targetedTo(djLow)).toBeCloseTo(DJ_DROP_CENTS);
     expect(djLow.Q.setTargetAtTime).toHaveBeenLastCalledWith(9, expect.any(Number), expect.any(Number));
-    // REQ-3: the drop overrides the knob, so the highpass side opens back out
+    // REQ-filter-drop-is-momentary: the drop overrides the knob, so the highpass side opens back out
     // rather than band-passing the dive.
     expect(targetedTo(djHigh)).toBe(0);
 
@@ -245,9 +245,9 @@ describe('Performance.setDrop', () => {
     expect(targetedTo(djHigh)).toBeCloseTo(DJ_HP_SPAN_CENTS * 0.5);
   });
 
-  // REQ-10 — v6 pinned the dive's start at `Math.max(f.value, 400)`, so from a
+  // REQ-the-dj-sweep-rides-detune — v6 pinned the dive's start at `Math.max(f.value, 400)`, so from a
   // knob already parked at 130 Hz it jumped *up* to 400 Hz instantaneously: a
-  // coefficient step, i.e. the click REQ-9 exists to abolish. It also read a
+  // coefficient step, i.e. the click REQ-the-dj-filter-is-a-series-pair exists to abolish. It also read a
   // live `.value`, which Gecko does not keep current under automation.
   it('glides the dive from wherever the filter is, with no jump and no .value read', () => {
     const { perf, bus, djLow } = makePerf();

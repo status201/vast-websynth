@@ -6,7 +6,8 @@ import { LFO_DEST_LABELS } from '../src/state/params';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * The second LFO and the panel that hosts it — lfo.md REQ-10..REQ-15.
+ * The second LFO and the panel that hosts it — lfo.md REQ-there-are-two-lfos
+ * through lfo.md REQ-the-two-lfos-share-one-panel.
  *
  * The tab strip and the greyed-out destination are the two things only a real
  * browser can show: both are `display`/`disabled` state that the jsdom suite
@@ -68,12 +69,12 @@ test.describe('LFO 2', () => {
     expect(await w('1')).toBeCloseTo(await w('2'), 1);
   });
 
-  test('LFO 2 may take a destination LFO 1 already holds (v8, REQ-12 superseded)', async ({ page }) => {
+  test('LFO 2 may take a destination LFO 1 already holds (v8, REQ-destinations-are-no-longer-exclusive superseded)', async ({ page }) => {
     await gotoAndStart(page);
     await page.getByTestId('ptab-lfo-2').click();
 
     // By testid, not by position: the page's other dropdown is the RATE knob's
-    // tempo-lock chip, and it comes first (tempo-lock.md REQ-3). Its options live
+    // tempo-lock chip, and it comes first (tempo-lock.md REQ-locked-the-division-replaces-the-dial). Its options live
     // in a popover, so open it — a closed menu is out of the a11y tree entirely.
     const destDd = page.getByTestId('dropdown-lfo2.dest');
     await destDd.locator('button').first().click();
@@ -82,7 +83,7 @@ test.describe('LFO 2', () => {
     await expect(cutoff).toBeEnabled();
     await busSet(page, 'lfo.dest', CUTOFF);
     // Still enabled: the mod matrix gave every route its own depth, so sharing a
-    // destination no longer costs anything and the two simply sum (lfo.md REQ-13).
+    // destination no longer costs anything and the two simply sum (lfo.md REQ-duplicated-destinations-sum-and-stay-bounded).
     await expect(cutoff).toBeEnabled();
     await expect(page.getByTestId('dest-taken-lfo2')).toHaveCount(0);
   });

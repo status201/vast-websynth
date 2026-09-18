@@ -7,7 +7,7 @@ import { vi } from 'vitest';
  * `output.send(data, timestamp)` spies.
  *
  * Inputs carry a writable `onmidimessage` because `midi.ts` is the sole owner
- * of that property (input-control.md REQ-7) — `receive()` below delivers bytes
+ * of that property (input-control.md REQ-one-module-owns-the-midi-access) — `receive()` below delivers bytes
  * through whatever handler the code under test assigned, so a test drives the
  * real dispatch rather than a copy of it.
  */

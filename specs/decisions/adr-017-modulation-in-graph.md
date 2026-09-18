@@ -48,21 +48,21 @@ destination has a real `AudioParam`.**
   voices by the `connectLfoToVoice` idiom in `engine.ts`; depth is a scalar on that gain. The
   graph is edited only when the player re-patches a row, and then only while the gain is ramped
   to zero — never per frame, per tick or per note ([mod-matrix](../features/mod-matrix.md)
-  REQ-1). This is `mod-matrix.md`.
+  REQ-one-gain-per-route-rewired-while-silent). This is `mod-matrix.md`.
 - **Automation** — stepped or gestural, at the perf tier's 15/30/60 fps, from a *timeline or
   gesture* (motion lanes, XY Pad, Tape Stop) into **any registered param** via
   `bus.set` under `withoutChangeSignal` ([runtime-performance](../features/runtime-performance.md)
-  REQ-5). This is `motion-sequencer.md` and `xy-pad.md`.
+  REQ-automation-is-not-an-edit). This is `motion-sequencer.md` and `xy-pad.md`.
 
 A destination that is not an `AudioParam` is therefore **not offered by the matrix** — the
 `pulse` destination is the worked example: it has no node, it is a 240 Hz `setPeriodicWave` write,
-and so it stays *arbitrated* (lowest source index wins, `lfo.md` REQ-14) rather than summed.
+and so it stays *arbitrated* (lowest source index wins, `lfo.md` REQ-pulse-is-arbitrated) rather than summed.
 
 ## Alternatives considered
 
 - **A bus-side matrix reaching every registered param** — rejected: eight routes at 60 fps is ~480
   main-thread writes per second, each fanning out through the per-param listener chain. That is
-  the cost [runtime-performance](../features/runtime-performance.md) REQ-5/REQ-6 exist to bound,
+  the cost [runtime-performance](../features/runtime-performance.md) REQ-automation-is-not-an-edit/REQ-no-allocation-in-a-hot-loop exist to bound,
   and the motion sequencer's REQ-18 records what it looked like the last time this loop was hot
   enough to matter (it starved the autosave debounce entirely). It also re-implements the motion
   sequencer's job with a different UI.

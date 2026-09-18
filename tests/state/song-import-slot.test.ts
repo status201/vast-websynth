@@ -1,12 +1,13 @@
-// The import-overwrite gate (session-autosave.md REQ-14/14b, untrusted-input.md
-// REQ-9). A song's NAME comes from the file, so with a share link it is
+// The import-overwrite gate (session-autosave.md
+// REQ-the-undo-net-covers-the-session/REQ-an-identical-slot-is-not-a-conflict, untrusted-input.md
+// REQ-an-import-may-not-destroy-saved-work). A song's NAME comes from the file, so with a share link it is
 // attacker-chosen — and `Song.saveSlot` used to run unconditionally on every
 // import. A link whose song is called "My Song" destroyed the user's slot of
 // that name at boot, and the load-undo toast could not undo it: it restores the
 // in-memory session, not localStorage.
 //
 // But the gate asks "may I destroy this?", so it may only ask when the bytes
-// actually differ (REQ-14b): a name match against an IDENTICAL slot used to
+// actually differ (REQ-an-identical-slot-is-not-a-conflict): a name match against an IDENTICAL slot used to
 // re-prompt on every re-import, so "Replace it" never stuck.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installLocalStorageMock } from '../storage-mock';
@@ -46,7 +47,7 @@ describe('Song.planImportSave', () => {
     });
   });
 
-  it('reports no conflict when the slot already holds this exact song (REQ-14b)', () => {
+  it('reports no conflict when the slot already holds this exact song (REQ-an-identical-slot-is-not-a-conflict)', () => {
     // The bug: name-only matching re-asked "Replace your saved song?" every time
     // the same share link was re-opened, so answering "Replace it" never stuck.
     Song.saveSlot('test-bootleg', songNamed('test-bootleg'));
@@ -55,7 +56,7 @@ describe('Song.planImportSave', () => {
     });
   });
 
-  it('asks again once the song under that name has changed (REQ-14b, boundary)', () => {
+  it('asks again once the song under that name has changed (REQ-an-identical-slot-is-not-a-conflict, boundary)', () => {
     Song.saveSlot('test-bootleg', songNamed('test-bootleg'));
     expect(Song.planImportSave(editedSong('test-bootleg')).conflict).toBe(true);
   });
@@ -110,7 +111,7 @@ describe('Song.planImportSave', () => {
   });
 });
 
-// The Save button's half of the same gate (session-autosave.md REQ-14c). Save
+// The Save button's half of the same gate (session-autosave.md REQ-every-slot-write-is-guarded). Save
 // used to call saveSlot unconditionally — typing a name another song already
 // held destroyed it with no dialog and no undo. `from` is the slot the session
 // came from, which is what separates "save my own song again" (silent) from
@@ -147,7 +148,7 @@ describe('Song.planSlotSave', () => {
   });
 
   it('never asks when the slot already holds this exact song', () => {
-    // Nothing to destroy (REQ-14b) — provenance does not even come into it.
+    // Nothing to destroy (REQ-an-identical-slot-is-not-a-conflict) — provenance does not even come into it.
     Song.saveSlot('test-twin', songNamed('test-twin'));
     expect(Song.planSlotSave(songNamed('test-twin'), null).conflict).toBe(false);
   });

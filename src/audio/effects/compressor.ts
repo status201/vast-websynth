@@ -93,7 +93,7 @@ export class Compressor extends WrappedEffect {
    */
   bind(bus: ParamBus, prefix: string, ratios: number[], releases?: number[]): void {
     // Defines no setMix, so this subscribes `.on` alone — a compressor has no
-    // dry/wet and no `.mix` param to subscribe (effects.md REQ-1).
+    // dry/wet and no `.mix` param to subscribe (effects.md REQ-every-effect-implements-the-interface).
     bindBypassMix(bus, prefix, this);
     bus.subscribe(`${prefix}.threshold`, (x) => this.setThreshold(x));
     bus.subscribe(`${prefix}.ratio`, (x) => this.setRatio(ratios[Math.round(x)] ?? ratios[0]!));

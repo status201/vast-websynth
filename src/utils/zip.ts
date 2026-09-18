@@ -1,6 +1,6 @@
 /**
  * Minimal dependency-free ZIP codec (ADR-003: no runtime deps) for the
- * project-export bundle (project-export.md REQ-2). Deliberately small:
+ * project-export bundle (project-export.md REQ-zip-codec-is-hand-written-and-budgeted). Deliberately small:
  *
  * Writer — local headers + central directory + EOCD. UTF-8 names (bit 11),
  * a fixed DOS timestamp so output is deterministic. `.json` entries are
@@ -179,7 +179,7 @@ export async function zipRead(bytes: Uint8Array): Promise<ZipEntry[]> {
     throw new ZipError('Zip64 archives are not supported.');
   }
   if (centralOffset >= bytes.length) throw new ZipError('Corrupt zip (central directory out of range).');
-  // A zip is untrusted input (untrusted-input.md REQ-2): refuse an absurd entry
+  // A zip is untrusted input (untrusted-input.md REQ-bounds-in-the-validator-sizes-in-the-codec): refuse an absurd entry
   // count before walking it, so the loop below can never be the attack.
   if (count > MAX_ZIP_ENTRIES) {
     throw new ZipError(`Zip has ${count} entries — the limit is ${MAX_ZIP_ENTRIES}.`);
